@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unistrut P1000HS Beam Load Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .input-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .input-section h2 {
+            color: #2a5298;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #2a5298;
+            padding-bottom: 10px;
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .input-group label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .input-group select,
+        .input-group input {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+        
+        .input-group select:focus,
+        .input-group input:focus {
+            outline: none;
+            border-color: #2a5298;
+            box-shadow: 0 0 0 3px rgba(42, 82, 152, 0.1);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .calc-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+            width: 100%;
+        }
+        
+        .calc-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .results-section {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 25px;
+            display: none;
+        }
+        
+        .results-section.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .results-section h2 {
+            color: #1e3c72;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            text-align: center;
+        }
+        
+        .calculation-steps {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .calculation-steps h3 {
+            color: #2a5298;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .step {
+            padding: 15px;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        
+        .step-header {
+            font-weight: 600;
+            color: #1e3c72;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .step-formula {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .step-result {
+            font-weight: 600;
+            color: #2a5298;
+            margin-top: 10px;
+            font-size: 1.1em;
+        }
+        
+        .final-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .result-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .result-card h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .result-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .result-unit {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .load-table {
+            width: 100%;
+            margin-top: 20px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .load-table h3 {
+            background: #1e3c72;
+            color: white;
+            padding: 15px;
+            margin: 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #2a5298;
+            color: white;
+            font-weight: 600;
+        }
+        
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .highlight-row {
+            background: #fff3cd !important;
+            font-weight: 600;
+        }
+        
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .info-box h4 {
+            color: #1976D2;
+            margin-bottom: 10px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        
+        .warning-box h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .result-value {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Unistrut P1000HS Beam Load Calculator</h1>
+            <p>1-5/8" x 1-5/8", 12 Gauge with Round Holes (HS)</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Based on AISI ASD Method | Safety Factor 1.67 for Beam Loads</p>
+        </div>
+        
+        <div class="content">
+            <div class="input-section">
+                <h2>Input Parameters</h2>
+                
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label for="span">Span Length (inches):</label>
+                        <select id="span">
+                            <option value="24">24 inches (2 ft)</option>
+                            <option value="36">36 inches (3 ft)</option>
+                            <option value="48" selected>48 inches (4 ft)</option>
+                            <option value="60">60 inches (5 ft)</option>
+                            <option value="72">72 inches (6 ft)</option>
+                            <option value="84">84 inches (7 ft)</option>
+                            <option value="96">96 inches (8 ft)</option>
+                            <option value="108">108 inches (9 ft)</option>
+                            <option value="120">120 inches (10 ft)</option>
+                            <option value="144">144 inches (12 ft)</option>
+                            <option value="168">168 inches (14 ft)</option>
+                            <option value="192">192 inches (16 ft)</option>
+                            <option value="216">216 inches (18 ft)</option>
+                            <option value="240">240 inches (20 ft)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="deflectionLimit">Deflection Limit:</label>
+                        <select id="deflectionLimit">
+                            <option value="none" selected>Maximum Allowed (No Deflection Limit)</option>
+                            <option value="180">Span/180</option>
+                            <option value="240">Span/240</option>
+                            <option value="360">Span/360</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="unbracedLength">Unbraced Length (inches):</label>
+                        <input type="number" id="unbracedLength" value="48" min="0" step="1">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="midspanLoading">
+                    <label for="midspanLoading">Midspan Point Load (instead of uniform load)</label>
+                </div>
+                
+                <div class="info-box">
+                    <h4>Channel Information</h4>
+                    <p><strong>Channel Type:</strong> P1000HS - Round Holes on Back Side</p>
+                    <p><strong>Channel Weight:</strong> 1.887 lbs/ft (based on 0.555 in² area and steel density)</p>
+                    <p><strong>Note:</strong> Load table values already include Safety Factor of 1.67 and account for round holes</p>
+                </div>
+                
+                <button class="calc-button" onclick="calculate()">Calculate Beam Capacity</button>
+            </div>
+            
+            <div class="results-section" id="resultsSection">
+                <h2>Calculation Results</h2>
+                
+                <div class="calculation-steps" id="calculationSteps">
+                    <!-- Steps will be populated by JavaScript -->
+                </div>
+                
+                <div class="final-results">
+                    <div class="result-card">
+                        <h3>Net Allowable Uniform Load</h3>
+                        <div class="result-value" id="finalUniformLoad">-</div>
+                        <div class="result-unit">Total Load (lbs)</div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>Uniform Load per Foot</h3>
+                        <div class="result-value" id="uniformLoadPerFoot">-</div>
+                        <div class="result-unit">lbs/ft (PLF)</div>
+                    </div>
+                    
+                    <div class="result-card" id="midspanCard" style="display: none;">
+                        <h3>Allowable Midspan Point Load</h3>
+                        <div class="result-value" id="midspanLoad">-</div>
+                        <div class="result-unit">lbs</div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>Expected Deflection</h3>
+                        <div class="result-value" id="deflection">-</div>
+                        <div class="result-unit">inches</div>
+                    </div>
+                </div>
+                
+                <div class="load-table">
+                    <h3>P1000HS Beam Load Table (Reference)</h3>
+                    <table id="loadTable">
+                        <thead>
+                            <tr>
+                                <th>Span (in)</th>
+                                <th>Max Allowed<br>Uniform Load (lbs)</th>
+                                <th>Deflection at<br>Uniform Load (in)</th>
+                                <th>Span/180<br>(lbs)</th>
+                                <th>Span/240<br>(lbs)</th>
+                                <th>Span/360<br>(lbs)</th>
+                                <th>Lateral Bracing<br>Factor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Table will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="warning-box">
+                    <h4>Important Notes:</h4>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>These calculations assume adequate lateral bracing. Unbraced spans reduce capacity.</li>
+                        <li>Loads are based on 33 ksi steel cold formed to 42 ksi.</li>
+                        <li>Safety Factor to Yield Strength is 1.67 for Beam Loads.</li>
+                        <li>Beam loads are based on a simple span (two supports).</li>
+                        <li>For actual design, consult with a Professional Engineer.</li>
+                        <li>NR = Not Recommended for the specified deflection limit.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // P1000HS Load Table Data
+        const loadTableData = [
+            {span: 24, maxLoad: 1521, deflection: 0.06, span180: 1521, span240: 1521, span360: 1521, bracingFactor: 1.00},
+            {span: 36, maxLoad: 1017, deflection: 0.13, span180: 1017, span240: 1017, span360: 810, bracingFactor: 0.94},
+            {span: 48, maxLoad: 765, deflection: 0.22, span180: 765, span240: 684, span360: 450, bracingFactor: 0.88},
+            {span: 60, maxLoad: 612, deflection: 0.35, span180: 585, span240: 432, span360: 288, bracingFactor: 0.82},
+            {span: 72, maxLoad: 504, deflection: 0.50, span180: 405, span240: 306, span360: 198, bracingFactor: 0.78},
+            {span: 84, maxLoad: 432, deflection: 0.68, span180: 297, span240: 225, span360: 144, bracingFactor: 0.75},
+            {span: 96, maxLoad: 378, deflection: 0.89, span180: 225, span240: 171, span360: 117, bracingFactor: 0.71},
+            {span: 108, maxLoad: 342, deflection: 1.14, span180: 180, span240: 135, span360: 90, bracingFactor: 0.69},
+            {span: 120, maxLoad: 306, deflection: 1.40, span180: 144, span240: 108, span360: 72, bracingFactor: 0.66},
+            {span: 144, maxLoad: 252, deflection: 2.00, span180: 99, span240: 72, span360: 54, bracingFactor: 0.61},
+            {span: 168, maxLoad: 216, deflection: 2.72, span180: 72, span240: 54, span360: 36, bracingFactor: 0.55},
+            {span: 192, maxLoad: 189, deflection: 3.55, span180: 54, span240: 45, span360: 'NR', bracingFactor: 0.51},
+            {span: 216, maxLoad: 171, deflection: 4.58, span180: 45, span240: 36, span360: 'NR', bracingFactor: 0.47},
+            {span: 240, maxLoad: 153, deflection: 5.62, span180: 36, span240: 'NR', span360: 'NR', bracingFactor: 0.44}
+        ];
+        
+        // Constants
+        const CHANNEL_WEIGHT_PER_FOOT = 1.887; // lbs/ft (0.555 in² * 0.2833 lb/in³ / 12 in/ft * 12 in/ft)
+        
+        // Populate load table on page load
+        function populateLoadTable() {
+            const tbody = document.querySelector('#loadTable tbody');
+            tbody.innerHTML = '';
+            
+            loadTableData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.span}</td>
+                    <td>${row.maxLoad}</td>
+                    <td>${row.deflection.toFixed(2)}</td>
+                    <td>${row.span180 === 'NR' ? 'NR' : row.span180}</td>
+                    <td>${row.span240 === 'NR' ? 'NR' : row.span240}</td>
+                    <td>${row.span360 === 'NR' ? 'NR' : row.span360}</td>
+                    <td>${row.bracingFactor.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        // Get unbraced length factor
+        function getUnbracedLengthFactor(unbracedLength, span) {
+            // Find the closest bracing factor from the table
+            const spanData = loadTableData.find(d => d.span === parseInt(span));
+            if (!spanData) return 1.0;
+            
+            // If unbraced length equals span, use the bracing factor
+            if (unbracedLength >= span) {
+                return spanData.bracingFactor;
+            }
+            
+            // For shorter unbraced lengths, interpolate or use 1.0
+            // In practice, if adequately braced (unbraced length < span/2), use 1.0
+            if (unbracedLength <= span / 2) {
+                return 1.0;
+            }
+            
+            // Linear interpolation between span/2 and span
+            const factor = 1.0 + (spanData.bracingFactor - 1.0) * ((unbracedLength - span/2) / (span/2));
+            return Math.max(factor, spanData.bracingFactor);
+        }
+        
+        function calculate() {
+            const span = parseInt(document.getElementById('span').value);
+            const deflectionLimit = document.getElementById('deflectionLimit').value;
+            const unbracedLength = parseFloat(document.getElementById('unbracedLength').value);
+            const midspanLoading = document.getElementById('midspanLoading').checked;
+            
+            // Find span data
+            const spanData = loadTableData.find(d => d.span === span);
+            if (!spanData) {
+                alert('Invalid span selected');
+                return;
+            }
+            
+            let stepsHTML = '<h3>4-Step Calculation Process</h3>';
+            
+            // Step 1: Determine Maximum Allowable Uniform Load
+            let step1Load;
+            let deflectionType;
+            
+            if (deflectionLimit === 'none') {
+                step1Load = spanData.maxLoad;
+                deflectionType = 'Maximum Allowed';
+            } else if (deflectionLimit === '180') {
+                step1Load = spanData.span180;
+                deflectionType = 'Span/180';
+            } else if (deflectionLimit === '240') {
+                step1Load = spanData.span240;
+                deflectionType = 'Span/240';
+            } else if (deflectionLimit === '360') {
+                step1Load = spanData.span360;
+                deflectionType = 'Span/360';
+            }
+            
+            if (step1Load === 'NR') {
+                alert('This deflection limit is Not Recommended (NR) for the selected span. Please choose a different deflection limit or span.');
+                return;
+            }
+            
+            stepsHTML += `
+                <div class="step">
+                    <div class="step-header">Step 1: Determine Maximum Allowable Uniform Load from Load Table</div>
+                    <p>Span: ${span} inches (${(span/12).toFixed(2)} feet)</p>
+                    <p>Deflection Limit: ${deflectionType}</p>
+                    <p><em>Note: Load table values already account for round holes in P1000HS channel</em></p>
+                    <div class="step-formula">W₁ = ${step1Load} lbs</div>
+                    <div class="step-result">Result: ${step1Load} lbs</div>
+                </div>
+            `;
+            
+            // Step 2: Multiply by Unbraced Length Factor
+            const unbracedFactor = getUnbracedLengthFactor(unbracedLength, span);
+            const step2Load = step1Load * unbracedFactor;
+            stepsHTML += `
+                <div class="step">
+                    <div class="step-header">Step 2: Multiply by Unbraced Length Factor</div>
+                    <p>Unbraced Length: ${unbracedLength} inches</p>
+                    <p>Span: ${span} inches</p>
+                    <p>Lateral Bracing Factor from table: ${spanData.bracingFactor.toFixed(2)}</p>
+                    <p>Applied Factor: ${unbracedFactor.toFixed(3)}</p>
+                    <div class="step-formula">W₂ = W₁ × Unbraced Length Factor<br>W₂ = ${step1Load} × ${unbracedFactor.toFixed(3)}</div>
+                    <div class="step-result">Result: ${step2Load.toFixed(2)} lbs</div>
+                </div>
+            `;
+            
+            // Step 3: Subtract Channel Weight
+            const channelLength = span / 12; // feet
+            const channelWeight = CHANNEL_WEIGHT_PER_FOOT * channelLength;
+            const step3Load = step2Load - channelWeight;
+            stepsHTML += `
+                <div class="step">
+                    <div class="step-header">Step 3: Subtract Channel Weight</div>
+                    <p>Channel Weight: ${CHANNEL_WEIGHT_PER_FOOT.toFixed(3)} lbs/ft</p>
+                    <p>Channel Length: ${channelLength.toFixed(2)} feet</p>
+                    <p>Total Channel Weight: ${CHANNEL_WEIGHT_PER_FOOT.toFixed(3)} × ${channelLength.toFixed(2)} = ${channelWeight.toFixed(2)} lbs</p>
+                    <div class="step-formula">W₃ = W₂ - Channel Weight<br>W₃ = ${step2Load.toFixed(2)} - ${channelWeight.toFixed(2)}</div>
+                    <div class="step-result">Result: ${step3Load.toFixed(2)} lbs (Net Allowable Uniform Load)</div>
+                </div>
+            `;
+            
+            // Step 4: Midspan loading (if applicable)
+            let step4Load = null;
+            if (midspanLoading) {
+                step4Load = step3Load * 0.5;
+                stepsHTML += `
+                    <div class="step">
+                        <div class="step-header">Step 4: Multiply by 50% for Midspan Point Load</div>
+                        <p>For concentrated load at center of span, multiply by 0.5</p>
+                        <div class="step-formula">P = W₃ × 0.5<br>P = ${step3Load.toFixed(2)} × 0.5</div>
+                        <div class="step-result">Result: ${step4Load.toFixed(2)} lbs (Allowable Midspan Point Load)</div>
+                    </div>
+                `;
+            } else {
+                stepsHTML += `
+                    <div class="step">
+                        <div class="step-header">Step 4: Midspan Point Load</div>
+                        <p>Not applicable - uniform loading selected</p>
+                        <div class="step-result">No adjustment needed</div>
+                    </div>
+                `;
+            }
+            
+            // Additional Calculations
+            stepsHTML += '<h3 style="margin-top: 30px;">Additional Calculations</h3>';
+            
+            // Uniform load per foot
+            const uniformLoadPerFoot = step3Load / channelLength;
+            stepsHTML += `
+                <div class="step">
+                    <div class="step-header">Uniform Load per Foot (PLF)</div>
+                    <p>Divide total allowable uniform load by span length in feet</p>
+                    <div class="step-formula">w = W / L<br>w = ${step3Load.toFixed(2)} lbs ÷ ${channelLength.toFixed(2)} ft</div>
+                    <div class="step-result">Result: ${uniformLoadPerFoot.toFixed(2)} lbs/ft (PLF)</div>
+                </div>
+            `;
+            
+            // Calculate expected deflection (proportional to actual load vs table load)
+            const loadRatio = step3Load / step1Load;
+            const expectedDeflection = spanData.deflection * loadRatio;
+            stepsHTML += `
+                <div class="step">
+                    <div class="step-header">Expected Deflection</div>
+                    <p>Deflection at table load: ${spanData.deflection.toFixed(2)} inches</p>
+                    <p>Load ratio: ${step3Load.toFixed(2)} / ${step1Load} = ${loadRatio.toFixed(4)}</p>
+                    <div class="step-formula">δ = δ_table × (W_actual / W_table)<br>δ = ${spanData.deflection.toFixed(2)} × ${loadRatio.toFixed(4)}</div>
+                    <div class="step-result">Result: ${expectedDeflection.toFixed(3)} inches</div>
+                </div>
+            `;
+            
+            // Update results
+            document.getElementById('calculationSteps').innerHTML = stepsHTML;
+            
+            // Update final results
+            document.getElementById('finalUniformLoad').textContent = step3Load.toFixed(1);
+            document.getElementById('uniformLoadPerFoot').textContent = uniformLoadPerFoot.toFixed(1);
+            document.getElementById('deflection').textContent = expectedDeflection.toFixed(3);
+            
+            if (midspanLoading) {
+                document.getElementById('midspanCard').style.display = 'block';
+                document.getElementById('midspanLoad').textContent = step4Load.toFixed(1);
+            } else {
+                document.getElementById('midspanCard').style.display = 'none';
+            }
+            
+            // Highlight the selected row in the table
+            const rows = document.querySelectorAll('#loadTable tbody tr');
+            rows.forEach((row, index) => {
+                if (loadTableData[index].span === span) {
+                    row.classList.add('highlight-row');
+                } else {
+                    row.classList.remove('highlight-row');
+                }
+            });
+            
+            // Show results
+            document.getElementById('resultsSection').classList.add('show');
+            
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        
+        // Initialize table on page load
+        document.addEventListener('DOMContentLoaded', populateLoadTable);
+    </script>
+<script src="/are-utils.js"></script>
+</body>
+</html>

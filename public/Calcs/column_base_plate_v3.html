@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Column Base Plate Designer — AISC DG1 | ARE</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef1f6;min-height:100vh}
+
+.hdr{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;padding:13px 22px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.logo{background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.4);border-radius:8px;padding:5px 12px;font-size:20px;font-weight:900;letter-spacing:2px}
+.ht1{font-size:17px;font-weight:700}.ht2{font-size:11px;opacity:.75;margin-top:2px}
+
+.toolbar{background:#fff;border-bottom:2px solid #d8dde8;padding:9px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.btn-load{background:#2a5298;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap}
+.btn-load:hover{background:#1e3c72}
+.btn-ra{background:#2e7d32;color:#fff;border:none;padding:7px 18px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:700}
+.btn-ra:hover{background:#1b5e20}
+.mbr-ct{font-size:12px;color:#555}
+.legend{display:flex;gap:6px;margin-left:auto;font-size:11px;align-items:center}
+.lg{padding:3px 8px;border-radius:4px;font-weight:700}
+.lg-ok{background:#e8f5e9;color:#1b7a1b}.lg-warn{background:#fff9e6;color:#8a6000}
+.lg-hi{background:#fff3e0;color:#c45000}.lg-ng{background:#ffebee;color:#c00}
+
+.tbl-wrap{overflow-x:auto;padding:12px 14px 12px;-webkit-overflow-scrolling:touch}
+
+#mt{border-collapse:collapse;font-size:11.5px;white-space:nowrap}
+#mt th,#mt td{border:1px solid #c8cfd9;padding:3px 5px}
+#mt thead tr:first-child th{background:#1e3c72;color:#fff;font-size:11px;font-weight:700;text-align:center}
+#mt thead tr:last-child th{background:#2d5fa0;color:#fff;font-size:10px;font-weight:700;text-align:center}
+.gh-f{background:#37474f !important}.gh-c{background:#455a64 !important}
+.gh-r{background:#1b5e20 !important}.gh-cc{background:#4a235a !important}
+
+#mt tbody tr.dr:nth-child(4n+1) td,#mt tbody tr.dr:nth-child(4n+2) td{background:#fafbfd}
+#mt tbody tr.dr:nth-child(4n+3) td,#mt tbody tr.dr:nth-child(4n+4) td{background:#f3f5fa}
+#mt tbody tr.dr:hover td{background:#e3eaf9 !important}
+
+.scol{position:sticky;left:0;z-index:3;font-weight:600;font-size:11px;min-width:148px;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+#mt thead th.scol{background:#1e3c72 !important;z-index:5}
+#mt tbody tr.dr:nth-child(4n+1) td.scol,#mt tbody tr.dr:nth-child(4n+2) td.scol{background:#fafbfd}
+#mt tbody tr.dr:nth-child(4n+3) td.scol,#mt tbody tr.dr:nth-child(4n+4) td.scol{background:#f3f5fa}
+#mt tbody tr.dr:hover td.scol{background:#e3eaf9 !important}
+
+.isml{border:1px solid #b8c2d4;border-radius:3px;padding:2px 3px;font-size:11px;text-align:right;background:#fff;font-family:inherit}
+.isml:focus{outline:none;border-color:#2a5298;background:#fffde7}
+select.ssml{border:1px solid #b8c2d4;border-radius:3px;padding:2px 2px;font-size:11px;background:#fff;font-family:inherit}
+select.ssml:focus{outline:none;border-color:#2a5298}
+input[type=checkbox]{width:13px;height:13px;cursor:pointer;vertical-align:middle}
+
+.dc{text-align:center;font-weight:700;font-size:11px;min-width:48px}
+.na{color:#aaa;font-style:italic;font-weight:normal}
+.ok{color:#1b7a1b;background:#e8f5e9 !important}
+.wrn{color:#8a6000;background:#fff9e6 !important}
+.hi{color:#c45000;background:#fff3e0 !important}
+.ng{color:#c00;background:#ffebee !important}
+.gov{font-size:10px;font-weight:700;text-align:center;color:#333;min-width:42px}
+
+.brun{background:#2e7d32;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700}
+.brun:hover{background:#1b5e20}
+.bcalc{background:#2a5298;color:#fff;border:none;padding:3px 7px;border-radius:4px;cursor:pointer;font-size:11px}
+.bcalc:hover{background:#1e3c72}
+.bcalc:disabled{background:#b0b8c8;cursor:default}
+
+tr.cdet td{padding:0 !important;border-top:2px solid #2a5298 !important;background:#f6f8fe !important}
+.dinn{padding:14px 18px;font-size:11.5px}
+.dinn h4{color:#1e3c72;font-size:13px;margin-bottom:10px;border-bottom:1px solid #c0c8de;padding-bottom:7px}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:9px;margin-bottom:12px}
+.ccard{background:#fff;border:1px solid #cdd5e8;border-radius:6px;padding:9px 11px}
+.ccard.cok{border-left:4px solid #2e7d32}.ccard.cwrn{border-left:4px solid #f9a825}
+.ccard.cng{border-left:4px solid #c00}.ccard.cinf{border-left:4px solid #2a5298}
+.ccard.cconc{border-left:4px solid #7b1fa2}
+.cn{font-weight:700;font-size:11px;color:#1e3c72;margin-bottom:3px}
+.cr{font-size:10px;color:#777;margin-bottom:5px}
+.ceq{font-size:11px;font-family:Consolas,monospace;background:#f0f3fa;padding:4px 7px;border-radius:3px;line-height:1.65;margin:3px 0}
+.cdc{font-size:12px;font-weight:700;text-align:right;padding-top:3px}
+.stbl{margin-top:10px;border-collapse:collapse;font-size:11px;width:100%}
+.stbl th{background:#1e3c72;color:#fff;padding:4px 8px;text-align:center}
+.stbl td{padding:4px 8px;border:1px solid #d0d5e0;text-align:center}
+
+/* Footnotes */
+.ftnt{background:#fff;border-top:2px solid #2a5298;padding:14px 20px;font-size:11px;color:#444;margin:0}
+.ftnt h5{font-size:12px;color:#1e3c72;margin-bottom:8px;font-weight:700}
+.ftnt ol{padding-left:18px;line-height:1.9}
+.ftnt li b{color:#1e3c72}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="logo">ARE</div>
+  <div>
+    <div class="ht1">Column Base Plate Designer &mdash; AISC DG1 (2nd Ed.) + ACI 318-19</div>
+    <div class="ht2">AISC Design Guide 1 &bull; AISC 360-22 &bull; ACI 318-19 Chapter 17 &bull; LRFD &bull; Anderson Rohr Engineering</div>
+  </div>
+  <span class="mbr-ct" id="mbrCt" style="margin-left:auto;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:4px;font-size:12px">47 members</span>
+</div>
+
+<div class="toolbar">
+  <label class="btn-load">&#128194; Load RISA Excel
+    <input type="file" id="xlFile" accept=".xlsx,.xls" style="display:none" onchange="loadExcel(this)">
+  </label>
+  <button class="btn-ra" onclick="runAll()">&#9654;&#9654; Run All</button>
+  <span class="mbr-ct" id="runNote" style="font-size:11px;color:#888">Default: HSS 6&times;6&times;1/4 &bull; h<sub>ef</sub>=8&Prime; &bull; c<sub>edge</sub>=18&Prime;</span>
+  <div class="legend">
+    D/C: <span class="lg lg-ok">&le;0.90 OK</span>
+    <span class="lg lg-warn">0.90&ndash;1.00</span>
+    <span class="lg lg-hi">1.00&ndash;1.20</span>
+    <span class="lg lg-ng">&gt;1.20 NG</span>
+  </div>
+</div>
+
+<div class="tbl-wrap">
+<table id="mt">
+<thead>
+  <tr>
+    <th rowspan="2" class="scol">Member</th>
+    <th rowspan="2" title="Brace/tension member">&#9733;</th>
+    <th colspan="3" class="gh-f">Design Forces (RISA I-End)</th>
+    <th colspan="11" class="gh-c">Plate &amp; Bolt Configuration</th>
+    <th colspan="5" class="gh-r">Steel Checks &mdash; D/C</th>
+    <th colspan="2" class="gh-cc">Concrete &mdash; D/C</th>
+    <th rowspan="2" title="Governing check">Gov</th>
+    <th rowspan="2">Run</th>
+    <th rowspan="2">Calc</th>
+  </tr>
+  <tr>
+    <th title="Factored axial (kips)">Pu (k)</th>
+    <th title="Resultant shear (kips)">Vu (k)</th>
+    <th title="Resultant moment (k-ft)">Mu<br>(k&middot;ft)</th>
+    <th>Sec Type</th><th>Section</th>
+    <th title="Plate length">N &Prime;</th><th title="Plate width">B &Prime;</th>
+    <th title="Plate thickness">tp &Prime;</th>
+    <th title="Anchor bolt count">n</th>
+    <th title="Anchor bolt diameter">Bolt &#8960;</th>
+    <th title="Concrete f'c (ksi)">f&prime;c<br>ksi</th>
+    <th title="Anchor embedment depth (in)">h<sub>ef</sub><br>&Prime;</th>
+    <th title="Min concrete edge distance to anchor (in)">c<sub>edge</sub><br>&Prime; <span style="font-size:9px">&#9651;</span></th>
+    <th title="Bolt gauge / bolt-to-bolt spacing (in)">sg<br>&Prime;</th>
+    <th title="Bearing pressure D/C">Bear</th>
+    <th title="Plate thickness compression D/C">Plt&#8209;C</th>
+    <th title="Shear friction / anchor rod shear D/C">Shear</th>
+    <th title="Anchor rod steel tension D/C">Bolt&#8209;T</th>
+    <th title="Combined T+V interaction D/C">T+V</th>
+    <th title="Concrete breakout + pullout tension D/C (ACI 318 §17.6) [1]">Conc&#8209;T <span style="font-size:9px">&#9315;</span></th>
+    <th title="Concrete breakout + pryout shear D/C (ACI 318 §17.7) [1]">Conc&#8209;V <span style="font-size:9px">&#9315;</span></th>
+  </tr>
+</thead>
+<tbody id="tblBody"></tbody>
+</table>
+</div>
+
+<!-- ── Footnotes ─────────────────────────────────────────────────────────── -->
+<div class="ftnt">
+  <h5>&#9432; Calculation Notes &amp; Assumptions</h5>
+  <ol>
+    <li><b>Concrete checks</b> per ACI 318-19 Chapter 17 (Anchoring to Concrete). <b>Uncracked concrete assumed throughout</b> (&psi;<sub>c,N</sub>&nbsp;=&nbsp;1.25 tension; &psi;<sub>c,V</sub>&nbsp;=&nbsp;1.40 shear). &phi;&nbsp;=&nbsp;0.70 Condition&nbsp;B (no supplementary reinforcement). Cast-in headed anchors.</li>
+    <li><b>Embedment depth</b> h<sub>ef</sub> = 8&Prime; default (editable per row). Standard F1554 Gr.36 headed anchor rod bearing on heavy hex nut. Pullout bearing area A<sub>brg</sub> calculated from heavy hex nut geometry.</li>
+    <li><b>Column centered in footing.</b> Concrete edge distance c<sub>edge</sub> = distance from footing face to nearest anchor bolt center. Minimum 18&Prime; default; increase per row as required. Side-face blowout not applicable when c<sub>a1</sub> &ge; 0.4h<sub>ef</sub>.</li>
+    <li><b>Bolt gauge sg</b> = bolt-to-bolt spacing (used for breakout cone area A<sub>Nc</sub>). Auto-sized from column &amp; plate; editable. Assumes 2-row anchor pattern (n/2 bolts per row).</li>
+    <li><b>Steel capacity:</b> F1554 Gr.36, F<sub>ut</sub>&nbsp;=&nbsp;58&nbsp;ksi. &phi;&nbsp;=&nbsp;0.75 tension (AISC 360-22 §J3.6); &phi;&nbsp;=&nbsp;0.65 shear. Pryout k<sub>cp</sub>&nbsp;=&nbsp;2.0 when h<sub>ef</sub>&nbsp;&ge;&nbsp;2.5d<sub>a</sub> (ACI 318-19 §17.7.3).</li>
+    <li><b>Bearing:</b> A<sub>2</sub>/A<sub>1</sub>&nbsp;= 4 assumed (pedestal 2&times; plate each direction). F<sub>yp</sub>&nbsp;=&nbsp;36&nbsp;ksi plate.</li>
+    <li>Concrete breakout based on <b>AISC DG1 (2nd Ed.) Examples 4.4 (tension) and 4.10 (shear)</b>. Pryout uses full-group tension breakout capacity as basis per ACI 318-19 §17.7.3.</li>
+  </ol>
+</div>
+
+<script>
+// ── Injected data ────────────────────────────────────────────────────────────
+var MBR     = {"F3_(10-B)_L1":{"Pu_max":39.2577,"Pu_min":3.2381,"Vy_max":0.0242,"Vy_min":-0.041,"Vz_max":0.0909,"Vz_min":-0.0918,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.003,"Mzz_min":-0.0438,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(10-C)_L1":{"Pu_max":53.2203,"Pu_min":2.2721,"Vy_max":0.0403,"Vy_min":0.0022,"Vz_max":0.0065,"Vz_min":-0.0288,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.044,"Mzz_min":0.0001,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(10-E)_L1":{"Pu_max":31.9595,"Pu_min":0.058,"Vy_max":-0.003,"Vy_min":-0.1322,"Vz_max":0.0,"Vz_min":-0.0001,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(10-F)_1_L1":{"Pu_max":21.5316,"Pu_min":0.0471,"Vy_max":0.6199,"Vy_min":-0.3909,"Vz_max":0.032,"Vz_min":-0.0401,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0005,"T_min":-0.0004,"brace":false},"F3_(10-F)_L1":{"Pu_max":46.0368,"Pu_min":7.0841,"Vy_max":0.139,"Vy_min":0.008,"Vz_max":0.0474,"Vz_min":-0.0128,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(10-K)_L1":{"Pu_max":27.4852,"Pu_min":-0.3366,"Vy_max":0.1795,"Vy_min":-0.0595,"Vz_max":0.0716,"Vz_min":-0.0376,"Myy_max":0.0037,"Myy_min":-0.0009,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0366,"T_min":-0.0311,"brace":false},"F3_(10-L)_L1":{"Pu_max":53.888,"Pu_min":5.484,"Vy_max":0.0116,"Vy_min":-0.4739,"Vz_max":0.0342,"Vz_min":-0.0541,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.5818,"Mzz_min":-5.3479,"T_max":0.0366,"T_min":-0.0311,"brace":false},"F3_(12-F)_L1":{"Pu_max":0.4537,"Pu_min":-4.3103,"Vy_max":0.0561,"Vy_min":-0.0399,"Vz_max":0.0714,"Vz_min":-0.0287,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0,"T_min":0.0,"brace":true},"F3_(12-K)_L1":{"Pu_max":0.4507,"Pu_min":-5.0014,"Vy_max":0.0799,"Vy_min":-0.06,"Vz_max":0.0382,"Vz_min":-0.0381,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0,"T_min":0.0,"brace":true},"F3_(2-B)_L1":{"Pu_max":26.645,"Pu_min":3.7657,"Vy_max":0.0031,"Vy_min":-0.1585,"Vz_max":0.0369,"Vz_min":-0.0416,"Myy_max":0.0168,"Myy_min":-0.0208,"Mzz_max":0.0079,"Mzz_min":-0.3417,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(2-C)_L1":{"Pu_max":45.4497,"Pu_min":-3.6903,"Vy_max":0.0206,"Vy_min":-0.0067,"Vz_max":0.0466,"Vz_min":-0.0497,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.1811,"Mzz_min":0.0014,"T_max":0.0146,"T_min":-0.0124,"brace":true},"F3_(2-E)_L1":{"Pu_max":36.0249,"Pu_min":5.0633,"Vy_max":0.2337,"Vy_min":0.0024,"Vz_max":0.0435,"Vz_min":-0.0055,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(2-H)_L1":{"Pu_max":14.3674,"Pu_min":-10.0929,"Vy_max":0.0617,"Vy_min":0.0013,"Vz_max":0.0,"Vz_min":-0.0256,"Myy_max":0.0252,"Myy_min":-0.0034,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0073,"T_min":-0.0062,"brace":true},"F3_(4-H)_L1":{"Pu_max":6.8851,"Pu_min":0.1041,"Vy_max":0.0596,"Vy_min":0.0017,"Vz_max":-0.0002,"Vz_min":-0.0805,"Myy_max":0.021,"Myy_min":-0.0062,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0258,"T_min":-0.0219,"brace":false},"F3_(4-K)_L1":{"Pu_max":9.5444,"Pu_min":0.2142,"Vy_max":0.1214,"Vy_min":0.0034,"Vz_max":0.0,"Vz_min":0.0,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0073,"T_min":-0.0062,"brace":false},"F3_(4-L)_L1":{"Pu_max":10.2945,"Pu_min":0.2324,"Vy_max":0.1314,"Vy_min":0.0037,"Vz_max":0.0,"Vz_min":0.0,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0073,"T_min":-0.0062,"brace":false},"F3_(4-N)_L1":{"Pu_max":15.2009,"Pu_min":1.5295,"Vy_max":0.0896,"Vy_min":0.0028,"Vz_max":0.0,"Vz_min":-0.0007,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0857,"Mzz_min":0.0026,"T_max":0.0073,"T_min":-0.0062,"brace":false},"F3_(4-R)_L1":{"Pu_max":12.8792,"Pu_min":0.6524,"Vy_max":0.0146,"Vy_min":0.0006,"Vz_max":0.0001,"Vz_min":0.0,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":-0.0022,"Mzz_min":-0.0728,"T_max":0.0073,"T_min":-0.0062,"brace":false},"F3_(5-B)_L1":{"Pu_max":56.1059,"Pu_min":6.3281,"Vy_max":0.0501,"Vy_min":-0.0089,"Vz_max":0.0072,"Vz_min":-0.0195,"Myy_max":0.018,"Myy_min":-0.0129,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(5-C)_L1":{"Pu_max":118.8726,"Pu_min":6.6779,"Vy_max":0.0638,"Vy_min":-0.056,"Vz_max":0.0124,"Vz_min":-0.0413,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0258,"T_min":-0.0219,"brace":false},"F3_(5-E)_L1":{"Pu_max":146.4292,"Pu_min":11.207,"Vy_max":3.4247,"Vy_min":-0.0983,"Vz_max":1.4027,"Vz_min":0.0344,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.1286,"T_min":-0.1093,"brace":false},"F3_(5-H)_L1":{"Pu_max":81.467,"Pu_min":10.8991,"Vy_max":-0.0212,"Vy_min":-1.0123,"Vz_max":0.0194,"Vz_min":-0.0301,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(5-K)_L1":{"Pu_max":120.9542,"Pu_min":11.8508,"Vy_max":0.2671,"Vy_min":0.0076,"Vz_max":0.04,"Vz_min":-0.043,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(5-L)_L1":{"Pu_max":166.7161,"Pu_min":13.1408,"Vy_max":0.4519,"Vy_min":0.0034,"Vz_max":0.0654,"Vz_min":-0.061,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(5-N)_L1":{"Pu_max":135.2633,"Pu_min":10.0039,"Vy_max":-0.0553,"Vy_min":-2.117,"Vz_max":0.0946,"Vz_min":-0.0846,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(5-R)_L1":{"Pu_max":62.9245,"Pu_min":4.528,"Vy_max":2.7484,"Vy_min":0.1027,"Vz_max":0.0893,"Vz_min":-0.0536,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(6-S)_L1":{"Pu_max":7.4415,"Pu_min":0.1274,"Vy_max":0.0,"Vy_min":0.0,"Vz_max":0.0107,"Vz_min":-0.153,"Myy_max":1.3527,"Myy_min":-0.6309,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0073,"T_min":-0.0062,"brace":false},"F3_(7-F)_L1":{"Pu_max":102.2202,"Pu_min":-0.0003,"Vy_max":0.0001,"Vy_min":-0.0001,"Vz_max":1.323,"Vz_min":-0.0003,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0366,"T_min":-0.0311,"brace":false},"F3_(7-K)_L1":{"Pu_max":126.1848,"Pu_min":0.0003,"Vy_max":0.0001,"Vy_min":-0.0001,"Vz_max":-0.0003,"Vz_min":-1.3357,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0366,"T_min":-0.0311,"brace":false},"F3_(8-B)_L1":{"Pu_max":76.2841,"Pu_min":7.0486,"Vy_max":0.0218,"Vy_min":-0.0558,"Vz_max":0.0193,"Vz_min":-0.0152,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0146,"T_min":-0.0124,"brace":false},"F3_(8-C)_L1":{"Pu_max":122.7494,"Pu_min":6.4959,"Vy_max":0.0511,"Vy_min":-0.0422,"Vz_max":0.0179,"Vz_min":-0.0365,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0258,"T_min":-0.0219,"brace":false},"F3_(9-E)_L1":{"Pu_max":120.3342,"Pu_min":9.8559,"Vy_max":0.0544,"Vy_min":-3.4522,"Vz_max":0.0084,"Vz_min":-0.0858,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0011,"T_min":-0.001,"brace":false},"F3_(9-G)_L1":{"Pu_max":45.5048,"Pu_min":5.0593,"Vy_max":1.2541,"Vy_min":-0.0199,"Vz_max":0.17,"Vz_min":-0.1623,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(9-K)_L1":{"Pu_max":86.4988,"Pu_min":14.5714,"Vy_max":0.5503,"Vy_min":-0.0009,"Vz_max":0.2411,"Vz_min":-0.2277,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0108,"Mzz_min":0.0005,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(9-L)_L1":{"Pu_max":220.2669,"Pu_min":15.4788,"Vy_max":0.3865,"Vy_min":-0.0072,"Vz_max":0.1796,"Vz_min":-0.1341,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(9-N)_L1":{"Pu_max":176.1861,"Pu_min":12.7118,"Vy_max":0.0134,"Vy_min":-1.4554,"Vz_max":0.0897,"Vz_min":-0.0107,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0004,"T_min":-0.0004,"brace":false},"F3_(9-R)_L1":{"Pu_max":94.2672,"Pu_min":7.1125,"Vy_max":-0.3042,"Vy_min":-8.4503,"Vz_max":0.0018,"Vz_min":-0.3873,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0016,"T_min":-0.0014,"brace":false},"F3_CS1_L1":{"Pu_max":44.5988,"Pu_min":6.0222,"Vy_max":0.3809,"Vy_min":-0.0518,"Vz_max":0.4587,"Vz_min":-0.2745,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.3342,"Mzz_min":-1.438,"T_max":0.5384,"T_min":-0.6637,"brace":false},"F3_CS2_L1":{"Pu_max":31.925,"Pu_min":2.7663,"Vy_max":0.2516,"Vy_min":-0.0081,"Vz_max":0.6625,"Vz_min":-0.2233,"Myy_max":1.1598,"Myy_min":-0.7714,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0494,"T_min":-0.1774,"brace":false},"F3_CS3_L1":{"Pu_max":42.3993,"Pu_min":5.6955,"Vy_max":0.0006,"Vy_min":-0.414,"Vz_max":0.0372,"Vz_min":-0.0513,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.5787,"Mzz_min":-4.6579,"T_max":0.0366,"T_min":-0.0311,"brace":false},"F3_CS4_L1":{"Pu_max":5.0707,"Pu_min":0.13,"Vy_max":0.0212,"Vy_min":0.0008,"Vz_max":-0.0012,"Vz_min":-0.0546,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0073,"T_min":-0.0062,"brace":false},"M248":{"Pu_max":22.5022,"Pu_min":-0.0197,"Vy_max":0.7706,"Vy_min":-0.5498,"Vz_max":0.0529,"Vz_min":-0.066,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":0.0,"Mzz_min":0.0,"T_max":0.0005,"T_min":-0.0004,"brace":false},"M287":{"Pu_max":23.6303,"Pu_min":1.2536,"Vy_max":0.9844,"Vy_min":-0.0629,"Vz_max":0.0976,"Vz_min":-0.0008,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":1.7597,"Mzz_min":-0.1138,"T_max":0.0794,"T_min":-0.0736,"brace":false},"M288":{"Pu_max":27.6572,"Pu_min":0.8611,"Vy_max":1.0282,"Vy_min":-0.0696,"Vz_max":-0.0008,"Vz_min":-0.1009,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":2.1671,"Mzz_min":-0.1628,"T_max":0.0818,"T_min":-0.0749,"brace":false},"M289":{"Pu_max":26.4735,"Pu_min":1.0273,"Vy_max":1.0329,"Vy_min":-0.0683,"Vz_max":0.091,"Vz_min":-0.0013,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":2.3976,"Mzz_min":-0.1655,"T_max":0.0796,"T_min":-0.0747,"brace":false},"M290":{"Pu_max":26.2906,"Pu_min":1.0987,"Vy_max":1.0542,"Vy_min":-0.0669,"Vz_max":-0.0013,"Vz_min":-0.0949,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":2.6088,"Mzz_min":-0.1478,"T_max":0.0802,"T_min":-0.0743,"brace":false},"M291":{"Pu_max":49.1067,"Pu_min":0.7092,"Vy_max":0.9821,"Vy_min":-0.2422,"Vz_max":0.1037,"Vz_min":-0.0469,"Myy_max":0.0,"Myy_min":0.0,"Mzz_max":2.5713,"Mzz_min":-0.9049,"T_max":0.0388,"T_min":-0.0142,"brace":false}};
+var HSSSQ   = {"HSS3x3x3/16":[3.0,3.0,0.174,1.89,6.43],"HSS3x3x1/4":[3.0,3.0,0.233,2.44,8.3],"HSS3x3x5/16":[3.0,3.0,0.291,2.95,10.0],"HSS3.5x3.5x3/16":[3.5,3.5,0.174,2.23,7.58],"HSS3.5x3.5x1/4":[3.5,3.5,0.233,2.91,9.88],"HSS4x4x3/16":[4.0,4.0,0.174,2.57,8.74],"HSS4x4x1/4":[4.0,4.0,0.233,3.37,11.5],"HSS4x4x5/16":[4.0,4.0,0.291,4.1,13.9],"HSS4x4x3/8":[4.0,4.0,0.349,4.78,16.3],"HSS5x5x3/16":[5.0,5.0,0.174,3.25,11.1],"HSS5x5x1/4":[5.0,5.0,0.233,4.3,14.6],"HSS5x5x5/16":[5.0,5.0,0.291,5.26,17.9],"HSS5x5x3/8":[5.0,5.0,0.349,6.17,21.0],"HSS5x5x1/2":[5.0,5.0,0.465,7.85,26.7],"HSS6x6x3/16":[6.0,6.0,0.174,3.93,13.4],"HSS6x6x1/4":[6.0,6.0,0.233,5.24,17.8],"HSS6x6x5/16":[6.0,6.0,0.291,6.43,21.9],"HSS6x6x3/8":[6.0,6.0,0.349,7.58,25.8],"HSS6x6x1/2":[6.0,6.0,0.465,9.74,33.1],"HSS7x7x1/4":[7.0,7.0,0.233,6.17,21.0],"HSS7x7x5/16":[7.0,7.0,0.291,7.59,25.8],"HSS7x7x3/8":[7.0,7.0,0.349,8.97,30.5],"HSS7x7x1/2":[7.0,7.0,0.465,11.6,39.4],"HSS8x8x1/4":[8.0,8.0,0.233,7.1,24.1],"HSS8x8x5/16":[8.0,8.0,0.291,8.76,29.8],"HSS8x8x3/8":[8.0,8.0,0.349,10.3,35.2],"HSS8x8x1/2":[8.0,8.0,0.465,13.5,45.9],"HSS8x8x5/8":[8.0,8.0,0.581,16.4,55.7],"HSS10x10x1/4":[10.0,10.0,0.233,8.96,30.5],"HSS10x10x5/16":[10.0,10.0,0.291,11.1,37.7],"HSS10x10x3/8":[10.0,10.0,0.349,13.1,44.6],"HSS10x10x1/2":[10.0,10.0,0.465,17.2,58.6],"HSS10x10x5/8":[10.0,10.0,0.581,21.1,71.8]};
+var HSSRECT = {"HSS6x4x3/16":[6.0,4.0,0.174,3.25,11.1],"HSS6x4x1/4":[6.0,4.0,0.233,4.3,14.6],"HSS6x4x3/8":[6.0,4.0,0.349,6.17,21.0],"HSS8x4x3/16":[8.0,4.0,0.174,3.93,13.4],"HSS8x4x1/4":[8.0,4.0,0.233,5.24,17.8],"HSS8x4x3/8":[8.0,4.0,0.349,7.58,25.8],"HSS8x6x1/4":[8.0,6.0,0.233,6.17,21.0],"HSS8x6x3/8":[8.0,6.0,0.349,8.97,30.5],"HSS10x6x1/4":[10.0,6.0,0.233,7.1,24.1],"HSS10x6x3/8":[10.0,6.0,0.349,10.3,35.2],"HSS12x6x1/4":[12.0,6.0,0.233,8.03,27.3],"HSS12x6x3/8":[12.0,6.0,0.349,11.7,39.8]};
+var WSEC    = {"W6x15":[5.99,5.99,0.26,0.23,4.43,15],"W6x20":[6.2,6.02,0.365,0.26,5.87,20],"W6x25":[6.38,6.08,0.455,0.32,7.34,25],"W8x18":[8.14,5.25,0.33,0.23,5.26,18],"W8x24":[7.93,6.5,0.4,0.245,7.08,24],"W8x31":[8.0,7.995,0.435,0.285,9.13,31],"W8x35":[8.12,8.02,0.495,0.31,10.3,35],"W8x40":[8.25,8.07,0.56,0.36,11.7,40],"W8x48":[8.5,8.11,0.685,0.4,14.1,48],"W10x33":[9.73,7.96,0.435,0.29,9.71,33],"W10x39":[9.92,7.985,0.53,0.315,11.5,39],"W10x49":[9.98,10.0,0.56,0.34,14.4,49],"W10x54":[10.09,10.03,0.615,0.37,15.8,54],"W10x60":[10.22,10.08,0.68,0.42,17.6,60],"W12x40":[11.94,8.01,0.515,0.295,11.8,40],"W12x50":[12.19,8.077,0.64,0.37,14.7,50],"W12x53":[12.06,9.995,0.575,0.345,15.6,53],"W12x65":[12.12,12.0,0.605,0.39,19.1,65],"W12x72":[12.25,12.04,0.67,0.43,21.1,72],"W12x96":[12.71,12.16,0.9,0.55,28.2,96],"W14x48":[13.79,8.031,0.595,0.34,14.1,48],"W14x53":[13.92,8.06,0.66,0.37,15.6,53],"W14x61":[13.89,9.995,0.645,0.375,17.9,61],"W14x68":[14.04,10.04,0.72,0.415,20.0,68],"W14x82":[14.31,10.13,0.855,0.51,24.1,82],"W14x90":[14.02,14.52,0.71,0.44,26.5,90],"W14x99":[14.16,14.565,0.78,0.485,29.1,99],"W14x120":[14.48,14.67,0.94,0.59,35.3,120]};
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function safeid(n){ return n.replace(/[^a-zA-Z0-9]/g,'_'); }
+function f1(x){ return (isFinite(x)&&x!==null)?x.toFixed(1):'—'; }
+function f2(x){ return (isFinite(x)&&x!==null)?x.toFixed(2):'—'; }
+function f3(x){ return (isFinite(x)&&x!==null)?x.toFixed(3):'—'; }
+function f4(x){ return (isFinite(x)&&x!==null)?x.toFixed(4):'—'; }
+function gv(d,k){ var v=parseFloat(d&&d[k]); return isFinite(v)?v:0; }
+function escQ(s){ return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+function dcCls(dc){
+  if(dc===null||dc===undefined||!isFinite(dc)||dc<=0) return 'dc na';
+  if(dc<=0.9) return 'dc ok';
+  if(dc<=1.0) return 'dc wrn';
+  if(dc<=1.2) return 'dc hi';
+  return 'dc ng';
+}
+function dcTxt(dc){
+  if(dc===null||dc===undefined||!isFinite(dc)||dc<=0) return '&mdash;';
+  return f3(dc);
+}
+
+function getAse(dia){
+  var d=Math.round(parseFloat(dia)*1000)/1000;
+  var tbl=[[0.75,0.334],[0.875,0.462],[1.0,0.606],[1.125,0.763],[1.25,0.969],[1.5,1.405]];
+  for(var i=0;i<tbl.length;i++) if(Math.abs(tbl[i][0]-d)<0.001) return tbl[i][1];
+  return Math.PI/4*Math.pow(d-0.9743/13,2);
+}
+
+// Heavy hex nut bearing area (in²) — net area after deducting bolt hole
+function getAbrg(dia){
+  var d=Math.round(parseFloat(dia)*1000)/1000;
+  // flat = across-flats of heavy hex nut; Abrg = A_hex - A_bolt
+  var tbl=[[0.75,0.91],[0.875,1.19],[1.0,1.50],[1.125,1.85],[1.25,2.24],[1.5,3.12]];
+  for(var i=0;i<tbl.length;i++) if(Math.abs(tbl[i][0]-d)<0.001) return tbl[i][1];
+  // Approximate for other sizes: scale from 3/4"
+  return 0.91 * (d/0.75) * (d/0.75);
+}
+
+// ── Dropdown builders ────────────────────────────────────────────────────────
+function stypeHTML(mid,val){
+  var o='<select class="ssml" id="stype_'+mid+'" onchange="onTypeChange(\''+mid+'\')" style="width:74px">';
+  [['HSS_SQ','HSS Sq'],['HSS_RECT','HSS Rect'],['W','W-Shape'],['MAN','Manual']].forEach(function(p){
+    o+='<option value="'+p[0]+'"'+(p[0]===val?' selected':'')+'>'+p[1]+'</option>';
+  });
+  return o+'</select>';
+}
+function ssecHTML(mid,type,selVal){
+  var db=(type==='HSS_SQ')?HSSSQ:(type==='HSS_RECT'?HSSRECT:WSEC);
+  var o='<select class="ssml" id="ssec_'+mid+'" onchange="onSecChange(\''+mid+'\')" style="width:115px">'
+    +'<option value="">&#8212; Select &#8212;</option>';
+  Object.keys(db).forEach(function(k){
+    o+='<option value="'+k+'"'+(k===selVal?' selected':'')+'>'+k+'</option>';
+  });
+  return o+'</select>';
+}
+function sboltHTML(mid,val){
+  var opts=[[0.75,'3/4&Prime;'],[0.875,'7/8&Prime;'],[1.0,'1&Prime;'],[1.125,'1-1/8&Prime;'],[1.25,'1-1/4&Prime;'],[1.5,'1-1/2&Prime;']];
+  var o='<select class="ssml" id="bdia_'+mid+'" style="width:56px">';
+  opts.forEach(function(p){ o+='<option value="'+p[0]+'"'+(Math.abs(p[0]-val)<0.001?' selected':'')+'>'+p[1]+'</option>'; });
+  return o+'</select>';
+}
+
+// ── Build table ──────────────────────────────────────────────────────────────
+function buildTable(){
+  var tb=document.getElementById('tblBody'); tb.innerHTML='';
+  var html='';
+  Object.keys(MBR).forEach(function(name){
+    var m=MBR[name]; var mid=safeid(name);
+    var Pu  = Math.max(gv(m,'Pu_max'),0);
+    var Vu  = Math.max(Math.abs(gv(m,'Vy_max')),Math.abs(gv(m,'Vy_min')),
+                       Math.abs(gv(m,'Vz_max')),Math.abs(gv(m,'Vz_min')));
+    var Mu  = Math.max(Math.abs(gv(m,'Myy_max')),Math.abs(gv(m,'Myy_min')),
+                       Math.abs(gv(m,'Mzz_max')),Math.abs(gv(m,'Mzz_min')));
+
+    html+='<tr class="dr" id="row_'+mid+'">'
+      +'<td class="scol" title="'+name+'">'+name+'</td>'
+      +'<td style="text-align:center"><input type="checkbox" id="cbrace_'+mid+'"'+(m.brace?' checked':'')+' title="Brace/tension member"></td>'
+      // Forces
+      +'<td><input class="isml" type="number" id="fPu_'+mid+'" value="'+f2(Pu)+'" step="0.1" style="width:54px"></td>'
+      +'<td><input class="isml" type="number" id="fVu_'+mid+'" value="'+f2(Vu)+'" step="0.1" style="width:54px"></td>'
+      +'<td><input class="isml" type="number" id="fMu_'+mid+'" value="'+f2(Mu)+'" step="0.1" style="width:54px"></td>'
+      // Config
+      +'<td>'+stypeHTML(mid,'HSS_SQ')+'</td>'
+      +'<td id="seccell_'+mid+'">'+ssecHTML(mid,'HSS_SQ','HSS6x6x1/4')+'</td>'
+      +'<td><input class="isml" type="number" id="iN_'+mid+'" value="12" step="0.5" style="width:42px"></td>'
+      +'<td><input class="isml" type="number" id="iB_'+mid+'" value="12" step="0.5" style="width:42px"></td>'
+      +'<td><input class="isml" type="number" id="itp_'+mid+'" value="0.75" step="0.0625" style="width:42px"></td>'
+      +'<td><input class="isml" type="number" id="in_'+mid+'" value="4" step="1" min="2" max="16" style="width:32px"></td>'
+      +'<td>'+sboltHTML(mid,0.75)+'</td>'
+      +'<td><input class="isml" type="number" id="ifc_'+mid+'" value="3.0" step="0.5" style="width:40px"></td>'
+      +'<td><input class="isml" type="number" id="ihef_'+mid+'" value="8" step="0.5" style="width:38px"></td>'
+      +'<td><input class="isml" type="number" id="iced_'+mid+'" value="18" step="1" min="3" style="width:38px"></td>'
+      +'<td><input class="isml" type="number" id="isg_'+mid+'" value="9" step="0.5" style="width:38px"></td>'
+      // Steel results
+      +'<td class="dc na" id="rBear_'+mid+'">&mdash;</td>'
+      +'<td class="dc na" id="rPlt_'+mid+'">&mdash;</td>'
+      +'<td class="dc na" id="rShear_'+mid+'">&mdash;</td>'
+      +'<td class="dc na" id="rBoltT_'+mid+'">&mdash;</td>'
+      +'<td class="dc na" id="rTV_'+mid+'">&mdash;</td>'
+      // Concrete results
+      +'<td class="dc na" id="rConcT_'+mid+'">&mdash;</td>'
+      +'<td class="dc na" id="rConcV_'+mid+'">&mdash;</td>'
+      // Gov + buttons
+      +'<td class="gov" id="rGov_'+mid+'">&mdash;</td>'
+      +'<td style="text-align:center"><button class="brun" onclick="runRow(\''+mid+'\',\''+escQ(name)+'\')">&#9654;</button></td>'
+      +'<td style="text-align:center"><button class="bcalc" id="bcalc_'+mid+'" onclick="toggleCalc(\''+mid+'\')" disabled>&#9660;</button></td>'
+      +'</tr>'
+      +'<tr class="cdet" id="det_'+mid+'" style="display:none">'
+      +'<td colspan="26"><div class="dinn" id="detcont_'+mid+'"></div></td>'
+      +'</tr>';
+  });
+  tb.innerHTML=html;
+  Object.keys(MBR).forEach(function(name){ onSecChange(safeid(name)); });
+}
+
+// ── Section change handlers ──────────────────────────────────────────────────
+function onTypeChange(mid){
+  var t=document.getElementById('stype_'+mid).value;
+  var cell=document.getElementById('seccell_'+mid);
+  if(cell) cell.innerHTML=ssecHTML(mid,t,'');
+}
+function onSecChange(mid){
+  var st=document.getElementById('stype_'+mid);
+  var ss=document.getElementById('ssec_'+mid);
+  if(!st||!ss) return;
+  var type=st.value, sn=ss.value;
+  if(!sn||type==='MAN') return;
+  var db=(type==='HSS_SQ')?HSSSQ:(type==='HSS_RECT'?HSSRECT:WSEC);
+  var D=db[sn]; if(!D) return;
+  var cH=D[0], cB=D[1];
+  var iN=document.getElementById('iN_'+mid);
+  var iB=document.getElementById('iB_'+mid);
+  var itp=document.getElementById('itp_'+mid);
+  var isg=document.getElementById('isg_'+mid);
+  if(iN){ var Nv=Math.round((cH+6)*2)/2; iN.value=f1(Nv); }
+  if(iB){ var Bv=Math.round((cB+6)*2)/2; iB.value=f1(Bv); }
+  if(itp&&parseFloat(itp.value)<0.75) itp.value='0.75';
+  // Auto bolt gauge: column face + 3" approx, capped to plate
+  if(isg){
+    var Nval=parseFloat(iN?iN.value:12)||12;
+    var sg_a=Math.min(Math.round(cH+3), Math.round(Nval-3));
+    sg_a=Math.max(sg_a,4);
+    isg.value=String(sg_a);
+  }
+}
+
+// ── Run all / run row ────────────────────────────────────────────────────────
+function runAll(){
+  var btn=document.querySelector('.btn-ra');
+  if(btn){btn.textContent='Running\u2026';btn.disabled=true;}
+  setTimeout(function(){
+    Object.keys(MBR).forEach(function(name){ runRow(safeid(name),name); });
+    if(btn){btn.innerHTML='&#9654;&#9654; Run All';btn.disabled=false;}
+  },20);
+}
+function runRow(mid,name){
+  var m=MBR[name]; if(!m) return;
+  var Pu   = parseFloat(document.getElementById('fPu_'+mid).value)||0;
+  var Vu   = parseFloat(document.getElementById('fVu_'+mid).value)||0;
+  var Mu   = parseFloat(document.getElementById('fMu_'+mid).value)||0;
+  var N    = parseFloat(document.getElementById('iN_'+mid).value)||12;
+  var Bp   = parseFloat(document.getElementById('iB_'+mid).value)||12;
+  var tp   = parseFloat(document.getElementById('itp_'+mid).value)||0.75;
+  var nb   = parseInt(document.getElementById('in_'+mid).value)||4;
+  var adb  = parseFloat(document.getElementById('bdia_'+mid).value)||0.75;
+  var fc   = parseFloat(document.getElementById('ifc_'+mid).value)||3.0;
+  var hef  = parseFloat(document.getElementById('ihef_'+mid).value)||8;
+  var ced  = parseFloat(document.getElementById('iced_'+mid).value)||18;
+  var sg   = parseFloat(document.getElementById('isg_'+mid).value)||9;
+  var brace= document.getElementById('cbrace_'+mid).checked;
+
+  var type=document.getElementById('stype_'+mid).value;
+  var sn  =document.getElementById('ssec_'+mid).value;
+  var db  =(type==='HSS_SQ')?HSSSQ:(type==='HSS_RECT'?HSSRECT:WSEC);
+  var D   =db[sn];
+  var isHSS=(type==='HSS_SQ'||type==='HSS_RECT');
+  var col_H=D?D[0]:Math.max(N-6,2);
+  var col_B=D?D[1]:Math.max(Bp-6,2);
+
+  var res=calcDesign({name:name,Pu:Pu,Vu:Vu,Mu:Mu,N:N,Bp:Bp,tp:tp,
+    Fyp:36,fc:fc,nb:nb,adb:adb,Fut:58,isHSS:isHSS,col_H:col_H,col_B:col_B,
+    brace:brace,hef:hef,c_edge:ced,sg:sg});
+
+  setDC('rBear_'+mid, res.dc_bear);
+  setDC('rPlt_'+mid,  res.dc_plt);
+  setDC('rShear_'+mid,res.dc_shear);
+  setDC('rBoltT_'+mid,res.dc_boltt);
+  setDC('rTV_'+mid,   res.dc_tv);
+  setDC('rConcT_'+mid,res.dc_conc_T);
+  setDC('rConcV_'+mid,res.dc_conc_V);
+
+  var ge=document.getElementById('rGov_'+mid);
+  if(ge){ge.textContent=res.gov||'—';ge.style.color=res.govOk?'#1b7a1b':'#c00';}
+
+  var dc=document.getElementById('detcont_'+mid);
+  if(dc) dc.innerHTML=res.detailHTML;
+  var bc=document.getElementById('bcalc_'+mid);
+  if(bc) bc.disabled=false;
+}
+function setDC(id,dc){
+  var el=document.getElementById(id); if(!el) return;
+  el.className=dcCls(dc); el.innerHTML=dcTxt(dc);
+}
+function toggleCalc(mid){
+  var row=document.getElementById('det_'+mid); if(!row) return;
+  var btn=document.getElementById('bcalc_'+mid);
+  var open=row.style.display!=='none';
+  row.style.display=open?'none':'table-row';
+  if(btn) btn.innerHTML=open?'&#9660;':'&#9650;';
+}
+
+// ── AISC DG1 + ACI 318-19 Calculation Engine ────────────────────────────────
+function calcDesign(cfg){
+  var name =cfg.name ||'';
+  var Pu   =cfg.Pu   ||0;
+  var Vu   =cfg.Vu   ||0;
+  var Mu   =cfg.Mu   ||0;
+  var N    =cfg.N    ||12;
+  var Bp   =cfg.Bp   ||12;
+  var tp   =cfg.tp   ||0.75;
+  var Fyp  =cfg.Fyp  ||36;
+  var fc   =cfg.fc   ||3.0;
+  var nb   =cfg.nb   ||4;
+  var adb  =cfg.adb  ||0.75;
+  var Fut  =cfg.Fut  ||58;
+  var isHSS=cfg.isHSS!==false;
+  var col_H=cfg.col_H||Math.max(N-6,2);
+  var col_B=cfg.col_B||Math.max(Bp-6,2);
+  var hef  =cfg.hef  ||8;
+  var c_edge=cfg.c_edge||18;
+  var sg   =cfg.sg   ||9;
+  var lambda=1.0; // normal weight concrete
+
+  // ── Bearing ──────────────────────────────────────────────────────────────
+  var A1=N*Bp;
+  var conf=Math.min(Math.sqrt(4),2.0);  // A2/A1=4 assumed (2× each dir)
+  var fp_allow=0.65*0.85*fc*conf;
+  var fp_actual=(Pu>0.01)?Pu/A1:0;
+  var dc_bear=(Pu>0.01)?fp_actual/fp_allow:null;
+
+  var eN=(Pu>0.01&&Mu>0)?Mu*12/Pu:0;
+  var fp_biax=fp_actual+(Mu>0?(Mu*12)*6/(Bp*N*N):0);
+  var dc_bear_mu=(Pu>0.01&&Mu>0.01)?fp_biax/fp_allow:null;
+  var dc_bear_fin=(dc_bear_mu!==null)?Math.max(dc_bear,dc_bear_mu):dc_bear;
+
+  // ── Cantilever l_eff ──────────────────────────────────────────────────────
+  var m_cant,n_cant,n_prime=0,l_eff;
+  if(isHSS){
+    m_cant=(N-0.95*col_H)/2; n_cant=(Bp-0.95*col_B)/2;
+    l_eff=Math.max(m_cant,n_cant,0.001);
+  } else {
+    m_cant=(N-0.95*col_H)/2; n_cant=(Bp-0.80*col_B)/2;
+    n_prime=1.0*Math.sqrt(col_H*col_B)/4;
+    l_eff=Math.max(m_cant,n_cant,n_prime,0.001);
+  }
+
+  // ── Plate — compression ───────────────────────────────────────────────────
+  var t_req_c=(Pu>0.01&&A1>0)?l_eff*Math.sqrt(2*Pu/(0.9*Fyp*A1)):0;
+  var t_req_cf=Math.max(t_req_c,0.75);
+  var dc_plt_c=t_req_cf/tp;
+
+  // ── Anchor rod tension ────────────────────────────────────────────────────
+  var Tu_net=0, Tu_note='';
+  if(Pu<-0.01){Tu_net=Math.abs(Pu);Tu_note='Net uplift';}
+  else if(Pu>0.01&&eN>N/6){Tu_net=Pu*(2*eN/N-1);Tu_note='Moment eccentric';}
+  var Ase=getAse(adb);
+  var phi_Nsa=0.75*0.75*Fut*Ase*(nb/2);
+  var Tu_bolt=(Tu_net>0)?Tu_net/(nb/2):0;
+  var dc_boltt=(Tu_bolt>0.001)?Tu_bolt/phi_Nsa:null;
+
+  // ── Plate — tension ───────────────────────────────────────────────────────
+  var a_eff=Math.max((N-col_H)/2,(Bp-col_B)/2,1.0);
+  var t_req_t=(Tu_bolt>0.001)?Math.sqrt(4*Tu_bolt*a_eff/(0.9*Fyp*Math.min(N,Bp))):0;
+  var t_req_tf=(Tu_bolt>0.001)?Math.max(t_req_t,0.75):0;
+  var dc_plt_t=(Tu_bolt>0.001)?t_req_tf/tp:null;
+  var dc_plt=Math.max(dc_plt_c,(dc_plt_t!==null?dc_plt_t:0));
+
+  // ── Shear friction ────────────────────────────────────────────────────────
+  var phi_Vfric=(Pu>0.01)?0.75*0.55*Pu:0;
+  var dc_sf=(Vu>0.001)?(phi_Vfric>0.001?Vu/phi_Vfric:99.0):(phi_Vfric>0?0.001:null);
+
+  // ── Anchor rod shear ──────────────────────────────────────────────────────
+  var phi_Vsa=0.65*0.6*Fut*Ase*nb;
+  var dc_sb=(Vu>0.001)?Vu/phi_Vsa:0.001;
+  var dc_shear=(dc_sf!==null)?Math.max(dc_sf,dc_sb):dc_sb;
+
+  // ── T+V interaction ───────────────────────────────────────────────────────
+  var dc_tv=null;
+  if(Tu_bolt>0.001&&Vu>0.001){
+    var rt=Tu_bolt/phi_Nsa, rv=Vu/phi_Vsa;
+    dc_tv=Math.sqrt(rt*rt+rv*rv);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ── CONCRETE ANCHOR CHECKS ─────────────────────────────────────────────────
+  // ── ACI 318-19 Chapter 17 | AISC DG1 Ex. 4.4 (tension) & 4.10 (shear) ─────
+  // ════════════════════════════════════════════════════════════════════════════
+
+  var Abrg=getAbrg(adb);
+  // Anchor group geometry
+  var n_perrow=Math.max(2,Math.ceil(nb/2));   // bolts per row (B direction)
+  var n_rows  =2;                              // 2 rows in N direction (always)
+
+  // ── ACI 318-19 §17.6.2 — Concrete Breakout in Tension ───────────────────
+  // Basic single-anchor capacity (cast-in, headed)
+  var Nb_tens=24*lambda*Math.sqrt(fc*1000)*Math.pow(hef,1.5)/1000; // kips
+  var ANco   =9*hef*hef;                      // single-anchor projected area (in²)
+  // Group projected area (ACI 318-19 Fig. R17.6.2.1b)
+  var ANc_L  = sg*(n_perrow-1)+3*hef;         // length in B direction
+  var ANc_W  = sg*(n_rows-1)  +3*hef;         // width in N direction (= sg+3hef for 2 rows)
+  var ANc    = Math.min(ANc_L*ANc_W, nb*ANco);// cap: cannot exceed sum of individual cones
+  // Edge proximity factor (§17.6.2.4)
+  var psi_ed_N=(c_edge>=1.5*hef)?1.0:(0.7+0.3*c_edge/(1.5*hef));
+  var phi_Ncbg=(Tu_net>0.001)?
+    0.70*(ANc/ANco)*1.0*psi_ed_N*1.25*1.0*Nb_tens : 0;
+  var dc_conc_brkT=(Tu_net>0.001)?(Tu_net/phi_Ncbg):null;
+
+  // ── ACI 318-19 §17.6.3 — Concrete Pullout ───────────────────────────────
+  var Np_bolt =8*Abrg*(fc*1000)/1000;         // single bolt pullout (kips)
+  var phi_Npn_per=0.70*1.4*Np_bolt;           // per-bolt capacity (ψc,P=1.4 uncracked)
+  var phi_Npn_grp=phi_Npn_per*(nb/2);         // group (nb/2 tension bolts)
+  var dc_conc_pull=(Tu_net>0.001)?(Tu_net/phi_Npn_grp):null;
+
+  // Governing concrete tension: max of breakout and pullout
+  var dc_conc_T=(dc_conc_brkT!==null||dc_conc_pull!==null)?
+    Math.max(dc_conc_brkT||0,dc_conc_pull||0):null;
+
+  // ── ACI 318-19 §17.7.2 — Concrete Breakout in Shear ────────────────────
+  var ca1=c_edge;                              // edge distance in shear direction
+  var ca2=c_edge;                              // perpendicular edge (centered column)
+  var le_v=Math.min(hef,8*adb);               // effective length
+  // Basic single-anchor shear breakout (Eq. 17.7.2.2a)
+  var Vb_a =7*Math.pow(le_v/adb,-0.2)*Math.sqrt(adb)*lambda*Math.sqrt(fc*1000)*Math.pow(ca1,1.5)/1000;
+  var Vb_b =9*lambda*Math.sqrt(fc*1000)*Math.pow(ca1,1.5)/1000; // limit (Eq.17.7.2.2b)
+  var Vb   =Math.min(Vb_a,Vb_b);
+  // Projected area for front-row group
+  var AVco=4.5*ca1*ca1;                        // single anchor (in²)
+  var n_front=n_perrow;                        // front row = n_perrow bolts
+  var AVc_W=(n_front-1)*sg+3*ca1;             // width of projected cone
+  var AVc_H=Math.min(1.5*ca1,ca2+sg/2);       // height limited by perpendicular edge
+  var AVc  =AVc_W*AVc_H;
+  // Modification factors
+  var psi_ed_V=(ca2>=1.5*ca1)?1.0:(0.7+0.3*ca2/(1.5*ca1));
+  var phi_Vcbg=0.70*(AVc/AVco)*1.0*psi_ed_V*1.4*1.0*Vb;
+  var dc_conc_V_brk=(Vu>0.001)?(Vu/phi_Vcbg):null;
+
+  // ── ACI 318-19 §17.7.3 — Concrete Pryout ────────────────────────────────
+  // Pryout uses full-group tension breakout capacity as basis
+  // Compute phi_Ncbg_pryout for all nb bolts (centered group)
+  var ANc_pry=Math.min(Math.pow(sg+3*hef,2), nb*ANco); // simplified square group
+  var phi_Ncbg_pry=0.70*(ANc_pry/ANco)*1.0*psi_ed_N*1.25*1.0*Nb_tens;
+  var kcp=(hef>=2.5*adb)?2.0:1.0;
+  var phi_Vcp=kcp*phi_Ncbg_pry;
+  var dc_pryout=(Vu>0.001)?(Vu/phi_Vcp):null;
+
+  // Governing concrete shear: max of breakout and pryout
+  var dc_conc_V=(dc_conc_V_brk!==null||dc_pryout!==null)?
+    Math.max(dc_conc_V_brk||0,dc_pryout||0):null;
+
+  // ── Governing check ───────────────────────────────────────────────────────
+  var checks=[
+    {n:'Bearing', dc:dc_bear_fin!==null?dc_bear_fin:-1},
+    {n:'Plt-C',   dc:dc_plt},
+    {n:'Shear',   dc:dc_shear!==null?dc_shear:-1},
+    {n:'Bolt-T',  dc:dc_boltt!==null?dc_boltt:-1},
+    {n:'T+V',     dc:dc_tv!==null?dc_tv:-1},
+    {n:'Conc-T',  dc:dc_conc_T!==null?dc_conc_T:-1},
+    {n:'Conc-V',  dc:dc_conc_V!==null?dc_conc_V:-1}
+  ];
+  var maxDC=-1,govName='—';
+  checks.forEach(function(c){if(c.dc>maxDC){maxDC=c.dc;govName=c.n;}});
+  var govOk=maxDC<=1.0;
+
+  // Build detail HTML
+  var det=buildDetail({
+    name:name,Pu:Pu,Vu:Vu,Mu:Mu,N:N,Bp:Bp,tp:tp,Fyp:Fyp,fc:fc,
+    nb:nb,adb:adb,Fut:Fut,isHSS:isHSS,col_H:col_H,col_B:col_B,
+    A1:A1,conf:conf,fp_allow:fp_allow,fp_actual:fp_actual,
+    dc_bear:dc_bear,fp_biax:fp_biax,dc_bear_mu:dc_bear_mu,eN:eN,
+    m_cant:m_cant,n_cant:n_cant,l_eff:l_eff,n_prime:n_prime,
+    t_req_c:t_req_c,t_req_cf:t_req_cf,dc_plt_c:dc_plt_c,
+    Tu_net:Tu_net,Tu_note:Tu_note,Tu_bolt:Tu_bolt,
+    Ase:Ase,phi_Nsa:phi_Nsa,dc_boltt:dc_boltt,
+    a_eff:a_eff,t_req_tf:t_req_tf,dc_plt_t:dc_plt_t,
+    phi_Vfric:phi_Vfric,dc_sf:dc_sf,phi_Vsa:phi_Vsa,dc_sb:dc_sb,
+    dc_tv:dc_tv,
+    // Concrete
+    hef:hef,c_edge:c_edge,sg:sg,Abrg:Abrg,lambda:lambda,
+    n_perrow:n_perrow,n_rows:n_rows,
+    Nb_tens:Nb_tens,ANco:ANco,ANc:ANc,psi_ed_N:psi_ed_N,phi_Ncbg:phi_Ncbg,dc_conc_brkT:dc_conc_brkT,
+    Np_bolt:Np_bolt,phi_Npn_per:phi_Npn_per,phi_Npn_grp:phi_Npn_grp,dc_conc_pull:dc_conc_pull,
+    ca1:ca1,ca2:ca2,le_v:le_v,Vb:Vb,Vb_a:Vb_a,
+    AVco:AVco,AVc:AVc,n_front:n_front,psi_ed_V:psi_ed_V,phi_Vcbg:phi_Vcbg,dc_conc_V_brk:dc_conc_V_brk,
+    ANc_pry:ANc_pry,phi_Ncbg_pry:phi_Ncbg_pry,kcp:kcp,phi_Vcp:phi_Vcp,dc_pryout:dc_pryout,
+    dc_plt:dc_plt,dc_shear:dc_shear,dc_conc_T:dc_conc_T,dc_conc_V:dc_conc_V,
+    maxDC:maxDC,govName:govName
+  });
+
+  return {dc_bear:dc_bear_fin,dc_plt:dc_plt,dc_shear:dc_shear,
+          dc_boltt:dc_boltt,dc_tv:dc_tv,dc_conc_T:dc_conc_T,dc_conc_V:dc_conc_V,
+          gov:govName,govOk:govOk,detailHTML:det};
+}
+
+// ── Detail HTML builder ──────────────────────────────────────────────────────
+function cardCls(dc){
+  if(dc===null||!isFinite(dc)||dc<=0) return 'ccard cinf';
+  return dc>1.0?'ccard cng':(dc>0.9?'ccard cwrn':'ccard cok');
+}
+function concCardCls(dc){
+  if(dc===null||!isFinite(dc)||dc<=0) return 'ccard cinf cconc';
+  return dc>1.0?'ccard cng cconc':(dc>0.9?'ccard cwrn cconc':'ccard cok cconc');
+}
+function dcStr(dc){
+  if(dc===null||!isFinite(dc)||dc<=0) return '';
+  var col=dc>1.0?'#c00':(dc>0.9?'#8a6000':'#1b7a1b');
+  return '<div class="cdc" style="color:'+col+'">D/C = '+f3(dc)+(dc>1.0?' &nbsp;&#10007;':' &nbsp;&#10003;')+'</div>';
+}
+
+function buildDetail(r){
+  var html='<h4>&#128210; '+r.name
+    +' &mdash; Base Plate &amp; Anchor Calculations'
+    +'<span style="font-size:11px;font-weight:normal;color:#555;margin-left:10px">'
+    +'AISC DG1 (2nd Ed.) &bull; ACI 318-19 Ch.17 &bull; F<sub>yp</sub>='+r.Fyp+' ksi &bull; f&prime;c='+f2(r.fc)+' ksi &bull; h<sub>ef</sub>='+r.hef+'&Prime; &bull; c<sub>edge</sub>='+r.c_edge+'&Prime;</span></h4>';
+  html+='<div class="cgrid">';
+
+  // 1 — Geometry
+  html+='<div class="ccard cinf"><div class="cn">Plate Geometry</div><div class="cr">ARE Std / AISC DG1 §3.1</div>'
+    +'<div class="ceq">Col: '+f2(r.col_H)+'&Prime;&times;'+f2(r.col_B)+'&Prime; ('+(r.isHSS?'HSS':'W-shape')+')<br>'
+    +'N='+f2(r.N)+'&Prime; B='+f2(r.Bp)+'&Prime; tp='+f2(r.tp)+'&Prime;<br>'
+    +'A<sub>1</sub>=N&times;B='+f2(r.A1)+' in&sup2;<br>'
+    +'&phi;f&prime;<sub>p</sub>=&phi;<sub>c</sub>&times;0.85&times;f&prime;c&times;&radic;(A<sub>2</sub>/A<sub>1</sub>)=0.65&times;0.85&times;'+f2(r.fc)+'&times;'+f3(r.conf)+' = <b>'+f3(r.fp_allow)+' ksi</b></div>'
+    +'</div>';
+
+  // 2 — Bearing
+  if(r.dc_bear!==null){
+    html+='<div class="'+cardCls(r.dc_bear)+'">'
+      +'<div class="cn">Bearing Pressure</div><div class="cr">AISC DG1 §3.1 / AISC 360-22 J8</div>'
+      +'<div class="ceq">f<sub>p</sub>=P<sub>u</sub>/A<sub>1</sub>='+f2(r.Pu)+'/'+f2(r.A1)+' = '+f4(r.fp_actual)+' ksi<br>'
+      +'&phi;f&prime;<sub>p</sub>='+f3(r.fp_allow)+' ksi</div>'+dcStr(r.dc_bear)+'</div>';
+  }
+  if(r.dc_bear_mu!==null){
+    html+='<div class="'+cardCls(r.dc_bear_mu)+'">'
+      +'<div class="cn">Bearing + Moment</div><div class="cr">AISC DG1 §3.2 Eccentric</div>'
+      +'<div class="ceq">e=M&times;12/P='+f3(r.eN)+'&Prime;<br>'
+      +'f<sub>p,max</sub>=P/A<sub>1</sub>+M&times;12&times;6/(B&times;N&sup2;)='+f4(r.fp_biax)+' ksi</div>'+dcStr(r.dc_bear_mu)+'</div>';
+  }
+
+  // 3 — Cantilever
+  var ceq=r.isHSS
+    ?'m=(N&minus;0.95H)/2='+f3(r.m_cant)+'&Prime;<br>n=(B&minus;0.95B<sub>s</sub>)/2='+f3(r.n_cant)+'&Prime;<br>l<sub>eff</sub>=max(m,n)=<b>'+f3(r.l_eff)+'&Prime;</b>'
+    :'m=(N&minus;0.95d)/2='+f3(r.m_cant)+'&Prime;<br>n=(B&minus;0.80b<sub>f</sub>)/2='+f3(r.n_cant)+'&Prime;<br>'+'&lambda;n&prime;='+f3(r.n_prime)+'&Prime;<br>l<sub>eff</sub>=max(m,n,&lambda;n&prime;)=<b>'+f3(r.l_eff)+'&Prime;</b>';
+  html+='<div class="ccard cinf"><div class="cn">Cantilever l<sub>eff</sub></div>'
+    +'<div class="cr">'+(r.isHSS?'DG1 §3.1.2':'DG1 §3.3.3')+'</div>'
+    +'<div class="ceq">'+ceq+'</div></div>';
+
+  // 4 — Plate thickness compression
+  html+='<div class="'+cardCls(r.dc_plt_c)+'">'
+    +'<div class="cn">Plate Thickness — Compression</div><div class="cr">AISC DG1 Eq. 3.3.4</div>'
+    +'<div class="ceq">t<sub>req</sub>=l<sub>eff</sub>&times;&radic;(2P<sub>u</sub>/(0.9&times;F<sub>yp</sub>&times;A<sub>1</sub>))<br>'
+    +'='+f3(r.l_eff)+'&times;&radic;(2&times;'+f2(r.Pu)+'/(0.9&times;'+r.Fyp+'&times;'+f2(r.A1)+'))='+f3(r.t_req_c)+'&Prime;<br>'
+    +'t<sub>min</sub>=0.75&Prime; &rarr; t<sub>req,f</sub>=<b>'+f3(r.t_req_cf)+'&Prime;</b> vs t<sub>p</sub>='+f2(r.tp)+'&Prime;</div>'
+    +dcStr(r.dc_plt_c)+'</div>';
+
+  // 5 — Anchor rod tension (steel)
+  if(r.dc_boltt!==null){
+    html+='<div class="'+cardCls(r.dc_boltt)+'">'
+      +'<div class="cn">Anchor Rod Tension — Steel</div><div class="cr">AISC DG1 §3.5.2 / AISC 360-22 §J3.6</div>'
+      +'<div class="ceq">'+r.Tu_note+': T<sub>u,grp</sub>='+f3(r.Tu_net)+' k &rarr; T/bolt='+f3(r.Tu_bolt)+' k<br>'
+      +'A<sub>se</sub>='+f4(r.Ase)+' in&sup2; (&empty;'+r.adb+'&Prime; F1554 Gr.36)<br>'
+      +'&phi;N<sub>sa</sub>=0.75&times;0.75&times;'+r.Fut+'&times;'+f4(r.Ase)+'&times;(n/2)=<b>'+f3(r.phi_Nsa)+' k</b> (n/2='+Math.round(r.nb/2)+' bolts)</div>'
+      +dcStr(r.dc_boltt)+'</div>';
+
+    if(r.dc_plt_t!==null){
+      html+='<div class="'+cardCls(r.dc_plt_t)+'">'
+        +'<div class="cn">Plate Thickness — Tension</div><div class="cr">AISC DG1 §3.5</div>'
+        +'<div class="ceq">t<sub>req</sub>=&radic;(4&times;T/bolt&times;a/(0.9&times;F<sub>yp</sub>&times;s))<br>'
+        +'=&radic;(4&times;'+f3(r.Tu_bolt)+'&times;'+f3(r.a_eff)+'/(0.9&times;'+r.Fyp+'&times;'+f2(Math.min(r.N,r.Bp))+'))=<b>'+f3(r.t_req_tf)+'&Prime;</b></div>'
+        +dcStr(r.dc_plt_t)+'</div>';
+    }
+  }
+
+  // 6 — Shear friction
+  html+='<div class="'+cardCls(r.dc_sf)+'">'
+    +'<div class="cn">Shear — Friction</div><div class="cr">AISC DG1 §3.5.3</div>'
+    +'<div class="ceq">&phi;V<sub>fric</sub>=0.75&times;0.55&times;'+f2(r.Pu)+' = '+f3(r.phi_Vfric)+' k<br>V<sub>u</sub>='+f3(r.Vu)+' k</div>'
+    +dcStr(r.dc_sf)+'</div>';
+
+  // 7 — Anchor rod shear (steel)
+  html+='<div class="'+cardCls(r.dc_sb)+'">'
+    +'<div class="cn">Anchor Rod Shear — Steel</div><div class="cr">AISC DG1 §3.5.2 / AISC 360-22 §J3.6</div>'
+    +'<div class="ceq">&phi;V<sub>sa</sub>=0.65&times;0.6&times;'+r.Fut+'&times;'+f4(r.Ase)+'&times;'+r.nb+' = <b>'+f3(r.phi_Vsa)+' k</b><br>V<sub>u</sub>='+f3(r.Vu)+' k</div>'
+    +dcStr(r.dc_sb)+'</div>';
+
+  // 8 — T+V interaction
+  if(r.dc_tv!==null){
+    html+='<div class="'+cardCls(r.dc_tv)+'">'
+      +'<div class="cn">T+V Interaction</div><div class="cr">AISC 360-22 §J3.7</div>'
+      +'<div class="ceq">(T/&phi;N)<sup>2</sup>+(V/&phi;V)<sup>2</sup>&le;1.0<br>'
+      +'= '+f4(Math.pow(r.Tu_bolt/(r.phi_Nsa||1),2))+' + '+f4(Math.pow(r.Vu/(r.phi_Vsa||1),2))+' = '+f4(Math.pow(r.dc_tv,2))+'<br>'
+      +'D/C = &radic;(interaction) = '+f3(r.dc_tv)+'</div>'+dcStr(r.dc_tv)+'</div>';
+  }
+
+  // ── CONCRETE CHECKS ───────────────────────────────────────────────────────
+
+  // 9 — Concrete breakout tension
+  html+='<div class="'+concCardCls(r.dc_conc_brkT)+'">'
+    +'<div class="cn">&#9312; Concrete Breakout — Tension</div>'
+    +'<div class="cr">ACI 318-19 §17.6.2 / AISC DG1 Ex.&nbsp;4.4 &nbsp;&bull;&nbsp; Uncracked &psi;<sub>c,N</sub>=1.25 &nbsp;&bull;&nbsp; &phi;=0.70 (Cond.&nbsp;B)</div>'
+    +'<div class="ceq">h<sub>ef</sub>='+r.hef+'&Prime; &nbsp; n='+r.n_perrow+'&times;'+r.n_rows+' bolts &nbsp; sg='+r.sg+'&Prime; &nbsp; c<sub>edge</sub>='+r.c_edge+'&Prime;<br>'
+    +'N<sub>b</sub>=24&lambda;&radic;(f&prime;c&times;1000)&times;h<sub>ef</sub><sup>1.5</sup>/1000 = 24&times;&radic;'+(r.fc*1000)+'&times;'+f3(Math.pow(r.hef,1.5))+'/1000 = <b>'+f3(r.Nb_tens)+' k</b><br>'
+    +'A<sub>Nco</sub>=9h<sub>ef</sub>&sup2;='+f2(r.ANco)+' in&sup2; &nbsp; A<sub>Nc</sub>=(sg&times;(n/row-1)+3h<sub>ef</sub>)&times;(sg+3h<sub>ef</sub>)=<b>'+f2(r.ANc)+' in&sup2;</b><br>'
+    +'&psi;<sub>ed,N</sub>='+f3(r.psi_ed_N)+(r.psi_ed_N<1.0?' (edge reduced)':' (c<sub>edge</sub>&ge;1.5h<sub>ef</sub>)')+'<br>'
+    +'&phi;N<sub>cbg</sub>=0.70&times;('+f2(r.ANc)+'/'+f2(r.ANco)+')&times;1.0&times;'+f3(r.psi_ed_N)+'&times;1.25&times;1.0&times;'+f3(r.Nb_tens)+' = <b>'+f3(r.phi_Ncbg)+' k</b><br>'
+    +'T<sub>u,grp</sub>='+f3(r.Tu_net)+' k'+(r.Tu_net<=0.001?' (no tension &rarr; N/A)':'')+'</div>'
+    +dcStr(r.dc_conc_brkT)+'</div>';
+
+  // 10 — Concrete pullout
+  html+='<div class="'+concCardCls(r.dc_conc_pull)+'">'
+    +'<div class="cn">&#9313; Concrete Pullout</div>'
+    +'<div class="cr">ACI 318-19 §17.6.3 / AISC DG1 Ex.&nbsp;4.4 &nbsp;&bull;&nbsp; Uncracked &psi;<sub>c,P</sub>=1.4 &nbsp;&bull;&nbsp; &phi;=0.70</div>'
+    +'<div class="ceq">A<sub>brg</sub>='+f3(r.Abrg)+' in&sup2; (heavy hex nut, &empty;'+r.adb+'&Prime;)<br>'
+    +'N<sub>p</sub>=8&times;A<sub>brg</sub>&times;f&prime;c&times;1000/1000 = 8&times;'+f3(r.Abrg)+'&times;'+(r.fc*1000)+'/1000 = '+f3(r.Np_bolt)+' k/bolt<br>'
+    +'&phi;N<sub>pn</sub>=0.70&times;1.4&times;N<sub>p</sub>=0.70&times;1.4&times;'+f3(r.Np_bolt)+' = '+f3(r.phi_Npn_per)+' k/bolt<br>'
+    +'&phi;N<sub>pn,grp</sub>='+f3(r.phi_Npn_per)+'&times;'+(r.nb/2)+' = <b>'+f3(r.phi_Npn_grp)+' k</b><br>'
+    +'T<sub>u,grp</sub>='+f3(r.Tu_net)+' k'+(r.Tu_net<=0.001?' (no tension &rarr; N/A)':'')+'</div>'
+    +dcStr(r.dc_conc_pull)+'</div>';
+
+  // 11 — Concrete shear breakout
+  html+='<div class="'+concCardCls(r.dc_conc_V_brk)+'">'
+    +'<div class="cn">&#9314; Concrete Breakout — Shear</div>'
+    +'<div class="cr">ACI 318-19 §17.7.2 / AISC DG1 Ex.&nbsp;4.10 &nbsp;&bull;&nbsp; Uncracked &psi;<sub>c,V</sub>=1.4 &nbsp;&bull;&nbsp; &phi;=0.70</div>'
+    +'<div class="ceq">c<sub>a1</sub>=c<sub>edge</sub>='+f2(r.ca1)+'&Prime; &nbsp; l<sub>e</sub>=min(h<sub>ef</sub>,8d<sub>a</sub>)=min('+r.hef+','+f1(8*r.adb)+')='+f2(r.le_v)+'&Prime;<br>'
+    +'V<sub>b</sub>=7(l<sub>e</sub>/d<sub>a</sub>)<sup>-0.2</sup>&radic;d<sub>a</sub>&times;&lambda;&times;&radic;(f&prime;c&times;1000)&times;c<sub>a1</sub><sup>1.5</sup>/1000<br>'
+    +' &nbsp;=7&times;'+f3(Math.pow(r.le_v/r.adb,-0.2))+'&times;'+f3(Math.sqrt(r.adb))+'&times;1.0&times;'+f1(Math.sqrt(r.fc*1000))+'&times;'+f3(Math.pow(r.ca1,1.5))+'/1000 = '+f3(r.Vb_a)+' k<br>'
+    +'V<sub>b,lim</sub>=9&lambda;&radic;(f&prime;c&times;1000)&times;c<sub>a1</sub><sup>1.5</sup>/1000 = '+f3(9*Math.sqrt(r.fc*1000)*Math.pow(r.ca1,1.5)/1000)+' k &rarr; V<sub>b</sub>=<b>'+f3(r.Vb)+' k</b><br>'
+    +'A<sub>Vco</sub>=4.5c<sub>a1</sub>&sup2;='+f2(r.AVco)+' in&sup2; &nbsp; A<sub>Vc</sub>=((n<sub>front</sub>-1)sg+3c<sub>a1</sub>)&times;1.5c<sub>a1</sub>=<b>'+f2(r.AVc)+' in&sup2;</b><br>'
+    +'&psi;<sub>ed,V</sub>='+f3(r.psi_ed_V)+' &nbsp;&psi;<sub>c,V</sub>=1.4 (uncracked)<br>'
+    +'&phi;V<sub>cbg</sub>=0.70&times;('+f2(r.AVc)+'/'+f2(r.AVco)+')&times;1.0&times;'+f3(r.psi_ed_V)+'&times;1.4&times;1.0&times;'+f3(r.Vb)+' = <b>'+f3(r.phi_Vcbg)+' k</b></div>'
+    +dcStr(r.dc_conc_V_brk)+'</div>';
+
+  // 12 — Pryout
+  html+='<div class="'+concCardCls(r.dc_pryout)+'">'
+    +'<div class="cn">&#9315; Concrete Pryout</div>'
+    +'<div class="cr">ACI 318-19 §17.7.3 &nbsp;&bull;&nbsp; Uses tension breakout as basis</div>'
+    +'<div class="ceq">k<sub>cp</sub>='+r.kcp+'.0 (h<sub>ef</sub>='+r.hef+'&Prime; '+(r.hef>=2.5*r.adb?'&ge;':'<')+' 2.5d<sub>a</sub>='+f2(2.5*r.adb)+'&Prime;)<br>'
+    +'&phi;N<sub>cbg,pry</sub>=0.70&times;(A<sub>Nc</sub>/A<sub>Nco</sub>)&times;&psi;&times;N<sub>b</sub> = '+f3(r.phi_Ncbg_pry)+' k (full group, sq.)<br>'
+    +'&phi;V<sub>cp</sub>=k<sub>cp</sub>&times;&phi;N<sub>cbg,pry</sub>='+r.kcp+'&times;'+f3(r.phi_Ncbg_pry)+' = <b>'+f3(r.phi_Vcp)+' k</b></div>'
+    +dcStr(r.dc_pryout)+'</div>';
+
+  html+='</div>'; // end cgrid
+
+  // Summary table
+  html+='<table class="stbl"><tr>'
+    +'<th>Member</th><th>Pu</th><th>Vu</th><th>Mu</th><th>N</th><th>B</th><th>tp</th>'
+    +'<th>t<sub>req,c</sub></th><th>DC Bear</th><th>DC Plt</th><th>DC Shear</th>'
+    +'<th>DC Bolt-T</th><th>DC T+V</th><th>DC ConcT</th><th>DC ConcV</th><th>Governs</th></tr>'
+    +'<tr><td>'+r.name+'</td><td>'+f2(r.Pu)+'</td><td>'+f2(r.Vu)+'</td><td>'+f2(r.Mu)+'</td>'
+    +'<td>'+f2(r.N)+'</td><td>'+f2(r.Bp)+'</td><td>'+f3(r.tp)+'</td>'
+    +'<td>'+f3(r.t_req_cf)+'</td>'
+    +'<td>'+(r.dc_bear!==null?f3(r.dc_bear):'—')+'</td>'
+    +'<td>'+f3(r.dc_plt)+'</td>'
+    +'<td>'+(r.dc_shear!==null?f3(r.dc_shear):'—')+'</td>'
+    +'<td>'+(r.dc_boltt!==null?f3(r.dc_boltt):'—')+'</td>'
+    +'<td>'+(r.dc_tv!==null?f3(r.dc_tv):'—')+'</td>'
+    +'<td>'+(r.dc_conc_T!==null?f3(r.dc_conc_T):'—')+'</td>'
+    +'<td>'+(r.dc_conc_V!==null?f3(r.dc_conc_V):'—')+'</td>'
+    +'<td><b>'+r.govName+'</b></td></tr></table>';
+
+  return html;
+}
+
+// ── Excel / RISA loading ─────────────────────────────────────────────────────
+function loadExcel(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0];
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var data=new Uint8Array(e.target.result);
+      var wb=XLSX.read(data,{type:'array'});
+      var sn=wb.SheetNames.indexOf('End Reactions')>=0?'End Reactions':wb.SheetNames[0];
+      var ws=wb.Sheets[sn];
+      var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      var parsed=parseRISA(rows);
+      var n=Object.keys(parsed).length;
+      if(n===0){alert('No members found. Verify this is a RISA Envelope Member Forces export.');return;}
+      MBR=parsed;
+      document.getElementById('mbrCt').textContent=n+' members \u2014 '+file.name;
+      buildTable();
+    }catch(err){alert('Error: '+err.message);console.error(err);}
+  };
+  reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+function parseRISA(rows){
+  var members={},cur_m=null,cur_e=null;
+  for(var i=2;i<rows.length;i++){
+    var row=rows[i];
+    var c1=row[1]!==undefined&&row[1]!==null&&row[1]!==''?String(row[1]).trim():null;
+    var c2=row[2]!==undefined&&row[2]!==null&&row[2]!==''?String(row[2]).trim():null;
+    if(c1){cur_m=c1;if(!members[cur_m])members[cur_m]={I:{max:null,min:null},J:{max:null,min:null}};}
+    if(c2) cur_e=c2;
+    if(!cur_m||!cur_e) continue;
+    var mm=row[3]!==undefined&&row[3]!==null&&row[3]!==''?String(row[3]).trim():null;
+    if(mm!=='max'&&mm!=='min') continue;
+    members[cur_m][cur_e][mm]={
+      P:parseFloat(row[4])||0,Vy:parseFloat(row[6])||0,Vz:parseFloat(row[8])||0,
+      T:parseFloat(row[10])||0,Myy:parseFloat(row[12])||0,Mzz:parseFloat(row[14])||0
+    };
+  }
+  var mjs={};
+  Object.keys(members).sort().forEach(function(name){
+    var d=members[name];
+    var Im=d.I.max||{},Imin=d.I.min||{};
+    function rv(obj,k){var v=parseFloat(obj&&obj[k]);return isFinite(v)?Math.round(v*10000)/10000:0;}
+    mjs[name]={Pu_max:rv(Im,'P'),Pu_min:rv(Imin,'P'),
+      Vy_max:rv(Im,'Vy'),Vy_min:rv(Imin,'Vy'),Vz_max:rv(Im,'Vz'),Vz_min:rv(Imin,'Vz'),
+      Myy_max:rv(Im,'Myy'),Myy_min:rv(Imin,'Myy'),Mzz_max:rv(Im,'Mzz'),Mzz_min:rv(Imin,'Mzz'),
+      T_max:rv(Im,'T'),T_min:rv(Imin,'T'),brace:rv(Imin,'P')<-0.5};
+  });
+  return mjs;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+buildTable();
+</script>
+<script src="/are-utils.js"></script>
+</body>
+</html>

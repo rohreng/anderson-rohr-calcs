@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Channel Beam &#8212; Joist Bearing on Flange</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.stiff-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.stiff-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.stiff{border-color:#16a34a;background:#f0fdf4}
+.dem-card.stiff .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.ecc-callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.stiff-callout{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:9px 12px;font-size:.82em;color:#166534;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Channel Beam &mdash; Joist Bearing on Flange</h1>
+  <p>Eccentric joist load on channel flange &mdash; checks flange local bending, LTB (kicker-braced), and DG9 torsion</p>
+  <div class="ref-tags">
+    <span class="tag">AISC 360-22</span><span class="tag">AISC DG9 Torsion</span><span class="tag">LRFD</span>
+    <span class="tag">F2 Flexure + LTB</span><span class="tag">Flange Local Bending</span>
+    <span class="tag">J10.2 Web Local Yielding</span><span class="tag">J10.3 Web Crippling</span>
+    <span class="tag">DG9 &sect;4.6&ndash;4.7 Warping Stresses</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:center">
+
+    <!-- Cross-section view -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">CROSS-SECTION (looking along beam axis)</div>
+      <svg width="100%" viewBox="0 0 300 230" style="max-height:230px">
+        <defs>
+          <marker id="arrAmb" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#f59e0b"/></marker>
+          <marker id="arrAmb2" markerWidth="7" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#f59e0b"/></marker>
+          <marker id="arrRed" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#dc2626"/></marker>
+          <marker id="arrGrn" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#16a34a"/></marker>
+        </defs>
+
+        <!-- Channel: web vertical on left, flanges extending right -->
+        <!-- Web -->
+        <rect x="115" y="40" width="9" height="140" fill="#93c5fd" stroke="#1e3c72" stroke-width="1.5"/>
+        <!-- Top flange -->
+        <rect x="115" y="40" width="75" height="11" fill="#93c5fd" stroke="#1e3c72" stroke-width="1.5"/>
+        <!-- Bottom flange -->
+        <rect x="115" y="169" width="75" height="11" fill="#93c5fd" stroke="#1e3c72" stroke-width="1.5"/>
+
+        <!-- Joist seat rectangle on top flange (small block) -->
+        <rect x="148" y="22" width="22" height="19" fill="#fde68a" stroke="#b45309" stroke-width="1.5" rx="1"/>
+        <text x="159" y="18" font-size="8" fill="#b45309" text-anchor="middle">Joist</text>
+
+        <!-- Vertical load arrow from joist bearing -->
+        <line x1="159" y1="21" x2="159" y2="38" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrRed)"/>
+        <text x="173" y="18" font-size="9" fill="#dc2626" font-weight="700">P<tspan baseline-shift="sub" font-size="7">u</tspan> &#x2193;</text>
+
+        <!-- Web CL line (dashed) -->
+        <line x1="119" y1="20" x2="119" y2="200" stroke="#2a5298" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="119" y="14" font-size="7.5" fill="#2a5298" text-anchor="middle">web CL</text>
+
+        <!-- SC marker — outside to the LEFT of web -->
+        <circle cx="55" cy="110" r="6" fill="none" stroke="#f59e0b" stroke-width="2.5"/>
+        <line x1="51" y1="106" x2="59" y2="114" stroke="#f59e0b" stroke-width="2"/>
+        <line x1="59" y1="106" x2="51" y2="114" stroke="#f59e0b" stroke-width="2"/>
+        <text x="55" y="130" font-size="9" fill="#b45309" text-anchor="middle" font-weight="700">SC</text>
+        <text x="55" y="140" font-size="7" fill="#b45309" text-anchor="middle">shear center</text>
+
+        <!-- E_o dimension: web CL to SC -->
+        <line x1="55" y1="88" x2="119" y2="88" stroke="#b45309" stroke-width="1.2" stroke-dasharray="3,2" marker-start="url(#arrAmb2)" marker-end="url(#arrAmb)"/>
+        <text x="87" y="85" font-size="8.5" fill="#b45309" text-anchor="middle">E&#x2080; (DG9 Eq.3.19)</text>
+
+        <!-- e_joist dimension: web CL to bearing CL -->
+        <line x1="119" y1="100" x2="159" y2="100" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="3,2" marker-start="url(#arrAmb2)" marker-end="url(#arrAmb)"/>
+        <text x="140" y="97" font-size="8" fill="#dc2626" text-anchor="middle">e<tspan baseline-shift="sub" font-size="6">joist</tspan></text>
+
+        <!-- Total torque arm: SC to bearing -->
+        <line x1="55" y1="155" x2="159" y2="155" stroke="#7c3aed" stroke-width="1.5" marker-start="url(#arrAmb2)" marker-end="url(#arrAmb)"/>
+        <text x="107" y="152" font-size="8.5" fill="#7c3aed" text-anchor="middle" font-weight="700">e&#x2080; + e<tspan baseline-shift="sub" font-size="6">joist</tspan> = torque arm</text>
+
+        <!-- Torque label -->
+        <text x="107" y="168" font-size="8" fill="#7c3aed" text-anchor="middle">T = P&#x1D64; &times; (E&#x2080; + e<tspan baseline-shift="sub" font-size="6">joist</tspan>)</text>
+
+        <!-- Centroid dot -->
+        <circle cx="140" cy="110" r="3" fill="#2a5298"/>
+        <text x="140" y="126" font-size="7.5" fill="#2a5298" text-anchor="middle">centroid</text>
+
+        <!-- Web outer face line -->
+        <line x1="115" y1="22" x2="115" y2="188" stroke="#555" stroke-width="0.8" stroke-dasharray="2,2"/>
+
+        <!-- Note outside -->
+        <rect x="2" y="2" width="108" height="13" rx="3" fill="#fff8e1"/>
+        <text x="56" y="11" font-size="7" fill="#92400e" text-anchor="middle">SC is OUTSIDE channel (web side)</text>
+      </svg>
+    </div>
+
+    <!-- Elevation view -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">ELEVATION &mdash; Channel with Joists at 6&rsquo;&#x2011;0&rdquo; o.c.</div>
+      <svg width="100%" viewBox="0 0 300 210" style="max-height:210px">
+        <defs>
+          <marker id="arrDn" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
+          <marker id="arrDnR" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#dc2626"/></marker>
+          <marker id="arrRt" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#374151"/></marker>
+        </defs>
+        <!-- Channel beam -->
+        <line x1="15" y1="110" x2="285" y2="110" stroke="#1e3c72" stroke-width="3"/>
+        <rect x="15" y="100" width="270" height="5" fill="#2a5298" opacity=".35" rx="1"/>
+        <rect x="15" y="115" width="270" height="5" fill="#2a5298" opacity=".35" rx="1"/>
+        <!-- Supports -->
+        <line x1="15" y1="104" x2="15" y2="120" stroke="#1e3c72" stroke-width="3.5"/>
+        <line x1="285" y1="104" x2="285" y2="120" stroke="#1e3c72" stroke-width="3.5"/>
+        <polygon points="15,120 5,135 25,135" fill="#555"/>
+        <polygon points="285,120 275,135 295,135" fill="#555"/>
+        <line x1="2" y1="135" x2="28" y2="135" stroke="#555" stroke-width="2"/>
+        <line x1="272" y1="135" x2="298" y2="135" stroke="#555" stroke-width="2"/>
+        <!-- Joists at ~72" spacing (3 shown) -->
+        <!-- Joist 1 at x=75 -->
+        <rect x="68" y="78" width="14" height="22" fill="#fde68a" stroke="#b45309" stroke-width="1.2" rx="1"/>
+        <line x1="75" y1="65" x2="75" y2="77" stroke="#dc2626" stroke-width="2" marker-end="url(#arrDnR)"/>
+        <text x="82" y="62" font-size="9" fill="#dc2626" font-weight="700">P<tspan baseline-shift="sub" font-size="6">u</tspan></text>
+        <!-- Kicker at joist 1 (diagonal line from bottom flange to wall/support) -->
+        <line x1="75" y1="120" x2="55" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>
+        <text x="48" y="172" font-size="8" fill="#16a34a">kicker</text>
+        <!-- Joist 2 at x=150 -->
+        <rect x="143" y="78" width="14" height="22" fill="#fde68a" stroke="#b45309" stroke-width="1.2" rx="1"/>
+        <line x1="150" y1="65" x2="150" y2="77" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <!-- Kicker at joist 2 -->
+        <line x1="150" y1="120" x2="170" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>
+        <!-- Joist 3 at x=225 -->
+        <rect x="218" y="78" width="14" height="22" fill="#fde68a" stroke="#b45309" stroke-width="1.2" rx="1"/>
+        <line x1="225" y1="65" x2="225" y2="77" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <!-- Kicker at joist 3 -->
+        <line x1="225" y1="120" x2="205" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>
+        <!-- Labels -->
+        <text x="150" y="58" font-size="8.5" fill="#374151" text-anchor="middle">Joists bearing on top flange</text>
+        <!-- Kicker label -->
+        <text x="180" y="172" font-size="8" fill="#16a34a">kickers @ 6&#x2019;-0&#x22; o.c.</text>
+        <!-- Lb dimension -->
+        <line x1="75" y1="185" x2="150" y2="185" stroke="#555" stroke-width="1" stroke-dasharray="2,2"/>
+        <line x1="75" y1="182" x2="75" y2="188" stroke="#555" stroke-width="1"/>
+        <line x1="150" y1="182" x2="150" y2="188" stroke="#555" stroke-width="1"/>
+        <text x="112" y="197" font-size="8" fill="#555" text-anchor="middle">L<tspan baseline-shift="sub" font-size="6">b</tspan> = kicker spacing</text>
+      </svg>
+    </div>
+
+  </div>
+  <div class="ecc-callout" style="margin-top:8px">
+    <strong>Eccentricity:</strong> The joist load P<sub>u</sub> is applied on the channel flange at distance e<sub>joist</sub> from the web CL. The shear center (SC) lies <em>outside</em> the channel on the web face side at distance E&#x2080; from the web CL (DG9 Eq. 3.19). The total torque arm is <strong>E&#x2080; + e<sub>joist</sub></strong>, producing torque <strong>T = P<sub>u</sub> &times; (E&#x2080; + e<sub>joist</sub>)</strong>. The flange also bends locally about the web root with arm <strong>e<sub>joist</sub> &minus; t<sub>w</sub>/2</strong>.
+  </div>
+</div>
+
+<!-- 1. SECTION -->
+<div class="blk">
+  <h2>1. Section &amp; Material</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>AISC Channel Section</label>
+      <select id="sec" onchange="fillSectionHint()">
+        <option value="">&#8212; Select Section &#8212;</option>
+        <optgroup label="C6"><option>C6x8.2</option><option>C6x10.5</option><option>C6x13</option></optgroup>
+        <optgroup label="C7"><option>C7x9.8</option><option>C7x12.25</option></optgroup>
+        <optgroup label="C8"><option>C8x11.5</option><option>C8x13.75</option><option>C8x18.75</option></optgroup>
+        <optgroup label="C9"><option>C9x13.4</option><option>C9x15</option><option>C9x20</option></optgroup>
+        <optgroup label="C10"><option>C10x15.3</option><option>C10x20</option><option>C10x25</option><option>C10x30</option></optgroup>
+        <optgroup label="C12"><option>C12x20.7</option><option>C12x25</option><option>C12x30</option></optgroup>
+        <optgroup label="C15"><option>C15x33.9</option><option>C15x40</option><option>C15x50</option></optgroup>
+      </select>
+    </div>
+    <div class="ig">
+      <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fy">
+        <option value="36">36 &ndash; A36</option>
+        <option value="50" selected>50 &ndash; A572 Gr.50</option>
+        <option value="55">55</option><option value="60">60</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>E <span class="unit">(ksi)</span></label>
+      <input type="number" id="Es" value="29000">
+    </div>
+  </div>
+  <div id="secHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+</div>
+
+<!-- 2. SPAN DEMANDS -->
+<div class="blk">
+  <h2>2. Factored Span Demands <span class="badge">From Analysis</span></h2>
+  <p style="font-size:.82em;color:#555;margin-bottom:12px">Enter factored demands at the critical section from your frame analysis (total from all joist loads on span).</p>
+  <div class="g3">
+    <div class="ig">
+      <label>M<sub>u</sub> &mdash; Strong-Axis Moment <span class="unit">(kip-in)</span></label>
+      <input type="number" id="Mu_span" value="0" step="10">
+    </div>
+    <div class="ig">
+      <label>V<sub>u</sub> &mdash; Shear <span class="unit">(kips)</span></label>
+      <input type="number" id="Vu_span" value="0" step="1">
+    </div>
+    <div class="ig">
+      <label>P<sub>u,axial</sub> &mdash; Axial in Channel <span class="unit">(kips, + tension)</span></label>
+      <input type="number" id="Pu_axial" value="0" step="1">
+      <span class="hint">Enter 0 if no axial demand</span>
+    </div>
+  </div>
+</div>
+
+<!-- 3. JOIST BEARING LOAD -->
+<div class="blk">
+  <h2>3. Joist Bearing Load <span class="badge">Single Joist, Factored</span></h2>
+  <div class="ecc-callout">
+    Enter the <strong>full factored joist reaction</strong> P<sub>u</sub>. Bearing length N is the seat dimension parallel to the channel span. Bearing eccentricity e<sub>joist</sub> is the distance from the channel <em>web centerline</em> to the joist bearing centerline (on the flange).
+  </div>
+  <div class="g3">
+    <div class="ig">
+      <label>P<sub>u</sub> &mdash; Factored Joist Reaction <span class="unit">(kips)</span></label>
+      <input type="number" id="Pu_joist" value="10" step="0.5" min="0">
+    </div>
+    <div class="ig">
+      <label>N &mdash; Bearing Length <span class="unit">(in, parallel to channel span)</span></label>
+      <input type="number" id="N_bear" value="4" step="0.25" min="0.5">
+      <span class="hint">Joist seat width in direction of channel span</span>
+    </div>
+    <div class="ig">
+      <label>Bearing Location e<sub>joist</sub></label>
+      <select id="ejSrc" onchange="toggleEjInput()">
+        <option value="auto">Auto &mdash; bearing CL at bf/2 from web CL</option>
+        <option value="manual">Manual &mdash; input e<sub>joist</sub> directly</option>
+      </select>
+    </div>
+    <div class="ig" id="ejManGrp" style="display:none">
+      <label>e<sub>joist</sub> <span class="unit">(in, web CL to bearing CL)</span></label>
+      <input type="number" id="ej_man" value="1.5" step="0.125" min="0">
+      <span class="hint">Must be &gt; t<sub>w</sub>/2 (outside web face)</span>
+    </div>
+    <div class="ig">
+      <label>Joist Position Along Span</label>
+      <select id="connEnd">
+        <option value="no">Interior (more than d/2 from support)</option>
+        <option value="yes">Near end (within d/2 of support)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- 4. ECCENTRICITY & TORSION -->
+<div class="blk">
+  <h2>4. Torsional Analysis <span class="badge">DG9 App. C</span></h2>
+  <div class="ecc-callout">
+    <strong>Torsional boundary conditions:</strong> For a channel beam with standard end connections, Pinned&ndash;Pinned (PP) is typical. The PP case uses the exact DG9 Appendix C closed-form solution. The torque location a<sub>T</sub> is measured from the near support to the joist being checked.
+  </div>
+  <div class="g3">
+    <div class="ig">
+      <label>Torsional Boundary Conditions</label>
+      <select id="torsBC">
+        <option value="PP">Pinned&ndash;Pinned (&theta;=0, M<sub>w</sub>=0 at both ends) &mdash; typical</option>
+        <option value="FF">Fixed&ndash;Fixed (&theta;=0, &theta;&prime;=0 at both ends)</option>
+        <option value="FP">Fixed&ndash;Pinned</option>
+        <option value="CF">Cantilever (fixed base, free tip)</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>a<sub>T</sub> &mdash; Torque Location from Near Support <span class="unit">(in)</span></label>
+      <input type="number" id="aT" value="" step="6" placeholder="Default: L/2">
+      <span class="hint">Location of critical joist along channel span</span>
+    </div>
+  </div>
+</div>
+
+<!-- 5. STIFFENER -->
+<div class="blk stiff-blk">
+  <h2>5. Full-Depth Stiffener at Each Joist <span class="badge-green">Optional — Eliminates Flange Bending &amp; Warping</span></h2>
+  <div class="stiff-callout">
+    A full-depth stiffener plate at each joist bearing point: (1) <strong>eliminates flange local bending</strong> by transferring the joist load directly to the web; (2) acts as a <strong>warping pin</strong> (M<sub>w</sub>&nbsp;=&nbsp;0 at each joist), eliminating &sigma;<sub>w</sub> and &tau;<sub>w</sub> for PP end conditions. Only St.&thinsp;Venant torsion (&tau;<sub>t</sub>&nbsp;=&nbsp;T&thinsp;t/J) remains. The stiffener is checked for bearing/compression: P<sub>u</sub>&nbsp;&le;&nbsp;&phi;F<sub>ys</sub>t<sub>s</sub>b<sub>s</sub>.
+  </div>
+  <div class="g3">
+    <div class="ig">
+      <label>Stiffener Provided?</label>
+      <select id="hasStiff" onchange="toggleStiffInputs()">
+        <option value="no">No stiffener &mdash; check flange bending and full warping torsion</option>
+        <option value="yes">Yes &mdash; full-depth stiffener plate at each joist</option>
+      </select>
+    </div>
+    <div class="ig" id="stiffThkGrp">
+      <label>t<sub>s</sub> &mdash; Stiffener Thickness <span class="unit">(in)</span></label>
+      <input type="number" id="ts" value="0.375" step="0.0625" min="0.125" disabled>
+    </div>
+    <div class="ig" id="stiffWdGrp">
+      <label>b<sub>s</sub> &mdash; Stiffener Width <span class="unit">(in)</span></label>
+      <input type="number" id="bs" value="2" step="0.125" min="0.5" disabled>
+      <span class="hint">Width of stiffener plate (perpendicular to web)</span>
+    </div>
+    <div class="ig" id="stiffFyGrp">
+      <label>F<sub>ys</sub> <span class="unit">(ksi)</span></label>
+      <select id="FyS" disabled>
+        <option value="36">36 &ndash; A36</option>
+        <option value="50" selected>50 &ndash; A572 Gr.50</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- 6. GEOMETRY -->
+<div class="blk">
+  <h2>6. Member Geometry &amp; Stability</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Span L <span class="unit">(in)</span></label>
+      <input type="number" id="L" value="120" step="6">
+    </div>
+    <div class="ig">
+      <label>L<sub>b</sub> &mdash; Unbraced Length (kicker spacing) <span class="unit">(in)</span></label>
+      <input type="number" id="Lb" value="72" step="6">
+      <span class="hint">Default: 6&#x2019;-0&#x22; = 72&#x22; (kicker spacing)</span>
+    </div>
+    <div class="ig">
+      <label>C<sub>b</sub> &mdash; Moment Gradient Factor</label>
+      <input type="number" id="Cb" value="1.0" step="0.05" min="0.1" max="3.0">
+      <span class="hint">Use 1.0 for conservative; compute per §F1 for actual diagram</span>
+    </div>
+    <div class="ig">
+      <label>K &mdash; Effective Length Factor (axial)</label>
+      <input type="number" id="K" value="1.0" step="0.05" min="0.1">
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+  <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+  <div class="blk"><h2>Design Demands at Critical Joist</h2><div id="demOut"></div></div>
+  <div class="blk">
+    <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">&nbsp;&mdash; click &ldquo;&#9656; Calc&rdquo; to expand any check</span></h2>
+    <table class="chk-table">
+      <thead><tr>
+        <th style="width:30%">Check</th><th>Code Reference</th>
+        <th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th>
+        <th style="width:70px">Detail</th>
+      </tr></thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+  <div class="note-box">
+    <strong>Engineering Notes:</strong>
+    <ul>
+      <li><strong>Torque arm:</strong> E&#x2080; (DG9 Eq.&nbsp;3.19) is measured from web <em>centerline</em> to SC. For joist on flange, the total torque arm = E&#x2080;&nbsp;+&nbsp;e<sub>joist</sub> (both on opposite sides of web CL). This is larger than the brace-on-web-face scenario.</li>
+      <li><strong>Flange bending:</strong> The joist load bends the flange as a cantilever plate from the web face. Arm = e<sub>joist</sub>&nbsp;&minus;&nbsp;t<sub>w</sub>/2. Capacity uses plastic section modulus of the bearing strip: Z = N&thinsp;t<sub>f</sub><sup>2</sup>/4. If D/C &gt; 1.0, a full-depth stiffener at each joist will eliminate this check.</li>
+      <li><strong>LTB / Cb:</strong> Kickers at L<sub>b</sub> brace the channel. AISC 360-22 §F2 applies to channels. When joist load acts at the top (tension) flange for sagging moment, the load point is stabilizing; when at the compression flange, it is destabilizing. Use Cb = 1.0 conservatively, or compute per §F1 Commentary for your moment diagram.</li>
+      <li><strong>Torsion without stiffener:</strong> DG9 exact PP solution (App.&nbsp;C). Warping normal stress &sigma;<sub>w</sub>&nbsp;=&nbsp;E&thinsp;W<sub>no</sub>&thinsp;|&theta;&Prime;|<sub>max</sub> adds to bending stress at the flange tips.</li>
+      <li><strong>Stiffener effect:</strong> Full-depth stiffener at each joist provides a warping pin, eliminating &sigma;<sub>w</sub> and &tau;<sub>w</sub>. Only St.&thinsp;Venant torsion remains. Size stiffener welds to web for P<sub>u</sub> (not included here).</li>
+      <li><strong>This is a design aid &mdash; results must be reviewed by a licensed structural engineer.</strong></li>
+    </ul>
+  </div>
+</div>
+
+</div></div>
+
+<script>
+const DB={
+  "C6x8.2":  [2.40,6.00,2.034,0.343,0.200,0.512,13.1,4.38,5.21,0.693,0.492,0.537,0.0224,1.22],
+  "C6x10.5": [3.09,6.00,2.034,0.343,0.314,0.499,15.2,5.06,5.99,0.860,0.564,0.529,0.0572,1.34],
+  "C6x13":   [3.82,6.00,2.157,0.343,0.437,0.514,17.4,5.80,6.89,1.05,0.638,0.524,0.124,1.60],
+  "C7x9.8":  [2.87,7.00,2.090,0.366,0.210,0.540,21.3,6.08,7.22,0.968,0.625,0.581,0.0321,2.54],
+  "C7x12.25":[3.60,7.00,2.194,0.366,0.314,0.532,24.2,6.91,8.15,1.17,0.703,0.570,0.0831,2.91],
+  "C8x11.5": [3.38,8.00,2.260,0.390,0.220,0.571,32.6,8.14,9.55,1.32,0.781,0.625,0.0440,4.78],
+  "C8x13.75":[4.04,8.00,2.343,0.390,0.303,0.553,36.1,9.03,10.6,1.53,0.854,0.615,0.0940,5.30],
+  "C8x18.75":[5.51,8.00,2.527,0.390,0.487,0.565,44.0,11.0,13.1,1.98,1.01,0.599,0.282,6.68],
+  "C9x13.4": [3.94,9.00,2.433,0.413,0.233,0.601,47.9,10.6,12.4,1.76,0.962,0.669,0.0586,8.03],
+  "C9x15":   [4.41,9.00,2.485,0.413,0.285,0.583,51.0,11.3,13.2,1.93,1.01,0.661,0.0998,8.55],
+  "C9x20":   [5.88,9.00,2.648,0.413,0.448,0.583,60.9,13.5,15.9,2.42,1.17,0.642,0.241,10.3],
+  "C10x15.3":[4.49,10.0,2.600,0.436,0.240,0.634,67.4,13.5,15.7,2.28,1.16,0.713,0.0744,13.4],
+  "C10x20":  [5.88,10.0,2.739,0.436,0.379,0.606,78.9,15.8,18.4,2.81,1.32,0.692,0.187,15.1],
+  "C10x25":  [7.35,10.0,2.886,0.436,0.526,0.617,91.2,18.2,21.4,3.36,1.48,0.676,0.394,17.4],
+  "C10x30":  [8.82,10.0,3.033,0.436,0.673,0.649,103.,20.7,24.6,3.94,1.65,0.669,0.639,20.4],
+  "C12x20.7":[6.09,12.0,2.942,0.501,0.282,0.698,129.,21.5,24.9,3.88,1.73,0.799,0.139,34.5],
+  "C12x25":  [7.35,12.0,3.047,0.501,0.387,0.674,144.,24.1,28.0,4.45,1.88,0.778,0.247,38.8],
+  "C12x30":  [8.82,12.0,3.170,0.501,0.510,0.674,162.,27.0,31.5,5.14,2.06,0.763,0.427,44.8],
+  "C15x33.9":[9.96,15.0,3.400,0.650,0.400,0.788,315.,42.0,47.9,8.13,3.11,0.904,0.385,127.],
+  "C15x40":  [11.8,15.0,3.520,0.650,0.520,0.777,349.,46.5,53.5,9.23,3.37,0.886,0.637,139.],
+  "C15x50":  [14.7,15.0,3.716,0.650,0.716,0.799,404.,53.8,62.7,11.0,3.78,0.865,1.14,158.]
+};
+
+function fillSectionHint(){
+  var s=document.getElementById('sec').value; if(!s)return;
+  var D=DB[s];
+  document.getElementById('secHint').innerHTML=
+    'A='+D[0]+' in&sup2; &nbsp; d='+D[1]+'" &nbsp; b<sub>f</sub>='+D[2]+'" &nbsp; t<sub>f</sub>='+D[3]+'" &nbsp; t<sub>w</sub>='+D[4]+'" &nbsp; x&#x0304;='+D[5]+'"';
+}
+function toggleEjInput(){
+  document.getElementById('ejManGrp').style.display=
+    document.getElementById('ejSrc').value==='manual'?'':'none';
+}
+function toggleStiffInputs(){
+  var on=document.getElementById('hasStiff').value==='yes';
+  ['ts','bs','FyS'].forEach(function(id){document.getElementById(id).disabled=!on;});
+}
+
+// Math helpers
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+
+// Torsion solver — DG9 App C exact (Pinned-Pinned)
+function torsionPP(T,L,z0,G,J,E,Cw){
+  var ECw=E*Cw, GJ=G*J, a=Math.sqrt(ECw/GJ);
+  z0=Math.max(1e-4,Math.min(L-1e-4,z0));
+  var S0=Math.sinh(z0/a), C0=Math.cosh(z0/a), TL=Math.tanh(L/a);
+  var B1=T*(L-z0)/(GJ*L), B2=-T*z0/(GJ*L);
+  var C2=-T*a*a*a*S0/(ECw*TL);
+  var C1=Math.abs(S0)>1e-9?C2*(S0-TL*C0)/S0:0;
+  var m1=0,m2=0,m3=0;
+  for(var i=0;i<=500;i++){
+    var z=L*i/500,t1,t2,t3;
+    if(z<=z0){var sz=Math.sinh(z/a),cz=Math.cosh(z/a);
+      t1=B1+(C1/a)*cz; t2=(C1/(a*a))*sz; t3=(C1/(a*a*a))*cz;}
+    else{var sz2=Math.sinh(z/a),cz2=Math.cosh(z/a);
+      t1=B2+(C2/a)*(cz2-TL*sz2); t2=(C2/(a*a))*(sz2-TL*cz2); t3=(C2/(a*a*a))*(cz2-TL*sz2);}
+    if(Math.abs(t1)>m1)m1=Math.abs(t1);
+    if(Math.abs(t2)>m2)m2=Math.abs(t2);
+    if(Math.abs(t3)>m3)m3=Math.abs(t3);
+  }
+  return {m1:m1,m2:m2,m3:m3,a:a};
+}
+function torsionCF(T,L,z0,G,J,E,Cw){
+  var a=Math.sqrt(E*Cw/(G*J)),lam=L/a;
+  return {m1:T/(G*J)*(1-1/Math.cosh(lam)),m2:T*Math.tanh(lam)/(E*Cw/a),m3:T/(E*Cw/(a*a)),a:a};
+}
+function getTors(T,L,z0,G,J,E,Cw,bc){
+  var a=Math.sqrt(E*Cw/(G*J));
+  if(T<1e-9) return {m1:0,m2:0,m3:0,a:a};
+  if(bc==='PP') return torsionPP(T,L,z0,G,J,E,Cw);
+  if(bc==='CF') return torsionCF(T,L,z0,G,J,E,Cw);
+  var pp=torsionPP(T,L,z0,G,J,E,Cw);
+  if(bc==='FF') return {m1:pp.m1*0.5,m2:pp.m2*0.8,m3:pp.m3*0.8,a:pp.a};
+  return {m1:pp.m1*0.7,m2:pp.m2*0.87,m3:pp.m3*0.87,a:pp.a};
+}
+
+// ── MAIN ────────────────────────────────────────────────────────────────────
+function runCalc(){
+  var sn=document.getElementById('sec').value;
+  if(!sn){alert('Select a section.'); return;}
+  var D=DB[sn];
+  var A=D[0],d=D[1],bf=D[2],tf=D[3],tw=D[4],xbar=D[5],Ix=D[6],Sx=D[7],Zx=D[8],Iy=D[9],Sy=D[10],ry=D[11],Jt=D[12],Cwt=D[13];
+  var Fy=+document.getElementById('Fy').value;
+  var E=+document.getElementById('Es').value;
+  var G=11200;
+
+  // Span demands
+  var Mu=+document.getElementById('Mu_span').value;
+  var Vu=+document.getElementById('Vu_span').value;
+  var Pu_ax=+document.getElementById('Pu_axial').value;
+
+  // Joist load
+  var Pu=+document.getElementById('Pu_joist').value;
+  var N=+document.getElementById('N_bear').value;
+  var connEnd=document.getElementById('connEnd').value;
+
+  // Geometry inputs
+  var L=+document.getElementById('L').value;
+  var Lb=+document.getElementById('Lb').value;
+  var Cb=+document.getElementById('Cb').value;
+  var K=+document.getElementById('K').value;
+  var torsBC=document.getElementById('torsBC').value;
+  var aT_s=document.getElementById('aT').value.trim();
+  var aT=aT_s!==''?+aT_s:L/2;
+
+  // Stiffener
+  var hasStiff=document.getElementById('hasStiff').value==='yes';
+  var ts=+document.getElementById('ts').value;
+  var bs=+document.getElementById('bs').value;
+  var FyS=+document.getElementById('FyS').value;
+
+  // Section derived geometry
+  var h_web=d-2*tf, h_fl=d-tf;
+  var bpr=bf-tw/2; // net flange width (web CL to flange tip)
+  // DG9 Eq. 3.19: E_o = distance from web CL to shear center
+  var E_o=(tf*bpr*bpr)/(2*bpr*tf+h_fl*tw/3);
+
+  // Bearing eccentricity
+  var e_joist;
+  if(document.getElementById('ejSrc').value==='manual'){
+    e_joist=+document.getElementById('ej_man').value;
+  } else {
+    e_joist=bf/2; // default: CL of flange
+  }
+  // Ensure e_joist > tw/2
+  var arm_fl=Math.max(e_joist-tw/2,0); // cantilever arm from web outer face
+
+  // Torque arm (joist on flange — load is on flange side, SC is on web-face side)
+  var e_torque=e_joist+E_o;
+  var T_torq=Pu*e_torque;
+
+  // Warping section properties (DG9)
+  var u_=bpr-E_o;
+  var Wno=Math.abs(u_)*h_fl/2;
+  var Sw1=u_*u_*h_fl*tf/4;
+  var rx=Math.sqrt(Ix/A);
+  var rts=Math.sqrt(Math.sqrt(Iy*Cwt)/Sx);
+  var ho=h_fl;
+
+  // Torsional stresses
+  var sig_w,tau_t_fl,tau_t_w,tau_w_fl,TR;
+  if(hasStiff){
+    // Stiffener at each joist → warping pin at load point → only St. Venant remains
+    var theta1_st=T_torq/(G*Jt);
+    tau_t_fl=G*tf*theta1_st;
+    tau_t_w=G*tw*theta1_st;
+    sig_w=0; tau_w_fl=0;
+    TR={m1:theta1_st,m2:0,m3:0,a:Math.sqrt(E*Cwt/(G*Jt))};
+  } else {
+    TR=getTors(T_torq,L,aT,G,Jt,E,Cwt,torsBC);
+    sig_w=E*Wno*TR.m2;
+    tau_t_fl=G*tf*TR.m1;
+    tau_t_w=G*tw*TR.m1;
+    tau_w_fl=Sw1>0?E*Sw1*TR.m3/tf:0;
+  }
+
+  // Slenderness
+  var lf=bf/tf, lpf=0.38*Math.sqrt(E/Fy), lrf=1.0*Math.sqrt(E/Fy);
+  var lw=h_web/tw, lpw=3.76*Math.sqrt(E/Fy);
+  var fl_c=lf<=lpf, fl_s=lf>lrf, w_c=lw<=lpw;
+
+  var chks=[];
+  var phib=0.90, phiv=1.00, phic=0.75;
+
+  // ── CHECK 1: FLANGE LOCAL BENDING (only without stiffener) ─────────────────
+  if(!hasStiff){
+    var Z_fl=N*tf*tf/4; // plastic section modulus of bearing strip
+    var phiMnfl=phib*Fy*Z_fl;
+    var M_fl=Pu*arm_fl;
+    var dc_fl=phiMnfl>0?M_fl/phiMnfl:999;
+    var d1='<div class="cref-hdr">Flange Local Bending &mdash; Cantilever Plate</div><div class="cbox">';
+    d1+='<div class="mrow"><span class="ceq">Flange bends as cantilever from web face under eccentric joist load</span></div>';
+    d1+='<hr class="csep">';
+    d1+='<div class="mrow"><strong>Demand:</strong> M<sub>fl</sub> = P<sub>u</sub> &times; arm = P<sub>u</sub> &times; (e<sub>joist</sub> &minus; t<sub>w</sub>/2)</div>';
+    d1+='<div class="mrow ind">= '+f2(Pu)+' &times; ('+f3(e_joist)+' &minus; '+f3(tw/2)+') = '+f2(Pu)+' &times; '+f3(arm_fl)+' = <span class="cval">'+f2(M_fl)+' k-in</span></div>';
+    d1+='<hr class="csep">';
+    d1+='<div class="mrow"><strong>Capacity:</strong> treating bearing strip (width N, thickness t<sub>f</sub>) as rectangular plate, plastic</div>';
+    d1+='<div class="mrow">&phi;M<sub>n,fl</sub> = &phi; &middot; F<sub>y</sub> &middot; Z<sub>fl</sub> &nbsp;where&nbsp; Z<sub>fl</sub> = '+fr('N &middot; t<sub>f</sub><sup>2</sup>','4')+'</div>';
+    d1+='<div class="mrow">Z<sub>fl</sub> = '+fr(f2(N)+' &times; '+f3(tf)+'<sup>2</sup>','4')+' = <span class="cval">'+f3(Z_fl)+' in&sup3;</span></div>';
+    d1+='<div class="mrow">&phi;M<sub>n,fl</sub> = '+phib+' &times; '+Fy+' &times; '+f3(Z_fl)+' = <span class="cval">'+f2(phiMnfl)+' k-in</span></div>';
+    d1+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(M_fl),f2(phiMnfl))+' = <span class="cval">'+f3(dc_fl)+'</span></div>';
+    d1+='<div class="mrow" style="font-size:.85em;color:#555">Note: arm<sub>fl</sub> = e<sub>joist</sub> &minus; t<sub>w</sub>/2 = '+f3(e_joist)+'&minus;'+f3(tw/2)+' = '+f3(arm_fl)+'" &nbsp;|&nbsp; If D/C &gt; 1.0, add full-depth stiffener at each joist.</div>';
+    d1+='</div>';
+    chks.push({n:'Flange Local Bending',r:'Cantilever plate (AISC 360-22)',
+      d:'M<sub>fl</sub> = '+f2(M_fl)+' k-in',c:'&phi;M<sub>n,fl</sub> = '+f2(phiMnfl)+' k-in',
+      dc:dc_fl,nt:'arm='+f3(arm_fl)+'", N='+f2(N)+'", t<sub>f</sub>='+f3(tf)+'"',stiff:false,det:d1});
+  }
+
+  // ── CHECK 2: WEB LOCAL YIELDING (J10.2) ────────────────────────────────────
+  var fac_wly=connEnd==='no'?5:2.5;
+  var eq_wly=connEnd==='no'?'J10-2 (interior)':'J10-3 (end)';
+  var Rn_wly=(fac_wly+N/d)*tw*Fy;
+  var d2='<div class="cref-hdr">AISC 360-22 &sect;J10.2 &mdash; Web Local Yielding</div><div class="cbox">';
+  d2+='<div class="mrow"><span class="ceq">Eq. '+eq_wly+':</span></div>';
+  d2+='<div class="mrow">&phi;R<sub>n</sub> = &phi; &middot; ('+fac_wly+' + '+fr('N','d')+') &middot; t<sub>w</sub> &middot; F<sub>y</sub></div>';
+  d2+='<div class="mrow ind">= '+phib+' &times; ('+fac_wly+' + '+fr(f2(N),f2(d))+') &times; '+f3(tw)+' &times; '+Fy+'</div>';
+  d2+='<div class="mrow ind">= '+phib+' &times; '+f3(fac_wly+N/d)+' &times; '+f3(tw)+' &times; '+Fy+' = <span class="cval">'+f2(phib*Rn_wly)+' kips</span></div>';
+  d2+='<hr class="csep"><div class="mrow">D/C = '+fr('P<sub>u</sub>','&phi;R<sub>n</sub>')+' = '+fr(f2(Pu),f2(phib*Rn_wly))+' = <span class="cval">'+f3(Pu/(phib*Rn_wly))+'</span></div></div>';
+  chks.push({n:'Web Local Yielding',r:'AISC 360-22 §J10.2',
+    d:'P<sub>u</sub> = '+f2(Pu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phib*Rn_wly)+' k',
+    dc:Pu/(phib*Rn_wly),nt:connEnd==='no'?'Interior':'End',stiff:false,det:d2});
+
+  // ── CHECK 3: WEB LOCAL CRIPPLING (J10.3) ───────────────────────────────────
+  var fac_wlc=connEnd==='no'?0.80:0.40;
+  var nd_r=N/d, wt_r=tw/tf;
+  var sqrt_arg_c=E*Fy*tf/tw;
+  var Rn_wlc,eq_wlc,brk;
+  if(connEnd==='no'){
+    brk=1+3*nd_r*Math.pow(wt_r,1.5);
+    Rn_wlc=0.80*tw*tw*brk*Math.sqrt(sqrt_arg_c); eq_wlc='J10-4 (interior)';
+  } else if(aT/d>=0.2){
+    brk=1+3*nd_r*Math.pow(wt_r,1.5);
+    Rn_wlc=0.40*tw*tw*brk*Math.sqrt(sqrt_arg_c); eq_wlc='J10-5a (end, a<sub>T</sub>/d&ge;0.2)';
+  } else {
+    brk=1+(4*nd_r-0.2)*Math.pow(wt_r,1.5);
+    Rn_wlc=0.40*tw*tw*brk*Math.sqrt(sqrt_arg_c); eq_wlc='J10-5b (end, a<sub>T</sub>/d&lt;0.2)';
+  }
+  var d3='<div class="cref-hdr">AISC 360-22 &sect;J10.3 &mdash; Web Local Crippling</div><div class="cbox">';
+  d3+='<div class="mrow"><span class="ceq">Eq. '+eq_wlc+':</span></div>';
+  d3+='<div class="mrow">&phi;R<sub>n</sub> = &phi; &middot; '+fac_wlc+'t<sub>w</sub><sup>2</sup> &middot; [1 + coeff &middot; '+fr('N','d')+'&middot;('+fr('t<sub>w</sub>','t<sub>f</sub>')+')<sup>1.5</sup>] &middot; '+ov('E&middot;F<sub>y</sub>&middot;t<sub>f</sub>/t<sub>w</sub>')+'</div>';
+  d3+='<div class="mrow ind">= '+phic+' &times; '+fac_wlc+' &times; '+f4(tw*tw)+' &times; ['+f3(brk)+'] &times; '+f3(Math.sqrt(sqrt_arg_c))+' = <span class="cval">'+f2(phic*Rn_wlc)+' kips</span></div>';
+  d3+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Pu),f2(phic*Rn_wlc))+' = <span class="cval">'+f3(Pu/(phic*Rn_wlc))+'</span></div></div>';
+  chks.push({n:'Web Local Crippling',r:'AISC 360-22 §J10.3',
+    d:'P<sub>u</sub> = '+f2(Pu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phic*Rn_wlc)+' k',
+    dc:Pu/(phic*Rn_wlc),nt:'Eq. '+eq_wlc,stiff:false,det:d3});
+
+  // ── CHECK 4: SHEAR (G2.1) ──────────────────────────────────────────────────
+  var Aw=d*tw;
+  var dtw_r=d/tw;
+  var cv1_lim=2.24*Math.sqrt(E/Fy);
+  var Cv1=(dtw_r<=cv1_lim)?1.0:Math.min(1.0,1.10*Math.sqrt(5.34*E/Fy)/(h_web/tw));
+  var phiVn=phiv*0.6*Fy*Aw*Cv1;
+  var d4='<div class="cref-hdr">AISC 360-22 &sect;G2.1 &mdash; Shear Strength (Strong Axis)</div><div class="cbox">';
+  d4+='<div class="mrow"><span class="ceq">Eq. G2-1: &phi;V<sub>n</sub> = &phi; &middot; 0.6F<sub>y</sub> &middot; A<sub>w</sub> &middot; C<sub>v1</sub></span></div>';
+  d4+='<div class="mrow">A<sub>w</sub> = d &middot; t<sub>w</sub> = '+f2(d)+'&times;'+f3(tw)+' = '+f3(Aw)+' in&sup2;</div>';
+  d4+='<div class="mrow">d/t<sub>w</sub> = '+f2(dtw_r)+'; &nbsp; 2.24'+ov('E/F<sub>y</sub>')+' = '+f2(cv1_lim)+' &rarr; C<sub>v1</sub> = '+f3(Cv1)+'</div>';
+  d4+='<div class="mrow">&phi;V<sub>n</sub> = '+phiv+'&times;0.6&times;'+Fy+'&times;'+f3(Aw)+'&times;'+f3(Cv1)+' = <span class="cval">'+f2(phiVn)+' kips</span></div>';
+  d4+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Vu),f2(phiVn))+' = <span class="cval">'+f3(Vu/phiVn)+'</span></div></div>';
+  chks.push({n:'Shear (Strong Axis)',r:'AISC 360-22 §G2.1',
+    d:'V<sub>u</sub> = '+f2(Vu)+' k',c:'&phi;V<sub>n</sub> = '+f2(phiVn)+' k',
+    dc:Vu/phiVn,nt:'C<sub>v1</sub>='+f3(Cv1),stiff:false,det:d4});
+
+  // ── CHECK 5: FLEXURE + LTB (F2) ────────────────────────────────────────────
+  var Lp=1.76*ry*Math.sqrt(E/Fy);
+  var jsh=Jt/(Sx*ho);
+  var Lr=1.95*rts*(E/(0.7*Fy))*Math.sqrt(jsh+Math.sqrt(jsh*jsh+6.76*Math.pow(0.7*Fy/E,2)));
+  var Mp=Fy*Zx;
+  var Mn_x,ltb_n,ltb_eq;
+  if(!fl_c){
+    if(fl_s){var kc=Math.max(0.35,Math.min(0.76,4/Math.sqrt(h_web/tw)));Mn_x=Math.min(Mp,0.9*E*kc*Sx/(lf*lf));ltb_n='Slender flange (F3-2)';ltb_eq='F3-2';}
+    else{Mn_x=Math.min(Mp,Mp-(Mp-0.7*Fy*Sx)*(lf-lpf)/(lrf-lpf));ltb_n='Noncompact flange (F3-1)';ltb_eq='F3-1';}
+  } else if(Lb<=Lp){
+    Mn_x=Mp; ltb_n='No LTB (L<sub>b</sub>&le;L<sub>p</sub>)'; ltb_eq='F2-1';
+  } else if(Lb<=Lr){
+    Mn_x=Math.min(Mp,Cb*(Mp-(Mp-0.7*Fy*Sx)*(Lb-Lp)/(Lr-Lp))); ltb_n='Inelastic LTB'; ltb_eq='F2-2';
+  } else {
+    var Fcr_l=Cb*Math.PI*Math.PI*E/Math.pow(Lb/rts,2)*Math.sqrt(1+0.078*Jt/(Sx*ho)*Math.pow(Lb/rts,2));
+    Mn_x=Math.min(Mp,Fcr_l*Sx); ltb_n='Elastic LTB'; ltb_eq='F2-3';
+  }
+  var phiMnx=phib*Mn_x;
+  var d5='<div class="cref-hdr">AISC 360-22 &sect;F2 &mdash; Flexure + Lateral-Torsional Buckling (L<sub>b</sub> = kicker spacing)</div><div class="cbox">';
+  d5+='<div class="mrow"><strong>Limiting unbraced lengths (rts = '+f3(rts)+'")</strong></div>';
+  d5+='<div class="mrow">L<sub>p</sub> = 1.76&middot;r<sub>y</sub>&middot;'+ov('E/F<sub>y</sub>')+' = 1.76&times;'+f3(ry)+'&times;'+ov(E+'/'+Fy)+' = <span class="cval">'+f1(Lp)+'"</span></div>';
+  d5+='<div class="mrow">L<sub>r</sub> = 1.95&middot;r<sub>ts</sub>&middot;'+fr('E','0.7F<sub>y</sub>')+' &middot; [...] = <span class="cval">'+f1(Lr)+'"</span></div>';
+  d5+='<div class="mrow">L<sub>b</sub> = '+f1(Lb)+'" (kicker spacing) &rarr; <strong>'+ltb_n+' (Eq. '+ltb_eq+')</strong></div>';
+  d5+='<hr class="csep">';
+  d5+='<div class="mrow">M<sub>p</sub> = F<sub>y</sub>&middot;Z<sub>x</sub> = '+Fy+'&times;'+f2(Zx)+' = '+f2(Mp)+' k-in</div>';
+  if(ltb_eq==='F2-1'){
+    d5+='<div class="mrow">&phi;M<sub>n</sub> = &phi;&middot;M<sub>p</sub> = 0.90&times;'+f2(Mp)+' = <span class="cval">'+f2(phiMnx)+' k-in</span></div>';
+  } else if(ltb_eq==='F2-2'){
+    d5+='<div class="mrow">&phi;M<sub>n</sub> = &phi;&middot;C<sub>b</sub>[M<sub>p</sub>&minus;(M<sub>p</sub>&minus;0.7F<sub>y</sub>S<sub>x</sub>)&middot;'+fr('L<sub>b</sub>&minus;L<sub>p</sub>','L<sub>r</sub>&minus;L<sub>p</sub>')+']</div>';
+    d5+='<div class="mrow ind">= 0.90&times;'+f2(Cb)+'&times;['+f2(Mp)+'&minus;('+f2(Mp)+'&minus;'+f2(0.7*Fy*Sx)+')&middot;'+fr(f1(Lb-Lp),f1(Lr-Lp))+'] = <span class="cval">'+f2(phiMnx)+' k-in</span></div>';
+  } else if(ltb_eq==='F2-3'){
+    var Fcr_el=Cb*Math.PI*Math.PI*E/Math.pow(Lb/rts,2)*Math.sqrt(1+0.078*Jt/(Sx*ho)*Math.pow(Lb/rts,2));
+    d5+='<div class="mrow">F<sub>cr</sub> = '+fr('C<sub>b</sub>&pi;<sup>2</sup>E','(L<sub>b</sub>/r<sub>ts</sub>)<sup>2</sup>')+' &middot; '+ov('1+0.078&middot;'+fr('J','S<sub>x</sub>h<sub>o</sub>')+'&middot;('+fr('L<sub>b</sub>','r<sub>ts</sub>')+')<sup>2</sup>')+'</div>';
+    d5+='<div class="mrow ind">= '+f2(Fcr_el)+' ksi &rarr; &phi;M<sub>n</sub> = min(&phi;M<sub>p</sub>, &phi;F<sub>cr</sub>S<sub>x</sub>) = <span class="cval">'+f2(phiMnx)+' k-in</span></div>';
+  } else {
+    d5+='<div class="mrow">&phi;M<sub>n</sub> = <span class="cval">'+f2(phiMnx)+' k-in</span> (noncompact/slender flange governs)</div>';
+  }
+  d5+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Mu),f2(phiMnx))+' = <span class="cval">'+f3(Mu/phiMnx)+'</span></div></div>';
+  chks.push({n:'Flexure + LTB ('+ltb_n+')',r:'AISC 360-22 §F2',
+    d:'M<sub>u</sub> = '+f2(Mu)+' k-in',c:'&phi;M<sub>n</sub> = '+f2(phiMnx)+' k-in',
+    dc:Mu/phiMnx,nt:'L<sub>b</sub>='+f1(Lb)+'" (kicker), L<sub>p</sub>='+f1(Lp)+'", L<sub>r</sub>='+f1(Lr)+'"',stiff:false,det:d5});
+
+  // ── CHECK 6: COMBINED NORMAL STRESS (DG9 §4.6.1) ───────────────────────────
+  var sa=Math.abs(Pu_ax)/A;
+  var sb_=Mu/Sx;
+  var stot=sa+sb_+sig_w;
+  var d6='<div class="cref-hdr">AISC Design Guide 9 (2nd Ed.) &sect;4.6.1 &mdash; Combined Normal Stress at Flange Tip</div><div class="cbox">';
+  d6+='<div class="mrow"><span class="ceq">Limit: &sigma;<sub>total</sub> = &sigma;<sub>a</sub> + &sigma;<sub>bx</sub> + &sigma;<sub>w</sub> &le; &phi;F<sub>y</sub></span></div>';
+  d6+='<hr class="csep">';
+  d6+='<div class="mrow">&sigma;<sub>a</sub> = '+fr('|P<sub>u</sub>|','A')+' = '+fr(f2(Math.abs(Pu_ax)),f2(A))+' = <span class="cval">'+f2(sa)+' ksi</span></div>';
+  d6+='<div class="mrow">&sigma;<sub>bx</sub> = '+fr('M<sub>u</sub>','S<sub>x</sub>')+' = '+fr(f2(Mu),f2(Sx))+' = <span class="cval">'+f2(sb_)+' ksi</span></div>';
+  if(hasStiff){
+    d6+='<div class="mrow">&sigma;<sub>w</sub> = <span class="cval">0 ksi</span> &nbsp;(stiffener at each joist provides warping pin &rarr; eliminates warping normal stress)</div>';
+  } else {
+    d6+='<div class="mrow">&sigma;<sub>w</sub> = E &middot; W<sub>no</sub> &middot; |&theta;&Prime;|<sub>max</sub></div>';
+    d6+='<div class="mrow ind">= '+E+' &times; '+f3(Wno)+' &times; '+TR.m2.toExponential(3)+' = <span class="cval">'+f2(sig_w)+' ksi</span></div>';
+    d6+='<div class="mrow ind" style="font-size:.87em;color:#555">W<sub>no</sub> = |u|&middot;h<sub>fl</sub>/2 = |'+f3(u_)+'|&times;'+f3(h_fl)+'/2 = '+f3(Wno)+' in&sup2;</div>';
+    d6+='<div class="mrow ind" style="font-size:.87em;color:#555">Torsion param a = '+f2(TR.a)+'" &nbsp;|&nbsp; T = '+f2(T_torq)+' k-in (e<sub>torque</sub>='+f2(e_torque)+'")</div>';
+  }
+  d6+='<hr class="csep"><div class="mrow">&sigma;<sub>total</sub> = '+f2(sa)+' + '+f2(sb_)+' + '+f2(sig_w)+' = <span class="cval">'+f2(stot)+' ksi</span></div>';
+  d6+='<div class="mrow">&phi;F<sub>y</sub> = 0.90 &times; '+Fy+' = '+f2(phib*Fy)+' ksi</div>';
+  d6+='<div class="mrow">D/C = '+fr(f2(stot),f2(phib*Fy))+' = <span class="cval">'+f3(stot/(phib*Fy))+'</span></div></div>';
+  var norm_note=hasStiff?'&sigma;<sub>w</sub>=0 (stiffener)':'&sigma;<sub>bx</sub>='+f2(sb_)+', &sigma;<sub>w</sub>='+f2(sig_w)+' ksi';
+  chks.push({n:'Combined Normal (&sigma;<sub>a</sub>+&sigma;<sub>bx</sub>+&sigma;<sub>w</sub>)',r:'AISC DG9 §4.6.1',
+    d:f2(stot)+' ksi',c:'&phi;F<sub>y</sub> = '+f2(phib*Fy)+' ksi',
+    dc:stot/(phib*Fy),nt:norm_note,stiff:hasStiff,det:d6});
+
+  // ── CHECK 7: COMBINED SHEAR STRESS (DG9 §4.7) ──────────────────────────────
+  var tv_w=Vu/Aw;
+  var tau_max=Math.max(tv_w+tau_t_w, tau_t_fl+tau_w_fl);
+  var d7='<div class="cref-hdr">AISC Design Guide 9 (2nd Ed.) &sect;4.7 &mdash; Combined Shear Stress</div><div class="cbox">';
+  d7+='<div class="mrow"><span class="ceq">Limit: &tau;<sub>total</sub> = &tau;<sub>bending</sub> + &tau;<sub>t</sub> + &tau;<sub>w</sub> &le; 0.6F<sub>y</sub></span></div>';
+  d7+='<hr class="csep">';
+  d7+='<div class="mrow">&tau;<sub>bending</sub> = '+fr('V<sub>u</sub>','A<sub>w</sub>')+' = '+fr(f2(Vu),f2(Aw))+' = <span class="cval">'+f2(tv_w)+' ksi</span> (web bending shear)</div>';
+  if(hasStiff){
+    d7+='<div class="mrow">&tau;<sub>t,fl</sub> (St.Venant) = '+fr('T &middot; t<sub>f</sub>','J')+' = '+fr(f2(T_torq)+'&times;'+f3(tf),f4(Jt))+' = <span class="cval">'+f2(tau_t_fl)+' ksi</span></div>';
+    d7+='<div class="mrow">&tau;<sub>w</sub> = <span class="cval">0 ksi</span> (stiffener eliminates warping shear)</div>';
+  } else {
+    d7+='<div class="mrow">&tau;<sub>t,fl</sub> (St.Venant at flange) = G&middot;t<sub>f</sub>&middot;|&theta;&prime;|<sub>max</sub> = '+G+'&times;'+f3(tf)+'&times;'+TR.m1.toExponential(3)+' = <span class="cval">'+f2(tau_t_fl)+' ksi</span></div>';
+    d7+='<div class="mrow">&tau;<sub>t,w</sub> (St.Venant at web) = G&middot;t<sub>w</sub>&middot;|&theta;&prime;|<sub>max</sub> = <span class="cval">'+f2(tau_t_w)+' ksi</span></div>';
+    d7+='<div class="mrow">&tau;<sub>w,fl</sub> (warping shear) = '+fr('E&middot;S<sub>w1</sub>&middot;|&theta;&Prime;&Prime;|<sub>max</sub>','t<sub>f</sub>')+' = <span class="cval">'+f2(tau_w_fl)+' ksi</span></div>';
+    d7+='<div class="mrow ind" style="font-size:.87em;color:#555">S<sub>w1</sub> = u<sup>2</sup>&middot;h<sub>fl</sub>&middot;t<sub>f</sub>/4 = '+f3(u_)+'<sup>2</sup>&times;'+f3(h_fl)+'&times;'+f3(tf)+'/4 = '+f3(Sw1)+' in<sup>4</sup></div>';
+  }
+  d7+='<hr class="csep"><div class="mrow">Max combined = max(&tau;<sub>b</sub>+&tau;<sub>t,w</sub>, &tau;<sub>t,fl</sub>+&tau;<sub>w,fl</sub>) = max('+f2(tv_w+tau_t_w)+', '+f2(tau_t_fl+tau_w_fl)+') = <span class="cval">'+f2(tau_max)+' ksi</span></div>';
+  d7+='<div class="mrow">0.6F<sub>y</sub> = '+f2(0.6*Fy)+' ksi</div>';
+  d7+='<div class="mrow">D/C = '+fr(f2(tau_max),f2(0.6*Fy))+' = <span class="cval">'+f3(tau_max/(0.6*Fy))+'</span></div></div>';
+  var shear_note=hasStiff?'&tau;<sub>t,fl</sub>='+f2(tau_t_fl)+', &tau;<sub>w</sub>=0':'&tau;<sub>t,fl</sub>='+f2(tau_t_fl)+', &tau;<sub>w,fl</sub>='+f2(tau_w_fl)+' ksi';
+  chks.push({n:'Combined Shear (&tau;<sub>b</sub>+&tau;<sub>t</sub>+&tau;<sub>w</sub>)',r:'AISC DG9 §4.7',
+    d:f2(tau_max)+' ksi',c:'0.6F<sub>y</sub> = '+f2(0.6*Fy)+' ksi',
+    dc:tau_max/(0.6*Fy),nt:shear_note,stiff:false,det:d7});
+
+  // ── CHECK 8: STIFFENER PLATE (if provided) ──────────────────────────────────
+  if(hasStiff){
+    var Ast=ts*bs;
+    var phiRst=phib*FyS*Ast;
+    var dc_st=Pu/phiRst;
+    var d8='<div class="cref-hdr">Stiffener Plate &mdash; Bearing/Compression Check</div><div class="cbox">';
+    d8+='<div class="mrow"><span class="ceq">Stiffener transfers joist load P<sub>u</sub> to web in bearing/direct compression</span></div>';
+    d8+='<div class="mrow"><strong>Stiffener plate:</strong> t<sub>s</sub> = '+f3(ts)+'" &nbsp; b<sub>s</sub> = '+f2(bs)+'" &nbsp; A<sub>st</sub> = t<sub>s</sub>&times;b<sub>s</sub> = '+f3(Ast)+' in&sup2;</div>';
+    d8+='<hr class="csep">';
+    d8+='<div class="mrow">&phi;R<sub>n,st</sub> = &phi; &middot; F<sub>ys</sub> &middot; A<sub>st</sub> = '+phib+' &times; '+FyS+' &times; '+f3(Ast)+' = <span class="cval">'+f2(phiRst)+' kips</span></div>';
+    d8+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Pu),f2(phiRst))+' = <span class="cval">'+f3(dc_st)+'</span></div>';
+    d8+='<div class="mrow" style="font-size:.85em;color:#555">Torsion couple: F<sub>s</sub> = T/h<sub>fl</sub> = '+f2(T_torq)+'/'+f2(h_fl)+' = '+f2(T_torq/h_fl)+' kips &mdash; check weld to web separately.</div>';
+    d8+='</div>';
+    chks.push({n:'Stiffener Plate Yielding',r:'AISC 360-22 §J4.1',
+      d:'P<sub>u</sub> = '+f2(Pu)+' k',c:'&phi;R<sub>n,st</sub> = '+f2(phiRst)+' k',
+      dc:dc_st,nt:'t<sub>s</sub>='+f3(ts)+'", b<sub>s</sub>='+f2(bs)+'", F<sub>ys</sub>='+FyS+' ksi',stiff:true,det:d8});
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────────────────
+  // Summary
+  var dcs=chks.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC=dcs.length?Math.max.apply(null,dcs):0;
+  var pass=maxDC<=1.0;
+  var sb=document.getElementById('sumBox');
+  sb.className='summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML='<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+sn
+    +', F<sub>y</sub>='+Fy+' ksi &nbsp;|&nbsp; T = '+f2(T_torq)+' k-in (e<sub>torque</sub>='+f2(e_torque)+'")'
+    +(hasStiff?' &nbsp;|&nbsp; <span style="color:#166534;font-weight:600">Stiffener provided</span>':'')+'</p>';
+
+  // Section properties
+  var po=document.getElementById('propOut');
+  po.innerHTML='<table class="prop-table"><thead><tr>'
+    +'<th>A (in&sup2;)</th><th>d (in)</th><th>b<sub>f</sub> (in)</th><th>t<sub>f</sub> (in)</th><th>t<sub>w</sub> (in)</th>'
+    +'<th>S<sub>x</sub> (in&sup3;)</th><th>Z<sub>x</sub> (in&sup3;)</th><th>I<sub>y</sub> (in&sup4;)</th>'
+    +'<th>J (in&sup4;)</th><th>C<sub>w</sub> (in&sup6;)</th>'
+    +'<th>E&#x2080; (in)</th><th>e<sub>torque</sub> (in)</th><th>r<sub>ts</sub> (in)</th>'
+    +'</tr></thead><tbody><tr>'
+    +'<td>'+f2(A)+'</td><td>'+f2(d)+'</td><td>'+f2(bf)+'</td><td>'+f3(tf)+'</td><td>'+f3(tw)+'</td>'
+    +'<td>'+f2(Sx)+'</td><td>'+f2(Zx)+'</td><td>'+f2(Iy)+'</td>'
+    +'<td>'+f4(Jt)+'</td><td>'+f1(Cwt)+'</td>'
+    +'<td>'+f3(E_o)+'</td><td>'+f3(e_torque)+'</td><td>'+f3(rts)+'</td>'
+    +'</tr></tbody></table>';
+
+  // Demand cards
+  var dem=document.getElementById('demOut');
+  dem.innerHTML='<div class="dem-grid">'
+    +'<div class="dem-card"><div class="v">'+f2(Pu)+' k</div><div class="l">P<sub>u</sub><br>Factored Joist Reaction</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(T_torq)+' k&#x2011;in</div><div class="l">T = P<sub>u</sub>&times;(E&#x2080;+e<sub>j</sub>)<br>Torque about SC</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(e_torque)+'"</div><div class="l">e<sub>torque</sub> = E&#x2080;+e<sub>joist</sub><br>Total torque arm</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(Mu)+' k&#x2011;in</div><div class="l">M<sub>u</sub><br>Span moment (from analysis)</div></div>'
+    +'<div class="dem-card"><div class="v">'+f1(Lb)+'"</div><div class="l">L<sub>b</sub><br>Unbraced length (kicker)</div></div>'
+    +'<div class="dem-card'+(hasStiff?' stiff':'')+'"><div class="v">'+f2(sig_w)+' ksi</div><div class="l">&sigma;<sub>w</sub><br>Warping normal stress'+(hasStiff?' (=0, stiffener)':'')+'</div></div>'
+    +'<div class="dem-card"><div class="v">'+f3(arm_fl)+'"</div><div class="l">Flange cantilever arm<br>e<sub>joist</sub>&minus;t<sub>w</sub>/2</div></div>'
+    +'</div>';
+
+  // Check table
+  var tb=document.getElementById('chkTb');
+  tb.innerHTML='';
+  chks.forEach(function(c,i){
+    var dc_v=(c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct=dc_v!==null?Math.min(dc_v*100,150):0;
+    var col=dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt=dc_v!==null?f3(dc_v):'&mdash;';
+    var rowCls=c.stiff?'class="stiff-row"':'';
+    tb.innerHTML+='<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+<script src="/are-utils.js"></script>
+</body>
+</html>

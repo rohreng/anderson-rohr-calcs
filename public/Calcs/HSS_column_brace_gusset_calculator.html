@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSS Column — Brace Gusset Plate Connection Calculator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px;transition:width .4s}
+.dc-ok{background:#16a34a}.dc-warn{background:#f59e0b}.dc-ng{background:#dc2626}
+.det-inner{padding:10px 14px;background:#f9fafb;border-top:1px solid #eee;font-size:.82em;color:#444;line-height:1.7}
+.det-inner code{background:#e8eaf6;padding:1px 5px;border-radius:3px;font-family:Consolas,monospace;font-size:.95em}
+.det-btn{background:none;border:1px solid #bbb;border-radius:4px;padding:2px 9px;cursor:pointer;font-size:.78em;color:#555;margin-left:6px}
+.bolt-inputs{display:none}
+.bolt-inputs.show{display:grid}
+.schematic-wrap{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
+.schematic-wrap svg{border:1px solid #dde;border-radius:8px;background:#fafbff}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <h1>HSS Column — Brace Gusset Plate Connection</h1>
+  <p>AISC 360-22 LRFD · Gusset Plate + Weld + HSS Wall + Column Interaction</p>
+  <div class="ref-tags">
+    <span class="tag">AISC 360-22</span>
+    <span class="tag">J2 Welds</span>
+    <span class="tag">J4 Rupture</span>
+    <span class="tag">J10 Flange/Web</span>
+    <span class="tag">E3 Compression</span>
+    <span class="tag">H1-1 Interaction</span>
+    <span class="tag">K1 HSS Wall</span>
+    <span class="tag">LRFD</span>
+  </div>
+</div>
+<div class="content">
+
+<!-- Block 1: Applied Loads -->
+<div class="blk">
+  <h2>① Applied Loads <span class="badge">LRFD Factored</span></h2>
+  <div class="g3">
+    <div class="ig"><label>Brace Axial Force P<sub>u</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="Pu_b" value="80" step="1">
+      <div class="hint">+ = tension, − = compression</div></div>
+    <div class="ig"><label>Brace Angle θ from horizontal <span class="unit">(°)</span></label>
+      <input type="number" id="theta_deg" value="45" step="1" min="0" max="89"></div>
+    <div class="ig"><label>Column Axial P<sub>u,col</sub> <span class="unit">(kips, compression +)</span></label>
+      <input type="number" id="Pu_col" value="120" step="1"></div>
+    <div class="ig"><label>Column M<sub>ux</sub> (strong axis) <span class="unit">(kip·ft)</span></label>
+      <input type="number" id="Mux" value="15" step="1"></div>
+    <div class="ig"><label>Column M<sub>uy</sub> (weak axis) <span class="unit">(kip·ft)</span></label>
+      <input type="number" id="Muy" value="5" step="1"></div>
+    <div class="ig"><label>Column V<sub>ux</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="Vux" value="0" step="1"></div>
+    <div class="ig"><label>Column V<sub>uy</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="Vuy" value="0" step="1"></div>
+  </div>
+</div>
+
+<!-- Block 2: HSS Column -->
+<div class="blk">
+  <h2>② HSS Column Section <span class="badge">ASTM A500 Gr.B (rectangular)</span></h2>
+  <div class="g3">
+    <div class="ig"><label>HSS Size</label>
+      <select id="hss_size" onchange="fillHSS()">
+        <option value="">— select —</option>
+      </select></div>
+    <div class="ig"><label>F<sub>yc</sub> <span class="unit">(ksi)</span></label>
+      <input type="number" id="Fyc" value="46" step="1"></div>
+    <div class="ig"><label>E <span class="unit">(ksi)</span></label>
+      <input type="number" id="E" value="29000" step="100"></div>
+    <div class="ig"><label>H (depth, parallel to brace load) <span class="unit">(in)</span></label>
+      <input type="number" id="Hc" value="8" step="0.25" disabled></div>
+    <div class="ig"><label>B (width, face gusset attaches to) <span class="unit">(in)</span></label>
+      <input type="number" id="Bc" value="8" step="0.25" disabled></div>
+    <div class="ig"><label>t<sub>des</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="t_col" value="0.465" step="0.001" disabled></div>
+    <div class="ig"><label>A <span class="unit">(in²)</span></label>
+      <input type="number" id="Ac" value="13.5" step="0.01" disabled></div>
+    <div class="ig"><label>I<sub>x</sub> <span class="unit">(in⁴)</span></label>
+      <input type="number" id="Ix" value="131" step="0.1" disabled></div>
+    <div class="ig"><label>I<sub>y</sub> <span class="unit">(in⁴)</span></label>
+      <input type="number" id="Iy" value="131" step="0.1" disabled></div>
+    <div class="ig"><label>Z<sub>x</sub> <span class="unit">(in³)</span></label>
+      <input type="number" id="Zx" value="38.5" step="0.1" disabled></div>
+    <div class="ig"><label>Z<sub>y</sub> <span class="unit">(in³)</span></label>
+      <input type="number" id="Zy" value="38.5" step="0.1" disabled></div>
+    <div class="ig"><label>Effective length KL<sub>x</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="KLx" value="120" step="1"></div>
+    <div class="ig"><label>Effective length KL<sub>y</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="KLy" value="120" step="1"></div>
+  </div>
+</div>
+
+<!-- Block 3: Gusset Plate -->
+<div class="blk">
+  <h2>③ Gusset Plate <span class="badge">A36 or A572 Gr.50</span></h2>
+  <div class="g3">
+    <div class="ig"><label>Material</label>
+      <select id="gusset_mat">
+        <option value="36">A36 — F<sub>y</sub>=36 ksi, F<sub>u</sub>=58 ksi</option>
+        <option value="50" selected>A572 Gr.50 — F<sub>y</sub>=50 ksi, F<sub>u</sub>=65 ksi</option>
+      </select></div>
+    <div class="ig"><label>Thickness t<sub>g</sub> (edge welded to column) <span class="unit">(in)</span></label>
+      <input type="number" id="tg" value="0.625" step="0.0625">
+      <div class="hint">Gusset thin edge bears on / welds to column face</div></div>
+    <div class="ig"><label>Gusset Projection d<sub>g</sub> (from column face) <span class="unit">(in)</span></label>
+      <input type="number" id="dg" value="12" step="0.25">
+      <div class="hint">Distance from column face to brace c.l.</div></div>
+    <div class="ig"><label>Weld height N (vertical dimension of gusset on column) <span class="unit">(in)</span></label>
+      <input type="number" id="N_gp" value="10" step="0.25">
+      <div class="hint">Height of gusset plate on the HSS face</div></div>
+    <div class="ig"><label>Gusset Length L<sub>g</sub> (along brace) <span class="unit">(in)</span></label>
+      <input type="number" id="Lg" value="14" step="0.25">
+      <div class="hint">Distance from column face to brace end plate along brace axis</div></div>
+    <div class="ig"><label>Weld configuration</label>
+      <select id="weld_sides">
+        <option value="2">2-sided (sides only)</option>
+        <option value="4" selected>4-sided (sides + top + bottom)</option>
+      </select></div>
+  </div>
+</div>
+
+<!-- Block 4: Weld -->
+<div class="blk">
+  <h2>④ Fillet Weld to HSS <span class="badge">E70XX</span></h2>
+  <div class="g3">
+    <div class="ig"><label>Weld leg size w <span class="unit">(in)</span></label>
+      <input type="number" id="weld_w" value="0.375" step="0.0625">
+      <div class="hint">Leg size of fillet weld</div></div>
+    <div class="ig"><label>F<sub>EXX</sub> <span class="unit">(ksi)</span></label>
+      <input type="number" id="FEXX" value="70" step="1"></div>
+  </div>
+</div>
+
+<!-- Block 5: Column Unbraced Lengths -->
+<div class="blk">
+  <h2>⑤ Column Flexural Unbraced Lengths <span class="badge">Chapter F</span></h2>
+  <div class="g3">
+    <div class="ig"><label>L<sub>bx</sub> unbraced (strong-axis bending) <span class="unit">(in)</span></label>
+      <input type="number" id="Lbx" value="120" step="1"></div>
+    <div class="ig"><label>L<sub>by</sub> unbraced (weak-axis bending) <span class="unit">(in)</span></label>
+      <input type="number" id="Lby" value="120" step="1"></div>
+  </div>
+</div>
+
+<!-- Block 6: Brace Connection (Block Shear) -->
+<div class="blk">
+  <h2>⑥ Brace-to-Gusset Connection <span class="badge">J4.3 Block Shear</span></h2>
+  <div class="g3">
+    <div class="ig"><label>Connection type</label>
+      <select id="conn_type" onchange="toggleBoltInputs()">
+        <option value="welded">Welded (block shear N/A)</option>
+        <option value="bolted" selected>Bolted</option>
+      </select></div>
+  </div>
+  <div class="bolt-inputs show g3" id="bolt_inputs" style="margin-top:14px">
+    <div class="ig"><label>Bolt diameter d<sub>b</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="d_bolt" value="0.875" step="0.125"></div>
+    <div class="ig"><label>Number of bolts n <span class="unit">(in line of force)</span></label>
+      <input type="number" id="n_bolt" value="3" step="1" min="1"></div>
+    <div class="ig"><label>Bolt spacing s <span class="unit">(in)</span></label>
+      <input type="number" id="s_pitch" value="3" step="0.25"></div>
+    <div class="ig"><label>Edge dist e<sub>1</sub> (leading) <span class="unit">(in)</span></label>
+      <input type="number" id="e1_bolt" value="1.5" step="0.25"></div>
+    <div class="ig"><label>Net tension width e<sub>t</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="et_bolt" value="1.5" step="0.25">
+      <div class="hint">Edge dist perpendicular to load (one side)</div></div>
+  </div>
+</div>
+
+<!-- Schematic -->
+<div class="blk">
+  <h2>Connection Schematic</h2>
+  <div class="schematic-wrap">
+    <svg width="320" height="280" viewBox="0 0 320 280">
+      <!-- HSS column -->
+      <rect x="120" y="30" width="80" height="220" fill="#c8d8f0" stroke="#1e3c72" stroke-width="2"/>
+      <rect x="124" y="34" width="72" height="212" fill="#e8f0fb" stroke="none"/>
+      <!-- Column label -->
+      <text x="160" y="148" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="bold">HSS Col.</text>
+      <!-- Gusset plate (thin edge on column face, projects left) -->
+      <rect x="60" y="120" width="60" height="40" fill="#fde68a" stroke="#b45309" stroke-width="2"/>
+      <text x="90" y="138" text-anchor="middle" font-size="10" fill="#78350f" font-weight="bold">Gusset</text>
+      <text x="90" y="151" text-anchor="middle" font-size="9" fill="#78350f">t_g × d_g</text>
+      <!-- tg edge label -->
+      <line x1="120" y1="120" x2="120" y2="160" stroke="#b45309" stroke-width="3"/>
+      <text x="115" y="113" text-anchor="middle" font-size="9" fill="#b45309">t_g edge</text>
+      <!-- dg arrow -->
+      <line x1="60" y1="170" x2="120" y2="170" stroke="#b45309" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="90" y="183" text-anchor="middle" font-size="9" fill="#b45309">d_g →</text>
+      <!-- Weld symbol -->
+      <line x1="120" y1="120" x2="120" y2="160" stroke="#dc2626" stroke-width="3"/>
+      <text x="127" y="117" font-size="9" fill="#dc2626">weld</text>
+      <!-- Brace line -->
+      <line x1="60" y1="160" x2="10" y2="240" stroke="#1e3c72" stroke-width="2.5" stroke-dasharray="6,3"/>
+      <text x="15" y="255" font-size="10" fill="#1e3c72">Brace</text>
+      <text x="15" y="267" font-size="9" fill="#1e3c72">P_u @ θ</text>
+      <!-- N arrow (vertical height) -->
+      <line x1="108" y1="120" x2="108" y2="160" stroke="#555" stroke-width="1"/>
+      <line x1="104" y1="120" x2="112" y2="120" stroke="#555" stroke-width="1"/>
+      <line x1="104" y1="160" x2="112" y2="160" stroke="#555" stroke-width="1"/>
+      <text x="103" y="143" text-anchor="middle" font-size="9" fill="#333">N</text>
+      <!-- Column loads -->
+      <text x="215" y="45" font-size="9" fill="#555">P_u,col↓</text>
+      <text x="215" y="57" font-size="9" fill="#555">M_ux, M_uy</text>
+      <text x="215" y="69" font-size="9" fill="#555">from RISA</text>
+    </svg>
+    <svg width="280" height="280" viewBox="0 0 280 280">
+      <!-- Plan view of HSS face -->
+      <rect x="80" y="30" width="120" height="220" fill="#c8d8f0" stroke="#1e3c72" stroke-width="2"/>
+      <rect x="84" y="34" width="112" height="212" fill="#e8f0fb" stroke="none"/>
+      <text x="140" y="155" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="bold">HSS</text>
+      <text x="140" y="168" text-anchor="middle" font-size="10" fill="#1e3c72">Face (B wide)</text>
+      <!-- Gusset edge (tg wide, N tall) centred -->
+      <rect x="134" y="110" width="12" height="60" fill="#fde68a" stroke="#b45309" stroke-width="2"/>
+      <text x="140" y="106" text-anchor="middle" font-size="9" fill="#b45309">t_g</text>
+      <!-- Weld lines (sides + top + bottom) -->
+      <line x1="134" y1="110" x2="134" y2="170" stroke="#dc2626" stroke-width="3"/>
+      <line x1="146" y1="110" x2="146" y2="170" stroke="#dc2626" stroke-width="3"/>
+      <line x1="134" y1="110" x2="146" y2="110" stroke="#dc2626" stroke-width="3"/>
+      <line x1="134" y1="170" x2="146" y2="170" stroke="#dc2626" stroke-width="3"/>
+      <!-- N label -->
+      <line x1="152" y1="110" x2="152" y2="170" stroke="#555" stroke-width="1"/>
+      <text x="157" y="143" font-size="9" fill="#333">N</text>
+      <!-- B label -->
+      <line x1="80" y1="255" x2="200" y2="255" stroke="#555" stroke-width="1"/>
+      <text x="140" y="270" text-anchor="middle" font-size="9" fill="#333">B (column width)</text>
+      <text x="50" y="145" text-anchor="middle" font-size="9" fill="#888">Plan View</text>
+    </svg>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="calculate()">⚙ Calculate</button>
+
+<div class="results" id="results">
+  <div class="summary" id="summary_banner"></div>
+  <div id="demand_cards" class="dem-grid" style="margin-bottom:20px"></div>
+
+  <div class="blk">
+    <h2>Section Properties Used</h2>
+    <table class="prop-table" id="prop_table"><thead><tr><th>Property</th><th>Value</th><th>Units</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="blk alt-blk">
+    <h2>Design Checks <span class="badge-green">AISC 360-22 LRFD</span></h2>
+    <table class="chk-table" id="chk_table">
+      <thead><tr>
+        <th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="chk_body"></tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /container -->
+
+<script>
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fr(v,d){return(d==null?v:Number(v.toFixed(d)));}
+function ov(id){return parseFloat(document.getElementById(id).value)||0;}
+function f1(v){return v==null?'N/A':v.toFixed(1);}
+function f2(v){return v==null?'N/A':v.toFixed(2);}
+function f3(v){return v==null?'N/A':v.toFixed(3);}
+function f4(v){return v==null?'N/A':v.toFixed(4);}
+
+function toggleDet(id){
+  var r=document.getElementById(id);
+  r.style.display=(r.style.display==='none'||r.style.display==='')?'table-row':'none';
+}
+
+function toggleBoltInputs(){
+  var ct=document.getElementById('conn_type').value;
+  var bi=document.getElementById('bolt_inputs');
+  bi.classList.toggle('show', ct==='bolted');
+}
+
+// ── HSS Rectangular Database ─────────────────────────────────────────────────
+// [label, A, H, B, t_des, Ix, Sx, Zx, Iy, Sy, Zy, J, C]
+var hssData=[
+  ["HSS3x3x3/16",   1.89, 3, 3, 0.174,  2.10, 1.40, 1.74, 2.10, 1.40, 1.74,  3.58,  2.44],
+  ["HSS3x3x1/4",    2.44, 3, 3, 0.233,  2.60, 1.73, 2.19, 2.60, 1.73, 2.19,  4.46,  3.04],
+  ["HSS4x4x3/16",   2.61, 4, 4, 0.174,  5.48, 2.74, 3.35, 5.48, 2.74, 3.35,  9.39,  5.10],
+  ["HSS4x4x1/4",    3.37, 4, 4, 0.233,  6.86, 3.43, 4.25, 6.86, 3.43, 4.25, 11.8,   6.39],
+  ["HSS4x4x5/16",   4.10, 4, 4, 0.291,  8.06, 4.03, 5.07, 8.06, 4.03, 5.07, 13.9,   7.56],
+  ["HSS4x4x3/8",    4.78, 4, 4, 0.349,  9.07, 4.54, 5.80, 9.07, 4.54, 5.80, 15.7,   8.55],
+  ["HSS5x5x3/16",   3.32, 5, 5, 0.174, 11.3,  4.50, 5.44,11.3,  4.50, 5.44, 19.2,   8.15],
+  ["HSS5x5x1/4",    4.30, 5, 5, 0.233, 14.3,  5.73, 6.97,14.3,  5.73, 6.97, 24.3,  10.3],
+  ["HSS5x5x5/16",   5.26, 5, 5, 0.291, 17.0,  6.82, 8.40,17.0,  6.82, 8.40, 29.1,  12.3],
+  ["HSS5x5x3/8",    6.17, 5, 5, 0.349, 19.5,  7.79, 9.72,19.5,  7.79, 9.72, 33.4,  14.1],
+  ["HSS6x6x3/16",   4.03, 6, 6, 0.174, 24.0,  8.00, 9.62,24.0,  8.00, 9.62, 41.4,  13.5],
+  ["HSS6x6x1/4",    5.24, 6, 6, 0.233, 30.5, 10.2, 12.3, 30.5, 10.2, 12.3,  52.8,  17.1],
+  ["HSS6x6x5/16",   6.43, 6, 6, 0.291, 36.6, 12.2, 14.9, 36.6, 12.2, 14.9,  63.5,  20.6],
+  ["HSS6x6x3/8",    7.58, 6, 6, 0.349, 42.1, 14.0, 17.3, 42.1, 14.0, 17.3,  73.2,  23.7],
+  ["HSS6x6x1/2",    9.74, 6, 6, 0.465, 51.6, 17.2, 21.7, 51.6, 17.2, 21.7,  90.5,  29.3],
+  ["HSS7x7x1/4",    6.17, 7, 7, 0.233, 49.5, 14.1, 16.9, 49.5, 14.1, 16.9,  84.9,  23.2],
+  ["HSS7x7x5/16",   7.59, 7, 7, 0.291, 59.7, 17.1, 20.6, 59.7, 17.1, 20.6, 102.,   27.9],
+  ["HSS7x7x3/8",    8.97, 7, 7, 0.349, 69.1, 19.7, 23.9, 69.1, 19.7, 23.9, 118.,   32.3],
+  ["HSS7x7x1/2",   11.6,  7, 7, 0.465, 85.4, 24.4, 30.1, 85.4, 24.4, 30.1, 147.,   40.1],
+  ["HSS8x8x1/4",    7.10, 8, 8, 0.233, 76.3, 19.1, 22.8, 76.3, 19.1, 22.8, 130.,   31.2],
+  ["HSS8x8x5/16",   8.76, 8, 8, 0.291, 92.5, 23.1, 27.8, 92.5, 23.1, 27.8, 158.,   37.8],
+  ["HSS8x8x3/8",   10.4,  8, 8, 0.349,108.,  27.0, 32.7,108.,  27.0, 32.7, 185.,   44.2],
+  ["HSS8x8x1/2",   13.5,  8, 8, 0.465,136.,  34.0, 41.7,136.,  34.0, 41.7, 234.,   55.9],
+  ["HSS8x8x5/8",   16.4,  8, 8, 0.581,158.,  39.5, 49.4,158.,  39.5, 49.4, 276.,   65.4],
+  ["HSS10x10x3/8", 13.1, 10,10, 0.349,218.,  43.5, 52.3,218.,  43.5, 52.3, 373.,   70.7],
+  ["HSS10x10x1/2", 17.1, 10,10, 0.465,277.,  55.5, 67.4,277.,  55.5, 67.4, 476.,   90.3],
+  ["HSS10x10x5/8", 21.0, 10,10, 0.581,329.,  65.8, 81.1,329.,  65.8, 81.1, 568.,  108.],
+  ["HSS12x12x3/8", 15.9, 12,12, 0.349,378.,  63.0, 75.4,378.,  63.0, 75.4, 650.,  102.],
+  ["HSS12x12x1/2", 20.8, 12,12, 0.465,483.,  80.5, 97.1,483.,  80.5, 97.1, 834.,  131.],
+  ["HSS12x12x5/8", 25.7, 12,12, 0.581,580.,  96.7,118.,  580.,  96.7,118., 1003.,  157.],
+  ["HSS14x14x1/2", 24.6, 14,14, 0.465,771.,  110., 133.,  771., 110., 133., 1335.,  180.],
+  ["HSS14x14x5/8", 30.4, 14,14, 0.581,930.,  133., 162.,  930., 133., 162., 1616.,  218.],
+  ["HSS16x16x1/2", 28.3, 16,16, 0.465,1160., 145., 175., 1160., 145., 175., 2000.,  237.],
+  ["HSS16x16x5/8", 35.1, 16,16, 0.581,1410., 176., 215., 1410., 176., 215., 2440.,  289.],
+];
+
+// Populate dropdown
+(function(){
+  var sel=document.getElementById('hss_size');
+  hssData.forEach(function(r,i){
+    var o=document.createElement('option');
+    o.value=i; o.textContent=r[0]; sel.appendChild(o);
+  });
+  // Default to HSS8x8x1/2
+  sel.value=22; fillHSS();
+})();
+
+function fillHSS(){
+  var idx=parseInt(document.getElementById('hss_size').value);
+  if(isNaN(idx))return;
+  var r=hssData[idx];
+  // r: [label,A,H,B,t_des,Ix,Sx,Zx,Iy,Sy,Zy,J,C]
+  document.getElementById('Ac').value=r[1];
+  document.getElementById('Hc').value=r[2];
+  document.getElementById('Bc').value=r[3];
+  document.getElementById('t_col').value=r[4];
+  document.getElementById('Ix').value=r[5];
+  document.getElementById('Zx').value=r[7];
+  document.getElementById('Iy').value=r[9];
+  document.getElementById('Zy').value=r[10];
+}
+
+// ── Main Calculation ──────────────────────────────────────────────────────────
+function calculate(){
+  // --- Inputs ---
+  var Pu_b    = ov('Pu_b');       // brace force (+ tension)
+  var theta   = ov('theta_deg');
+  var Pu_col  = ov('Pu_col');     // column axial (+ compression)
+  var Mux_ft  = ov('Mux');
+  var Muy_ft  = ov('Muy');
+  var Vux     = ov('Vux');
+  var Vuy     = ov('Vuy');
+
+  var Fyc     = ov('Fyc');
+  var E       = ov('E');
+  var Hc      = ov('Hc');
+  var Bc      = ov('Bc');
+  var t_col   = ov('t_col');
+  var Ac      = ov('Ac');
+  var Ix      = ov('Ix');
+  var Iy      = ov('Iy');
+  var Zx      = ov('Zx');
+  var Zy      = ov('Zy');
+  var KLx     = ov('KLx');
+  var KLy     = ov('KLy');
+  var Lbx     = ov('Lbx');
+  var Lby     = ov('Lby');
+
+  var gmat    = parseInt(document.getElementById('gusset_mat').value);
+  var Fyg     = gmat; // 36 or 50
+  var Fu_g    = (gmat===36)?58:65;
+  var tg      = ov('tg');
+  var dg      = ov('dg');
+  var N_gp    = ov('N_gp');
+  var Lg      = ov('Lg');
+  var weld_sides = parseInt(document.getElementById('weld_sides').value);
+
+  var weld_w  = ov('weld_w');
+  var FEXX    = ov('FEXX');
+  var FEXX_n  = FEXX / 1.414; // nominal weld strength per unit throat
+
+  var conn_type = document.getElementById('conn_type').value;
+  var d_bolt  = ov('d_bolt');
+  var n_bolt  = Math.max(1,Math.round(ov('n_bolt')));
+  var s_pitch = ov('s_pitch');
+  var e1_bolt = ov('e1_bolt');
+  var et_bolt = ov('et_bolt');
+
+  // Derived
+  var theta_rad = theta * Math.PI / 180;
+  var isTension = (Pu_b >= 0);
+  var Ph = Math.abs(Pu_b) * Math.cos(theta_rad); // horizontal component
+  var Pv = Math.abs(Pu_b) * Math.sin(theta_rad); // vertical component
+  var Mux = Mux_ft * 12; // kip·in
+  var Muy = Muy_ft * 12;
+  var Sx_col = Ix / (Hc/2);
+  var Sy_col = Iy / (Bc/2);
+
+  // ── Chord stress ratio Qf ─────────────────────────────────────────────────
+  // σ_chord = P/A + M_x·(H/2)/Ix + M_y·(B/2)/Iy  (absolute, additive)
+  var sigma_chord = Pu_col/Ac + Math.abs(Mux)*(Hc/2)/Ix + Math.abs(Muy)*(Bc/2)/Iy;
+  var Qf = 1 - Math.pow(sigma_chord/Fyc, 2);
+  if(Qf<0) Qf=0;
+
+  // ── Whitmore Section ─────────────────────────────────────────────────────
+  var lw_raw = tg + 2*Lg*Math.tan(30*Math.PI/180);
+  var lw_cap = N_gp * Math.cos(theta_rad);
+  var lw = Math.min(lw_raw, lw_cap);
+  var Aw = lw * tg;
+
+  // ── Thornton l_avg (rectangular gusset, all control pts same dist) ────────
+  var l_avg = Lg;
+
+  // ── Gusset λ for compression ──────────────────────────────────────────────
+  var r_g = tg / Math.sqrt(12);
+  var slender_g = 0.65 * l_avg / r_g;
+  var Fe_g = Math.pow(Math.PI,2)*E / Math.pow(slender_g,2);
+  var Fcr_g;
+  if(slender_g <= 4.71*Math.sqrt(E/Fyg)){
+    Fcr_g = Math.pow(0.658, Fyg/Fe_g) * Fyg;
+  } else {
+    Fcr_g = 0.877 * Fe_g;
+  }
+
+  // ── Weld lengths ─────────────────────────────────────────────────────────
+  // Side welds are vertical (parallel to brace direction? actually parallel to N)
+  // The gusset edge (tg) is welded on sides and top/bottom
+  // Side welds: 2 lines each of length N_gp (vertical, along column)
+  // Top/Bottom welds: each of length dg (horizontal, project from column face)
+  var Lw_sides = 2 * N_gp;   // total side weld length
+  var Lw_top   = (weld_sides===4) ? (2 * dg) : 0; // both top and bottom
+
+  // Resolve brace components to weld
+  // Sides resist vertical (Pv) and axial (Ph) — directional factor
+  // For simplicity use resultant on each weld group
+  var theta_side = theta_rad;       // side welds loaded at brace angle
+  var theta_top  = (Math.PI/2 - theta_rad); // top/bottom welds loaded at complement angle
+
+  // Weld capacity per inch (J2.4b): φRnw = 0.75·0.6·FEXX·0.707·w·(1+0.5·sin^1.5·θ)
+  function phi_weld_per_in(w,ang){
+    return 0.75 * 0.6 * FEXX * 0.707 * w * (1 + 0.5*Math.pow(Math.sin(ang),1.5));
+  }
+
+  var phi_rw_side = phi_weld_per_in(weld_w, theta_side);
+  var phi_rw_top  = phi_weld_per_in(weld_w, theta_top);
+  var phi_Rn_weld_sides = phi_rw_side * Lw_sides;
+  var phi_Rn_weld_top   = phi_rw_top  * Lw_top;
+  var phi_Rn_weld_total = phi_Rn_weld_sides + phi_Rn_weld_top;
+
+  // ── Min weld size (Table J2.4) ────────────────────────────────────────────
+  var t_thick = Math.max(tg, t_col);
+  var w_min;
+  if(t_thick <= 0.25)      w_min = 0.125;
+  else if(t_thick <= 0.50) w_min = 3/16;
+  else if(t_thick <= 0.75) w_min = 0.25;
+  else                     w_min = 5/16;
+  var w_max = t_col; // weld cannot exceed connected part thickness (HSS wall)
+
+  // ── HSS Wall: Face Local Yielding (adapted J10.2) ────────────────────────
+  // Bearing footprint = tg × N_gp on HSS face
+  var phi_FLY = 0.90 * Fyc * t_col * (N_gp + 5*t_col) * Qf;
+
+  // ── HSS Wall: Face Crippling (adapted J10.3) ─────────────────────────────
+  // Bearing along N_gp on face of width Bc
+  var phi_FC = 0.75 * 0.80 * Math.pow(t_col,2)*(1 + 3*N_gp/Bc)*Math.sqrt(E*Fyc)*Qf;
+
+  // ── HSS Side Wall Shear (G4 / K1 web shear approach) ────────────────────
+  // Shear area = 2 webs × Hc × t_col (shear parallel to H)
+  var Aw_sw = 2 * Hc * t_col;
+  var phi_Vn_sw = 0.90 * 0.6 * Fyc * Aw_sw; // conserv. Cv1=1.0
+
+  // ── HSS Punching Shear (J4.4/K1, tension only) ────────────────────────────
+  var Lp_perim = 2*(tg + N_gp);
+  var phi_Vn_punch = 0.75 * 0.6 * Fyc * t_col * Lp_perim;
+
+  // ── Block Shear (J4.3) ────────────────────────────────────────────────────
+  var phi_Rn_bs = null;
+  var Ubs = 1.0; // uniform tension stress (standard bolt group)
+  if(conn_type==='bolted'){
+    var d_net_hole = d_bolt + 0.125; // hole dia per J3.2
+    var Ls = e1_bolt + (n_bolt-1)*s_pitch; // shear length
+    var Agv_bs = tg * Ls;
+    var Anv    = tg * (Ls - (n_bolt - 0.5)*d_net_hole);
+    var Ant    = tg * (et_bolt - 0.5*d_net_hole);
+    phi_Rn_bs  = 0.75 * Math.min(
+      0.6*Fu_g*Anv + Ubs*Fu_g*Ant,
+      0.6*Fyg*Agv_bs + Ubs*Fu_g*Ant
+    );
+  }
+
+  // ── Column Compression (E3) ───────────────────────────────────────────────
+  // Check both axes, use controlling KL/r
+  var rx = Math.sqrt(Ix/Ac);
+  var ry = Math.sqrt(Iy/Ac);
+  var slender_cx = KLx/rx;
+  var slender_cy = KLy/ry;
+  var slender_c  = Math.max(slender_cx, slender_cy);
+  var Fe_c   = Math.pow(Math.PI,2)*E / Math.pow(slender_c,2);
+  var Fcr_c;
+  if(slender_c <= 4.71*Math.sqrt(E/Fyc)){
+    Fcr_c = Math.pow(0.658, Fyc/Fe_c) * Fyc;
+  } else {
+    Fcr_c = 0.877 * Fe_c;
+  }
+  var phi_Pn = 0.90 * Fcr_c * Ac;
+
+  // ── Column Flexure (F7 for HSS — rectangular compact/noncompact) ──────────
+  // Classify flanges: b/t = (B-3t)/t  (clear span)
+  var bt_flange = (Bc - 3*t_col)/t_col;
+  var bt_web    = (Hc - 3*t_col)/t_col;
+  var lp_f = 1.12*Math.sqrt(E/Fyc);
+  var lr_f = 1.40*Math.sqrt(E/Fyc);
+
+  function phi_Mn_HSS(b_dim, I_val, Z_val, Lb_in){
+    var bt_fl = (b_dim - 3*t_col)/t_col;
+    var S_val = I_val / (b_dim/2);
+    var Mp = Fyc * Z_val;
+    var Mn;
+    if(bt_fl <= lp_f){
+      Mn = Mp; // compact
+    } else if(bt_fl <= lr_f){
+      Mn = Mp - (Mp - 0.7*Fyc*S_val)*((bt_fl - lp_f)/(lr_f - lp_f));
+    } else {
+      // slender — use Fcr from plate buckling (simplified)
+      var Fcr_fl = 0.38*E / (bt_fl*t_col/b_dim);
+      Mn = Math.min(Fcr_fl*S_val, Mp);
+    }
+    return 0.90 * Mn;
+  }
+
+  var phi_Mnx = phi_Mn_HSS(Hc, Ix, Zx, Lbx);
+  var phi_Mny = phi_Mn_HSS(Bc, Iy, Zy, Lby);
+
+  // ── H1-1 Column Interaction ───────────────────────────────────────────────
+  var ratio_P = Pu_col / phi_Pn;
+  var ratio_Mx = Math.abs(Mux) / phi_Mnx;
+  var ratio_My = Math.abs(Muy) / phi_Mny;
+  var H1_dc;
+  if(ratio_P >= 0.2){
+    H1_dc = ratio_P + (8/9)*(ratio_Mx + ratio_My);
+  } else {
+    H1_dc = ratio_P/2 + (ratio_Mx + ratio_My);
+  }
+
+  // ── Gusset yielding / buckling capacities ─────────────────────────────────
+  var phi_Rn_yield = 0.90 * Fyg * Aw; // Whitmore yielding J4.1
+  var phi_Rn_comp  = 0.90 * Fcr_g * Aw; // Thornton compression E3
+  var phi_Rn_shear = 1.00 * 0.6 * Fyg * (N_gp * tg); // J4.2 shear yielding at column interface
+
+  // ── DC ratios ─────────────────────────────────────────────────────────────
+  var checks = [];
+
+  // 1. Whitmore Yielding
+  checks.push({
+    name:"Gusset Whitmore Section Yielding",ref:"J4.1",
+    demand:Math.abs(Pu_b), cap:phi_Rn_yield, unit:"kips",
+    det:[
+      "Whitmore width (raw): l_w,raw = t_g + 2·L_g·tan(30°) = "+f3(tg)+" + 2×"+f3(Lg)+"×tan30° = "+f3(lw_raw)+" in",
+      "Whitmore cap (geometry): l_w,cap = N·cos θ = "+f3(N_gp)+"×cos("+theta+"°) = "+f3(lw_cap)+" in",
+      "Governing: l_w = min("+f3(lw_raw)+", "+f3(lw_cap)+") = "+f3(lw)+" in",
+      "Whitmore area: A_w = l_w×t_g = "+f3(lw)+"×"+f3(tg)+" = "+f3(Aw)+" in²",
+      "φR_n = 0.90×F_yg×A_w = 0.90×"+f1(Fyg)+"×"+f3(Aw)+" = "+f1(phi_Rn_yield)+" kips"
+    ]
+  });
+
+  // 2. Thornton Compression (only if compression)
+  checks.push({
+    name:"Gusset Compression Buckling (Thornton)",ref:"E3 / Thornton",
+    demand:Math.abs(Pu_b), cap:phi_Rn_comp, unit:"kips",
+    na:isTension,
+    naLabel:"Tension — N/A",
+    det:[
+      "l_avg = L_g = "+f3(l_avg)+" in (rectangular gusset, all Whitmore control pts equidistant)",
+      "K = 0.65 (fixed-fixed end condition of gusset)",
+      "r_g = t_g/√12 = "+f3(tg)+"/√12 = "+f4(r_g)+" in",
+      "KL/r = 0.65×"+f3(l_avg)+"/"+f4(r_g)+" = "+f1(slender_g),
+      "4.71√(E/F_y) = "+f1(4.71*Math.sqrt(E/Fyg)),
+      "F_cr = "+f2(Fcr_g)+" ksi",
+      "φR_n = 0.90×F_cr×A_w = 0.90×"+f2(Fcr_g)+"×"+f3(Aw)+" = "+f1(phi_Rn_comp)+" kips"
+    ]
+  });
+
+  // 3. Gusset Shear at Column (J4.2)
+  var shear_demand = Math.abs(Pu_b)*Math.cos(theta_rad); // horizontal shear transferred
+  checks.push({
+    name:"Gusset Shear Yielding at Column Interface",ref:"J4.2",
+    demand:shear_demand, cap:phi_Rn_shear, unit:"kips",
+    det:[
+      "Horizontal shear at interface: V = P_u·cos θ = "+f1(Math.abs(Pu_b))+"×cos("+theta+"°) = "+f1(shear_demand)+" kips",
+      "Shear area: A_gv = N×t_g = "+f3(N_gp)+"×"+f3(tg)+" = "+f3(N_gp*tg)+" in²",
+      "φR_n = 1.00×0.6×F_yg×A_gv = 0.6×"+f1(Fyg)+"×"+f3(N_gp*tg)+" = "+f1(phi_Rn_shear)+" kips"
+    ]
+  });
+
+  // 4. Block Shear (J4.3)
+  if(conn_type==='bolted'){
+    var Ls2 = e1_bolt + (n_bolt-1)*s_pitch;
+    var Agv2 = tg * Ls2;
+    var Anv2 = tg * (Ls2 - (n_bolt - 0.5)*(d_bolt+0.125));
+    var Ant2 = tg * (et_bolt - 0.5*(d_bolt+0.125));
+    var rn1  = 0.6*Fu_g*Anv2 + Fu_g*Ant2;
+    var rn2  = 0.6*Fyg*Agv2  + Fu_g*Ant2;
+    checks.push({
+      name:"Gusset Block Shear at Brace Connection",ref:"J4.3",
+      demand:Math.abs(Pu_b), cap:phi_Rn_bs, unit:"kips",
+      det:[
+        "d_hole = d_b + 1/8 = "+f3(d_bolt)+"+0.125 = "+f3(d_bolt+0.125)+" in",
+        "L_s (shear length) = e₁+(n-1)·s = "+f3(e1_bolt)+"+"+(n_bolt-1)+"×"+f3(s_pitch)+" = "+f3(Ls2)+" in",
+        "A_gv = t_g·L_s = "+f3(tg)+"×"+f3(Ls2)+" = "+f3(Agv2)+" in²",
+        "A_nv = t_g·(L_s − (n−0.5)·d_h) = "+f3(Anv2)+" in²",
+        "A_nt = t_g·(e_t − 0.5·d_h) = "+f3(Ant2)+" in²",
+        "U_bs = 1.0",
+        "0.6·F_u·A_nv + F_u·A_nt = "+f1(rn1)+" kips",
+        "0.6·F_y·A_gv + F_u·A_nt = "+f1(rn2)+" kips",
+        "φR_n = 0.75×min = 0.75×"+f1(Math.min(rn1,rn2))+" = "+f1(phi_Rn_bs)+" kips"
+      ]
+    });
+  } else {
+    checks.push({
+      name:"Gusset Block Shear at Brace Connection",ref:"J4.3",
+      demand:null, cap:null, unit:"kips",
+      na:true, naLabel:"Welded connection — N/A",det:[]
+    });
+  }
+
+  // 5. Min Weld Size (J2.2b)
+  checks.push({
+    name:"Minimum Weld Size",ref:"J2.2b Table J2.4",
+    demand:weld_w, cap:w_max, unit:"in (w ≤ t_HSS wall)",
+    passOverride: (weld_w >= w_min && weld_w <= w_max),
+    customDC: weld_w / w_min, // show as w/w_min
+    det:[
+      "Thicker connected part: max(t_g, t_col) = max("+f3(tg)+", "+f3(t_col)+") = "+f3(t_thick)+" in",
+      "Min fillet weld per Table J2.4: w_min = "+f3(w_min)+" in",
+      "Max weld ≤ HSS wall: w_max = t_col = "+f3(t_col)+" in",
+      "Provided weld: w = "+f3(weld_w)+" in",
+      weld_w<w_min?"⚠ Weld BELOW minimum size!":weld_w>w_max?"⚠ Weld EXCEEDS HSS wall thickness!":"✓ Weld size within limits"
+    ]
+  });
+
+  // 6. Fillet Weld Capacity
+  checks.push({
+    name:"Fillet Weld to HSS — Total Capacity",ref:"J2.4b",
+    demand:Math.abs(Pu_b), cap:phi_Rn_weld_total, unit:"kips",
+    det:[
+      "Side welds ("+(weld_sides===4?"4-sided":"2-sided")+"):",
+      "  Angle to weld axis (brace angle) θ_sides = "+f1(theta)+"°",
+      "  Directional factor: (1+0.5·sin^1.5("+f1(theta)+"°)) = "+f3(1+0.5*Math.pow(Math.sin(theta_rad),1.5)),
+      "  φ(Rnw)_side/in = 0.75×0.6×"+f1(FEXX)+"×0.707×"+f3(weld_w)+"×factor = "+f3(phi_rw_side)+" k/in",
+      "  L_w,sides = 2×N = 2×"+f3(N_gp)+" = "+f3(Lw_sides)+" in",
+      "  φR_n,sides = "+f3(phi_rw_side)+"×"+f3(Lw_sides)+" = "+f1(phi_Rn_weld_sides)+" kips",
+      weld_sides===4 ? ("Top+Bottom welds:\n  Angle = "+(90-theta)+"°\n  φ(Rnw)_top/in = "+f3(phi_rw_top)+" k/in\n  L_w,top = 2×d_g = "+f3(Lw_top)+" in\n  φR_n,top = "+f1(phi_Rn_weld_top)+" kips") : "  (2-sided only, no top/bottom welds)",
+      "Total: φR_n = "+f1(phi_Rn_weld_sides)+" + "+f1(phi_Rn_weld_top)+" = "+f1(phi_Rn_weld_total)+" kips"
+    ]
+  });
+
+  // 7. HSS Face Local Yielding (J10.2 adapted)
+  checks.push({
+    name:"HSS Face Local Yielding",ref:"J10.2 (adapted)",
+    demand:Math.abs(Pu_b), cap:phi_FLY, unit:"kips",
+    det:[
+      "Bearing footprint: t_g × N = "+f3(tg)+"×"+f3(N_gp),
+      "φR_n = 0.90·F_yc·t_c·(N+5t_c)·Q_f",
+      "     = 0.90×"+f1(Fyc)+"×"+f3(t_col)+"×("+f3(N_gp)+"+5×"+f3(t_col)+")×"+f3(Qf),
+      "     = "+f1(phi_FLY)+" kips",
+      "Q_f = 1−(σ_chord/F_yc)² = 1−("+f2(sigma_chord)+"/"+f1(Fyc)+")² = "+f3(Qf),
+      "σ_chord = P/A + |M_x|·(H/2)/I_x + |M_y|·(B/2)/I_y = "+f2(sigma_chord)+" ksi"
+    ]
+  });
+
+  // 8. HSS Face Crippling (J10.3 adapted)
+  checks.push({
+    name:"HSS Face Crippling",ref:"J10.3 (adapted)",
+    demand:Math.abs(Pu_b), cap:phi_FC, unit:"kips",
+    det:[
+      "φR_n = 0.75×0.80×t_c²×(1+3N/B_f)×√(E·F_yc)×Q_f",
+      "     = 0.75×0.80×"+f4(Math.pow(t_col,2))+"×(1+3×"+f3(N_gp)+"/"+f3(Bc)+")×√("+f0(E)+"×"+f1(Fyc)+")×"+f3(Qf),
+      "     = "+f1(phi_FC)+" kips"
+    ]
+  });
+
+  // 9. HSS Side Wall Shear (G4/K1)
+  checks.push({
+    name:"HSS Side Wall Shear",ref:"G4 / K1",
+    demand:Math.abs(Pu_b)*Math.sin(theta_rad), cap:phi_Vn_sw, unit:"kips",
+    det:[
+      "Vertical component: V = P_u·sin θ = "+f1(Math.abs(Pu_b))+"×sin("+theta+"°) = "+f1(Math.abs(Pu_b)*Math.sin(theta_rad))+" kips",
+      "Side wall shear area: A_w = 2×H_c×t_c = 2×"+f3(Hc)+"×"+f3(t_col)+" = "+f3(Aw_sw)+" in²",
+      "φV_n = 0.90×0.6×F_yc×A_w (C_v1=1.0)",
+      "     = 0.90×0.6×"+f1(Fyc)+"×"+f3(Aw_sw)+" = "+f1(phi_Vn_sw)+" kips"
+    ]
+  });
+
+  // 10. HSS Punching Shear (J4.4/K1, tension only)
+  checks.push({
+    name:"HSS Face Punching Shear",ref:"J4.4 / K1",
+    demand:isTension ? Ph : null, cap:isTension ? phi_Vn_punch : null,
+    unit:"kips", na:!isTension, naLabel:"Compression — N/A",
+    det:[
+      "Shear perimeter: L_p = 2(t_g + N) = 2×("+f3(tg)+"+"+f3(N_gp)+") = "+f3(Lp_perim)+" in",
+      "φV_n = 0.75×0.6×F_yc×t_c×L_p",
+      "     = 0.75×0.6×"+f1(Fyc)+"×"+f3(t_col)+"×"+f3(Lp_perim)+" = "+f1(phi_Vn_punch)+" kips",
+      !isTension?"(Compression case — punching shear not applicable)":""
+    ]
+  });
+
+  // 11. Column H1-1 Interaction
+  checks.push({
+    name:"Column Combined Axial + Bending",ref:"H1-1",
+    demand:H1_dc, cap:1.0, unit:"ratio",
+    det:[
+      "r_x="+f3(rx)+" in, r_y="+f3(ry)+" in",
+      "KL/r_x="+f1(slender_cx)+", KL/r_y="+f1(slender_cy)+" → governs: "+f1(slender_c),
+      "F_cr = "+f2(Fcr_c)+" ksi → φP_n = "+f1(phi_Pn)+" kips",
+      "Compact flange? b/t="+f2(bt_flange)+" vs λ_p="+f1(lp_f)+", λ_r="+f1(lr_f),
+      "φM_nx = "+f1(phi_Mnx/12)+" kip·ft, φM_ny = "+f1(phi_Mny/12)+" kip·ft",
+      "P_u/φP_n = "+f3(ratio_P)+(ratio_P>=0.2?" ≥ 0.2 → H1-1a":" < 0.2 → H1-1b"),
+      ratio_P>=0.2?
+        "D/C = P_u/φP_n + (8/9)(M_ux/φM_nx + M_uy/φM_ny) = "+f3(ratio_P)+"+(8/9)("+f3(ratio_Mx)+"+"+f3(ratio_My)+") = "+f3(H1_dc):
+        "D/C = P_u/(2φP_n) + M_ux/φM_nx + M_uy/φM_ny = "+f3(ratio_P/2)+"+"+f3(ratio_Mx)+"+"+f3(ratio_My)+" = "+f3(H1_dc)
+    ]
+  });
+
+  // ── Render Results ────────────────────────────────────────────────────────
+  document.getElementById('results').classList.add('show');
+
+  // Demand cards
+  var cards=[
+    {v:f1(Math.abs(Pu_b)),l:"P_u Brace (kips)"},
+    {v:f1(Ph),l:"Horiz. Component (kips)"},
+    {v:f1(Pv),l:"Vert. Component (kips)"},
+    {v:f3(Qf),l:"Q_f Chord Factor"},
+    {v:f2(sigma_chord),l:"σ_chord (ksi)"},
+    {v:f3(lw),l:"Whitmore Width (in)"},
+    {v:f1(phi_Pn),l:"φP_n Column (kips)", alt:true},
+    {v:f1(phi_Mnx/12),l:"φM_nx (kip·ft)", alt:true},
+    {v:f3(H1_dc),l:"H1-1 D/C", alt:true}
+  ];
+  var dc=document.getElementById('demand_cards');
+  dc.innerHTML=cards.map(function(c){
+    return '<div class="dem-card'+(c.alt?' alt':'')+'"><div class="v">'+c.v+'</div><div class="l">'+c.l+'</div></div>';
+  }).join('');
+
+  // Summary banner
+  var allPass=checks.every(function(c){
+    if(c.na||c.demand==null) return true;
+    if(c.passOverride!=null) return c.passOverride;
+    return c.demand/c.cap<=1.0;
+  });
+  var banner=document.getElementById('summary_banner');
+  banner.className='summary '+(allPass?'sum-pass':'sum-fail');
+  banner.innerHTML='<h3>'+(allPass?'✓ ALL CHECKS PASS':'✗ ONE OR MORE CHECKS FAIL')+'</h3>'+
+    '<p>AISC 360-22 LRFD · HSS Brace Gusset Connection · Qf='+f3(Qf)+'</p>';
+
+  // Props table
+  var pts=[
+    ['F_yc',f1(Fyc),'ksi'],['t_col',f3(t_col),'in'],['H',f2(Hc),'in'],['B',f2(Bc),'in'],
+    ['A',f3(Ac),'in²'],['I_x',f1(Ix),'in⁴'],['I_y',f1(Iy),'in⁴'],
+    ['Z_x',f2(Zx),'in³'],['Z_y',f2(Zy),'in³'],
+    ['F_yg',f1(Fyg),'ksi'],['F_u,g',f1(Fu_g),'ksi'],
+    ['t_g',f3(tg),'in'],['d_g',f3(dg),'in'],['N',f3(N_gp),'in'],
+    ['L_g',f3(Lg),'in'],['l_avg (auto)',f3(l_avg),'in'],
+    ['l_w',f3(lw),'in'],['Q_f',f3(Qf),'—']
+  ];
+  document.querySelector('#prop_table tbody').innerHTML=pts.map(function(p){
+    return '<tr><td>'+p[0]+'</td><td>'+p[1]+'</td><td>'+p[2]+'</td></tr>';
+  }).join('');
+
+  // Checks table
+  var tbody=document.getElementById('chk_body');
+  tbody.innerHTML='';
+  checks.forEach(function(c,i){
+    var dc_val, pct, statusHtml, dcHtml;
+    if(c.na || c.demand==null){
+      dc_val=null; pct=0;
+      statusHtml='<span class="na">'+( c.naLabel||'N/A')+'</span>';
+      dcHtml='<span class="na">—</span>';
+    } else if(c.passOverride!=null){
+      // custom check (weld size)
+      var ok=c.passOverride;
+      dc_val=c.customDC;
+      pct=Math.min(dc_val*100,100);
+      var cls=dc_val<=1?'dc-ok':dc_val<=1.2?'dc-warn':'dc-ng';
+      dcHtml='<div style="display:flex;align-items:center;gap:6px"><div class="dc-bar" style="width:80px"><div class="dc-fill '+cls+'" style="width:'+pct+'%"></div></div>'+f2(dc_val)+'</div>';
+      statusHtml='<span class="'+(ok?'pass':'fail')+'">'+(ok?'PASS':'FAIL')+'</span>';
+    } else {
+      dc_val=c.demand/c.cap;
+      pct=Math.min(dc_val*100,100);
+      var cls2=dc_val<=0.80?'dc-ok':dc_val<=1.0?'dc-warn':'dc-ng';
+      dcHtml='<div style="display:flex;align-items:center;gap:6px"><div class="dc-bar" style="width:80px"><div class="dc-fill '+cls2+'" style="width:'+pct+'%"></div></div>'+f3(dc_val)+'</div>';
+      statusHtml='<span class="'+(dc_val<=1.0?'pass':'fail')+'">'+(dc_val<=1.0?'PASS':'FAIL')+'</span>';
+    }
+    var demStr=c.demand!=null?f1(c.demand)+(c.unit.includes('ratio')?'':''):'—';
+    var capStr=c.cap!=null?f1(c.cap):'—';
+    var detId='det_'+i;
+    var rowCls=(i%2===1)?'alt-row':'';
+    tbody.innerHTML+=
+      '<tr class="'+rowCls+'">'+
+        '<td><strong>'+c.name+'</strong></td>'+
+        '<td>'+c.ref+'</td>'+
+        '<td>'+(c.na||c.demand==null?'—':f3(c.demand)+' '+c.unit)+'</td>'+
+        '<td>'+(c.na||c.cap==null?'—':f3(c.cap)+' '+c.unit)+'</td>'+
+        '<td>'+dcHtml+'</td>'+
+        '<td>'+statusHtml+'</td>'+
+        '<td><button class="det-btn" onclick="toggleDet(\''+detId+'\')">▼ detail</button></td>'+
+      '</tr>'+
+      '<tr id="'+detId+'" class="det-row" style="display:none">'+
+        '<td colspan="7"><div class="det-inner">'+c.det.filter(function(d){return d;}).map(function(d){return '<code>'+d+'</code>';}).join('<br>')+'</div></td>'+
+      '</tr>';
+  });
+}
+
+// helper for f0
+function f0(v){return Math.round(v).toString();}
+</script>
+<script src="/are-utils.js"></script>
+</body>
+</html>

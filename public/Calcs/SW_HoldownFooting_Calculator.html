@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SW-GLA — Holdown Spread Footing Design</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-seismic{font-size:.7em;background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.cval-red{color:#dc2626;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.panel-hdr{background:linear-gradient(90deg,#1e3c72,#2a5298);color:#fff;padding:10px 18px;border-radius:8px;margin:16px 0 12px;font-size:1.0em;font-weight:700;display:flex;align-items:center;gap:10px}
+.min-badge{background:#fbbf24;color:#78350f;padding:2px 10px;border-radius:10px;font-size:.85em;font-weight:700}
+.seismic-note{background:#fdf2f8;border:1px solid #f9a8d4;border-radius:6px;padding:8px 12px;font-size:.82em;color:#9d174d;margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <h1>SW — GLA &nbsp;|&nbsp; Holdown Spread Footing Design</h1>
+  <p>Single panel · Combined continuous strip + spread pad footing — uplift &amp; bearing checks &nbsp;|&nbsp; Project: 25-010-RLV · 711 Dayton NV</p>
+  <div class="ref-tags">
+    <span class="tag">IBC 2024</span>
+    <span class="tag">ASCE 7-22</span>
+    <span class="tag">ACI 318-19</span>
+    <span class="tag">ASD Load Combos</span>
+    <span class="tag">Combined Footing — Section Modulus Method</span>
+    <span class="tag">0.6D + 0.7E Seismic Uplift</span>
+  </div>
+</div>
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+  <div style="font-weight:700;color:#1e3c72;margin-bottom:10px;font-size:.95em">System Schematic — Wall Elevation &amp; Footing Plan</div>
+  <svg width="100%" viewBox="0 0 900 310" style="font-family:'Segoe UI',sans-serif;font-size:11px">
+    <defs>
+      <marker id="aU" markerWidth="7" markerHeight="7" refX="3" refY="0" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#dc2626"/></marker>
+      <marker id="aD" markerWidth="7" markerHeight="7" refX="3" refY="7" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
+      <marker id="aL" markerWidth="7" markerHeight="7" refX="7" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#2a5298"/></marker>
+      <marker id="aR" markerWidth="7" markerHeight="7" refX="0" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#2a5298"/></marker>
+      <marker id="dL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+      <marker id="dR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+    </defs>
+
+    <!-- ELEVATION VIEW (left half) -->
+    <text x="80" y="18" font-weight="700" fill="#1e3c72" font-size="12">WALL ELEVATION — GLA (Single Panel)</text>
+
+    <!-- Grade line -->
+    <line x1="30" y1="245" x2="430" y2="245" stroke="#888" stroke-dasharray="4,3" stroke-width="1"/>
+    <text x="34" y="241" fill="#666" font-size="10">F.F.</text>
+    <!-- Footing bottom -->
+    <line x1="30" y1="270" x2="430" y2="270" stroke="#888" stroke-dasharray="4,3" stroke-width="1"/>
+
+    <!-- Stem walls -->
+    <rect x="65" y="245" width="14" height="25" fill="#b0c4de" stroke="#666" stroke-width="1"/>
+    <rect x="360" y="245" width="14" height="25" fill="#b0c4de" stroke="#666" stroke-width="1"/>
+    <!-- Continuous strip -->
+    <rect x="50" y="260" width="340" height="12" fill="#b0c4de" stroke="#555" stroke-width="1.2"/>
+    <!-- Spread pads -->
+    <rect x="24" y="258" width="46" height="16" fill="#7090c0" stroke="#2a5298" stroke-width="1.5"/>
+    <rect x="365" y="258" width="34" height="16" fill="#7090c0" stroke="#2a5298" stroke-width="1.5"/>
+    <!-- Shearwall -->
+    <rect x="58" y="60" width="320" height="185" fill="rgba(42,82,152,0.08)" stroke="#2a5298" stroke-width="1.5"/>
+    <text x="218" y="152" text-anchor="middle" fill="#2a5298" font-weight="700" font-size="13">GLA</text>
+    <text x="218" y="168" text-anchor="middle" fill="#2a5298" font-size="10">L = 28.34 ft</text>
+
+    <!-- Holdown tension arrow (upward, red) at C1 -->
+    <line x1="47" y1="245" x2="47" y2="215" stroke="#dc2626" stroke-width="2" marker-start="url(#aU)"/>
+    <text x="8" y="210" fill="#dc2626" font-weight="700" font-size="10">4.10k↑</text>
+    <text x="5" y="221" fill="#dc2626" font-size="9">C1 Tension</text>
+    <text x="5" y="231" fill="#dc2626" font-size="9">0.6D+0.7E</text>
+
+    <!-- Compression arrow (downward) at C2 -->
+    <line x1="382" y1="215" x2="382" y2="245" stroke="#374151" stroke-width="2" marker-end="url(#aD)"/>
+    <text x="358" y="210" fill="#374151" font-weight="700" font-size="10">9.67k↓</text>
+    <text x="368" y="200" fill="#374151" font-size="9">C2 Comp</text>
+
+    <!-- Seismic lateral arrow -->
+    <line x1="26" y1="60" x2="58" y2="60" stroke="#9d174d" stroke-width="2.5" marker-end="url(#aR)"/>
+    <text x="7" y="58" fill="#9d174d" font-size="10" font-weight="700">E</text>
+
+    <!-- DL arrows at top -->
+    <line x1="130" y1="48" x2="130" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+    <line x1="218" y1="48" x2="218" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+    <line x1="300" y1="48" x2="300" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+    <text x="218" y="44" text-anchor="middle" fill="#374151" font-size="9">wDL = 0.375 klf</text>
+
+    <!-- Height dimension -->
+    <line x1="415" y1="60" x2="415" y2="245" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="420" y="155" fill="#f59e0b" font-weight="700" font-size="10">16 ft</text>
+
+    <!-- PLAN VIEW (right half) -->
+    <text x="510" y="18" font-weight="700" fill="#1e3c72" font-size="12">FOOTING PLAN VIEW</text>
+    <!-- Strip footing -->
+    <rect x="490" y="110" width="360" height="22" fill="rgba(42,82,152,0.15)" stroke="#2a5298" stroke-width="1.5"/>
+    <!-- Spread pads -->
+    <rect x="460" y="90" width="58" height="62" fill="rgba(42,82,152,0.30)" stroke="#2a5298" stroke-width="2"/>
+    <rect x="826" y="103" width="38" height="36" fill="rgba(42,82,152,0.20)" stroke="#2a5298" stroke-width="2"/>
+    <!-- Stem wall -->
+    <rect x="490" y="115" width="360" height="12" fill="#9ab0d0" stroke="#2a5298" stroke-width="1"/>
+    <!-- Wall above (dashed) -->
+    <rect x="490" y="74" width="360" height="36" fill="none" stroke="#2a5298" stroke-width="1" stroke-dasharray="5,3"/>
+    <!-- Dimension: strip length -->
+    <line x1="460" y1="188" x2="864" y2="188" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="662" y="201" text-anchor="middle" fill="#f59e0b" font-weight="700" font-size="10">L = 28.34 ft</text>
+    <!-- Labels -->
+    <text x="489" y="88" text-anchor="middle" fill="#1e3c72" font-weight="700" font-size="10">Tension Pad</text>
+    <text x="489" y="99" text-anchor="middle" fill="#1e3c72" font-size="9">B×B @ C1</text>
+    <text x="845" y="100" text-anchor="middle" fill="#374151" font-weight="700" font-size="10">Comp Pad</text>
+    <text x="845" y="111" text-anchor="middle" fill="#374151" font-size="9">B×B @ C2</text>
+    <text x="670" y="135" text-anchor="middle" fill="#2a5298" font-size="10">Continuous Strip 18" × 12"</text>
+    <!-- Uplift arrow -->
+    <line x1="489" y1="148" x2="489" y2="128" stroke="#dc2626" stroke-width="2" marker-start="url(#aU)"/>
+    <text x="499" y="148" fill="#dc2626" font-size="10" font-weight="700">T<tspan font-size="8" dy="2">hd</tspan> = 4.10k</text>
+    <!-- Legend -->
+    <rect x="500" y="222" width="14" height="10" fill="rgba(42,82,152,0.30)" stroke="#2a5298"/>
+    <text x="518" y="232" fill="#333" font-size="10">Spread pad (size to be determined)</text>
+    <rect x="500" y="238" width="14" height="10" fill="rgba(42,82,152,0.15)" stroke="#2a5298"/>
+    <text x="518" y="248" fill="#333" font-size="10">Continuous strip footing (18"×12")</text>
+    <rect x="500" y="254" width="14" height="10" fill="#9ab0d0" stroke="#2a5298"/>
+    <text x="518" y="264" fill="#333" font-size="10">Concrete stem wall (8"×12")</text>
+  </svg>
+</div>
+
+<!-- INPUT BLOCK 1: Geometry -->
+<div class="blk">
+  <h2>1 — Footing &amp; Wall Geometry</h2>
+  <div class="g3">
+    <div class="ig"><label>Panel Length, L <span class="unit">(ft)</span></label><input type="number" id="L1" value="28.34" step="0.01"><span class="hint">C1 to C2 = 0.00 to 28.34 ft</span></div>
+    <div class="ig"><label>Total Wall Height, H <span class="unit">(ft)</span></label><input type="number" id="Hwall" value="16.0" step="0.5"><span class="hint">Story #1 height per ENERCALC</span></div>
+    <div class="ig"><label>Wall Self-Weight <span class="unit">(psf)</span></label><input type="number" id="wpwall" value="20" step="1"><span class="hint">Unit weight of wood wall system</span></div>
+    <div class="ig"><label>Cont. Footing Width, B<sub>strip</sub> <span class="unit">(in)</span></label><input type="number" id="Bstrip" value="18" step="1"><span class="hint">18" wide per project standard</span></div>
+    <div class="ig"><label>Cont. Footing Depth, D<sub>ftg</sub> <span class="unit">(in)</span></label><input type="number" id="Dftg" value="12" step="1"><span class="hint">12" thick — continuous strip only</span></div>
+    <div class="ig"><label>Spread Pad Depth, D<sub>pad</sub> <span class="unit">(in)</span></label><input type="number" id="Dpad" value="12" step="1"><span class="hint">Increase (e.g. 14", 18") for more DL uplift resistance</span></div>
+    <div class="ig"><label>Stem Wall Width, b<sub>stem</sub> <span class="unit">(in)</span></label><input type="number" id="bstem" value="8" step="1"><span class="hint">8" wide concrete stem</span></div>
+    <div class="ig"><label>Stem Wall Height, h<sub>stem</sub> <span class="unit">(in)</span></label><input type="number" id="hstem" value="12" step="1"><span class="hint">12" tall above footing</span></div>
+    <div class="ig"><label>Soil Depth Above Ftg, D<sub>soil</sub> <span class="unit">(in)</span></label><input type="number" id="Dsoil" value="12" step="1"><span class="hint">Footing top = 12" below F.F.</span></div>
+  </div>
+</div>
+
+<!-- INPUT BLOCK 2: Loads -->
+<div class="blk">
+  <h2>2 — Applied Loads (from SW-GLA ENERCALC Analysis)</h2>
+  <div class="seismic-note">&#9888; Seismic wall — holddown forces are from ASD combination <strong>0.60D + 0.70E</strong> per ASCE 7-22 §2.4.5. The chord forces below are the NET anchorage forces after subtracting tributary dead load in the chord analysis.</div>
+  <div class="g3">
+    <div class="ig"><label>Roof Dead Load, w<sub>DL</sub> <span class="unit">(klf)</span></label><input type="number" id="wDL" value="0.375" step="0.001"><span class="hint">Applied DL at top of wall (ENERCALC: 0.375 klf)</span></div>
+    <div class="ig"><label>Holddown Tension (C1) — T<sub>hd</sub> <span class="unit">(kips)</span></label><input type="number" id="T1" value="4.10" step="0.01"><span class="hint">C1 @ x=0, net uplift at 0.60D+0.70E</span></div>
+    <div class="ig"><label>Chord Compression (C2) — C <span class="unit">(kips)</span></label><input type="number" id="C1c" value="9.67" step="0.01"><span class="hint">C2 @ x=L, max compression at D+0.70E</span></div>
+  </div>
+</div>
+
+<!-- INPUT BLOCK 3: Materials & Soil -->
+<div class="blk">
+  <h2>3 — Materials &amp; Soil Properties</h2>
+  <div class="g3">
+    <div class="ig"><label>Conc. Unit Weight, γ<sub>c</sub> <span class="unit">(pcf)</span></label><input type="number" id="gamc" value="150" step="1"></div>
+    <div class="ig"><label>Soil Unit Weight, γ<sub>s</sub> <span class="unit">(pcf)</span></label><input type="number" id="gams" value="120" step="1"><span class="hint">For uplift resistance per user</span></div>
+    <div class="ig"><label>Allow. Soil Bearing, q<sub>allow</sub> <span class="unit">(psf)</span></label><input type="number" id="qallow" value="2000" step="100"><span class="hint">ASD net allowable bearing</span></div>
+  </div>
+</div>
+
+<!-- INPUT BLOCK 4: Trial Sizes -->
+<div class="blk" style="border-left-color:#16a34a">
+  <h2>4 — Trial Spread Footing Sizes <span class="badge">Enter sizes to check — minimums auto-computed below</span></h2>
+  <div class="g3">
+    <div class="ig"><label>Tension Pad (C1) — B<sub>T</sub> <span class="unit">(ft)</span></label><input type="number" id="BT1" value="4.0" step="0.25"><span class="hint">Square spread footing at holdown (C1)</span></div>
+    <div class="ig"><label>Comp Pad (C2) — B<sub>C</sub> <span class="unit">(ft)</span></label><input type="number" id="BC1" value="3.0" step="0.25"><span class="hint">Square spread footing at compression end (C2)</span></div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- RESULTS -->
+<div class="results" id="results">
+  <div class="summary" id="sumBox"></div>
+
+  <!-- PANEL PROPERTIES -->
+  <div class="panel-hdr">&#9632; SW-GLA — Combined Footing Properties</div>
+  <div class="blk"><h2>Combined Footing Section Properties</h2><div id="propOut1"></div></div>
+  <div class="blk"><h2>Distributed Dead Load Summary</h2><div id="wOut1"></div></div>
+  <div class="blk"><div id="callout1"></div><h2>Design Checks — SW-GLA</h2>
+    <table class="chk-table">
+      <thead><tr><th style="width:28%">Check</th><th>Code Ref.</th><th>Demand</th><th>Capacity / Limit</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+      <tbody id="chkTb1"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box" id="notesBox">
+    <strong>Engineering Notes &amp; Assumptions:</strong>
+    <ul id="notesList"></ul>
+  </div>
+</div><!-- end results -->
+
+</div><!-- content -->
+</div><!-- container -->
+
+<script>
+// ---- Math helpers ----
+function f0(v){return isFinite(v)?Math.round(v).toString():'N/A';}
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// ---- Check table renderer ----
+var _detIdx = 0;
+function renderChks(tbId, chks) {
+  var tb = document.getElementById(tbId);
+  tb.innerHTML = '';
+  chks.forEach(function(c) {
+    var i = _detIdx++;
+    var dc_v = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct  = dc_v !== null ? Math.min(dc_v * 100, 150) : 0;
+    var col  = dc_v === null ? '#9ca3af' : dc_v <= 0.8 ? '#16a34a' : dc_v <= 1.0 ? '#d97706' : '#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>'
+             : dc_v <= 1.0   ? '<span class="pass">PASS</span>'
+                             : '<span class="fail">FAIL</span>';
+    var dtxt = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? 'class="alt-row"' : '';
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+}
+
+// ---- Core footing functions ----
+function combFooting(L, BT, BC, Bstrip) {
+  var A_strip = Bstrip * L;
+  var A_padT  = BT * BT;
+  var A_padC  = BC * BC;
+  var A = A_strip + A_padT + A_padC;
+  // Centroid from tension end (x = 0)
+  var xbar = (A_strip * L/2 + A_padT * 0 + A_padC * L) / A;
+  var I_strip = Bstrip * Math.pow(L,3)/12 + A_strip * Math.pow(L/2 - xbar, 2);
+  var I_padT  = Math.pow(BT,4)/12 + A_padT * Math.pow(xbar, 2);
+  var I_padC  = Math.pow(BC,4)/12 + A_padC * Math.pow(L - xbar, 2);
+  var I = I_strip + I_padT + I_padC;
+  var cT = xbar;
+  var cC = L - xbar;
+  return {A:A, xbar:xbar, I:I, cT:cT, cC:cC, ST:I/cT, SC:I/cC,
+          A_strip:A_strip, A_padT:A_padT, A_padC:A_padC,
+          I_strip:I_strip, I_padT:I_padT, I_padC:I_padC};
+}
+
+// Concentrated dead load at spread pad
+function padDL_raw(B, Dpad, bstem, Dsoil, gamc, gams) {
+  var W_conc = B * B * Dpad * gamc / 1000;
+  var soil_area = B*B - bstem*B;
+  if (soil_area < 0) soil_area = 0;
+  var W_soil = soil_area * Dsoil * gams / 1000;
+  return W_conc + W_soil;
+}
+
+// Distributed dead load per running ft (before factor)
+function stripDL_raw(Bstrip, Dftg, bstem, hstem, Dsoil, gamc, gams, wpwall, Hwall, wDL) {
+  var w_wall  = wpwall * Hwall / 1000;
+  var w_stem  = bstem * hstem * gamc / 1000;
+  var w_ftg   = Bstrip * Dftg * gamc / 1000;
+  var w_soil  = (Bstrip - bstem) * Dsoil * gams / 1000;
+  var w_roof  = wDL;
+  return {w_wall:w_wall, w_stem:w_stem, w_ftg:w_ftg, w_soil:w_soil, w_roof:w_roof,
+          total: w_wall + w_stem + w_ftg + w_soil + w_roof};
+}
+
+// Uplift check (0.6D + 0.7E): DL factor = 0.6, T_hd already at ASD seismic demand
+function upliftCheck(L, BT, BC, T_hd, w_raw, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad) {
+  var f = 0.6; // DL factor per ASCE 7-22 §2.4.5
+  var fp = combFooting(L, BT, BC, Bstrip);
+  var w_u = f * w_raw.total;
+  var P_dist = w_u * L;
+  var P_padT = f * padDL_raw(BT, Dpad, bstem, Dsoil, gamc, gams) - T_hd;
+  var P_padC = f * padDL_raw(BC, Dpad, bstem, Dsoil, gamc, gams);
+  var P_net  = P_dist + P_padT + P_padC;
+  if (P_net <= 0) return {q_T:-9999, q_C:-9999, P_net:P_net, x_R:999, e:999, fp:fp,
+    P_dist:P_dist, P_padT:P_padT, P_padC:P_padC, w_u:w_u};
+  var x_R = (P_dist*(L/2) + P_padT*0 + P_padC*L) / P_net;
+  var e   = x_R - fp.xbar;
+  var q_T = (P_net/fp.A - P_net*e*fp.cT/fp.I) * 1000;
+  var q_C = (P_net/fp.A + P_net*e*fp.cC/fp.I) * 1000;
+  return {q_T:q_T, q_C:q_C, P_net:P_net, x_R:x_R, e:e, fp:fp,
+          P_dist:P_dist, P_padT:P_padT, P_padC:P_padC, w_u:w_u};
+}
+
+// Bearing check (D + 0.7E): full DL, T_hd not applied at tension end for this combo
+function bearingCheck(L, BT, BC, C_chord, w_raw, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad) {
+  var fp = combFooting(L, BT, BC, Bstrip);
+  var w_b = w_raw.total;
+  var P_dist = w_b * L;
+  var P_padT = padDL_raw(BT, Dpad, bstem, Dsoil, gamc, gams);
+  var P_padC = padDL_raw(BC, Dpad, bstem, Dsoil, gamc, gams) + C_chord;
+  var P_net  = P_dist + P_padT + P_padC;
+  var x_R = (P_dist*(L/2) + P_padT*0 + P_padC*L) / P_net;
+  var e   = x_R - fp.xbar;
+  var q_T = (P_net/fp.A - P_net*e*fp.cT/fp.I) * 1000;
+  var q_C = (P_net/fp.A + P_net*e*fp.cC/fp.I) * 1000;
+  return {q_T:q_T, q_C:q_C, P_net:P_net, x_R:x_R, e:e, fp:fp,
+          P_dist:P_dist, P_padT:P_padT, P_padC:P_padC, w_b:w_b};
+}
+
+// Binary search: minimum BT for uplift
+function minBT_uplift(L, BC, T_hd, w_raw, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad) {
+  var lo=1.0, hi=16.0, tol=0.001;
+  for(var i=0;i<80;i++){
+    var mid=(lo+hi)/2;
+    var r=upliftCheck(L,mid,BC,T_hd,w_raw,Dftg,bstem,Dsoil,gamc,gams,Bstrip,Dpad);
+    if(r.q_T < 0) lo=mid; else hi=mid;
+    if(hi-lo<tol) break;
+  }
+  return Math.ceil(hi*4)/4;
+}
+
+// Binary search: minimum BC for bearing
+function minBC_bearing(L, BT, C_chord, w_raw, Dftg, bstem, Dsoil, gamc, gams, Bstrip, q_allow_psf, Dpad) {
+  var lo=0.5, hi=12.0, tol=0.001;
+  for(var i=0;i<80;i++){
+    var mid=(lo+hi)/2;
+    var r=bearingCheck(L,BT,mid,C_chord,w_raw,Dftg,bstem,Dsoil,gamc,gams,Bstrip,Dpad);
+    if(r.q_C > q_allow_psf) lo=mid; else hi=mid;
+    if(hi-lo<tol) break;
+  }
+  return Math.ceil(hi*4)/4;
+}
+
+// ---- Detail: uplift check ----
+function detUplift(L, BT, BC, T_hd, r, q_allow) {
+  var fp = r.fp;
+  var det = '';
+  det += '<div class="cref-hdr">GLA — Uplift Check &nbsp;|&nbsp; ASD Load Combo: 0.60D + 0.70E (ASCE 7-22 §2.4.5)</div>';
+  det += '<div class="cbox">';
+  det += '<div class="sub-head">Combined Footing Plan Geometry</div>';
+  det += '<div class="mrow">A = B<sub>strip</sub>&middot;L + B<sub>T</sub>&sup2; + B<sub>C</sub>&sup2;</div>';
+  det += '<div class="mrow ind">= '+f2(fp.A_strip)+' + '+f2(fp.A_padT)+' + '+f2(fp.A_padC)+' = <span class="cval">'+f2(fp.A)+' ft&sup2;</span></div>';
+  det += '<div class="mrow">&nbsp;</div>';
+  det += '<div class="mrow">x&#772; = '+fr('B<sub>strip</sub>&middot;L&middot;'+fr('L','2')+' + B<sub>C</sub>&sup2;&middot;L','A')+' (from tension end, x=0)</div>';
+  det += '<div class="mrow ind">= <span class="cval">'+f3(fp.xbar)+' ft</span> &nbsp;|&nbsp; c<sub>T</sub> = '+f3(fp.cT)+' ft &nbsp;|&nbsp; c<sub>C</sub> = '+f3(fp.cC)+' ft</div>';
+  det += '<div class="mrow">&nbsp;</div>';
+  det += '<div class="mrow">I = I<sub>strip</sub> + I<sub>padT</sub> + I<sub>padC</sub> = '+f1(fp.I_strip)+' + '+f1(fp.I_padT)+' + '+f1(fp.I_padC)+' = <span class="cval">'+f1(fp.I)+' ft⁴</span></div>';
+  det += '<div class="mrow">S<sub>T</sub> = I / c<sub>T</sub> = <span class="cval">'+f1(fp.ST)+' ft&sup3;</span></div>';
+  det += '<hr class="csep">';
+  det += '<div class="sub-head">Net Loads (0.6 &times; DL, seismic 0.6D+0.7E combo)</div>';
+  det += '<div class="mrow">P<sub>dist</sub> = 0.6 &times; '+f3(r.w_u/0.6)+' klf &times; '+f1(L)+' ft = <span class="cval">'+f3(r.P_dist)+' k</span> &#8595;</div>';
+  det += '<div class="mrow">P<sub>pad,T</sub> = 0.6&times;W<sub>pad,T</sub> &minus; T<sub>hd</sub> = '+f3(r.P_padT+T_hd)+' &minus; '+f2(T_hd)+' = <span class="'+(r.P_padT<0?'cval-red':'cval')+'">'+f3(r.P_padT)+' k</span> '+(r.P_padT<0?'&#8593; net uplift':'&#8595;')+'</div>';
+  det += '<div class="mrow">P<sub>pad,C</sub> = 0.6&times;W<sub>pad,C</sub> = <span class="cval">'+f3(r.P_padC)+' k</span> &#8595;</div>';
+  det += '<div class="mrow">P<sub>net</sub> = '+f3(r.P_dist)+' + '+f3(r.P_padT)+' + '+f3(r.P_padC)+' = <span class="cval">'+f3(r.P_net)+' k</span></div>';
+  det += '<hr class="csep">';
+  det += '<div class="sub-head">Resultant Location &amp; Eccentricity</div>';
+  det += '<div class="mrow">x<sub>R</sub> = '+fr('P<sub>dist</sub>&middot;'+fr('L','2')+' + P<sub>pad,C</sub>&middot;L','P<sub>net</sub>')+' = <span class="cval">'+f3(r.x_R)+' ft</span> from tension end</div>';
+  det += '<div class="mrow">e = x<sub>R</sub> &minus; x&#772; = '+f3(r.x_R)+' &minus; '+f3(fp.xbar)+' = <span class="cval">'+f3(r.e)+' ft</span></div>';
+  det += '<hr class="csep">';
+  det += '<div class="sub-head">Soil Pressure at Tension End (Uplift Check)</div>';
+  det += '<div class="mrow">q<sub>T</sub> = '+fr('P<sub>net</sub>','A')+' &minus; '+fr('P<sub>net</sub>&middot;e&middot;c<sub>T</sub>','I')+'</div>';
+  det += '<div class="mrow ind">= '+fr(f3(r.P_net), f2(fp.A))+' &minus; '+fr(f3(r.P_net)+' &times; '+f3(r.e)+' &times; '+f3(fp.cT), f1(fp.I))+'</div>';
+  var qT_val = r.q_T;
+  det += '<div class="mrow ind">= '+(qT_val>=0?'<span class="cval">':'<span class="cval-red">')+f1(qT_val)+' psf</span>'+(qT_val>=0?' &#10003; &ge; 0 (no net uplift)':' &#10007; UPLIFT PRESENT')+'</div>';
+  det += '</div>';
+  return det;
+}
+
+// ---- Detail: bearing check ----
+function detBearing(L, BT, BC, C_chord, r, q_allow) {
+  var fp = r.fp;
+  var det = '';
+  det += '<div class="cref-hdr">GLA — Bearing Check &nbsp;|&nbsp; ASD Load Combo: D + 0.70E (ASCE 7-22 §2.4.5)</div>';
+  det += '<div class="cbox">';
+  det += '<div class="sub-head">Loads on Combined Footing (Full DL + chord compression)</div>';
+  det += '<div class="mrow">P<sub>dist</sub> = '+f3(r.w_b)+' klf &times; '+f1(L)+' ft = <span class="cval">'+f3(r.P_dist)+' k</span> &#8595;</div>';
+  det += '<div class="mrow">P<sub>pad,T</sub> = W<sub>pad,T</sub> = <span class="cval">'+f3(r.P_padT)+' k</span> &#8595;</div>';
+  det += '<div class="mrow">P<sub>pad,C</sub> = W<sub>pad,C</sub> + C<sub>chord</sub> = '+f3(r.P_padC-C_chord)+' + '+f2(C_chord)+' = <span class="cval">'+f3(r.P_padC)+' k</span> &#8595;</div>';
+  det += '<div class="mrow">P<sub>net</sub> = <span class="cval">'+f3(r.P_net)+' k</span></div>';
+  det += '<hr class="csep">';
+  det += '<div class="sub-head">Resultant &amp; Eccentricity</div>';
+  det += '<div class="mrow">x<sub>R</sub> = <span class="cval">'+f3(r.x_R)+' ft</span> from tension end</div>';
+  det += '<div class="mrow">e = x<sub>R</sub> &minus; x&#772; = '+f3(r.x_R)+' &minus; '+f3(fp.xbar)+' = <span class="cval">'+f3(r.e)+' ft</span></div>';
+  det += '<hr class="csep">';
+  det += '<div class="sub-head">Soil Pressure at Compression End (Bearing Check)</div>';
+  det += '<div class="mrow">q<sub>C</sub> = '+fr('P<sub>net</sub>','A')+' + '+fr('P<sub>net</sub>&middot;e&middot;c<sub>C</sub>','I')+'</div>';
+  var qC_val = r.q_C;
+  det += '<div class="mrow ind">= <span class="'+(qC_val<=q_allow?'cval':'cval-red')+'">'+f0(qC_val)+' psf</span> vs. q<sub>allow</sub> = '+f0(q_allow)+' psf</div>';
+  det += '<div class="mrow">D/C = '+fr(f0(qC_val), f0(q_allow))+' = <span class="'+(qC_val/q_allow<=1?'cval':'cval-red')+'">'+f3(qC_val/q_allow)+'</span></div>';
+  det += '</div>';
+  return det;
+}
+
+// ---- Detail: stability ----
+function detStability(r) {
+  var det = '';
+  det += '<div class="cref-hdr">GLA — Overall Overturning Stability</div>';
+  det += '<div class="cbox">';
+  det += '<div class="mrow">Check that P<sub>net</sub> &gt; 0 (combined footing does not lift entirely off soil)</div>';
+  det += '<div class="mrow">P<sub>net</sub> = '+f3(r.P_net)+' k &nbsp; '+(r.P_net>0?'<span class="cval">&#10003; Stable</span>':'<span class="cval-red">&#10007; UNSTABLE</span>')+'</div>';
+  det += '</div>';
+  return det;
+}
+
+// ---- Prop table ----
+function propTable(fp, BT, BC, L, Bstrip) {
+  var html = '<table class="prop-table"><thead><tr><th>Property</th><th>Value</th><th>Units</th><th>Notes</th></tr></thead><tbody>';
+  var rows = [
+    ['Strip Area, A<sub>strip</sub>', f2(fp.A_strip), 'ft²', 'B<sub>strip</sub> × L = '+f2(Bstrip)+'×'+f2(L)],
+    ['Tension Pad Area, A<sub>T</sub>', f2(fp.A_padT), 'ft²', 'B<sub>T</sub>² = '+f2(BT)+'² ft'],
+    ['Comp Pad Area, A<sub>C</sub>', f2(fp.A_padC), 'ft²', 'B<sub>C</sub>² = '+f2(BC)+'² ft'],
+    ['Total Area, A', f2(fp.A), 'ft²', ''],
+    ['Centroid from tension end, x&#772;', f3(fp.xbar), 'ft', 'Weighted by area'],
+    ['Moment of Inertia (long.), I', f1(fp.I), 'ft⁴', 'About centroid axis'],
+    ['Section Modulus (tension end), S<sub>T</sub>', f1(fp.ST), 'ft³', 'I / c<sub>T</sub>'],
+    ['Section Modulus (comp end), S<sub>C</sub>', f1(fp.SC), 'ft³', 'I / c<sub>C</sub>'],
+  ];
+  rows.forEach(function(r){ html += '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td><td>'+r[2]+'</td><td style="color:#555;font-size:.82em">'+r[3]+'</td></tr>'; });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ---- DL table ----
+function wTable(w, f) {
+  var html = '<table class="prop-table"><thead><tr><th>Load Component</th><th>Unfactored (klf)</th><th>Factored (×'+f+')</th><th>Notes</th></tr></thead><tbody>';
+  var rows = [
+    ['Roof Dead Load', f3(w.w_roof), f3(f*w.w_roof), 'Applied at top of wall'],
+    ['Wall Self-Weight', f3(w.w_wall), f3(f*w.w_wall), 'w<sub>wall</sub> × H<sub>wall</sub>'],
+    ['Stem Wall', f3(w.w_stem), f3(f*w.w_stem), 'b<sub>stem</sub> × h<sub>stem</sub> × γ<sub>c</sub>'],
+    ['Cont. Footing Concrete', f3(w.w_ftg), f3(f*w.w_ftg), 'B<sub>strip</sub> × D<sub>ftg</sub> × γ<sub>c</sub>'],
+    ['Soil on Strip (outside stem)', f3(w.w_soil), f3(f*w.w_soil), '(B<sub>strip</sub>−b<sub>stem</sub>) × D<sub>soil</sub> × γ<sub>s</sub>'],
+    ['<strong>TOTAL w<sub>DL</sub></strong>', '<strong>'+f3(w.total)+'</strong>', '<strong>'+f3(f*w.total)+'</strong>', ''],
+  ];
+  rows.forEach(function(r){ html += '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td style="color:#555;font-size:.82em">'+r[3]+'</td></tr>'; });
+  html += '</tbody></table>';
+  return html;
+}
+
+// ---- MAIN CALCULATION ----
+function runCalc() {
+  _detIdx = 0;
+
+  // Read inputs
+  var L1      = +document.getElementById('L1').value;
+  var Hwall   = +document.getElementById('Hwall').value;
+  var wpwall  = +document.getElementById('wpwall').value;
+  var Bstrip  = +document.getElementById('Bstrip').value / 12;   // in → ft
+  var Dftg    = +document.getElementById('Dftg').value / 12;
+  var Dpad    = +document.getElementById('Dpad').value / 12;
+  var bstem   = +document.getElementById('bstem').value / 12;
+  var hstem   = +document.getElementById('hstem').value / 12;
+  var Dsoil   = +document.getElementById('Dsoil').value / 12;
+  var wDL     = +document.getElementById('wDL').value;
+  var T1      = +document.getElementById('T1').value;
+  var C1c     = +document.getElementById('C1c').value;
+  var gamc    = +document.getElementById('gamc').value;
+  var gams    = +document.getElementById('gams').value;
+  var q_allow = +document.getElementById('qallow').value;
+  var BT1     = +document.getElementById('BT1').value;
+  var BC1     = +document.getElementById('BC1').value;
+
+  // Distributed DL
+  var wP1 = stripDL_raw(Bstrip, Dftg, bstem, hstem, Dsoil, gamc, gams, wpwall, Hwall, wDL);
+
+  // ---- FIND MINIMUMS ----
+  var minBT1 = minBT_uplift(L1, BC1, T1, wP1, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad);
+  var minBC1 = minBC_bearing(L1, BT1, C1c, wP1, Dftg, bstem, Dsoil, gamc, gams, Bstrip, q_allow, Dpad);
+
+  // ---- RUN CHECKS ----
+  var r1u = upliftCheck(L1, BT1, BC1, T1, wP1, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad);
+  var r1b = bearingCheck(L1, BT1, BC1, C1c, wP1, Dftg, bstem, Dsoil, gamc, gams, Bstrip, Dpad);
+  var fp1 = combFooting(L1, BT1, BC1, Bstrip);
+
+  // ---- RENDER PROP TABLE ----
+  document.getElementById('propOut1').innerHTML = propTable(fp1, BT1, BC1, L1, Bstrip)
+    + '<div style="margin-top:10px;font-size:.83em;color:#2a5298">'
+    + '<strong>Min B<sub>T</sub> required (uplift, given B<sub>C</sub>='+f2(BC1)+' ft):</strong> '
+    + '<span style="color:'+(BT1>=minBT1?'#16a34a':'#dc2626')+';font-weight:700">'+f2(minBT1)+' ft ('+Math.round(minBT1*12)+'")</span>'
+    + ' &nbsp;|&nbsp; '
+    + '<strong>Min B<sub>C</sub> required (bearing, given B<sub>T</sub>='+f2(BT1)+' ft):</strong> '
+    + '<span style="color:'+(BC1>=minBC1?'#16a34a':'#dc2626')+';font-weight:700">'+f2(minBC1)+' ft ('+Math.round(minBC1*12)+'")</span>'
+    + '</div>';
+
+  // ---- RENDER DL TABLE ----
+  document.getElementById('wOut1').innerHTML = wTable(wP1, 0.6)
+    + '<div style="margin-top:6px;font-size:.8em;color:#555">Note: 0.6 factor shown for uplift check (0.60D+0.70E seismic). Bearing check uses full DL (factor = 1.0).</div>';
+
+  // ---- DC RATIO ----
+  function dcUplift(r) {
+    if (!r || r.P_net <= 0) return 9.99;
+    return r.fp.A * r.e * r.fp.cT / r.fp.I;
+  }
+  var dc1u = dcUplift(r1u);
+
+  // ---- STATUS CALLOUT ----
+  function statusCallout(BT, BC, minBT, minBC, dc_u, dc_b, q_T_psf, q_C_psf) {
+    var passU = dc_u <= 1.0, passB = dc_b <= 1.0;
+    var allPass = passU && passB;
+    var bg = allPass ? '#dcfce7' : '#fee2e2', bdr = allPass ? '#16a34a' : '#dc2626';
+    var html = '<div style="background:'+bg+';border:2px solid '+bdr+';border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:.87em">';
+    html += '<strong style="color:'+(allPass?'#166534':'#991b1b')+';font-size:1.05em">'+(allPass?'✔ SW-GLA — All Checks Pass':'✘ SW-GLA — Check(s) Failing')+'</strong><br>';
+    html += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:20px">';
+    html += '<span><strong>Tension pad entered:</strong> '+f2(BT)+' ft ('+Math.round(BT*12)+'") &nbsp;|&nbsp; <strong style="color:'+(BT>=minBT?'#166534':'#991b1b')+'">Min required: '+f2(minBT)+' ft ('+Math.round(minBT*12)+'") with B<sub>C</sub>='+f2(BC)+'ft fixed</strong></span>';
+    html += '<span><strong>Uplift D/C (e/kern):</strong> <strong style="color:'+(passU?'#166534':'#991b1b')+'">'+f3(dc_u)+'</strong> → q<sub>T</sub> = '+f0(q_T_psf)+' psf '+(passU?'✔':'✘ UPLIFT')+'</span>';
+    html += '<span><strong>Bearing D/C (q<sub>C</sub>/q<sub>allow</sub>):</strong> <strong style="color:'+(passB?'#166534':'#991b1b')+'">'+f3(dc_b)+'</strong> → q<sub>C</sub> = '+f0(q_C_psf)+' psf '+(passB?'✔':'✘')+'</span>';
+    html += '</div></div>';
+    return html;
+  }
+
+  document.getElementById('callout1').innerHTML = statusCallout(BT1, BC1, minBT1, minBC1, dc1u, r1b.q_C/q_allow, r1u.q_T, r1b.q_C);
+
+  // ---- BUILD CHECKS ----
+  var chks1 = [];
+
+  chks1.push({
+    n:'Overall Gravity Stability',
+    r:'ASCE 7-22 §2.4.5',
+    d:'T<sub>hd</sub> = '+f2(T1)+' k ↑',
+    c:'P<sub>net</sub> = 0.6D<sub>total</sub> &minus; T<sub>hd</sub> &gt; 0',
+    dc: r1u.P_net > 0 ? r1u.P_net <= T1 ? 0.6 : 0.3 : 2.0,
+    nt: 'P_net = '+f3(r1u.P_net)+' k '+(r1u.P_net>0?'> 0 ✓ (gross DL exceeds uplift)':'≤ 0 — UNSTABLE'),
+    stiff: false,
+    det: detStability(r1u)
+  });
+
+  chks1.push({
+    n:'Uplift at Tension End &mdash; q<sub>T</sub> &#8805; 0',
+    r:'IBC 2024 §1806 / ASCE 7-22 §2.4.5',
+    d:'e = '+f3(r1u.e)+' ft &nbsp;|&nbsp; kern = '+f3(r1u.P_net>0?fp1.ST/fp1.A:0)+' ft',
+    c:'D/C = A&#183;e&#183;c<sub>T</sub> / I &le; 1.0',
+    dc: dc1u,
+    nt: (r1u.q_T>=0?'PASS':'FAIL')+': q_T = '+f0(r1u.q_T)+' psf &nbsp;|&nbsp; min B_T = '+f2(minBT1)+' ft ('+Math.round(minBT1*12)+'") at B_C='+f2(BC1)+' ft',
+    stiff: r1u.q_T >= 0,
+    det: detUplift(L1, BT1, BC1, T1, r1u, q_allow)
+  });
+
+  chks1.push({
+    n:'Bearing at Comp End, q<sub>C</sub>',
+    r:'IBC 2024 §1806',
+    d:'q<sub>C</sub> = '+f0(r1b.q_C)+' psf',
+    c:'q<sub>allow</sub> = '+f0(q_allow)+' psf',
+    dc: r1b.q_C / q_allow,
+    nt: 'D+0.70E; min B_C = '+f2(minBC1)+' ft ('+Math.round(minBC1*12)+'") at B_T='+f2(BT1)+' ft',
+    stiff: r1b.q_C <= q_allow,
+    det: detBearing(L1, BT1, BC1, C1c, r1b, q_allow)
+  });
+
+  chks1.push({
+    n:'q<sub>T</sub> under Bearing Combo (D+0.7E)',
+    r:'IBC 2024 §1806',
+    d:'q<sub>T</sub> = '+f0(r1b.q_T)+' psf',
+    c:'q<sub>min</sub> &#8805; 0 psf',
+    dc: r1b.q_T >= 0 ? 0.3 : 1.5,
+    nt: 'Sanity check — tension end pressure under full DL + chord compression',
+    stiff: r1b.q_T >= 0,
+    det: (function(){
+      var d='<div class="cref-hdr">GLA — Tension End Pressure under D+0.70E</div><div class="cbox">';
+      d+='<div class="mrow">q<sub>T</sub> = '+fr('P<sub>net</sub>','A')+' &minus; '+fr('P<sub>net</sub>&middot;e&middot;c<sub>T</sub>','I')+' = <span class="'+(r1b.q_T>=0?'cval':'cval-red')+'">'+f0(r1b.q_T)+' psf</span> '+(r1b.q_T>=0?'&#10003;':'&#10007; Uplift present under bearing combo')+'</div>';
+      d+='</div>'; return d;})()
+  });
+
+  renderChks('chkTb1', chks1);
+
+  // ---- SUMMARY BANNER ----
+  var dcs = chks1.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var pass  = maxDC <= 1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'&#10004; All Checks Pass':'&#10008; One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong>'
+    +' &nbsp;|&nbsp; Min B<sub>T</sub> (tension pad @ C1) = <strong>'+f2(minBT1)+' ft ('+Math.round(minBT1*12)+'")</strong>'
+    +' &nbsp;|&nbsp; Min B<sub>C</sub> (comp pad @ C2) = <strong>'+f2(minBC1)+' ft ('+Math.round(minBC1*12)+'")</strong>'
+    +' &nbsp;|&nbsp; Load combo: <strong>0.60D + 0.70E (seismic, ASCE 7-22 §2.4.5)</strong></p>';
+
+  // ---- NOTES ----
+  var notesHTML = [
+    'Holddown force (T<sub>hd</sub> = '+f2(T1)+' k) is taken directly from ENERCALC output at ASD seismic combination 0.60D+0.70E per ASCE 7-22 §2.4.5. This is the NET tension force at the anchorage after subtracting tributary dead load in the chord analysis.',
+    'Combined footing plan is modeled as: continuous strip ('+f2(Bstrip*12)+'"×'+f2(Dftg*12)+'" deep) plus square spread pads ('+f2(Dpad*12)+'" deep) at each chord end. Section modulus is computed about the longitudinal centroid axis of the combined plan.',
+    'Soil uplift resistance uses γ<sub>s</sub> = '+gams+' pcf on the NET area of the spread pad (excluding stem wall footprint: '+f2(bstem*12)+'"+wide×B). Conc. unit weight = '+gamc+' pcf.',
+    'Wall self-weight ('+wpwall+' psf × '+Hwall+' ft = '+f2(wpwall*Hwall/1000)+' klf) is included as distributed DL along the strip footing. Verify this was NOT already included in the ENERCALC chord DL to avoid double-counting.',
+    'Spread pad depth = '+f2(Dpad*12)+'". Cont. strip depth = '+f2(Dftg*12)+'". Increasing spread pad depth adds concrete + soil dead load for uplift resistance. Verify punching shear and flexure for final pad thickness.',
+    'Uplift check uses DL factor 0.6 per ASCE 7-22 §2.4.5 seismic ASD combination (same factor as §2.4.1 wind). The T<sub>hd</sub> force already includes the 0.70E load factor as a NET anchorage force from ENERCALC.',
+    'Allowable soil bearing = '+q_allow+' psf — confirm with geotechnical report or local standard for this site (Dayton, NV).',
+    'No net uplift at C2 (compression end) per ENERCALC output — only the tension pad at C1 requires holdown verification. C2 is governed by bearing.',
+  ];
+  document.getElementById('notesList').innerHTML = notesHTML.map(function(n){return '<li>'+n+'</li>';}).join('');
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+<script src="/are-utils.js"></script>
+</body>
+</html>

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stacked Shearwall Designer — SDPWS 2021</title>
+<style>
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1500px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.95em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:24px}
+.blk{background:#f8f9fa;padding:18px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:14px;font-size:1.1em;border-bottom:2px solid #dde;padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.g5{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.86em}
+.ig input,.ig select{padding:7px 10px;border:2px solid #ddd;border-radius:6px;font-size:.92em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.hint{font-size:.74em;color:#888;margin-top:3px}
+.callout{background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px 13px;font-size:.82em;color:#1e40af;margin-bottom:12px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:12px 15px;font-size:.82em;color:#78350f;margin-top:14px}
+.note-box ul{padding-left:18px}.note-box li{margin-bottom:4px;line-height:1.5}
+/* Floor panels */
+.floor-blk{background:#fff;border:2px solid #c7d2e0;border-radius:10px;margin-bottom:14px;overflow:hidden}
+.floor-hdr{color:#fff;padding:9px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.fh-0{background:linear-gradient(90deg,#374151,#4b5563)}
+.fh-1{background:linear-gradient(90deg,#1d4ed8,#2563eb)}
+.fh-2{background:linear-gradient(90deg,#0f766e,#0d9488)}
+.fh-3{background:linear-gradient(90deg,#b45309,#d97706)}
+.fh-4{background:linear-gradient(90deg,#b91c1c,#dc2626)}
+.fh-5{background:linear-gradient(90deg,#7c3aed,#8b5cf6)}
+.floor-hdr-left{display:flex;align-items:center;gap:10px}
+.floor-body{padding:12px 14px}
+/* Wall table */
+.wall-table{width:100%;border-collapse:collapse;font-size:.80em}
+.wall-table th{background:#1e3c72;color:#fff;padding:5px 4px;text-align:center;white-space:nowrap;font-size:.76em;font-weight:600}
+.wall-table th.thl{text-align:left;padding-left:7px}
+.wall-table td{padding:3px 3px;border-bottom:1px solid #eee;vertical-align:middle}
+.wall-table tr:nth-child(even) td{background:#f9fafb}
+.th-sw{background:#6d28d9 !important}
+.th-chk{background:#1d4ed8 !important}
+.th-sh{background:#065f46 !important}
+.ti{width:100%;padding:3px 4px;border:1px solid #d1d5db;border-radius:3px;font-size:.80em;font-family:inherit;text-align:center;background:transparent;transition:border-color .15s}
+.ti:focus{border-color:#2a5298;outline:none;background:#fff}
+.ti-lbl{text-align:left}
+select.ti{cursor:pointer;padding:2px 1px}
+.btn-x{background:none;border:1px solid #fca5a5;color:#dc2626;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:.80em;line-height:1;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.btn-x:hover{background:#fee2e2}
+.btn-chk{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.76em;font-weight:700;white-space:nowrap}
+.btn-chk:hover{background:#1e3c72;box-shadow:0 2px 6px rgba(30,60,114,.35)}
+.btn-sm{padding:5px 12px;border:none;border-radius:5px;font-size:.79em;cursor:pointer;font-weight:600;transition:all .15s}
+.btn-add{background:#1d4ed8;color:#fff}.btn-add:hover{background:#1e3c72}
+.btn-grn{background:#16a34a;color:#fff}.btn-grn:hover{background:#15803d}
+.btn-add-floor{background:#16a34a;color:#fff;border:none;padding:9px 26px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600;margin:4px 4px 0 0;transition:background .15s}
+.btn-add-floor:hover{background:#15803d}
+.btn-del-fl{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:3px 9px;border-radius:4px;cursor:pointer;font-size:.75em;transition:background .15s}
+.btn-del-fl:hover{background:rgba(220,38,38,.65)}
+/* Results */
+.wres{display:none;border-top:2px solid #2a5298;margin-top:6px}
+.wres.pass-bg{border-color:#16a34a}
+.wres.fail-bg{border-color:#dc2626}
+.inline-res{padding:10px 13px;background:#f0f7ff}
+.inline-res.pass-bg{background:#f0fdf4}
+.inline-res.fail-bg{background:#fff1f2}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:10px}
+.dem-card{background:#fff;border-radius:7px;padding:8px;border:1px solid #dde;text-align:center}
+.dem-card .v{font-size:1.08em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.67em;color:#666;margin-top:2px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#f59e0b;background:#fffbeb}.dem-card.warn .v{color:#92400e}
+.dem-card.bad{border-color:#dc2626;background:#fff1f2}.dem-card.bad .v{color:#dc2626}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.chk-tbl{width:100%;border-collapse:collapse;font-size:.82em;margin-bottom:10px}
+.chk-tbl th{background:#1e3c72;color:#fff;padding:6px 8px;text-align:left;font-size:.8em}
+.chk-tbl td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}
+.chk-tbl tr:nth-child(even) td{background:#f5f7ff}
+.chk-tbl tr.row-pass td{background:#f0fdf4 !important;border-left:3px solid #16a34a}
+.chk-tbl tr.det-row td{padding:0 !important;background:#fff !important;border:none !important}
+.dc-bar{height:10px;border-radius:5px;background:#e5e7eb;min-width:48px}
+.dc-fill{height:100%;border-radius:5px}
+.dc-cell{display:flex;align-items:center;gap:5px}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.conn-box{background:#fff;border:1px solid #c7d2e0;border-radius:7px;padding:9px 12px;margin-top:8px}
+.conn-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:.82em}
+.conn-row:last-child{border-bottom:none}
+.conn-lbl{font-weight:700;color:#6d28d9;min-width:90px}
+.conn-val{color:#1e3c72;font-weight:600}
+.conn-ok{color:#16a34a;font-weight:700;margin-left:4px}
+.conn-fail{color:#dc2626;font-weight:700;margin-left:4px}
+/* Calc detail panels */
+.calc-det{display:none;background:#f4f7ff;padding:10px 14px 8px;border-top:1px dashed #b0c0e8;font-size:.81em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:.73em;white-space:nowrap}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #c7d2e8;font-size:.88em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:5px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:7px 10px;margin-top:4px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 3px;text-align:center;min-width:1.2em}
+.mfr .md{padding:0 3px;text-align:center;min-width:1.2em}
+.mrow{margin:2px 0;line-height:2.0;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:22px}
+/* Reference tables */
+.ref-tbl{width:100%;border-collapse:collapse;font-size:.80em;margin-top:8px}
+.ref-tbl th{background:#1e3c72;color:#fff;padding:6px 8px;text-align:center;font-size:.76em}
+.ref-tbl th.thl{text-align:left}
+.ref-tbl td{padding:5px 8px;border-bottom:1px solid #eee;text-align:center}
+.ref-tbl tr:nth-child(even) td{background:#f5f7ff}
+.ref-tbl td.tdl{text-align:left}
+.hl-row td{background:#dbeafe !important;font-weight:700}
+
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>&#127963; Stacked Shearwall Designer</h1>
+    <p>SDPWS 2021 Perforated Shear Wall Method &mdash; NDS 2018 ASD &mdash; Anderson Rohr Engineering</p>
+    <div class="ref-tags">
+      <span class="tag">SDPWS 2021 &sect;4.3.3</span>
+      <span class="tag">SDPWS 2021 &sect;4.3.6</span>
+      <span class="tag">SDPWS Table 4.3A</span>
+      <span class="tag">Simpson ESR-2330 (HDUE)</span>
+      <span class="tag">NDS 2018 ASD</span>
+      <span class="tag">Perforated Wall Method</span>
+      <span class="tag">Stacked Multi-Story</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Global Settings -->
+    <div class="blk">
+      <h2>&#9881; Global Settings <span class="badge">All floors use these defaults</span></h2>
+      <div class="g4">
+        <div class="ig">
+          <label>Species</label>
+          <select id="species">
+            <option value="DFL">Douglas Fir-Larch (DF-L)</option>
+            <option value="SPF">Spruce-Pine-Fir (SPF)</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Design Case</label>
+          <select id="designCase">
+            <option value="wind">Wind (C<sub>D</sub>=1.6)</option>
+            <option value="seismic">Seismic (C<sub>D</sub>=1.6)</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Wall Framing</label>
+          <select id="wallWidth">
+            <option value="2x4">2&times;4 Wall</option>
+            <option value="2x6" selected>2&times;6 Wall</option>
+            <option value="2x8">2&times;8 Wall</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Manage Floors</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+            <button class="btn-add-floor" onclick="addFloor()">+ Add Floor</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="callout" style="margin-bottom:14px">
+      <strong>How to use:</strong> Floors stack top-to-bottom (roof level first &rarr; 1st floor last).
+      Enter <em>V<sub>floor</sub></em> = the diaphragm shear delivered to this wall line at each level.
+      Set <em>L</em> (total wall length), <em>&Sigma;L<sub>i</sub></em> (sum of full-height pier lengths), and <em>h<sub>o</sub></em> (max opening height).
+      Select trial sheathing, then click <strong>&#9654; Check</strong> per wall line.
+      Uplift T accumulates all floors above using the SDPWS overturning moment method.
+    </div>
+
+    <!-- Floor Container -->
+    <div id="floor-con"></div>
+
+    <!-- Reference Tables -->
+
+<div class="blk" style="margin-top:24px">
+  <h2>&#128206; HDUE Holdown Schedule <span class="badge">Simpson ESR-2330 — Replaces Discontinued HDU</span></h2>
+  <div class="callout">All loads ASD, C<sub>D</sub>=1.33 or 1.6 (wind/seismic). Minimum wood member width = 3&#189;" unless noted.
+  Anchor rod unbraced length &le;6". Source: ICC-ES ESR-2330 Table 2B.</div>
+  <table class="ref-tbl">
+    <thead><tr>
+      <th class="thl">Model</th><th>T<sub>all</sub> (lb)<br>ASD</th>
+      <th>SDS Screws</th><th>Anchor Rod</th><th>Min. Post Width</th><th>Notes</th>
+      <th>Replaces (HDU)</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="tdl">HDUE3-SDS3</td><td>3,790</td><td>7 @ &#188;"&times;3"</td><td>&#189;"</td><td>3&#189;"</td><td></td><td>HDU2 (3,075 lb)</td></tr>
+      <tr><td class="tdl">HDUE5-SDS3</td><td>5,375</td><td>10 @ &#188;"&times;3"</td><td>&#189;"</td><td>3&#189;"</td><td></td><td>HDU4 (4,565 lb)</td></tr>
+      <tr class="hl-row"><td class="tdl">HDUE7-SDS3</td><td>7,015</td><td>13 @ &#188;"&times;3"</td><td>&#189;" hi-str.</td><td>3&#189;"</td><td>Hi-str. anchor bolt req'd</td><td>HDU5/HDU8</td></tr>
+      <tr><td class="tdl">HDUE9-SDS3.5</td><td>9,390</td><td>16 @ &#188;"&times;3&#189;"</td><td>&#190;"</td><td>3&#189;"</td><td></td><td>HDU11 (9,535 lb)</td></tr>
+      <tr><td class="tdl">HDUE13-SDS3.5</td><td>12,950</td><td>23 @ &#188;"&times;3&#189;"</td><td>1"</td><td>5&#189;"</td><td>Heavy hex nut req'd</td><td>HDU14 (14,445 lb)</td></tr>
+      <tr><td class="tdl">HDUE17-SDS4.5</td><td>17,685</td><td>28 @ &#188;"&times;4&#189;"</td><td>1"</td><td>5&#189;" (6&times;6 for max)</td><td>Solid Al washer at base</td><td>HD12/HD19</td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:10px;font-size:.78em;color:#666">
+    <strong>Strap Alternatives (low uplift):</strong>
+    CMSTC16 T<sub>all</sub>=4,585 lb &nbsp;|&nbsp; CMST14 T<sub>all</sub>=6,490 lb &nbsp;|&nbsp; CMST12 T<sub>all</sub>=9,215 lb
+  </div>
+</div>
+
+<div class="blk">
+  <h2>&#128206; Sheathing Capacity Reference <span class="badge">SDPWS 2021 Table 4.3A &divide; 2.0 = ASD Allow.</span></h2>
+  <div class="callout">ASD allowable = Nominal / 2.0. Wind column (B) values shown. OSB = Oriented Strand Board, 1-side unless noted. DFL framing.</div>
+  <table class="ref-tbl">
+    <thead><tr>
+      <th class="thl">Sheathing</th><th>Fastener</th><th>V<sub>all</sub> Wind ASD (plf)</th><th>V<sub>s</sub> Seismic ASD (plf)</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="tdl">5/8" Gyp. Bd. 1-side</td><td>6d @ 7"</td><td>145</td><td>90</td></tr>
+      <tr><td class="tdl">5/8" Gyp. Bd. 1-side</td><td>6d @ 4"</td><td>175</td><td>110</td></tr>
+      <tr><td class="tdl">5/8" Gyp. Bd. 2-side</td><td>6d @ 7"</td><td>290</td><td>175</td></tr>
+      <tr><td class="tdl">5/8" Gyp. Bd. 2-side</td><td>6d @ 4"</td><td>350</td><td>215</td></tr>
+      <tr class="hl-row"><td class="tdl">7/16" OSB 1-side</td><td>8d @ 6"</td><td>335</td><td>230</td></tr>
+      <tr><td class="tdl">7/16" OSB 1-side</td><td>8d @ 4"</td><td>490</td><td>360</td></tr>
+      <tr><td class="tdl">7/16" OSB 1-side</td><td>8d @ 3"</td><td>630</td><td>450</td></tr>
+      <tr><td class="tdl">7/16" OSB 2-side</td><td>8d @ 6"</td><td>670</td><td>460</td></tr>
+      <tr><td class="tdl">7/16" OSB 2-side</td><td>8d @ 4"</td><td>980</td><td>720</td></tr>
+      <tr class="hl-row"><td class="tdl">15/32" OSB 1-side</td><td>10d @ 6"</td><td>435</td><td>310</td></tr>
+      <tr><td class="tdl">15/32" OSB 1-side</td><td>10d @ 4"</td><td>645</td><td>460</td></tr>
+      <tr><td class="tdl">15/32" OSB 1-side</td><td>10d @ 3"</td><td>840</td><td>600</td></tr>
+      <tr><td class="tdl">15/32" OSB 2-side</td><td>10d @ 6"</td><td>870</td><td>620</td></tr>
+      <tr><td class="tdl">15/32" OSB 2-side</td><td>10d @ 4"</td><td>1,290</td><td>920</td></tr>
+      <tr><td class="tdl">15/32" OSB 2-side</td><td>10d @ 3"</td><td>1,680</td><td>1,200</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="blk">
+  <h2>&#128206; Sill Plate &amp; Connector Reference</h2>
+  <table class="ref-tbl">
+    <thead><tr>
+      <th class="thl">Connector</th><th>V<sub>all</sub> (plf)</th><th>Notes</th>
+    </tr></thead>
+    <tbody>
+      <tr><td class="tdl">LTP4 Lateral Tie Plate (Roof condition)</td><td>450</td><td>@ typical spacing</td></tr>
+      <tr><td class="tdl">LTP4 Lateral Tie Plate (Floor condition)</td><td>500</td><td>@ typical spacing</td></tr>
+      <tr><td class="tdl">SDS &#188;"&times;4&#189;" Screws</td><td>304</td><td>Sill to rim board</td></tr>
+      <tr><td class="tdl">16d Nails</td><td>120</td><td>Sill to rim board, 16" o.c. studs</td></tr>
+      <tr><td class="tdl">&#189;" Anchor Bolt (A36)</td><td>1,088</td><td>Sill to concrete/foundation</td></tr>
+      <tr class="hl-row"><td class="tdl">&#215;8" Anchor Bolt (A36)</td><td>1,552</td><td>Sill to concrete/foundation</td></tr>
+    </tbody>
+  </table>
+  <div class="note-box" style="margin-top:12px">
+    <strong>Engineering Notes:</strong>
+    <ul>
+      <li>Perforated shear wall method per SDPWS 2021 &sect;4.3.3.4 requires hold-downs at each end of the full perforated wall. All intermediate piers share the Co-adjusted capacity.</li>
+      <li>Uplift T is computed using the overturning moment method: T = &Sigma;[V&middot;H] / (&Sigma;L<sub>i</sub>&middot;C<sub>o</sub>), where H(j,k) = accumulated story height from floor j to the design floor. This matches the Excel formula verified against SW1 tab.</li>
+      <li>HDU holdowns have been discontinued by Simpson Strong-Tie. HDUE series (ESR-2330) are the direct replacements. Note that HDUE capacities differ from HDU &mdash; re-verify existing designs.</li>
+      <li>Sheathing capacities are ASD allowable = Nominal/2.0 from SDPWS 2021 Table 4.3A (Wind column). For seismic, use Column A values.</li>
+      <li>Minimum &alpha; = &Sigma;L<sub>i</sub>/L &ge; 20% recommended. Minimum r &le; 5/6 required for perforated method.</li>
+      <li>Dead load DL_moment = 0.6 &times; DL_psf &times; trib_DL &times; L_wall (stabilizing overturning resistance). Enter DL inputs to account for gravity load benefit.</li>
+    </ul>
+  </div>
+</div>
+
+
+  </div><!-- /content -->
+</div><!-- /container -->
+
+<script>
+
+// ─── Reference Data ───────────────────────────────────────────────────────────
+var HOLDOWNS = [
+  {name:'HDUE3-SDS3',   Tall:3790,  post:'3\u00bd" min width', SDS:'7 @ \u00bc"\u00d73"',    anchor:'5/8"',  note:''},
+  {name:'HDUE5-SDS3',   Tall:5375,  post:'3\u00bd" min width', SDS:'10 @ \u00bc"\u00d73"',   anchor:'5/8"',  note:''},
+  {name:'HDUE7-SDS3',   Tall:7015,  post:'3\u00bd" min width', SDS:'13 @ \u00bc"\u00d73"',   anchor:'5/8"',  note:'Hi-str. anchor bolt req\'d'},
+  {name:'HDUE9-SDS3.5', Tall:9390,  post:'3\u00bd" min width', SDS:'16 @ \u00bc"\u00d73\u00bd"', anchor:'7/8"',  note:''},
+  {name:'HDUE13-SDS3.5',Tall:12950, post:'5\u00bd" min width', SDS:'23 @ \u00bc"\u00d73\u00bd"', anchor:'1"',    note:'Heavy hex nut req\'d'},
+  {name:'HDUE17-SDS4.5',Tall:17685, post:'5\u00bd" (6\u00d76 for max load)', SDS:'28 @ \u00bc"\u00d74\u00bd"', anchor:'1"', note:''}
+];
+var STRAPS = [
+  {name:'CMSTC16', Tall:4585},
+  {name:'CMST14',  Tall:6490},
+  {name:'CMST12',  Tall:9215}
+];
+var SHEATHING = [
+  {id:'gyp58_1_7',    desc:'5/8" Gyp. Bd. 1-side',  nail:'6d @ 7"',   Vall:145},
+  {id:'gyp58_1_4',    desc:'5/8" Gyp. Bd. 1-side',  nail:'6d @ 4"',   Vall:175},
+  {id:'gyp58_2_7',    desc:'5/8" Gyp. Bd. 2-side',  nail:'6d @ 7"',   Vall:290},
+  {id:'gyp58_2_4',    desc:'5/8" Gyp. Bd. 2-side',  nail:'6d @ 4"',   Vall:350},
+  {id:'osb716_1_6',   desc:'7/16" OSB 1-side',       nail:'8d @ 6"',   Vall:335},
+  {id:'osb716_1_4',   desc:'7/16" OSB 1-side',       nail:'8d @ 4"',   Vall:490},
+  {id:'osb716_1_3',   desc:'7/16" OSB 1-side',       nail:'8d @ 3"',   Vall:630},
+  {id:'osb716_2_6',   desc:'7/16" OSB 2-side',       nail:'8d @ 6"',   Vall:670},
+  {id:'osb716_2_4',   desc:'7/16" OSB 2-side',       nail:'8d @ 4"',   Vall:980},
+  {id:'osb1532_1_6',  desc:'15/32" OSB 1-side',      nail:'10d @ 6"',  Vall:435},
+  {id:'osb1532_1_4',  desc:'15/32" OSB 1-side',      nail:'10d @ 4"',  Vall:645},
+  {id:'osb1532_1_3',  desc:'15/32" OSB 1-side',      nail:'10d @ 3"',  Vall:840},
+  {id:'osb1532_2_6',  desc:'15/32" OSB 2-side',      nail:'10d @ 6"',  Vall:870},
+  {id:'osb1532_2_4',  desc:'15/32" OSB 2-side',      nail:'10d @ 4"',  Vall:1290},
+  {id:'osb1532_2_3',  desc:'15/32" OSB 2-side',      nail:'10d @ 3"',  Vall:1680}
+];
+var SILL_CONN = [
+  {id:'ltp4_roof',  desc:'LTP4 Tie Plate (Roof)',        Vall:450},
+  {id:'ltp4_floor', desc:'LTP4 Tie Plate (Floor)',       Vall:500},
+  {id:'sds14',      desc:'SDS \u00bc"\u00d74\u00bd" Screws', Vall:304},
+  {id:'ab12',       desc:'\u00bd" Anchor Bolt',          Vall:1088},
+  {id:'ab58',       desc:'\u215d" Anchor Bolt',          Vall:1552}
+];
+
+// ─── Utility ──────────────────────────────────────────────────────────────────
+var _dc = 0;
+function f0(v){return Math.round(v).toLocaleString();}
+function f1(v){return (+v).toFixed(1);}
+function f2(v){return (+v).toFixed(2);}
+function f3(v){return (+v).toFixed(3);}
+function xe(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 2px">'+x+'</span>';}
+function toggleDet(id){
+  var el=document.getElementById(id);
+  if(!el)return;
+  var btn=document.getElementById('b_'+id);
+  var open=el.classList.toggle('open');
+  if(btn)btn.textContent=open?'\u25be Calc':'\u25b6 Calc';
+}
+function dcBar(dc,pass){
+  var pct=Math.min(dc,1.5)/1.5*100;
+  var col=dc<=0.80?'#16a34a':dc<=1.0?'#f59e0b':'#dc2626';
+  return '<div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+f1(pct)+'%;background:'+col+'"></div></div><span style="font-weight:700;color:'+col+'">'+f2(dc)+'</span></div>';
+}
+
+// ─── Calc Functions ───────────────────────────────────────────────────────────
+function calcCo(L, Li, ho, h){
+  if(!L||!Li||Li<=0)return 1.0;
+  var alpha=Li/L, r=(h>0)?ho/h:0;
+  if(r<=0||alpha>=1.0)return 1.0;
+  if(alpha<=0)return 0.001;
+  return 1.0/(1.0+r*(1.0-alpha)/alpha);
+}
+
+function calcFloorData(fi, wi){
+  // Returns {Co, v_this, v_total, T, DL_mom_sum, OTM_num, det_rows}
+  var fl=floors[fi], wall=fl.walls[wi]||fl.walls[0];
+  var Co=calcCo(wall.L, wall.Li, wall.ho, fl.h);
+  var v_this=(Co*wall.Li>0)?fl.V_floor/(Co*wall.Li):0;
+
+  // cumulative v_total (each floor uses its own Co and Li)
+  var v_total=0;
+  for(var j=0;j<=fi;j++){
+    var flj=floors[j], wj=flj.walls[wi]||flj.walls[0];
+    var Coj=calcCo(wj.L, wj.Li, wj.ho, flj.h);
+    v_total+=(Coj*wj.Li>0)?flj.V_floor/(Coj*wj.Li):0;
+  }
+
+  // Uplift T — SDPWS §4.3.6.1 overturning method (verified vs Excel SW1 formulas)
+  // T_k = [Σ_j=0..k (V_j * H(j,k) - DL_moment_j)] / (Li_k * Co_k)
+  // H(j,k) = sum of story heights from floor j down to floor k
+  var OTM_num=0;
+  var det_rows=[];
+  for(var j=0;j<=fi;j++){
+    var flj=floors[j], wj=flj.walls[wi]||flj.walls[0];
+    var H_jk=0;
+    for(var i=j;i<=fi;i++) H_jk+=floors[i].h;
+    var Vj=flj.V_floor;
+    var DL_j=0.6*(wj.DL_psf||0)*(wj.trib_DL||0)*(wj.L||0);
+    var contrib=Vj*H_jk-DL_j;
+    OTM_num+=contrib;
+    det_rows.push({lbl:flj.name, V:Vj, H:H_jk, DL:DL_j, contrib:contrib});
+  }
+  var denom=wall.Li*Co;
+  var T=denom>0?OTM_num/denom:0;
+
+  return {Co:Co, v_this:v_this, v_total:v_total, T:T, OTM_num:OTM_num, denom:denom, det_rows:det_rows};
+}
+
+function selectHoldown(T){
+  for(var i=0;i<HOLDOWNS.length;i++){if(HOLDOWNS[i].Tall>=T)return HOLDOWNS[i];}
+  return null; // exceeds max
+}
+function selectStrap(T){
+  for(var i=0;i<STRAPS.length;i++){if(STRAPS[i].Tall>=T)return STRAPS[i];}
+  return null;
+}
+function getSheathingObj(id){
+  for(var i=0;i<SHEATHING.length;i++){if(SHEATHING[i].id===id)return SHEATHING[i];}
+  return SHEATHING[4]; // default osb716_1_6
+}
+
+// ─── Data Model ──────────────────────────────────────────────────────────────
+var fCnt=4, wCnt=1;
+var floors=[
+  {id:1,name:'4th Floor',h:8.0,V_floor:2783,walls:[
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',exp:true}]},
+  {id:2,name:'3rd Floor',h:9.5,V_floor:1661,walls:[
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',exp:true}]},
+  {id:3,name:'2nd Floor',h:9.5,V_floor:1738,walls:[
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',exp:true}]},
+  {id:4,name:'1st Floor',h:10.5,V_floor:1921,walls:[
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',exp:true}]}
+];
+
+// ─── Floor / Wall Management ──────────────────────────────────────────────────
+function addFloor(){
+  fCnt++;
+  var prev=floors[floors.length-1];
+  var newWalls=prev.walls.map(function(w){
+    return {id:w.id,label:w.label,L:w.L,Li:w.Li,ho:w.ho,DL_psf:0,trib_DL:w.trib_DL,
+            sheathing:w.sheathing,end_post:w.end_post,exp:true};
+  });
+  floors.push({id:fCnt,name:'Floor '+fCnt,h:10.0,V_floor:0,walls:newWalls});
+  render();
+}
+function delFloor(fi){
+  if(floors.length<=1){alert('Keep at least one level.');return;}
+  if(!confirm('Remove "'+floors[fi].name+'"?'))return;
+  floors.splice(fi,1); render();
+}
+function addWall(fi){
+  wCnt++;
+  var newId='w'+wCnt;
+  var ref=floors[fi].walls[0];
+  floors[fi].walls.push({id:newId,label:'Wall Line '+String.fromCharCode(65+floors[fi].walls.length),
+    L:ref?ref.L:100,Li:ref?ref.Li:70,ho:ref?ref.ho:0,DL_psf:0,trib_DL:0,
+    sheathing:'osb716_1_6',end_post:'(2) 2x6',exp:true});
+  render();
+}
+function delWall(fi,wi){
+  if(floors[fi].walls.length<=1){alert('Keep at least one wall.');return;}
+  floors[fi].walls.splice(wi,1); render();
+}
+function updFloor(fi,fld,val){
+  var nf=['h','V_floor'];
+  if(nf.indexOf(fld)>=0) floors[fi][fld]=parseFloat(val)||0;
+  else floors[fi][fld]=val;
+  // clear any shown results for this floor
+  for(var wi=0;wi<floors[fi].walls.length;wi++){
+    var el=document.getElementById('wres_'+fi+'_'+wi);
+    if(el){el.style.display='none';}
+  }
+}
+function updWall(fi,wi,fld,val){
+  var sf={label:1,sheathing:1,end_post:1};
+  floors[fi].walls[wi][fld]=sf[fld]?val:(parseFloat(val)||0);
+  var el=document.getElementById('wres_'+fi+'_'+wi);
+  if(el){el.style.display='none';}
+}
+
+// ─── Check Function ───────────────────────────────────────────────────────────
+function checkWall(fi, wi){
+  _dc=fi*200+wi*10;
+  var fl=floors[fi], wall=fl.walls[wi];
+  var d=calcFloorData(fi,wi);
+  var Co=d.Co, v_this=d.v_this, v_total=d.v_total, T=d.T;
+
+  // Opening ratio check
+  var r=fl.h>0?wall.ho/fl.h:0;
+  var r_pass=r<=5/6+0.001;
+
+  // Sheathing check
+  var sh=getSheathingObj(wall.sheathing);
+  var sh_dc=sh.Vall>0?v_total/sh.Vall:999;
+  var sh_pass=sh_dc<=1.0;
+
+  // Holdown
+  var hd=selectHoldown(T);
+  var hd_Tall=hd?hd.Tall:Infinity;
+  var hd_dc=hd_Tall>0?T/hd_Tall:999;
+  var hd_pass=hd&&hd_dc<=1.0;
+  var strap=selectStrap(T);
+
+  // Sill connection (SDS screws default, or anchor bolt)
+  var is1st=(fi===floors.length-1);
+  var sill_Vall=is1st?1552:304; // 5/8" AB at 1st, SDS screws above
+  var sill_desc=is1st?'\u215d" Anchor Bolt':'SDS \u00bc"\u00d74\u00bd" Screws';
+  var sill_dc=sill_Vall>0?v_total/sill_Vall:999;
+  var sill_pass=sill_dc<=1.0;
+
+  var allPass=sh_pass&&hd_pass&&sill_pass&&r_pass;
+  var bgCls=allPass?'pass-bg':'fail-bg';
+
+  // ─── Build HTML ───
+  var html='<div class="inline-res '+bgCls+'">';
+
+  // Summary banner
+  html+='<div class="'+(allPass?'sum-pass':'sum-fail')+'"><strong>'
+      +(allPass?'\u2714 All PASS':'\u2718 One or More FAIL')+'</strong>'
+      +' &nbsp;|&nbsp; Co='+f3(Co)+' v<sub>this</sub>='+f1(v_this)+' plf'
+      +' v<sub>total</sub>='+f1(v_total)+' plf T='+f0(T)+' lb'
+      +'</div>';
+
+  // Demand cards
+  html+='<div class="dem-grid">';
+  html+='<div class="dem-card"><div class="v">'+f3(Co)+'</div><div class="l">C<sub>o</sub> Factor</div></div>';
+  html+='<div class="dem-card warn"><div class="v">'+f1(v_this)+' plf</div><div class="l">v this floor</div></div>';
+  html+='<div class="dem-card'+(sh_pass?' warn':' bad')+'"><div class="v">'+f1(v_total)+' plf</div><div class="l">v<sub>total</sub> cumulative</div></div>';
+  html+='<div class="dem-card'+(hd_pass?' warn':' bad')+'"><div class="v">'+f0(T)+' lb</div><div class="l">Uplift T</div></div>';
+  html+='<div class="dem-card"><div class="v">'+f2(r)+'</div><div class="l">r = h<sub>o</sub>/h</div></div>';
+  html+='<div class="dem-card"><div class="v">'+f2(wall.Li/wall.L)+'</div><div class="l">\u03b1 = \u03a3L<sub>i</sub>/L</div></div>';
+  html+='</div>'; // dem-grid
+
+  // ─── Check table ───
+  var detId; var detHtml;
+  html+='<table class="chk-tbl"><thead><tr>'
+      +'<th>Check</th><th>Ref.</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Detail</th>'
+      +'</tr></thead><tbody>';
+
+  // CHECK 1 — Sheathing
+  detId='det'+(_dc+1);
+  var alpha_w=wall.Li/wall.L;
+  var r_w=fl.h>0?wall.ho/fl.h:0;
+  detHtml='<div class="cbox">';
+  detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.3.4 \u2014 Perforated Shear Wall Opening Adjustment Factor</div>';
+  detHtml+='<div class="mrow"><span class="ceq">r = h<sub>o,max</sub>/h =</span> '+f2(wall.ho)+'/'+f1(fl.h)+' = <span class="cval">'+f3(r_w)+'</span></div>';
+  detHtml+='<div class="mrow"><span class="ceq">\u03b1 = \u03a3L<sub>i</sub>/L =</span> '+f1(wall.Li)+'/'+f1(wall.L)+' = <span class="cval">'+f3(alpha_w)+'</span></div>';
+  if(r_w>0&&alpha_w<1){
+    detHtml+='<div class="mrow"><span class="ceq">C<sub>o</sub> =</span> 1/(1 + r\u00d7(1\u2212\u03b1)/\u03b1) = 1/(1 + '+f3(r_w)+'\u00d7'+f3((1-alpha_w)/alpha_w)+') = <span class="cval">'+f3(Co)+'</span></div>';
+  } else {
+    detHtml+='<div class="mrow"><span class="ceq">C<sub>o</sub> = 1.0</span> (no openings or fully sheathed)</div>';
+  }
+  detHtml+='<hr class="csep">';
+  detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.3.4 \u2014 Unit Shear</div>';
+  detHtml+='<div class="mrow"><span class="ceq">v<sub>this</sub> = V/(C<sub>o</sub>\u00d7\u03a3L<sub>i</sub>) =</span> '+f0(fl.V_floor)+'/('+f3(Co)+'\u00d7'+f1(wall.Li)+') = <span class="cval">'+f1(v_this)+' plf</span></div>';
+  detHtml+='<div class="mrow"><span class="ceq">v<sub>total</sub></span> (cumulative, \u03a3 all floors) = <span class="cval">'+f1(v_total)+' plf</span></div>';
+  detHtml+='<hr class="csep">';
+  detHtml+='<div class="mrow">D/C = '+fr('v<sub>total</sub>','V<sub>allow</sub>')+' = '+fr(f1(v_total)+' plf',f0(sh.Vall)+' plf')+' = <span class="cval">'+f2(sh_dc)+'</span></div>';
+  detHtml+='</div>';
+  html+='<tr class="'+(sh_pass?'row-pass':'')+'"><td>Sheathing Capacity</td>'
+      +'<td>SDPWS 2021 \u00a74.3.3.4<br>Table 4.3A</td>'
+      +'<td>v<sub>total</sub>='+f1(v_total)+' plf</td>'
+      +'<td>V<sub>allow</sub>='+f0(sh.Vall)+' plf<br><small>'+sh.desc+', '+sh.nail+'</small></td>'
+      +'<td>'+dcBar(sh_dc,sh_pass)+'</td>'
+      +'<td><button class="det-btn" id="b_'+detId+'" onclick="toggleDet(\''+detId+'\')">\u25b6 Calc</button></td>'
+      +'</tr>';
+  html+='<tr class="det-row"><td colspan="6"><div class="calc-det" id="'+detId+'">'+detHtml+'</div></td></tr>';
+
+  // CHECK 2 — Holdown
+  detId='det'+(_dc+2);
+  detHtml='<div class="cbox">';
+  detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.6.1 \u2014 Hold-Down Chord Force (Overturning)</div>';
+  detHtml+='<div class="mrow"><span class="ceq">T = </span>'+fr('\u03a3[V<sub>j</sub> \u00d7 H(j,k)]','(\u03a3L<sub>i</sub> \u00d7 C<sub>o</sub>)')+'</div>';
+  detHtml+='<div class="mrow ind"><em>H(j,k) = sum of story heights from floor j down to this floor</em></div>';
+  detHtml+='<hr class="csep">';
+  var runSum=0;
+  for(var rr=0;rr<d.det_rows.length;rr++){
+    var dr=d.det_rows[rr];
+    runSum+=dr.contrib;
+    detHtml+='<div class="mrow ind">'+xe(dr.lbl)+': V='+f0(dr.V)+' lb \u00d7 H='+f1(dr.H)+'ft';
+    if(dr.DL>0)detHtml+=' \u2212 DL='+f0(dr.DL)+' lb\u00b7ft';
+    detHtml+=' \u2192 <span class="cval">'+f0(dr.contrib)+' lb\u00b7ft</span></div>';
+  }
+  detHtml+='<div class="mrow">Numerator \u03a3 = <span class="cval">'+f0(d.OTM_num)+' lb\u00b7ft</span></div>';
+  detHtml+='<div class="mrow">Denominator = \u03a3L<sub>i</sub> \u00d7 C<sub>o</sub> = '+f1(wall.Li)+' \u00d7 '+f3(Co)+' = <span class="cval">'+f1(d.denom)+' ft</span></div>';
+  detHtml+='<div class="mrow">T = '+fr(f0(d.OTM_num)+' lb\u00b7ft',f1(d.denom)+' ft')+' = <span class="cval">'+f0(T)+' lb</span></div>';
+  detHtml+='<hr class="csep">';
+  if(hd){
+    detHtml+='<div class="mrow">Selected: <strong>'+hd.name+'</strong> (ESR-2330, T<sub>all</sub>='+f0(hd.Tall)+' lb)</div>';
+    detHtml+='<div class="mrow">D/C = '+fr(f0(T)+' lb',f0(hd_Tall)+' lb')+' = <span class="cval">'+f2(hd_dc)+'</span></div>';
+  } else {
+    detHtml+='<div class="mrow fail">Uplift T='+f0(T)+' lb EXCEEDS HDUE17 ('+f0(HOLDOWNS[HOLDOWNS.length-1].Tall)+' lb). Use bolted holdown or multiple units.</div>';
+  }
+  detHtml+='</div>';
+  html+='<tr class="'+(hd_pass?'row-pass':'')+'"><td>Hold-Down (Uplift T)</td>'
+      +'<td>SDPWS 2021 \u00a74.3.6.1<br>ESR-2330</td>'
+      +'<td>T = '+f0(T)+' lb</td>'
+      +'<td>'+(hd?hd.name+' T<sub>all</sub>='+f0(hd_Tall)+' lb':'EXCEEDS HDUE17')+'</td>'
+      +'<td>'+dcBar(hd_dc,hd_pass)+'</td>'
+      +'<td><button class="det-btn" id="b_'+detId+'" onclick="toggleDet(\''+detId+'\')">\u25b6 Calc</button></td>'
+      +'</tr>';
+  html+='<tr class="det-row"><td colspan="6"><div class="calc-det" id="'+detId+'">'+detHtml+'</div></td></tr>';
+
+  // CHECK 3 — Sill connection
+  detId='det'+(_dc+3);
+  detHtml='<div class="cbox">';
+  detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.6.4 \u2014 Sill Plate Connection</div>';
+  detHtml+='<div class="mrow">v<sub>total</sub> = <span class="cval">'+f1(v_total)+' plf</span></div>';
+  detHtml+='<div class="mrow">Connector: '+sill_desc+', V<sub>allow</sub> = <span class="cval">'+f0(sill_Vall)+' plf</span></div>';
+  detHtml+='<div class="mrow">D/C = '+fr(f1(v_total)+' plf',f0(sill_Vall)+' plf')+' = <span class="cval">'+f2(sill_dc)+'</span></div>';
+  if(sill_dc>1.0){
+    detHtml+='<div class="mrow fail">FAIL \u2014 Increase anchor bolt size / reduce spacing</div>';
+  }
+  detHtml+='</div>';
+  html+='<tr class="'+(sill_pass?'row-pass':'')+'"><td>Sill Connection</td>'
+      +'<td>SDPWS 2021 \u00a74.3.6.4</td>'
+      +'<td>v<sub>total</sub>='+f1(v_total)+' plf</td>'
+      +'<td>'+sill_desc+'<br>V<sub>all</sub>='+f0(sill_Vall)+' plf</td>'
+      +'<td>'+dcBar(sill_dc,sill_pass)+'</td>'
+      +'<td><button class="det-btn" id="b_'+detId+'" onclick="toggleDet(\''+detId+'\')">\u25b6 Calc</button></td>'
+      +'</tr>';
+  html+='<tr class="det-row"><td colspan="6"><div class="calc-det" id="'+detId+'">'+detHtml+'</div></td></tr>';
+
+  // CHECK 4 — Opening ratio r ≤ 5/6
+  detId='det'+(_dc+4);
+  var r_lim=5/6;
+  detHtml='<div class="cbox">';
+  detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.3.4 \u2014 Maximum Opening Ratio</div>';
+  detHtml+='<div class="mrow">r = h<sub>o,max</sub>/h = '+f2(wall.ho)+'/'+f1(fl.h)+' = <span class="cval">'+f2(r_w)+'</span></div>';
+  detHtml+='<div class="mrow">Limit: r \u2264 5/6 = <span class="cval">'+f2(r_lim)+'</span></div>';
+  detHtml+='<div class="mrow">Status: '+(r_pass?'<span class="cval">PASS</span>':'<span class="fail">FAIL \u2014 Opening too tall for perforated method</span>')+'</div>';
+  detHtml+='</div>';
+  html+='<tr class="'+(r_pass?'row-pass':'')+'"><td>Opening Ratio r \u2264 5/6</td>'
+      +'<td>SDPWS 2021 \u00a74.3.3.4</td>'
+      +'<td>r = '+f2(r_w)+'</td>'
+      +'<td>r\u2264'+f2(r_lim)+'</td>'
+      +'<td>'+dcBar(r_w/r_lim,r_pass)+'</td>'
+      +'<td><button class="det-btn" id="b_'+detId+'" onclick="toggleDet(\''+detId+'\')">\u25b6 Calc</button></td>'
+      +'</tr>';
+  html+='<tr class="det-row"><td colspan="6"><div class="calc-det" id="'+detId+'">'+detHtml+'</div></td></tr>';
+
+  html+='</tbody></table>';
+
+  // ─── Connector summary box ───
+  html+='<div class="conn-box">';
+  // Holdown
+  html+='<div class="conn-row"><span class="conn-lbl">HOLDOWN:</span>';
+  if(hd){
+    html+='<span class="conn-val">'+hd.name+'</span>'
+        +' &mdash; T<sub>all</sub>='+f0(hd.Tall)+' lb (ESR-2330)'
+        +(hd.note?' &nbsp;<em style="color:#92400e;font-size:.88em">'+hd.note+'</em>':'')
+        +'<span class="conn-'+(hd_pass?'ok':'fail')+'"> '+(hd_pass?'\u2714':'\u2718 FAIL')+'</span>'
+        +' &nbsp;| SDS: '+hd.SDS+' | Anchor: '+hd.anchor+' dia. rod';
+    if(strap&&strap.Tall>=T&&T>0){
+      html+=' &nbsp;<em style="color:#065f46;font-size:.85em">(Alt: '+strap.name+' strap T<sub>all</sub>='+f0(strap.Tall)+' lb)</em>';
+    }
+  } else {
+    html+='<span class="conn-fail">\u2718 Exceeds HDUE17 — use HD19 bolted holdown or multiple units</span>';
+  }
+  html+='</div>';
+  // Sheathing
+  html+='<div class="conn-row"><span class="conn-lbl">SHEATHING:</span>'
+      +'<span class="conn-val">'+sh.desc+', '+sh.nail+'</span>'
+      +' &mdash; V<sub>all</sub>='+f0(sh.Vall)+' plf (SDPWS 2021 Table 4.3A)'
+      +'<span class="conn-'+(sh_pass?'ok':'fail')+'"> '+(sh_pass?'\u2714':'\u2718 FAIL')+'</span>'
+      +'</div>';
+  // End post
+  html+='<div class="conn-row"><span class="conn-lbl">END POST:</span>'
+      +'<span class="conn-val">'+xe(wall.end_post)+'</span></div>';
+  // Sill
+  html+='<div class="conn-row"><span class="conn-lbl">SILL CONN:</span>'
+      +'<span class="conn-val">'+sill_desc+'</span>'
+      +' &mdash; V<sub>all</sub>='+f0(sill_Vall)+' plf'
+      +'<span class="conn-'+(sill_pass?'ok':'fail')+'"> '+(sill_pass?'\u2714':'\u2718 FAIL')+'</span>'
+      +'</div>';
+  html+='</div>'; // conn-box
+  html+='</div>'; // inline-res
+
+  var el=document.getElementById('wres_'+fi+'_'+wi);
+  if(el){el.innerHTML=html; el.style.display='block';}
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render(){
+  var FLR_COLORS=['fh-1','fh-2','fh-3','fh-4','fh-5'];
+  var con=document.getElementById('floor-con');
+  if(!con)return;
+  var out='';
+  var SH_OPTS='';
+  for(var si=0;si<SHEATHING.length;si++){
+    SH_OPTS+='<option value="'+SHEATHING[si].id+'">'+SHEATHING[si].desc+', '+SHEATHING[si].nail+' ('+SHEATHING[si].Vall+' plf)</option>';
+  }
+
+  for(var fi=0;fi<floors.length;fi++){
+    var fl=floors[fi];
+    var fcls=FLR_COLORS[fi<FLR_COLORS.length?fi:FLR_COLORS.length-1];
+    out+='<div class="floor-blk">';
+    // Header
+    out+='<div class="floor-hdr '+fcls+'">';
+    out+='<div class="floor-hdr-left">';
+    out+='<input style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.5);color:#fff;font-size:.95em;font-weight:700;width:140px;padding:1px 4px" value="'+xe(fl.name)+'" onchange="updFloor('+fi+',\'name\',this.value)">';
+    out+='<span style="font-size:.8em;opacity:.85;margin-left:8px">h = </span>';
+    out+='<input class="ti" type="number" value="'+fl.h+'" step="0.5" min="1" max="20" style="width:55px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'h\',this.value)">';
+    out+='<span style="font-size:.8em;opacity:.85"> ft wall height</span>';
+    out+='</div>';
+    out+='<div style="display:flex;align-items:center;gap:8px">';
+    out+='<span style="font-size:.8em;opacity:.85">V<sub>floor</sub> =</span>';
+    out+='<input class="ti" type="number" value="'+fl.V_floor+'" step="1" min="0" style="width:75px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'V_floor\',this.value)">';
+    out+='<span style="font-size:.8em;opacity:.85"> lb</span>';
+    out+='<button class="btn-del-fl" onclick="delFloor('+fi+')">\u2715 Floor</button>';
+    out+='</div>';
+    out+='</div>'; // floor-hdr
+
+    // Wall table
+    out+='<div class="floor-body">';
+    out+='<table class="wall-table"><thead><tr>';
+    out+='<th class="thl" style="width:100px">Wall Label</th>';
+    out+='<th style="width:60px">L (ft)</th>';
+    out+='<th class="th-sw" style="width:60px">\u03a3L<sub>i</sub> (ft)</th>';
+    out+='<th class="th-sw" style="width:55px">h<sub>o</sub> (ft)</th>';
+    out+='<th style="width:55px">DL (psf)</th>';
+    out+='<th style="width:55px">Trib DL (ft)</th>';
+    out+='<th class="th-chk" style="width:180px">Sheathing (Trial)</th>';
+    out+='<th style="width:90px">End Post</th>';
+    out+='<th class="th-chk" style="width:72px">Check</th>';
+    out+='<th style="width:28px"></th>';
+    out+='</tr></thead><tbody>';
+
+    for(var wi=0;wi<fl.walls.length;wi++){
+      var w=fl.walls[wi];
+      out+='<tr>';
+      out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
+      out+='<td><input class="ti" type="number" value="'+w.L+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L\',this.value)"></td>';
+      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+w.Li+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'Li\',this.value)"></td>';
+      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+w.ho+'" step="0.1" min="0" onchange="updWall('+fi+','+wi+',\'ho\',this.value)"></td>';
+      out+='<td><input class="ti" type="number" value="'+w.DL_psf+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'DL_psf\',this.value)"></td>';
+      out+='<td><input class="ti" type="number" value="'+w.trib_DL+'" step="0.5" min="0" onchange="updWall('+fi+','+wi+',\'trib_DL\',this.value)"></td>';
+      // Sheathing dropdown
+      out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sheathing\',this.value)">';
+      for(var si=0;si<SHEATHING.length;si++){
+        out+='<option value="'+SHEATHING[si].id+'"'+(SHEATHING[si].id===w.sheathing?' selected':'')+'>'+SHEATHING[si].desc+' '+SHEATHING[si].nail+' ('+SHEATHING[si].Vall+')</option>';
+      }
+      out+='</select></td>';
+      out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.end_post)+'" onchange="updWall('+fi+','+wi+',\'end_post\',this.value)" style="font-size:.77em"></td>';
+      out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkWall('+fi+','+wi+')">\u25b6 Check</button></td>';
+      out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">\u2715</button></td>';
+      out+='</tr>';
+      // Results row
+      out+='<tr><td colspan="10" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+    }
+    out+='</tbody></table>';
+    out+='<div style="margin-top:7px">';
+    out+='<button class="btn-sm btn-add" onclick="addWall('+fi+')">+ Wall Line</button>';
+    out+='</div>';
+    out+='</div>'; // floor-body
+    out+='</div>'; // floor-blk
+  }
+
+  con.innerHTML=out;
+}
+
+window.onload=function(){render();};
+
+</script>
+<script src="/are-utils.js"></script>
+</body>
+</html>
