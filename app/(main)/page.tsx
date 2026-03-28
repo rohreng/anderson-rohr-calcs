@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Header from "./components/Header";
-import { CALCS, type CalcMeta } from "./lib/calcs";
+import Header from "../components/Header";
+import { CALCS, type CalcMeta } from "../lib/calcs";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 

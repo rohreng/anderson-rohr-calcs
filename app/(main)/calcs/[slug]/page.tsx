@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import Header from "../../components/Header";
-import { CALCS } from "../../lib/calcs";
+import Header from "../../../components/Header";
+import { CALCS } from "../../../lib/calcs";
 
 // ─── Static params — tells Next.js which slugs to pre-render ──────────────────
 
