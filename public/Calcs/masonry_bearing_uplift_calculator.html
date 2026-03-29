@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masonry — Bearing &amp; Uplift at Steel Beam Seat</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.stiff-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-amber{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.stiff-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.stiff{border-color:#16a34a;background:#f0fdf4}
+.dem-card.stiff .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.layout-sel{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.layout-btn{border:2px solid #ddd;border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;font-size:.85em;font-weight:600;color:#555}
+.layout-btn.active{border-color:#2a5298;background:#dbeafe;color:#1e40af}
+.layout-btn .lbl{font-size:1.05em;display:block;margin-bottom:3px}
+.layout-btn .desc{font-size:.75em;font-weight:400;color:#777;line-height:1.3}
+.layout-btn.active .desc{color:#3b82f6}
+.cond-row{display:none}
+.cond-row.show{display:contents}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Masonry &mdash; Bearing &amp; Uplift at Steel Beam Seat</h1>
+  <p>Effective bearing area (MDG REK-07) + Headed anchor uplift capacity (MDG REK-09) &mdash; ASD</p>
+  <div class="ref-tags">
+    <span class="tag">TMS 402-22</span>
+    <span class="tag">ASD</span>
+    <span class="tag">&sect;4.4.4 Effective Bearing Area</span>
+    <span class="tag">&sect;8.1.6 Bearing Stress</span>
+    <span class="tag">&sect;8.1.4.3.1 Anchor Tension</span>
+    <span class="tag">MDG 2022 REK-07 &amp; REK-09</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+    <!-- Plan view: A1 vs A2 spread -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">PLAN VIEW — Effective Bearing Area (Layout A shown)</div>
+      <svg width="100%" viewBox="0 0 280 220" style="max-height:220px">
+        <defs>
+          <marker id="aDn" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#374151"/></marker>
+          <marker id="aUp" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#dc2626"/></marker>
+          <marker id="aAmb" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#f59e0b"/></marker>
+          <marker id="aAmb2" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#f59e0b"/></marker>
+        </defs>
+
+        <!-- Wall outline (plan) — full width of SVG, wall thickness vertical -->
+        <rect x="20" y="55" width="240" height="80" fill="#e0e7ff" stroke="#374151" stroke-width="1.5"/>
+        <text x="10" y="90" font-size="8" fill="#374151" text-anchor="middle" transform="rotate(-90,10,95)">Wall (t)</text>
+
+        <!-- Face lines -->
+        <line x1="20" y1="55" x2="260" y2="55" stroke="#374151" stroke-width="1" stroke-dasharray="4,2"/>
+        <line x1="20" y1="135" x2="260" y2="135" stroke="#374151" stroke-width="1" stroke-dasharray="4,2"/>
+
+        <!-- A2 footprint (larger, dashed amber) -->
+        <rect x="62" y="33" width="136" height="124" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="5,3" rx="2"/>
+        <text x="200" y="31" font-size="9" fill="#d97706" font-weight="700">A₂</text>
+
+        <!-- 45° spread lines from plate corners -->
+        <line x1="80" y1="71" x2="62" y2="33" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <line x1="80" y1="99" x2="62" y2="157" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <line x1="180" y1="71" x2="198" y2="33" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <line x1="180" y1="99" x2="198" y2="157" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3,2"/>
+
+        <!-- Bearing plate A1 (solid blue) -->
+        <rect x="80" y="71" width="100" height="28" fill="#bfdbfe" stroke="#1e40af" stroke-width="2" rx="1"/>
+        <text x="130" y="89" font-size="9" fill="#1e40af" font-weight="700" text-anchor="middle">A₁ = b×L</text>
+
+        <!-- Headed studs as circles -->
+        <circle cx="105" cy="85" r="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
+        <circle cx="155" cy="85" r="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
+
+        <!-- Dimension: bp (plate width through wall) -->
+        <line x1="20" y1="148" x2="80" y2="148" stroke="#6b7280" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="50" y="158" font-size="8" fill="#6b7280" text-anchor="middle">e</text>
+
+        <line x1="80" y1="148" x2="180" y2="148" stroke="#1e40af" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="130" y="158" font-size="8" fill="#1e40af" text-anchor="middle">lp</text>
+
+        <line x1="180" y1="148" x2="260" y2="148" stroke="#6b7280" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="220" y="158" font-size="8" fill="#6b7280" text-anchor="middle">e</text>
+
+        <!-- Dimension: lp (plate length) -->
+        <line x1="270" y1="71" x2="270" y2="99" stroke="#1e40af" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="275" y="87" font-size="8" fill="#1e40af">bp</text>
+
+        <!-- Wall thickness label -->
+        <line x1="270" y1="55" x2="270" y2="135" stroke="#6b7280" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="276" y="100" font-size="8" fill="#6b7280">t</text>
+
+        <!-- 45° angle annotation -->
+        <text x="66" y="53" font-size="8" fill="#d97706">45°</text>
+
+      </svg>
+    </div>
+
+    <!-- Elevation view: bearing + uplift anchors -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">ELEVATION VIEW — Bearing &amp; Uplift</div>
+      <svg width="100%" viewBox="0 0 260 220" style="max-height:220px">
+
+        <!-- Wall body -->
+        <rect x="20" y="60" width="220" height="130" fill="#e0e7ff" stroke="#374151" stroke-width="1.5"/>
+
+        <!-- CMU courses (horizontal lines) -->
+        <line x1="20" y1="84" x2="240" y2="84" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="20" y1="108" x2="240" y2="108" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="20" y1="132" x2="240" y2="132" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="20" y1="156" x2="240" y2="156" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+
+        <!-- Bond beam (grouted) highlighted -->
+        <rect x="20" y="60" width="220" height="24" fill="#c7d2fe" stroke="#374151" stroke-width="0.5"/>
+        <text x="130" y="75" font-size="7" fill="#1e3c72" text-anchor="middle" font-weight="700">Grouted Bond Beam</text>
+
+        <!-- Bearing plate on top of wall -->
+        <rect x="90" y="52" width="80" height="12" fill="#93c5fd" stroke="#1e40af" stroke-width="1.5" rx="1"/>
+        <text x="130" y="49" font-size="8" fill="#1e40af" text-anchor="middle" font-weight="700">Plate (b×L×t_pl)</text>
+
+        <!-- Steel beam (simplified W-shape) bearing on plate -->
+        <rect x="110" y="28" width="40" height="28" fill="#6b7280" stroke="#374151" stroke-width="1" rx="1"/>
+        <text x="130" y="22" font-size="8" fill="#374151" text-anchor="middle">Steel Beam</text>
+
+        <!-- Downward load arrow -->
+        <line x1="130" y1="10" x2="130" y2="27" stroke="#374151" stroke-width="2.5" marker-end="url(#aDn)"/>
+        <text x="148" y="22" font-size="9" fill="#374151" font-weight="700">R<tspan baseline-shift="sub" font-size="7">down</tspan></text>
+
+        <!-- Headed studs in bond beam -->
+        <!-- Stud 1 -->
+        <line x1="110" y1="63" x2="110" y2="102" stroke="#7c3aed" stroke-width="2"/>
+        <circle cx="110" cy="102" r="4" fill="#7c3aed"/>
+        <!-- Stud 2 -->
+        <line x1="150" y1="63" x2="150" y2="102" stroke="#7c3aed" stroke-width="2"/>
+        <circle cx="150" cy="102" r="4" fill="#7c3aed"/>
+
+        <!-- Uplift arrows (red, upward from plate/studs) -->
+        <line x1="90" y1="100" x2="90" y2="65" stroke="#dc2626" stroke-width="2" marker-end="url(#aUp)"/>
+        <text x="64" y="85" font-size="9" fill="#dc2626" font-weight="700">R<tspan baseline-shift="sub" font-size="7">up</tspan></text>
+
+        <!-- lbe dimension on stud -->
+        <line x1="158" y1="63" x2="158" y2="102" stroke="#7c3aed" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="163" y="87" font-size="8" fill="#7c3aed">l<tspan baseline-shift="sub" font-size="6">be</tspan></text>
+
+        <!-- Wall top dimension label -->
+        <line x1="90" y1="165" x2="170" y2="165" stroke="#1e40af" stroke-width="1" marker-start="url(#aAmb2)" marker-end="url(#aAmb)"/>
+        <text x="130" y="177" font-size="8" fill="#1e40af" text-anchor="middle">lp</text>
+
+        <!-- TMS §4.4.4 reference -->
+        <text x="22" y="196" font-size="7.5" fill="#374151">TMS 402 §4.4.4 A<tspan baseline-shift="sub" font-size="6">br</tspan> = min(A₁√(A₂/A₁), 2A₁)</text>
+        <text x="22" y="210" font-size="7.5" fill="#374151">TMS 402 §8.1.6 f<tspan baseline-shift="sub" font-size="6">br</tspan> = R<tspan baseline-shift="sub" font-size="6">down</tspan>/A<tspan baseline-shift="sub" font-size="6">br</tspan> ≤ 0.33f'<tspan baseline-shift="sub" font-size="6">m</tspan></text>
+
+      </svg>
+    </div>
+  </div>
+</div><!-- end schema-wrap -->
+
+<!-- BLOCK 1: Wall & Material -->
+<div class="blk">
+  <h2>1 &mdash; Wall &amp; Material Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Masonry Compressive Strength, f'<sub>m</sub> <span class="unit">(psi)</span></label>
+      <input type="number" id="fm" value="1750" min="1000" max="5000" step="250"/>
+      <span class="hint">Specify per TMS 602</span>
+    </div>
+    <div class="ig">
+      <label>Nominal Wall Thickness <span class="unit">(in)</span></label>
+      <select id="t_nom" onchange="updateActual()">
+        <option value="4">4 in. nominal (3.63 in. actual)</option>
+        <option value="6">6 in. nominal (5.63 in. actual)</option>
+        <option value="8" selected>8 in. nominal (7.63 in. actual)</option>
+        <option value="10">10 in. nominal (9.63 in. actual)</option>
+        <option value="12">12 in. nominal (11.63 in. actual)</option>
+        <option value="16">16 in. nominal (15.63 in. actual)</option>
+      </select>
+      <span class="hint" id="t_actual_hint">Actual thickness: 7.63 in.</span>
+    </div>
+    <div class="ig">
+      <label>Bond Type</label>
+      <select id="bond">
+        <option value="running">Running Bond</option>
+        <option value="stack">Stack Bond (Other than Running Bond)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 2: Bearing Plate & Layout -->
+<div class="blk">
+  <h2>2 &mdash; Bearing Plate &amp; Layout (REK-07)</h2>
+
+  <div class="sub-head">Select Layout</div>
+  <div class="layout-sel">
+    <div class="layout-btn active" id="btn_A" onclick="setLayout('A')">
+      <span class="lbl">Layout A</span>
+      <span class="desc">Centered plate<br>Running bond<br>REK-07a</span>
+    </div>
+    <div class="layout-btn" id="btn_B" onclick="setLayout('B')">
+      <span class="lbl">Layout B</span>
+      <span class="desc">Edge/eccentric plate<br>Running bond<br>REK-07b</span>
+    </div>
+    <div class="layout-btn" id="btn_C" onclick="setLayout('C')">
+      <span class="lbl">Layout C</span>
+      <span class="desc">Centered plate<br>Stack bond<br>REK-07c</span>
+    </div>
+  </div>
+  <input type="hidden" id="layout" value="A"/>
+
+  <div class="g3">
+    <div class="ig">
+      <label>Plate Width, b<sub>p</sub> <span class="unit">(in) — through-wall direction</span></label>
+      <input type="number" id="bp" value="5" min="1" step="0.25"/>
+      <span class="hint">Must be ≤ wall actual thickness</span>
+    </div>
+    <div class="ig">
+      <label>Plate Length, l<sub>p</sub> <span class="unit">(in) — along wall</span></label>
+      <input type="number" id="lp" value="10" min="1" step="0.25"/>
+    </div>
+    <div class="ig" id="dj_row" style="display:none">
+      <label>Distance to Nearest Head Joint, d<sub>j</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="dj" value="0.75" min="0" step="0.0625"/>
+      <span class="hint">Stack bond only: distance from plate edge to nearest head joint</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 3: Applied Loads -->
+<div class="blk">
+  <h2>3 &mdash; Applied Loads (Governing ASD Reactions)</h2>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 12px;font-size:.82em;color:#1e40af;margin-bottom:12px">
+    Enter the governing unfactored bearing reaction and uplift reaction from your load combination analysis (ASCE 7-22 §2.4.1).
+    Downward governs for bearing (typically D+S or D+0.75S+0.75L). Uplift governs from 0.6D − W or 0.6D − 0.7E.
+  </div>
+  <div class="g2">
+    <div class="ig">
+      <label>Governing Downward Reaction, R<sub>down</sub> <span class="unit">(lb)</span></label>
+      <input type="number" id="Rdown" value="17378" min="0" step="1"/>
+    </div>
+    <div class="ig">
+      <label>Governing Uplift Reaction, R<sub>up</sub> <span class="unit">(lb, enter as positive)</span></label>
+      <input type="number" id="Rup" value="5216" min="0" step="1"/>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 4: Uplift Anchors -->
+<div class="blk stiff-blk">
+  <h2>4 &mdash; Uplift Anchors (REK-09) <span class="badge-green">TMS 402-22 §8.1.4.3.1</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Anchor Type</label>
+      <select id="ancType">
+        <option value="stud">Headed Studs</option>
+        <option value="bolt">Headed Bolts</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Number of Anchors, n</label>
+      <input type="number" id="n_anc" value="2" min="1" max="8" step="1"/>
+    </div>
+    <div class="ig">
+      <label>Anchor Diameter, d<sub>a</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="d_anc" value="0.75" min="0.25" step="0.125"/>
+      <span class="hint">Nominal shank diameter</span>
+    </div>
+    <div class="ig">
+      <label>Anchor Tensile Strength, f<sub>u</sub> <span class="unit">(psi)</span></label>
+      <input type="number" id="fu" value="60000" min="36000" step="1000"/>
+      <span class="hint">60,000 psi typical for A307/headed studs; 58,000 psi for A36</span>
+    </div>
+    <div class="ig">
+      <label>Effective Embedment, l<sub>be</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="lbe" value="5.25" min="1" step="0.125"/>
+      <span class="hint">From anchor head to bearing surface of plate; must be &gt; t/2</span>
+    </div>
+    <div class="ig">
+      <label>Plate Length in Stud Direction, l<sub>p,stud</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="lp_stud" value="7" min="1" step="0.25"/>
+      <span class="hint">Plate dimension parallel to anchor row (used in A<sub>pt</sub> calculation)</span>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654; Run Checks</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+
+  <div id="summary" class="summary"></div>
+
+  <!-- Geometry Summary -->
+  <div style="margin-bottom:16px">
+    <div class="sub-head">Bearing Geometry</div>
+    <table class="prop-table" id="geo_table">
+      <tr><th>Property</th><th>Value</th><th>Notes</th></tr>
+    </table>
+  </div>
+
+  <!-- Demand Cards -->
+  <div class="dem-grid" id="dem_cards"></div>
+
+  <!-- Check Table -->
+  <table class="chk-table" id="chk_table">
+    <thead>
+      <tr>
+        <th style="width:22%">Check</th>
+        <th style="width:14%">Reference</th>
+        <th style="width:18%">Demand</th>
+        <th style="width:18%">Capacity</th>
+        <th style="width:12%">D/C</th>
+        <th style="width:8%">Status</th>
+        <th style="width:8%">Detail</th>
+      </tr>
+    </thead>
+    <tbody id="chk_body"></tbody>
+  </table>
+
+  <div class="note-box" id="notes_box"></div>
+
+</div><!-- end results -->
+
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+// ── helpers ──────────────────────────────────────────────────────────────────
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function f1(v){return (Math.round(v*10)/10).toString();}
+function f2(v){return (Math.round(v*100)/100).toFixed(2);}
+function f3(v){return (Math.round(v*1000)/1000).toFixed(3);}
+function f4(v){return (Math.round(v*10000)/10000).toFixed(4);}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// Wall thickness lookup (nominal → actual, in)
+var t_map = {4:3.625, 6:5.625, 8:7.625, 10:9.625, 12:11.625, 16:15.625};
+// Use 7.63 display but 7.625 for calc (MDG uses 7.63 rounded)
+var t_disp = {4:'3.63', 6:'5.63', 8:'7.63', 10:'9.63', 12:'11.63', 16:'15.63'};
+
+function updateActual(){
+  var nom = parseInt(document.getElementById('t_nom').value);
+  document.getElementById('t_actual_hint').textContent = 'Actual thickness: '+t_disp[nom]+' in.';
+}
+
+function setLayout(l){
+  document.getElementById('layout').value = l;
+  ['A','B','C'].forEach(function(x){
+    document.getElementById('btn_'+x).classList.toggle('active', x===l);
+  });
+  document.getElementById('dj_row').style.display = (l==='C') ? '' : 'none';
+}
+
+// ── main calc ─────────────────────────────────────────────────────────────────
+function runCalc(){
+  // inputs
+  var fm    = parseFloat(document.getElementById('fm').value);
+  var t_nom = parseInt(document.getElementById('t_nom').value);
+  var t     = t_map[t_nom];                    // actual thickness, in
+  var bond  = document.getElementById('bond').value;
+  var lay   = document.getElementById('layout').value;
+  var bp    = parseFloat(document.getElementById('bp').value);    // plate width through wall
+  var lp    = parseFloat(document.getElementById('lp').value);    // plate length along wall
+  var dj    = parseFloat(document.getElementById('dj').value)||0; // head joint dist (Layout C)
+  var Rdown = parseFloat(document.getElementById('Rdown').value);
+  var Rup   = parseFloat(document.getElementById('Rup').value);
+  var n_anc = parseInt(document.getElementById('n_anc').value);
+  var d_anc = parseFloat(document.getElementById('d_anc').value);
+  var fu    = parseFloat(document.getElementById('fu').value);
+  var lbe   = parseFloat(document.getElementById('lbe').value);
+  var lp_s  = parseFloat(document.getElementById('lp_stud').value);
+
+  // ── REK-07: Effective Bearing Area ───────────────────────────────────────
+  var A1 = bp * lp;
+  var A2, Abr, layout_note, e_spread;
+
+  if(lay === 'A'){
+    // Centered, running bond — 45° spread to both faces
+    e_spread = (t - bp) / 2;          // distance from plate edge to wall face
+    A2 = t * (lp + t - bp);           // = (bp+2e)(lp+2e) = t*(lp+2e)
+    Abr = Math.min(A1 * Math.sqrt(A2/A1), 2*A1);
+    layout_note = 'Layout A — Centered, Running Bond';
+  } else if(lay === 'B'){
+    // Edge/eccentric, running bond — no spread (plate at face of wall)
+    e_spread = 0;
+    A2 = A1;
+    Abr = A1;
+    layout_note = 'Layout B — Edge/Eccentric, Running Bond';
+  } else {
+    // Centered, stack bond — spread limited by head joint distance
+    var e_nom = (t - bp) / 2;
+    e_spread = Math.min(e_nom, dj);
+    A2 = (bp + 2*e_spread) * (lp + 2*e_spread);
+    Abr = Math.min(A1 * Math.sqrt(A2/A1), 2*A1);
+    layout_note = 'Layout C — Centered, Stack Bond';
+  }
+  var A1_A2_ratio = A2/A1;
+  var governing_term = (lay==='A'||lay==='C') ? 'Eq. 4-1: A₁√(A₂/A₁)' : 'Eq. 4-2: 2A₁ (same as A₁ since A₂=A₁)';
+
+  // ── REK-09: Bearing Stress ────────────────────────────────────────────────
+  var Fb = 0.33 * fm;                  // TMS 402 §8.1.6
+  var fb = Rdown / Abr;
+  var dc_bearing = fb / Fb;
+
+  // ── REK-09: Anchor Uplift ─────────────────────────────────────────────────
+  // TMS 402 §8.1.4.3.1 Eq. 8-1 (masonry breakout) + Eq. 8-2 (steel yielding)
+  var Apt = t * (lp_s + 2*lbe);        // projected tension area (in²)
+  var Ab  = Math.PI/4 * d_anc*d_anc;  // cross-section area of one anchor (in²)
+  var Bab = 1.25 * Apt * Math.sqrt(fm);        // masonry breakout (lb) — total for anchor group
+  var Bas = 0.5 * n_anc * Ab * fu;             // steel yielding (lb) — n anchors
+  var B_allow = Math.min(Bab, Bas);
+  var dc_breakout = Rup / Bab;
+  var dc_steel    = Rup / Bas;
+  var dc_uplift   = Rup / B_allow;
+  var gov_uplift  = (Bab <= Bas) ? 'Masonry Breakout (Eq. 8-1) governs' : 'Steel Yielding (Eq. 8-2) governs';
+
+  // ── check lbe > t/2 ───────────────────────────────────────────────────────
+  var lbe_ok = (lbe > t/2);
+
+  // ── populate geometry table ───────────────────────────────────────────────
+  var gt = document.getElementById('geo_table');
+  gt.innerHTML = '<tr><th>Property</th><th>Value</th><th>Notes</th></tr>';
+  var gRows = [
+    ['Wall actual thickness, t',      f2(t)+' in.',  t_disp[t_nom]+' in. (nominal '+t_nom+' in.)'],
+    ['Bearing plate, b<sub>p</sub> × l<sub>p</sub>', f2(bp)+' × '+f2(lp)+' in.', layout_note],
+    ['Actual bearing area, A<sub>1</sub>',  f2(A1)+' in.²', 'b<sub>p</sub> × l<sub>p</sub>'],
+    ['Effective spread distance, e',  lay==='B'?'N/A':f2(e_spread)+' in.', lay==='C'?'Limited by head joint distance':'45° truncated pyramid'],
+    ['Expanded area, A<sub>2</sub>',  f2(A2)+' in.²', 'At base of 45° pyramid'],
+    ['√(A<sub>2</sub>/A<sub>1</sub>)',f3(Math.sqrt(A1_A2_ratio)),''],
+    ['<strong>Effective bearing area, A<sub>br</sub></strong>', '<strong>'+f2(Abr)+' in.²</strong>', 'min(A<sub>1</sub>√(A<sub>2</sub>/A<sub>1</sub>), 2A<sub>1</sub>) = min('+f2(A1*Math.sqrt(A1_A2_ratio))+', '+f2(2*A1)+')'],
+  ];
+  gRows.forEach(function(r){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+r[0]+'</td><td>'+r[1]+'</td><td style="font-size:.82em;color:#555">'+r[2]+'</td>';
+    gt.appendChild(tr);
+  });
+
+  // ── demand cards ─────────────────────────────────────────────────────────
+  var dc = document.getElementById('dem_cards');
+  dc.innerHTML='';
+  var cards=[
+    [f2(Rdown/1000)+' k', 'Bearing Load R<sub>down</sub>',''],
+    [f2(Rup/1000)+' k',   'Uplift Load R<sub>up</sub>',  ''],
+    [f2(fb)+' psi',        'Bearing Stress f<sub>br</sub>','Demand'],
+    [f2(Fb)+' psi',        'Allowable F<sub>b</sub> = 0.33f\'<sub>m</sub>','Capacity'],
+    [f2(Apt)+' in.²',      'Projected Anchor Area A<sub>pt</sub>',''],
+    [f2(B_allow/1000)+' k','Anchor Capacity B<sub>allow</sub>','min(B<sub>ab</sub>, B<sub>as</sub>)'],
+  ];
+  cards.forEach(function(c){
+    var card=document.createElement('div');
+    card.className='dem-card'+(c[2]==='Demand'?'':c[2]==='Capacity'?' stiff':'');
+    card.innerHTML='<div class="v">'+c[0]+'</div><div class="l">'+c[1]+(c[2]&&c[2]!=='Demand'&&c[2]!=='Capacity'?'<br><span style="color:#2a5298">'+c[2]+'</span>':'')+'</div>';
+    dc.appendChild(card);
+  });
+
+  // ── build checks ─────────────────────────────────────────────────────────
+  var chks = [];
+
+  // Check 1: Bearing stress (REK-09, TMS 402 §8.1.6)
+  var det1='';
+  det1+='<div class="cref-hdr">TMS 402-22 &sect;8.1.6 &mdash; Allowable Bearing Stress</div>';
+  det1+='<div class="cbox">';
+  det1+='<div class="mrow"><span class="ceq">Allowable bearing stress:</span></div>';
+  det1+='<div class="mrow">F<sub>b</sub> = 0.33f\'<sub>m</sub> = 0.33 &times; '+fm+' psi = <span class="cval">'+f2(Fb)+' psi</span></div>';
+  det1+='<hr class="csep">';
+  det1+='<div class="cref-hdr">TMS 402-22 &sect;4.4.4 &mdash; Effective Bearing Area ('+layout_note+')</div>';
+  det1+='<div class="mrow">A<sub>1</sub> = b<sub>p</sub> &times; l<sub>p</sub> = '+f2(bp)+' &times; '+f2(lp)+' = <span class="cval">'+f2(A1)+' in.²</span></div>';
+  if(lay==='A'){
+    det1+='<div class="mrow">e = '+fr('t &minus; b<sub>p</sub>','2')+' = '+fr(f2(t)+' &minus; '+f2(bp),'2')+' = <span class="cval">'+f2(e_spread)+' in.</span></div>';
+    det1+='<div class="mrow">A<sub>2</sub> = t &times; (l<sub>p</sub> + t &minus; b<sub>p</sub>) = '+f2(t)+' &times; '+f2(lp + t - bp)+' = <span class="cval">'+f2(A2)+' in.²</span></div>';
+  } else if(lay==='B'){
+    det1+='<div class="mrow">Layout B (edge): A<sub>2</sub> = A<sub>1</sub> (no spread on face side)</div>';
+  } else {
+    det1+='<div class="mrow">e<sub>nom</sub> = '+fr('t &minus; b<sub>p</sub>','2')+' = '+f2((t-bp)/2)+' in.; &nbsp; d<sub>j</sub> = '+f2(dj)+' in.</div>';
+    det1+='<div class="mrow">Spread = min(e<sub>nom</sub>, d<sub>j</sub>) = min('+f2((t-bp)/2)+', '+f2(dj)+') = <span class="cval">'+f2(e_spread)+' in.</span></div>';
+    det1+='<div class="mrow">A<sub>2</sub> = (b<sub>p</sub>+2e)(l<sub>p</sub>+2e) = '+f2(bp+2*e_spread)+' &times; '+f2(lp+2*e_spread)+' = <span class="cval">'+f2(A2)+' in.²</span></div>';
+  }
+  if(lay!=='B'){
+    det1+='<div class="mrow"><span class="ceq">TMS 402 Eq. 4-1:</span> A<sub>1</sub>'+ov('A<sub>2</sub>/A<sub>1</sub>')+' = '+f2(A1)+' &times; '+f3(Math.sqrt(A1_A2_ratio))+' = '+f2(A1*Math.sqrt(A1_A2_ratio))+' in.²</div>';
+    det1+='<div class="mrow"><span class="ceq">TMS 402 Eq. 4-2:</span> 2A<sub>1</sub> = 2 &times; '+f2(A1)+' = '+f2(2*A1)+' in.²</div>';
+    det1+='<div class="mrow"><strong>A<sub>br</sub> = min('+f2(A1*Math.sqrt(A1_A2_ratio))+', '+f2(2*A1)+') = <span class="cval">'+f2(Abr)+' in.²</span></strong></div>';
+  } else {
+    det1+='<div class="mrow"><strong>A<sub>br</sub> = A<sub>1</sub> = <span class="cval">'+f2(Abr)+' in.²</span></strong></div>';
+  }
+  det1+='<hr class="csep">';
+  det1+='<div class="mrow">f<sub>br</sub> = '+fr('R<sub>down</sub>','A<sub>br</sub>')+' = '+fr(f2(Rdown)+' lb', f2(Abr)+' in.²')+' = <span class="cval">'+f2(fb)+' psi</span></div>';
+  det1+='<hr class="csep">';
+  det1+='<div class="mrow">D/C = '+fr(f2(fb)+' psi', f2(Fb)+' psi')+' = <span class="cval">'+f3(dc_bearing)+'</span></div>';
+  det1+='</div>';
+
+  chks.push({
+    n:'Bearing Stress f<sub>br</sub>',
+    r:'TMS 402-22 &sect;8.1.6',
+    d:'f<sub>br</sub> = '+f2(fb)+' psi',
+    c:'F<sub>b</sub> = '+f2(Fb)+' psi',
+    dc:dc_bearing,
+    nt:'A<sub>br</sub> = '+f2(Abr)+' in.² ('+layout_note+')',
+    stiff:false,
+    det:det1
+  });
+
+  // Check 2: Anchor tension — masonry breakout (Eq. 8-1)
+  var det2='';
+  det2+='<div class="cref-hdr">TMS 402-22 &sect;8.1.4.3.1 Eq. 8-1 &mdash; Masonry Breakout (Anchor Group)</div>';
+  det2+='<div class="cbox">';
+  det2+='<div class="mrow"><span class="ceq">Projected tension area, A<sub>pt</sub>:</span></div>';
+  det2+='<div class="mrow">A<sub>pt</sub> = t &times; (l<sub>p,stud</sub> + 2l<sub>be</sub>) = '+f2(t)+' &times; ('+f2(lp_s)+' + 2&times;'+f2(lbe)+') = '+f2(t)+' &times; '+f2(lp_s+2*lbe)+' = <span class="cval">'+f2(Apt)+' in.²</span></div>';
+  if(!lbe_ok) det2+='<div class="mrow" style="color:#dc2626">⚠ l<sub>be</sub> = '+f2(lbe)+' in. &lt; t/2 = '+f2(t/2)+' in. — Embedment should exceed half wall thickness</div>';
+  det2+='<hr class="csep">';
+  det2+='<div class="mrow"><span class="ceq">Eq. 8-1:</span> B<sub>ab</sub> = 1.25 A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'</div>';
+  det2+='<div class="mrow ind">= 1.25 &times; '+f2(Apt)+' &times; '+ov(fm+' psi')+' = 1.25 &times; '+f2(Apt)+' &times; '+f2(Math.sqrt(fm))+' = <span class="cval">'+f2(Bab)+' lb</span></div>';
+  det2+='<hr class="csep">';
+  det2+='<div class="mrow">D/C = '+fr(f2(Rup)+' lb', f2(Bab)+' lb')+' = <span class="cval">'+f3(dc_breakout)+'</span></div>';
+  det2+='</div>';
+
+  chks.push({
+    n:'Anchor Tension — Masonry Breakout',
+    r:'TMS 402-22 &sect;8.1.4.3.1 Eq. 8-1',
+    d:'R<sub>up</sub> = '+f2(Rup/1000)+' k',
+    c:'B<sub>ab</sub> = '+f2(Bab/1000)+' k',
+    dc:dc_breakout,
+    nt:'A<sub>pt</sub> = '+f2(Apt)+' in.², '+n_anc+' anchors, l<sub>be</sub> = '+f2(lbe)+' in.',
+    stiff:true,
+    det:det2
+  });
+
+  // Check 3: Anchor tension — steel yielding (Eq. 8-2)
+  var det3='';
+  det3+='<div class="cref-hdr">TMS 402-22 &sect;8.1.4.3.1 Eq. 8-2 &mdash; Steel Yielding of Anchors</div>';
+  det3+='<div class="cbox">';
+  det3+='<div class="mrow">A<sub>b</sub> = '+fr('&pi;d<sub>a</sub>²','4')+' = '+fr('&pi;&times;'+f2(d_anc)+'²','4')+' = <span class="cval">'+f4(Ab)+' in.²</span> per anchor</div>';
+  det3+='<hr class="csep">';
+  det3+='<div class="mrow"><span class="ceq">Eq. 8-2:</span> B<sub>as</sub> = 0.5 n A<sub>b</sub> f<sub>u</sub></div>';
+  det3+='<div class="mrow ind">= 0.5 &times; '+n_anc+' &times; '+f4(Ab)+' in.² &times; '+fu.toLocaleString()+' psi = <span class="cval">'+f2(Bas)+' lb</span></div>';
+  det3+='<hr class="csep">';
+  det3+='<div class="mrow">D/C = '+fr(f2(Rup)+' lb', f2(Bas)+' lb')+' = <span class="cval">'+f3(dc_steel)+'</span></div>';
+  det3+='<hr class="csep"><div class="mrow" style="font-size:.9em;color:#555"><strong>Governing uplift capacity:</strong> '+gov_uplift+' — B<sub>allow</sub> = min('+f2(Bab/1000)+', '+f2(Bas/1000)+') = <span class="cval">'+f2(B_allow/1000)+' k</span></div>';
+  det3+='</div>';
+
+  chks.push({
+    n:'Anchor Tension — Steel Yielding',
+    r:'TMS 402-22 &sect;8.1.4.3.1 Eq. 8-2',
+    d:'R<sub>up</sub> = '+f2(Rup/1000)+' k',
+    c:'B<sub>as</sub> = '+f2(Bas/1000)+' k',
+    dc:dc_steel,
+    nt:'n='+n_anc+', d<sub>a</sub>='+f2(d_anc)+' in., f<sub>u</sub>='+fu.toLocaleString()+' psi',
+    stiff:true,
+    det:det3
+  });
+
+  // ── render checks ─────────────────────────────────────────────────────────
+  var maxDC = Math.max(dc_bearing, dc_breakout, dc_steel);
+  var allPass = maxDC <= 1.0;
+  var tb = document.getElementById('chk_body');
+  tb.innerHTML='';
+  chks.forEach(function(ck,i){
+    var pct = Math.min(ck.dc*100,100);
+    var fillColor = ck.dc>1.0?'#dc2626':ck.dc>0.85?'#f59e0b':'#16a34a';
+    var status = ck.dc===null?'<span class="na">—</span>':ck.dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dcText = ck.dc===null?'<span class="na">—</span>':('<div class="dc-cell"><span>'+f3(ck.dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+fillColor+'"></div></div></div>');
+    var tr1=document.createElement('tr');
+    if(ck.stiff) tr1.className='stiff-row';
+    tr1.innerHTML='<td><strong>'+ck.n+'</strong><br><span style="font-size:.78em;color:#555">'+ck.nt+'</span></td>'
+      +'<td style="font-size:.8em">'+ck.r+'</td>'
+      +'<td>'+ck.d+'</td><td>'+ck.c+'</td>'
+      +'<td>'+dcText+'</td>'
+      +'<td>'+status+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>';
+    tb.appendChild(tr1);
+    var tr2=document.createElement('tr');
+    tr2.className='det-row';
+    tr2.innerHTML='<td colspan="7"><div class="calc-det" id="det_'+i+'">'+ck.det+'</div></td>';
+    tb.appendChild(tr2);
+  });
+
+  // ── summary ───────────────────────────────────────────────────────────────
+  var sm = document.getElementById('summary');
+  sm.className = 'summary '+(allPass?'sum-pass':'sum-fail');
+  sm.innerHTML = '<h3>'+(allPass?'&#10003; ALL CHECKS PASS':'&#10007; ONE OR MORE CHECKS FAIL')+'</h3>'
+    +'<div>Maximum D/C = '+f3(maxDC)+' &nbsp;|&nbsp; '
+    +'Bearing: '+f3(dc_bearing)+' &nbsp;|&nbsp; '
+    +'Anchor (breakout): '+f3(dc_breakout)+' &nbsp;|&nbsp; '
+    +'Anchor (steel): '+f3(dc_steel)
+    +'</div>';
+
+  // ── notes ────────────────────────────────────────────────────────────────
+  var nb = document.getElementById('notes_box');
+  var warn = '';
+  if(!lbe_ok) warn += '<li style="color:#dc2626"><strong>lbe warning:</strong> Effective embedment l<sub>be</sub> = '+f2(lbe)+' in. should exceed t/2 = '+f2(t/2)+' in. (TMS 402 §8.1.4.3.1)</li>';
+  if(bp > t) warn += '<li style="color:#dc2626"><strong>Plate width warning:</strong> b<sub>p</sub> = '+f2(bp)+' in. exceeds wall actual thickness t = '+f2(t)+' in.</li>';
+  if(lay==='B') warn += '<li>Layout B: Plate aligned with wall face. A<sub>br</sub> = A<sub>1</sub> only (no 45° spread). Consider using a plate set back 0.5 in. from face to gain spread area (MDG Tip).</li>';
+
+  nb.innerHTML = '<strong>Engineering Notes:</strong><ul>'
+    + warn
+    + '<li>Bearing stress check per TMS 402-22 §8.1.6: F<sub>b</sub> = 0.33f\'<sub>m</sub>. This limit applies to the effective bearing area A<sub>br</sub>, not the plate area A<sub>1</sub>.</li>'
+    + '<li>Anchor tension capacity B<sub>ab</sub> (Eq. 8-1) is computed for the anchor group using total projected area A<sub>pt</sub> = t×(l<sub>p,stud</sub>+2l<sub>be</sub>). Verify that individual anchor cone areas do not overlap or extend beyond edges of masonry beyond what is modeled.</li>'
+    + '<li>For anchors near edges of the wall or near adjacent anchor groups, the projected area A<sub>pt</sub> must be reduced per TMS 402 §8.1.4.3.1. This calculator assumes full unreduced A<sub>pt</sub>.</li>'
+    + '<li>Load combinations should be per ASCE 7-22 §2.4.1. The downward and uplift reactions entered above should reflect the governing ASD combinations from a separate load calculation (see MDG REK-09 for approach).</li>'
+    + '<li>Stiffeners in the steel beam web may be required per AISC 360-22 §J10.2/J10.3. Web local yielding and crippling are not checked here.</li>'
+    + '<li>SJI Standard Specifications require the edge of the bearing plate be ≤ ½ in. from the face of masonry. Centering the plate (Layout A) requires the joist seat to be designed for the additional eccentricity.</li>'
+    + '</ul>';
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// initialize
+updateActual();
+</script>
+
+</body>
+</html>

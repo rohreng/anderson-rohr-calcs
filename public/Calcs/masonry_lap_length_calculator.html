@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masonry — Development &amp; Lap Splice Length</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.stiff-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.prop-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td{background:#f5f7ff}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.45em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.gov{border-color:#2a5298;background:#eff6ff}
+.dem-card.gov .v{color:#1e40af}
+.dem-card.result-card{border-color:#16a34a;background:#f0fdf4}
+.dem-card.result-card .v{color:#15803d;font-size:1.7em}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.k-row{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}
+.k-card{flex:1;min-width:150px;border:2px solid #ddd;border-radius:8px;padding:10px 12px;background:#fff;font-size:.85em}
+.k-card.gov-k{border-color:#1e40af;background:#eff6ff}
+.k-card .kv{font-size:1.2em;font-weight:700;color:#1e3c72;margin:3px 0}
+.k-card .kl{font-size:.78em;color:#555}
+.k-card.gov-k .kv{color:#1d4ed8}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Masonry &mdash; Development &amp; Lap Splice Length</h1>
+  <p>Deformed bar development length and Class A lap splice per TMS 402-22 Eq. 6-2 (MDG REK-10)</p>
+  <div class="ref-tags">
+    <span class="tag">TMS 402-22</span>
+    <span class="tag">ASD &amp; Strength Design</span>
+    <span class="tag">&sect;6.1.6.3.1 Development Length</span>
+    <span class="tag">&sect;6.1.7.1.2 Lap Splice</span>
+    <span class="tag">Eq. 6-2</span>
+    <span class="tag">MDG 2022 REK-10</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+    <!-- Horizontal section: K candidates -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">HORIZONTAL SECTION — Cover &amp; K Geometry</div>
+      <svg width="100%" viewBox="0 0 280 200" style="max-height:200px">
+        <defs>
+          <marker id="aA" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#f59e0b"/></marker>
+          <marker id="aA2" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#f59e0b"/></marker>
+          <marker id="aB" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#dc2626"/></marker>
+          <marker id="aB2" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#dc2626"/></marker>
+        </defs>
+
+        <!-- Wall block (horizontal cross-section) -->
+        <rect x="20" y="40" width="240" height="100" fill="#dbeafe" stroke="#374151" stroke-width="1.5"/>
+        <!-- Wall face labels -->
+        <text x="140" y="34" font-size="9" fill="#374151" text-anchor="middle">Exterior Face</text>
+        <text x="140" y="155" font-size="9" fill="#374151" text-anchor="middle">Interior Face</text>
+
+        <!-- CMU cell outlines (approximate) -->
+        <rect x="50" y="48" width="80" height="84" fill="none" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3,2"/>
+        <rect x="150" y="48" width="80" height="84" fill="none" stroke="#93c5fd" stroke-width="0.8" stroke-dasharray="3,2"/>
+
+        <!-- Bar 1 (centered, left cell) -->
+        <circle cx="90" cy="90" r="7" fill="#374151"/>
+        <circle cx="90" cy="90" r="5" fill="#6b7280"/>
+        <text x="78" y="108" font-size="8" fill="#374151" text-anchor="middle">Bar</text>
+
+        <!-- Bar 2 (adjacent, right cell) for clear spacing illustration -->
+        <circle cx="190" cy="90" r="7" fill="#374151" opacity="0.4"/>
+        <circle cx="190" cy="90" r="5" fill="#6b7280" opacity="0.4"/>
+        <text x="190" y="108" font-size="8" fill="#374151" text-anchor="middle" opacity="0.5">Bar 2</text>
+
+        <!-- K1: cover — bar surface to wall face (top) -->
+        <line x1="90" y1="40" x2="90" y2="83" stroke="#f59e0b" stroke-width="1.2" marker-start="url(#aA2)" marker-end="url(#aA)"/>
+        <text x="105" y="65" font-size="8" fill="#d97706" font-weight="700">K₁ cover</text>
+
+        <!-- K2: clear spacing bar surface to bar surface -->
+        <line x1="97" y1="90" x2="183" y2="90" stroke="#dc2626" stroke-width="1.2" marker-start="url(#aB2)" marker-end="url(#aB)"/>
+        <text x="140" y="83" font-size="8" fill="#dc2626" text-anchor="middle" font-weight="700">K₂ clear spacing</text>
+
+        <!-- K3: 9db annotation -->
+        <text x="20" y="180" font-size="8" fill="#7c3aed" font-weight="700">K₃ = 9d<tspan baseline-shift="sub" font-size="6">b</tspan> (third candidate)</text>
+
+        <!-- Wall thickness dimension -->
+        <line x1="268" y1="40" x2="268" y2="140" stroke="#374151" stroke-width="1" marker-start="url(#aA2)" marker-end="url(#aA)"/>
+        <text x="273" y="95" font-size="8" fill="#374151">t</text>
+
+        <!-- Grout fill -->
+        <text x="90" y="73" font-size="7" fill="#1e40af" text-anchor="middle">K₁=(t−d<tspan baseline-shift="sub" font-size="5">b</tspan>)/2</text>
+
+      </svg>
+    </div>
+
+    <!-- Elevation: lap splice -->
+    <div>
+      <div style="font-size:.82em;font-weight:700;color:#1e3c72;margin-bottom:6px;text-align:center">ELEVATION — Lap Splice Detail</div>
+      <svg width="100%" viewBox="0 0 260 200" style="max-height:200px">
+        <defs>
+          <marker id="aC" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#374151"/></marker>
+          <marker id="aC2" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#374151"/></marker>
+          <marker id="aD" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#16a34a"/></marker>
+          <marker id="aD2" markerWidth="10" markerHeight="8" refX="0" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#16a34a"/></marker>
+        </defs>
+
+        <!-- Foundation block -->
+        <rect x="20" y="155" width="220" height="35" fill="#d1d5db" stroke="#374151" stroke-width="1.5" rx="2"/>
+        <text x="130" y="177" font-size="9" fill="#374151" text-anchor="middle">Foundation / Footing</text>
+
+        <!-- Wall above foundation -->
+        <rect x="60" y="30" width="140" height="130" fill="#dbeafe" stroke="#374151" stroke-width="1.2" opacity="0.7"/>
+
+        <!-- CMU courses -->
+        <line x1="60" y1="58" x2="200" y2="58" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="60" y1="86" x2="200" y2="86" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="60" y1="114" x2="200" y2="114" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+        <line x1="60" y1="142" x2="200" y2="142" stroke="#374151" stroke-width="0.5" opacity="0.4"/>
+
+        <!-- Foundation dowel (starts in footing, extends up) -->
+        <rect x="118" y="110" width="10" height="60" fill="#374151" rx="2"/>
+        <text x="95" y="105" font-size="8" fill="#374151" font-weight="700">Dowel</text>
+        <line x1="112" y1="105" x2="117" y2="110" stroke="#374151" stroke-width="0.7"/>
+
+        <!-- Wall bar (overlaps with dowel) -->
+        <rect x="126" y="50" width="10" height="90" fill="#6b7280" rx="2"/>
+        <text x="140" y="55" font-size="8" fill="#374151">Wall bar</text>
+        <line x1="137" y1="53" x2="137" y2="52" stroke="#374151" stroke-width="0.7"/>
+
+        <!-- Lap length arrow -->
+        <line x1="145" y1="110" x2="145" y2="140" stroke="#16a34a" stroke-width="1.5" marker-start="url(#aD2)" marker-end="url(#aD)"/>
+        <text x="160" y="130" font-size="9" fill="#166534" font-weight="700">ℓ<tspan baseline-shift="sub" font-size="7">d</tspan></text>
+
+        <!-- TMS note -->
+        <text x="20" y="20" font-size="8" fill="#374151">TMS 402 Eq. 6-2:</text>
+        <text x="20" y="32" font-size="8" fill="#1e40af">ℓ<tspan baseline-shift="sub" font-size="6">d</tspan> = 0.13d<tspan baseline-shift="sub" font-size="6">b</tspan>²f<tspan baseline-shift="sub" font-size="6">y</tspan>γ / (K√f'<tspan baseline-shift="sub" font-size="6">m</tspan>) ≥ 12 in.</text>
+
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 1: Masonry -->
+<div class="blk">
+  <h2>1 &mdash; Masonry Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Masonry Compressive Strength, f'<sub>m</sub> <span class="unit">(psi)</span></label>
+      <input type="number" id="fm" value="1750" min="1000" max="5000" step="250"/>
+    </div>
+    <div class="ig">
+      <label>Nominal Wall Thickness <span class="unit">(in)</span></label>
+      <select id="t_nom" onchange="updateAutoK()">
+        <option value="4">4 in. nominal (3.63 in. actual)</option>
+        <option value="6">6 in. nominal (5.63 in. actual)</option>
+        <option value="8" selected>8 in. nominal (7.63 in. actual)</option>
+        <option value="10">10 in. nominal (9.63 in. actual)</option>
+        <option value="12">12 in. nominal (11.63 in. actual)</option>
+        <option value="16">16 in. nominal (15.63 in. actual)</option>
+      </select>
+      <span class="hint" id="t_hint">Actual thickness: 7.63 in.</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 2: Reinforcement -->
+<div class="blk">
+  <h2>2 &mdash; Reinforcement Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Bar Size</label>
+      <select id="bar_size" onchange="onBarChange()">
+        <option value="3">#3 (d<sub>b</sub> = 0.375 in.)</option>
+        <option value="4" selected>#4 (d<sub>b</sub> = 0.500 in.)</option>
+        <option value="5">#5 (d<sub>b</sub> = 0.625 in.)</option>
+        <option value="6">#6 (d<sub>b</sub> = 0.750 in.)</option>
+        <option value="7">#7 (d<sub>b</sub> = 0.875 in.)</option>
+        <option value="8">#8 (d<sub>b</sub> = 1.000 in.)</option>
+        <option value="9">#9 (d<sub>b</sub> = 1.128 in.)</option>
+        <option value="10">#10 (d<sub>b</sub> = 1.270 in.)</option>
+        <option value="11">#11 (d<sub>b</sub> = 1.410 in.)</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Steel Yield Strength, f<sub>y</sub> <span class="unit">(psi)</span></label>
+      <select id="fy_sel" onchange="document.getElementById('fy').value=this.value">
+        <option value="60000" selected>Grade 60 — 60,000 psi</option>
+        <option value="75000">Grade 75 — 75,000 psi</option>
+        <option value="40000">Grade 40 — 40,000 psi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>f<sub>y</sub> Override <span class="unit">(psi)</span></label>
+      <input type="number" id="fy" value="60000" min="36000" max="80000" step="1000"/>
+      <span class="hint">Overrides dropdown if different</span>
+    </div>
+    <div class="ig">
+      <label>Bar Size Factor, &gamma;</label>
+      <input type="number" id="gamma" value="1.0" step="0.1" min="0.5" max="2.0" disabled/>
+      <span class="hint" id="gamma_hint">Auto: 1.0 for #3–#5 | 1.3 for #6–#7 | 1.5 for #8+</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 3: K Geometry -->
+<div class="blk">
+  <h2>3 &mdash; K Factor Geometry <span class="badge">K = min(Cover, Clear Spacing, 9d<sub>b</sub>)</span></h2>
+
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:9px 12px;font-size:.82em;color:#1e40af;margin-bottom:14px">
+    Per TMS 402-22 §6.1.6.3.1, K is the least of: (1) masonry cover to bar surface, (2) clear spacing between adjacent bars, and (3) 9d<sub>b</sub>.
+    Set clear spacing to a large value (e.g. 999) if there is only one bar or bars are widely spaced.
+  </div>
+
+  <div class="g3">
+    <div class="ig">
+      <label>Bar Position</label>
+      <select id="bar_pos" onchange="updateAutoK()">
+        <option value="center" selected>Centered in wall (auto cover)</option>
+        <option value="custom">Custom clear cover</option>
+      </select>
+    </div>
+    <div class="ig" id="cover_auto_row">
+      <label>Masonry Clear Cover, K<sub>1</sub> <span class="unit">(in) — auto-calculated</span></label>
+      <input type="number" id="cover_auto" step="0.001" disabled/>
+      <span class="hint">= (t<sub>actual</sub> &minus; d<sub>b</sub>) / 2 for centered bar</span>
+    </div>
+    <div class="ig" id="cover_custom_row" style="display:none">
+      <label>Masonry Clear Cover, K<sub>1</sub> <span class="unit">(in) — enter manually</span></label>
+      <input type="number" id="cover_custom" value="3.5" step="0.0625" min="0.5"/>
+      <span class="hint">Clear distance from bar surface to nearest masonry face</span>
+    </div>
+    <div class="ig">
+      <label>Clear Spacing Between Bars, K<sub>2</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="clr_space" value="999" step="0.125" min="0"/>
+      <span class="hint">Enter 999 for single bar / widely spaced (not governing)</span>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654; Calculate Development &amp; Splice Length</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+
+  <div id="summary" class="summary"></div>
+
+  <!-- K candidates -->
+  <div class="sub-head">K Factor — Governing Candidate</div>
+  <div class="k-row" id="k_cards"></div>
+
+  <!-- Main results cards -->
+  <div class="dem-grid" id="dem_cards" style="margin-top:14px"></div>
+
+  <!-- Properties table -->
+  <div style="margin-bottom:16px">
+    <div class="sub-head">Input Summary</div>
+    <table class="prop-table" id="prop_table">
+      <tr><th>Property</th><th>Value</th></tr>
+    </table>
+  </div>
+
+  <!-- Check table -->
+  <table class="chk-table" id="chk_table">
+    <thead>
+      <tr>
+        <th style="width:25%">Check</th>
+        <th style="width:18%">Reference</th>
+        <th style="width:17%">Computed</th>
+        <th style="width:17%">Minimum</th>
+        <th style="width:11%">Status</th>
+        <th style="width:12%">Detail</th>
+      </tr>
+    </thead>
+    <tbody id="chk_body"></tbody>
+  </table>
+
+  <div class="note-box" id="notes_box"></div>
+
+</div>
+
+</div><!-- content -->
+</div><!-- container -->
+
+<script>
+// helpers
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function f2(v){return (Math.round(v*100)/100).toFixed(2);}
+function f3(v){return (Math.round(v*1000)/1000).toFixed(3);}
+function f4(v){return (Math.round(v*10000)/10000).toFixed(4);}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// Bar database: db (in), Ab (in²)
+var barDB = {
+  '3': {db:0.375,  Ab:0.11},
+  '4': {db:0.500,  Ab:0.20},
+  '5': {db:0.625,  Ab:0.31},
+  '6': {db:0.750,  Ab:0.44},
+  '7': {db:0.875,  Ab:0.60},
+  '8': {db:1.000,  Ab:0.79},
+  '9': {db:1.128,  Ab:1.00},
+  '10':{db:1.270,  Ab:1.27},
+  '11':{db:1.410,  Ab:1.56}
+};
+
+// Wall thickness map (nominal → actual, in)
+var tMap = {4:3.625, 6:5.625, 8:7.625, 10:9.625, 12:11.625, 16:15.625};
+var tDisp = {4:'3.63', 6:'5.63', 8:'7.63', 10:'9.63', 12:'11.63', 16:'15.63'};
+
+function getGamma(size){
+  var n = parseInt(size);
+  if(n <= 5) return 1.0;
+  if(n <= 7) return 1.3;
+  return 1.5;
+}
+
+function onBarChange(){
+  var size = document.getElementById('bar_size').value;
+  var g = getGamma(size);
+  document.getElementById('gamma').value = g.toFixed(1);
+  var hint = g===1.0?'#3–#5':g===1.3?'#6–#7':'#8+';
+  document.getElementById('gamma_hint').textContent = 'Auto: 1.0 for #3–#5 | 1.3 for #6–#7 | 1.5 for #8+  →  γ = '+g.toFixed(1)+' for '+hint;
+  updateAutoK();
+}
+
+function updateAutoK(){
+  var t_nom = parseInt(document.getElementById('t_nom').value);
+  var t = tMap[t_nom];
+  document.getElementById('t_hint').textContent = 'Actual thickness: '+tDisp[t_nom]+' in.';
+  var size = document.getElementById('bar_size').value;
+  var db = barDB[size].db;
+  var cover = (t - db) / 2;
+  document.getElementById('cover_auto').value = cover.toFixed(4);
+
+  var pos = document.getElementById('bar_pos').value;
+  document.getElementById('cover_auto_row').style.display  = (pos==='center') ? '' : 'none';
+  document.getElementById('cover_custom_row').style.display = (pos==='custom') ? '' : 'none';
+}
+
+function runCalc(){
+  var fm     = parseFloat(document.getElementById('fm').value);
+  var t_nom  = parseInt(document.getElementById('t_nom').value);
+  var t      = tMap[t_nom];
+  var size   = document.getElementById('bar_size').value;
+  var db     = barDB[size].db;
+  var Ab     = barDB[size].Ab;
+  var fy     = parseFloat(document.getElementById('fy').value);
+  var gamma  = getGamma(size);
+  var pos    = document.getElementById('bar_pos').value;
+  var K1     = pos==='center' ? (t - db)/2 : parseFloat(document.getElementById('cover_custom').value);
+  var K2     = parseFloat(document.getElementById('clr_space').value);
+  var K3     = 9 * db;
+
+  // Governing K
+  var Kvals = [K1, K2, K3];
+  var Klabels = [
+    'K\u2081 — Masonry Clear Cover',
+    'K\u2082 — Clear Bar Spacing',
+    'K\u2083 — 9d\u1D47'
+  ];
+  var Kdesc = [
+    pos==='center'?'(t\u2212d\u1D47)/2 = ('+f2(t)+'\u2212'+f2(db)+')/2':
+                   'User-entered clear cover',
+    K2>=999?'Single bar / not applicable':'Clear spacing between bar surfaces',
+    '9 \xD7 '+f2(db)+' in.'
+  ];
+  var K = Math.min(K1, K2, K3);
+  var Kgov_idx = Kvals.indexOf(K);
+
+  // TMS 402 Eq. 6-2
+  var ld_raw = (0.13 * db * db * fy * gamma) / (K * Math.sqrt(fm));
+  var ld_min = 12.0;  // §6.1.6.3.1 and §6.1.7.1.2.1
+  var ld = Math.max(ld_raw, ld_min);
+  var ld_govmin = (ld_raw < ld_min);
+
+  // Round up to nearest 1/4 in. (practical)
+  var ld_prac = Math.ceil(ld * 4) / 4;
+
+  // ── populate K cards ─────────────────────────────────────────────────────
+  var kc = document.getElementById('k_cards');
+  kc.innerHTML='';
+  Kvals.forEach(function(v,i){
+    var card=document.createElement('div');
+    card.className='k-card'+(i===Kgov_idx?' gov-k':'');
+    var label = i===Kgov_idx?'&#9654; GOVERNS':'';
+    card.innerHTML='<div class="kl">'+Klabels[i]+' '+label+'</div><div class="kv">'+f2(v)+' in.</div><div class="kl" style="margin-top:2px">'+Kdesc[i]+'</div>';
+    kc.appendChild(card);
+  });
+
+  // ── demand cards ─────────────────────────────────────────────────────────
+  var dc = document.getElementById('dem_cards');
+  dc.innerHTML='';
+  var cards=[
+    {v:f2(K)+' in.',    l:'K (governing)',          cls:'gov'},
+    {v:f2(ld_raw)+' in.', l:'ℓ<sub>d</sub> from Eq. 6-2', cls:''},
+    {v:f2(ld_min)+' in.', l:'Minimum (§6.1.6.3.1)', cls:''},
+    {v:'<strong>'+f2(ld_prac)+' in.</strong>', l:'Required ℓ<sub>d</sub> = Splice Length<br>(rounded up to ¼ in.)', cls:'result-card'},
+  ];
+  cards.forEach(function(c){
+    var card=document.createElement('div');
+    card.className='dem-card '+c.cls;
+    card.innerHTML='<div class="v">'+c.v+'</div><div class="l">'+c.l+'</div>';
+    dc.appendChild(card);
+  });
+
+  // ── prop table ────────────────────────────────────────────────────────────
+  var pt = document.getElementById('prop_table');
+  pt.innerHTML='<tr><th>Property</th><th>Value</th></tr>';
+  [
+    ['Bar size', '#'+size+' (d<sub>b</sub> = '+f2(db)+' in., A<sub>b</sub> = '+f2(Ab)+' in.²)'],
+    ['Steel yield strength, f<sub>y</sub>', fy.toLocaleString()+' psi'],
+    ['Bar size factor, &gamma;', gamma.toFixed(1)+' (auto for #'+size+')'],
+    ['Masonry f\'<sub>m</sub>', fm.toLocaleString()+' psi'],
+    ['Wall actual thickness, t', tDisp[t_nom]+' in. (nominal '+t_nom+' in.)'],
+    ['Masonry clear cover, K<sub>1</sub>', f2(K1)+' in.'+(pos==='center'?' (centered bar, auto)':'  (user entry)')],
+    ['Clear bar spacing, K<sub>2</sub>', K2>=999?'999 in. (single bar / N/A)':f2(K2)+' in.'],
+    ['9d<sub>b</sub>, K<sub>3</sub>', f2(K3)+' in.'],
+    ['<strong>Governing K</strong>', '<strong>'+f2(K)+' in.</strong> ('+Klabels[Kgov_idx]+')'],
+  ].forEach(function(r){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+r[0]+'</td><td>'+r[1]+'</td>';
+    pt.appendChild(tr);
+  });
+
+  // ── build checks ──────────────────────────────────────────────────────────
+  var chks=[];
+
+  // Check 1: Development length Eq. 6-2
+  var det1='';
+  det1+='<div class="cref-hdr">TMS 402-22 &sect;6.1.6.3.1, Eq. 6-2 &mdash; Development Length of Deformed Bar in Tension</div>';
+  det1+='<div class="cbox">';
+  det1+='<div class="mrow"><span class="ceq">Eq. 6-2:</span> &ell;<sub>d</sub> = '+fr('0.13 d<sub>b</sub><sup>2</sup> f<sub>y</sub> &gamma;','K '+ov('f\'<sub>m</sub>'))+'</div>';
+  det1+='<div class="mrow ind">= '+fr('0.13 &times; '+f2(db)+'<sup>2</sup> &times; '+fy.toLocaleString()+' &times; '+gamma.toFixed(1), f2(K)+' &times; '+ov(fm+' psi'))+'</div>';
+  det1+='<div class="mrow ind">= '+fr((0.13*db*db*fy*gamma).toFixed(1), f2(K)+' &times; '+f2(Math.sqrt(fm)))+' = '+f2(ld_raw)+' in.</div>';
+  det1+='<hr class="csep">';
+  det1+='<div class="mrow">K calculation:</div>';
+  det1+='<div class="mrow ind">K<sub>1</sub> (cover) = '+f2(K1)+' in.'+(pos==='center'?' = ('+f2(t)+'&minus;'+f2(db)+')/2':' (user entry)')+'</div>';
+  det1+='<div class="mrow ind">K<sub>2</sub> (clear spacing) = '+( K2>=999?'&infin; (single bar)':f2(K2)+' in.')+'</div>';
+  det1+='<div class="mrow ind">K<sub>3</sub> = 9d<sub>b</sub> = 9 &times; '+f2(db)+' = '+f2(K3)+' in.</div>';
+  det1+='<div class="mrow ind"><strong>K = min('+f2(K1)+', '+(K2>=999?'&infin;':f2(K2))+', '+f2(K3)+') = <span class="cval">'+f2(K)+' in.</span></strong></div>';
+  det1+='<hr class="csep">';
+  det1+='<div class="mrow">&ell;<sub>d,calc</sub> = <span class="cval">'+f2(ld_raw)+' in.</span>'+(ld_govmin?' &lt; 12 in. min &rarr; use 12 in.':' &gt; 12 in. min &#10003;')+'</div>';
+  det1+='<div class="mrow"><strong>&ell;<sub>d</sub> = max('+f2(ld_raw)+', 12.0) = <span class="cval">'+f2(ld)+' in.</span></strong></div>';
+  det1+='</div>';
+
+  chks.push({
+    n:'Development Length &ell;<sub>d</sub>',
+    r:'TMS 402-22 &sect;6.1.6.3.1 Eq. 6-2',
+    computed:f2(ld_raw)+' in.',
+    min:'12.0 in.',
+    pass: ld >= ld_min,
+    nt:'K = '+f2(K)+' in. ('+Klabels[Kgov_idx]+')',
+    det:det1
+  });
+
+  // Check 2: Lap splice length
+  var det2='';
+  det2+='<div class="cref-hdr">TMS 402-22 &sect;6.1.7.1.2 &mdash; Class A Lap Splice in Tension</div>';
+  det2+='<div class="cbox">';
+  det2+='<div class="mrow">Per TMS 402-22 &sect;6.1.7.1.2, the lap splice length for a Class A splice equals the development length:</div>';
+  det2+='<div class="mrow ind">l<sub>splice</sub> = &ell;<sub>d</sub> &ge; 12 in. <span class="ceq">(Eq. 6-2 governs)</span></div>';
+  det2+='<div class="mrow"><strong>l<sub>splice</sub> = <span class="cval">'+f2(ld)+' in.</span>'+(ld_govmin?' (minimum 12 in. controls)':'')+'</strong></div>';
+  det2+='<hr class="csep">';
+  det2+='<div class="mrow">Practical (rounded up to &frac14; in.): <span class="cval">'+f2(ld_prac)+' in. = '+Math.floor(ld_prac)+' in. '+((ld_prac%1!==0)?'+ '+Math.round((ld_prac%1)*4)+'/4 in.':'')+'</span></div>';
+  det2+='</div>';
+
+  chks.push({
+    n:'Lap Splice Length l<sub>splice</sub>',
+    r:'TMS 402-22 &sect;6.1.7.1.2.1',
+    computed:f2(ld)+' in.',
+    min:'12.0 in.',
+    pass: ld >= 12.0,
+    nt:'Class A splice = &ell;<sub>d</sub>; practical = '+f2(ld_prac)+' in.',
+    det:det2
+  });
+
+  // ── render checks ─────────────────────────────────────────────────────────
+  var allPass = chks.every(function(c){return c.pass;});
+  var tb = document.getElementById('chk_body');
+  tb.innerHTML='';
+  chks.forEach(function(ck,i){
+    var status = ck.pass?'<span class="pass">OK</span>':'<span class="fail">FAIL</span>';
+    var tr1=document.createElement('tr');
+    tr1.innerHTML='<td><strong>'+ck.n+'</strong><br><span style="font-size:.78em;color:#555">'+ck.nt+'</span></td>'
+      +'<td style="font-size:.8em">'+ck.r+'</td>'
+      +'<td>'+ck.computed+'</td>'
+      +'<td>'+ck.min+'</td>'
+      +'<td>'+status+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>';
+    tb.appendChild(tr1);
+    var tr2=document.createElement('tr');
+    tr2.className='det-row';
+    tr2.innerHTML='<td colspan="6"><div class="calc-det" id="det_'+i+'">'+ck.det+'</div></td>';
+    tb.appendChild(tr2);
+  });
+
+  // ── summary ───────────────────────────────────────────────────────────────
+  var sm = document.getElementById('summary');
+  sm.className='summary sum-pass';
+  sm.innerHTML='<h3>&#10003; #'+size+' Bar — Required Development / Splice Length: '+f2(ld_prac)+' in.'+(ld_prac!==ld?' ('+f2(ld)+' in. raw, rounded up)':'')+'</h3>'
+    +'<div>K = '+f2(K)+' in. ('+Klabels[Kgov_idx]+') &nbsp;|&nbsp; '
+    +'ℓ<sub>d</sub> from Eq. 6-2 = '+f2(ld_raw)+' in. &nbsp;|&nbsp; '
+    +'Required = max('+f2(ld_raw)+', 12.0) = '+f2(ld)+' in.'+(ld_govmin?' &larr; minimum governs':'')
+    +'</div>';
+
+  // ── notes ─────────────────────────────────────────────────────────────────
+  var nb = document.getElementById('notes_box');
+  nb.innerHTML='<strong>Engineering Notes:</strong><ul>'
+    +'<li>Development length per TMS 402-22 Eq. 6-2 applies to deformed bars in tension. For compression development, see TMS 402-22 §6.1.6.4 (different formula).</li>'
+    +'<li>K is limited to a maximum of 9d<sub>b</sub> regardless of actual cover or spacing.</li>'
+    +'<li>For bars #6 and larger (&gamma; = 1.3 or 1.5), the longer splice lengths often require two or more CMU courses. Verify that field conditions accommodate the computed length.</li>'
+    +'<li>For foundation dowels, the splice begins at the top of the foundation or above the flashing/bond-break plane. Ensure the dowel is embedded into the foundation for the same computed lap length (or per separate footing anchorage check).</li>'
+    +'<li>Standard hooks may reduce the required development length per TMS 402-22 §6.1.6.3.2. Hooked bar development is not computed here.</li>'
+    +'<li>Minimum lap splice for TMS 402-22 §6.1.7.1.2.1: 12 in. or ℓ<sub>d</sub>, whichever is greater. This calculator uses max(ℓ<sub>d,Eq.6-2</sub>, 12 in.).</li>'
+    +'</ul>';
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// initialize
+onBarChange();
+</script>
+
+</body>
+</html>
