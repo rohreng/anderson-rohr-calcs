@@ -174,6 +174,13 @@ select.ti{cursor:pointer;padding:2px 1px}
             <button class="btn-add-floor" onclick="addFloor()">+ Add Floor</button>
           </div>
         </div>
+        <div class="ig">
+          <label>Project File</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
+            <button class="btn-add-floor" style="background:#1d4ed8" onclick="exportProject()" title="Download current inputs as a .json file">&#8659; Save to File</button>
+            <label class="btn-add-floor" style="background:#065f46;cursor:pointer;margin:0" title="Load a previously saved .json file">&#8657; Load File<input type="file" accept=".json" style="display:none" onchange="importProject(event)"></label>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -210,9 +217,20 @@ select.ti{cursor:pointer;padding:2px 1px}
       <tr><td class="tdl">HDUE17-SDS4.5</td><td>17,685</td><td>28 @ &#188;"&times;4&#189;"</td><td>1"</td><td>5&#189;" (6&times;6 for max)</td><td>Solid Al washer at base</td><td>HD12/HD19</td></tr>
     </tbody>
   </table>
-  <div style="margin-top:10px;font-size:.78em;color:#666">
-    <strong>Strap Alternatives (low uplift):</strong>
-    CMSTC16 T<sub>all</sub>=4,585 lb &nbsp;|&nbsp; CMST14 T<sub>all</sub>=6,490 lb &nbsp;|&nbsp; CMST12 T<sub>all</sub>=9,215 lb
+  <div style="margin-top:14px">
+    <strong style="font-size:.85em">Coil Strap Alternatives (upper floors only — cannot connect to foundation)</strong>
+    <table class="ref-tbl" style="margin-top:6px">
+      <thead><tr>
+        <th class="thl">Model</th><th>T<sub>all</sub> (lb)<br>ASD, steel governs</th>
+        <th>Fasteners (each side)</th><th>Width</th><th>Gage</th><th>Source</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tdl">CMSTC16</td><td>4,690</td><td>50 &ndash; 16d sinker</td><td>3"</td><td>16</td><td>ESR-2105 Table 4</td></tr>
+        <tr><td class="tdl">CMST14</td><td>6,475</td><td>56 &ndash; 16d&times;2&#189;" common</td><td>3"</td><td>14</td><td>ESR-2105 Table 4</td></tr>
+        <tr class="hl-row"><td class="tdl">CMST12</td><td>9,215</td><td>74 &ndash; 16d&times;2&#189;" common</td><td>3"</td><td>12</td><td>ESR-2105 Table 4</td></tr>
+      </tbody>
+    </table>
+    <div class="note-box" style="margin-top:8px;font-size:.78em">Steel strength governs (ASD, no C<sub>D</sub> bonus). Min. member specific gravity = 0.50. Half of fasteners each side of connection. Straps are floor-to-floor only; HDUE required at 1st floor (foundation connection).</div>
   </div>
 </div>
 
@@ -287,9 +305,9 @@ var HOLDOWNS = [
   {name:'HDUE17-SDS4.5',Tall:17685, post:'5\u00bd" (6\u00d76 for max load)', SDS:'28 @ \u00bc"\u00d74\u00bd"', anchor:'1"', note:''}
 ];
 var STRAPS = [
-  {name:'CMSTC16', Tall:4585},
-  {name:'CMST14',  Tall:6490},
-  {name:'CMST12',  Tall:9215}
+  {name:'CMSTC16', Tall:4690, nails:'50\u201316d sinker per side',          esr:'ESR-2105'},
+  {name:'CMST14',  Tall:6475, nails:'56\u201316d\u00d72\u00bd common per side', esr:'ESR-2105'},
+  {name:'CMST12',  Tall:9215, nails:'74\u201316d\u00d72\u00bd common per side', esr:'ESR-2105'}
 ];
 var SHEATHING = [
   {id:'gyp58_1_7',    desc:'5/8" Gyp. Bd. 1-side',  nail:'6d @ 7"',   Vall:145},
@@ -402,13 +420,13 @@ function getSheathingObj(id){
 var fCnt=4, wCnt=1;
 var floors=[
   {id:1,name:'4th Floor',h:8.0,V_floor:2783,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:2,name:'3rd Floor',h:9.5,V_floor:1661,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:3,name:'2nd Floor',h:9.5,V_floor:1738,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:4,name:'1st Floor',h:10.5,V_floor:1921,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',sill_spacing:20,exp:true}]}
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',sill_spacing:20,holdown_type:'hdue',exp:true}]}
 ];
 
 // ─── Floor / Wall Management ──────────────────────────────────────────────────
@@ -418,7 +436,7 @@ function addFloor(){
   var newWalls=prev.walls.map(function(w){
     return {id:w.id,label:w.label,L:w.L,Li:w.Li,ho:w.ho,DL_psf:0,trib_DL:w.trib_DL,
             sheathing:w.sheathing,end_post:w.end_post,sill_conn:w.sill_conn||'sds14',
-            sill_spacing:w.sill_spacing||12,exp:true};
+            sill_spacing:w.sill_spacing||12,holdown_type:w.holdown_type||'hdue',exp:true};
   });
   floors.push({id:fCnt,name:'Floor '+fCnt,h:10.0,V_floor:0,walls:newWalls});
   render();
@@ -435,7 +453,8 @@ function addWall(fi){
   floors[fi].walls.push({id:newId,label:'Wall Line '+String.fromCharCode(65+floors[fi].walls.length),
     L:ref?ref.L:100,Li:ref?ref.Li:70,ho:ref?ref.ho:0,DL_psf:0,trib_DL:0,
     sheathing:'osb716_1_6',end_post:'(2) 2x6',
-    sill_conn:ref?ref.sill_conn:'sds14',sill_spacing:ref?ref.sill_spacing:12,exp:true});
+    sill_conn:ref?ref.sill_conn:'sds14',sill_spacing:ref?ref.sill_spacing:12,
+    holdown_type:ref?ref.holdown_type:'hdue',exp:true});
   render();
 }
 function delWall(fi,wi){
@@ -453,7 +472,7 @@ function updFloor(fi,fld,val){
   }
 }
 function updWall(fi,wi,fld,val){
-  var sf={label:1,sheathing:1,end_post:1,sill_conn:1};
+  var sf={label:1,sheathing:1,end_post:1,sill_conn:1,holdown_type:1};
   floors[fi].walls[wi][fld]=sf[fld]?val:(parseFloat(val)||0);
   // When connector type changes, auto-reset spacing to that connector's default
   if(fld==='sill_conn'){
@@ -485,12 +504,23 @@ function checkWall(fi, wi){
   var sh_dc=sh.Vall>0?v_total/sh.Vall:999;
   var sh_pass=sh_dc<=1.0;
 
-  // Holdown
-  var hd=selectHoldown(T);
-  var hd_Tall=hd?hd.Tall:Infinity;
-  var hd_dc=hd_Tall>0?T/hd_Tall:999;
-  var hd_pass=hd&&hd_dc<=1.0;
-  var strap=selectStrap(T);
+  // Holdown — user selects type per wall; 1st floor forces HDUE (strap can't attach to foundation)
+  var is1stFloor=(fi===floors.length-1);
+  var hdType=is1stFloor?'hdue':(wall.holdown_type||'hdue');
+  var hd=selectHoldown(T);         // always compute for alt display
+  var strap=selectStrap(T);        // always compute for alt display
+  var hd_Tall, hd_dc, hd_pass, hd_esr;
+  if(hdType==='strap'){
+    hd_Tall=strap?strap.Tall:0;
+    hd_dc=hd_Tall>0?T/hd_Tall:999;
+    hd_pass=strap&&hd_dc<=1.0;
+    hd_esr='ESR-2105';
+  } else {
+    hd_Tall=hd?hd.Tall:0;
+    hd_dc=hd_Tall>0?T/hd_Tall:999;
+    hd_pass=hd&&hd_dc<=1.0;
+    hd_esr='ESR-2330';
+  }
 
   // Sill connection — user-selected per wall, capacity computed from Vconn ÷ spacing
   var sill_id=wall.sill_conn||'sds14';
@@ -580,17 +610,33 @@ function checkWall(fi, wi){
   detHtml+='<div class="mrow">Denominator = \u03a3L<sub>i</sub> \u00d7 C<sub>o</sub> = '+f1(wall.Li)+' \u00d7 '+f3(Co)+' = <span class="cval">'+f1(d.denom)+' ft</span></div>';
   detHtml+='<div class="mrow">T = '+fr(f0(d.OTM_num)+' lb\u00b7ft',f1(d.denom)+' ft')+' = <span class="cval">'+f0(T)+' lb</span></div>';
   detHtml+='<hr class="csep">';
-  if(hd){
-    detHtml+='<div class="mrow">Selected: <strong>'+hd.name+'</strong> (ESR-2330, T<sub>all</sub>='+f0(hd.Tall)+' lb)</div>';
-    detHtml+='<div class="mrow">D/C = '+fr(f0(T)+' lb',f0(hd_Tall)+' lb')+' = <span class="cval">'+f2(hd_dc)+'</span></div>';
+  if(hdType==='strap'){
+    if(strap){
+      detHtml+='<div class="mrow">Type: <strong>Coil Strap</strong></div>';
+      detHtml+='<div class="mrow">Selected: <strong>'+strap.name+'</strong> ('+strap.esr+', T<sub>all</sub>='+f0(strap.Tall)+' lb)</div>';
+      detHtml+='<div class="mrow">Fasteners: '+strap.nails+'</div>';
+      detHtml+='<div class="mrow">D/C = '+fr(f0(T)+' lb',f0(strap.Tall)+' lb')+' = <span class="cval">'+f2(hd_dc)+'</span></div>';
+      if(hd){detHtml+='<div class="mrow ind"><em>Alt HDUE: '+hd.name+' T<sub>all</sub>='+f0(hd.Tall)+' lb (ESR-2330)</em></div>';}
+    } else {
+      detHtml+='<div class="mrow fail">Uplift T='+f0(T)+' lb EXCEEDS CMST12 ('+f0(STRAPS[STRAPS.length-1].Tall)+' lb). Use HDUE holdown or upgrade post.</div>';
+    }
   } else {
-    detHtml+='<div class="mrow fail">Uplift T='+f0(T)+' lb EXCEEDS HDUE17 ('+f0(HOLDOWNS[HOLDOWNS.length-1].Tall)+' lb). Use bolted holdown or multiple units.</div>';
+    if(hd){
+      detHtml+='<div class="mrow">Type: <strong>HDUE Holdown</strong></div>';
+      detHtml+='<div class="mrow">Selected: <strong>'+hd.name+'</strong> (ESR-2330, T<sub>all</sub>='+f0(hd.Tall)+' lb)</div>';
+      detHtml+='<div class="mrow">SDS: '+hd.SDS+' &nbsp;| Anchor: '+hd.anchor+' dia. rod'+(hd.note?' &nbsp;<em>'+hd.note+'</em>':'')+'</div>';
+      detHtml+='<div class="mrow">D/C = '+fr(f0(T)+' lb',f0(hd.Tall)+' lb')+' = <span class="cval">'+f2(hd_dc)+'</span></div>';
+      if(!is1stFloor&&strap&&strap.Tall>=T&&T>0){detHtml+='<div class="mrow ind"><em>Alt Strap: '+strap.name+' T<sub>all</sub>='+f0(strap.Tall)+' lb ('+strap.esr+')</em></div>';}
+    } else {
+      detHtml+='<div class="mrow fail">Uplift T='+f0(T)+' lb EXCEEDS HDUE17 ('+f0(HOLDOWNS[HOLDOWNS.length-1].Tall)+' lb). Use bolted holdown or multiple units.</div>';
+    }
   }
   detHtml+='</div>';
+  var hdLabel=hdType==='strap'?(strap?strap.name+' T<sub>all</sub>='+f0(hd_Tall)+' lb':'EXCEEDS CMST12'):(hd?hd.name+' T<sub>all</sub>='+f0(hd_Tall)+' lb':'EXCEEDS HDUE17');
   html+='<tr class="'+(hd_pass?'row-pass':'')+'"><td>Hold-Down (Uplift T)</td>'
-      +'<td>SDPWS 2021 \u00a74.3.6.1<br>ESR-2330</td>'
+      +'<td>SDPWS 2021 \u00a74.3.6.1<br>'+hd_esr+'</td>'
       +'<td>T = '+f0(T)+' lb</td>'
-      +'<td>'+(hd?hd.name+' T<sub>all</sub>='+f0(hd_Tall)+' lb':'EXCEEDS HDUE17')+'</td>'
+      +'<td>'+hdLabel+'</td>'
       +'<td>'+dcBar(hd_dc,hd_pass)+'</td>'
       +'<td><button class="det-btn" id="b_'+detId+'" onclick="toggleDet(\''+detId+'\')">\u25b6 Calc</button></td>'
       +'</tr>';
@@ -642,17 +688,29 @@ function checkWall(fi, wi){
   html+='<div class="conn-box">';
   // Holdown
   html+='<div class="conn-row"><span class="conn-lbl">HOLDOWN:</span>';
-  if(hd){
-    html+='<span class="conn-val">'+hd.name+'</span>'
-        +' &mdash; T<sub>all</sub>='+f0(hd.Tall)+' lb (ESR-2330)'
-        +(hd.note?' &nbsp;<em style="color:#92400e;font-size:.88em">'+hd.note+'</em>':'')
-        +'<span class="conn-'+(hd_pass?'ok':'fail')+'"> '+(hd_pass?'\u2714':'\u2718 FAIL')+'</span>'
-        +' &nbsp;| SDS: '+hd.SDS+' | Anchor: '+hd.anchor+' dia. rod';
-    if(strap&&strap.Tall>=T&&T>0){
-      html+=' &nbsp;<em style="color:#065f46;font-size:.85em">(Alt: '+strap.name+' strap T<sub>all</sub>='+f0(strap.Tall)+' lb)</em>';
+  if(hdType==='strap'){
+    if(strap){
+      html+='<span class="conn-val">'+strap.name+' (Coil Strap)</span>'
+          +' &mdash; T<sub>all</sub>='+f0(strap.Tall)+' lb ('+strap.esr+')'
+          +'<span class="conn-'+(hd_pass?'ok':'fail')+'"> '+(hd_pass?'\u2714':'\u2718 FAIL')+'</span>'
+          +' &nbsp;| Nails: '+strap.nails;
+      if(hd){html+=' &nbsp;<em style="color:#065f46;font-size:.85em">(Alt HDUE: '+hd.name+' T<sub>all</sub>='+f0(hd.Tall)+' lb)</em>';}
+    } else {
+      html+='<span class="conn-fail">\u2718 Exceeds CMST12 ('+f0(STRAPS[STRAPS.length-1].Tall)+' lb) — use HDUE holdown</span>';
     }
   } else {
-    html+='<span class="conn-fail">\u2718 Exceeds HDUE17 — use HD19 bolted holdown or multiple units</span>';
+    if(hd){
+      html+='<span class="conn-val">'+hd.name+'</span>'
+          +' &mdash; T<sub>all</sub>='+f0(hd.Tall)+' lb (ESR-2330)'
+          +(hd.note?' &nbsp;<em style="color:#92400e;font-size:.88em">'+hd.note+'</em>':'')
+          +'<span class="conn-'+(hd_pass?'ok':'fail')+'"> '+(hd_pass?'\u2714':'\u2718 FAIL')+'</span>'
+          +' &nbsp;| SDS: '+hd.SDS+' | Anchor: '+hd.anchor+' dia. rod';
+      if(!is1stFloor&&strap&&strap.Tall>=T&&T>0){
+        html+=' &nbsp;<em style="color:#065f46;font-size:.85em">(Alt Strap: '+strap.name+' T<sub>all</sub>='+f0(strap.Tall)+' lb)</em>';
+      }
+    } else {
+      html+='<span class="conn-fail">\u2718 Exceeds HDUE17 — use HD19 bolted holdown or multiple units</span>';
+    }
   }
   html+='</div>';
   // Sheathing
@@ -721,6 +779,7 @@ function render(){
     out+='<th style="width:90px">End Post</th>';
     out+='<th class="th-sh" style="width:140px">Sill Connection</th>';
     out+='<th class="th-sh" style="width:72px">Spacing (in)</th>';
+    out+='<th style="width:80px">Holdown Type</th>';
     out+='<th class="th-chk" style="width:72px">Check</th>';
     out+='<th style="width:28px"></th>';
     out+='</tr></thead><tbody>';
@@ -756,11 +815,22 @@ function render(){
         SP_OPTS+='<option value="'+sp+'"'+(sp===curSpacing?' selected':'')+'>'+sp+'"</option>';
       }
       out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sill_spacing\',this.value)">'+SP_OPTS+'</select></td>';
+      // Holdown type dropdown — HDUE-only at 1st floor
+      var isLast=(fi===floors.length-1);
+      if(isLast){
+        out+='<td style="text-align:center;font-size:.75em;color:#6b7280">HDUE only</td>';
+      } else {
+        var curHdType=w.holdown_type||'hdue';
+        out+='<td><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'holdown_type\',this.value)">'
+            +'<option value="hdue"'+(curHdType==='hdue'?' selected':'')+'>HDUE</option>'
+            +'<option value="strap"'+(curHdType==='strap'?' selected':'')+'>Strap</option>'
+            +'</select></td>';
+      }
       out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkWall('+fi+','+wi+')">\u25b6 Check</button></td>';
       out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">\u2715</button></td>';
       out+='</tr>';
       // Results row
-      out+='<tr><td colspan="12" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="13" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table>';
     out+='<div style="margin-top:7px">';
@@ -771,6 +841,59 @@ function render(){
   }
 
   con.innerHTML=out;
+}
+
+// ─── Project Save / Load ──────────────────────────────────────────────────────
+function exportProject(){
+  var species=document.getElementById('species');
+  var designCase=document.getElementById('designCase');
+  var wallWidth=document.getElementById('wallWidth');
+  var state={
+    version:1,
+    saved:new Date().toISOString(),
+    species:species?species.value:'DFL',
+    designCase:designCase?designCase.value:'wind',
+    wallWidth:wallWidth?wallWidth.value:'2x6',
+    floors:floors
+  };
+  var blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  // default filename uses first floor name
+  var proj=(floors&&floors[0]&&floors[0].name?floors[0].name:'shearwall').replace(/[^a-z0-9_-]/gi,'_').toLowerCase();
+  a.download='SW_'+proj+'_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importProject(evt){
+  var file=evt.target.files&&evt.target.files[0];
+  if(!file){return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var state=JSON.parse(e.target.result);
+      if(!state.floors||!Array.isArray(state.floors)||state.floors.length===0){
+        alert('Invalid project file — no floor data found.');return;
+      }
+      floors=state.floors;
+      fCnt=floors.length;
+      wCnt=0;
+      for(var i=0;i<floors.length;i++){
+        for(var j=0;j<floors[i].walls.length;j++){wCnt++;}
+      }
+      // Restore global selects if present
+      if(state.species){var el=document.getElementById('species');if(el)el.value=state.species;}
+      if(state.designCase){var el=document.getElementById('designCase');if(el)el.value=state.designCase;}
+      if(state.wallWidth){var el=document.getElementById('wallWidth');if(el)el.value=state.wallWidth;}
+      render();
+      // brief flash to confirm
+      var btn=evt.target.closest('label');
+      if(btn){var orig=btn.style.background;btn.style.background='#16a34a';setTimeout(function(){btn.style.background='#065f46';},900);}
+    } catch(err){alert('Could not read file: '+err.message);}
+    evt.target.value=''; // reset so same file can be re-loaded
+  };
+  reader.readAsText(file);
 }
 
 window.onload=function(){render();};
