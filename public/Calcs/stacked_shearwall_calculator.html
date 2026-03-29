@@ -247,15 +247,15 @@ select.ti{cursor:pointer;padding:2px 1px}
   <h2>&#128206; Sill Plate &amp; Connector Reference</h2>
   <table class="ref-tbl">
     <thead><tr>
-      <th class="thl">Connector</th><th>V<sub>all</sub> (plf)</th><th>Notes</th>
+      <th class="thl">Connector</th><th>V<sub>conn</sub> (lb)</th><th>Default Spacing</th><th>V<sub>all</sub> at default (plf)</th><th>Notes</th>
     </tr></thead>
     <tbody>
-      <tr><td class="tdl">LTP4 Lateral Tie Plate (Roof condition)</td><td>450</td><td>@ typical spacing</td></tr>
-      <tr><td class="tdl">LTP4 Lateral Tie Plate (Floor condition)</td><td>500</td><td>@ typical spacing</td></tr>
-      <tr><td class="tdl">SDS &#188;"&times;4&#189;" Screws</td><td>304</td><td>Sill to rim board</td></tr>
-      <tr><td class="tdl">16d Nails</td><td>120</td><td>Sill to rim board, 16" o.c. studs</td></tr>
-      <tr><td class="tdl">&#189;" Anchor Bolt (A36)</td><td>1,088</td><td>Sill to concrete/foundation</td></tr>
-      <tr class="hl-row"><td class="tdl">&#215;8" Anchor Bolt (A36)</td><td>1,552</td><td>Sill to concrete/foundation</td></tr>
+      <tr><td class="tdl">LTP4 Lateral Tie Plate (Roof condition)</td><td>600</td><td>16" o.c.</td><td>450</td><td>Sill to rim board / top plate</td></tr>
+      <tr><td class="tdl">LTP4 Lateral Tie Plate (Floor condition)</td><td>667</td><td>16" o.c.</td><td>500</td><td>Sill to rim board / top plate</td></tr>
+      <tr><td class="tdl">SDS &#188;"&times;4&#189;" Screws</td><td>304</td><td>12" o.c.</td><td>304</td><td>Sill to rim board</td></tr>
+      <tr><td class="tdl">16d Nails</td><td>160</td><td>16" o.c.</td><td>120</td><td>Sill to rim board (toe-nail)</td></tr>
+      <tr><td class="tdl">&#189;" Anchor Bolt (A36)</td><td>1,813</td><td>20" o.c.</td><td>1,088</td><td>Sill to concrete/foundation</td></tr>
+      <tr class="hl-row"><td class="tdl">&#x215D;" Anchor Bolt (A36)</td><td>2,587</td><td>20" o.c.</td><td>1,552</td><td>Sill to concrete/foundation</td></tr>
     </tbody>
   </table>
   <div class="note-box" style="margin-top:12px">
@@ -309,13 +309,15 @@ var SHEATHING = [
   {id:'osb1532_2_3',  desc:'15/32" OSB 2-side',      nail:'10d @ 3"',  Vall:1680}
 ];
 var SILL_CONN = [
-  {id:'ltp4_roof',  desc:'LTP4 Tie Plate (Roof)',        Vall:450},
-  {id:'ltp4_floor', desc:'LTP4 Tie Plate (Floor)',       Vall:500},
-  {id:'16d',        desc:'16d Nails @ 16" o.c.',         Vall:120},
-  {id:'sds14',      desc:'SDS \u00bc"\u00d74\u00bd" Screws', Vall:304},
-  {id:'ab12',       desc:'\u00bd" Anchor Bolt',          Vall:1088},
-  {id:'ab58',       desc:'\u215d" Anchor Bolt',          Vall:1552}
+  {id:'ltp4_roof',  desc:'LTP4 Tie Plate (Roof)',        Vconn:600,  defaultSpacing:16},
+  {id:'ltp4_floor', desc:'LTP4 Tie Plate (Floor)',       Vconn:667,  defaultSpacing:16},
+  {id:'16d',        desc:'16d Nails',                    Vconn:160,  defaultSpacing:16},
+  {id:'sds14',      desc:'SDS \u00bc"\u00d74\u00bd" Screws', Vconn:304, defaultSpacing:12},
+  {id:'ab12',       desc:'\u00bd" Anchor Bolt',          Vconn:1813, defaultSpacing:20},
+  {id:'ab58',       desc:'\u215d" Anchor Bolt',          Vconn:2587, defaultSpacing:20}
 ];
+// Helper: compute Vall (plf) for a SILL_CONN entry at a given spacing (inches)
+function sillVall(obj, spacingIn){ return obj.Vconn / (spacingIn / 12); }
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 var _dc = 0;
@@ -400,13 +402,13 @@ function getSheathingObj(id){
 var fCnt=4, wCnt=1;
 var floors=[
   {id:1,name:'4th Floor',h:8.0,V_floor:2783,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
   {id:2,name:'3rd Floor',h:9.5,V_floor:1661,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
   {id:3,name:'2nd Floor',h:9.5,V_floor:1738,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,exp:true}]},
   {id:4,name:'1st Floor',h:10.5,V_floor:1921,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',exp:true}]}
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',sill_spacing:20,exp:true}]}
 ];
 
 // ─── Floor / Wall Management ──────────────────────────────────────────────────
@@ -415,7 +417,8 @@ function addFloor(){
   var prev=floors[floors.length-1];
   var newWalls=prev.walls.map(function(w){
     return {id:w.id,label:w.label,L:w.L,Li:w.Li,ho:w.ho,DL_psf:0,trib_DL:w.trib_DL,
-            sheathing:w.sheathing,end_post:w.end_post,sill_conn:w.sill_conn||'sds14',exp:true};
+            sheathing:w.sheathing,end_post:w.end_post,sill_conn:w.sill_conn||'sds14',
+            sill_spacing:w.sill_spacing||12,exp:true};
   });
   floors.push({id:fCnt,name:'Floor '+fCnt,h:10.0,V_floor:0,walls:newWalls});
   render();
@@ -431,7 +434,8 @@ function addWall(fi){
   var ref=floors[fi].walls[0];
   floors[fi].walls.push({id:newId,label:'Wall Line '+String.fromCharCode(65+floors[fi].walls.length),
     L:ref?ref.L:100,Li:ref?ref.Li:70,ho:ref?ref.ho:0,DL_psf:0,trib_DL:0,
-    sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:ref?ref.sill_conn:'sds14',exp:true});
+    sheathing:'osb716_1_6',end_post:'(2) 2x6',
+    sill_conn:ref?ref.sill_conn:'sds14',sill_spacing:ref?ref.sill_spacing:12,exp:true});
   render();
 }
 function delWall(fi,wi){
@@ -451,6 +455,16 @@ function updFloor(fi,fld,val){
 function updWall(fi,wi,fld,val){
   var sf={label:1,sheathing:1,end_post:1,sill_conn:1};
   floors[fi].walls[wi][fld]=sf[fld]?val:(parseFloat(val)||0);
+  // When connector type changes, auto-reset spacing to that connector's default
+  if(fld==='sill_conn'){
+    for(var i=0;i<SILL_CONN.length;i++){
+      if(SILL_CONN[i].id===val){
+        floors[fi].walls[wi].sill_spacing=SILL_CONN[i].defaultSpacing;
+        break;
+      }
+    }
+    render(); return;
+  }
   var el=document.getElementById('wres_'+fi+'_'+wi);
   if(el){el.style.display='none';}
 }
@@ -478,12 +492,13 @@ function checkWall(fi, wi){
   var hd_pass=hd&&hd_dc<=1.0;
   var strap=selectStrap(T);
 
-  // Sill connection — user-selected per wall
+  // Sill connection — user-selected per wall, capacity computed from Vconn ÷ spacing
   var sill_id=wall.sill_conn||'sds14';
   var sill_obj=null;
   for(var si=0;si<SILL_CONN.length;si++){if(SILL_CONN[si].id===sill_id){sill_obj=SILL_CONN[si];break;}}
-  if(!sill_obj)sill_obj=SILL_CONN[2]; // fallback to SDS screws
-  var sill_Vall=sill_obj.Vall;
+  if(!sill_obj)sill_obj=SILL_CONN[3]; // fallback to SDS screws
+  var sill_spacing=wall.sill_spacing||sill_obj.defaultSpacing;
+  var sill_Vall=sillVall(sill_obj, sill_spacing);
   var sill_desc=sill_obj.desc;
   var sill_dc=sill_Vall>0?v_total/sill_Vall:999;
   var sill_pass=sill_dc<=1.0;
@@ -586,10 +601,12 @@ function checkWall(fi, wi){
   detHtml='<div class="cbox">';
   detHtml+='<div class="cref-hdr">SDPWS 2021 \u00a74.3.6.4 \u2014 Sill Plate Connection</div>';
   detHtml+='<div class="mrow">v<sub>total</sub> = <span class="cval">'+f1(v_total)+' plf</span></div>';
-  detHtml+='<div class="mrow">Connector: '+sill_desc+', V<sub>allow</sub> = <span class="cval">'+f0(sill_Vall)+' plf</span></div>';
+  detHtml+='<div class="mrow">Connector: '+sill_desc+'</div>';
+  detHtml+='<div class="mrow">V<sub>conn</sub> = '+f0(sill_obj.Vconn)+' lb/connector &nbsp;|&nbsp; Spacing = '+sill_spacing+'" o.c.</div>';
+  detHtml+='<div class="mrow">V<sub>allow</sub> = V<sub>conn</sub> / (s / 12) = '+f0(sill_obj.Vconn)+' / ('+sill_spacing+'/12) = <span class="cval">'+f0(sill_Vall)+' plf</span></div>';
   detHtml+='<div class="mrow">D/C = '+fr(f1(v_total)+' plf',f0(sill_Vall)+' plf')+' = <span class="cval">'+f2(sill_dc)+'</span></div>';
   if(sill_dc>1.0){
-    detHtml+='<div class="mrow fail">FAIL \u2014 Increase anchor bolt size / reduce spacing</div>';
+    detHtml+='<div class="mrow fail">FAIL \u2014 Reduce connector spacing or upgrade connector</div>';
   }
   detHtml+='</div>';
   html+='<tr class="'+(sill_pass?'row-pass':'')+'"><td>Sill Connection</td>'
@@ -649,7 +666,7 @@ function checkWall(fi, wi){
       +'<span class="conn-val">'+xe(wall.end_post)+'</span></div>';
   // Sill
   html+='<div class="conn-row"><span class="conn-lbl">SILL CONN:</span>'
-      +'<span class="conn-val">'+sill_desc+'</span>'
+      +'<span class="conn-val">'+sill_desc+' @ '+sill_spacing+'" o.c.</span>'
       +' &mdash; V<sub>all</sub>='+f0(sill_Vall)+' plf'
       +'<span class="conn-'+(sill_pass?'ok':'fail')+'"> '+(sill_pass?'\u2714':'\u2718 FAIL')+'</span>'
       +'</div>';
@@ -703,6 +720,7 @@ function render(){
     out+='<th class="th-chk" style="width:180px">Sheathing (Trial)</th>';
     out+='<th style="width:90px">End Post</th>';
     out+='<th class="th-sh" style="width:140px">Sill Connection</th>';
+    out+='<th class="th-sh" style="width:72px">Spacing (in)</th>';
     out+='<th class="th-chk" style="width:72px">Check</th>';
     out+='<th style="width:28px"></th>';
     out+='</tr></thead><tbody>';
@@ -726,14 +744,23 @@ function render(){
       // Sill connection dropdown
       var SC_OPTS='';
       for(var sci=0;sci<SILL_CONN.length;sci++){
-        SC_OPTS+='<option value="'+SILL_CONN[sci].id+'"'+(SILL_CONN[sci].id===(w.sill_conn||'sds14')?' selected':'')+'>'+SILL_CONN[sci].desc+' ('+SILL_CONN[sci].Vall+' plf)</option>';
+        var _sc=SILL_CONN[sci];
+        SC_OPTS+='<option value="'+_sc.id+'"'+(_sc.id===(w.sill_conn||'sds14')?' selected':'')+'>'+_sc.desc+' ('+_sc.Vconn+' lb)</option>';
       }
       out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sill_conn\',this.value)">'+SC_OPTS+'</select></td>';
+      // Spacing dropdown (4" to 48" in 2" increments)
+      var _scObj=null; for(var _si=0;_si<SILL_CONN.length;_si++){if(SILL_CONN[_si].id===(w.sill_conn||'sds14')){_scObj=SILL_CONN[_si];break;}} if(!_scObj)_scObj=SILL_CONN[3];
+      var curSpacing=w.sill_spacing||_scObj.defaultSpacing;
+      var SP_OPTS='';
+      for(var sp=4;sp<=48;sp+=2){
+        SP_OPTS+='<option value="'+sp+'"'+(sp===curSpacing?' selected':'')+'>'+sp+'"</option>';
+      }
+      out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sill_spacing\',this.value)">'+SP_OPTS+'</select></td>';
       out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkWall('+fi+','+wi+')">\u25b6 Check</button></td>';
       out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">\u2715</button></td>';
       out+='</tr>';
       // Results row
-      out+='<tr><td colspan="11" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="12" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table>';
     out+='<div style="margin-top:7px">';
