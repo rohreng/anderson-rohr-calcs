@@ -89,6 +89,34 @@ export const CALCS: CalcMeta[] = [
     spec: "SDPWS 2021",
     status: "ready",
   },
+  // ── Masonry ──────────────────────────────────────────────────
+  {
+    slug: "masonry-bearing-uplift",
+    label: "Masonry Bearing & Uplift",
+    subtitle: "Effective bearing area (layouts A/B/C) · bearing stress · headed stud uplift (ASD)",
+    htmlFile: "/Calcs/masonry_bearing_uplift_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 / MDG REK-07/09",
+    status: "ready",
+  },
+  {
+    slug: "masonry-anchor-bolt",
+    label: "Masonry Anchor Bolt (Shear Connection)",
+    subtitle: "Headed bolt SD — tension, shear (all 4 modes) & interaction per Eq. 9-8",
+    htmlFile: "/Calcs/masonry_anchor_bolt_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 SD / MDG REK-08",
+    status: "ready",
+  },
+  {
+    slug: "masonry-lap-length",
+    label: "Masonry Development & Lap Splice",
+    subtitle: "Deformed bar development length & Class A lap splice per Eq. 6-2",
+    htmlFile: "/Calcs/masonry_lap_length_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 / MDG REK-10",
+    status: "ready",
+  },
   // ── Foundations ──────────────────────────────────────────────
   {
     slug: "holdown-footing",
