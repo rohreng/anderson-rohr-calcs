@@ -1,8 +1,10 @@
 import Sidebar from "../components/Sidebar";
+import TermsModal from "../components/TermsModal";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full flex">
+      <TermsModal />
       <Sidebar />
       <div
         className="flex flex-col flex-1 min-h-full"
