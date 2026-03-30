@@ -322,23 +322,58 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <!-- ── Send to Calculator panel ─────────────────────────────────────── -->
   <div id="sendPanel" class="blk alt-blk" style="margin-top:8px">
     <h2 style="border-bottom-color:#16a34a">&#8594; Send Pressures to Another Calculator</h2>
-    <p style="font-size:.88em;color:#374151;margin-bottom:14px">
-      Select a zone to pre-populate the wall wind pressure field in the <strong>Stacked Headers &amp; Studs</strong> calculator.
-      The target calc will open in a new tab with your pressures already filled in.
+    <p style="font-size:.88em;color:#374151;margin-bottom:10px">
+      Select a zone, then open any of the calculators below. Each target will open in a new tab with your pressures pre-filled.
     </p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-      <div class="ig" style="flex:1;min-width:200px">
-        <label>Zone to send</label>
-        <select id="sendZoneSel" style="padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em"></select>
-      </div>
+
+    <!-- Zone selector (shared) -->
+    <div class="ig" style="max-width:420px;margin-bottom:16px">
+      <label>Zone to send</label>
+      <select id="sendZoneSel" onchange="updateMasonForce()" style="padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em"></select>
+    </div>
+
+    <!-- Target 1: Stacked Headers & Studs -->
+    <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-bottom:12px">
+      <div style="font-weight:700;font-size:.95em;margin-bottom:4px">&#x1F4CA; Stacked Headers &amp; Studs</div>
+      <div style="font-size:.82em;color:#374151;margin-bottom:8px">Gov. |p| sent directly as <em>Wind on Openings</em> and <em>Wind on Wall Studs</em> (psf &#8594; psf). Best for wall zones.</div>
       <button onclick="sendToHeaders()"
-        style="background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;padding:10px 22px;border-radius:8px;cursor:pointer;font-size:.95em;font-weight:700;white-space:nowrap">
+        style="background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;padding:8px 20px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">
         &#9654;&nbsp; Open Stacked Headers &amp; Studs
       </button>
     </div>
+
+    <!-- Target 2: Masonry Anchor Bolt -->
+    <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:8px;padding:12px 16px">
+      <div style="font-weight:700;font-size:.95em;margin-bottom:4px">&#x1F9F1; Masonry Anchor Bolt (Shear Connection)</div>
+      <div style="font-size:.82em;color:#374151;margin-bottom:10px">
+        Converts psf &#8594; lbs/bolt using your tributary area. Enter the tributary area per bolt, then choose how to send:
+        <br>&#8226; <strong>Wall zone &#8594; Shear (b<sub>vf</sub>)</strong> — out-of-plane wind parallel to bolt shear direction
+        <br>&#8226; <strong>Roof zone &#8594; Tension (b<sub>af</sub>)</strong> — uplift acting as pull-out on bolt
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+        <div class="ig" style="flex:0 0 170px">
+          <label>Trib. area per bolt (ft&#178;)</label>
+          <input type="number" id="masonTrib" value="8" min="0.5" step="0.5" oninput="updateMasonForce()"
+            style="padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;width:100%"/>
+        </div>
+        <div style="font-size:.88em;padding-bottom:6px">
+          Force per bolt: <strong id="masonForce" style="color:#15803d">—</strong>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="sendToMasonryShear()"
+          style="background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">
+          &#9654;&nbsp; As Shear — Wall Zone (b<sub>vf</sub>)
+        </button>
+        <button onclick="sendToMasonryTension()"
+          style="background:linear-gradient(135deg,#7c3aed,#8b5cf6);color:#fff;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">
+          &#9654;&nbsp; As Tension — Roof Zone (b<sub>af</sub>)
+        </button>
+      </div>
+    </div>
+
     <p style="font-size:.78em;color:#6b7280;margin-top:10px">
-      &#9432;&nbsp; The governing |p| of the selected zone is sent as both <em>Wind on Openings</em> and <em>Wind on Wall Studs</em>.
-      Adjust per your zone layout once the calc opens.
+      &#9432;&nbsp; All pressures sent are governing |p| for the selected zone. Verify zone assignment and tributary area against your project drawings.
     </p>
   </div>
 
@@ -721,17 +756,53 @@ function _populateSendZoneDropdown(){
   });
 }
 
+function _getSendZoneInfo(){
+  var sel = document.getElementById('sendZoneSel');
+  var govP = parseFloat(sel.value);
+  var zoneName = sel.selectedOptions.length ? sel.selectedOptions[0].text.split('\u2014')[0].trim() : '';
+  return {govP: govP, zoneName: zoneName};
+}
+
+function updateMasonForce(){
+  var info = _getSendZoneInfo();
+  var trib = parseFloat(document.getElementById('masonTrib').value);
+  var el = document.getElementById('masonForce');
+  if(!isFinite(info.govP) || info.govP <= 0 || !isFinite(trib) || trib <= 0){
+    el.textContent = '—';
+  } else {
+    var lbs = Math.round(info.govP * trib);
+    el.textContent = lbs + ' lbs  (' + f1(info.govP) + ' psf \u00d7 ' + f1(trib) + ' ft\u00b2)';
+  }
+}
+
 function sendToHeaders(){
-  var govP = parseFloat(document.getElementById('sendZoneSel').value);
-  if(!isFinite(govP) || govP <= 0){ alert('Run the calculation first, then select a zone.'); return; }
-  var psf = Math.round(govP * 10) / 10;
-  // Build URL — works on both the website and local file opens
+  var info = _getSendZoneInfo();
+  if(!isFinite(info.govP) || info.govP <= 0){ alert('Run the calculation first, then select a zone.'); return; }
+  var psf = Math.round(info.govP * 10) / 10;
   var base = location.href.replace(/[^/]*$/, '');
   var url = base + 'stacked_headers_studs_calculator.html'
     + '?windOpen=' + psf + '&windStud=' + psf
-    + '&src=cc-wind&zone=' + encodeURIComponent(document.getElementById('sendZoneSel').selectedOptions[0].text.split('\u2014')[0].trim());
+    + '&src=cc-wind&zone=' + encodeURIComponent(info.zoneName);
   window.open(url, '_blank');
 }
+
+function _sendToMasonry(paramName){
+  var info = _getSendZoneInfo();
+  if(!isFinite(info.govP) || info.govP <= 0){ alert('Run the calculation first, then select a zone.'); return; }
+  var trib = parseFloat(document.getElementById('masonTrib').value);
+  if(!isFinite(trib) || trib <= 0){ alert('Enter a valid tributary area per bolt (ft\u00b2).'); return; }
+  var lbs = Math.round(info.govP * trib);
+  var psf = Math.round(info.govP * 10) / 10;
+  var base = location.href.replace(/[^/]*$/, '');
+  var url = base + 'masonry_anchor_bolt_calculator.html'
+    + '?' + paramName + '=' + lbs
+    + '&psf=' + psf + '&trib=' + f1(trib)
+    + '&src=cc-wind&zone=' + encodeURIComponent(info.zoneName);
+  window.open(url, '_blank');
+}
+
+function sendToMasonryShear(){ _sendToMasonry('bvf'); }
+function sendToMasonryTension(){ _sendToMasonry('baf'); }
 
 // Initialize figure note on load
 updateFigNote();

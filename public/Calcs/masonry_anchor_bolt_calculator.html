@@ -349,6 +349,13 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <span class="hint">Resultant shear = &radic;(V<sub>y</sub>² + V<sub>z</sub>²) for 3-D connections</span>
     </div>
   </div>
+  <!-- C&C Wind source banner (hidden by default) -->
+  <div id="windSrcBanner" style="display:none;margin-top:12px;padding:10px 14px;background:#dcfce7;border:1.5px solid #16a34a;border-radius:8px;font-size:.85em;color:#14532d">
+    <strong>&#10003; Load imported from C&amp;C Wind Calculator</strong> &mdash;
+    <span id="windSrcInfo"></span>
+    &nbsp;&bull;&nbsp; <a id="windSrcLink" href="#" style="color:#15803d;font-weight:600">Open C&amp;C calc &#8594;</a>
+    &nbsp;&bull;&nbsp; <span style="color:#374151">Verify tributary area and load path before running checks.</span>
+  </div>
 </div>
 
 <!-- BLOCK 5: Shear Mode Selection -->
@@ -769,6 +776,40 @@ function runCalc(){
 
 // initialize
 updateBoltCalcs();
+
+// ─── C&C Wind Calculator URL-param handoff ────────────────────────────────────
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  if(p.get('src') !== 'cc-wind') return;
+
+  var bvfVal = parseFloat(p.get('bvf'));
+  var bafVal = parseFloat(p.get('baf'));
+  var psf    = p.get('psf') || '';
+  var trib   = p.get('trib') || '';
+  var zone   = p.get('zone') || '';
+
+  var loadType = '';
+
+  if(isFinite(bvfVal) && bvfVal > 0){
+    document.getElementById('bvf').value = Math.round(bvfVal);
+    loadType = zone + ' wall wind pressure (' + psf + ' psf \u00d7 ' + trib + ' ft\u00b2) \u2192 <strong>Shear b<sub>vf</sub> = ' + Math.round(bvfVal) + ' lb</strong>';
+  }
+  if(isFinite(bafVal) && bafVal > 0){
+    document.getElementById('baf').value = Math.round(bafVal);
+    loadType = zone + ' roof uplift pressure (' + psf + ' psf \u00d7 ' + trib + ' ft\u00b2) \u2192 <strong>Tension b<sub>af</sub> = ' + Math.round(bafVal) + ' lb</strong>';
+  }
+
+  var banner = document.getElementById('windSrcBanner');
+  var info   = document.getElementById('windSrcInfo');
+  var link   = document.getElementById('windSrcLink');
+  if(banner && loadType){
+    info.innerHTML = loadType;
+    // Build back-link to the C&C calc
+    var backUrl = location.href.replace(/[^/]*(\?.*)?$/, 'asce716_cc_wind_calculator.html');
+    link.href = backUrl;
+    banner.style.display = '';
+  }
+})();
 </script>
 
 </body>
