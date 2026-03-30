@@ -14,6 +14,15 @@ export type CalcMeta = {
 export const CALCS: CalcMeta[] = [
   // ── Wind / Loads ─────────────────────────────────────────────
   {
+    slug: "mwfrs-wind",
+    label: "MWFRS Wind Pressure",
+    subtitle: "Main wind-force resisting system — Directional Procedure, all heights, story shears, parapet",
+    htmlFile: "/Calcs/asce716_mwfrs_calculator.html",
+    category: "Wind / Loads",
+    spec: "ASCE 7-16 Ch.27 Pt.1",
+    status: "ready",
+  },
+  {
     slug: "cc-wind",
     label: "C&C Wind Pressure",
     subtitle: "Components & cladding design pressures — all 6 ASCE 7-16 figures, log-linear GCp interpolation",

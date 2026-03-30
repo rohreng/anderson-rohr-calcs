@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>ASCE 7-16 MWFRS Wind — Directional Procedure</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px}
+.container{max-width:960px;margin:0 auto;padding:20px}
+.header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;padding:22px 28px;border-radius:10px 10px 0 0;margin-bottom:0}
+.header h1{font-size:1.35em;font-weight:700;letter-spacing:.3px}
+.header .sub{font-size:.82em;opacity:.85;margin-top:4px}
+.blk{background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden}
+.blk-hd{background:linear-gradient(90deg,#1e3c72,#2a5298);color:#fff;padding:9px 16px;font-weight:700;font-size:.88em;letter-spacing:.4px;cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
+.blk-hd .tog{font-size:1em;transition:transform .2s}
+.blk-hd.open .tog{transform:rotate(90deg)}
+.blk-body{padding:14px 16px}
+.ig{display:flex;flex-direction:column;gap:3px}
+.ig label{font-size:.78em;font-weight:600;color:#4a5568;text-transform:uppercase;letter-spacing:.4px}
+.ig input,.ig select{border:1.5px solid #cbd5e0;border-radius:6px;padding:6px 10px;font-size:.9em;background:#fff;color:#1a202c;width:100%;transition:border-color .15s}
+.ig input:focus,.ig select:focus{outline:none;border-color:#2a5298;box-shadow:0 0 0 2px rgba(42,82,152,.12)}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px}
+.row .ig{flex:1;min-width:120px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:10px 28px;border-radius:7px;cursor:pointer;font-weight:700;font-size:.95em;letter-spacing:.3px;box-shadow:0 2px 8px rgba(30,60,114,.25)}
+.calc-btn:hover{opacity:.9}
+.res-tbl{width:100%;border-collapse:collapse;font-size:.82em;margin-top:6px}
+.res-tbl th{background:#1e3c72;color:#fff;padding:6px 9px;text-align:center;font-weight:600;font-size:.8em}
+.res-tbl td{padding:5px 9px;text-align:center;border-bottom:1px solid #e2e8f0}
+.res-tbl tr:nth-child(even) td{background:#f7fafc}
+.res-tbl tr:hover td{background:#ebf4ff}
+.kv{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:8px}
+.kv-item{background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;font-size:.82em}
+.kv-item span{font-weight:700;color:#1e3c72}
+.det-btn{background:none;border:1px solid #a0aec0;border-radius:5px;padding:3px 10px;font-size:.77em;cursor:pointer;color:#4a5568;margin-left:8px}
+.det-btn:hover{background:#edf2f7}
+.calc-det{display:none;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:8px;font-size:.8em;color:#2d3748;line-height:1.65}
+.calc-det.open{display:block}
+.calc-det p{margin-bottom:4px}
+.warn{background:#fffbeb;border:1.5px solid #f59e0b;border-radius:7px;padding:8px 14px;font-size:.82em;color:#92400e;margin-bottom:10px}
+.ok{background:#f0fdf4;border:1.5px solid #22c55e;border-radius:7px;padding:8px 14px;font-size:.82em;color:#15532d;margin-bottom:10px}
+.ref{font-size:.75em;color:#718096;font-style:italic}
+.dir-tabs{display:flex;gap:0;border-bottom:2px solid #1e3c72;margin-bottom:12px}
+.dir-tab{padding:7px 20px;cursor:pointer;font-size:.85em;font-weight:600;color:#4a5568;border-radius:6px 6px 0 0;border:1px solid transparent;border-bottom:none}
+.dir-tab.active{background:#1e3c72;color:#fff;border-color:#1e3c72}
+.dir-tab:not(.active):hover{background:#edf2f7}
+.dir-panel{display:none}
+.dir-panel.active{display:block}
+h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+.send-blk{background:#fff;border:2px solid #1e3c72;border-radius:9px;padding:14px 16px;margin-top:10px}
+.send-blk h4{color:#1e3c72;font-size:.88em;font-weight:700;margin-bottom:10px}
+.send-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.send-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:700;white-space:nowrap}
+.send-btn:hover{opacity:.9}
+@page{size:letter portrait;margin:.45in .5in .45in .5in}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .container{max-width:100%!important;box-shadow:none!important;border-radius:0!important}
+  .calc-btn,.det-btn,.send-blk,.dir-tabs{display:none!important}
+  .calc-det{display:block!important;max-height:none!important;overflow:visible!important}
+  .blk,.floor-blk{break-inside:avoid;page-break-inside:avoid}
+  #results{display:block!important}
+  #printBtn{display:none!important}
+  .dir-panel{display:block!important}
+}
+</style>
+</head>
+<body>
+<button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
+  style="position:fixed;top:16px;right:16px;z-index:9999;
+         background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;
+         border:none;padding:9px 18px;border-radius:8px;cursor:pointer;
+         font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);
+         display:flex;align-items:center;gap:6px;white-space:nowrap">
+  🖨 Print / PDF
+</button>
+
+<div class="container">
+<div class="header">
+  <h1>ASCE 7-16 MWFRS Wind Pressure Calculator</h1>
+  <div class="sub">Chapter 27, Part 1 — Directional Procedure, All Heights | Enclosed &amp; Partially Enclosed Buildings</div>
+</div>
+
+<!-- PROJECT INFO -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Project Information</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig" style="flex:2;min-width:200px"><label>Project Name</label><input type="text" id="projName" placeholder="Project name"/></div>
+      <div class="ig" style="flex:1"><label>Job No.</label><input type="text" id="projNum" placeholder="2025-001"/></div>
+      <div class="ig" style="flex:1"><label>Date</label><input type="date" id="projDate"/></div>
+      <div class="ig" style="flex:1"><label>Engineer</label><input type="text" id="projEng" placeholder="Initials"/></div>
+    </div>
+  </div>
+</div>
+
+<!-- WIND PARAMETERS -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Wind Parameters</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig"><label>Wind Speed V (mph)</label><input type="number" id="V" value="115" min="85" max="200" step="1"/></div>
+      <div class="ig">
+        <label>Exposure Category</label>
+        <select id="exp">
+          <option value="B">B</option>
+          <option value="C" selected>C</option>
+          <option value="D">D</option>
+        </select>
+      </div>
+      <div class="ig">
+        <label>Enclosure Classification</label>
+        <select id="encl">
+          <option value="enclosed" selected>Enclosed</option>
+          <option value="partial">Partially Enclosed</option>
+        </select>
+      </div>
+      <div class="ig"><label>Kzt (Topo Factor)</label><input type="number" id="Kzt" value="1.00" min="1" max="3" step="0.01"/></div>
+      <div class="ig"><label>Ke (Ground Elev. Factor)</label><input type="number" id="Ke" value="1.00" min="0.8" max="1.0" step="0.01"/></div>
+    </div>
+    <div class="ref">Kd = 0.85 (Table 26.6-1, Buildings) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Kd·Ke·V²</div>
+  </div>
+</div>
+
+<!-- BUILDING GEOMETRY -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Building Geometry</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig"><label>Width B (ft) — EW</label><input type="number" id="B" value="60" min="10" step="1"/></div>
+      <div class="ig"><label>Depth D (ft) — NS</label><input type="number" id="D" value="120" min="10" step="1"/></div>
+      <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1"/></div>
+      <div class="ig">
+        <label>Roof Type</label>
+        <select id="roofType" onchange="toggleRoofInputs()">
+          <option value="flat">Flat / Low-slope (θ &lt; 10°)</option>
+          <option value="sloped">Sloped (θ ≥ 10°)</option>
+        </select>
+      </div>
+      <div class="ig" id="thetaRow" style="display:none"><label>Roof Pitch θ (deg)</label><input type="number" id="theta" value="18" min="10" max="60" step="1"/></div>
+    </div>
+    <div class="row">
+      <div class="ig"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5"/></div>
+    </div>
+    <div class="ref">Wind-X: wind along NS axis (L=D, B_⊥=B) | Wind-Y: wind along EW axis (L=B, B_⊥=D)</div>
+  </div>
+</div>
+
+<!-- STORY HEIGHTS -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Story Heights</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div id="storyRows">
+      <div class="story-row row" data-idx="0">
+        <div class="ig" style="flex:0 0 70px"><label>Story</label><input type="text" value="Roof" readonly style="background:#f7fafc"/></div>
+        <div class="ig"><label>Floor-to-Floor Height (ft)</label><input type="number" class="sh" value="14" min="1" step="0.5"/></div>
+        <button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px;align-items:center">
+      <button class="det-btn btn-add-floor" onclick="addStory()">+ Add Story Below</button>
+      <span class="ref">List stories top → bottom. First row = roof level story. Heights used to compute tributary widths for story shears.</span>
+    </div>
+  </div>
+</div>
+
+<!-- CALCULATE -->
+<div style="text-align:center;margin:18px 0">
+  <button class="calc-btn" onclick="calculate()">▶ Calculate MWFRS</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results" style="display:none">
+
+  <!-- Summary params -->
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Design Parameters Summary</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="paramSummary"></div>
+  </div>
+
+  <!-- Wind-X -->
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction (Wind Along NS — L=Depth, B=Width)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="wxBody"></div>
+  </div>
+
+  <!-- Wind-Y -->
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction (Wind Along EW — L=Width, B=Depth)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="wyBody"></div>
+  </div>
+
+  <!-- Parapet -->
+  <div class="blk" id="parapetBlk" style="display:none">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Parapet Pressures (§27.3.5)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="parapetBody"></div>
+  </div>
+
+  <!-- Roof -->
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Roof Pressures (Both Directions)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="roofBody"></div>
+  </div>
+
+  <!-- Send Panel -->
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Send Story Shears to Other Calculators</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="sendBody"></div>
+  </div>
+
+</div><!-- /results -->
+
+</div><!-- /container -->
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+var Kd = 0.85, G = 0.85;
+
+// Table 26.10-1 — Kz values [z_ft, B, C, D]
+var KZ_TABLE = [
+  [0,0.57,0.85,1.03],[15,0.57,0.85,1.03],[20,0.62,0.90,1.08],
+  [25,0.66,0.94,1.12],[30,0.70,0.98,1.16],[40,0.76,1.04,1.22],
+  [50,0.81,1.09,1.27],[60,0.85,1.13,1.31],[70,0.89,1.17,1.34],
+  [80,0.93,1.21,1.38],[90,0.96,1.24,1.40],[100,0.99,1.26,1.43],
+  [120,1.04,1.31,1.48],[140,1.09,1.36,1.52],[160,1.13,1.39,1.55],
+  [180,1.17,1.43,1.58],[200,1.20,1.46,1.61]
+];
+
+// Sloped roof Cp table (Fig. 27.3-1)
+// [theta, {h/L≤0.25:[WW_low,WW_high,LW]}, {h/L=0.5:[...]}, {h/L≥1.0:[...]}]
+// Values: [Cp_low, Cp_high, Cp_LW]   (WW has two Cp values for interpolation where applicable)
+var ROOF_CP_SLOPED = [
+  [10,  [-0.7,-0.18,-0.3], [-0.9,-0.18,-0.5], [-1.3,-0.18,-0.7]],
+  [15,  [-0.5, 0.0, -0.5], [-0.7,-0.18,-0.5], [-1.0,-0.18,-0.6]],
+  [20,  [-0.3, 0.2, -0.6], [-0.4, 0.0, -0.6], [-0.7,-0.18,-0.6]],
+  [25,  [-0.2, 0.3, -0.6], [-0.3, 0.2, -0.6], [-0.5, 0.0, -0.6]],
+  [30,  [-0.2, 0.3, -0.6], [-0.2, 0.2, -0.6], [-0.3, 0.2, -0.6]],
+  [35,  [ 0.0, 0.4, -0.6], [-0.2, 0.3, -0.6], [-0.2, 0.2, -0.6]],
+  [45,  [ 0.4, 0.4, -0.6], [ 0.0, 0.4, -0.6], [ 0.0, 0.3, -0.6]],
+  [60,  [ 0.34,0.34,-0.6], [ 0.34,0.34,-0.6], [ 0.34,0.34,-0.6]]
+];
+
+// ─── UTILITIES ───────────────────────────────────────────────────────────────
+function f1(v){return (Math.round(v*10)/10).toFixed(1)}
+function f2(v){return (Math.round(v*100)/100).toFixed(2)}
+function f3(v){return (Math.round(v*1000)/1000).toFixed(3)}
+function fi(v){return Math.round(v).toLocaleString()}
+
+function getKz(z, exp){
+  var ei = exp==='B'?1:exp==='C'?2:3;
+  var rows = KZ_TABLE;
+  if(z<=0) return rows[0][ei];
+  if(z>=200) return rows[rows.length-1][ei];
+  for(var i=0;i<rows.length-1;i++){
+    if(z>=rows[i][0] && z<=rows[i+1][0]){
+      var t=(z-rows[i][0])/(rows[i+1][0]-rows[i][0]);
+      return rows[i][ei]+t*(rows[i+1][ei]-rows[i][ei]);
+    }
+  }
+  return rows[rows.length-1][ei];
+}
+
+function qz(z,Kzt,Ke,V,exp){
+  var kz=getKz(z,exp);
+  return 0.00256*kz*Kzt*Kd*Ke*V*V;
+}
+
+function lerpCpLW(LB){
+  // L/B ≤1→-0.5, =2→-0.3, ≥4→-0.2
+  if(LB<=1) return -0.5;
+  if(LB>=4) return -0.2;
+  if(LB<=2) return -0.5+(-0.3-(-0.5))*(LB-1)/(2-1);
+  return -0.3+(-0.2-(-0.3))*(LB-2)/(4-2);
+}
+
+// Flat roof Cp zones (θ<10°): returns array of {zone,label,Cp1,Cp2}
+// Cp1=first value, Cp2=second value (min); use governing (more negative or more positive as needed)
+function flatRoofCp(h,L){
+  // zones based on windward wall distance
+  var z1=h/2, z2=h, z3=2*h;
+  return [
+    {zone:'0–h/2',  from:0,    to:z1, Cp1:-0.9, Cp2:-0.18},
+    {zone:'h/2–h',  from:z1,   to:z2, Cp1:-0.9, Cp2:-0.18},
+    {zone:'h–2h',   from:z2,   to:z3, Cp1:-0.5, Cp2:-0.18},
+    {zone:'>2h',    from:z3,   to:L,  Cp1:-0.3, Cp2:-0.18}
+  ].filter(function(z){return z.from<L});
+}
+
+// Sloped roof bilinear interpolation for a given theta and h/L
+function slopedRoofCp(theta, hL){
+  var rows=ROOF_CP_SLOPED;
+  // clamp
+  var tMin=rows[0][0], tMax=rows[rows.length-1][0];
+  theta=Math.max(tMin,Math.min(tMax,theta));
+  hL=Math.max(0,Math.min(1.0,hL));
+
+  // h/L column indices: 0→≤0.25, 1→0.5, 2→≥1.0
+  function hLcol(hL){
+    if(hL<=0.25) return {i:0,j:0,t:0};
+    if(hL<=0.5){var t=(hL-0.25)/(0.5-0.25);return {i:0,j:1,t:t};}
+    var t=(hL-0.5)/(1.0-0.5);return {i:1,j:2,t:t};
+  }
+  var hc=hLcol(hL);
+
+  // find theta rows
+  var r0=null,r1=null,tt=0;
+  for(var i=0;i<rows.length-1;i++){
+    if(theta>=rows[i][0]&&theta<=rows[i+1][0]){
+      r0=rows[i]; r1=rows[i+1];
+      tt=(theta-rows[i][0])/(rows[i+1][0]-rows[i][0]);
+      break;
+    }
+  }
+  if(!r0){r0=rows[rows.length-1];r1=r0;tt=0;}
+
+  function interpRow(row){
+    var c0=row[1+hc.i], c1=row[1+hc.j];
+    return [
+      c0[0]+hc.t*(c1[0]-c0[0]),
+      c0[1]+hc.t*(c1[1]-c0[1]),
+      c0[2]+hc.t*(c1[2]-c0[2])
+    ];
+  }
+  var vals0=interpRow(r0), vals1=interpRow(r1);
+  return [
+    vals0[0]+tt*(vals1[0]-vals0[0]),
+    vals0[1]+tt*(vals1[1]-vals0[1]),
+    vals0[2]+tt*(vals1[2]-vals0[2])
+  ]; // [Cp_WW_low, Cp_WW_high, Cp_LW]
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────────────────────────
+function togBlk(hd){
+  hd.classList.toggle('open');
+  var body=hd.nextElementSibling;
+  if(body) body.style.display=hd.classList.contains('open')?'':'none';
+}
+function toggleRoofInputs(){
+  var rt=document.getElementById('roofType').value;
+  document.getElementById('thetaRow').style.display=rt==='sloped'?'':'none';
+}
+function addStory(){
+  var rows=document.getElementById('storyRows');
+  var idx=rows.children.length;
+  var div=document.createElement('div');
+  div.className='story-row row';
+  div.dataset.idx=idx;
+  div.innerHTML='<div class="ig" style="flex:0 0 70px"><label>Story</label><input type="text" value="Floor '+(idx)+'" style="background:#f7fafc"/></div>'
+    +'<div class="ig"><label>Floor-to-Floor Height (ft)</label><input type="number" class="sh" value="12" min="1" step="0.5"/></div>'
+    +'<button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>';
+  rows.appendChild(div);
+  reindexStories();
+}
+function removeStory(btn){
+  var rows=document.getElementById('storyRows');
+  if(rows.children.length<=1){alert('Must have at least one story.');return;}
+  btn.parentElement.remove();
+  reindexStories();
+}
+function reindexStories(){
+  var rows=document.getElementById('storyRows').children;
+  for(var i=0;i<rows.length;i++){
+    var inp=rows[i].querySelector('input[type=text]');
+    if(i===0){inp.value='Roof';}
+    else{inp.value='Floor '+i;}
+  }
+}
+
+// ─── MAIN CALCULATION ────────────────────────────────────────────────────────
+function calculate(){
+  // --- gather inputs ---
+  var V=parseFloat(document.getElementById('V').value)||115;
+  var exp=document.getElementById('exp').value;
+  var encl=document.getElementById('encl').value;
+  var Kzt=parseFloat(document.getElementById('Kzt').value)||1.0;
+  var Ke=parseFloat(document.getElementById('Ke').value)||1.0;
+  var B=parseFloat(document.getElementById('B').value)||60;   // EW width
+  var Ddim=parseFloat(document.getElementById('D').value)||120; // NS depth
+  var hVal=parseFloat(document.getElementById('h').value)||40;
+  var roofType=document.getElementById('roofType').value;
+  var theta=roofType==='sloped'?(parseFloat(document.getElementById('theta').value)||18):0;
+  var hp=parseFloat(document.getElementById('hp').value)||0;
+
+  // story heights (top→bottom)
+  var storyRows=document.getElementById('storyRows').children;
+  var stories=[];
+  for(var i=0;i<storyRows.length;i++){
+    var label=storyRows[i].querySelector('input[type=text]').value;
+    var sh=parseFloat(storyRows[i].querySelector('.sh').value)||12;
+    stories.push({label:label,h:sh});
+  }
+
+  // GCpi
+  var GCpi = encl==='enclosed'?0.18:0.55;
+
+  // qh
+  var qh_val=qz(hVal,Kzt,Ke,V,exp);
+  var Kh=getKz(hVal,exp);
+
+  // story elevation midpoints (from grade up)
+  // stories[0]=top story, stories[n-1]=bottom story
+  // elevations: top of each story
+  var cumH=hVal; // we work from top down
+  var stElevTop=[]; // top elevation of each story
+  var stElevMid=[]; // mid-height of each story
+  stElevTop.push(hVal);
+  stElevMid.push(hVal - stories[0].h/2);
+  for(var i=1;i<stories.length;i++){
+    var topEl=stElevTop[i-1]-stories[i-1].h;
+    stElevTop.push(topEl);
+    stElevMid.push(topEl - stories[i].h/2);
+  }
+
+  // ─── Direction calc factory ───────────────────────────────────────────────
+  // dir: {label, L, Bperp}  — L=along-wind, Bperp=perpendicular width
+  function calcDir(L, Bperp, dirLabel){
+    var LB=L/Bperp;
+    var Cp_LW=lerpCpLW(LB);
+    var Cp_WW=0.8;
+    var Cp_SW=-0.7;
+
+    // For each story: qz at mid, pressures
+    var rows=[];
+    for(var i=0;i<stories.length;i++){
+      var zmid=Math.max(0,stElevMid[i]);
+      var kz_i=getKz(zmid,exp);
+      var qz_i=qz(zmid,Kzt,Ke,V,exp);
+
+      // Case A: +GCpi (max suction), Case B: -GCpi (max inward)
+      // Net wall pressure = qz·G·Cp_WW - qh·G·Cp_LW ± qh·GCpi (but for story shear GCpi cancels)
+      // Individual face pressures:
+      var pWW_A = qz_i*G*Cp_WW - qh_val*GCpi;  // Case A: pos (inward) on WW
+      var pWW_B = qz_i*G*Cp_WW + qh_val*GCpi;
+      var pLW_A = qh_val*G*Cp_LW + qh_val*GCpi;  // Case A: suction on LW
+      var pLW_B = qh_val*G*Cp_LW - qh_val*GCpi;
+      var pSW   = qh_val*G*Cp_SW;                // side wall (no GCpi in net for design table)
+
+      // Net story shear (GCpi cancels in lateral sum)
+      var p_net = qz_i*G*Cp_WW - qh_val*G*Cp_LW;  // psf net lateral
+      var F_net = p_net * stories[i].h * Bperp;    // lbs
+
+      rows.push({
+        label: stories[i].label,
+        h: stories[i].h,
+        zMid: zmid,
+        Kz: kz_i,
+        qz: qz_i,
+        pWW_A: pWW_A,
+        pWW_B: pWW_B,
+        pLW_A: pLW_A,
+        pLW_B: pLW_B,
+        pSW: pSW,
+        p_net: p_net,
+        F_net: F_net
+      });
+    }
+
+    // cumulative story shears (top down)
+    var V_cum=0;
+    for(var i=0;i<rows.length;i++){
+      V_cum+=rows[i].F_net;
+      rows[i].V_cum=V_cum;
+    }
+
+    return {
+      label:dirLabel,
+      L:L, Bperp:Bperp, LB:LB,
+      Cp_LW:Cp_LW, Cp_WW:Cp_WW, Cp_SW:Cp_SW,
+      rows:rows,
+      qh:qh_val, Kh:Kh, GCpi:GCpi
+    };
+  }
+
+  var wx=calcDir(Ddim, B, 'Wind-X (NS)');  // wind along NS: L=depth, B_perp=width
+  var wy=calcDir(B, Ddim, 'Wind-Y (EW)'); // wind along EW: L=width, B_perp=depth
+
+  // ─── Parapet ─────────────────────────────────────────────────────────────
+  var parapetData=null;
+  if(hp>0){
+    var zp=hVal+hp;
+    var qp=qz(zp,Kzt,Ke,V,exp);
+    var Kp=getKz(zp,exp);
+    // §27.3.5: pp = qp × GCpn  (GCpn=+1.5 WW parapet, -1.0 LW parapet)
+    parapetData={
+      zp:zp, hp:hp,
+      Kp:Kp, qp:qp,
+      pp_WW: qp*1.5,
+      pp_LW: qp*(-1.0),
+      GCpn_WW:1.5, GCpn_LW:-1.0
+    };
+  }
+
+  // ─── Roof pressures ──────────────────────────────────────────────────────
+  function getRoofPressures(L, Bperp, qhv, dirLabel){
+    if(roofType==='flat'||theta<10){
+      var zones=flatRoofCp(hVal,L);
+      var out=[];
+      zones.forEach(function(z){
+        // governs: case A = Cp1 + GCpi, Case B = Cp2 - GCpi  (uplift/suction on roof)
+        var p_caseA=qhv*G*z.Cp1 - qhv*GCpi; // Case A: max uplift (GCpi adding to suction)
+        var p_caseB=qhv*G*z.Cp2 + qhv*GCpi; // Case B: min uplift
+        out.push({zone:z.zone, Cp1:z.Cp1, Cp2:z.Cp2, pA:p_caseA, pB:p_caseB});
+      });
+      return {type:'flat',zones:out,dir:dirLabel,L:L};
+    } else {
+      var hL=hVal/L;
+      var cp=slopedRoofCp(theta,hL);
+      var Cp_WW_low=cp[0], Cp_WW_high=cp[1], Cp_LW_r=cp[2];
+      // Governing WW: use both values per Fig 27.3-1 footnotes
+      var p_WW_A_low  = qhv*G*Cp_WW_low  - qhv*GCpi;
+      var p_WW_A_high = qhv*G*Cp_WW_high - qhv*GCpi;
+      var p_LW_A      = qhv*G*Cp_LW_r    - qhv*GCpi;
+      var p_WW_B_low  = qhv*G*Cp_WW_low  + qhv*GCpi;
+      var p_WW_B_high = qhv*G*Cp_WW_high + qhv*GCpi;
+      var p_LW_B      = qhv*G*Cp_LW_r    + qhv*GCpi;
+      return {
+        type:'sloped', theta:theta, hL:hL,
+        Cp_WW_low:Cp_WW_low, Cp_WW_high:Cp_WW_high, Cp_LW:Cp_LW_r,
+        p_WW_A_low:p_WW_A_low, p_WW_A_high:p_WW_A_high, p_LW_A:p_LW_A,
+        p_WW_B_low:p_WW_B_low, p_WW_B_high:p_WW_B_high, p_LW_B:p_LW_B,
+        dir:dirLabel, L:L
+      };
+    }
+  }
+
+  var roofX=getRoofPressures(Ddim, B, qh_val, 'Wind-X (L='+f1(Ddim)+'ft)');
+  var roofY=getRoofPressures(B, Ddim, qh_val, 'Wind-Y (L='+f1(B)+'ft)');
+
+  // ─── RENDER ───────────────────────────────────────────────────────────────
+  document.getElementById('results').style.display='block';
+  document.getElementById('parapetBlk').style.display=parapetData?'':'none';
+
+  renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp);
+  renderDir(wx, document.getElementById('wxBody'));
+  renderDir(wy, document.getElementById('wyBody'));
+  if(parapetData) renderParapet(parapetData, document.getElementById('parapetBody'));
+  renderRoof([roofX,roofY], document.getElementById('roofBody'));
+  renderSend(wx,wy, document.getElementById('sendBody'));
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function renderParams(V,exp,encl,Kzt,Ke,GCpi,qh,Kh,B,Ddim,h,rType,theta,hp){
+  var html='<div class="kv">'
+    +'<div class="kv-item">V = <span>'+V+' mph</span></div>'
+    +'<div class="kv-item">Exposure = <span>'+exp+'</span></div>'
+    +'<div class="kv-item">Enclosure = <span>'+encl+'</span></div>'
+    +'<div class="kv-item">Kzt = <span>'+f2(Kzt)+'</span></div>'
+    +'<div class="kv-item">Ke = <span>'+f2(Ke)+'</span></div>'
+    +'<div class="kv-item">Kd = <span>'+f2(Kd)+'</span></div>'
+    +'<div class="kv-item">G = <span>'+f2(G)+'</span></div>'
+    +'<div class="kv-item">GCpi = <span>±'+f2(GCpi)+'</span></div>'
+    +'<div class="kv-item">Kh = <span>'+f3(Kh)+'</span></div>'
+    +'<div class="kv-item">qh = <span>'+f2(qh)+' psf</span></div>'
+    +'<div class="kv-item">Building: <span>'+f1(B)+'×'+f1(Ddim)+'ft</span></div>'
+    +'<div class="kv-item">h = <span>'+f1(h)+' ft</span></div>'
+    +'<div class="kv-item">Roof = <span>'+(rType==='sloped'?'Sloped '+theta+'°':'Flat/Low-slope')+'</span></div>';
+  if(hp>0) html+='<div class="kv-item">Parapet hp = <span>'+f1(hp)+' ft</span></div>';
+  html+='</div>';
+  html+='<div class="ref" style="margin-top:4px">qh = 0.00256 × Kh × Kzt × Kd × Ke × V² = 0.00256 × '+f3(Kh)+' × '+f2(Kzt)+' × '+f2(Kd)+' × '+f2(Ke)+' × '+V+'² = '+f2(qh)+' psf</div>';
+  document.getElementById('paramSummary').innerHTML=html;
+}
+
+function renderDir(dir, container){
+  var html='';
+  // Direction params
+  html+='<div class="kv">'
+    +'<div class="kv-item">L (along-wind) = <span>'+f1(dir.L)+' ft</span></div>'
+    +'<div class="kv-item">B⊥ (perp.) = <span>'+f1(dir.Bperp)+' ft</span></div>'
+    +'<div class="kv-item">L/B = <span>'+f2(dir.LB)+'</span></div>'
+    +'<div class="kv-item">Cp,WW = <span>+0.80 (qz)</span></div>'
+    +'<div class="kv-item">Cp,LW = <span>'+f2(dir.Cp_LW)+' (qh)</span></div>'
+    +'<div class="kv-item">Cp,SW = <span>−0.70 (qh)</span></div>'
+    +'</div>';
+
+  // Wall pressure table
+  html+='<h3 class="sec">Wall Pressures — Design Pressures p = q·G·Cp ± qh·GCpi</h3>';
+  html+='<table class="res-tbl"><thead><tr>'
+    +'<th>Story</th><th>z_mid (ft)</th><th>Kz</th><th>qz (psf)</th>'
+    +'<th>WW Case A (psf)<br><span style="font-weight:400;font-size:.85em">−GCpi (compression)</span></th>'
+    +'<th>WW Case B (psf)<br><span style="font-weight:400;font-size:.85em">+GCpi (uplift)</span></th>'
+    +'<th>LW (psf)<br><span style="font-weight:400;font-size:.85em">Case A governs</span></th>'
+    +'<th>SW (psf)</th>'
+    +'<th>Net p_lat (psf)<br><span style="font-weight:400;font-size:.85em">WW−LW (no GCpi)</span></th>'
+    +'</tr></thead><tbody>';
+
+  dir.rows.forEach(function(r){
+    html+='<tr>'
+      +'<td>'+r.label+'</td>'
+      +'<td>'+f1(r.zMid)+'</td>'
+      +'<td>'+f3(r.Kz)+'</td>'
+      +'<td>'+f2(r.qz)+'</td>'
+      +'<td style="color:#1e3c72;font-weight:600">'+f1(r.pWW_A)+'</td>'
+      +'<td>'+f1(r.pWW_B)+'</td>'
+      +'<td style="color:#7c3aed;font-weight:600">'+f1(r.pLW_A)+'</td>'
+      +'<td>'+f1(r.pSW)+'</td>'
+      +'<td style="color:#0369a1;font-weight:600">'+f1(r.p_net)+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div class="ref" style="margin-top:4px">WW Case A: +qz·G·Cp,WW − qh·GCpi | LW Case A: qh·G·Cp,LW + qh·GCpi | Net: qz·G·0.8 − qh·G·Cp,LW (GCpi cancels) | Ref: Fig. 27.3-1, §26.13</div>';
+
+  // Story shear table
+  html+='<h3 class="sec">Story Shear Forces — F = p_net × h_story × B⊥</h3>';
+  html+='<table class="res-tbl"><thead><tr>'
+    +'<th>Story</th><th>h_story (ft)</th><th>p_net (psf)</th>'
+    +'<th>Story Force F (kips)</th><th>Cumulative Shear V (kips)</th>'
+    +'</tr></thead><tbody>';
+
+  dir.rows.forEach(function(r){
+    html+='<tr>'
+      +'<td>'+r.label+'</td>'
+      +'<td>'+f1(r.h)+'</td>'
+      +'<td>'+f1(r.p_net)+'</td>'
+      +'<td style="font-weight:600">'+f2(r.F_net/1000)+'</td>'
+      +'<td style="font-weight:700;color:#1e3c72">'+f2(r.V_cum/1000)+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div class="ref" style="margin-top:4px">F = p_net (psf) × h_story (ft) × B⊥ ('+f1(dir.Bperp)+' ft) / 1000 → kips | V = cumulative from top</div>';
+
+  container.innerHTML=html;
+}
+
+function renderParapet(pd, container){
+  var html='<div class="kv">'
+    +'<div class="kv-item">hp = <span>'+f1(pd.hp)+' ft</span></div>'
+    +'<div class="kv-item">z_p = <span>'+f1(pd.zp)+' ft</span></div>'
+    +'<div class="kv-item">Kp = <span>'+f3(pd.Kp)+'</span></div>'
+    +'<div class="kv-item">qp = <span>'+f2(pd.qp)+' psf</span></div>'
+    +'</div>';
+
+  html+='<table class="res-tbl" style="margin-top:10px"><thead><tr>'
+    +'<th>Parapet Type</th><th>GCpn</th><th>qp (psf)</th><th>pp = qp × GCpn (psf)</th>'
+    +'</tr></thead><tbody>'
+    +'<tr><td>Windward Parapet</td><td>+1.5</td><td>'+f2(pd.qp)+'</td>'
+    +'<td style="font-weight:700;color:#1e3c72">+'+f1(pd.pp_WW)+'</td></tr>'
+    +'<tr><td>Leeward Parapet</td><td>−1.0</td><td>'+f2(pd.qp)+'</td>'
+    +'<td style="font-weight:700;color:#7c3aed">'+f1(pd.pp_LW)+'</td></tr>'
+    +'</tbody></table>';
+  html+='<div class="ref" style="margin-top:6px">§27.3.5: pp = qp·GCpn | qp evaluated at z = h+hp = '+f1(pd.zp)+' ft | GCpn: WW=+1.5, LW=−1.0 | Net parapet force per unit length = (pp,WW − pp,LW) × hp = '+f1(pd.pp_WW-pd.pp_LW)+' psf × '+f1(pd.hp)+' ft = '+f1((pd.pp_WW-pd.pp_LW)*pd.hp)+' lb/ft</div>';
+  container.innerHTML=html;
+}
+
+function renderRoof(roofs, container){
+  var html='';
+  roofs.forEach(function(r){
+    html+='<h3 class="sec">'+r.dir+'</h3>';
+    if(r.type==='flat'){
+      html+='<p class="ref" style="margin-bottom:6px">Flat/Low-slope roof (θ&lt;10°) — Cp from Fig. 27.3-1 | p = qh·G·Cp ± qh·GCpi | Negative = uplift/suction</p>';
+      html+='<table class="res-tbl"><thead><tr>'
+        +'<th>Zone (from WW)</th><th>Cp₁</th><th>Cp₂</th>'
+        +'<th>Case A (psf)<br><span style="font-weight:400;font-size:.85em">Cp₁ − GCpi</span></th>'
+        +'<th>Case B (psf)<br><span style="font-weight:400;font-size:.85em">Cp₂ + GCpi</span></th>'
+        +'</tr></thead><tbody>';
+      r.zones.forEach(function(z){
+        html+='<tr><td>'+z.zone+'</td><td>'+f2(z.Cp1)+'</td><td>'+f2(z.Cp2)+'</td>'
+          +'<td style="font-weight:700;color:#dc2626">'+f1(z.pA)+'</td>'
+          +'<td style="color:#6b7280">'+f1(z.pB)+'</td></tr>';
+      });
+      html+='</tbody></table>';
+    } else {
+      html+='<p class="ref" style="margin-bottom:6px">Sloped roof θ='+f1(r.theta)+'° | h/L = '+f1(r.hL)+' | Fig. 27.3-1 bilinear interpolation | p = qh·G·Cp ± qh·GCpi</p>';
+      html+='<table class="res-tbl"><thead><tr>'
+        +'<th>Zone</th><th>Cp (Fig 27.3-1)</th>'
+        +'<th>Case A (psf)<br><span style="font-weight:400;font-size:.85em">Cp − GCpi</span></th>'
+        +'<th>Case B (psf)<br><span style="font-weight:400;font-size:.85em">Cp + GCpi</span></th>'
+        +'</tr></thead><tbody>';
+      html+='<tr><td>WW Roof (low)</td><td>'+f2(r.Cp_WW_low)+'</td>'
+        +'<td style="font-weight:700;color:#dc2626">'+f1(r.p_WW_A_low)+'</td>'
+        +'<td>'+f1(r.p_WW_B_low)+'</td></tr>';
+      html+='<tr><td>WW Roof (high)</td><td>'+f2(r.Cp_WW_high)+'</td>'
+        +'<td style="font-weight:700;color:#dc2626">'+f1(r.p_WW_A_high)+'</td>'
+        +'<td>'+f1(r.p_WW_B_high)+'</td></tr>';
+      html+='<tr><td>LW Roof</td><td>'+f2(r.Cp_LW)+'</td>'
+        +'<td style="font-weight:700;color:#7c3aed">'+f1(r.p_LW_A)+'</td>'
+        +'<td>'+f1(r.p_LW_B)+'</td></tr>';
+      html+='</tbody></table>';
+    }
+    html+='<div class="ref" style="margin-top:4px">Fig. 27.3-1 | Case A = max uplift (more negative), Case B = min uplift | See Design Parameters for GCpi value</div>';
+  });
+  container.innerHTML=html;
+}
+
+function renderSend(wx,wy,container){
+  // Get base story shears for sending
+  var wxBase=wx.rows[wx.rows.length-1].V_cum; // base shear Wind-X
+  var wyBase=wy.rows[wy.rows.length-1].V_cum; // base shear Wind-Y
+
+  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568">Base shear values (lbs) from story shear tables. Open any calc in a new tab with the shear pre-filled.</p>';
+
+  html+='<div class="kv" style="margin-bottom:14px">'
+    +'<div class="kv-item">Wind-X Base Shear = <span>'+fi(wxBase)+' lbs ('+f2(wxBase/1000)+' kips)</span></div>'
+    +'<div class="kv-item">Wind-Y Base Shear = <span>'+fi(wyBase)+' lbs ('+f2(wyBase/1000)+' kips)</span></div>'
+    +'</div>';
+
+  // Story shear selector
+  html+='<div class="send-blk">';
+  html+='<h4>▶ Send Story Shear to Stacked Shearwall / Other Calculators</h4>';
+  html+='<div class="send-row">';
+  html+='<div class="ig" style="flex:0 0 160px"><label>Wind Direction</label>'
+    +'<select id="sendDir" onchange="updateSendPreview()"><option value="X">Wind-X (NS)</option><option value="Y">Wind-Y (EW)</option></select></div>';
+  html+='<div class="ig" style="flex:0 0 160px"><label>Story Level</label>'
+    +'<select id="sendStory" onchange="updateSendPreview()">';
+  wx.rows.forEach(function(r,i){
+    html+='<option value="'+i+'">'+r.label+' — V='+fi(r.V_cum)+' lbs</option>';
+  });
+  html+='</select></div>';
+  html+='<button class="send-btn" onclick="doSendShear()">▶ Send Shear →</button>';
+  html+='</div>';
+  html+='<div id="sendPreview" style="font-size:.82em;color:#4a5568;margin-top:6px">Select direction and story level, then click Send.</div>';
+  html+='</div>';
+
+  // store data for send
+  window._wxRows=wx.rows;
+  window._wyRows=wy.rows;
+
+  container.innerHTML=html;
+  updateSendPreview();
+}
+
+function updateSendPreview(){
+  var dir=document.getElementById('sendDir');
+  var stSel=document.getElementById('sendStory');
+  if(!dir||!stSel) return;
+  var rows=dir.value==='X'?window._wxRows:window._wyRows;
+  // repopulate story select
+  stSel.innerHTML='';
+  rows.forEach(function(r,i){
+    var opt=document.createElement('option');
+    opt.value=i;
+    opt.text=r.label+' — V='+fi(r.V_cum)+' lbs';
+    stSel.appendChild(opt);
+  });
+  var idx=parseInt(stSel.value)||0;
+  var r=rows[idx];
+  document.getElementById('sendPreview').textContent='Will send cumulative shear = '+fi(r?r.V_cum:0)+' lbs';
+}
+
+function doSendShear(){
+  var dir=document.getElementById('sendDir').value;
+  var idx=parseInt(document.getElementById('sendStory').value)||0;
+  var rows=dir==='X'?window._wxRows:window._wyRows;
+  var r=rows[idx];
+  if(!r){alert('No data.');return;}
+  var shear=Math.round(r.V_cum);
+  // Determine base URL
+  var base=window.location.href.replace(/\/[^/]*$/,'/');
+  var url=base+'stacked_shearwall_calculator.html?lateral='+shear+'&src=mwfrs&dir=Wind-'+dir+'&story='+encodeURIComponent(r.label);
+  window.open(url,'_blank');
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  // Set today's date
+  var d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  document.getElementById('projDate').value=d.getFullYear()+'-'+m+'-'+dd;
+
+  // Initialize block states
+  document.querySelectorAll('.blk-hd').forEach(function(hd){
+    if(hd.classList.contains('open')){
+      hd.nextElementSibling.style.display='';
+    } else {
+      hd.nextElementSibling.style.display='none';
+    }
+  });
+
+  toggleRoofInputs();
+});
+
+// expose updateSendPreview to inline handlers
+window.updateSendPreview=updateSendPreview;
+</script>
+</body>
+</html>
