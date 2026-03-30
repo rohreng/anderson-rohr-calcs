@@ -706,14 +706,30 @@ function renderSend(wx,wy,container){
     html+='<option value="'+i+'">'+r.label+' — V='+fi(r.V_cum)+' lbs</option>';
   });
   html+='</select></div>';
-  html+='<button class="send-btn" onclick="doSendShear()">▶ Send Shear →</button>';
+  html+='<button class="send-btn" onclick="doSendShear()">▶ Stacked Shearwall →</button>';
   html+='</div>';
   html+='<div id="sendPreview" style="font-size:.82em;color:#4a5568;margin-top:6px">Select direction and story level, then click Send.</div>';
   html+='</div>';
 
+  // Diaphragm Designer send
+  html+='<div class="send-blk" style="margin-top:10px;border-color:#86efac">';
+  html+='<h4 style="color:#15803d">▶ Send Both Directions to Diaphragm Designer</h4>';
+  html+='<p style="font-size:.82em;color:#4a5568;margin-bottom:8px">Opens the Rectangular Diaphragm Designer pre-loaded with Wind-X, Wind-Y forces and building dimensions.</p>';
+  html+='<div class="send-row">';
+  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-X</label><select id="diaStoryX">';
+  wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
+  html+='</select></div>';
+  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-Y</label><select id="diaStoryY">';
+  wy.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
+  html+='</select></div>';
+  html+='<button class="send-btn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="doSendDiaphragm()">▶ Diaphragm Designer →</button>';
+  html+='</div></div>';
+
   // store data for send
   window._wxRows=wx.rows;
   window._wyRows=wy.rows;
+  window._wxDir=wx;
+  window._wyDir=wy;
 
   container.innerHTML=html;
   updateSendPreview();
@@ -744,9 +760,25 @@ function doSendShear(){
   var r=rows[idx];
   if(!r){alert('No data.');return;}
   var shear=Math.round(r.V_cum);
-  // Determine base URL
   var base=window.location.href.replace(/\/[^/]*$/,'/');
   var url=base+'stacked_shearwall_calculator.html?lateral='+shear+'&src=mwfrs&dir=Wind-'+dir+'&story='+encodeURIComponent(r.label);
+  window.open(url,'_blank');
+}
+
+function doSendDiaphragm(){
+  var idxX=parseInt(document.getElementById('diaStoryX').value)||0;
+  var idxY=parseInt(document.getElementById('diaStoryY').value)||0;
+  var rx=window._wxRows[idxX]; var ry=window._wyRows[idxY];
+  if(!rx||!ry){alert('No data.');return;}
+  var Bval=parseFloat(document.getElementById('B').value)||60;
+  var Dval=parseFloat(document.getElementById('D').value)||120;
+  var base=window.location.href.replace(/\/[^/]*$/,'/');
+  var url=base+'rectangular_diaphragm_calculator.html'
+    +'?src=mwfrs'
+    +'&vx='+Math.round(rx.V_cum)
+    +'&vy='+Math.round(ry.V_cum)
+    +'&B='+Bval+'&D='+Dval
+    +'&story='+encodeURIComponent(rx.label);
   window.open(url,'_blank');
 }
 

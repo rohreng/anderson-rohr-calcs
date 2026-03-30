@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Rectangular Diaphragm Designer — Shear, Chord &amp; Shearwall Forces</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px}
+.container{max-width:960px;margin:0 auto;padding:20px}
+.header{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;padding:22px 28px;border-radius:10px 10px 0 0}
+.header h1{font-size:1.35em;font-weight:700}
+.header .sub{font-size:.82em;opacity:.85;margin-top:4px}
+.blk{background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:14px;overflow:hidden}
+.blk-hd{background:linear-gradient(90deg,#1e3c72,#2a5298);color:#fff;padding:9px 16px;font-weight:700;font-size:.88em;letter-spacing:.4px;cursor:pointer;user-select:none;display:flex;justify-content:space-between;align-items:center}
+.blk-hd .tog{transition:transform .2s}
+.blk-hd.open .tog{transform:rotate(90deg)}
+.blk-body{padding:14px 16px}
+.ig{display:flex;flex-direction:column;gap:3px}
+.ig label{font-size:.78em;font-weight:600;color:#4a5568;text-transform:uppercase;letter-spacing:.4px}
+.ig input,.ig select{border:1.5px solid #cbd5e0;border-radius:6px;padding:6px 10px;font-size:.9em;background:#fff;color:#1a202c;width:100%;transition:border-color .15s}
+.ig input:focus,.ig select:focus{outline:none;border-color:#2a5298;box-shadow:0 0 0 2px rgba(42,82,152,.12)}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px}
+.row .ig{flex:1;min-width:120px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:10px 28px;border-radius:7px;cursor:pointer;font-weight:700;font-size:.95em;box-shadow:0 2px 8px rgba(30,60,114,.25)}
+.calc-btn:hover{opacity:.9}
+.res-tbl{width:100%;border-collapse:collapse;font-size:.83em;margin-top:6px}
+.res-tbl th{background:#1e3c72;color:#fff;padding:6px 9px;text-align:center;font-weight:600;font-size:.8em}
+.res-tbl td{padding:6px 9px;text-align:center;border-bottom:1px solid #e2e8f0}
+.res-tbl tr:nth-child(even) td{background:#f7fafc}
+.res-tbl .gov{font-weight:700;color:#dc2626}
+.kv{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:10px}
+.kv-item{background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:5px 12px;font-size:.82em}
+.kv-item span{font-weight:700;color:#1e3c72}
+.ref{font-size:.75em;color:#718096;font-style:italic}
+h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+.import-banner{background:#dcfce7;border:1.5px solid #16a34a;border-radius:8px;padding:10px 14px;font-size:.83em;color:#14532d;margin-bottom:12px;display:none}
+.import-banner strong{color:#15803d}
+.sw-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:8px;padding:8px 10px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px}
+.sw-row .ig{flex:1;min-width:100px}
+.warn{background:#fffbeb;border:1.5px solid #f59e0b;border-radius:7px;padding:8px 14px;font-size:.82em;color:#92400e;margin-bottom:10px}
+.ok{background:#f0fdf4;border:1.5px solid #22c55e;border-radius:7px;padding:8px 14px;font-size:.82em;color:#15532d;margin-bottom:10px}
+/* Diaphragm diagram */
+.dia-svg-wrap{margin:14px 0;text-align:center}
+svg.diagram{max-width:100%;border-radius:8px}
+/* Result direction cards */
+.dir-card{background:#f8faff;border:1.5px solid #93c5fd;border-radius:8px;padding:14px;margin-bottom:12px}
+.dir-card h4{color:#1e3c72;font-weight:700;font-size:.95em;margin-bottom:10px;border-bottom:1px solid #bfdbfe;padding-bottom:6px}
+.metric-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.metric{background:#fff;border:1.5px solid #bfdbfe;border-radius:7px;padding:8px 14px;min-width:140px;flex:1}
+.metric .label{font-size:.75em;color:#64748b;text-transform:uppercase;font-weight:600;letter-spacing:.3px}
+.metric .val{font-size:1.15em;font-weight:700;color:#1e3c72;margin-top:2px}
+.metric .val.warn-val{color:#dc2626}
+.metric .val.ok-val{color:#15803d}
+@page{size:letter portrait;margin:.45in .5in .45in .5in}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .container{max-width:100%!important;box-shadow:none!important}
+  .calc-btn,.btn-add-sw,.btn-rm-sw{display:none!important}
+  .blk{break-inside:avoid;page-break-inside:avoid}
+  #results{display:block!important}
+  #printBtn{display:none!important}
+}
+</style>
+</head>
+<body>
+
+<button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
+  style="position:fixed;top:16px;right:16px;z-index:9999;
+         background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;
+         border:none;padding:9px 18px;border-radius:8px;cursor:pointer;
+         font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);
+         display:flex;align-items:center;gap:6px">
+  🖨 Print / PDF
+</button>
+
+<div class="container">
+<div class="header">
+  <h1>Rectangular Diaphragm Designer</h1>
+  <div class="sub">Diaphragm Shear · Chord Forces · Shearwall Reactions | SDPWS 2021 / ASCE 7-16</div>
+</div>
+
+<!-- IMPORT BANNER -->
+<div class="import-banner" id="importBanner">
+  <strong>✓ Lateral loads imported from MWFRS Wind Calculator</strong> —
+  <span id="importInfo"></span>
+  &bull; <a id="importLink" href="#" style="color:#15803d;font-weight:600">Return to MWFRS calc →</a>
+</div>
+
+<!-- PROJECT INFO -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Project Information</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig" style="flex:2;min-width:200px"><label>Project / Building</label><input type="text" id="projName" placeholder="Project name"/></div>
+      <div class="ig"><label>Level / Diaphragm</label><input type="text" id="level" placeholder="Roof, Floor 2…"/></div>
+      <div class="ig"><label>Date</label><input type="date" id="projDate"/></div>
+      <div class="ig"><label>Engineer</label><input type="text" id="projEng" placeholder="Initials"/></div>
+    </div>
+  </div>
+</div>
+
+<!-- DIAPHRAGM GEOMETRY -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Diaphragm Geometry</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig"><label>Width B — EW dimension (ft)</label><input type="number" id="B" value="60" min="5" step="1" oninput="updateDiagram()"/></div>
+      <div class="ig"><label>Depth D — NS dimension (ft)</label><input type="number" id="D" value="120" min="5" step="1" oninput="updateDiagram()"/></div>
+    </div>
+    <p class="ref">B = East–West building width | D = North–South building depth</p>
+  </div>
+</div>
+
+<!-- LATERAL LOADS -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Lateral Loads at This Diaphragm Level</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="row">
+      <div class="ig">
+        <label>V<sub>x</sub> — Wind-X Force, along NS (kips)</label>
+        <input type="number" id="Vx" value="30" min="0" step="0.1"/>
+      </div>
+      <div class="ig">
+        <label>V<sub>y</sub> — Wind-Y Force, along EW (kips)</label>
+        <input type="number" id="Vy" value="20" min="0" step="0.1"/>
+      </div>
+    </div>
+    <div class="row">
+      <div class="ig">
+        <label>Seismic / Other V<sub>x</sub> (kips) <span style="font-weight:400;color:#718096">(0 = N/A)</span></label>
+        <input type="number" id="Vx_s" value="0" min="0" step="0.1"/>
+      </div>
+      <div class="ig">
+        <label>Seismic / Other V<sub>y</sub> (kips) <span style="font-weight:400;color:#718096">(0 = N/A)</span></label>
+        <input type="number" id="Vy_s" value="0" min="0" step="0.1"/>
+      </div>
+    </div>
+    <p class="ref">Enter the diaphragm-level force (not cumulative base shear). For multi-story: use the incremental story force at this level.<br>Tip: Import directly from the MWFRS Wind Pressure Calculator using the Send panel.</p>
+  </div>
+</div>
+
+<!-- SHEARWALL LAYOUT -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Shearwall Layout</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <h3 class="sec" style="margin-top:0">NS Shearwalls — resist Wind-X (EW direction shearwalls)</h3>
+    <p class="ref" style="margin-bottom:8px">Shearwalls with length running EW, resisting NS wind. Typically the N and S walls. Enter total shearwall length on each line.</p>
+    <div id="swX">
+      <div class="sw-row" data-dir="X">
+        <div class="ig"><label>Line Label</label><input type="text" value="North Wall" class="sw-label"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1"/></div>
+        <div class="ig"><label>Location — dist. from S (ft)</label><input type="number" class="sw-loc" value="120" min="0" step="1"/></div>
+      </div>
+      <div class="sw-row" data-dir="X">
+        <div class="ig"><label>Line Label</label><input type="text" value="South Wall" class="sw-label"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1"/></div>
+        <div class="ig"><label>Location — dist. from S (ft)</label><input type="number" class="sw-loc" value="0" min="0" step="1"/></div>
+      </div>
+    </div>
+    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('X')" id="btnAddX">+ Add NS Line</button>
+
+    <h3 class="sec">EW Shearwalls — resist Wind-Y (NS direction shearwalls)</h3>
+    <p class="ref" style="margin-bottom:8px">Shearwalls with length running NS, resisting EW wind. Typically the E and W walls. Enter total shearwall length on each line.</p>
+    <div id="swY">
+      <div class="sw-row" data-dir="Y">
+        <div class="ig"><label>Line Label</label><input type="text" value="East Wall" class="sw-label"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1"/></div>
+        <div class="ig"><label>Location — dist. from W (ft)</label><input type="number" class="sw-loc" value="60" min="0" step="1"/></div>
+      </div>
+      <div class="sw-row" data-dir="Y">
+        <div class="ig"><label>Line Label</label><input type="text" value="West Wall" class="sw-label"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1"/></div>
+        <div class="ig"><label>Location — dist. from W (ft)</label><input type="number" class="sw-loc" value="0" min="0" step="1"/></div>
+      </div>
+    </div>
+    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('Y')" id="btnAddY">+ Add EW Line</button>
+  </div>
+</div>
+
+<!-- DIAPHRAGM PLAN DIAGRAM -->
+<div class="blk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Diaphragm Plan</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <div class="dia-svg-wrap" id="diagWrap"></div>
+    <p class="ref" style="text-align:center">N at top | EW = B dimension | NS = D dimension</p>
+  </div>
+</div>
+
+<!-- CALCULATE -->
+<div style="text-align:center;margin:18px 0">
+  <button class="calc-btn" onclick="calculate()">▶ Calculate Diaphragm Forces</button>
+</div>
+
+<!-- RESULTS -->
+<div id="results" style="display:none">
+
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Calculation Summary</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="summaryBody"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction — Wind Along NS (D = depth)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="wxBody"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction — Wind Along EW (B = width)</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="wyBody"></div>
+  </div>
+
+  <div class="blk" id="seismicBlk" style="display:none">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Seismic / Other Lateral — Governing Forces</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="seismicBody"></div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Governing Design Summary</span><span class="tog">▶</span></div>
+    <div class="blk-body" id="govBody"></div>
+  </div>
+
+</div><!-- /results -->
+</div><!-- /container -->
+
+<script>
+// ─── UTILITIES ───────────────────────────────────────────────────────────────
+function f1(v){return (Math.round(v*10)/10).toFixed(1)}
+function f2(v){return (Math.round(v*100)/100).toFixed(2)}
+function f3(v){return (Math.round(v*1000)/1000).toFixed(3)}
+function f0(v){return Math.round(v).toLocaleString()}
+
+function togBlk(hd){
+  hd.classList.toggle('open');
+  var b=hd.nextElementSibling;
+  if(b) b.style.display=hd.classList.contains('open')?'':'none';
+}
+
+// ─── SHEARWALL ROWS ──────────────────────────────────────────────────────────
+function addSW(dir){
+  var container=document.getElementById('sw'+dir);
+  var label=dir==='X'?'Int. Wall '+(container.children.length+1):'Int. Wall '+(container.children.length+1);
+  var defLen=dir==='X'?parseFloat(document.getElementById('B').value)||60:parseFloat(document.getElementById('D').value)||120;
+  var div=document.createElement('div');
+  div.className='sw-row'; div.dataset.dir=dir;
+  div.innerHTML='<div class="ig"><label>Line Label</label><input type="text" value="'+label+'" class="sw-label"/></div>'
+    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="'+defLen+'" min="1" step="1"/></div>'
+    +'<div class="ig"><label>Location (ft)</label><input type="number" class="sw-loc" value="'+(defLen/2).toFixed(0)+'" min="0" step="1"/></div>'
+    +'<button onclick="this.parentElement.remove()" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
+  container.appendChild(div);
+}
+
+// ─── PLAN DIAGRAM ────────────────────────────────────────────────────────────
+function updateDiagram(){
+  var B=parseFloat(document.getElementById('B').value)||60;
+  var D=parseFloat(document.getElementById('D').value)||120;
+  var W=520, H=320;
+  var margin=50;
+  var scale=Math.min((W-2*margin)/B,(H-2*margin)/D);
+  var bw=B*scale, dh=D*scale;
+  var ox=(W-bw)/2, oy=(H-dh)/2;
+
+  var svg='<svg width="'+W+'" height="'+H+'" class="diagram" xmlns="http://www.w3.org/2000/svg">'
+    +'<rect width="'+W+'" height="'+H+'" fill="#f8faff" rx="8"/>'
+    // Diaphragm
+    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>'
+    // Hatching for diaphragm
+    +'<pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#93c5fd" stroke-width="0.8"/></pattern>'
+    +'<rect x="'+(ox+1)+'" y="'+(oy+1)+'" width="'+(bw-2)+'" height="'+(dh-2)+'" fill="url(#hatch)"/>'
+    // NS shearwalls (thick lines at top/bottom)
+    +'<line x1="'+ox+'" y1="'+oy+'" x2="'+(ox+bw)+'" y2="'+oy+'" stroke="#1e3c72" stroke-width="5"/>'
+    +'<line x1="'+ox+'" y1="'+(oy+dh)+'" x2="'+(ox+bw)+'" y2="'+(oy+dh)+'" stroke="#1e3c72" stroke-width="5"/>'
+    // EW shearwalls
+    +'<line x1="'+ox+'" y1="'+oy+'" x2="'+ox+'" y2="'+(oy+dh)+'" stroke="#7c3aed" stroke-width="5"/>'
+    +'<line x1="'+(ox+bw)+'" y1="'+oy+'" x2="'+(ox+bw)+'" y2="'+(oy+dh)+'" stroke="#7c3aed" stroke-width="5"/>'
+    // Wind arrows — X direction (→ NS, pointing south)
+    +'<defs><marker id="arrX" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1e3c72"/></marker>'
+    +'<marker id="arrY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7c3aed"/></marker></defs>'
+    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2-15)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2-15)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
+    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
+    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2+15)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2+15)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
+    +'<text x="'+(ox-38)+'" y="'+(oy+dh/2-25)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="bold">V_x</text>'
+    // Wind arrows — Y direction (top, pointing down)
+    +'<line x1="'+(ox+bw/2-15)+'" y1="'+(oy-35)+'" x2="'+(ox+bw/2-15)+'" y2="'+(oy-8)+'" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrY)"/>'
+    +'<line x1="'+(ox+bw/2)+'" y1="'+(oy-35)+'" x2="'+(ox+bw/2)+'" y2="'+(oy-8)+'" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrY)"/>'
+    +'<text x="'+(ox+bw/2+18)+'" y="'+(oy-20)+'" font-size="10" fill="#7c3aed" font-weight="bold">V_y</text>'
+    // Labels
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2-4)+'" text-anchor="middle" font-size="13" fill="#1e3c72" font-weight="700">DIAPHRAGM</text>'
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2+12)+'" text-anchor="middle" font-size="11" fill="#374151">B='+f1(B)+'ft × D='+f1(D)+'ft</text>'
+    // Dimension arrows B
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh+32)+'" text-anchor="middle" font-size="11" fill="#374151" font-weight="600">B = '+f1(B)+' ft (EW)</text>'
+    // Dimension D
+    +'<text x="'+(ox+bw+32)+'" y="'+(oy+dh/2+4)+'" font-size="11" fill="#374151" font-weight="600" transform="rotate(90,'+(ox+bw+32)+','+(oy+dh/2+4)+')">D = '+f1(D)+' ft (NS)</text>'
+    // Compass
+    +'<text x="'+(ox+bw-12)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700">N</text>'
+    +'<text x="'+(ox+bw-12)+'" y="'+(oy+dh-4)+'" font-size="12" fill="#64748b" font-weight="700">S</text>'
+    +'<text x="'+(ox+4)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700">W</text>'
+    +'<text x="'+(ox+bw-18)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700"></text>'
+    // Legend
+    +'<rect x="'+(ox)+'" y="'+(oy+dh+42)+'" width="12" height="4" fill="#1e3c72"/>'
+    +'<text x="'+(ox+16)+'" y="'+(oy+dh+48)+'" font-size="10" fill="#374151">NS Shearwall (resist V_x)</text>'
+    +'<rect x="'+(ox+180)+'" y="'+(oy+dh+42)+'" width="12" height="4" fill="#7c3aed"/>'
+    +'<text x="'+(ox+196)+'" y="'+(oy+dh+48)+'" font-size="10" fill="#374151">EW Shearwall (resist V_y)</text>'
+    +'</svg>';
+  document.getElementById('diagWrap').innerHTML=svg;
+}
+
+// ─── DIRECTION CALCULATION ───────────────────────────────────────────────────
+// dir: 'X' or 'Y'
+// V: total lateral force (kips)
+// L_along: diaphragm dimension along wind direction (ft)
+// B_perp: diaphragm dimension perpendicular to wind (ft) = shearwall span
+// swRows: array of {label, len, loc} for shearwall lines
+function calcDir(V, L_along, B_perp, swRows, dirLabel){
+  // Distributed diaphragm load
+  var w = V / L_along; // kip/ft
+
+  // Simple beam (if 2 sw lines at 0 and L_along):
+  // For arbitrary SW locations, use moment equilibrium
+  // Sort by location
+  var sws = swRows.map(function(r){return {label:r.label, len:r.len, loc:r.loc};});
+  sws.sort(function(a,b){return a.loc-b.loc;});
+
+  var reactions; // kips at each SW line
+  if(sws.length===1){
+    reactions = [V];
+  } else if(sws.length===2){
+    // Two-support beam with UDL, supports at arbitrary locations a and b from left
+    var a=sws[0].loc, b2=sws[1].loc;
+    var span=b2-a;
+    // UDL from 0 to L_along with supports at a and b2
+    // Sum moments about support 0 (at sws[0].loc):
+    // R1*0 + R2*(b2-a) = w * (L_along centroid - a from support 0)
+    // Resultant at L_along/2 from left (dist from sws[0] = L_along/2 - a)
+    var R2 = w * L_along * (L_along/2 - a) / span;
+    var R1 = V - R2;
+    reactions = [R1, R2];
+  } else {
+    // Multi-support: distribute proportionally (simplified tributary)
+    reactions = [];
+    for(var i=0;i<sws.length;i++){
+      var locPrev = i===0?0:((sws[i].loc+sws[i-1].loc)/2);
+      var locNext = i===sws.length-1?L_along:((sws[i].loc+sws[i+1].loc)/2);
+      reactions.push(w*(locNext-locPrev));
+    }
+  }
+
+  // Unit shear at each SW line [kip/ft] = reaction / shearwall length
+  var unitShears = sws.map(function(sw,i){ return reactions[i]/sw.len; });
+
+  // Diaphragm chord moment (simple beam analogy, UDL, two end supports)
+  // For non-symmetric, compute max moment between supports
+  var a2=sws[0].loc, b3=sws[sws.length-1].loc;
+  var span2=b3-a2;
+  var R_left, R_right;
+  if(sws.length>=2){
+    var dist_centroid_from_left = L_along/2 - a2;
+    R_right = w*L_along*dist_centroid_from_left/span2;
+    R_left  = V - R_right;
+  } else {
+    R_left=V; R_right=0; span2=L_along;
+  }
+  // Max moment between supports: x where shear=0
+  // Shear at x from left support = R_left - w*(x+a2)  (measuring x from left support)
+  // = 0 → x = R_left/w - a2
+  var x_max = R_left/w - a2;
+  x_max = Math.max(0, Math.min(span2, x_max));
+  // M at x_max from left support:
+  var M_max = R_left*x_max - w*(a2+x_max)*(a2+x_max)/2 + w*a2*a2/2;
+  // Simpler: M = R_left*(x_max) - w*(x_max^2)/2
+  M_max = R_left*x_max - w*x_max*x_max/2;
+
+  // For standard 2-end-support symmetric case:
+  // M_max = w*L²/8 = V*L_along/8
+  // Use this for display clarity; flag if asymmetric
+  var M_sym = V*L_along/8;
+  var chord_T = M_sym / B_perp; // kips — using symmetric formula
+
+  // Unit diaphragm shear at max reaction location
+  var v_max_dia = Math.max.apply(null, reactions) / B_perp; // kip/ft — max shear transferred per ft of chord
+
+  return {
+    label: dirLabel,
+    V: V,
+    L_along: L_along,
+    B_perp: B_perp,
+    w: w,
+    sws: sws,
+    reactions: reactions,
+    unitShears: unitShears,
+    M_max: M_sym,
+    chord_T: chord_T,
+    v_dia: V/(2*B_perp)  // unit diaphragm shear (symmetric, 2-line)
+  };
+}
+
+// ─── RENDER DIRECTION ────────────────────────────────────────────────────────
+function renderDir(res, container){
+  var html='';
+  // Overview metrics
+  html+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">Total Lateral Force</div><div class="val">'+f2(res.V)+' kips</div></div>'
+    +'<div class="metric"><div class="label">Diaphragm Span (along wind)</div><div class="val">'+f1(res.L_along)+' ft</div></div>'
+    +'<div class="metric"><div class="label">Chord Span (perp. to wind)</div><div class="val">'+f1(res.B_perp)+' ft</div></div>'
+    +'<div class="metric"><div class="label">Distributed Load w</div><div class="val">'+f2(res.w*1000)+' plf</div></div>'
+    +'</div>';
+
+  // Diaphragm shear
+  html+='<h3 class="sec">Diaphragm Unit Shear</h3>';
+  html+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">Max Reaction (each SW line)</div><div class="val">'+f2(Math.max.apply(null,res.reactions))+' kips</div></div>'
+    +'<div class="metric"><div class="label">Unit Diaphragm Shear v</div><div class="val warn-val">'+f2(res.v_dia*1000)+' plf</div></div>'
+    +'</div>';
+  html+='<div class="ref" style="margin-bottom:10px">v = V/(2·B_perp) = '+f2(res.V)+'/(2×'+f1(res.B_perp)+') = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf | Shearwall must have unit shear capacity ≥ v</div>';
+
+  // Shearwall reactions table
+  html+='<h3 class="sec">Shearwall Line Reactions</h3>';
+  html+='<table class="res-tbl"><thead><tr>'
+    +'<th>SW Line</th><th>Location (ft)</th><th>Total SW Length (ft)</th>'
+    +'<th>Reaction R (kips)</th><th>Unit Shear v_sw (plf)</th>'
+    +'</tr></thead><tbody>';
+  res.sws.forEach(function(sw,i){
+    var v_sw_plf = res.unitShears[i]*1000;
+    html+='<tr>'
+      +'<td>'+sw.label+'</td>'
+      +'<td>'+f1(sw.loc)+'</td>'
+      +'<td>'+f1(sw.len)+'</td>'
+      +'<td style="font-weight:700;color:#1e3c72">'+f2(res.reactions[i])+'</td>'
+      +'<td style="font-weight:700;color:#dc2626">'+f2(v_sw_plf)+' plf</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div class="ref" style="margin-top:4px">v_sw = R / L_sw | Unit shear governs sheathing schedule and hold-down design</div>';
+
+  // Chord forces
+  html+='<h3 class="sec">Chord Forces (Tension / Compression)</h3>';
+  html+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">Chord Moment M = V·L/8</div><div class="val">'+f1(res.M_max)+' kip·ft</div></div>'
+    +'<div class="metric"><div class="label">Chord Force T = C = M/B_perp</div><div class="val warn-val">'+f2(res.chord_T)+' kips</div></div>'
+    +'</div>';
+  html+='<div class="ref">M = w·L²/8 = V·L_along/8 = '+f2(res.V)+'×'+f1(res.L_along)+'/8 = '+f1(res.M_max)+' kip·ft | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
+  html+='<div class="ref" style="margin-top:4px">Chord members: '+res.label.indexOf('X')>=0?'EW edge members (top plates, bond beams) at N and S edges':'NS edge members (top plates, bond beams) at E and W edges'+'</div>';
+
+  // Calc detail
+  html+='<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.8em;color:#374151;line-height:1.7">'
+    +'<strong>Calculation Detail</strong><br>'
+    +'Distributed wind load:  w = V / L = '+f2(res.V)+' / '+f1(res.L_along)+' = '+f3(res.w)+' k/ft = '+f2(res.w*1000)+' plf<br>'
+    +'Shearwall reactions:  R = V/2 = '+f2(res.V)+'/2 = '+f2(res.V/2)+' kips each (symmetric 2-line)<br>'
+    +'Unit diaphragm shear:  v = R/B_perp = '+f2(res.V/2)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf<br>'
+    +'Chord moment:  M = V·L/8 = '+f2(res.V)+'×'+f1(res.L_along)+'/8 = '+f1(res.M_max)+' kip·ft<br>'
+    +'Chord tension/compression:  T = M/B_perp = '+f1(res.M_max)+'/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips<br>'
+    +'Ref: SDPWS 2021 §4.2 | Diaphragm beam analogy, simply-supported with UDL'
+    +'</div>';
+
+  container.innerHTML=html;
+}
+
+// ─── MAIN CALCULATE ──────────────────────────────────────────────────────────
+function calculate(){
+  var B=parseFloat(document.getElementById('B').value)||60;
+  var D=parseFloat(document.getElementById('D').value)||120;
+  var Vx=parseFloat(document.getElementById('Vx').value)||0;
+  var Vy=parseFloat(document.getElementById('Vy').value)||0;
+  var Vx_s=parseFloat(document.getElementById('Vx_s').value)||0;
+  var Vy_s=parseFloat(document.getElementById('Vy_s').value)||0;
+
+  // Collect shearwall rows
+  function getSWRows(dir){
+    var rows=document.getElementById('sw'+dir).querySelectorAll('.sw-row');
+    var out=[];
+    rows.forEach(function(r){
+      out.push({
+        label: r.querySelector('.sw-label').value,
+        len: parseFloat(r.querySelector('.sw-len').value)||1,
+        loc: parseFloat(r.querySelector('.sw-loc').value)||0
+      });
+    });
+    return out;
+  }
+
+  var swX=getSWRows('X');
+  var swY=getSWRows('Y');
+
+  // Wind-X: wind along NS (D), shearwalls in EW direction, chord spans B
+  var wx=calcDir(Vx, D, B, swX, 'Wind-X (NS)');
+  // Wind-Y: wind along EW (B), shearwalls in NS direction, chord spans D
+  var wy=calcDir(Vy, B, D, swY, 'Wind-Y (EW)');
+
+  // Seismic (if entered) — same geometry
+  var sx=null, sy=null;
+  if(Vx_s>0) sx=calcDir(Vx_s, D, B, swX, 'Seismic-X (NS)');
+  if(Vy_s>0) sy=calcDir(Vy_s, B, D, swY, 'Seismic-Y (EW)');
+
+  // Governing
+  var gov_v_x = Math.max(wx.v_dia, sx?sx.v_dia:0);
+  var gov_v_y = Math.max(wy.v_dia, sy?sy.v_dia:0);
+  var gov_T_x = Math.max(wx.chord_T, sx?sx.chord_T:0);
+  var gov_T_y = Math.max(wy.chord_T, sy?sy.chord_T:0);
+  var gov_v   = Math.max(gov_v_x, gov_v_y);
+  var gov_T   = Math.max(gov_T_x, gov_T_y);
+
+  // Render
+  document.getElementById('results').style.display='block';
+  document.getElementById('seismicBlk').style.display=(Vx_s>0||Vy_s>0)?'':'none';
+
+  // Summary
+  var sumHtml='<div class="kv">'
+    +'<div class="kv-item">B (EW) = <span>'+f1(B)+' ft</span></div>'
+    +'<div class="kv-item">D (NS) = <span>'+f1(D)+' ft</span></div>'
+    +'<div class="kv-item">V_x (Wind-X) = <span>'+f2(Vx)+' kips</span></div>'
+    +'<div class="kv-item">V_y (Wind-Y) = <span>'+f2(Vy)+' kips</span></div>'
+    +(Vx_s>0?'<div class="kv-item">V_x (Seismic) = <span>'+f2(Vx_s)+' kips</span></div>':'')
+    +(Vy_s>0?'<div class="kv-item">V_y (Seismic) = <span>'+f2(Vy_s)+' kips</span></div>':'')
+    +'</div>';
+  document.getElementById('summaryBody').innerHTML=sumHtml;
+
+  renderDir(wx, document.getElementById('wxBody'));
+  renderDir(wy, document.getElementById('wyBody'));
+
+  if(Vx_s>0||Vy_s>0){
+    var sBody='';
+    if(sx){ sBody+='<h3 class="sec">Seismic-X (NS)</h3>'; var tmp=document.createElement('div'); renderDir(sx,tmp); sBody+=tmp.innerHTML; }
+    if(sy){ sBody+='<h3 class="sec">Seismic-Y (EW)</h3>'; var tmp2=document.createElement('div'); renderDir(sy,tmp2); sBody+=tmp2.innerHTML; }
+    document.getElementById('seismicBody').innerHTML=sBody;
+  }
+
+  // Governing summary
+  var govHtml='<div class="ok" style="margin-bottom:12px">Governing forces for diaphragm sheathing and chord member design.</div>';
+  govHtml+='<table class="res-tbl"><thead><tr>'
+    +'<th>Check</th><th>Wind-X</th><th>Wind-Y</th>'
+    +(Vx_s>0||Vy_s>0?'<th>Seismic-X</th><th>Seismic-Y</th>':'')
+    +'<th>GOVERNING</th></tr></thead><tbody>';
+
+  function govTd(val, govVal){ return '<td'+(Math.abs(val-govVal)<0.001?' class="gov"':'')+'>'+f2(val)+'</td>'; }
+
+  govHtml+='<tr><td>Unit Diaphragm Shear v (plf)</td>'
+    +govTd(wx.v_dia*1000, gov_v*1000)
+    +govTd(wy.v_dia*1000, gov_v*1000)
+    +(Vx_s>0?govTd((sx?sx.v_dia:0)*1000,gov_v*1000):'')
+    +(Vy_s>0?govTd((sy?sy.v_dia:0)*1000,gov_v*1000):'')
+    +'<td class="gov">'+f2(gov_v*1000)+' plf</td></tr>';
+
+  govHtml+='<tr><td>Chord Force T/C (kips)</td>'
+    +govTd(wx.chord_T, gov_T)
+    +govTd(wy.chord_T, gov_T)
+    +(Vx_s>0?govTd(sx?sx.chord_T:0, gov_T):'')
+    +(Vy_s>0?govTd(sy?sy.chord_T:0, gov_T):'')
+    +'<td class="gov">'+f2(gov_T)+' kips</td></tr>';
+
+  // Max SW unit shear
+  var maxSW_wx=Math.max.apply(null,wx.unitShears)*1000;
+  var maxSW_wy=Math.max.apply(null,wy.unitShears)*1000;
+  var maxSW_sx=sx?Math.max.apply(null,sx.unitShears)*1000:0;
+  var maxSW_sy=sy?Math.max.apply(null,sy.unitShears)*1000:0;
+  var gov_sw=Math.max(maxSW_wx,maxSW_wy,maxSW_sx,maxSW_sy);
+  govHtml+='<tr><td>Max SW Unit Shear v_sw (plf)</td>'
+    +govTd(maxSW_wx,gov_sw)+govTd(maxSW_wy,gov_sw)
+    +(Vx_s>0?govTd(maxSW_sx,gov_sw):'')+(Vy_s>0?govTd(maxSW_sy,gov_sw):'')
+    +'<td class="gov">'+f2(gov_sw)+' plf</td></tr>';
+
+  govHtml+='</tbody></table>';
+
+  govHtml+='<div class="ref" style="margin-top:8px">Diaphragm unit shear v governs sheathing schedule | Chord force T/C governs chord member (top plate/bond beam) splice and connection design | SW unit shear governs shearwall nailing schedule</div>';
+  document.getElementById('govBody').innerHTML=govHtml;
+
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ─── URL PARAM IMPORT ────────────────────────────────────────────────────────
+(function(){
+  var p=new URLSearchParams(window.location.search);
+  if(p.get('src')!=='mwfrs') return;
+
+  var vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0');
+  var vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');
+  var B=parseFloat(p.get('B')||'0');
+  var D=parseFloat(p.get('D')||'0');
+  var story=p.get('story')||'';
+
+  if(vx>0){ document.getElementById('Vx').value=(vx/1000).toFixed(2); }
+  if(vy>0){ document.getElementById('Vy').value=(vy/1000).toFixed(2); }
+  if(B>0){ document.getElementById('B').value=B; }
+  if(D>0){ document.getElementById('D').value=D; }
+  if(story) document.getElementById('level').value=story;
+
+  // Build back link
+  var back=document.referrer||'asce716_mwfrs_calculator.html';
+  document.getElementById('importLink').href=back;
+
+  var infoStr='';
+  if(vx>0) infoStr+='V_x = '+((vx/1000).toFixed(2))+' kips (Wind-X NS)  ';
+  if(vy>0) infoStr+='V_y = '+((vy/1000).toFixed(2))+' kips (Wind-Y EW)  ';
+  if(story) infoStr+='Level: '+story+'  ';
+  document.getElementById('importInfo').textContent=infoStr;
+  document.getElementById('importBanner').style.display='block';
+
+  updateDiagram();
+})();
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',function(){
+  var d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  document.getElementById('projDate').value=d.getFullYear()+'-'+m+'-'+dd;
+  document.querySelectorAll('.blk-hd').forEach(function(hd){
+    hd.nextElementSibling.style.display=hd.classList.contains('open')?'':'none';
+  });
+  updateDiagram();
+});
+</script>
+</body>
+</html>

@@ -14,6 +14,15 @@ export type CalcMeta = {
 export const CALCS: CalcMeta[] = [
   // ── Wind / Loads ─────────────────────────────────────────────
   {
+    slug: "diaphragm",
+    label: "Rectangular Diaphragm Designer",
+    subtitle: "Diaphragm unit shear · chord forces · shearwall reactions for rectangular diaphragms",
+    htmlFile: "/Calcs/rectangular_diaphragm_calculator.html",
+    category: "Wind / Loads",
+    spec: "SDPWS 2021 / ASCE 7-16",
+    status: "ready",
+  },
+  {
     slug: "mwfrs-wind",
     label: "MWFRS Wind Pressure",
     subtitle: "Main wind-force resisting system — Directional Procedure, all heights, story shears, parapet",
