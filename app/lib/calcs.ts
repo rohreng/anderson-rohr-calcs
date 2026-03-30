@@ -12,6 +12,16 @@ export type CalcMeta = {
 };
 
 export const CALCS: CalcMeta[] = [
+  // ── Wind / Loads ─────────────────────────────────────────────
+  {
+    slug: "cc-wind",
+    label: "C&C Wind Pressure",
+    subtitle: "Components & cladding design pressures — all 6 ASCE 7-16 figures, log-linear GCp interpolation",
+    htmlFile: "/Calcs/asce716_cc_wind_calculator.html",
+    category: "Wind / Loads",
+    spec: "ASCE 7-16 Ch.30",
+    status: "ready",
+  },
   // ── Connections ──────────────────────────────────────────────
   {
     slug: "base-plate",

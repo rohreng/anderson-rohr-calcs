@@ -172,6 +172,12 @@ select.ti{cursor:pointer;padding:2px 1px}
       <input type="number" id="windStud" value="25" step="1">
     </div>
   </div>
+  <div id="windSrcBanner" style="display:none;margin-top:12px;background:#dcfce7;border:1.5px solid #16a34a;border-radius:8px;padding:10px 14px;font-size:.84em;color:#166534">
+    <strong>&#10003; Wind pressures loaded from C&amp;C Wind Calculator</strong>
+    &nbsp;&mdash;&nbsp; <span id="windSrcZone"></span>
+    &nbsp;&bull;&nbsp; <a id="windSrcLink" href="/calcs/cc-wind" target="_blank" style="color:#15803d;font-weight:600">Open C&amp;C calc &rarr;</a>
+    &nbsp;&bull;&nbsp; <span style="color:#374151">Adjust values above if a different zone applies.</span>
+  </div>
   <div class="callout" style="margin-top:12px;margin-bottom:0">
     <strong>Assumptions:</strong> Dry service, Normal temp. C<sub>D</sub>=1.0 gravity; C<sub>D</sub>=1.6 wind. C<sub>r</sub>=1.15 repetitive. Headers unbraced full span.
     <strong>Per header row:</strong> set Wall Size (drives jamb &amp; king lumber), # Jambs (0=auto), and # Kings.
@@ -622,6 +628,36 @@ function mkStudRows(fi){
 function xe(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 document.addEventListener('DOMContentLoaded',function(){
+  // ── Read URL params from C&C Wind Calculator ───────────────────────────────
+  (function(){
+    var p=new URLSearchParams(window.location.search);
+    var src=p.get('src');
+    if(src==='cc-wind'){
+      var wOpen=parseFloat(p.get('windOpen'));
+      var wStud=parseFloat(p.get('windStud'));
+      var zone=p.get('zone')||'';
+      if(isFinite(wOpen)&&wOpen>0){
+        var elO=document.getElementById('windOpen');
+        if(elO){ elO.value=wOpen; }
+      }
+      if(isFinite(wStud)&&wStud>0){
+        var elS=document.getElementById('windStud');
+        if(elS){ elS.value=wStud; }
+      }
+      // Show banner
+      var banner=document.getElementById('windSrcBanner');
+      var zoneSpan=document.getElementById('windSrcZone');
+      if(banner){ banner.style.display=''; }
+      if(zoneSpan){ zoneSpan.textContent = zone ? 'Zone: '+zone+' (gov. |p| = '+wOpen+' psf)' : wOpen+' psf'; }
+      // Keep the link pointing back to the C&C calc
+      var lnk=document.getElementById('windSrcLink');
+      if(lnk){
+        var back=location.href.replace(/[^/]*\?.*$/,'').replace(/[^/]*$/,'')+'asce716_cc_wind_calculator.html';
+        lnk.href=back;
+      }
+    }
+  })();
+
   Object.keys(LV).forEach(function(k){
     var el=document.getElementById(k);
     if(el) el.addEventListener('change',function(e){LV[k]=parseFloat(e.target.value)||0;render();});
