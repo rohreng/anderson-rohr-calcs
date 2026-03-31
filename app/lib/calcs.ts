@@ -23,6 +23,15 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
   },
   {
+    slug: "wood-diaphragm",
+    label: "Wood Diaphragm Designer",
+    subtitle: "Blocked & unblocked WSP diaphragm — unit shear zones, chord forces, drag struts, deflection",
+    htmlFile: "/Calcs/wood_diaphragm_designer.html",
+    category: "Wind / Loads",
+    spec: "SDPWS-21 §4.2 / ASCE 7-22",
+    status: "ready",
+  },
+  {
     slug: "mwfrs-wind",
     label: "MWFRS Wind Pressure",
     subtitle: "Main wind-force resisting system — Directional Procedure, all heights, story shears, parapet",
