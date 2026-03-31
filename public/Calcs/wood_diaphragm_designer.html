@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wood Diaphragm Designer — SDPWS-21</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+/* Zone colour strip */
+.z-strip{display:flex;gap:0;border-radius:6px;overflow:hidden;height:22px;margin:10px 0;border:1px solid #dde}
+.z-A1{background:#fde68a;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:700;color:#78350f}
+.z-A2{background:#86efac;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:700;color:#14532d}
+.z-A3{background:#bfdbfe;flex:1;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:700;color:#1e40af}
+.proj-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+@media print{
+  body{background:#fff;padding:0}
+  .container{box-shadow:none;border-radius:0}
+  .calc-btn{display:none}
+  .results{display:block!important}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>Wood Diaphragm Designer</h1>
+  <p>Sheathed Wood-Frame Diaphragm — Blocked and Unblocked WSP · ASD Method</p>
+  <div class="ref-tags">
+    <span class="tag">SDPWS-21 §4.2</span>
+    <span class="tag">Table 4.2A — Blocked</span>
+    <span class="tag">Table 4.2C — Unblocked</span>
+    <span class="tag">ASCE 7-22 §12.10</span>
+    <span class="tag">IBC §2305</span>
+    <span class="tag">ASD · φ = 1/2.0</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ══ SCHEMATIC ═══════════════════════════════════════════════════════════ -->
+<div class="schema-wrap">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+    <!-- Plan view -->
+    <div>
+      <div class="sub-head">Diaphragm Plan — Zone Layout</div>
+      <svg id="planSvg" width="100%" viewBox="0 0 460 280" style="display:block"></svg>
+    </div>
+
+    <!-- Shear diagram -->
+    <div>
+      <div class="sub-head">Unit Shear Diagram — L Direction</div>
+      <svg id="shearSvg" width="100%" viewBox="0 0 460 280" style="display:block"></svg>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ PROJECT INFO ═════════════════════════════════════════════════════════ -->
+<div class="blk">
+  <h2>Project Information</h2>
+  <div class="proj-grid">
+    <div class="ig"><label>Project</label><input id="projName" type="text" placeholder="Project name"/></div>
+    <div class="ig"><label>Client</label><input id="client" type="text" placeholder="Client"/></div>
+    <div class="ig"><label>Job No.</label><input id="jobNo" type="text" placeholder="–"/></div>
+    <div class="ig"><label>Level / Diaphragm</label><input id="level" type="text" placeholder="Roof, Flr 2…"/></div>
+    <div class="ig"><label>Date</label><input id="projDate" type="date"/></div>
+    <div class="ig"><label>Design By</label><input id="designBy" type="text" placeholder="Initials"/></div>
+    <div class="ig"><label>Review By</label><input id="reviewBy" type="text" placeholder="Initials"/></div>
+  </div>
+</div>
+
+<!-- ══ LATERAL LOADS ════════════════════════════════════════════════════════ -->
+<div class="blk">
+  <h2>1. Lateral Loads <span class="badge">ASD</span></h2>
+  <div style="margin-bottom:10px" class="sub-head">Along L Side — loading parallel to B (wind or seismic UDL)</div>
+  <div class="g3">
+    <div class="ig"><label>w<sub>L,Wind</sub> <span class="unit">(plf ASD)</span></label><input id="wL_wind" type="number" value="256" min="0" step="1" oninput="drawSchematic()"/></div>
+    <div class="ig"><label>w<sub>L,Seismic</sub> <span class="unit">(plf ASD)</span></label><input id="wL_seis" type="number" value="300" min="0" step="1" oninput="drawSchematic()"/></div>
+  </div>
+  <div style="margin:12px 0 10px" class="sub-head">Along B Side — loading parallel to L</div>
+  <div class="g3">
+    <div class="ig"><label>w<sub>B,Wind</sub> <span class="unit">(plf ASD)</span></label><input id="wB_wind" type="number" value="256" min="0" step="1"/></div>
+    <div class="ig"><label>w<sub>B,Seismic</sub> <span class="unit">(plf ASD)</span></label><input id="wB_seis" type="number" value="343" min="0" step="1"/></div>
+    <div class="ig"><label>Ω₀ <span class="unit">(ASCE 7-22 Table 12.2-1)</span></label><input id="omega0" type="number" value="3.0" min="1" step="0.5"/><span class="hint">Seismic overstrength — drag strut design only</span></div>
+  </div>
+</div>
+
+<!-- ══ GEOMETRY ═════════════════════════════════════════════════════════════ -->
+<div class="blk">
+  <h2>2. Diaphragm Geometry</h2>
+  <div class="g3">
+    <div class="ig"><label>L — diaphragm length <span class="unit">(ft)</span></label><input id="L" type="number" value="240" min="1" step="1" oninput="drawSchematic()"/><span class="hint">Parallel to w<sub>L</sub> loading direction</span></div>
+    <div class="ig"><label>B — diaphragm width <span class="unit">(ft)</span></label><input id="B" type="number" value="110" min="1" step="1" oninput="drawSchematic()"/><span class="hint">Perpendicular to w<sub>L</sub></span></div>
+  </div>
+  <div style="margin:12px 0 10px" class="sub-head">Collector / Drag Strut Offsets (set 0 if N/A)</div>
+  <div class="g3">
+    <div class="ig"><label>B₁ — shearwall edge offset <span class="unit">(ft)</span></label><input id="B1" type="number" value="45" min="0" step="1"/><span class="hint">Distance from each diaphragm edge to shearwall face</span></div>
+    <div class="ig"><label>B₂ — collector zone length <span class="unit">(ft)</span></label><input id="B2" type="number" value="40" min="0" step="1"/><span class="hint">Length of drag strut zone for F₂</span></div>
+  </div>
+</div>
+
+<!-- ══ SHEATHING & NAILS ════════════════════════════════════════════════════ -->
+<div class="blk">
+  <h2>3. Sheathing &amp; Fastener Selection</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Panel Grade</label>
+      <select id="grade" onchange="syncThickness()">
+        <option value="SheatSF">Sheathing and Single-Floor</option>
+        <option value="StructI">Structural I</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Common Nail Size</label>
+      <select id="nail" onchange="syncThickness()">
+        <option value="6d">6d (2 × 0.113 × 0.266 in)</option>
+        <option value="8d" selected>8d (2½ × 0.131 × 0.281 in)</option>
+        <option value="10d">10d (3 × 0.148 × 0.312 in)</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Min Nominal Panel Thickness</label>
+      <select id="thickness"></select>
+    </div>
+    <div class="ig">
+      <label>Min Nominal Framing Width</label>
+      <select id="memberWidth">
+        <option value="2">2" nominal</option>
+        <option value="3" selected>3" nominal</option>
+      </select>
+    </div>
+  </div>
+  <div class="g3" style="margin-top:12px">
+    <div class="ig">
+      <label>Panel Sheathing Type <span class="unit">(for G<sub>a</sub>)</span></label>
+      <select id="panelType">
+        <option value="OSB" selected>OSB / Structural Panel (3-ply or composite)</option>
+        <option value="PLY">Plywood — 3-ply</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Framing Species</label>
+      <select id="dfOrSP" onchange="updateSG()">
+        <option value="yes">Douglas-Fir-Larch or Southern Pine (G ≥ 0.50)</option>
+        <option value="no">Other species — enter G below</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Specific Gravity G <span class="unit">(framing)</span></label>
+      <input id="G" type="number" value="0.50" min="0.2" max="1.0" step="0.01"/>
+      <span class="hint">SDPWS-21 Table 4.2A Note 2 — cap at 0.50 (factor ≤ 1.0)</span>
+    </div>
+  </div>
+  <div id="nailHint" style="margin-top:10px;font-size:.82em;color:#2a5298;font-weight:600"></div>
+</div>
+
+<!-- ══ CHORD & DEFLECTION ═══════════════════════════════════════════════════ -->
+<div class="blk">
+  <h2>4. Chord Member &amp; Deflection Inputs</h2>
+  <div class="g3">
+    <div class="ig"><label>E <span class="unit">(psi)</span></label><input id="E_chord" type="number" value="1700000" step="10000"/><span class="hint">Chord modulus — 1,700,000 psi for DF-L #1</span></div>
+    <div class="ig"><label>A — chord area <span class="unit">(in²)</span></label><input id="A_chord" type="number" value="21.75" step="0.25"/><span class="hint">e.g. (2) 2×12 = 21.75 in²</span></div>
+    <div class="ig"><label>Σ(D<sub>cx</sub>) <span class="unit">(in·ft)</span></label><input id="SumDcx" type="number" value="0" step="1"/><span class="hint">Σ(chord splice slip × dist). Use 0 for prelim.</span></div>
+    <div class="ig"><label>C<sub>M</sub> — wet service factor</label><input id="CM" type="number" value="1.0" step="0.1"/><span class="hint">1.0 = dry service (MC ≤ 19%)</span></div>
+  </div>
+</div>
+
+<!-- ══ RUN CHECKS ═══════════════════════════════════════════════════════════ -->
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- ══ RESULTS ══════════════════════════════════════════════════════════════ -->
+<div id="results" class="results">
+
+  <div id="sumBox" class="summary"></div>
+
+  <!-- Design summary / zone strip -->
+  <div class="blk alt-blk">
+    <h2>Design Summary <span class="badge-green">Zone Layout</span></h2>
+    <div id="zoneStrip"></div>
+    <div id="zoneTable" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Demand cards -->
+  <div class="blk">
+    <h2>Key Design Demands</h2>
+    <div class="dem-grid" id="demOut"></div>
+  </div>
+
+  <!-- Check table -->
+  <div class="blk">
+    <h2>Check Results
+      <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &#9654; Calc to expand any check</span>
+    </h2>
+    <table class="chk-table">
+      <thead>
+        <tr>
+          <th style="width:26%">Check</th>
+          <th>Code Reference</th>
+          <th>Demand</th>
+          <th>Capacity</th>
+          <th>D/C</th>
+          <th>Status</th>
+          <th style="width:70px">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+
+  <!-- Shear capacity reference table -->
+  <div class="blk">
+    <h2>Table 4.2A / 4.2C — Shear Capacities Used <span class="badge">SDPWS-21</span></h2>
+    <div id="capTable"></div>
+    <div id="capNotes" style="margin-top:12px;font-size:.79em;color:#555;line-height:1.7"></div>
+  </div>
+
+  <!-- Notes -->
+  <div class="note-box">
+    <strong>Engineering Notes — SDPWS-21 §4.2:</strong>
+    <ul id="engNotes"></ul>
+  </div>
+
+</div><!-- /results -->
+</div><!-- /content -->
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// TABLE DATA — SDPWS-21 Tables 4.2A and 4.2C
+// Nominal unit shear (plf) before ASD ÷2.0 and SG adjustment
+// Spacing order: [6/6, 4/6, 2.5/4, 2/3]  (Boundary / Other Edges)
+// Ga values: kips/in — increase with tighter nail spacing
+// ═══════════════════════════════════════════════════════════════════════════
+
+const T4_2A = {
+  // ── STRUCTURAL I ────────────────────────────────────────────────────────
+  'StructI_6d_5/16_2': { vn:[520,700,1050,1175], Ga_OSB:[5.5,7.0,13,18], Ga_PLY:[4.5,5.5,10,14], pen:'1-1/4' },
+  'StructI_6d_5/16_3': { vn:[590,785,1175,1330], Ga_OSB:[6.5,8.5,14,20], Ga_PLY:[5.0,7.0,11,16], pen:'1-1/4' },
+  'StructI_8d_3/8_2':  { vn:[755,1010,1485,1680],Ga_OSB:[7.0,9.5,13,18], Ga_PLY:[5.5,7.5,10,14], pen:'1-3/8' },
+  'StructI_8d_3/8_3':  { vn:[840,1120,1890,2015],Ga_OSB:[8.5,11,15,20],  Ga_PLY:[6.5,9.0,12,16], pen:'1-3/8' },
+  'StructI_8d_15/32_2':{ vn:[895,1190,1790,2045],Ga_OSB:[8.0,11,15,20],  Ga_PLY:[6.0,8.5,12,15], pen:'1-3/8' },
+  'StructI_8d_15/32_3':{ vn:[1010,1345,2015,2295],Ga_OSB:[10,13,17,22],  Ga_PLY:[7.5,10,14,18],  pen:'1-3/8' },
+  'StructI_10d_15/32_2':{ vn:[1100,1460,2195,2490],Ga_OSB:[10,14,19,25], Ga_PLY:[8.0,11,15,20],  pen:'1-1/2' },
+  'StructI_10d_15/32_3':{ vn:[1220,1625,2430,2745],Ga_OSB:[12,16,22,28], Ga_PLY:[9.0,12,17,22],  pen:'1-1/2' },
+  'StructI_10d_19/32_2':{ vn:[1160,1540,2315,2590],Ga_OSB:[11,15,20,26], Ga_PLY:[8.5,11,16,21],  pen:'1-1/2' },
+  'StructI_10d_19/32_3':{ vn:[1290,1715,2575,2880],Ga_OSB:[13,18,24,31], Ga_PLY:[10,14,18,24],   pen:'1-1/2' },
+  // ── SHEATHING AND SINGLE-FLOOR ──────────────────────────────────────────
+  'SheatSF_6d_5/16_2': { vn:[475,630,940,1065],  Ga_OSB:[5.0,7.0,12,16], Ga_PLY:[4.0,5.5,9.0,12], pen:'1-1/4' },
+  'SheatSF_6d_5/16_3': { vn:[530,700,1065,1205], Ga_OSB:[5.5,7.5,13,17], Ga_PLY:[4.5,6.0,10,13],  pen:'1-1/4' },
+  'SheatSF_6d_3/8_2':  { vn:[520,700,1050,1175], Ga_OSB:[5.0,7.0,12,16], Ga_PLY:[4.0,5.5,9.0,12], pen:'1-1/4' },
+  'SheatSF_6d_3/8_3':  { vn:[580,785,1175,1330], Ga_OSB:[6.0,8.0,14,18], Ga_PLY:[5.0,6.5,11,14],  pen:'1-1/4' },
+  'SheatSF_8d_3/8_2':  { vn:[670,895,1345,1525], Ga_OSB:[6.5,9.0,13,17], Ga_PLY:[5.0,7.0,10,13],  pen:'1-3/8' },
+  'SheatSF_8d_3/8_3':  { vn:[755,1010,1710,1960],Ga_OSB:[7.5,10,14,19],  Ga_PLY:[5.5,8.0,11,15],  pen:'1-3/8' },
+  'SheatSF_8d_7/16_2': { vn:[715,950,1415,1610], Ga_OSB:[7.0,9.5,14,18], Ga_PLY:[5.5,7.5,11,14],  pen:'1-3/8' },
+  'SheatSF_8d_7/16_3': { vn:[800,1065,1595,1805],Ga_OSB:[8.5,11,15,20],  Ga_PLY:[6.5,9.0,12,16],  pen:'1-3/8' },
+  'SheatSF_8d_15/32_2':{ vn:[755,1015,1680,1835],Ga_OSB:[7.5,10,14,18],  Ga_PLY:[5.5,8.0,11,14],  pen:'1-3/8' },
+  'SheatSF_8d_15/32_3':{ vn:[840,1120,1890,2195],Ga_OSB:[9.0,12,16,21],  Ga_PLY:[7.0,9.5,13,16],  pen:'1-3/8' },
+  'SheatSF_10d_15/32_2':{ vn:[910,1205,1820,2060],Ga_OSB:[9.5,13,18,23], Ga_PLY:[7.5,10,14,18],   pen:'1-1/2' },
+  'SheatSF_10d_15/32_3':{ vn:[1010,1345,2015,2295],Ga_OSB:[11,15,20,26], Ga_PLY:[8.5,11,16,20],   pen:'1-1/2' },
+  'SheatSF_10d_19/32_2':{ vn:[980,1290,1940,2185],Ga_OSB:[11,15,20,26],  Ga_PLY:[8.5,11,16,20],   pen:'1-1/2' },
+  'SheatSF_10d_19/32_3':{ vn:[1090,1450,2170,2455],Ga_OSB:[13,17,23,29], Ga_PLY:[10,13,17,23],    pen:'1-1/2' },
+};
+
+// Table 4.2C — Unblocked WSP Diaphragms, 6" nail spacing at boundaries & supported edges
+// { vn_C1, vn_Ot, Ga_OSB_C1, Ga_PLY_C1, Ga_OSB_Ot, Ga_PLY_Ot }
+const T4_2C = {
+  'StructI_6d_5/16_2': { vn_C1:460,vn_Ot:350,Ga_OSB_C1:9.0,Ga_PLY_C1:7.0,Ga_OSB_Ot:6.0,Ga_PLY_Ot:4.5 },
+  'StructI_6d_5/16_3': { vn_C1:520,vn_Ot:390,Ga_OSB_C1:7.5,Ga_PLY_C1:6.0,Ga_OSB_Ot:5.5,Ga_PLY_Ot:4.0 },
+  'StructI_8d_3/8_2':  { vn_C1:670,vn_Ot:505,Ga_OSB_C1:8.5,Ga_PLY_C1:7.0,Ga_OSB_Ot:6.0,Ga_PLY_Ot:4.5 },
+  'StructI_8d_3/8_3':  { vn_C1:740,vn_Ot:560,Ga_OSB_C1:7.5,Ga_PLY_C1:6.0,Ga_OSB_Ot:5.5,Ga_PLY_Ot:5.0 },
+  'StructI_8d_15/32_2':{ vn_C1:800,vn_Ot:600,Ga_OSB_C1:14, Ga_PLY_C1:10, Ga_OSB_Ot:9.5,Ga_PLY_Ot:7.0 },
+  'StructI_8d_15/32_3':{ vn_C1:895,vn_Ot:670,Ga_OSB_C1:12, Ga_PLY_C1:9.0,Ga_OSB_Ot:9.0,Ga_PLY_Ot:8.0 },
+  'StructI_10d_15/32_2':{ vn_C1:895,vn_Ot:670,Ga_OSB_C1:9.5,Ga_PLY_C1:7.0,Ga_OSB_Ot:7.0,Ga_PLY_Ot:5.5 },
+  'StructI_10d_15/32_3':{ vn_C1:990,vn_Ot:745,Ga_OSB_C1:8.5,Ga_PLY_C1:6.5,Ga_OSB_Ot:6.5,Ga_PLY_Ot:5.0 },
+  'StructI_10d_19/32_2':{ vn_C1:895,vn_Ot:670,Ga_OSB_C1:10, Ga_PLY_C1:7.5,Ga_OSB_Ot:7.5,Ga_PLY_Ot:5.5 },
+  'StructI_10d_19/32_3':{ vn_C1:990,vn_Ot:745,Ga_OSB_C1:9.0,Ga_PLY_C1:7.0,Ga_OSB_Ot:7.0,Ga_PLY_Ot:5.5 },
+  'SheatSF_6d_5/16_2': { vn_C1:420,vn_Ot:310,Ga_OSB_C1:9.0,Ga_PLY_C1:6.5,Ga_OSB_Ot:6.0,Ga_PLY_Ot:4.0 },
+  'SheatSF_6d_5/16_3': { vn_C1:475,vn_Ot:350,Ga_OSB_C1:7.5,Ga_PLY_C1:5.5,Ga_OSB_Ot:5.5,Ga_PLY_Ot:3.5 },
+  'SheatSF_6d_3/8_2':  { vn_C1:460,vn_Ot:350,Ga_OSB_C1:7.5,Ga_PLY_C1:5.5,Ga_OSB_Ot:5.5,Ga_PLY_Ot:4.0 },
+  'SheatSF_6d_3/8_3':  { vn_C1:520,vn_Ot:390,Ga_OSB_C1:6.5,Ga_PLY_C1:5.0,Ga_OSB_Ot:5.0,Ga_PLY_Ot:4.0 },
+  'SheatSF_8d_3/8_2':  { vn_C1:600,vn_Ot:450,Ga_OSB_C1:9.0,Ga_PLY_C1:6.5,Ga_OSB_Ot:6.0,Ga_PLY_Ot:4.5 },
+  'SheatSF_8d_3/8_3':  { vn_C1:670,vn_Ot:505,Ga_OSB_C1:7.5,Ga_PLY_C1:5.5,Ga_OSB_Ot:5.5,Ga_PLY_Ot:5.0 },
+  'SheatSF_8d_7/16_2': { vn_C1:645,vn_Ot:475,Ga_OSB_C1:8.5,Ga_PLY_C1:6.0,Ga_OSB_Ot:6.0,Ga_PLY_Ot:4.0 },
+  'SheatSF_8d_7/16_3': { vn_C1:715,vn_Ot:530,Ga_OSB_C1:7.5,Ga_PLY_C1:5.5,Ga_OSB_Ot:5.5,Ga_PLY_Ot:4.5 },
+  'SheatSF_8d_15/32_2':{ vn_C1:670,vn_Ot:505,Ga_OSB_C1:7.5,Ga_PLY_C1:5.5,Ga_OSB_Ot:5.5,Ga_PLY_Ot:4.0 },
+  'SheatSF_8d_15/32_3':{ vn_C1:740,vn_Ot:560,Ga_OSB_C1:6.5,Ga_PLY_C1:5.0,Ga_OSB_Ot:5.0,Ga_PLY_Ot:3.5 },
+  'SheatSF_10d_15/32_2':{ vn_C1:715,vn_Ot:530,Ga_OSB_C1:15, Ga_PLY_C1:9.0,Ga_OSB_Ot:9.0,Ga_PLY_Ot:6.0 },
+  'SheatSF_10d_15/32_3':{ vn_C1:810,vn_Ot:600,Ga_OSB_C1:12, Ga_PLY_C1:8.0,Ga_OSB_Ot:8.0,Ga_PLY_Ot:5.5 },
+  'SheatSF_10d_19/32_2':{ vn_C1:800,vn_Ot:600,Ga_OSB_C1:13, Ga_PLY_C1:8.5,Ga_OSB_Ot:8.5,Ga_PLY_Ot:5.5 },
+  'SheatSF_10d_19/32_3':{ vn_C1:895,vn_Ot:670,Ga_OSB_C1:10, Ga_PLY_C1:7.5,Ga_OSB_Ot:7.5,Ga_PLY_Ot:5.0 },
+};
+
+const NAIL_THICKNESS = { '6d':['5/16','3/8'], '8d':['3/8','7/16','15/32'], '10d':['15/32','19/32'] };
+const SP_LABELS = ['6 / 6','4 / 6','2.5 / 4','2 / 3'];
+
+// ── Number formatters ────────────────────────────────────────────────────────
+function f0(v){ return isFinite(v)?Math.round(v).toLocaleString():'N/A'; }
+function f1(v){ return isFinite(v)?v.toFixed(1):'N/A'; }
+function f2(v){ return isFinite(v)?v.toFixed(2):'N/A'; }
+function f3(v){ return isFinite(v)?v.toFixed(3):'N/A'; }
+// Fraction helper
+function fr(n,d){ return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'; }
+// Square root helper
+function ov(x){ return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>'; }
+// Toggle detail panel
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────────
+function v(id){ return parseFloat(document.getElementById(id).value)||0; }
+function s(id){ return document.getElementById(id).value; }
+
+function syncThickness(){
+  var nail=s('nail'), sel=document.getElementById('thickness'), cur=sel.value;
+  sel.innerHTML='';
+  (NAIL_THICKNESS[nail]||[]).forEach(function(t){
+    var o=document.createElement('option');
+    o.value=t; o.textContent=t+'"';
+    if(t===cur) o.selected=true;
+    sel.appendChild(o);
+  });
+  updateNailHint();
+}
+function updateSG(){
+  var gf=document.getElementById('G');
+  if(s('dfOrSP')==='yes'){ gf.value='0.50'; gf.readOnly=true; }
+  else { gf.readOnly=false; }
+}
+function updateNailHint(){
+  var nail=s('nail'), thick=s('thickness'), mw=s('memberWidth');
+  var penMap={'6d':'1-1/4"','8d':'1-3/8"','10d':'1-1/2"'};
+  document.getElementById('nailHint').textContent =
+    nail+' common nail | Min bearing in framing: '+penMap[nail]+'  |  '+thick+'" panel  |  '+mw+'" min framing width';
+}
+
+// ── SCHEMATIC DRAWING ────────────────────────────────────────────────────────
+function drawSchematic(){
+  var L=v('L')||240, B=v('B')||110;
+  var wL=Math.max(v('wL_wind'),v('wL_seis'))||300;
+
+  // ── Plan View ──
+  var ps=document.getElementById('planSvg');
+  var pw=460, ph=280, pad=40;
+  var scale=Math.min((pw-2*pad)/L,(ph-2*pad-60)/B);
+  var lw=L*scale, bh=B*scale;
+  var ox=(pw-lw)/2, oy=ph-pad-bh;
+
+  var svg='<defs>'
+    +'<marker id="aL" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#dc2626"/></marker>'
+    +'<marker id="aDim" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto"><path d="M6,0 L6,6 L0,3z" fill="#f59e0b"/></marker>'
+    +'<marker id="aDimR" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#f59e0b"/></marker>'
+    +'</defs>';
+
+  // Diaphragm fill + hatch
+  svg+='<rect x="'+ox+'" y="'+oy+'" width="'+lw+'" height="'+bh+'" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>';
+  // Shearwall lines (ends)
+  svg+='<line x1="'+ox+'" y1="'+oy+'" x2="'+ox+'" y2="'+(oy+bh)+'" stroke="#1e3c72" stroke-width="5"/>';
+  svg+='<line x1="'+(ox+lw)+'" y1="'+oy+'" x2="'+(ox+lw)+'" y2="'+(oy+bh)+'" stroke="#1e3c72" stroke-width="5"/>';
+  // Wind arrows (L-direction)
+  var mid=oy+bh/2;
+  var arrowLen=Math.min(30, ox-8);
+  if(arrowLen>5){
+    for(var yi=0;yi<3;yi++){
+      var yy=oy+bh*(0.25+yi*0.25);
+      svg+='<line x1="'+(ox-arrowLen)+'" y1="'+yy+'" x2="'+(ox-2)+'" y2="'+yy+'" stroke="#dc2626" stroke-width="2" marker-end="url(#aL)"/>';
+    }
+  }
+  // Labels
+  svg+='<text x="'+(ox+lw/2)+'" y="'+(oy-8)+'" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="700">L = '+L+' ft</text>';
+  svg+='<text x="'+(ox-14)+'" y="'+(oy+bh/2+4)+'" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="700" transform="rotate(-90,'+(ox-14)+','+(oy+bh/2)+')">B = '+B+' ft</text>';
+  svg+='<text x="'+(ox+lw/2)+'" y="'+(oy+bh/2+5)+'" text-anchor="middle" font-size="10" fill="#1e40af">DIAPHRAGM</text>';
+  // Load label
+  svg+='<text x="'+Math.max(8,ox-arrowLen-2)+'" y="'+(mid-6)+'" text-anchor="middle" font-size="9" fill="#dc2626">w<tspan baseline-shift="sub">L</tspan></text>';
+  svg+='<text x="'+Math.max(8,ox-arrowLen-2)+'" y="'+(mid+10)+'" text-anchor="middle" font-size="9" fill="#dc2626">='+Math.round(wL)+' plf</text>';
+  // Chord labels
+  svg+='<text x="'+(ox+lw/2)+'" y="'+(oy+bh+14)+'" text-anchor="middle" font-size="9" fill="#15803d">◄── T=C (Chord) ──►</text>';
+
+  ps.innerHTML=svg;
+
+  // ── Shear Diagram ──
+  var ss=document.getElementById('shearSvg');
+  var sw=460, sh=280;
+  var diagPad={l:50,r:20,t:30,b:60};
+  var dw=sw-diagPad.l-diagPad.r, dh=sh-diagPad.t-diagPad.b;
+  var Bval=B||110, vL_max=wL*L/(2*Bval);
+  var ys=dh/vL_max;
+
+  var ds='';
+  ds+='<text x="'+(diagPad.l+dw/2)+'" y="18" text-anchor="middle" font-size="10" fill="#555">v(x) = v<tspan baseline-shift="sub">L</tspan>·(1−2x/L)</text>';
+  // Axes
+  ds+='<line x1="'+diagPad.l+'" y1="'+diagPad.t+'" x2="'+diagPad.l+'" y2="'+(sh-diagPad.b)+'" stroke="#666" stroke-width="1.5"/>';
+  ds+='<line x1="'+diagPad.l+'" y1="'+(sh-diagPad.b)+'" x2="'+(diagPad.l+dw)+'" y2="'+(sh-diagPad.b)+'" stroke="#666" stroke-width="1.5"/>';
+  // Shear trapezoid
+  var x0=diagPad.l, x1=diagPad.l+dw, ymid=sh-diagPad.b;
+  ds+='<polygon points="'+x0+','+(ymid-dh)+' '+x0+','+ymid+' '+x1+','+ymid+' '+x1+','+(ymid-dh)+'" fill="#dbeafe" stroke="#2a5298" stroke-width="1.5"/>';
+  // Triangle overlays (shear is triangular from ends to center)
+  ds+='<polygon points="'+x0+','+(ymid-dh)+' '+x0+','+ymid+' '+(x0+dw/2)+','+ymid+'" fill="#93c5fd" opacity=".6"/>';
+  ds+='<polygon points="'+x1+','+(ymid-dh)+' '+x1+','+ymid+' '+(x0+dw/2)+','+ymid+'" fill="#93c5fd" opacity=".6"/>';
+  // vL label
+  ds+='<text x="'+(x0-4)+'" y="'+(ymid-dh+4)+'" text-anchor="end" font-size="9" fill="#1e3c72" font-weight="700">v<tspan baseline-shift="sub">L</tspan>='+Math.round(vL_max)+'</text>';
+  ds+='<text x="'+(x0+dw/2)+'" y="'+(ymid+14)+'" text-anchor="middle" font-size="9" fill="#555">L/2</text>';
+  ds+='<text x="'+x0+'" y="'+(ymid+14)+'" text-anchor="middle" font-size="9" fill="#555">0</text>';
+  ds+='<text x="'+x1+'" y="'+(ymid+14)+'" text-anchor="middle" font-size="9" fill="#555">L</text>';
+  ds+='<text x="'+(x0+dw/2)+'" y="'+(ymid-2)+'" text-anchor="middle" font-size="9" fill="#888">v=0 at midspan</text>';
+  ds+='<text x="'+(x0-6)+'" y="'+(ymid+6)+'" text-anchor="end" font-size="9" fill="#555">0</text>';
+  ss.innerHTML=ds;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN CALCULATION
+// ═══════════════════════════════════════════════════════════════════════════
+function runCalc(){
+  var wL_w=v('wL_wind'), wL_s=v('wL_seis');
+  var wB_w=v('wB_wind'), wB_s=v('wB_seis');
+  var omega0=v('omega0'), L=v('L'), B=v('B'), B1=v('B1'), B2=v('B2');
+  var G=Math.min(v('G'),0.50);
+  var SG_factor=Math.max(1-(0.50-G),0.10);
+  var grade=s('grade'), nail=s('nail'), thick=s('thickness'), mw=s('memberWidth');
+  var pType=s('panelType');
+  var E_c=v('E_chord'), A_c=v('A_chord'), SumDcx=v('SumDcx'), CM=v('CM');
+
+  var key=grade+'_'+nail+'_'+thick+'_'+mw;
+  var R4A=T4_2A[key], R4C=T4_2C[key];
+
+  if(!R4A){
+    alert('No table data for this nail/grade/thickness/width combination. Please select a valid combination.');
+    return;
+  }
+
+  // ── Governing loads
+  var wL=Math.max(wL_w,wL_s), wB=Math.max(wB_w,wB_s);
+  var wL_wind_unit=wL_w*L/(2*B), wL_seis_unit=wL_s*L/(2*B);
+  var vL=wL*L/(2*B);       // max unit shear, L-dir
+  var vB=wB*B/(2*L);       // max unit shear, B-dir
+  var vL_drag=Math.max(wL_wind_unit, omega0*wL_seis_unit); // amplified for drag struts
+
+  // ── ASD allowables — blocked (Table 4.2A)
+  var Ga_arr=pType==='OSB'?R4A.Ga_OSB:R4A.Ga_PLY;
+  var asd=R4A.vn.map(function(vn){ return vn*SG_factor/2.0; });
+
+  // ── ASD allowables — unblocked (Table 4.2C)
+  var asd_C1=0, asd_Ot=0, Ga_C1=4.0;
+  if(R4C){
+    asd_C1=R4C.vn_C1*SG_factor/2.0;
+    asd_Ot=R4C.vn_Ot*SG_factor/2.0;
+    Ga_C1=pType==='OSB'?R4C.Ga_OSB_C1:R4C.Ga_PLY_C1;
+  }
+
+  // ── Find governing spacing index for max shear vL
+  var iL=-1;
+  for(var i=0;i<4;i++){ if(vL<=asd[i]){ iL=i; break; } }
+  var overstress=(iL<0);
+
+  // ── Zone boundaries
+  var zones=[];
+  if(!overstress){
+    // A1: from each end, using iL spacing
+    // A1 runs to where v drops to the NEXT relaxed level
+    var iA1=iL, iA2=(iL>0)?iL-1:-1;
+    var vThresh_A1_end = (iA2>=0)?asd[iA2]:asd_C1; // threshold for A1→A2 transition
+    var L1=0;
+    if(iA2>=0 && vThresh_A1_end<vL){
+      L1=Math.max(0,(L/2)*(1-vThresh_A1_end/vL));
+    } else if(iA2<0 && asd_C1<vL){
+      L1=Math.max(0,(L/2)*(1-asd_C1/vL));
+    }
+
+    // A2: blocked at next relaxed level
+    var L2=L1;
+    if(iA2>=0 && asd_C1>0 && vL>asd_C1){
+      L2=Math.max(L1,(L/2)*(1-asd_C1/vL));
+    }
+
+    // A3: unblocked center
+    var L_A3=L-2*L2;
+
+    if(iA1>0 && L1>0.1){
+      zones.push({id:'A1',type:'Blocked',sp:SP_LABELS[iA1],spIdx:iA1,asd:asd[iA1],len:L1,cnt:2,Ga:Ga_arr[iA1]});
+    }
+    if(iA2>=0 && (L2-L1)>0.1){
+      zones.push({id:'A2',type:'Blocked',sp:SP_LABELS[iA2],spIdx:iA2,asd:asd[iA2],len:L2-L1,cnt:2,Ga:Ga_arr[iA2]});
+    }
+    if(iA1===0 && L1>0.1){
+      // 6/6 blocked needed at ends
+      zones.push({id:'A1',type:'Blocked',sp:SP_LABELS[0],spIdx:0,asd:asd[0],len:L1,cnt:2,Ga:Ga_arr[0]});
+    }
+    if(L_A3>0.1 && asd_C1>0){
+      zones.push({id:'A3',type:'Unblocked',sp:'6 / 6 all edges',spIdx:-1,asd:asd_C1,len:L_A3,cnt:1,Ga:Ga_C1});
+    } else if(L_A3>0.1){
+      zones.push({id:'A3',type:'Blocked',sp:SP_LABELS[0],spIdx:0,asd:asd[0],len:L_A3,cnt:1,Ga:Ga_arr[0]});
+    }
+    if(zones.length===0){
+      // Entire diaphragm unblocked or single zone
+      zones.push({id:'A1',type:asd_C1>=vL?'Unblocked':'Blocked',sp:asd_C1>=vL?'6 / 6 all edges':SP_LABELS[iA1],spIdx:asd_C1>=vL?-1:iA1,asd:asd_C1>=vL?asd_C1:asd[iA1],len:L,cnt:1,Ga:asd_C1>=vL?Ga_C1:Ga_arr[iA1]});
+    }
+  }
+
+  // ── Chord forces
+  var TL=wL*L*L/(8*B)/1000; // kips
+  var TB=wB*B*B/(8*L)/1000; // kips
+
+  // ── Drag strut forces
+  var F1=(B-2*B1)>0 ? 0.5*(B-2*B1)*vL_drag/1000 : 0;
+  var F2=B2>0 ? B2*vL_drag/1000 : 0;
+
+  // ── Deflection — SDPWS-21 Eq. 4.2-1
+  var govGa=zones.length>0?zones[0].Ga:Ga_arr[0];
+  var d_bend=5*vL*Math.pow(L,3)/(8*E_c*A_c*B);
+  var d_shear=0.25*vL*L/(1000*govGa*B);
+  var d_chord=SumDcx/(2*B);
+  var delta=(d_bend+d_shear+d_chord)*CM;
+
+  // ── L/B Ratio
+  var LB=L/B;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BUILD CHECKS ARRAY
+  // ═══════════════════════════════════════════════════════════════════════
+  var chks=[];
+
+  // ── Check 1: Aspect ratio
+  var dc_LB=LB/3.0;
+  var det1='';
+  det1+='<div class="cref-hdr">SDPWS-21 §4.2.2 — Maximum Diaphragm Aspect Ratio</div>';
+  det1+='<div class="cbox">';
+  det1+='<div class="mrow"><span class="ceq">Limit:</span> L/B ≤ 3.0</div>';
+  det1+='<div class="mrow ind">L/B = '+fr(f1(L)+' ft',f1(B)+' ft')+' = <span class="cval">'+f2(LB)+'</span></div>';
+  det1+='<div class="csep"/>';
+  det1+='<div class="mrow">D/C = '+fr(f2(LB),'3.0')+' = <span class="cval">'+f3(dc_LB)+'</span></div>';
+  det1+='</div>';
+  chks.push({n:'Aspect Ratio L/B',r:'SDPWS-21 §4.2.2',d:'L/B = '+f2(LB),c:'3.0 max',dc:dc_LB,nt:'SDPWS-21 Table 4.2.2',det:det1});
+
+  // ── Check 2: Max unit shear — L direction (at boundary, governs)
+  var cap_L=overstress?asd[3]:asd[iL];
+  var dc_vL=overstress?vL/asd[3]:vL/cap_L;
+  var sp_L=overstress?'2/3" (max — OVERSTRESSED)':SP_LABELS[iL]+'"';
+  var det2='';
+  det2+='<div class="cref-hdr">SDPWS-21 §4.2.4 / Table 4.2A — Max Unit Shear, L-Direction</div>';
+  det2+='<div class="cbox">';
+  det2+='<div class="mrow"><span class="ceq">Eq.:</span> v<sub>L</sub> = '+fr('w<sub>L</sub> · L','2 · B')+'</div>';
+  det2+='<div class="mrow ind">= '+fr(f0(wL)+' · '+f0(L),'2 · '+f0(B))+' = <span class="cval">'+f0(vL)+' plf</span></div>';
+  det2+='<div class="csep"/>';
+  det2+='<div class="mrow"><span class="ceq">ASD Allowable ('+sp_L+'):</span></div>';
+  det2+='<div class="mrow ind">v<sub>n</sub> = '+f0(R4A.vn[overstress?3:iL])+' plf &nbsp;(SDPWS-21 Table 4.2A, Nominal)</div>';
+  det2+='<div class="mrow ind">SG Factor = [1 − (0.5 − G)] = [1 − (0.5 − '+f2(G)+')] = '+f3(SG_factor)+'</div>';
+  det2+='<div class="mrow ind">v<sub>ASD</sub> = v<sub>n</sub> × SG / 2.0 = '+f0(R4A.vn[overstress?3:iL])+' × '+f3(SG_factor)+' / 2.0 = <span class="cval">'+f0(cap_L)+' plf</span></div>';
+  det2+='<div class="csep"/>';
+  det2+='<div class="mrow">D/C = '+fr(f0(vL)+' plf',f0(cap_L)+' plf')+' = <span class="cval">'+f3(dc_vL)+'</span></div>';
+  det2+='</div>';
+  chks.push({n:'Unit Shear v<sub>L</sub> — L Direction',r:'SDPWS-21 Table 4.2A',d:'v<sub>L</sub> = '+f0(vL)+' plf',c:'v<sub>ASD</sub> = '+f0(cap_L)+' plf @ '+sp_L,dc:dc_vL,nt:'Case 1 · Blocked · '+thick+'" '+nail+' · '+mw+'" framing',det:det2});
+
+  // ── Check 3: Unblocked zone shear — L direction (center zone)
+  if(asd_C1>0 && !overstress){
+    var vCenter=0; // at center (x=L/2), v=0 — use threshold shear at zone boundary
+    var vAtUBbound=vL*(1-2*(zones.filter(function(z){return z.id!=='A3'}).reduce(function(a,z){return a+z.len*z.cnt/2;},0))/(L/2));
+    var dc_ub=Math.max(vAtUBbound,0)/asd_C1;
+    if(dc_ub<0)dc_ub=0;
+    var det3='';
+    det3+='<div class="cref-hdr">SDPWS-21 §4.2.4 / Table 4.2C — Unblocked Zone Shear (Center — A3)</div>';
+    det3+='<div class="cbox">';
+    det3+='<div class="mrow"><span class="ceq">Unblocked allowable (Case 1, 6" all edges):</span></div>';
+    det3+='<div class="mrow ind">v<sub>n,ub</sub> = '+f0(R4C.vn_C1)+' plf &nbsp;(Table 4.2C Nominal)</div>';
+    det3+='<div class="mrow ind">v<sub>ASD,ub</sub> = '+f0(R4C.vn_C1)+' × '+f3(SG_factor)+' / 2.0 = <span class="cval">'+f0(asd_C1)+' plf</span></div>';
+    det3+='<div class="csep"/>';
+    det3+='<div class="mrow">v at A3 boundary ≈ '+f0(Math.max(0,vAtUBbound))+' plf</div>';
+    det3+='<div class="mrow">D/C = '+fr(f0(Math.max(0,vAtUBbound)),f0(asd_C1))+' = <span class="cval">'+f3(dc_ub)+'</span></div>';
+    det3+='</div>';
+    chks.push({n:'Unit Shear — Unblocked Zone A3',r:'SDPWS-21 Table 4.2C',d:'v<sub>A3</sub> = '+f0(Math.max(0,vAtUBbound))+' plf',c:'v<sub>ASD</sub> = '+f0(asd_C1)+' plf (Case 1)',dc:dc_ub,nt:'6" all panel edges · 12" field',det:det3});
+  }
+
+  // ── Check 4: B-direction shear
+  var iB=-1;
+  for(var j=0;j<4;j++){ if(vB<=asd[j]){ iB=j; break; } }
+  var bBlocked=(iB>=0);
+  var bUnblocked=(asd_Ot>=vB);
+  var cap_B=bUnblocked?asd_Ot:(bBlocked?asd[iB]:asd[3]);
+  var dc_vB=vB/(bUnblocked?asd_Ot:(bBlocked?asd[iB]:asd[3]));
+  var det4='';
+  det4+='<div class="cref-hdr">SDPWS-21 §4.2 / Table 4.2A&amp;C — Unit Shear, B-Direction (Cases 2,3,4)</div>';
+  det4+='<div class="cbox">';
+  det4+='<div class="mrow"><span class="ceq">Eq.:</span> v<sub>B</sub> = '+fr('w<sub>B</sub> · B','2 · L')+'</div>';
+  det4+='<div class="mrow ind">= '+fr(f0(wB)+' · '+f0(B),'2 · '+f0(L))+' = <span class="cval">'+f0(vB)+' plf</span></div>';
+  det4+='<div class="csep"/>';
+  det4+='<div class="mrow">Unblocked allowable (Others): '+f0(asd_Ot)+' plf '+fr(f0(R4C?R4C.vn_Ot:0)+' × '+f3(SG_factor),'2.0')+' = '+f0(asd_Ot)+' plf</div>';
+  det4+='<div class="mrow">D/C = '+fr(f0(vB)+' plf',f0(cap_B)+' plf')+' = <span class="cval">'+f3(dc_vB)+'</span></div>';
+  det4+='</div>';
+  chks.push({n:'Unit Shear v<sub>B</sub> — B Direction',r:'SDPWS-21 Table 4.2A/4.2C',d:'v<sub>B</sub> = '+f0(vB)+' plf',c:'v<sub>ASD</sub> = '+f0(cap_B)+' plf '+(bUnblocked?'(Unblocked)':'(Blocked '+SP_LABELS[iB<0?3:iB]+'")')  ,dc:dc_vB,nt:'Case 3/Others · Governs perp. direction',det:det4});
+
+  // ── Check 5: Chord force TL (informational — engineer designs chord member)
+  var det5='';
+  det5+='<div class="cref-hdr">SDPWS-21 §4.2.7 — Chord Force, L-Direction</div>';
+  det5+='<div class="cbox">';
+  det5+='<div class="mrow"><span class="ceq">Eq.:</span> T<sub>L</sub> = C<sub>L</sub> = '+fr('w<sub>L</sub> · L²','8 · B')+'</div>';
+  det5+='<div class="mrow ind">= '+fr(f0(wL)+' × '+f0(L)+'²','8 × '+f0(B))+' = '+fr(f0(wL*L*L),''+f0(8*B))+' = <span class="cval">'+f0(TL*1000)+' lb = '+f2(TL)+' kips</span></div>';
+  det5+='<div class="csep"/>';
+  det5+='<div class="mrow" style="color:#78350f">Design chord member and splices for T<sub>L</sub> = <strong>'+f2(TL)+' kips</strong> tension/compression.</div>';
+  det5+='<div class="mrow" style="color:#78350f">Chord splice capacity must also resist T<sub>L</sub> at each splice location.</div>';
+  det5+='</div>';
+  chks.push({n:'Chord Force T<sub>L</sub> = C<sub>L</sub>',r:'SDPWS-21 §4.2.7',d:'T<sub>L</sub> = '+f2(TL)+' kips',c:'Design chord member',dc:null,nt:'Engineer to design chord for this force',det:det5});
+
+  // ── Check 6: Chord force TB (informational)
+  var det6='';
+  det6+='<div class="cref-hdr">SDPWS-21 §4.2.7 — Chord Force, B-Direction</div>';
+  det6+='<div class="cbox">';
+  det6+='<div class="mrow"><span class="ceq">Eq.:</span> T<sub>B</sub> = C<sub>B</sub> = '+fr('w<sub>B</sub> · B²','8 · L')+'</div>';
+  det6+='<div class="mrow ind">= '+fr(f0(wB)+' × '+f0(B)+'²','8 × '+f0(L))+' = <span class="cval">'+f0(TB*1000)+' lb = '+f2(TB)+' kips</span></div>';
+  det6+='</div>';
+  chks.push({n:'Chord Force T<sub>B</sub> = C<sub>B</sub>',r:'SDPWS-21 §4.2.7',d:'T<sub>B</sub> = '+f2(TB)+' kips',c:'Design chord member',dc:null,nt:'B-direction chord',det:det6});
+
+  // ── Check 7: Drag strut F1 (if applicable)
+  if(B1>0){
+    var det7='';
+    det7+='<div class="cref-hdr">SDPWS-21 §4.2.7 / ASCE 7-22 Table 12.2-1 — Drag Strut F₁</div>';
+    det7+='<div class="cbox">';
+    det7+='<div class="mrow"><span class="ceq">Amplified drag shear:</span></div>';
+    det7+='<div class="mrow ind">v<sub>drag</sub> = max(v<sub>wind</sub>, Ω₀·v<sub>seismic</sub>)</div>';
+    det7+='<div class="mrow ind">= max('+f0(wL_wind_unit)+', '+f1(omega0)+'·'+f0(wL_seis_unit)+') = <span class="cval">'+f0(vL_drag)+' plf</span></div>';
+    det7+='<div class="csep"/>';
+    det7+='<div class="mrow"><span class="ceq">F₁ = 0.5 · (B − 2B₁) · v<sub>drag</sub></span></div>';
+    det7+='<div class="mrow ind">= 0.5 × ('+f0(B)+' − 2×'+f0(B1)+') × '+f0(vL_drag)+' / 1000</div>';
+    det7+='<div class="mrow ind">= 0.5 × '+f0(B-2*B1)+' × '+f0(vL_drag)+' / 1000 = <span class="cval">'+f2(F1)+' kips</span></div>';
+    det7+='</div>';
+    chks.push({n:'Drag Strut Force F₁',r:'SDPWS-21 §4.2.7 / ASCE 7-22 §12.10',d:'F₁ = '+f2(F1)+' kips',c:'Design drag strut',dc:null,nt:'Ω₀ = '+f1(omega0)+' applied to seismic demand',det:det7});
+  }
+
+  // ── Check 8: Drag strut F2 (if applicable)
+  if(B2>0){
+    var det8='';
+    det8+='<div class="cref-hdr">SDPWS-21 §4.2.7 / ASCE 7-22 Table 12.2-1 — Drag Strut F₂</div>';
+    det8+='<div class="cbox">';
+    det8+='<div class="mrow"><span class="ceq">F₂ = B₂ · v<sub>drag</sub></span></div>';
+    det8+='<div class="mrow ind">= '+f0(B2)+' × '+f0(vL_drag)+' / 1000 = <span class="cval">'+f2(F2)+' kips</span></div>';
+    det8+='</div>';
+    chks.push({n:'Drag Strut Force F₂',r:'SDPWS-21 §4.2.7 / ASCE 7-22 §12.10',d:'F₂ = '+f2(F2)+' kips',c:'Design drag strut',dc:null,nt:'Collector at B₂ = '+f0(B2)+' ft zone',det:det8});
+  }
+
+  // ── Check 9: Deflection
+  var dc_defl=delta/(L*12/240); // compare to L/240 limit (informational)
+  var det9='';
+  det9+='<div class="cref-hdr">SDPWS-21 §4.2.3 / Eq. 4.2-1 — Diaphragm Deflection</div>';
+  det9+='<div class="cbox">';
+  det9+='<div class="mrow"><span class="ceq">Eq. 4.2-1:</span> δ = '+fr('5vL³','8EAW')+' + '+fr('0.25vL','1000·G<sub>a</sub>·W')+' + '+fr('Σ(xΔ<sub>c</sub>)','2W')+'</div>';
+  det9+='<div class="mrow ind">where: v='+f0(vL)+' plf, L='+f0(L)+' ft, E='+E_c.toLocaleString()+' psi, A='+f1(A_c)+' in², W=B='+f0(B)+' ft, G<sub>a</sub>='+govGa+' k/in</div>';
+  det9+='<div class="csep"/>';
+  det9+='<div class="mrow">Δ<sub>bending</sub>  = 5·'+f0(vL)+'·'+f0(L)+'³ / (8·'+E_c.toLocaleString()+'·'+f1(A_c)+'·'+f0(B)+') = <span class="cval">'+f3(d_bend)+'"</span></div>';
+  det9+='<div class="mrow">Δ<sub>shear</sub>   = 0.25·'+f0(vL)+'·'+f0(L)+' / (1000·'+govGa+'·'+f0(B)+') = <span class="cval">'+f3(d_shear)+'"</span></div>';
+  det9+='<div class="mrow">Δ<sub>chord</sub>   = '+f0(SumDcx)+' / (2·'+f0(B)+') = <span class="cval">'+f3(d_chord)+'"</span></div>';
+  det9+='<div class="csep"/>';
+  det9+='<div class="mrow">Δ<sub>total</sub> = ('+f3(d_bend)+' + '+f3(d_shear)+' + '+f3(d_chord)+') × C<sub>M</sub> ('+f1(CM)+') = <span class="cval">'+f2(delta)+'"</span></div>';
+  det9+='<div class="mrow" style="color:#78350f">Note: Flexible diaphragm if Δ<sub>dia</sub> > 2 × avg shear wall deflection (ASCE 7-22 §12.3.1.1)</div>';
+  det9+='</div>';
+  chks.push({n:'Diaphragm Deflection',r:'SDPWS-21 §4.2.3 Eq. 4.2-1',d:'Δ = '+f2(delta)+'"',c:'L/240 = '+f2(L*12/240)+'" (typical)',dc:dc_defl,nt:'G<sub>a</sub> = '+govGa+' k/in ('+pType+', governing zone) · C<sub>M</sub> = '+f1(CM),stiff:false,det:det9});
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // Summary banner
+  var dcs=chks.map(function(c){return c.dc;}).filter(function(v){return v!==null&&isFinite(v)&&v>=0;});
+  var maxDC=dcs.length?Math.max.apply(null,dcs):0;
+  var pass=maxDC<=1.0;
+  var sb=document.getElementById('sumBox');
+  sb.className='summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML='<h3>'+(pass?'&#10004; All Checks Pass':'&#10008; One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '
+    +(grade==='SheatSF'?'Sheathing &amp; Single-Floor':'Structural I')+' · '+nail+' Common · '+thick+'" panel · '+mw+'" framing</p>';
+
+  // Zone strip + table
+  var zHtml='';
+  // Visual strip
+  var totalL_vis=zones.reduce(function(a,z){return a+z.len*(z.cnt||1);},0);
+  // Normalise: both ends for A1/A2
+  var stripCols=[];
+  var zColors={'A1':'#fde68a','A2':'#86efac','A3':'#bfdbfe'};
+  var zText={'A1':'#78350f','A2':'#14532d','A3':'#1e40af'};
+  zones.forEach(function(z){
+    if(z.cnt===2){
+      stripCols.push({id:z.id,pct:z.len/L*100,label:z.id+' ('+f1(z.len)+'ft)'});
+      // insert mirror for other end
+    }
+  });
+  // Build strip: A1 | A2 | A3 | A2 | A1
+  var strip='<div class="z-strip">';
+  zones.slice().reverse().forEach(function(z){ if(z.cnt===2){ strip+='<div class="z-'+z.id+'" style="flex:0 0 '+f1(z.len/L*100)+'%;background:'+zColors[z.id]+';color:'+zText[z.id]+';padding:0 4px">'+z.id+' ('+f1(z.len)+'\')</div>'; } });
+  // A3
+  var zA3=zones.find(function(z){return z.id==='A3';});
+  if(zA3){ strip+='<div class="z-A3" style="background:'+zColors.A3+';color:'+zText.A3+'">'+zA3.id+' ('+f1(zA3.len)+'\')</div>'; }
+  zones.forEach(function(z){ if(z.cnt===2){ strip+='<div class="z-'+z.id+'" style="flex:0 0 '+f1(z.len/L*100)+'%;background:'+zColors[z.id]+';color:'+zText[z.id]+';padding:0 4px">'+z.id+' ('+f1(z.len)+'\')</div>'; } });
+  strip+='</div>';
+  document.getElementById('zoneStrip').innerHTML=overstress?'<div style="color:#dc2626;font-weight:700">OVERSTRESSED — cannot size zones</div>':strip;
+
+  // Zone summary table
+  var ztHtml='<table class="prop-table"><thead><tr><th>Zone</th><th>Type</th><th>Spacing (Bndry/Edge)</th><th>ASD Allowable (plf)</th><th>Width (ft)</th><th>Length (ft)</th><th>Count</th></tr></thead><tbody>';
+  if(!overstress){
+    zones.forEach(function(z){
+      ztHtml+='<tr><td><strong>'+z.id+'</strong></td><td>'+z.type+'</td><td>'+z.sp+'"</td><td>'+f0(z.asd)+'</td><td>'+f0(B)+'</td><td>'+f1(z.len)+'</td><td>'+z.cnt+'</td></tr>';
+    });
+  }
+  ztHtml+='</tbody></table>';
+  document.getElementById('zoneTable').innerHTML=ztHtml;
+
+  // Demand cards
+  var demHtml='';
+  var cards=[
+    {v:f0(vL)+' plf', l:'Max Shear v<sub>L</sub><br>(L-Direction)'},
+    {v:f0(vB)+' plf', l:'Max Shear v<sub>B</sub><br>(B-Direction)'},
+    {v:f2(TL)+' k',  l:'Chord T<sub>L</sub> = C<sub>L</sub>'},
+    {v:f2(TB)+' k',  l:'Chord T<sub>B</sub> = C<sub>B</sub>'},
+    {v:f2(F1)+' k',  l:'Drag Strut F₁'},
+    {v:f2(F2)+' k',  l:'Drag Strut F₂'},
+    {v:f2(delta)+'"', l:'Max Deflection Δ'},
+    {v:f2(LB),        l:'Aspect Ratio L/B', alt:LB<=3},
+  ];
+  cards.forEach(function(c){
+    demHtml+='<div class="dem-card'+(c.alt?' alt':'')+'"><div class="v">'+c.v+'</div><div class="l">'+c.l+'</div></div>';
+  });
+  document.getElementById('demOut').innerHTML=demHtml;
+
+  // Check table
+  var tb=document.getElementById('chkTb');
+  tb.innerHTML='';
+  chks.forEach(function(c,i){
+    var dc_v=(c.dc!==null&&c.dc!==undefined&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct=dc_v!==null?Math.min(dc_v*100,150):0;
+    var col=dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt=dc_v!==null?f3(dc_v):'&mdash;';
+    var rowCls=c.stiff?'class="alt-row"':'';
+    tb.innerHTML+='<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  // Capacity table
+  var ctHtml='<div class="sub-head">Table 4.2A — Blocked WSP Diaphragms (ASD = Nominal ÷ 2.0 × SG Factor)</div>';
+  ctHtml+='<table class="prop-table"><thead><tr><th>Spacing (Bndry/Edge)</th><th>Nominal v<sub>n</sub> (plf)</th><th>ASD Allowable (plf)</th><th>G<sub>a</sub> OSB (k/in)</th><th>G<sub>a</sub> PLY (k/in)</th></tr></thead><tbody>';
+  SP_LABELS.forEach(function(sp,i){
+    ctHtml+='<tr'+(iL===i?' style="font-weight:700;background:#fef9c3"':'')+'><td>'+sp+'"</td><td>'+f0(R4A.vn[i])+'</td><td>'+f0(asd[i])+'</td><td>'+R4A.Ga_OSB[i]+'</td><td>'+R4A.Ga_PLY[i]+'</td></tr>';
+  });
+  ctHtml+='</tbody></table>';
+  if(R4C){
+    ctHtml+='<div class="sub-head" style="margin-top:12px">Table 4.2C — Unblocked WSP Diaphragms (6" all panel edges)</div>';
+    ctHtml+='<table class="prop-table"><thead><tr><th>Case</th><th>Nominal v<sub>n</sub> (plf)</th><th>ASD Allowable (plf)</th><th>G<sub>a</sub> OSB (k/in)</th><th>G<sub>a</sub> PLY (k/in)</th></tr></thead><tbody>';
+    ctHtml+='<tr><td>Case 1 (primary direction)</td><td>'+f0(R4C.vn_C1)+'</td><td>'+f0(asd_C1)+'</td><td>'+R4C.Ga_OSB_C1+'</td><td>'+R4C.Ga_PLY_C1+'</td></tr>';
+    ctHtml+='<tr><td>Cases 2,3,4,5,6 (other directions)</td><td>'+f0(R4C.vn_Ot)+'</td><td>'+f0(asd_Ot)+'</td><td>'+R4C.Ga_OSB_Ot+'</td><td>'+R4C.Ga_PLY_Ot+'</td></tr>';
+    ctHtml+='</tbody></table>';
+  }
+  document.getElementById('capTable').innerHTML=ctHtml;
+  document.getElementById('capNotes').innerHTML=
+    '① Nominal values from SDPWS-21 Table 4.2A/4.2C. &nbsp;'
+    +'② SG Adjustment Factor = [1−(0.5−G)] = [1−(0.5−'+f2(G)+')] = '+f3(SG_factor)+' (≤ 1.0 per Note 2). &nbsp;'
+    +'③ Highlighted row = governing zone spacing. &nbsp;'
+    +'④ G<sub>a</sub> values for 4-ply or composite panels may be multiplied by 1.2 (SDPWS-21 Table 4.2A Note 3). &nbsp;'
+    +'⑤ Verify all values against SDPWS-21 Table 4.2A/4.2C — min nail bearing: 6d=1¼", 8d=1⅜", 10d=1½". &nbsp;'
+    +'⑥ Where G<sub>a</sub> of governing nail spacing is used for deflection (conservative for partial blocked zones).';
+
+  // Engineering notes
+  var notes=[
+    'Diaphragm shear varies linearly from v<sub>L</sub> at the boundary to zero at midspan — zone boundaries are set where demand crosses each allowable threshold.',
+    'Chord member (top plate or rim joist) must be continuous and designed for T<sub>L</sub> = '+f2(TL)+' kips in tension and compression including splice connections.',
+    'Drag strut forces (F₁, F₂) are amplified by Ω₀ = '+f1(omega0)+' for seismic per ASCE 7-22 Table 12.2-1. Wind drag struts use direct forces only.',
+    'Diaphragm flexibility check: flexible if Δ<sub>dia</sub> > 2 × (avg shear wall deflection at same level). Δ = '+f2(delta)+'" — compare to calculated shear wall deflection.',
+    'All panel edges must fall over framing or blocking for a BLOCKED diaphragm. Unblocked zones (A3) require 6" nail spacing at all supported panel edges.',
+    'G<sub>a</sub> = '+govGa+' kips/in used for deflection based on governing zone nail spacing. For zones with different spacings, a weighted average Ga may be more accurate.',
+    'Per SDPWS-21 §4.2.2 Table 4.2.2: Maximum aspect ratio L/B = 3.0 for blocked WSP diaphragms.',
+  ];
+  var nlHtml='';
+  notes.forEach(function(n){ nlHtml+='<li>'+n+'</li>'; });
+  document.getElementById('engNotes').innerHTML=nlHtml;
+
+  document.getElementById('results').className='results show';
+  drawSchematic();
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('projDate').value=new Date().toISOString().split('T')[0];
+  updateSG(); syncThickness(); drawSchematic();
+});
+</script>
+</body>
+</html>
