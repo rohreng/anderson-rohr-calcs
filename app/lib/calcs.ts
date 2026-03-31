@@ -137,6 +137,15 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
   },
   {
+    slug: "unreinforced-cmu-wall",
+    label: "Unreinforced CMU Bearing Wall",
+    subtitle: "4\u2033 & 6\u2033 CMU \u2014 combined axial + wind flexure, net tension \u00B7 ASD unity check",
+    htmlFile: "/Calcs/unreinforced_cmu_wall_asd_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 \u00A78.2 / MDG-2022",
+    status: "ready",
+  },
+  {
     slug: "masonry-lap-length",
     label: "Masonry Development & Lap Splice",
     subtitle: "Deformed bar development length & Class A lap splice per Eq. 6-2",

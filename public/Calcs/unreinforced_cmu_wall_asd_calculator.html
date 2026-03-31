@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unreinforced CMU Bearing Wall — ASD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#78350f 0%,#b45309 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#78350f,#b45309);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #b45309}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#78350f;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#b45309;outline:none}
+.ig input[readonly]{background:#f0f0f0;color:#444}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.chk-row{display:flex;align-items:center;gap:8px;margin-top:12px;padding:6px 0;border-top:1px solid #e5e7eb}
+.chk-row label{font-size:.88em;color:#333;cursor:pointer;font-weight:500}
+.calc-btn{background:linear-gradient(135deg,#78350f,#b45309);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(180,83,9,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em;margin-bottom:16px}
+.prop-table th,.chk-table th{background:#78350f;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#fdf6ec}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.warn-row td{background:#fffbeb!important;border-left:3px solid #d97706}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.25em;font-weight:700;color:#78350f}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.4}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}
+.dem-card.warn .v{color:#92400e}
+.dem-card.info{border-color:#b45309;background:#fef3c7}
+.dem-card.info .v{color:#78350f}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:5px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.schema-wrap h3{font-size:.9em;color:#78350f;margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:14px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#fefce8;padding:13px 18px 10px;border-top:1px dashed #d97706;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #fcd34d;color:#92400e;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#fef3c7}
+.cref-hdr{font-weight:700;color:#78350f;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #fcd34d;font-size:.92em}
+.ceq{color:#78350f;font-style:italic;margin-right:4px}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #fcd34d;margin:7px 0}
+.cbox{background:#fff;border:1px solid #fcd34d;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.sec-id{font-size:.72em;font-weight:400;color:#d97706;margin-left:4px}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Unreinforced CMU Bearing Wall &mdash; ASD</h1>
+    <p>4&Prime; &amp; 6&Prime; Nominal CMU &nbsp;&middot;&nbsp; Combined Axial + Wind Flexure &nbsp;&middot;&nbsp; Allowable Stress Design per TMS 402-22</p>
+    <div class="ref-tags">
+      <span class="tag">TMS 402-22 Chapter 8</span>
+      <span class="tag">&sect;8.2.4 Allowable Axial</span>
+      <span class="tag">&sect;8.2.5 Flexural Tension</span>
+      <span class="tag">&sect;8.2.6 Combined Loading</span>
+      <span class="tag">MDG-2022</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Schematic -->
+    <div class="schema-wrap">
+      <h3>Wall Schematic</h3>
+      <svg viewBox="0 0 700 280" style="width:100%;max-width:700px;display:block;margin:0 auto">
+        <!-- Elevation View -->
+        <text x="120" y="18" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">ELEVATION</text>
+        <!-- Wall outline -->
+        <rect x="90" y="24" width="60" height="220" fill="#f5e9d6" stroke="#b45309" stroke-width="2"/>
+        <!-- Floor/roof supports -->
+        <rect x="70" y="20" width="100" height="10" fill="#6b7280" rx="2"/>
+        <rect x="70" y="238" width="100" height="10" fill="#6b7280" rx="2"/>
+        <text x="185" y="30" font-size="9" fill="#374151">Top Support</text>
+        <text x="185" y="248" font-size="9" fill="#374151">Bottom Support</text>
+        <!-- Height label -->
+        <line x1="80" y1="30" x2="80" y2="238" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="75" y1="30" x2="85" y2="30" stroke="#6b7280" stroke-width="1.5"/>
+        <line x1="75" y1="238" x2="85" y2="238" stroke="#6b7280" stroke-width="1.5"/>
+        <text x="55" y="137" text-anchor="middle" font-size="10" fill="#374151" font-style="italic">h</text>
+        <!-- Axial load arrow at top -->
+        <line x1="120" y1="2" x2="120" y2="20" stroke="#dc2626" stroke-width="2.5" marker-end="url(#arrowR)"/>
+        <text x="133" y="14" font-size="10" fill="#dc2626" font-weight="bold">P</text>
+        <!-- Wind load arrows -->
+        <line x1="60" y1="80" x2="88" y2="80" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowB)"/>
+        <line x1="60" y1="110" x2="88" y2="110" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowB)"/>
+        <line x1="60" y1="140" x2="88" y2="140" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowB)"/>
+        <line x1="60" y1="170" x2="88" y2="170" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowB)"/>
+        <line x1="60" y1="200" x2="88" y2="200" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowB)"/>
+        <text x="20" y="137" text-anchor="middle" font-size="10" fill="#2563eb" font-weight="bold">w</text>
+        <text x="20" y="150" text-anchor="middle" font-size="9" fill="#2563eb">(5 psf)</text>
+        <!-- Moment diagram indicator -->
+        <path d="M155,30 Q195,137 155,238" fill="none" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <text x="200" y="137" text-anchor="middle" font-size="9" fill="#16a34a">M = wh²/8</text>
+
+        <!-- Cross-section view — 4" CMU -->
+        <text x="390" y="18" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">CROSS-SECTION (4&quot; CMU)</text>
+        <!-- Outer profile (scale: 1 in = 10 px; 3.625" wide → 36 px, 12" tall → 120 px) -->
+        <!-- Face shell top (0.75" = 7.5px), core 2.125" = 21.25px, face shell bot 0.75"=7.5px -->
+        <rect x="340" y="24" width="100" height="220" fill="#f5e9d6" stroke="#b45309" stroke-width="2"/>
+        <!-- hollow cores (2 cores) -->
+        <rect x="340" y="40" width="100" height="156" fill="white" stroke="#d97706" stroke-width="1" stroke-dasharray="3,2"/>
+        <!-- Face shell labels -->
+        <line x1="445" y1="24" x2="465" y2="24" stroke="#666" stroke-width="1"/>
+        <line x1="445" y1="40" x2="465" y2="40" stroke="#666" stroke-width="1"/>
+        <line x1="455" y1="24" x2="455" y2="40" stroke="#666" stroke-width="1"/>
+        <text x="468" y="33" font-size="9" fill="#374151">t<tspan font-size="7" dy="2">fs</tspan></text>
+        <line x1="445" y1="196" x2="465" y2="196" stroke="#666" stroke-width="1"/>
+        <line x1="445" y1="244" x2="465" y2="244" stroke="#666" stroke-width="1"/>
+        <line x1="455" y1="196" x2="455" y2="244" stroke="#666" stroke-width="1"/>
+        <text x="468" y="225" font-size="9" fill="#374151">t<tspan font-size="7" dy="2">fs</tspan></text>
+        <!-- Width arrows -->
+        <line x1="340" y1="255" x2="440" y2="255" stroke="#374151" stroke-width="1" marker-start="url(#arrowS)" marker-end="url(#arrowS)"/>
+        <text x="390" y="268" text-anchor="middle" font-size="9" fill="#374151">t = 3.625&quot;</text>
+        <!-- Height label -->
+        <text x="325" y="140" text-anchor="middle" font-size="9" fill="#374151">12&quot;</text>
+        <text x="325" y="152" text-anchor="middle" font-size="9" fill="#374151">(1 ft)</text>
+        <!-- Hollow label -->
+        <text x="390" y="125" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">hollow</text>
+        <text x="390" y="138" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">core</text>
+
+        <!-- Cross-section view — 6" CMU -->
+        <text x="600" y="18" text-anchor="middle" font-size="11" font-weight="bold" fill="#78350f">CROSS-SECTION (6&quot; CMU)</text>
+        <!-- 6" actual = 5.625" → scale same, roughly 56px wide -->
+        <rect x="552" y="24" width="96" height="220" fill="#e8d5b0" stroke="#b45309" stroke-width="2"/>
+        <!-- hollow core (face shell 1.0" each side → 10px, core 3.625" wide → 36px approx) -->
+        <rect x="552" y="42" width="96" height="138" fill="white" stroke="#d97706" stroke-width="1" stroke-dasharray="3,2"/>
+        <line x1="648" y1="24" x2="668" y2="24" stroke="#666" stroke-width="1"/>
+        <line x1="648" y1="42" x2="668" y2="42" stroke="#666" stroke-width="1"/>
+        <line x1="658" y1="24" x2="658" y2="42" stroke="#666" stroke-width="1"/>
+        <text x="671" y="34" font-size="9" fill="#374151">t<tspan font-size="7" dy="2">fs</tspan></text>
+        <!-- Width arrows -->
+        <line x1="552" y1="255" x2="648" y2="255" stroke="#374151" stroke-width="1" marker-start="url(#arrowS)" marker-end="url(#arrowS)"/>
+        <text x="600" y="268" text-anchor="middle" font-size="9" fill="#374151">t = 5.625&quot;</text>
+        <text x="600" y="125" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">hollow</text>
+        <text x="600" y="138" text-anchor="middle" font-size="10" fill="#d97706" font-style="italic">core</text>
+
+        <!-- Arrow markers -->
+        <defs>
+          <marker id="arrowR" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#dc2626"/>
+          </marker>
+          <marker id="arrowB" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 Z" fill="#2563eb"/>
+          </marker>
+          <marker id="arrowS" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+            <path d="M6,0 L0,3 L6,6 Z" fill="#374151"/>
+          </marker>
+        </defs>
+      </svg>
+    </div>
+
+    <!-- Block 1: Wall Type & Material -->
+    <div class="blk">
+      <h2>&#9632; Wall Type &amp; Material <span class="badge">TMS 402-22 §8.2</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Nominal Wall Thickness</label>
+          <select id="wallSize" onchange="updateWallHint()">
+            <option value="4">4&Prime; Nominal CMU (actual 3.625&Prime;)</option>
+            <option value="6">6&Prime; Nominal CMU (actual 5.625&Prime;)</option>
+          </select>
+          <div class="hint" id="wallHint">Actual t = 3.625&Prime; · r = 1.047&Prime;</div>
+        </div>
+        <div class="ig">
+          <label>Grout Condition</label>
+          <select id="groutCond" onchange="updateWallHint()">
+            <option value="hollow">Hollow (Ungrouted)</option>
+            <option value="grouted">Fully Grouted</option>
+          </select>
+          <div class="hint">Face-shell bedding for hollow; gross section for grouted</div>
+        </div>
+        <div class="ig">
+          <label>Specified Masonry Strength f&prime;<sub>m</sub> <span class="unit">(psi)</span></label>
+          <input type="number" id="fm" value="1500" min="1000" max="4000" step="100"/>
+          <div class="hint">Typical: 1500–2000 psi for CMU</div>
+        </div>
+        <div class="ig">
+          <label>Mortar Type</label>
+          <select id="mortarType">
+            <option value="S">Type S</option>
+            <option value="N">Type N</option>
+          </select>
+          <div class="hint">Affects F<sub>t</sub> per TMS 402-22 Table 8.2.5.2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 2: Geometry & Loading -->
+    <div class="blk alt-blk">
+      <h2>&#9632; Geometry &amp; Loading <span class="badge-green">ASD Load Combination</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Wall Height h <span class="unit">(ft)</span></label>
+          <input type="number" id="wallH" value="10" min="1" max="30" step="0.5"/>
+          <div class="hint">Clear height between supports</div>
+        </div>
+        <div class="ig">
+          <label>Max ASD Vertical Load P <span class="unit">(plf)</span></label>
+          <input type="number" id="loadP" value="2000" min="0" max="50000" step="100"/>
+          <div class="hint">Total axial load at critical section (lb per ft of wall). For tension check, re-run with min P.</div>
+        </div>
+        <div class="ig">
+          <label>Interior Wind Pressure w <span class="unit">(psf)</span></label>
+          <input type="number" id="windW" value="5" min="0" max="50" step="0.5"/>
+          <div class="hint">Lateral pressure on wall face</div>
+        </div>
+        <div class="ig">
+          <label>Support Conditions</label>
+          <select id="suppCond">
+            <option value="8">Simply Supported — M = wh²/8</option>
+            <option value="10">Fixed-Pinned — M = wh²/10</option>
+            <option value="12">Fixed-Fixed — M = wh²/12</option>
+          </select>
+          <div class="hint">Most conservative and common: simply supported</div>
+        </div>
+      </div>
+      <div class="chk-row">
+        <input type="checkbox" id="windInc" checked/>
+        <label for="windInc">Apply &#x2153; stress increase for wind load combination (TMS 402-22 §8.1.4.1) — multiply allowable stresses by 4/3</label>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runCalcs()">&#9654; Run All Checks</button>
+
+    <!-- Results -->
+    <div id="results" class="results">
+      <div id="summaryBanner" class="summary"></div>
+
+      <h3 style="margin-bottom:10px;color:#78350f;font-size:1em;text-transform:uppercase;letter-spacing:.5px">Section Properties — per foot of wall</h3>
+      <table class="prop-table" id="propTable">
+        <thead><tr><th>Property</th><th>Symbol</th><th>Value</th><th>Notes</th></tr></thead>
+        <tbody id="propBody"></tbody>
+      </table>
+
+      <h3 style="margin-bottom:10px;color:#78350f;font-size:1em;text-transform:uppercase;letter-spacing:.5px">Key Demands &amp; Allowables</h3>
+      <div id="demGrid" class="dem-grid"></div>
+
+      <h3 style="margin-bottom:10px;color:#78350f;font-size:1em;text-transform:uppercase;letter-spacing:.5px">Code Checks</h3>
+      <table class="chk-table">
+        <thead>
+          <tr>
+            <th style="width:26%">Check</th>
+            <th style="width:13%">Reference</th>
+            <th style="width:17%">Demand</th>
+            <th style="width:17%">Capacity</th>
+            <th style="width:10%">D/C</th>
+            <th style="width:8%">Status</th>
+            <th style="width:9%">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="chkBody"></tbody>
+      </table>
+
+      <div class="note-box">
+        <strong>Engineering Notes &amp; Assumptions:</strong>
+        <ul id="notesList"></ul>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+// ─── Section database ──────────────────────────────────────────────────────
+// All section properties per foot (12") of wall length
+// Hollow: face-shell bedding area; grouted: gross section
+// I_net hollow = I_gross - I_core = t³ - (t-2·t_fs)³ per foot (all in in⁴/ft)
+// S_net = I_net / (t/2) in in³/ft
+// r = t/√12 (simplified per MDG/TMS 402-22, conservative for Fa)
+var wallDB = {
+  '4-hollow': {
+    label: '4\u2033 CMU \u2014 Hollow (Ungrouted)',
+    t:    3.625,   // actual thickness, in
+    An:   18.0,    // net area (face-shell bedding): 2 × 0.75" × 12" = 18.0 in²/ft
+    S:    21.0,    // net S = I_net/(t/2) = 38.03/1.8125 = 21.0 in³/ft
+    I:    38.0,    // net I = 3.625³ - 2.125³ = 47.63 - 9.60 = 38.03 in⁴/ft
+    r:    1.047,   // t/√12 = 3.625/3.464 (simplified)
+    tfs:  0.75,    // face shell thickness, in
+    wt:   34       // approx wall weight, psf
+  },
+  '4-grouted': {
+    label: '4\u2033 CMU \u2014 Fully Grouted',
+    t:    3.625,
+    An:   43.5,    // gross: 3.625 × 12 = 43.5 in²/ft
+    S:    26.3,    // gross: (12 × 3.625²)/6 = 26.28 in³/ft
+    I:    47.6,    // gross: 3.625³ = 47.63 in⁴/ft
+    r:    1.047,   // t/√12
+    tfs:  0.75,
+    wt:   55
+  },
+  '6-hollow': {
+    label: '6\u2033 CMU \u2014 Hollow (Ungrouted)',
+    t:    5.625,
+    An:   24.0,    // net area: 2 × 1.0" × 12" = 24.0 in²/ft
+    S:    46.3,    // net S = I_net/(t/2) = 130.4/2.8125 = 46.4 in³/ft
+    I:    130.4,   // net I = 5.625³ - 3.625³ = 177.98 - 47.63 = 130.35 in⁴/ft
+    r:    1.624,   // t/√12 = 5.625/3.464
+    tfs:  1.0,     // 6" CMU min face shell per TMS 602-22
+    wt:   38
+  },
+  '6-grouted': {
+    label: '6\u2033 CMU \u2014 Fully Grouted',
+    t:    5.625,
+    An:   67.5,    // gross: 5.625 × 12 = 67.5 in²/ft
+    S:    63.3,    // gross: (12 × 5.625²)/6 = 63.28 in³/ft
+    I:    177.9,   // gross: 5.625³ = 177.98 in⁴/ft
+    r:    1.624,
+    tfs:  1.0,
+    wt:   80
+  }
+};
+
+// Allowable flexural tension per TMS 402-22 Table 8.2.5.2 (psi)
+// normal to bed joints (wall spanning vertically, bending about horizontal axis)
+var Ft_table = {
+  'S': { hollow: 25, grouted: 40 },
+  'N': { hollow: 19, grouted: 30 }
+};
+
+// ─── Helper math/display functions ─────────────────────────────────────────
+function fr(n, d) { return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'; }
+function ov(x)    { return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>'; }
+function f1(v)    { return (isNaN(v)||!isFinite(v)) ? '—' : v.toFixed(1); }
+function f2(v)    { return (isNaN(v)||!isFinite(v)) ? '—' : v.toFixed(2); }
+function f3(v)    { return (isNaN(v)||!isFinite(v)) ? '—' : v.toFixed(3); }
+function pct(v)   { return (isNaN(v)||!isFinite(v)) ? '—' : (v*100).toFixed(1)+'%'; }
+
+function toggleDet(i) {
+  var el = document.getElementById('det_'+i);
+  var btn = document.getElementById('dbtn_'+i);
+  var open = el.classList.toggle('open');
+  btn.textContent = open ? '\u25BE Calc' : '\u25B6 Calc';
+}
+
+function updateWallHint() {
+  var sz = document.getElementById('wallSize').value;
+  var gc = document.getElementById('groutCond').value;
+  var key = sz + '-' + gc;
+  var sec = wallDB[key];
+  if (sec) {
+    document.getElementById('wallHint').textContent =
+      'Actual t = ' + sec.t + '\u2033  \u00B7  An = ' + sec.An + ' in\u00B2/ft  \u00B7  S = ' + sec.S + ' in\u00B3/ft  \u00B7  r = ' + sec.r + '\u2033';
+  }
+}
+
+// ─── Main calculation ───────────────────────────────────────────────────────
+function runCalcs() {
+  // --- Read inputs ---
+  var sz       = document.getElementById('wallSize').value;       // '4' or '6'
+  var gc       = document.getElementById('groutCond').value;      // 'hollow' or 'grouted'
+  var fm       = parseFloat(document.getElementById('fm').value);
+  var mortarT  = document.getElementById('mortarType').value;     // 'S' or 'N'
+  var h_ft     = parseFloat(document.getElementById('wallH').value);   // ft
+  var P        = parseFloat(document.getElementById('loadP').value);   // plf
+  var w        = parseFloat(document.getElementById('windW').value);   // psf
+  var mcoef    = parseFloat(document.getElementById('suppCond').value);// 8, 10, or 12
+  var windInc  = document.getElementById('windInc').checked;
+
+  var key = sz + '-' + gc;
+  var sec = wallDB[key];
+  if (!sec) return;
+
+  // --- Derived geometry ---
+  var h_in = h_ft * 12.0;          // height, inches
+  var ht   = h_in / sec.t;         // h/t slenderness ratio
+  var hr   = h_in / sec.r;         // h/r slenderness ratio
+
+  // --- Allowable stresses (base values) ---
+  var Fb = 0.33 * fm;              // TMS 402-22 §8.2.3
+  var Fa;
+  if (hr <= 99) {
+    Fa = 0.25 * fm * (1 - Math.pow(h_in / (140.0 * sec.r), 2));
+  } else {
+    Fa = 0.25 * fm * Math.pow((70.0 * sec.r) / h_in, 2);
+  }
+  var Ft = Ft_table[mortarT][gc];
+
+  // Wind 1/3 increase factor
+  var k = windInc ? 4.0/3.0 : 1.0;
+  var Fa_eff = Fa * k;
+  var Fb_eff = Fb * k;
+  var Ft_eff = Ft * k;
+
+  // --- Actual stresses ---
+  var fa = P / sec.An;             // psi (plf ÷ in²/ft = psi)
+
+  // Wind moment per foot of wall width, in-lb/ft
+  // w (psf) × h_ft²/mcoef gives ft-lb/ft; ×12 gives in-lb/ft
+  var M_ftlb = w * h_ft * h_ft / mcoef;   // ft-lb/ft
+  var M_inlb = M_ftlb * 12.0;             // in-lb/ft
+  var fb = M_inlb / sec.S;               // psi
+
+  // --- Combined checks ---
+  var unity_comp  = fa / Fa_eff + fb / Fb_eff;   // compression unity (§8.2.6.2)
+  var f_net_tens  = fb - fa;                       // net tension at extreme fiber
+  var dc_tension  = (f_net_tens > 0) ? (f_net_tens / Ft_eff) : 0; // only if tension exists
+  var tension_ok  = (f_net_tens <= 0) ? true : (f_net_tens <= Ft_eff);
+
+  // --- Build check array ---
+  var chks = [];
+
+  // Check 0: h/t slenderness
+  var ht_lim = 20;
+  var ht_pass = ht <= ht_lim;
+  var det0 = '';
+  det0 += '<div class="cref-hdr">TMS 402-22 \u00A75.5.1.1 \u2014 Slenderness (h/t)</div>';
+  det0 += '<div class="cbox">';
+  det0 += '<div class="mrow"><span class="ceq">Limit:</span> h/t \u2264 20 for unreinforced bearing walls</div>';
+  det0 += '<div class="mrow"><span class="ceq">h =</span> '+f1(h_ft)+' ft = '+f1(h_in)+' in</div>';
+  det0 += '<div class="mrow"><span class="ceq">t =</span> '+f1(sec.t)+' in (actual)</div>';
+  det0 += '<div class="mrow"><span class="ceq">h/t =</span> '+f1(h_in)+' / '+f1(sec.t)+' = <span class="cval">'+f1(ht)+'</span></div>';
+  det0 += '<hr class="csep">';
+  det0 += '<div class="mrow">D/C = '+fr(f1(ht), f1(ht_lim))+' = <span class="cval">'+f2(ht/ht_lim)+'</span></div>';
+  det0 += '</div>';
+  chks.push({
+    n:  'Slenderness — h/t',
+    r:  'TMS 402-22 \u00A75.5.1.1',
+    d:  'h/t = '+f1(ht),
+    c:  'Limit = '+ht_lim,
+    dc: ht/ht_lim,
+    nt: 'Max h/t = 20 for unreinforced bearing walls',
+    stiff: ht_pass,
+    det: det0
+  });
+
+  // Check 1: Allowable axial Fa (informational — show Fa and fa separately)
+  var fa_pass = (fa <= Fa_eff);
+  var det1 = '';
+  det1 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.4.3 \u2014 Allowable Axial Compressive Stress</div>';
+  det1 += '<div class="cbox">';
+  if (hr <= 99) {
+    det1 += '<div class="mrow"><span class="ceq">Eq. (8-16):</span> F<sub>a</sub> = 0.25 f\u02BCm \u00D7 [1 \u2212 '+fr('h','140r')+'\u00B2]&nbsp;&nbsp; when h/r \u2264 99</div>';
+    det1 += '<div class="mrow ind">h/r = '+f1(h_in)+'/'+f1(sec.r)+' = '+f1(hr)+' \u2264 99 \u2713</div>';
+    det1 += '<div class="mrow ind">= 0.25 \u00D7 '+f1(fm)+' \u00D7 [1 \u2212 ('+f1(h_in)+'/(140 \u00D7 '+f1(sec.r)+')\u00B2]</div>';
+    det1 += '<div class="mrow ind">= <span class="cval">'+f1(Fa)+'</span> psi (base) &nbsp;\u00D7 k = '+f2(k)+' \u2192 <span class="cval">'+f1(Fa_eff)+'</span> psi (eff.)</div>';
+  } else {
+    det1 += '<div class="mrow"><span class="ceq">Eq. (8-17):</span> F<sub>a</sub> = 0.25 f\u02BCm \u00D7 '+fr('70r','h')+'\u00B2&nbsp;&nbsp; when h/r > 99</div>';
+    det1 += '<div class="mrow ind">h/r = '+f1(hr)+' > 99 \u2014 use slender column formula</div>';
+    det1 += '<div class="mrow ind">= 0.25 \u00D7 '+f1(fm)+' \u00D7 (70 \u00D7 '+f1(sec.r)+'/'+f1(h_in)+')\u00B2</div>';
+    det1 += '<div class="mrow ind">= <span class="cval">'+f1(Fa)+'</span> psi (base) &nbsp;\u00D7 k = '+f2(k)+' \u2192 <span class="cval">'+f1(Fa_eff)+'</span> psi (eff.)</div>';
+  }
+  det1 += '<hr class="csep">';
+  det1 += '<div class="mrow"><span class="ceq">f<sub>a</sub> =</span> P/An = '+f1(P)+' / '+f1(sec.An)+' = <span class="cval">'+f1(fa)+'</span> psi</div>';
+  det1 += '<div class="mrow">D/C = '+fr(f1(fa), f1(Fa_eff))+' = <span class="cval">'+f2(fa/Fa_eff)+'</span></div>';
+  det1 += '</div>';
+  chks.push({
+    n:  'Axial Stress  f<sub>a</sub> vs F<sub>a</sub>',
+    r:  'TMS 402-22 \u00A78.2.4.3',
+    d:  'f<sub>a</sub> = '+f1(fa)+' psi',
+    c:  'F<sub>a</sub> = '+f1(Fa_eff)+' psi'+(windInc?' (incl. \u2153)':''),
+    dc: fa/Fa_eff,
+    nt: (windInc?'F\u2090 base = '+f1(Fa)+' psi; \u00D74/3 for wind combo':'h/r = '+f1(hr)),
+    stiff: fa_pass,
+    det: det1
+  });
+
+  // Check 2: Wind moment and flexural stress fb vs Fb
+  var fb_pass = (fb <= Fb_eff);
+  var suppLabel = mcoef===8 ? 'Simply Supported' : (mcoef===10 ? 'Fixed-Pinned' : 'Fixed-Fixed');
+  var det2 = '';
+  det2 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.3 \u2014 Allowable Flexural Compressive Stress</div>';
+  det2 += '<div class="cbox">';
+  det2 += '<div class="mrow"><span class="ceq">Support condition:</span> '+suppLabel+' \u2014 M<sub>max</sub> = w\u00B7h\u00B2/'+mcoef+'</div>';
+  det2 += '<div class="mrow"><span class="ceq">M<sub>max</sub> =</span> w \u00D7 h\u00B2/'+mcoef+' = '+f1(w)+' \u00D7 '+f1(h_ft)+'\u00B2/'+mcoef+' = '+f1(M_ftlb)+' ft\u2011lb/ft</div>';
+  det2 += '<div class="mrow ind">= '+f1(M_ftlb)+' \u00D7 12 = <span class="cval">'+f1(M_inlb)+'</span> in\u2011lb/ft</div>';
+  det2 += '<div class="mrow"><span class="ceq">f<sub>b</sub> =</span> M/S<sub>n</sub> = '+f1(M_inlb)+' / '+f1(sec.S)+' = <span class="cval">'+f1(fb)+'</span> psi</div>';
+  det2 += '<hr class="csep">';
+  det2 += '<div class="mrow"><span class="ceq">F<sub>b</sub> =</span> 0.33 \u00D7 f\u02BCm = 0.33 \u00D7 '+f1(fm)+' = '+f1(Fb)+' psi (base) \u00D7 '+f2(k)+' = <span class="cval">'+f1(Fb_eff)+'</span> psi (eff.)</div>';
+  det2 += '<div class="mrow">D/C = '+fr(f1(fb), f1(Fb_eff))+' = <span class="cval">'+f2(fb/Fb_eff)+'</span></div>';
+  det2 += '</div>';
+  chks.push({
+    n:  'Flexural Stress  f<sub>b</sub> vs F<sub>b</sub>',
+    r:  'TMS 402-22 \u00A78.2.3',
+    d:  'f<sub>b</sub> = '+f1(fb)+' psi',
+    c:  'F<sub>b</sub> = '+f1(Fb_eff)+' psi'+(windInc?' (incl. \u2153)':''),
+    dc: fb/Fb_eff,
+    nt: 'M = '+f1(M_ftlb)+' ft-lb/ft  (w = '+f1(w)+' psf, h = '+f1(h_ft)+' ft)',
+    stiff: fb_pass,
+    det: det2
+  });
+
+  // Check 3: Combined axial + flexure — unity check (compression face)
+  var unity_pass = (unity_comp <= 1.0);
+  var det3 = '';
+  det3 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.6.2 \u2014 Combined Compressive Stresses</div>';
+  det3 += '<div class="cbox">';
+  det3 += '<div class="mrow"><span class="ceq">Eq. (8-20):</span> '+fr('f<sub>a</sub>','F<sub>a</sub>')+' + '+fr('f<sub>b</sub>','F<sub>b</sub>')+' \u2264 1.0</div>';
+  det3 += '<div class="mrow ind">= '+fr(f1(fa), f1(Fa_eff))+' + '+fr(f1(fb), f1(Fb_eff))+'</div>';
+  det3 += '<div class="mrow ind">= '+f3(fa/Fa_eff)+' + '+f3(fb/Fb_eff)+'</div>';
+  det3 += '<div class="mrow ind">= <span class="cval">'+f3(unity_comp)+'</span> '+(unity_pass ? '\u2264 1.0 \u2713' : '> 1.0 \u2717')+'</div>';
+  det3 += '<hr class="csep">';
+  det3 += '<div class="mrow">D/C (Unity) = <span class="cval">'+f3(unity_comp)+'</span></div>';
+  det3 += '</div>';
+  chks.push({
+    n:  'Combined Compression — Unity Check',
+    r:  'TMS 402-22 \u00A78.2.6.2',
+    d:  fr('f<sub>a</sub>','F<sub>a</sub>')+' + '+fr('f<sub>b</sub>','F<sub>b</sub>'),
+    c:  '\u2264 1.0',
+    dc: unity_comp,
+    nt: 'f\u2090/F\u2090 = '+f3(fa/Fa_eff)+'  +  f\u1D47/F\u1D47 = '+f3(fb/Fb_eff),
+    stiff: unity_pass,
+    det: det3
+  });
+
+  // Check 4: Net flexural tension (windward face)
+  var det4 = '';
+  det4 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.5 / \u00A78.2.6.3 \u2014 Net Flexural Tension</div>';
+  det4 += '<div class="cbox">';
+  det4 += '<div class="mrow"><span class="ceq">Net tensile stress:</span> f<sub>net</sub> = f<sub>b</sub> \u2212 f<sub>a</sub></div>';
+  det4 += '<div class="mrow ind">= '+f1(fb)+' \u2212 '+f1(fa)+' = <span class="cval">'+f1(f_net_tens)+'</span> psi</div>';
+  det4 += '<hr class="csep">';
+  if (f_net_tens <= 0) {
+    det4 += '<div class="mrow">Net compression on both faces: f<sub>b</sub> &lt; f<sub>a</sub></div>';
+    det4 += '<div class="mrow"><span class="cval">No net tension \u2014 tension check N/A</span></div>';
+  } else {
+    det4 += '<div class="mrow"><span class="ceq">F<sub>t</sub></span> = '+Ft+' psi (base, TMS 402-22 Table 8.2.5.2) \u00D7 '+f2(k)+' = <span class="cval">'+f1(Ft_eff)+'</span> psi</div>';
+    det4 += '<div class="mrow">Mortar: Type '+mortarT+' &nbsp;&middot;&nbsp; Wall: '+(gc==='hollow'?'Hollow/Ungrouted':'Fully Grouted')+'</div>';
+    det4 += '<div class="mrow">D/C = '+fr(f1(f_net_tens), f1(Ft_eff))+' = <span class="cval">'+f2(dc_tension)+'</span></div>';
+  }
+  det4 += '</div>';
+  chks.push({
+    n:  'Net Flexural Tension  (f<sub>b</sub> \u2212 f<sub>a</sub>) vs F<sub>t</sub>',
+    r:  'TMS 402-22 \u00A78.2.5',
+    d:  (f_net_tens>0 ? 'f<sub>net</sub> = '+f1(f_net_tens)+' psi' : 'f<sub>net</sub> = '+f1(f_net_tens)+' psi (compression)'),
+    c:  (f_net_tens>0 ? 'F<sub>t</sub> = '+f1(Ft_eff)+' psi' : 'N/A \u2014 no tension'),
+    dc: (f_net_tens>0 ? dc_tension : null),
+    nt: (f_net_tens>0 ? 'F\u209C = '+Ft+' psi base \u00D7 '+f2(k) : 'Gravity compression exceeds wind tension'),
+    stiff: tension_ok,
+    det: det4
+  });
+
+  // ─── Render results ─────────────────────────────────────────────────────
+  // Determine overall pass/fail
+  var allPass = ht_pass && fa_pass && fb_pass && unity_pass && tension_ok;
+  var maxDC = 0;
+  chks.forEach(function(c){ if(c.dc!==null && c.dc > maxDC) maxDC = c.dc; });
+
+  // Summary banner
+  var sEl = document.getElementById('summaryBanner');
+  sEl.className = 'summary ' + (allPass ? 'sum-pass' : 'sum-fail');
+  sEl.innerHTML = '<h3>'+(allPass?'&#10003; ALL CHECKS PASS':'&#10007; ONE OR MORE CHECKS FAIL')+
+    '</h3><div style="font-size:.9em">Governing D/C = <strong>'+f2(maxDC)+'</strong> &nbsp;&middot;&nbsp; '+
+    sec.label+' &nbsp;&middot;&nbsp; h = '+f1(h_ft)+' ft &nbsp;&middot;&nbsp; f\u02BCm = '+f1(fm)+' psi &nbsp;&middot;&nbsp; P = '+
+    f1(P)+' plf &nbsp;&middot;&nbsp; w = '+f1(w)+' psf'+(windInc?' &nbsp;&middot;&nbsp; \u2153 wind increase applied':'')+'</div>';
+
+  // Section properties table
+  var pRows = [
+    ['Nominal thickness', 't<sub>nom</sub>', sz+'\u2033', ''],
+    ['Actual thickness', 't', f1(sec.t)+' in', 'CMU modular dimension'],
+    ['Net area', 'A<sub>n</sub>', f1(sec.An)+' in\u00B2/ft', gc==='hollow'?'Face-shell bedding: 2 \u00D7 t\u209Fs \u00D7 12':'Gross: t \u00D7 12'],
+    ['Net section modulus', 'S<sub>n</sub>', f1(sec.S)+' in\u00B3/ft', gc==='hollow'?'I\u2099/(t/2)':'Gross: (12t\u00B2)/6'],
+    ['Net moment of inertia', 'I<sub>n</sub>', f1(sec.I)+' in\u2074/ft', gc==='hollow'?'t\u00B3 \u2212 (t\u22122t\u209Fs)\u00B3':'Gross: t\u00B3'],
+    ['Radius of gyration', 'r', f1(sec.r)+' in', 't/\u221A12 (simplified per TMS)'],
+    ['Face shell thickness', 't<sub>fs</sub>', f1(sec.tfs)+' in', 'Min. per TMS 602-22'],
+    ['Wall weight', 'w<sub>wall</sub>', f1(sec.wt)+' psf', 'Approximate'],
+    ['h/r slenderness', 'h/r', f1(hr), hr>99?'Slender: use Eq. (8-17)':'Short: use Eq. (8-16)'],
+    ['h/t slenderness', 'h/t', f1(ht), ht>20?'Exceeds 20 \u2014 check TMS requirement':'OK \u2264 20']
+  ];
+  var pb = document.getElementById('propBody');
+  pb.innerHTML = '';
+  pRows.forEach(function(r){
+    pb.innerHTML += '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td><strong>'+r[2]+'</strong></td><td style="color:#666;font-size:.85em">'+r[3]+'</td></tr>';
+  });
+
+  // Demand cards
+  var demData = [
+    { v: f1(fa)+' psi',      l: 'Actual Axial Stress\nf\u2090 = P/A\u2099', cls: fa>Fa_eff?'warn':'dem-card' },
+    { v: f1(Fa_eff)+' psi',  l: 'Allow. Axial Stress\nF\u2090 (eff.)',       cls: 'dem-card alt' },
+    { v: f1(M_ftlb)+' ft\u2011lb/ft', l: 'Wind Moment at\nMid-Height M\u2098\u2090\u02E3', cls: 'dem-card info' },
+    { v: f1(fb)+' psi',      l: 'Actual Flexural\nStress f\u1D47',            cls: fb>Fb_eff?'warn':'dem-card' },
+    { v: f1(Fb_eff)+' psi',  l: 'Allow. Flexural\nStress F\u1D47 (eff.)',     cls: 'dem-card alt' },
+    { v: f2(unity_comp),     l: 'Combined Unity\nf\u2090/F\u2090 + f\u1D47/F\u1D47', cls: unity_comp>1?'warn':'dem-card'+(unity_comp>0.85?' info':'') },
+    { v: f1(f_net_tens)+' psi', l: 'Net Flexural\nTension f\u1D47 \u2212 f\u2090', cls: f_net_tens>Ft_eff?'warn':'dem-card' },
+    { v: f1(Ft_eff)+' psi',  l: 'Allow. Flex. Tension\nF\u209C (eff.)',        cls: 'dem-card alt' }
+  ];
+  var dg = document.getElementById('demGrid');
+  dg.innerHTML = '';
+  demData.forEach(function(d){
+    var label = d.l.replace(/\n/g,'<br>');
+    dg.innerHTML += '<div class="'+d.cls+'"><div class="v">'+d.v+'</div><div class="l">'+label+'</div></div>';
+  });
+
+  // Check table
+  var cb = document.getElementById('chkBody');
+  cb.innerHTML = '';
+  chks.forEach(function(c, i){
+    var dcTxt = (c.dc===null) ? '<span class="na">N/A</span>' : f2(c.dc);
+    var barFill = (c.dc===null) ? '' : ('width:'+Math.min(c.dc*100,100)+'%;background:'+(c.dc<=1?'#16a34a':'#dc2626'));
+    var barHtml = (c.dc===null) ? '' : '<div class="dc-bar"><div class="dc-fill" style="'+barFill+'"></div></div>';
+    var rowCls = c.stiff ? 'alt-row' : 'warn-row';
+    var statusHtml = c.stiff ?
+      '<span class="pass">PASS</span>' :
+      '<span class="fail">FAIL</span>';
+    cb.innerHTML +=
+      '<tr class="'+rowCls+'" id="chkrow_'+i+'">' +
+      '<td><strong>'+c.n+'</strong><br><span style="font-size:.75em;color:#666">'+c.nt+'</span></td>'+
+      '<td style="font-size:.78em;color:#555">'+c.r+'</td>'+
+      '<td>'+c.d+'</td>'+
+      '<td>'+c.c+'</td>'+
+      '<td><div class="dc-cell">'+dcTxt+barHtml+'</div></td>'+
+      '<td>'+statusHtml+'</td>'+
+      '<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'+
+      '</tr>'+
+      '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  // Engineering notes
+  var notes = [
+    'All calculations per TMS 402-22 (Building Code Requirements and Specification for Masonry Structures) and MDG-2022.',
+    'Section properties use r = t/\u221A12 (simplified, slightly conservative) per standard ASD masonry practice.',
+    gc==='hollow'
+      ? 'Hollow (ungrouted) area based on face-shell bedding only: A\u2099 = 2 \u00D7 t\u209Fs \u00D7 12 in\u00B2/ft. Net I and S based on hollow box section.'
+      : 'Fully grouted: uses gross cross-section properties throughout.',
+    'P is the total ASD vertical load (dead + applicable live) at the critical section. Run a separate check with minimum P (0.6D only) to evaluate the tension case under wind.',
+    windInc
+      ? '4/3 stress increase applied per TMS 402-22 \u00A78.1.4.1 for D+W or D+L+W load combinations.'
+      : 'No wind 1/3 stress increase applied. Check TMS 402-22 \u00A78.1.4.1 to confirm.',
+    'Moment assumes wall simply supported at top and bottom for M = wh\u00B2/'+mcoef+'. Verify boundary conditions for your project.',
+    'Self-weight of wall is NOT automatically added to P. Include it as part of the input P if required at the critical section.',
+    'TMS 402-22 Table 8.2.5.2 F\u209C values are for in-plane running bond, normal to bed joints (bending about horizontal axis as occurs here).',
+    'This calculator checks out-of-plane bending only. In-plane shear and axial load to be checked separately per TMS 402-22 Chapter 8.',
+    'For walls with large openings, pilasters, or non-uniform loading, additional analysis is required beyond this uniform-wall check.'
+  ];
+  var nl = document.getElementById('notesList');
+  nl.innerHTML = '';
+  notes.forEach(function(n){ nl.innerHTML += '<li>'+n+'</li>'; });
+
+  // Show results
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// Init hint on load
+window.onload = function(){ updateWallHint(); };
+</script>
+</body>
+</html>
