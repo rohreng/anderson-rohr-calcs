@@ -273,7 +273,7 @@ export default function TermsModal() {
               </h3>
               <p>
                 These Terms shall be governed by and construed in accordance with the laws of the
-                State of California, without regard to its conflict of law provisions.
+                State of Colorado, without regard to its conflict of law provisions.
               </p>
             </section>
           </div>
