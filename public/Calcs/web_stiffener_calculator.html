@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I-Shaped Member Stiffener Design — AISC 360-22</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+#loadingMsg{text-align:center;padding:12px;color:#2a5298;font-size:.9em;background:#dbeafe;border-radius:6px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>I-Shaped Member — Proportioning &amp; Stiffener Design</h1>
+  <p>Web proportioning limits · shear strength at openings · transverse stiffeners · local web yielding</p>
+  <div class="ref-tags">
+    <span class="tag">AISC 360-22</span>
+    <span class="tag">F13.2 Proportioning</span>
+    <span class="tag">G2.1 Shear</span>
+    <span class="tag">G2.3 Stiffeners</span>
+    <span class="tag">J10.2 Web Yielding</span>
+    <span class="tag">LRFD</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- Schematic -->
+<div class="schema-wrap">
+  <svg viewBox="0 0 780 230" width="100%" style="display:block">
+    <defs>
+      <marker id="arrDn" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto">
+        <path d="M0,0 L6,0 L3,7z" fill="#374151"/>
+      </marker>
+      <marker id="arrRt" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3z" fill="#dc2626"/>
+      </marker>
+      <marker id="dimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto">
+        <path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/>
+      </marker>
+      <marker id="dimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+        <path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/>
+      </marker>
+    </defs>
+    <!-- ── Cross-section ── -->
+    <text x="110" y="18" font-size="11" font-weight="bold" fill="#1e3c72" text-anchor="middle">Cross Section</text>
+    <!-- flanges -->
+    <rect x="70" y="22" width="80" height="16" fill="#c7d2e8" stroke="#374151" stroke-width="1.2"/>
+    <rect x="70" y="170" width="80" height="16" fill="#c7d2e8" stroke="#374151" stroke-width="1.2"/>
+    <!-- web -->
+    <rect x="102" y="38" width="16" height="132" fill="#dde6f7" stroke="#374151" stroke-width="1.2"/>
+    <!-- opening dashed box -->
+    <rect x="102" y="85" width="16" height="42" fill="#fee2e2" stroke="#dc2626" stroke-width="1" stroke-dasharray="4,3"/>
+    <text x="118" y="108" font-size="9" fill="#dc2626" font-style="italic">D</text>
+    <!-- dimensions -->
+    <line x1="162" y1="22" x2="162" y2="186" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+    <text x="170" y="108" font-size="9" fill="#f59e0b">d</text>
+    <line x1="70" y1="210" x2="150" y2="210" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+    <text x="100" y="222" font-size="9" fill="#f59e0b" text-anchor="middle">b<tspan dy="2" font-size="7">f</tspan></text>
+    <!-- labels -->
+    <text x="58" y="32" font-size="9" fill="#374151" text-anchor="end">t<tspan dy="2" font-size="7">f</tspan></text>
+    <text x="98" y="108" font-size="9" fill="#374151" text-anchor="end">t<tspan dy="2" font-size="7">w</tspan></text>
+    <text x="58" y="140" font-size="9" fill="#374151" text-anchor="end">h</text>
+    <line x1="64" y1="38" x2="102" y2="38" stroke="#9ca3af" stroke-width="0.7" stroke-dasharray="3,2"/>
+    <line x1="64" y1="170" x2="102" y2="170" stroke="#9ca3af" stroke-width="0.7" stroke-dasharray="3,2"/>
+
+    <!-- ── Elevation ── -->
+    <text x="500" y="18" font-size="11" font-weight="bold" fill="#1e3c72" text-anchor="middle">Elevation</text>
+    <!-- beam flanges -->
+    <rect x="290" y="50" width="420" height="12" fill="#c7d2e8" stroke="#374151" stroke-width="1.2"/>
+    <rect x="290" y="170" width="420" height="12" fill="#c7d2e8" stroke="#374151" stroke-width="1.2"/>
+    <!-- beam web -->
+    <rect x="296" y="62" width="408" height="108" fill="#dde6f7" stroke="#374151" stroke-width="1.2"/>
+    <!-- opening in web -->
+    <rect x="440" y="88" width="50" height="54" fill="white" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="465" y="118" font-size="9" fill="#dc2626" font-style="italic" text-anchor="middle">Opening</text>
+    <!-- supports -->
+    <polygon points="296,182 310,202 282,202" fill="#374151"/>
+    <polygon points="700,182 714,202 686,202" fill="#374151"/>
+    <!-- concentrated load -->
+    <line x1="500" y1="10" x2="500" y2="50" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+    <text x="520" y="30" font-size="10" fill="#374151" font-weight="600">P</text>
+    <!-- shear arrows -->
+    <line x1="296" y1="130" x2="340" y2="130" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arrRt)"/>
+    <text x="298" y="148" font-size="9" fill="#dc2626">V</text>
+    <!-- bearing length label -->
+    <line x1="484" y1="215" x2="516" y2="215" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+    <text x="500" y="226" font-size="8" fill="#f59e0b" text-anchor="middle">l<tspan dy="2" font-size="6">b</tspan></text>
+    <!-- stiffener pair -->
+    <line x1="500" y1="62" x2="492" y2="170" stroke="#16a34a" stroke-width="2"/>
+    <line x1="500" y1="62" x2="508" y2="170" stroke="#16a34a" stroke-width="2"/>
+    <text x="520" y="125" font-size="9" fill="#16a34a" font-style="italic">Stiff.</text>
+  </svg>
+</div>
+
+<!-- Input Block 1: Section & Material -->
+<div class="blk">
+  <h2>1. Section &amp; Material <span class="badge">AISC v16 Database</span></h2>
+  <div id="loadingMsg">&#9203; Loading AISC shapes database…</div>
+  <div class="g3">
+    <div class="ig">
+      <label>W-Shape Section</label>
+      <select id="sec" onchange="fillHint()" disabled>
+        <option value="">— loading… —</option>
+      </select>
+      <div id="secHint" class="hint"></div>
+    </div>
+    <div class="ig">
+      <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fy">
+        <option value="36">36 – A36</option>
+        <option value="50" selected>50 – A572 Gr.50</option>
+        <option value="65">65 – A572 Gr.65</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>E <span class="unit">(ksi)</span></label>
+      <input type="number" id="Es" value="29000">
+    </div>
+  </div>
+</div>
+
+<!-- Input Block 2: Applied Demands -->
+<div class="blk">
+  <h2>2. Applied Demands <span class="badge">Factored — LRFD</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Factored Shear, V<sub>u</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="Vu" value="270" step="1">
+    </div>
+    <div class="ig">
+      <label>Concentrated Load, P<sub>u</sub> <span class="unit">(kips, 0 if none)</span></label>
+      <input type="number" id="Pu" value="300" step="1" min="0">
+    </div>
+    <div class="ig">
+      <label>Bearing Length, l<sub>b</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="lb" value="0" step="0.25" min="0">
+      <div class="hint">0 = point load</div>
+    </div>
+    <div class="ig">
+      <label>Load Position</label>
+      <select id="loadPos">
+        <option value="interior" selected>Interior (c ≥ d)</option>
+        <option value="end">End Reaction (c &lt; d)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Input Block 3: Geometry -->
+<div class="blk">
+  <h2>3. Web Geometry</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Opening Depth, D <span class="unit">(in, 0 if none)</span></label>
+      <input type="number" id="Dop" value="0" step="0.5" min="0">
+    </div>
+    <div class="ig">
+      <label>Stiffener Spacing, a <span class="unit">(in, 0 = none)</span></label>
+      <input type="number" id="aStiff" value="0" step="1" min="0">
+      <div class="hint">Used to compute k<sub>v</sub>; 0 = unstiffened web</div>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- Results -->
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+
+  <!-- Section Properties -->
+  <div class="blk">
+    <h2>Section Properties</h2>
+    <div id="propOut"></div>
+  </div>
+
+  <!-- Demands -->
+  <div class="blk">
+    <h2>Design Demands</h2>
+    <div id="demOut"></div>
+  </div>
+
+  <!-- Check Table -->
+  <div class="blk">
+    <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">— click &#9656; Calc to expand any check</span></h2>
+    <table class="chk-table">
+      <thead>
+        <tr>
+          <th style="width:28%">Check</th>
+          <th>Code Reference</th>
+          <th>Demand</th>
+          <th>Capacity</th>
+          <th>D/C</th>
+          <th>Status</th>
+          <th style="width:70px">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box">
+    <strong>Engineering Notes:</strong>
+    <ul>
+      <li>Section properties from AISC Steel Construction Manual v16.0. Shapes are doubly-symmetric W-sections.</li>
+      <li>Shear area Aw = d × t<sub>w</sub> per AISC 360-22 G2.1. h = T (distance between fillets from AISC database).</li>
+      <li>Local web yielding uses k = k<sub>des</sub> from AISC database. For weld-built plate girders, apply k = t<sub>f</sub> + weld leg.</li>
+      <li>Web local crippling (J10.3), web sidesway buckling (J10.4), and web compression buckling (J10.5) are not checked here — review separately when openings or large concentrated loads are present.</li>
+      <li>Transverse stiffener sizing per G2.4 (minimum area, I, b/t) is not computed — flag if required and design per AISC 360-22 §G2.4.</li>
+    </ul>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /container -->
+
+<script>
+// ─── AISC Database (loaded via fetch) ──────────────────────────────────────
+var DB = {};
+var DB_LOADED = false;
+
+fetch('/data/aisc-shapes-v16.json')
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    DB = data;
+    DB_LOADED = true;
+    buildDropdown();
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('sec').disabled = false;
+  })
+  .catch(function(){
+    document.getElementById('loadingMsg').textContent =
+      '⚠ Could not load shape database. Ensure you are viewing this page from calcs.andersonrohr.com.';
+    document.getElementById('loadingMsg').style.background = '#fee2e2';
+    document.getElementById('loadingMsg').style.color = '#dc2626';
+  });
+
+function buildDropdown(){
+  var groups = {};
+  Object.keys(DB).filter(function(k){ return DB[k].type === 'W'; })
+    .forEach(function(k){
+      var m = k.match(/^W(\d+)/);
+      if(!m) return;
+      var g = 'W'+m[1];
+      if(!groups[g]) groups[g] = [];
+      groups[g].push({ key: k, wt: DB[k].W || 0 });
+    });
+  var gKeys = Object.keys(groups).sort(function(a,b){
+    return parseInt(a.slice(1)) - parseInt(b.slice(1));
+  });
+  var sel = document.getElementById('sec');
+  sel.innerHTML = '<option value="">— Select Section —</option>';
+  gKeys.forEach(function(g){
+    var og = document.createElement('optgroup');
+    og.label = g;
+    groups[g].sort(function(a,b){ return a.wt - b.wt; })
+      .forEach(function(item){
+        var opt = document.createElement('option');
+        opt.value = item.key;
+        opt.textContent = item.key.replace('X','×');
+        og.appendChild(opt);
+      });
+    sel.appendChild(og);
+  });
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function f1(v){ return isFinite(v)?v.toFixed(1):'N/A'; }
+function f2(v){ return isFinite(v)?v.toFixed(2):'N/A'; }
+function f3(v){ return isFinite(v)?v.toFixed(3):'N/A'; }
+function f4(v){ return isFinite(v)?v.toFixed(4):'N/A'; }
+function fr(n,d){ return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'; }
+function ov(x){ return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>'; }
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+function fillHint(){
+  var sn = document.getElementById('sec').value;
+  if(!sn||!DB[sn]){ document.getElementById('secHint').textContent=''; return; }
+  var D = DB[sn];
+  document.getElementById('secHint').textContent =
+    'd = '+f2(D.d)+' in  ·  b\u209f = '+f2(D.bf)+' in  ·  t\u2091 = '+f3(D.tf)+' in  ·  t\u1D64 = '+f3(D.tw)+' in  ·  h = '+f1(D.h||0)+' in (T)';
+}
+
+// ─── Main Calc ─────────────────────────────────────────────────────────────
+function runCalc(){
+  if(!DB_LOADED){ alert('Shape database not yet loaded — please wait a moment.'); return; }
+  var sn = document.getElementById('sec').value;
+  if(!sn){ alert('Please select a section.'); return; }
+  var S   = DB[sn];
+  var Fy  = +document.getElementById('Fy').value;
+  var E   = +document.getElementById('Es').value;
+  var Vu  = +document.getElementById('Vu').value;
+  var Pu  = +document.getElementById('Pu').value;
+  var lb  = +document.getElementById('lb').value;
+  var Dop = +document.getElementById('Dop').value;
+  var aStiff = +document.getElementById('aStiff').value;
+  var loadEnd = document.getElementById('loadPos').value === 'end';
+
+  // ─── Section Properties ───────────────────────────────────────────────
+  var d    = S.d;     // total depth (in)
+  var bf   = S.bf;    // flange width (in)
+  var tf   = S.tf;    // flange thickness (in)
+  var tw   = S.tw;    // web thickness (in)
+  var kdes = S.kdes;  // k-distance (in)
+  var h    = S.h || (d - 2*kdes); // dist. between fillets = clear web depth (in)
+  var Iy   = S.Iy;    // weak-axis inertia (in⁴)
+  var A    = S.A;     // gross area (in²)
+  var Ix   = S.Ix;
+  var Zx   = S.Zx;
+  var Sx   = S.Sx;
+
+  // Derived section quantities
+  var h_tw  = h / tw;                          // h/tw ratio
+  var Aw    = d * tw;                          // shear area (G2.1)
+  var Afc   = bf * tf;                         // compression flange area
+  var Iyc   = (1/12) * tf * Math.pow(bf, 3);  // Iyc of compression flange
+  var IycRatio = Iy ? Iyc / Iy : 0.5;         // for symmetric W: ≈ 0.5
+  var AwAfc = (d * tw) / Afc;                  // per F13.2(b)
+
+  // ─── Shear buckling coefficient kv ───────────────────────────────────
+  var kv, kv_note;
+  if(aStiff > 0 && h > 0){
+    var ah = aStiff / h;
+    kv = (ah <= 3.0) ? (5 + 5 / (ah * ah)) : 5.34;
+    kv_note = 'a/h = '+f2(ah)+', k<sub>v</sub> = 5 + 5/(a/h)² = '+f2(kv);
+  } else {
+    kv = 5.34;
+    kv_note = 'No intermediate stiffeners (or a/h > 3) — k<sub>v</sub> = 5.34 per G2.3(a)';
+  }
+
+  // ─── Cv: Shear buckling reduction factor (G2.2) ──────────────────────
+  var lim_phiv_1 = 2.24 * Math.sqrt(E / Fy);   // threshold for φv = 1.0
+  var lim_cv_1   = 1.10 * Math.sqrt(kv * E / Fy);
+  var lim_cv_2   = 1.37 * Math.sqrt(kv * E / Fy);
+  var phi_v, Cv, Cv_regime;
+  // φv = 1.0 only for hot-rolled I-shapes (G2.1(a))
+  phi_v = (h_tw <= lim_phiv_1) ? 1.00 : 0.90;
+  if(h_tw <= lim_cv_1){
+    Cv = 1.0;
+    Cv_regime = 'Regime 1: h/t<sub>w</sub> ≤ 1.10'+ov('k<sub>v</sub>E/F<sub>y</sub>')+' = '+f2(lim_cv_1)+' → C<sub>v</sub> = 1.0';
+  } else if(h_tw <= lim_cv_2){
+    Cv = lim_cv_1 / h_tw;
+    Cv_regime = 'Regime 2: inelastic shear buckling → C<sub>v</sub> = 1.10'+ov('k<sub>v</sub>E/F<sub>y</sub>')+'/( h/t<sub>w</sub>)';
+  } else {
+    Cv = 1.51 * kv * E / (h_tw * h_tw * Fy);
+    Cv_regime = 'Regime 3: elastic shear buckling → C<sub>v</sub> = 1.51k<sub>v</sub>E/[(h/t<sub>w</sub>)²F<sub>y</sub>]';
+  }
+  Cv = Math.min(Cv, 1.0);
+
+  // Non-opening shear capacity
+  var Vn     = 0.6 * Fy * Aw * Cv;
+  var phiVn  = phi_v * Vn;
+
+  // Opening shear capacity (reduced Aw)
+  var hasOpening = Dop > 0;
+  var Aw_op   = hasOpening ? (d - Dop) * tw : null;
+  var phiVn_op = hasOpening ? phi_v * 0.6 * Fy * Aw_op * Cv : null;
+
+  // ─── Transverse stiffener threshold (G2.3) ───────────────────────────
+  var stiff_limit = 2.46 * Math.sqrt(E / Fy);  // per G2.3(b)
+  var stiff_req = h_tw > stiff_limit;
+
+  // ─── Local Web Yielding (J10.2) ──────────────────────────────────────
+  var hasPu = Pu > 0;
+  var Rn_lwy, phiRn_lwy, lwy_factor, lwy_label;
+  if(hasPu){
+    lwy_factor = loadEnd ? 2.5 : 5.0;
+    lwy_label  = loadEnd ? '(End: 2.5k + l<sub>b</sub>)' : '(Interior: 5k + l<sub>b</sub>)';
+    Rn_lwy    = Fy * tw * (lwy_factor * kdes + lb);
+    phiRn_lwy = 1.0 * Rn_lwy;  // φ = 1.0 for J10.2
+  }
+
+  // ─── Build Check Objects ─────────────────────────────────────────────
+  var chks = [];
+
+  // ── Check A: Proportioning Limits (F13.2) ────────────────────────────
+  var propA_ok = IycRatio >= 0.1 && IycRatio <= 0.9;
+  var propB_ok = AwAfc <= 10.0;
+  var prop_ok  = propA_ok && propB_ok;
+  var det_prop = '';
+  det_prop += '<div class="cbox">';
+  det_prop += '<div class="cref-hdr">AISC 360-22 §F13.2 — Proportioning Limits for I-Shaped Members</div>';
+  det_prop += '<div class="mrow"><span class="ceq">Condition (a): 0.1 ≤ I<sub>yc</sub>/I<sub>y</sub> ≤ 0.9</span></div>';
+  det_prop += '<div class="mrow ind">I<sub>yc</sub> = '+fr('1','12')+' t<sub>f</sub> b<sub>f</sub>³ = '+fr('1','12')+' × '+f3(tf)+' × '+f2(bf)+'³ = <span class="cval">'+f2(Iyc)+' in⁴</span></div>';
+  det_prop += '<div class="mrow ind">I<sub>y</sub> = <span class="cval">'+f2(Iy)+' in⁴</span> (from AISC database)</div>';
+  det_prop += '<div class="mrow ind">I<sub>yc</sub>/I<sub>y</sub> = '+f2(Iyc)+'/'+f2(Iy)+' = <span class="cval">'+f3(IycRatio)+'</span> '+(propA_ok?'<span class="pass">✓ 0.1 ≤ 0.50 ≤ 0.90</span>':'<span class="fail">✗ Outside limits</span>')+'</div>';
+  det_prop += '<hr class="csep">';
+  det_prop += '<div class="mrow"><span class="ceq">Condition (b): A<sub>w</sub>/A<sub>fc</sub> ≤ 10</span></div>';
+  det_prop += '<div class="mrow ind">A<sub>w</sub> = d × t<sub>w</sub> = '+f2(d)+' × '+f3(tw)+' = <span class="cval">'+f3(Aw)+' in²</span></div>';
+  det_prop += '<div class="mrow ind">A<sub>fc</sub> = b<sub>f</sub> × t<sub>f</sub> = '+f2(bf)+' × '+f3(tf)+' = <span class="cval">'+f3(Afc)+' in²</span></div>';
+  det_prop += '<div class="mrow ind">A<sub>w</sub>/A<sub>fc</sub> = '+f3(Aw)+'/'+f3(Afc)+' = <span class="cval">'+f3(AwAfc)+'</span> '+(propB_ok?'<span class="pass">✓ ≤ 10</span>':'<span class="fail">✗ > 10</span>')+'</div>';
+  det_prop += '</div>';
+  chks.push({
+    n: 'Proportioning Limits',
+    r: 'AISC 360-22 §F13.2',
+    d: 'I<sub>yc</sub>/I<sub>y</sub> = '+f3(IycRatio),
+    c: '0.10 ≤ 0.90; A<sub>w</sub>/A<sub>fc</sub> ≤ 10',
+    dc: null,
+    nt: prop_ok ? '✓ Both conditions met' : '✗ One or more conditions not met',
+    stiff: prop_ok,
+    det: det_prop
+  });
+
+  // ── Check B: Shear at Non-Opening (G2.1) ─────────────────────────────
+  var dc_shear = Vu / phiVn;
+  var det_shear = '';
+  det_shear += '<div class="cbox">';
+  det_shear += '<div class="cref-hdr">AISC 360-22 §G2.1 &amp; §G2.2 — Shear Strength at Non-Opening Section</div>';
+  det_shear += '<div class="mrow"><span class="ceq">Shear area: A<sub>w</sub> = d × t<sub>w</sub> =</span> '+f2(d)+' × '+f3(tw)+' = <span class="cval">'+f3(Aw)+' in²</span></div>';
+  det_shear += '<div class="mrow"><span class="ceq">h/t<sub>w</sub> =</span> '+f2(h)+'/'+f3(tw)+' = <span class="cval">'+f2(h_tw)+'</span></div>';
+  det_shear += '<div class="mrow"><span class="ceq">φ<sub>v</sub> = '+f2(phi_v)+'</span> '+((h_tw <= lim_phiv_1)?'(G2.1(a): h/t<sub>w</sub> ≤ 2.24'+ov('E/F<sub>y</sub>')+' = '+f2(lim_phiv_1)+')':'(G2.1(b): h/t<sub>w</sub> > '+f2(lim_phiv_1)+')')+'</div>';
+  det_shear += '<hr class="csep">';
+  det_shear += '<div class="mrow"><span class="ceq">Shear buckling coefficient: k<sub>v</sub> = '+f2(kv)+'</span></div>';
+  det_shear += '<div class="mrow ind">'+kv_note+'</div>';
+  det_shear += '<div class="mrow"><span class="ceq">Buckling limits:</span></div>';
+  det_shear += '<div class="mrow ind">1.10'+ov('k<sub>v</sub>E/F<sub>y</sub>')+' = 1.10×'+ov(f2(kv)+'×'+E+'/'+Fy)+' = <span class="cval">'+f2(lim_cv_1)+'</span></div>';
+  det_shear += '<div class="mrow ind">1.37'+ov('k<sub>v</sub>E/F<sub>y</sub>')+' = <span class="cval">'+f2(lim_cv_2)+'</span></div>';
+  det_shear += '<div class="mrow"><span class="ceq">C<sub>v</sub> regime: '+Cv_regime+'</span></div>';
+  det_shear += '<div class="mrow ind">C<sub>v</sub> = <span class="cval">'+f3(Cv)+'</span></div>';
+  det_shear += '<hr class="csep">';
+  det_shear += '<div class="mrow"><span class="ceq">Eq. G2-1: φV<sub>n</sub> = φ<sub>v</sub> × 0.6F<sub>y</sub>A<sub>w</sub>C<sub>v</sub></span></div>';
+  det_shear += '<div class="mrow ind">= '+f2(phi_v)+' × 0.6 × '+Fy+' × '+f3(Aw)+' × '+f3(Cv)+' = <span class="cval">'+f1(phiVn)+' kips</span></div>';
+  det_shear += '<hr class="csep">';
+  det_shear += '<div class="mrow">D/C = '+fr(f1(Vu)+' kips', f1(phiVn)+' kips')+' = <span class="cval">'+f3(dc_shear)+'</span></div>';
+  det_shear += '</div>';
+  chks.push({
+    n: 'Web Shear — Non-Opening',
+    r: 'AISC 360-22 §G2.1',
+    d: 'V<sub>u</sub> = '+f1(Vu)+' kips',
+    c: 'φV<sub>n</sub> = '+f1(phiVn)+' kips',
+    dc: dc_shear,
+    nt: 'A<sub>w</sub> = d × t<sub>w</sub> = '+f3(Aw)+' in²',
+    stiff: false,
+    det: det_shear
+  });
+
+  // ── Check C: Shear at Opening (G2.1) ─────────────────────────────────
+  if(hasOpening){
+    var dc_shear_op = Vu / phiVn_op;
+    var det_shear_op = '';
+    det_shear_op += '<div class="cbox">';
+    det_shear_op += '<div class="cref-hdr">AISC 360-22 §G2.1 — Shear Strength at Opening Section (D = '+f1(Dop)+' in)</div>';
+    det_shear_op += '<div class="mrow"><span class="ceq">Reduced shear area at opening: A<sub>w,op</sub> = (d − D) × t<sub>w</sub></span></div>';
+    det_shear_op += '<div class="mrow ind">= ('+f2(d)+' − '+f1(Dop)+') × '+f3(tw)+' = <span class="cval">'+f3(Aw_op)+' in²</span></div>';
+    det_shear_op += '<div class="mrow"><span class="ceq">C<sub>v</sub> = '+f3(Cv)+'</span> (same coefficient — based on full web h/t<sub>w</sub>)</div>';
+    det_shear_op += '<div class="mrow"><span class="ceq">φV<sub>n,op</sub> = φ<sub>v</sub> × 0.6F<sub>y</sub>A<sub>w,op</sub>C<sub>v</sub></span></div>';
+    det_shear_op += '<div class="mrow ind">= '+f2(phi_v)+' × 0.6 × '+Fy+' × '+f3(Aw_op)+' × '+f3(Cv)+' = <span class="cval">'+f1(phiVn_op)+' kips</span></div>';
+    det_shear_op += '<hr class="csep">';
+    det_shear_op += '<div class="mrow">D/C = '+fr(f1(Vu)+' kips',f1(phiVn_op)+' kips')+' = <span class="cval">'+f3(dc_shear_op)+'</span></div>';
+    det_shear_op += '</div>';
+    chks.push({
+      n: 'Web Shear — At Opening',
+      r: 'AISC 360-22 §G2.1',
+      d: 'V<sub>u</sub> = '+f1(Vu)+' kips',
+      c: 'φV<sub>n,op</sub> = '+f1(phiVn_op)+' kips',
+      dc: dc_shear_op,
+      nt: 'A<sub>w,op</sub> = (d−D)t<sub>w</sub> = '+f3(Aw_op)+' in²',
+      stiff: false,
+      det: det_shear_op
+    });
+  }
+
+  // ── Check D: Transverse Stiffener Requirement (G2.3) ─────────────────
+  var det_stiff = '';
+  det_stiff += '<div class="cbox">';
+  det_stiff += '<div class="cref-hdr">AISC 360-22 §G2.3 — Transverse Stiffener Requirement</div>';
+  det_stiff += '<div class="mrow"><span class="ceq">Transverse stiffeners required when h/t<sub>w</sub> > 2.46'+ov('E/F<sub>y</sub>')+'</span></div>';
+  det_stiff += '<div class="mrow ind">2.46'+ov('E/F<sub>y</sub>')+' = 2.46 × '+ov(E+'/'+Fy)+' = <span class="cval">'+f2(stiff_limit)+'</span></div>';
+  det_stiff += '<div class="mrow ind">h/t<sub>w</sub> = <span class="cval">'+f2(h_tw)+'</span> '+(stiff_req?'<span class="fail">✗ > '+f2(stiff_limit)+' — Transverse Stiffeners Required</span>':'<span class="pass">✓ ≤ '+f2(stiff_limit)+' — Stiffeners Not Required</span>')+'</div>';
+  if(stiff_req){
+    det_stiff += '<hr class="csep">';
+    det_stiff += '<div class="mrow"><em>When stiffeners are provided, recalculate k<sub>v</sub> with stiffener spacing a — enter spacing in the input block above.</em></div>';
+    det_stiff += '<div class="mrow">Stiffener sizing: see AISC 360-22 §G2.4 for minimum Ist, b<sub>st</sub>/t<sub>st</sub>, and A<sub>st</sub> requirements.</div>';
+  }
+  det_stiff += '</div>';
+  chks.push({
+    n: 'Transverse Stiffener Requirement',
+    r: 'AISC 360-22 §G2.3',
+    d: 'h/t<sub>w</sub> = '+f2(h_tw),
+    c: 'Limit = '+f2(stiff_limit),
+    dc: h_tw / stiff_limit,
+    nt: stiff_req ? '⚠ Stiffeners required — see detail' : '✓ Stiffeners not required',
+    stiff: !stiff_req,
+    det: det_stiff
+  });
+
+  // ── Check E: Local Web Yielding (J10.2) ──────────────────────────────
+  if(hasPu){
+    var dc_lwy = Pu / phiRn_lwy;
+    var det_lwy = '';
+    det_lwy += '<div class="cbox">';
+    det_lwy += '<div class="cref-hdr">AISC 360-22 §J10.2 — Local Web Yielding, '+( loadEnd ? 'End Reaction' : 'Interior Concentrated Load')+'</div>';
+    det_lwy += '<div class="mrow"><span class="ceq">k = k<sub>des</sub> = '+f3(kdes)+' in</span> (from AISC database; for plate girders use k = t<sub>f</sub> + weld leg)</div>';
+    det_lwy += '<div class="mrow"><span class="ceq">Eq. '+( loadEnd ? 'J10-3: R<sub>n</sub> = F<sub>y</sub>t<sub>w</sub>(2.5k + l<sub>b</sub>)' : 'J10-2: R<sub>n</sub> = F<sub>y</sub>t<sub>w</sub>(5k + l<sub>b</sub>)'  )+'</span></div>';
+    det_lwy += '<div class="mrow ind">= '+Fy+' × '+f3(tw)+' × ('+lwy_factor+'×'+f3(kdes)+' + '+f2(lb)+')</div>';
+    det_lwy += '<div class="mrow ind">= '+Fy+' × '+f3(tw)+' × '+f3(lwy_factor*kdes+lb)+' = <span class="cval">'+f1(Rn_lwy)+' kips</span></div>';
+    det_lwy += '<div class="mrow"><span class="ceq">φR<sub>n</sub> = 1.0 × R<sub>n</sub> = <span class="cval">'+f1(phiRn_lwy)+' kips</span></span></div>';
+    det_lwy += '<hr class="csep">';
+    det_lwy += '<div class="mrow">D/C = '+fr(f1(Pu)+' kips',f1(phiRn_lwy)+' kips')+' = <span class="cval">'+f3(dc_lwy)+'</span></div>';
+    det_lwy += '</div>';
+    chks.push({
+      n: 'Local Web Yielding',
+      r: 'AISC 360-22 §J10.2',
+      d: 'P<sub>u</sub> = '+f1(Pu)+' kips',
+      c: 'φR<sub>n</sub> = '+f1(phiRn_lwy)+' kips',
+      dc: dc_lwy,
+      nt: (loadEnd ? 'End: 2.5k' : 'Interior: 5k') + ' + l<sub>b</sub> formula',
+      stiff: false,
+      det: det_lwy
+    });
+  }
+
+  // ─── Render Results ───────────────────────────────────────────────────
+
+  // Summary banner
+  var dcs  = chks.map(function(c){ return c.dc; }).filter(function(v){ return isFinite(v)&&v!==null&&v>=0; });
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var pass  = maxDC <= 1.0;
+  var sb    = document.getElementById('sumBox');
+  sb.className = 'summary ' + (pass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'&#x2714; All Checks Pass':'&#x2718; One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+sn.replace('X','×')
+    +', F<sub>y</sub> = '+Fy+' ksi</p>';
+
+  // Section properties table
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><thead><tr><th>Property</th><th>Symbol</th><th>Value</th>'
+    +'<th>Property</th><th>Symbol</th><th>Value</th></tr></thead><tbody>'
+    +'<tr><td>Total depth</td><td>d</td><td>'+f3(d)+' in</td>'
+    +'<td>Moment of inertia (x)</td><td>I<sub>x</sub></td><td>'+f1(Ix)+' in⁴</td></tr>'
+    +'<tr><td>Flange width</td><td>b<sub>f</sub></td><td>'+f3(bf)+' in</td>'
+    +'<td>Elastic section mod.</td><td>S<sub>x</sub></td><td>'+f2(Sx)+' in³</td></tr>'
+    +'<tr><td>Flange thickness</td><td>t<sub>f</sub></td><td>'+f3(tf)+' in</td>'
+    +'<td>Plastic section mod.</td><td>Z<sub>x</sub></td><td>'+f2(Zx)+' in³</td></tr>'
+    +'<tr><td>Web thickness</td><td>t<sub>w</sub></td><td>'+f3(tw)+' in</td>'
+    +'<td>Weak-axis inertia</td><td>I<sub>y</sub></td><td>'+f2(Iy)+' in⁴</td></tr>'
+    +'<tr><td>k-distance (design)</td><td>k<sub>des</sub></td><td>'+f3(kdes)+' in</td>'
+    +'<td>Gross area</td><td>A</td><td>'+f3(A)+' in²</td></tr>'
+    +'<tr><td>Clear web depth (T)</td><td>h</td><td>'+f2(h)+' in</td>'
+    +'<td>h/t<sub>w</sub></td><td>h/t<sub>w</sub></td><td>'+f2(h_tw)+'</td></tr>'
+    +'</tbody></table>';
+
+  // Demand cards
+  var dc = document.getElementById('demOut');
+  var cardHtml = '<div class="dem-grid">';
+  cardHtml += '<div class="dem-card"><div class="v">'+f1(Vu)+' k</div><div class="l">Factored Shear V<sub>u</sub></div></div>';
+  cardHtml += '<div class="dem-card"><div class="v">'+f1(phiVn)+' k</div><div class="l">φV<sub>n</sub> (non-opening)</div></div>';
+  if(hasOpening){
+    cardHtml += '<div class="dem-card"><div class="v">'+f1(phiVn_op)+' k</div><div class="l">φV<sub>n</sub> at Opening<br>(D = '+f1(Dop)+' in)</div></div>';
+  }
+  cardHtml += '<div class="dem-card"><div class="v">'+f3(Cv)+'</div><div class="l">Shear Buckling C<sub>v</sub></div></div>';
+  cardHtml += '<div class="dem-card"><div class="v">'+f2(kv)+'</div><div class="l">Shear Buckl. Coeff. k<sub>v</sub></div></div>';
+  if(hasPu){
+    cardHtml += '<div class="dem-card"><div class="v">'+f1(Pu)+' k</div><div class="l">Concentrated Load P<sub>u</sub></div></div>';
+    cardHtml += '<div class="dem-card"><div class="v">'+f1(phiRn_lwy)+' k</div><div class="l">φR<sub>n</sub> Web Yielding</div></div>';
+  }
+  cardHtml += '<div class="dem-card '+(stiff_req?'':'alt')+'"><div class="v">'+f2(h_tw)+'</div><div class="l">h/t<sub>w</sub>'+(stiff_req?' <span style="color:#dc2626">⚠</span>':' <span style="color:#16a34a">✓</span>')+'</div></div>';
+  cardHtml += '</div>';
+  dc.innerHTML = cardHtml;
+
+  // Check table
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c, i){
+    var dc_v  = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct   = dc_v !== null ? Math.min(dc_v * 100, 150) : 0;
+    var col   = dc_v === null ? '#9ca3af' : dc_v <= 0.8 ? '#16a34a' : dc_v <= 1.0 ? '#d97706' : '#dc2626';
+    var stxt  = dc_v === null ? '<span class="na">&mdash;</span>'
+              : dc_v <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+    var dtxt  = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? 'class="alt-row"' : '';
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className = 'results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+</script>
+</body>
+</html>

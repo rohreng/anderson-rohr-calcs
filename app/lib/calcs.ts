@@ -165,6 +165,15 @@ export const CALCS: CalcMeta[] = [
   },
   // ── Steel / Connections ───────────────────────────────────────
   {
+    slug: "web-stiffener",
+    label: "I-Shaped Member Stiffener Design",
+    subtitle: "Proportioning limits · web shear & openings · transverse stiffener check · local web yielding",
+    htmlFile: "/Calcs/web_stiffener_calculator.html",
+    category: "Connections",
+    spec: "AISC 360-22 §F13.2 / G2 / J10.2",
+    status: "ready",
+  },
+  {
     slug: "column-bearing-plate-slab",
     label: "Column Bearing Plate on Slab",
     subtitle: "Bearing pressure · plate bending · two-way punching shear · one-way slab shear",
