@@ -453,10 +453,29 @@ function calcFloorData(fi, wi){
     var H_jk=0;
     for(var i=j;i<=fi;i++) H_jk+=floors[i].h;
     var Vj=flj.V_floor;
-    var DL_j=0.6*(wj.DL_psf||0)*(wj.trib_DL||0)*(wj.L||0);
+    // Resolve DL — use linked gravity wall if dl_source is set
+    var _dlSrc=wj.dl_source;
+    var _srcDL,_srcTrib;
+    if(_dlSrc!==undefined&&_dlSrc!=='manual'&&!isNaN(parseInt(_dlSrc))){
+      var _srcWi=parseInt(_dlSrc);
+      var _srcW=floors[j].walls[_srcWi];
+      _srcDL=_srcW?(_srcW.DL_psf||0):(wj.DL_psf||0);
+      _srcTrib=_srcW?(_srcW.trib_DL||0):(wj.trib_DL||0);
+    } else {
+      _srcDL=wj.DL_psf||0;
+      _srcTrib=wj.trib_DL||0;
+    }
+    var DL_j=0.6*_srcDL*_srcTrib*(wj.L||0)+(wj.dl_override||0);
     var contrib=Vj*H_jk-DL_j;
     OTM_num+=contrib;
-    det_rows.push({lbl:flj.name, V:Vj, H:H_jk, DL:DL_j, contrib:contrib});
+    // Build DL source label for calc detail display
+    var _dlSrcLbl='';
+    if(wj.dl_source&&wj.dl_source!=='manual'&&!isNaN(parseInt(wj.dl_source))){
+      var _lkW=floors[j].walls[parseInt(wj.dl_source)];
+      _dlSrcLbl=_lkW?' [from: '+(_lkW.label||'Wall '+wj.dl_source)+']':'';
+    }
+    if(wj.dl_override)_dlSrcLbl+=(_dlSrcLbl?'':' ')+'[+override:'+wj.dl_override+' lb\u00b7ft]';
+    det_rows.push({lbl:flj.name, V:Vj, H:H_jk, DL:DL_j, dlSrcLbl:_dlSrcLbl, contrib:contrib});
   }
   var denom=wall.Li*Co;
   var T=denom>0?OTM_num/denom:0;
@@ -481,13 +500,13 @@ function getSheathingObj(id){
 var fCnt=4, wCnt=1;
 var floors=[
   {id:1,name:'4th Floor',h:8.0,V_floor:2783,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,dl_source:'manual',dl_override:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:2,name:'3rd Floor',h:9.5,V_floor:1661,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,dl_source:'manual',dl_override:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:3,name:'2nd Floor',h:9.5,V_floor:1738,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:6.67,DL_psf:0,trib_DL:0,dl_source:'manual',dl_override:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'sds14',sill_spacing:12,holdown_type:'hdue',exp:true}]},
   {id:4,name:'1st Floor',h:10.5,V_floor:1921,walls:[
-    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',sill_spacing:20,holdown_type:'hdue',exp:true}]}
+    {id:'w1',label:'Wall Line A',L:302,Li:172,ho:7.5,DL_psf:0,trib_DL:0,dl_source:'manual',dl_override:0,sheathing:'osb716_1_6',end_post:'(2) 2x6',sill_conn:'ab58',sill_spacing:20,holdown_type:'hdue',exp:true}]}
 ];
 
 // ─── Floor / Wall Management ──────────────────────────────────────────────────
@@ -496,6 +515,7 @@ function addFloor(){
   var prev=floors[floors.length-1];
   var newWalls=prev.walls.map(function(w){
     return {id:w.id,label:w.label,L:w.L,Li:w.Li,ho:w.ho,DL_psf:0,trib_DL:w.trib_DL,
+            dl_source:w.dl_source||'manual',dl_override:0,
             sheathing:w.sheathing,end_post:w.end_post,sill_conn:w.sill_conn||'sds14',
             sill_spacing:w.sill_spacing||12,holdown_type:w.holdown_type||'hdue',exp:true};
   });
@@ -513,6 +533,7 @@ function addWall(fi){
   var ref=floors[fi].walls[0];
   floors[fi].walls.push({id:newId,label:'Wall Line '+String.fromCharCode(65+floors[fi].walls.length),
     L:ref?ref.L:100,Li:ref?ref.Li:70,ho:ref?ref.ho:0,DL_psf:0,trib_DL:0,
+    dl_source:'manual',dl_override:0,
     sheathing:'osb716_1_6',end_post:'(2) 2x6',
     sill_conn:ref?ref.sill_conn:'sds14',sill_spacing:ref?ref.sill_spacing:12,
     holdown_type:ref?ref.holdown_type:'hdue',exp:true});
@@ -547,6 +568,20 @@ function updWall(fi,wi,fld,val){
   }
   var el=document.getElementById('wres_'+fi+'_'+wi);
   if(el){el.style.display='none';}
+}
+
+// ─── Gravity Wall DL Link ─────────────────────────────────────────────────────
+// Sets dl_source on the selected floor and cascades DOWN to all floors below.
+// srcVal = 'manual' | wall-index string ('0','1','2'...)
+function setDLSource(fi,wi,srcVal){
+  for(var f=fi;f<floors.length;f++){
+    if(floors[f].walls[wi]){
+      floors[f].walls[wi].dl_source=srcVal;
+      var el=document.getElementById('wres_'+f+'_'+wi);
+      if(el)el.style.display='none';
+    }
+  }
+  render();
 }
 
 // ─── Check Function ───────────────────────────────────────────────────────────
@@ -664,7 +699,7 @@ function checkWall(fi, wi){
     var dr=d.det_rows[rr];
     runSum+=dr.contrib;
     detHtml+='<div class="mrow ind">'+xe(dr.lbl)+': V='+f0(dr.V)+' lb \u00d7 H='+f1(dr.H)+'ft';
-    if(dr.DL>0)detHtml+=' \u2212 DL='+f0(dr.DL)+' lb\u00b7ft';
+    if(dr.DL>0)detHtml+=' \u2212 DL='+f0(dr.DL)+' lb\u00b7ft'+(dr.dlSrcLbl?'<em style="color:#7c5c1e;font-size:.88em"> '+xe(dr.dlSrcLbl)+'</em>':'');
     detHtml+=' \u2192 <span class="cval">'+f0(dr.contrib)+' lb\u00b7ft</span></div>';
   }
   detHtml+='<div class="mrow">Numerator \u03a3 = <span class="cval">'+f0(d.OTM_num)+' lb\u00b7ft</span></div>';
@@ -834,8 +869,10 @@ function render(){
     out+='<th style="width:60px">L (ft)</th>';
     out+='<th class="th-sw" style="width:60px">\u03a3L<sub>i</sub> (ft)</th>';
     out+='<th class="th-sw" style="width:55px">h<sub>o</sub> (ft)</th>';
+    out+='<th style="width:110px;background:#7c5c1e;color:#fff" title="Link DL from a gravity wall — cascades to all floors below">Gravity DL Source</th>';
     out+='<th style="width:55px">DL (psf)</th>';
     out+='<th style="width:55px">Trib DL (ft)</th>';
+    out+='<th style="width:72px;background:#92400e;color:#fff" title="Additive override to DL moment (lb·ft), applied after 0.6× factor. Use + to add DL, − to remove.">&#177;DL Override<br><small style="font-weight:400;font-size:.75em">(lb&middot;ft)</small></th>';
     out+='<th class="th-chk" style="width:180px">Sheathing (Trial)</th>';
     out+='<th style="width:90px">End Post</th>';
     out+='<th class="th-sh" style="width:140px">Sill Connection</th>';
@@ -852,8 +889,32 @@ function render(){
       out+='<td><input class="ti" type="number" value="'+w.L+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+w.Li+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'Li\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+w.ho+'" step="0.1" min="0" onchange="updWall('+fi+','+wi+',\'ho\',this.value)"></td>';
-      out+='<td><input class="ti" type="number" value="'+w.DL_psf+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'DL_psf\',this.value)"></td>';
-      out+='<td><input class="ti" type="number" value="'+w.trib_DL+'" step="0.5" min="0" onchange="updWall('+fi+','+wi+',\'trib_DL\',this.value)"></td>';
+      // ── Gravity DL Source dropdown ──
+      var _dlSrcVal=w.dl_source!==undefined?w.dl_source:'manual';
+      var _dlOpts='<option value="manual"'+(_dlSrcVal==='manual'?' selected':'')+'>Manual</option>';
+      for(var _si2=0;_si2<fl.walls.length;_si2++){
+        if(_si2===wi)continue;
+        var _srcLbl=fl.walls[_si2].label||('Wall '+_si2);
+        var _srcV=String(_si2);
+        _dlOpts+='<option value="'+_srcV+'"'+(_dlSrcVal===_srcV?' selected':'')+'>&#8658; '+xe(_srcLbl)+'</option>';
+      }
+      out+='<td style="background:#fef3c7"><select class="ti" style="font-size:.70em;background:#fef3c7" onchange="setDLSource('+fi+','+wi+',this.value)" title="Selecting a gravity wall fills DL psf + trib for this level and all levels below">'+_dlOpts+'</select></td>';
+      // ── DL psf and Trib — conditional on source ──
+      var _isLinked=_dlSrcVal!=='manual'&&!isNaN(parseInt(_dlSrcVal));
+      if(_isLinked){
+        var _srcWi2=parseInt(_dlSrcVal);
+        var _srcW2=fl.walls[_srcWi2];
+        var _showDL=_srcW2?(_srcW2.DL_psf||0):0;
+        var _showTrib=_srcW2?(_srcW2.trib_DL||0):0;
+        var _srcName=_srcW2?(_srcW2.label||('Wall '+_srcWi2)):'?';
+        out+='<td style="background:#e0f2fe;text-align:center;font-size:.78em;color:#0369a1" title="Imported from: '+xe(_srcName)+'">'+_showDL+'</td>';
+        out+='<td style="background:#e0f2fe;text-align:center;font-size:.78em;color:#0369a1" title="Imported from: '+xe(_srcName)+'">'+_showTrib+'</td>';
+      } else {
+        out+='<td><input class="ti" type="number" value="'+w.DL_psf+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'DL_psf\',this.value)"></td>';
+        out+='<td><input class="ti" type="number" value="'+w.trib_DL+'" step="0.5" min="0" onchange="updWall('+fi+','+wi+',\'trib_DL\',this.value)"></td>';
+      }
+      // ── Override field ──
+      out+='<td style="background:#fffbeb"><input class="ti" type="number" value="'+(w.dl_override||0)+'" step="10" title="Add (+) or subtract (-) lb\u00b7ft to the DL moment after the 0.6\u00d7 factor" onchange="updWall('+fi+','+wi+',\'dl_override\',this.value)" style="background:#fffbeb"></td>';
       // Sheathing dropdown
       out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sheathing\',this.value)">';
       for(var si=0;si<SHEATHING.length;si++){
@@ -891,7 +952,7 @@ function render(){
       out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">\u2715</button></td>';
       out+='</tr>';
       // Results row
-      out+='<tr><td colspan="13" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="16" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table>';
     out+='<div style="margin-top:7px">';
