@@ -244,6 +244,33 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           <option value="W14x176">W14×176</option>
           <option value="W14x193">W14×193</option>
         </optgroup>
+        <optgroup label="HSS 3×3 (square)">
+          <option value="HSS3x3x3/16">HSS 3×3×3/16</option>
+          <option value="HSS3x3x1/4">HSS 3×3×1/4</option>
+        </optgroup>
+        <optgroup label="HSS 3½×3½ (square)">
+          <option value="HSS3.5x3.5x3/16">HSS 3½×3½×3/16</option>
+          <option value="HSS3.5x3.5x1/4">HSS 3½×3½×1/4</option>
+        </optgroup>
+        <optgroup label="HSS 4×4 (square)">
+          <option value="HSS4x4x3/16">HSS 4×4×3/16</option>
+          <option value="HSS4x4x1/4">HSS 4×4×1/4</option>
+          <option value="HSS4x4x5/16">HSS 4×4×5/16</option>
+          <option value="HSS4x4x3/8">HSS 4×4×3/8</option>
+        </optgroup>
+        <optgroup label="HSS 5×5 (square)">
+          <option value="HSS5x5x3/16">HSS 5×5×3/16</option>
+          <option value="HSS5x5x1/4">HSS 5×5×1/4</option>
+          <option value="HSS5x5x5/16">HSS 5×5×5/16</option>
+          <option value="HSS5x5x3/8">HSS 5×5×3/8</option>
+        </optgroup>
+        <optgroup label="HSS 6×6 (square)">
+          <option value="HSS6x6x3/16">HSS 6×6×3/16</option>
+          <option value="HSS6x6x1/4">HSS 6×6×1/4</option>
+          <option value="HSS6x6x5/16">HSS 6×6×5/16</option>
+          <option value="HSS6x6x3/8">HSS 6×6×3/8</option>
+          <option value="HSS6x6x1/2">HSS 6×6×1/2</option>
+        </optgroup>
       </select>
       <div id="secHint" class="hint"></div>
     </div>
@@ -399,6 +426,32 @@ var W_COL = {
   'W14x193':[15.5, 15.710]
 };
 
+// ─── Section Database: Square HSS [B_outside (in), B_outside (in)] ───────────
+// For square HSS: d = bf = B_outside. DG01 projections use 0.95×B for m and
+// 0.80×B for n (conservative for the n direction — standard practice).
+var HSS_COL = {
+  'HSS3x3x3/16':  [3.000, 3.000],
+  'HSS3x3x1/4':   [3.000, 3.000],
+  'HSS3.5x3.5x3/16': [3.500, 3.500],
+  'HSS3.5x3.5x1/4':  [3.500, 3.500],
+  'HSS4x4x3/16':  [4.000, 4.000],
+  'HSS4x4x1/4':   [4.000, 4.000],
+  'HSS4x4x5/16':  [4.000, 4.000],
+  'HSS4x4x3/8':   [4.000, 4.000],
+  'HSS5x5x3/16':  [5.000, 5.000],
+  'HSS5x5x1/4':   [5.000, 5.000],
+  'HSS5x5x5/16':  [5.000, 5.000],
+  'HSS5x5x3/8':   [5.000, 5.000],
+  'HSS6x6x3/16':  [6.000, 6.000],
+  'HSS6x6x1/4':   [6.000, 6.000],
+  'HSS6x6x5/16':  [6.000, 6.000],
+  'HSS6x6x3/8':   [6.000, 6.000],
+  'HSS6x6x1/2':   [6.000, 6.000]
+};
+
+function getSecData(sn){ return W_COL[sn] || HSS_COL[sn] || null; }
+function isHSS(sn){ return sn && sn.indexOf('HSS')===0; }
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
@@ -415,9 +468,13 @@ function toggleDet(i){
 
 function fillHint(){
   var sn=document.getElementById('colSec').value;
-  if(!sn||!W_COL[sn]){document.getElementById('secHint').textContent='';return;}
-  var D=W_COL[sn];
-  document.getElementById('secHint').textContent='d = '+f2(D[0])+' in,  bf = '+f2(D[1])+' in';
+  var D=getSecData(sn);
+  if(!sn||!D){document.getElementById('secHint').textContent='';return;}
+  if(isHSS(sn)){
+    document.getElementById('secHint').textContent='B = H = '+f2(D[0])+' in (outside dim.)';
+  } else {
+    document.getElementById('secHint').textContent='d = '+f2(D[0])+' in,  bf = '+f2(D[1])+' in';
+  }
 }
 
 function dcBar(dc){
@@ -435,10 +492,13 @@ function status(dc){
 // ─── Main Calc ────────────────────────────────────────────────────────────────
 function runCalc(){
   var sn = document.getElementById('colSec').value;
-  if(!sn||!W_COL[sn]){alert('Please select a column section.');return;}
-  var D   = W_COL[sn];
-  var d_col = D[0];   // column depth (in)
-  var bf    = D[1];   // flange width (in)
+  var D  = getSecData(sn);
+  if(!sn||!D){alert('Please select a column section.');return;}
+  var hss   = isHSS(sn);
+  var d_col = D[0];   // column depth d (W-shape) or outside dim B (HSS)
+  var bf    = D[1];   // flange width bf (W-shape) or outside dim B (HSS)
+  var lbl_d  = hss ? 'B<sub>hss</sub>' : 'd';
+  var lbl_bf = hss ? 'B<sub>hss</sub>' : 'b<sub>f</sub>';
 
   var Pu    = +document.getElementById('Pu').value;      // kips
   var N     = +document.getElementById('platN').value;   // plate length (in)
@@ -524,9 +584,9 @@ function runCalc(){
   var det1 = '';
   det1 += '<div class="cbox">';
   det1 += '<div class="cref-hdr">AISC DG01 — Bearing Plate Cantilever Projections</div>';
-  det1 += '<div class="mrow"><span class="ceq">m = (N − 0.95d)/2 =</span> ('+f2(N)+' − 0.95×'+f2(d_col)+')/2 = <span class="cval">'+f3(m)+' in</span>'+(m<0?' <em style="color:#d97706">(negative — plate smaller than 0.95d)</em>':'')+'</div>';
-  det1 += '<div class="mrow"><span class="ceq">n = (B − 0.80b<sub>f</sub>)/2 =</span> ('+f2(B)+' − 0.80×'+f2(bf)+')/2 = <span class="cval">'+f3(n)+' in</span>'+(n<0?' <em style="color:#d97706">(negative — plate smaller than 0.80b<sub>f</sub>)</em>':'')+'</div>';
-  det1 += '<div class="mrow"><span class="ceq">n\' = λ√(d·b<sub>f</sub>)/4 =</span> 1.0×'+ov(f2(d_col)+'×'+f2(bf))+'/4 = <span class="cval">'+f3(np)+' in</span></div>';
+  det1 += '<div class="mrow"><span class="ceq">m = (N − 0.95'+lbl_d+')/2 =</span> ('+f2(N)+' − 0.95×'+f2(d_col)+')/2 = <span class="cval">'+f3(m)+' in</span>'+(m<0?' <em style="color:#d97706">(negative — plate smaller than 0.95'+lbl_d+')</em>':'')+'</div>';
+  det1 += '<div class="mrow"><span class="ceq">n = (B − 0.80'+lbl_bf+')/2 =</span> ('+f2(B)+' − 0.80×'+f2(bf)+')/2 = <span class="cval">'+f3(n)+' in</span>'+(n<0?' <em style="color:#d97706">(negative — plate smaller than 0.80'+lbl_bf+')</em>':'')+'</div>';
+  det1 += '<div class="mrow"><span class="ceq">n\' = λ√('+lbl_d+'·'+lbl_bf+')/4 =</span> 1.0×'+ov(f2(d_col)+'×'+f2(bf))+'/4 = <span class="cval">'+f3(np)+' in</span></div>';
   det1 += '<div class="mrow"><span class="ceq">l = max(m, n, n\') =</span> max('+f3(m0)+', '+f3(n0)+', '+f3(np)+') = <span class="cval">'+f3(l)+' in</span></div>';
   det1 += '<hr class="csep">';
   det1 += '<div class="cref-hdr">Plate Bending — per unit width (b = 1 in)</div>';
@@ -564,7 +624,7 @@ function runCalc(){
   var det3 = '';
   det3 += '<div class="cbox">';
   det3 += '<div class="cref-hdr">ACI 318-19 §22.5.5.1 — One-Way Shear, N Direction (b<sub>w</sub> = B = '+f2(B)+' in)</div>';
-  det3 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.95d/2 = '+f2(0.95*d_col/2)+' in from center)</span></div>';
+  det3 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.95'+lbl_d+'/2 = '+f2(0.95*d_col/2)+' in from center)</span></div>';
   det3 += '<div class="mrow"><span class="ceq">Plate cantilever m = '+f3(m0)+' in,  d<sub>eff</sub> = '+f2(d_eff)+' in</span></div>';
   det3 += '<div class="mrow"><span class="ceq">l<sub>trib</sub> = max(0, m − d<sub>eff</sub>) = max(0, '+f3(m0)+' − '+f2(d_eff)+') = <span class="cval">'+f3(l_1way_N)+' in</span></span></div>';
   det3 += '<div class="mrow"><span class="ceq">V<sub>u</sub> = f<sub>p</sub> × B × l<sub>trib</sub> = </span>'+f3(fp)+' × '+f2(B)+' × '+f3(l_1way_N)+' = <span class="cval">'+f2(Vu_N)+' kips</span></div>';
@@ -583,7 +643,7 @@ function runCalc(){
   var det4 = '';
   det4 += '<div class="cbox">';
   det4 += '<div class="cref-hdr">ACI 318-19 §22.5.5.1 — One-Way Shear, B Direction (b<sub>w</sub> = N = '+f2(N)+' in)</div>';
-  det4 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.80b<sub>f</sub>/2 = '+f2(0.80*bf/2)+' in from center)</span></div>';
+  det4 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.80'+lbl_bf+'/2 = '+f2(0.80*bf/2)+' in from center)</span></div>';
   det4 += '<div class="mrow"><span class="ceq">Plate cantilever n = '+f3(n0)+' in,  d<sub>eff</sub> = '+f2(d_eff)+' in</span></div>';
   det4 += '<div class="mrow"><span class="ceq">l<sub>trib</sub> = max(0, n − d<sub>eff</sub>) = max(0, '+f3(n0)+' − '+f2(d_eff)+') = <span class="cval">'+f3(l_1way_B)+' in</span></span></div>';
   det4 += '<div class="mrow"><span class="ceq">V<sub>u</sub> = f<sub>p</sub> × N × l<sub>trib</sub> = </span>'+f3(fp)+' × '+f2(N)+' × '+f3(l_1way_B)+' = <span class="cval">'+f2(Vu_B)+' kips</span></div>';
@@ -660,8 +720,8 @@ function runCalc(){
     '<table class="prop-table"><thead><tr>'
     +'<th>Parameter</th><th>Symbol</th><th>Value</th>'
     +'</tr></thead><tbody>'
-    +'<tr><td>Column depth</td><td>d</td><td>'+f2(d_col)+' in</td></tr>'
-    +'<tr><td>Column flange width</td><td>b<sub>f</sub></td><td>'+f2(bf)+' in</td></tr>'
+    +'<tr><td>'+(hss?'HSS outside dim. (depth)':'Column depth')+'</td><td>'+lbl_d+'</td><td>'+f2(d_col)+' in</td></tr>'
+    +'<tr><td>'+(hss?'HSS outside dim. (width)':'Column flange width')+'</td><td>'+lbl_bf+'</td><td>'+f2(bf)+' in</td></tr>'
     +'<tr><td>Plate length</td><td>N</td><td>'+f2(N)+' in</td></tr>'
     +'<tr><td>Plate width</td><td>B</td><td>'+f2(B)+' in</td></tr>'
     +'<tr><td>Plate thickness</td><td>t<sub>p</sub></td><td>'+f3(tp)+' in (req\'d: '+f3(tp_req)+' in)</td></tr>'
