@@ -163,6 +163,16 @@ export const CALCS: CalcMeta[] = [
     spec: "TMS 402-22 / MDG REK-10",
     status: "ready",
   },
+  // ── Steel / Connections ───────────────────────────────────────
+  {
+    slug: "column-bearing-plate-slab",
+    label: "Column Bearing Plate on Slab",
+    subtitle: "Bearing pressure · plate bending · two-way punching shear · one-way slab shear",
+    htmlFile: "/Calcs/column_bearing_plate_slab_calculator.html",
+    category: "Connections",
+    spec: "AISC DG01 / ACI 318-19",
+    status: "ready",
+  },
   // ── Foundations ──────────────────────────────────────────────
   {
     slug: "holdown-footing",

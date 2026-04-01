@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Column Bearing Plate on Concrete Slab</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.cval-r{color:#dc2626;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+/* Print */
+@page{size:letter portrait;margin:0.45in 0.5in}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  .container{max-width:100%!important;box-shadow:none!important;border-radius:0!important}
+  .blk,.dem-card{border-radius:0!important;box-shadow:none!important}
+  .calc-det{display:block!important;max-height:none!important}
+  .results{display:block!important}
+  #printBtn{display:none!important}
+}
+</style>
+</head>
+<body>
+<button onclick="window.print()" id="printBtn"
+  style="position:fixed;top:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;
+         border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.88em;font-weight:700;
+         box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;gap:6px">
+  &#x1F5A8;&nbsp;Print / PDF
+</button>
+
+<div class="container">
+<div class="header">
+  <h1>&#9634; Column Bearing Plate on Concrete Slab</h1>
+  <p>Plate bending (AISC DG01) &middot; Bearing on concrete &middot; Two-way punching shear &middot; One-way shear &mdash; Anderson Rohr Engineering</p>
+  <div class="ref-tags">
+    <span class="tag">AISC DG01</span>
+    <span class="tag">AISC 360-22 §J8</span>
+    <span class="tag">ACI 318-19 §22.8</span>
+    <span class="tag">ACI 318-19 §22.6</span>
+    <span class="tag">ACI 318-19 §22.5</span>
+    <span class="tag">LRFD / Strength Design</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+  <div style="font-weight:700;color:#1e3c72;margin-bottom:10px;font-size:.95em">System Schematic</div>
+  <svg width="100%" viewBox="0 0 860 280" style="font-family:'Segoe UI',sans-serif;font-size:11px">
+    <defs>
+      <marker id="aD" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
+      <marker id="aU" markerWidth="7" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#dc2626"/></marker>
+      <marker id="dL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+      <marker id="dR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+    </defs>
+
+    <!-- LEFT PANEL: ELEVATION -->
+    <text x="15" y="16" font-weight="700" fill="#1e3c72" font-size="12">ELEVATION — Section A-A</text>
+
+    <!-- Slab -->
+    <rect x="30" y="190" width="360" height="50" fill="#b0c4de" stroke="#555" stroke-width="1.2"/>
+    <text x="210" y="220" text-anchor="middle" fill="#1e3c72" font-weight="700" font-size="11">CONCRETE SLAB  h</text>
+
+    <!-- Bearing plate -->
+    <rect x="130" y="175" width="160" height="15" fill="#4a90d9" stroke="#1e3c72" stroke-width="1.5"/>
+    <text x="210" y="187" text-anchor="middle" fill="#fff" font-weight="700" font-size="10">PLATE  B × N × t&#8346;</text>
+
+    <!-- Column (W-shape, simplified) -->
+    <rect x="175" y="70" width="70" height="105" fill="rgba(42,82,152,0.15)" stroke="#2a5298" stroke-width="1.5"/>
+    <!-- Flanges -->
+    <rect x="163" y="70" width="94" height="10" fill="#2a5298"/>
+    <rect x="163" y="155" width="94" height="10" fill="#2a5298"/>
+    <!-- Web -->
+    <rect x="203" y="80" width="14" height="75" fill="#2a5298"/>
+    <text x="210" y="123" text-anchor="middle" fill="#1e3c72" font-weight="700" font-size="10">W COLUMN</text>
+    <text x="210" y="137" text-anchor="middle" fill="#1e3c72" font-size="9">d × b&#8348;</text>
+
+    <!-- Pu arrow -->
+    <line x1="210" y1="30" x2="210" y2="68" stroke="#374151" stroke-width="2.5" marker-end="url(#aD)"/>
+    <text x="225" y="24" fill="#374151" font-weight="700" font-size="12">P&#x1D64;</text>
+
+    <!-- fp arrows (bearing pressure on slab) -->
+    <line x1="160" y1="206" x2="160" y2="190" stroke="#dc2626" stroke-width="1.5" marker-start="url(#aU)"/>
+    <line x1="185" y1="206" x2="185" y2="190" stroke="#dc2626" stroke-width="1.5" marker-start="url(#aU)"/>
+    <line x1="210" y1="206" x2="210" y2="190" stroke="#dc2626" stroke-width="1.5" marker-start="url(#aU)"/>
+    <line x1="235" y1="206" x2="235" y2="190" stroke="#dc2626" stroke-width="1.5" marker-start="url(#aU)"/>
+    <line x1="260" y1="206" x2="260" y2="190" stroke="#dc2626" stroke-width="1.5" marker-start="url(#aU)"/>
+    <text x="295" y="200" fill="#dc2626" font-weight="700" font-size="10">f&#8346; = P&#x1D64;/(B×N)</text>
+
+    <!-- Dimension: N (plate in elevation) -->
+    <line x1="130" y1="256" x2="290" y2="256" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="210" y="268" text-anchor="middle" fill="#f59e0b" font-weight="700" font-size="10">N (plate length)</text>
+
+    <!-- Dimension: h_slab -->
+    <line x1="400" y1="190" x2="400" y2="240" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="406" y="219" fill="#f59e0b" font-weight="700" font-size="10">h</text>
+
+    <!-- m projection label -->
+    <line x1="130" y1="170" x2="163" y2="170" stroke="#6d28d9" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="147" y="165" text-anchor="middle" fill="#6d28d9" font-size="9">m</text>
+    <line x1="257" y1="170" x2="290" y2="170" stroke="#6d28d9" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="274" y="165" text-anchor="middle" fill="#6d28d9" font-size="9">m</text>
+
+    <!-- RIGHT PANEL: PLAN VIEW (punching + 1-way) -->
+    <text x="470" y="16" font-weight="700" fill="#1e3c72" font-size="12">PLAN — Critical Sections (looking down)</text>
+
+    <!-- Slab area -->
+    <rect x="460" y="30" width="380" height="240" fill="#e8f0fb" stroke="#aaa" stroke-width="1" stroke-dasharray="6,3"/>
+    <text x="830" y="45" text-anchor="end" fill="#888" font-size="9">Slab</text>
+
+    <!-- Punching perimeter (at d/2 from plate face) -->
+    <rect x="540" y="90" width="220" height="130" fill="none" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="8,4"/>
+    <text x="650" y="87" text-anchor="middle" fill="#dc2626" font-size="9" font-weight="700">Two-way critical perimeter b&#8320;</text>
+    <text x="650" y="97" text-anchor="middle" fill="#dc2626" font-size="9">(at d/2 from plate face)</text>
+
+    <!-- Plate -->
+    <rect x="578" y="118" width="144" height="94" fill="rgba(42,82,152,0.25)" stroke="#2a5298" stroke-width="2"/>
+    <text x="650" y="162" text-anchor="middle" fill="#1e3c72" font-weight="700" font-size="11">PLATE</text>
+    <text x="650" y="175" text-anchor="middle" fill="#1e3c72" font-size="9">B × N</text>
+
+    <!-- One-way critical section N direction (top) -->
+    <line x1="470" y1="103" x2="840" y2="103" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="843" y="107" fill="#f59e0b" font-size="9" font-weight="700">1-way (N dir)</text>
+
+    <!-- One-way critical section N direction (bottom) -->
+    <line x1="470" y1="227" x2="840" y2="227" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+    <!-- One-way critical section B direction (left) -->
+    <line x1="550" y1="30" x2="550" y2="268" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <text x="553" y="275" fill="#16a34a" font-size="9" font-weight="700">1-way (B dir)</text>
+
+    <!-- One-way critical section B direction (right) -->
+    <line x1="750" y1="30" x2="750" y2="268" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+    <!-- Plate dimension labels -->
+    <line x1="578" y1="25" x2="722" y2="25" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="650" y="22" text-anchor="middle" fill="#f59e0b" font-weight="700" font-size="10">B</text>
+
+    <line x1="840" y1="118" x2="840" y2="212" stroke="#f59e0b" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="848" y="169" fill="#f59e0b" font-weight="700" font-size="10">N</text>
+
+    <!-- d_eff labels -->
+    <line x1="540" y1="165" x2="578" y2="165" stroke="#dc2626" stroke-width="1" marker-start="url(#dL)" marker-end="url(#dR)"/>
+    <text x="559" y="162" text-anchor="middle" fill="#dc2626" font-size="8">d/2</text>
+  </svg>
+</div>
+
+<!-- BLOCK 1: Column -->
+<div class="blk">
+  <h2>1 &mdash; Column Section &amp; Load <span class="badge">LRFD Factored</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Column Section</label>
+      <select id="colSec" onchange="fillHint()">
+        <option value="">— Select —</option>
+        <optgroup label="W8">
+          <option value="W8x31">W8×31</option>
+          <option value="W8x40">W8×40</option>
+          <option value="W8x48">W8×48</option>
+          <option value="W8x58">W8×58</option>
+          <option value="W8x67">W8×67</option>
+        </optgroup>
+        <optgroup label="W10">
+          <option value="W10x49">W10×49</option>
+          <option value="W10x60">W10×60</option>
+          <option value="W10x77">W10×77</option>
+          <option value="W10x100">W10×100</option>
+          <option value="W10x112">W10×112</option>
+        </optgroup>
+        <optgroup label="W12">
+          <option value="W12x53">W12×53</option>
+          <option value="W12x72">W12×72</option>
+          <option value="W12x96">W12×96</option>
+          <option value="W12x120">W12×120</option>
+          <option value="W12x152">W12×152</option>
+        </optgroup>
+        <optgroup label="W14">
+          <option value="W14x53">W14×53</option>
+          <option value="W14x74">W14×74</option>
+          <option value="W14x99">W14×99</option>
+          <option value="W14x132">W14×132</option>
+          <option value="W14x159">W14×159</option>
+          <option value="W14x176">W14×176</option>
+          <option value="W14x193">W14×193</option>
+        </optgroup>
+      </select>
+      <div id="secHint" class="hint"></div>
+    </div>
+    <div class="ig">
+      <label>Factored Column Load, P<sub>u</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="Pu" value="200" step="5" min="1">
+      <span class="hint">LRFD factored axial compression</span>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 2: Bearing Plate -->
+<div class="blk">
+  <h2>2 &mdash; Bearing Plate <span class="badge">Steel Plate</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Plate Length, N <span class="unit">(in)</span></label>
+      <input type="number" id="platN" value="14" step="0.25" min="1">
+      <span class="hint">Parallel to column depth d</span>
+    </div>
+    <div class="ig">
+      <label>Plate Width, B <span class="unit">(in)</span></label>
+      <input type="number" id="platB" value="14" step="0.25" min="1">
+      <span class="hint">Parallel to column flange b<sub>f</sub></span>
+    </div>
+    <div class="ig">
+      <label>Plate Thickness, t<sub>p</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="tp" value="1.25" step="0.0625" min="0.25">
+    </div>
+    <div class="ig">
+      <label>Plate F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fy">
+        <option value="36">36 — A36</option>
+        <option value="50" selected>50 — A572 Gr.50</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 3: Concrete Slab -->
+<div class="blk" style="border-left-color:#16a34a">
+  <h2>3 &mdash; Concrete Slab <span class="badge-green">ACI 318-19</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Concrete Strength, f'<sub>c</sub> <span class="unit">(psi)</span></label>
+      <select id="fc">
+        <option value="3000">3,000</option>
+        <option value="4000" selected>4,000</option>
+        <option value="5000">5,000</option>
+        <option value="6000">6,000</option>
+        <option value="8000">8,000</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Slab Thickness, h <span class="unit">(in)</span></label>
+      <input type="number" id="hSlab" value="8" step="0.5" min="3">
+      <span class="hint">Overall slab depth (not d)</span>
+    </div>
+    <div class="ig">
+      <label>Concrete Density Factor, &lambda;</label>
+      <select id="lam">
+        <option value="1.0" selected>1.0 — Normal Weight</option>
+        <option value="0.85">0.85 — Sand-Lightweight</option>
+        <option value="0.75">0.75 — All-Lightweight</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Column Location in Slab</label>
+      <select id="alphaS">
+        <option value="40" selected>40 — Interior</option>
+        <option value="30">30 — Edge</option>
+        <option value="20">20 — Corner</option>
+      </select>
+      <span class="hint">&alpha;<sub>s</sub> for punching shear</span>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+
+  <div class="blk">
+    <h2>Input Summary</h2>
+    <div id="propOut"></div>
+  </div>
+
+  <div class="blk">
+    <h2>Design Demands</h2>
+    <div id="demOut"></div>
+  </div>
+
+  <div class="blk">
+    <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &#9656; Calc to expand any check</span></h2>
+    <table class="chk-table">
+      <thead>
+        <tr>
+          <th style="width:30%">Check</th>
+          <th>Code Reference</th>
+          <th>Demand</th>
+          <th>Capacity</th>
+          <th>D/C</th>
+          <th>Status</th>
+          <th style="width:70px">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box">
+    <strong>Engineering Notes &amp; Assumptions:</strong>
+    <ul>
+      <li>Bearing pressure limit per ACI 318-19 §22.8.3.2 using the <strong>conservative</strong> bearing factor (no area modification — plate on large slab, A<sub>2</sub>/A<sub>1</sub> = 1.0). If concrete is confirmed to extend well beyond the plate in all directions, the bearing capacity may be increased by √(A<sub>2</sub>/A<sub>1</sub>) ≤ 2.0.</li>
+      <li>Plate bending per AISC Design Guide 1 (DG01). Cantilever projections: <em>m</em> = (N − 0.95d)/2, <em>n</em> = (B − 0.80b<sub>f</sub>)/2, <em>n'</em> = λ√(d·b<sub>f</sub>)/4. Governing cantilever <em>l</em> = max(m, n, n').</li>
+      <li>Effective slab depth assumed: d<sub>eff</sub> = h − 1.75 in (1.5 in cover + 0.5 in for assumed #4 bar radius).</li>
+      <li>Two-way punching shear per ACI 318-19 §22.6.5.2 (three governing equations). Critical perimeter b<sub>o</sub> measured at d/2 from plate faces. No shear reinforcement assumed (conservative).</li>
+      <li>One-way shear critical section taken at d<sub>eff</sub> from the effective column face (0.95d/2 in N-direction, 0.80b<sub>f</sub>/2 in B-direction), consistent with DG01 cantilever projections. Vc per ACI 318-19 §22.5.5.1 simplified (Vc = 2λ√f'c·bw·d).</li>
+      <li>This calculator checks the slab capacity; verify the column-to-plate weld/connection separately.</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ─── Section Database: W-shapes [d (in), bf (in)] ────────────────────────────
+var W_COL = {
+  'W8x31':  [8.00, 7.995],
+  'W8x40':  [8.25, 8.070],
+  'W8x48':  [8.50, 8.110],
+  'W8x58':  [8.75, 8.220],
+  'W8x67':  [9.00, 8.280],
+  'W10x49': [9.98, 10.000],
+  'W10x60': [10.2, 10.080],
+  'W10x77': [10.6, 10.190],
+  'W10x100':[11.1, 10.340],
+  'W10x112':[11.4, 10.415],
+  'W12x53': [12.1, 9.995],
+  'W12x72': [12.3, 12.040],
+  'W12x96': [12.7, 12.160],
+  'W12x120':[13.1, 12.320],
+  'W12x152':[13.7, 12.480],
+  'W14x53': [13.9, 8.060],
+  'W14x74': [14.2, 10.070],
+  'W14x99': [14.2, 14.565],
+  'W14x132':[14.7, 14.725],
+  'W14x159':[15.0, 15.000],
+  'W14x176':[15.2, 15.650],
+  'W14x193':[15.5, 15.710]
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+function fillHint(){
+  var sn=document.getElementById('colSec').value;
+  if(!sn||!W_COL[sn]){document.getElementById('secHint').textContent='';return;}
+  var D=W_COL[sn];
+  document.getElementById('secHint').textContent='d = '+f2(D[0])+' in,  bf = '+f2(D[1])+' in';
+}
+
+function dcBar(dc){
+  if(dc===null||!isFinite(dc)||dc<0)return '<span class="na">&mdash;</span>';
+  var pct=Math.min(dc*100,150);
+  var col=dc<=0.80?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+  return '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span>'
+    +'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
+}
+function status(dc){
+  if(dc===null||!isFinite(dc))return '<span class="na">&mdash;</span>';
+  return dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+}
+
+// ─── Main Calc ────────────────────────────────────────────────────────────────
+function runCalc(){
+  var sn = document.getElementById('colSec').value;
+  if(!sn||!W_COL[sn]){alert('Please select a column section.');return;}
+  var D   = W_COL[sn];
+  var d_col = D[0];   // column depth (in)
+  var bf    = D[1];   // flange width (in)
+
+  var Pu    = +document.getElementById('Pu').value;      // kips
+  var N     = +document.getElementById('platN').value;   // plate length (in)
+  var B     = +document.getElementById('platB').value;   // plate width (in)
+  var tp    = +document.getElementById('tp').value;      // plate thickness (in)
+  var Fy    = +document.getElementById('Fy').value;      // ksi
+  var fc    = +document.getElementById('fc').value;      // psi
+  var h     = +document.getElementById('hSlab').value;   // slab thickness (in)
+  var lam   = +document.getElementById('lam').value;     // lambda
+  var alphaS= +document.getElementById('alphaS').value;  // 40/30/20
+
+  var fc_ksi = fc / 1000;                     // psi → ksi
+  var E_plate = 29000;                        // ksi
+
+  // ── Plate geometry ──
+  var A_plate = B * N;                                     // in²
+  var fp = Pu / A_plate;                                   // ksi
+
+  // DG01 cantilever projections
+  var m  = (N - 0.95 * d_col) / 2;
+  var n  = (B - 0.80 * bf) / 2;
+  var np = 1.0 * Math.sqrt(d_col * bf) / 4;               // n' (lambda_DG01 = 1.0)
+  var m0 = Math.max(m, 0);
+  var n0 = Math.max(n, 0);
+  var l  = Math.max(m0, n0, np);                           // governing cantilever (in)
+
+  // Plate bending (per unit width b = 1 in)
+  var Mu_plate = fp * l * l / 2;                           // kip-in/in
+  var phiMn_plate = 0.90 * Fy * tp * tp / 4;              // kip-in/in (Z = tp²/4 per in)
+  var tp_req = l * Math.sqrt(2 * fp / (0.90 * Fy));        // DG01 min thickness
+
+  // ── ACI Bearing ──
+  var phi_brg = 0.65;
+  var phiBn = phi_brg * 0.85 * fc_ksi * A_plate;           // kips (no area factor)
+
+  // ── ACI Slab — d_eff ──
+  var d_eff = h - 1.75;                                    // in
+
+  // ── Two-way punching ──
+  var bo = 2 * (B + d_eff) + 2 * (N + d_eff);             // in
+  var beta_p = Math.max(N, B) / Math.min(N, B);           // ≥1
+  var Vc1 = 4 * lam * Math.sqrt(fc) * bo * d_eff;          // lb
+  var Vc2 = (2 + 4/beta_p) * lam * Math.sqrt(fc) * bo * d_eff; // lb
+  var Vc3 = (alphaS * d_eff/bo + 2) * lam * Math.sqrt(fc) * bo * d_eff; // lb
+  var Vc_2way = Math.min(Vc1, Vc2, Vc3);                  // lb
+  var phiVc_2way = 0.75 * Vc_2way / 1000;                  // kips
+
+  // ── One-way shear — N direction (bw = B) ──
+  var l_1way_N = Math.max(0, m0 - d_eff);                 // tributary past critical section
+  var Vu_N = fp * B * l_1way_N;                            // kips
+  var phiVc_N = 0.75 * 2 * lam * Math.sqrt(fc) * B * d_eff / 1000; // kips
+
+  // ── One-way shear — B direction (bw = N) ──
+  var l_1way_B = Math.max(0, n0 - d_eff);
+  var Vu_B = fp * N * l_1way_B;                            // kips
+  var phiVc_B = 0.75 * 2 * lam * Math.sqrt(fc) * N * d_eff / 1000; // kips
+
+  // ── D/C ratios ──
+  var dc_brg   = Pu / phiBn;
+  var dc_bend  = Mu_plate / phiMn_plate;
+  var dc_punch = Pu / phiVc_2way;
+  var dc_1N    = phiVc_N > 0 && Vu_N > 0 ? Vu_N / phiVc_N : 0;
+  var dc_1B    = phiVc_B > 0 && Vu_B > 0 ? Vu_B / phiVc_B : 0;
+
+  // ========== BUILD DETAIL PANELS ==========
+
+  // Detail 0 — Bearing
+  var det0 = '';
+  det0 += '<div class="cbox">';
+  det0 += '<div class="cref-hdr">ACI 318-19 §22.8.3.2 — Bearing Strength on Concrete</div>';
+  det0 += '<div class="mrow"><span class="ceq">A<sub>1</sub> = B × N =</span> '+f2(B)+' × '+f2(N)+' = <span class="cval">'+f2(A_plate)+' in²</span></div>';
+  det0 += '<div class="mrow"><span class="ceq">f<sub>p</sub> = P<sub>u</sub>/A<sub>1</sub> =</span> '+f1(Pu)+' / '+f2(A_plate)+' = <span class="cval">'+f3(fp)+' ksi</span></div>';
+  det0 += '<hr class="csep">';
+  det0 += '<div class="cref-hdr">Eq. 22.8.3.2: φB<sub>n</sub> = φ × 0.85f\'<sub>c</sub> × A<sub>1</sub></div>';
+  det0 += '<div class="mrow"><span class="ceq">φ = 0.65 (bearing), f\'<sub>c</sub> = '+f1(fc_ksi*1000)+' psi = '+f3(fc_ksi)+' ksi</span></div>';
+  det0 += '<div class="mrow"><span class="ceq">φB<sub>n</sub> =</span> 0.65 × 0.85 × '+f3(fc_ksi)+' × '+f2(A_plate)+' = <span class="cval">'+f2(phiBn)+' kips</span></div>';
+  det0 += '<div class="mrow"><span class="ceq">Note:</span> √(A<sub>2</sub>/A<sub>1</sub>) = 1.0 (conservative — plate on large slab)</div>';
+  det0 += '<hr class="csep">';
+  det0 += '<div class="mrow">D/C = '+fr('P<sub>u</sub>','φB<sub>n</sub>')+' = '+fr(f2(Pu)+' k',f2(phiBn)+' k')+' = <span class="cval">'+f3(dc_brg)+'</span></div>';
+  det0 += '</div>';
+
+  // Detail 1 — Plate Bending
+  var det1 = '';
+  det1 += '<div class="cbox">';
+  det1 += '<div class="cref-hdr">AISC DG01 — Bearing Plate Cantilever Projections</div>';
+  det1 += '<div class="mrow"><span class="ceq">m = (N − 0.95d)/2 =</span> ('+f2(N)+' − 0.95×'+f2(d_col)+')/2 = <span class="cval">'+f3(m)+' in</span>'+(m<0?' <em style="color:#d97706">(negative — plate smaller than 0.95d)</em>':'')+'</div>';
+  det1 += '<div class="mrow"><span class="ceq">n = (B − 0.80b<sub>f</sub>)/2 =</span> ('+f2(B)+' − 0.80×'+f2(bf)+')/2 = <span class="cval">'+f3(n)+' in</span>'+(n<0?' <em style="color:#d97706">(negative — plate smaller than 0.80b<sub>f</sub>)</em>':'')+'</div>';
+  det1 += '<div class="mrow"><span class="ceq">n\' = λ√(d·b<sub>f</sub>)/4 =</span> 1.0×'+ov(f2(d_col)+'×'+f2(bf))+'/4 = <span class="cval">'+f3(np)+' in</span></div>';
+  det1 += '<div class="mrow"><span class="ceq">l = max(m, n, n\') =</span> max('+f3(m0)+', '+f3(n0)+', '+f3(np)+') = <span class="cval">'+f3(l)+' in</span></div>';
+  det1 += '<hr class="csep">';
+  det1 += '<div class="cref-hdr">Plate Bending — per unit width (b = 1 in)</div>';
+  det1 += '<div class="mrow"><span class="ceq">M<sub>u</sub> = f<sub>p</sub> × l²/2 =</span> '+f3(fp)+' × '+f3(l)+'²/2 = <span class="cval">'+f3(Mu_plate)+' kip-in/in</span></div>';
+  det1 += '<div class="mrow"><span class="ceq">Z = b × t<sub>p</sub>²/4 = 1 × '+f3(tp)+'²/4 =</span> <span class="cval">'+f4(tp*tp/4)+' in³/in</span></div>';
+  det1 += '<div class="mrow"><span class="ceq">φM<sub>n</sub> = 0.90 × F<sub>y</sub> × Z =</span> 0.90 × '+Fy+' × '+f4(tp*tp/4)+' = <span class="cval">'+f3(phiMn_plate)+' kip-in/in</span></div>';
+  det1 += '<hr class="csep">';
+  det1 += '<div class="mrow"><strong>Required Plate Thickness (DG01):</strong></div>';
+  det1 += '<div class="mrow ind"><span class="ceq">t<sub>p,req</sub> = l × '+ov('2f<sub>p</sub>/(0.9F<sub>y</sub>)')+' =</span> '+f3(l)+' × '+ov('2×'+f3(fp)+'/(0.9×'+Fy+')')+' = <span class='+(tp>=tp_req?'"cval"':'"cval-r"')+'>'+f3(tp_req)+' in</span></div>';
+  det1 += '<div class="mrow ind">Provided t<sub>p</sub> = '+f3(tp)+' in &nbsp;&nbsp; '+(tp>=tp_req?'<span class="cval">✔ OK</span>':'<span class="cval-r">✘ INCREASE PLATE THICKNESS</span>')+'</div>';
+  det1 += '<hr class="csep">';
+  det1 += '<div class="mrow">D/C = '+fr('M<sub>u</sub>','φM<sub>n</sub>')+' = '+fr(f3(Mu_plate)+' k-in/in',f3(phiMn_plate)+' k-in/in')+' = <span class="cval">'+f3(dc_bend)+'</span></div>';
+  det1 += '</div>';
+
+  // Detail 2 — Punching Shear
+  var det2 = '';
+  var govStr_p = Vc1<=Vc2&&Vc1<=Vc3?'Eq.1 (basic)':Vc2<=Vc3?'Eq.2 (β)':'Eq.3 (α_s)';
+  det2 += '<div class="cbox">';
+  det2 += '<div class="cref-hdr">ACI 318-19 §22.6.5.2 — Two-Way Punching Shear (No Shear Reinforcement)</div>';
+  det2 += '<div class="mrow"><span class="ceq">d<sub>eff</sub> = h − 1.75 in = </span>'+f2(h)+' − 1.75 = <span class="cval">'+f2(d_eff)+' in</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">b<sub>o</sub> = 2(B + d) + 2(N + d) = 2('+f2(B)+'+'+f2(d_eff)+') + 2('+f2(N)+'+'+f2(d_eff)+') = <span class="cval">'+f2(bo)+' in</span></span></div>';
+  det2 += '<div class="mrow"><span class="ceq">β = max(N,B)/min(N,B) = </span>'+f2(Math.max(N,B))+'/'+f2(Math.min(N,B))+' = <span class="cval">'+f2(beta_p)+'</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">λ = '+lam+',  α<sub>s</sub> = '+alphaS+'  ('+document.getElementById('alphaS').options[document.getElementById('alphaS').selectedIndex].text+')</span></div>';
+  det2 += '<hr class="csep">';
+  det2 += '<div class="mrow"><span class="ceq">V<sub>c1</sub> = 4λ'+ov('f\'<sub>c</sub>')+' · b<sub>o</sub> · d</span> = 4 × '+lam+' × '+ov(fc)+' × '+f2(bo)+' × '+f2(d_eff)+' = <span class="cval">'+Math.round(Vc1)+' lb = '+f2(Vc1/1000)+' kips</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">V<sub>c2</sub> = (2+4/β)λ'+ov('f\'<sub>c</sub>')+' · b<sub>o</sub> · d</span> = (2+4/'+f2(beta_p)+')×'+lam+'×'+ov(fc)+'×'+f2(bo)+'×'+f2(d_eff)+' = <span class="cval">'+Math.round(Vc2)+' lb = '+f2(Vc2/1000)+' kips</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">V<sub>c3</sub> = (α<sub>s</sub>d/b<sub>o</sub>+2)λ'+ov('f\'<sub>c</sub>')+' · b<sub>o</sub> · d</span> = ('+alphaS+'×'+f2(d_eff)+'/'+f2(bo)+'+2)×'+lam+'×'+ov(fc)+'×'+f2(bo)+'×'+f2(d_eff)+' = <span class="cval">'+Math.round(Vc3)+' lb = '+f2(Vc3/1000)+' kips</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">V<sub>c</sub> = min = <span class="cval">'+f2(Vc_2way/1000)+' kips</span></span> <em>(governs: '+govStr_p+')</em></div>';
+  det2 += '<div class="mrow"><span class="ceq">φV<sub>c</sub> = 0.75 × V<sub>c</sub> = </span>0.75 × '+f2(Vc_2way/1000)+' = <span class="cval">'+f2(phiVc_2way)+' kips</span></div>';
+  det2 += '<hr class="csep">';
+  det2 += '<div class="mrow">D/C = '+fr('P<sub>u</sub>','φV<sub>c</sub>')+' = '+fr(f2(Pu)+' k',f2(phiVc_2way)+' k')+' = <span class="cval">'+f3(dc_punch)+'</span></div>';
+  det2 += '</div>';
+
+  // Detail 3 — One-Way N
+  var det3 = '';
+  det3 += '<div class="cbox">';
+  det3 += '<div class="cref-hdr">ACI 318-19 §22.5.5.1 — One-Way Shear, N Direction (b<sub>w</sub> = B = '+f2(B)+' in)</div>';
+  det3 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.95d/2 = '+f2(0.95*d_col/2)+' in from center)</span></div>';
+  det3 += '<div class="mrow"><span class="ceq">Plate cantilever m = '+f3(m0)+' in,  d<sub>eff</sub> = '+f2(d_eff)+' in</span></div>';
+  det3 += '<div class="mrow"><span class="ceq">l<sub>trib</sub> = max(0, m − d<sub>eff</sub>) = max(0, '+f3(m0)+' − '+f2(d_eff)+') = <span class="cval">'+f3(l_1way_N)+' in</span></span></div>';
+  det3 += '<div class="mrow"><span class="ceq">V<sub>u</sub> = f<sub>p</sub> × B × l<sub>trib</sub> = </span>'+f3(fp)+' × '+f2(B)+' × '+f3(l_1way_N)+' = <span class="cval">'+f2(Vu_N)+' kips</span></div>';
+  det3 += '<hr class="csep">';
+  det3 += '<div class="mrow"><span class="ceq">V<sub>c</sub> = 2λ'+ov('f\'<sub>c</sub>')+' · b<sub>w</sub> · d</span> = 2 × '+lam+' × '+ov(fc)+' × '+f2(B)+' × '+f2(d_eff)+' = <span class="cval">'+f2(phiVc_N/0.75*1000)+' lb = '+f2(phiVc_N/0.75)+' kips</span></div>';
+  det3 += '<div class="mrow"><span class="ceq">φV<sub>c</sub> = 0.75 × V<sub>c</sub> = <span class="cval">'+f2(phiVc_N)+' kips</span></span></div>';
+  det3 += '<hr class="csep">';
+  if(Vu_N <= 0){
+    det3 += '<div class="mrow"><span class="cval">l<sub>trib</sub> = 0 — critical section falls within plate or at plate edge. One-way shear not critical in N direction.</span></div>';
+  } else {
+    det3 += '<div class="mrow">D/C = '+fr('V<sub>u</sub>','φV<sub>c</sub>')+' = '+fr(f2(Vu_N)+' k',f2(phiVc_N)+' k')+' = <span class="cval">'+f3(dc_1N)+'</span></div>';
+  }
+  det3 += '</div>';
+
+  // Detail 4 — One-Way B
+  var det4 = '';
+  det4 += '<div class="cbox">';
+  det4 += '<div class="cref-hdr">ACI 318-19 §22.5.5.1 — One-Way Shear, B Direction (b<sub>w</sub> = N = '+f2(N)+' in)</div>';
+  det4 += '<div class="mrow"><span class="ceq">Critical section at d<sub>eff</sub> from column face (0.80b<sub>f</sub>/2 = '+f2(0.80*bf/2)+' in from center)</span></div>';
+  det4 += '<div class="mrow"><span class="ceq">Plate cantilever n = '+f3(n0)+' in,  d<sub>eff</sub> = '+f2(d_eff)+' in</span></div>';
+  det4 += '<div class="mrow"><span class="ceq">l<sub>trib</sub> = max(0, n − d<sub>eff</sub>) = max(0, '+f3(n0)+' − '+f2(d_eff)+') = <span class="cval">'+f3(l_1way_B)+' in</span></span></div>';
+  det4 += '<div class="mrow"><span class="ceq">V<sub>u</sub> = f<sub>p</sub> × N × l<sub>trib</sub> = </span>'+f3(fp)+' × '+f2(N)+' × '+f3(l_1way_B)+' = <span class="cval">'+f2(Vu_B)+' kips</span></div>';
+  det4 += '<hr class="csep">';
+  det4 += '<div class="mrow"><span class="ceq">V<sub>c</sub> = 2λ'+ov('f\'<sub>c</sub>')+' · b<sub>w</sub> · d</span> = 2 × '+lam+' × '+ov(fc)+' × '+f2(N)+' × '+f2(d_eff)+' = <span class="cval">'+f2(phiVc_B/0.75*1000)+' lb = '+f2(phiVc_B/0.75)+' kips</span></div>';
+  det4 += '<div class="mrow"><span class="ceq">φV<sub>c</sub> = 0.75 × V<sub>c</sub> = <span class="cval">'+f2(phiVc_B)+' kips</span></span></div>';
+  det4 += '<hr class="csep">';
+  if(Vu_B <= 0){
+    det4 += '<div class="mrow"><span class="cval">l<sub>trib</sub> = 0 — critical section falls within plate or at plate edge. One-way shear not critical in B direction.</span></div>';
+  } else {
+    det4 += '<div class="mrow">D/C = '+fr('V<sub>u</sub>','φV<sub>c</sub>')+' = '+fr(f2(Vu_B)+' k',f2(phiVc_B)+' k')+' = <span class="cval">'+f3(dc_1B)+'</span></div>';
+  }
+  det4 += '</div>';
+
+  // ========== ASSEMBLE CHECKS ==========
+  var chks = [
+    {
+      n:'Bearing Pressure on Concrete',
+      r:'ACI 318-19 §22.8.3.2 / AISC DG01',
+      d:'f<sub>p</sub> = '+f3(fp)+' ksi',
+      c:'φ×0.85f\'<sub>c</sub>×A<sub>1</sub> = '+f2(phiBn)+' kips',
+      dc: dc_brg, stiff:false, det:det0,
+      nt:'P<sub>u</sub>/φB<sub>n</sub>'
+    },
+    {
+      n:'Plate Bending (Cantilever l = '+f3(l)+' in)',
+      r:'AISC DG01 / AISC 360-22 §J8',
+      d:'M<sub>u</sub> = '+f3(Mu_plate)+' k-in/in',
+      c:'φM<sub>n</sub> = '+f3(phiMn_plate)+' k-in/in',
+      dc: dc_bend, stiff:false, det:det1,
+      nt:'m='+f2(m0)+'" n='+f2(n0)+'" n\'='+f2(np)+'" governs: l='+f2(l)+'"'
+    },
+    {
+      n:'Two-Way Punching Shear',
+      r:'ACI 318-19 §22.6.5.2',
+      d:'V<sub>u</sub> = P<sub>u</sub> = '+f1(Pu)+' kips',
+      c:'φV<sub>c</sub> = '+f2(phiVc_2way)+' kips<br><small>b<sub>o</sub>='+f1(bo)+'", governs: '+govStr_p+'</small>',
+      dc: dc_punch, stiff:true, det:det2,
+      nt:'Interior — α<sub>s</sub>='+alphaS+', β='+f2(beta_p)+', d<sub>eff</sub>='+f2(d_eff)+'"'
+    },
+    {
+      n:'One-Way Shear — N Direction',
+      r:'ACI 318-19 §22.5.5.1',
+      d:'V<sub>u</sub> = '+f2(Vu_N)+' kips',
+      c:'φV<sub>c</sub> = '+f2(phiVc_N)+' kips<br><small>b<sub>w</sub>=B='+f2(B)+'", l<sub>trib</sub>='+f3(l_1way_N)+'"</small>',
+      dc: Vu_N>0?dc_1N:0, stiff:false, det:det3,
+      nt:'At d from 0.95d column face'
+    },
+    {
+      n:'One-Way Shear — B Direction',
+      r:'ACI 318-19 §22.5.5.1',
+      d:'V<sub>u</sub> = '+f2(Vu_B)+' kips',
+      c:'φV<sub>c</sub> = '+f2(phiVc_B)+' kips<br><small>b<sub>w</sub>=N='+f2(N)+'", l<sub>trib</sub>='+f3(l_1way_B)+'"</small>',
+      dc: Vu_B>0?dc_1B:0, stiff:false, det:det4,
+      nt:'At d from 0.80b<sub>f</sub> column face'
+    }
+  ];
+
+  // ── Summary ──
+  var dcs = chks.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC = dcs.length?Math.max.apply(null,dcs):0;
+  var govChk = chks.filter(function(c){return c.dc===maxDC;})[0];
+  var pass = maxDC <= 1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary ' + (pass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>Column: <strong>'+sn+'</strong> &nbsp;|&nbsp; P<sub>u</sub> = <strong>'+f1(Pu)+' kips</strong>'
+    +' &nbsp;|&nbsp; Plate: <strong>'+f2(B)+'×'+f2(N)+'×'+f3(tp)+'"</strong> (F<sub>y</sub>='+Fy+' ksi)'
+    +' &nbsp;|&nbsp; Slab: <strong>'+h+'" thick, f\'<sub>c</sub>='+fc+' psi</strong>'
+    +' &nbsp;|&nbsp; Max D/C = <strong>'+f3(maxDC)+'</strong> ('+govChk.n+')</p>';
+
+  // ── Input Properties Table ──
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><thead><tr>'
+    +'<th>Parameter</th><th>Symbol</th><th>Value</th>'
+    +'</tr></thead><tbody>'
+    +'<tr><td>Column depth</td><td>d</td><td>'+f2(d_col)+' in</td></tr>'
+    +'<tr><td>Column flange width</td><td>b<sub>f</sub></td><td>'+f2(bf)+' in</td></tr>'
+    +'<tr><td>Plate length</td><td>N</td><td>'+f2(N)+' in</td></tr>'
+    +'<tr><td>Plate width</td><td>B</td><td>'+f2(B)+' in</td></tr>'
+    +'<tr><td>Plate thickness</td><td>t<sub>p</sub></td><td>'+f3(tp)+' in (req\'d: '+f3(tp_req)+' in)</td></tr>'
+    +'<tr><td>Plate area</td><td>A<sub>1</sub></td><td>'+f2(A_plate)+' in²</td></tr>'
+    +'<tr><td>Bearing pressure</td><td>f<sub>p</sub></td><td>'+f3(fp)+' ksi = '+f1(fp*1000)+' psi</td></tr>'
+    +'<tr><td>Effective slab depth</td><td>d<sub>eff</sub></td><td>'+f2(d_eff)+' in</td></tr>'
+    +'<tr><td>Punching perimeter</td><td>b<sub>o</sub></td><td>'+f2(bo)+' in</td></tr>'
+    +'</tbody></table>';
+
+  // ── Demand Cards ──
+  document.getElementById('demOut').innerHTML =
+    '<div class="dem-grid">'
+    +'<div class="dem-card"><div class="v">'+f3(fp)+' ksi</div><div class="l">Bearing Pressure f<sub>p</sub></div></div>'
+    +'<div class="dem-card"><div class="v">'+f3(l)+'"</div><div class="l">Governing cantilever l</div></div>'
+    +'<div class="dem-card"><div class="v">'+f3(tp_req)+'"</div><div class="l">Min plate thickness t<sub>p,req</sub></div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(d_eff)+'"</div><div class="l">Effective depth d<sub>eff</sub></div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(bo)+'"</div><div class="l">Punching perimeter b<sub>o</sub></div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(phiVc_2way)+' k</div><div class="l">φV<sub>c</sub> Punching</div></div>'
+    +'</div>';
+
+  // ── Check Table ──
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c,i){
+    var dc_v = (c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct  = dc_v!==null?Math.min(dc_v*100,150):0;
+    var col  = dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt = dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt = dc_v!==null?f3(dc_v):'&mdash;';
+    var rowCls = c.stiff?'class="alt-row"':'';
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+</body>
+</html>
