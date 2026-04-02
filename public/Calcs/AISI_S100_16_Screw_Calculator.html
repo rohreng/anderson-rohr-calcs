@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AISI S100-16 — CFS Screw Connection Calculator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:top}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px;margin-top:6px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.app-ok{color:#16a34a;font-weight:700}.app-no{color:#dc2626;font-weight:700}
+.two-col-det{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.two-col-det{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>CFS Screw Connection Designer</h1>
+  <p>AISI S100-16 Chapter J — Screw Shear, Tension &amp; Combined Interaction</p>
+  <div class="ref-tags">
+    <span class="tag">AISI S100-16</span>
+    <span class="tag">J4.3 Shear</span>
+    <span class="tag">J4.4 Tension</span>
+    <span class="tag">J4.5 Combined</span>
+    <span class="tag">J6 Sheet Rupture</span>
+    <span class="tag">ASD + LRFD</span>
+    <span class="tag">Example IV-11</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ===== INPUTS ===== -->
+<div class="blk">
+  <h2>Sheet 1 — Top Sheet <span class="badge">Under Head / Washer</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>t₁ — Thickness <span class="unit">in</span></label>
+      <input id="t1" value="0.0285">
+      <span class="hint">Design thickness (not nominal)</span>
+    </div>
+    <div class="ig">
+      <label>F<sub>y1</sub> — Yield Stress <span class="unit">ksi</span></label>
+      <input id="Fy1" value="55">
+    </div>
+    <div class="ig">
+      <label>F<sub>u1</sub> — Tensile Strength <span class="unit">ksi</span></label>
+      <input id="Fu1" value="65">
+    </div>
+  </div>
+</div>
+
+<div class="blk">
+  <h2>Sheet 2 — Base Sheet <span class="badge">Receives Screw Threads</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>t₂ — Thickness <span class="unit">in</span></label>
+      <input id="t2" value="0.0713">
+      <span class="hint">Design thickness (not nominal)</span>
+    </div>
+    <div class="ig">
+      <label>F<sub>y2</sub> — Yield Stress <span class="unit">ksi</span></label>
+      <input id="Fy2" value="36">
+    </div>
+    <div class="ig">
+      <label>F<sub>u2</sub> — Tensile Strength <span class="unit">ksi</span></label>
+      <input id="Fu2" value="45">
+    </div>
+  </div>
+</div>
+
+<div class="blk">
+  <h2>Screw Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Screw Size</label>
+      <select id="screw_size" onchange="updateScrewSize()">
+        <option value="6">No. 6 (d = 0.138")</option>
+        <option value="8">No. 8 (d = 0.164")</option>
+        <option value="10">No. 10 (d = 0.190")</option>
+        <option value="12" selected>No. 12 (d = 0.216")</option>
+        <option value="14">No. 14 (d = 0.250")</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>d — Screw Shank Diameter <span class="unit">in</span></label>
+      <input id="d" value="0.216">
+      <span class="hint">Outside thread diameter</span>
+    </div>
+    <div class="ig">
+      <label>d<sub>h</sub> — Head / Washer Diameter <span class="unit">in</span></label>
+      <input id="dh" value="0.340">
+      <span class="hint">Use washer O.D. if applicable</span>
+    </div>
+    <div class="ig">
+      <label>P<sub>nvs</sub> — Mfr. Shear Capacity <span class="unit">kips</span></label>
+      <input id="Pnvs" value="2.00">
+      <span class="hint">Per J4.3.2 (Tables or testing)</span>
+    </div>
+    <div class="ig">
+      <label>P<sub>nts</sub> — Mfr. Tension Capacity <span class="unit">kips</span></label>
+      <input id="Pnts" value="2.78">
+      <span class="hint">Per J4.4.3 (Tables or testing)</span>
+    </div>
+  </div>
+</div>
+
+<div class="blk">
+  <h2>Connection Geometry <span class="badge">Single Screw (per tributary width)</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>e<sub>clear</sub> — Clear Edge Distance <span class="unit">in</span></label>
+      <input id="e_clr" value="0.75">
+      <span class="hint">Edge of sheet to near face of screw hole</span>
+    </div>
+    <div class="ig">
+      <label>s — Screw Spacing / Tributary Width <span class="unit">in</span></label>
+      <input id="s" value="12.0">
+      <span class="hint">Used for net tension area A<sub>nt</sub></span>
+    </div>
+  </div>
+</div>
+
+<div class="blk alt-blk">
+  <h2>Design Demands <span class="badge-green">ASD + LRFD — Per Screw</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>V<sub>a</sub> — ASD Shear <span class="unit">kips</span></label>
+      <input id="Va" value="0.300">
+    </div>
+    <div class="ig">
+      <label>T<sub>a</sub> — ASD Tension <span class="unit">kips</span></label>
+      <input id="Ta" value="0.135">
+    </div>
+    <div class="ig">
+      <label>V<sub>u</sub> — LRFD Factored Shear <span class="unit">kips</span></label>
+      <input id="Vu" value="0.500">
+    </div>
+    <div class="ig">
+      <label>T<sub>u</sub> — LRFD Factored Tension <span class="unit">kips</span></label>
+      <input id="Tu" value="0.225">
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="calc()">Calculate Connection</button>
+
+<!-- ===== RESULTS ===== -->
+<div id="results" class="results">
+
+  <div id="sumBox" class="summary"></div>
+
+  <div class="dem-grid" id="demCards"></div>
+
+  <div class="blk">
+    <h2>Strength Checks — All AISI S100-16 Provisions</h2>
+    <div style="overflow-x:auto">
+      <table class="chk-table">
+        <thead>
+          <tr>
+            <th style="width:22%">Check</th>
+            <th style="width:10%">Code Ref.</th>
+            <th>Demand</th>
+            <th>Capacity</th>
+            <th style="width:18%">D/C (Governing)</th>
+            <th>Status</th>
+            <th style="width:60px">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="chkTb"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="noteBox" class="note-box"></div>
+
+</div><!-- end results -->
+
+</div><!-- content -->
+</div><!-- container -->
+
+<script>
+/* ---- helpers ---- */
+function gv(id){return parseFloat(document.getElementById(id).value)||0;}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+/* screw size lookup */
+var screwDia={6:0.138,8:0.164,10:0.190,12:0.216,14:0.250};
+function updateScrewSize(){
+  var sz=parseInt(document.getElementById('screw_size').value);
+  if(screwDia[sz]){document.getElementById('d').value=screwDia[sz].toFixed(3);}
+}
+
+/* ---- main calculation ---- */
+function calc(){
+  /* inputs */
+  var t1=gv('t1'), t2=gv('t2');
+  var Fy1=gv('Fy1'), Fu1=gv('Fu1');
+  var Fy2=gv('Fy2'), Fu2=gv('Fu2');
+  var d=gv('d'),    dh=gv('dh');
+  var Pnvs_mfr=gv('Pnvs'), Pnts_mfr=gv('Pnts');
+  var e_clr=gv('e_clr'), s=gv('s');
+  var Va=gv('Va'), Ta=gv('Ta');
+  var Vu=gv('Vu'), Tu=gv('Tu');
+  var sz=parseInt(document.getElementById('screw_size').value)||12;
+
+  var ratio=t2/t1;
+
+  /* ================================================================
+     J4.3.1 — Tilting / Bearing
+     Eq. J4.3.1-1: Pnv = 4.2√(t2³·d)·Fu2   (t2/t1 < 1.0, tilting)
+     Eq. J4.3.1-2: Pnv = 2.7·t2·Fu2·d        (bearing on t2)
+     Eq. J4.3.1-3: Pnv = 2.7·t1·Fu1·d        (bearing on t1)
+     When t2/t1 ≥ 2.5: Eq.-3 governs (tilting not critical)
+  ================================================================ */
+  var Pnv_tilt = 4.2*Math.sqrt(Math.pow(t2,3)*d)*Fu2;  /* Eq. J4.3.1-1 */
+  var Pnv_b2   = 2.7*t2*Fu2*d;                          /* Eq. J4.3.1-2 */
+  var Pnv_b1   = 2.7*t1*Fu1*d;                          /* Eq. J4.3.1-3 */
+  var Pnv1;
+  var J431_case;
+  if(ratio>=2.5){
+    Pnv1=Pnv_b1;
+    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' &ge; 2.5 &rarr; Eq. J4.3.1-3 governs';
+  } else {
+    Pnv1=Math.min(Pnv_tilt,Pnv_b2,Pnv_b1);
+    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' < 2.5 &rarr; min(Eq.-1, -2, -3)';
+  }
+  var Om1=3.00, ph1=0.50;
+  var Pa1=Pnv1/Om1, phPn1=ph1*Pnv1;
+  var dc_a1=Va/Pa1, dc_l1=Vu/phPn1;
+
+  /* ================================================================
+     J6.1 — Sheet Shear Rupture (2 parallel shear planes per screw)
+     Anv = 2·e_clear·t1
+     Pnv = 0.6·Fu1·Anv
+  ================================================================ */
+  var Anv=2.0*e_clr*t1;
+  var Pnv2=0.6*Fu1*Anv;
+  var Om2=3.00, ph2=0.50;
+  var Pa2=Pnv2/Om2, phPn2=ph2*Pnv2;
+  var dc_a2=Va/Pa2, dc_l2=Vu/phPn2;
+
+  /* ================================================================
+     J6.2 — Sheet Tension Rupture
+     Ant = (s - d)·t1   (net area over tributary width s)
+     Usl = 1.0 (single screw line, load passes through all fasteners)
+     Pnt = Usl·Fu1·Ant
+  ================================================================ */
+  var Usl=1.0;
+  var Ant=(s-d)*t1;
+  var Pnt2=Usl*Fu1*Ant;
+  var Om_J62=3.00, ph_J62=0.50;
+  var Pa_J62=Pnt2/Om_J62, phPn_J62=ph_J62*Pnt2;
+  var dc_a_J62=Ta/Pa_J62, dc_l_J62=Tu/phPn_J62;
+
+  /* ================================================================
+     J4.3.2 — Screw Shear (Manufacturer / Table Value)
+  ================================================================ */
+  var Om_J432=3.00, ph_J432=0.50;
+  var Pa_J432=Pnvs_mfr/Om_J432, phPn_J432=ph_J432*Pnvs_mfr;
+  var dc_a_J432=Va/Pa_J432, dc_l_J432=Vu/phPn_J432;
+
+  /* ================================================================
+     J4.4.1 — Screw Pull-Out
+     tc = t2 (thin sheet, internal threads)
+     Pnot = 0.85·tc·d·Fu2
+  ================================================================ */
+  var tc=t2;
+  var Pnot=0.85*tc*d*Fu2;
+  var Om_J441=3.00, ph_J441=0.50;
+  var Pa_J441=Pnot/Om_J441, phPn_J441=ph_J441*Pnot;
+  var dc_a_J441=Ta/Pa_J441, dc_l_J441=Tu/phPn_J441;
+
+  /* ================================================================
+     J4.4.2 — Screw Pull-Over
+     dw = min(dh, 3/4") per J4.4.2
+     Pnov = 1.5·t1·dw·Fu1
+  ================================================================ */
+  var dw=Math.min(dh,0.75);
+  var Pnov=1.5*t1*dw*Fu1;
+  var Om_J442=3.00, ph_J442=0.50;
+  var Pa_J442=Pnov/Om_J442, phPn_J442=ph_J442*Pnov;
+  var dc_a_J442=Ta/Pa_J442, dc_l_J442=Tu/phPn_J442;
+
+  /* ================================================================
+     J4.4.3 — Screw Tension (Manufacturer / Table Value)
+  ================================================================ */
+  var Om_J443=3.00, ph_J443=0.50;
+  var Pa_J443=Pnts_mfr/Om_J443, phPn_J443=ph_J443*Pnts_mfr;
+  var dc_a_J443=Ta/Pa_J443, dc_l_J443=Tu/phPn_J443;
+
+  /* ================================================================
+     J4.5.1 — Combined Shear + Pull-Over (Eq. J4.5.1-1)
+     IC = V/Pnv + 0.71·(T/Pnov) ≤ 1.10/Ω (ASD),  ≤ 1.10φ (LRFD)
+     Ω=2.35, φ=0.65
+     Applicability: t1 ≤ 0.0445", #12 or #14, Fu1 ≤ 70, t2/t1 ≥ 2.5
+  ================================================================ */
+  var Om_J451=2.35, ph_J451=0.65;
+  var lim_a_J451=1.10/Om_J451, lim_l_J451=1.10*ph_J451;
+  var ic_a_J451=Va/Pnv1 + 0.71*(Ta/Pnov);
+  var ic_l_J451=Vu/Pnv1 + 0.71*(Tu/Pnov);
+  var dc_a_J451=ic_a_J451/lim_a_J451;
+  var dc_l_J451=ic_l_J451/lim_l_J451;
+  var app_J451=(t1<=0.0445 && (sz===12||sz===14) && Fu1<=70 && ratio>=2.5);
+
+  /* ================================================================
+     J4.5.2 — Combined Shear + Pull-Out (Eq. J4.5.2-1)
+     Special Pnv = 4.2√(t2³·d)·Fu2  (separate from J4.3.1-1 — per J4.5.2)
+     IC = V/Pnv + T/Pnot ≤ 1.15/Ω (ASD),  ≤ 1.15φ (LRFD)
+     Ω=2.55, φ=0.60
+     Applicability: 0.0297 ≤ t2 ≤ 0.0724", #8–#14, Fu2 ≤ 121,
+                    1.0 ≤ Fu1/Fy1 ≤ 1.62, 1.0 ≤ Fu2/Fy2 ≤ 1.62
+  ================================================================ */
+  var Om_J452=2.55, ph_J452=0.60;
+  var lim_a_J452=1.15/Om_J452, lim_l_J452=1.15*ph_J452;
+  var Pnv_J452=4.2*Math.sqrt(Math.pow(t2,3)*d)*Fu2;   /* Eq. J4.5.2-2 */
+  var ic_a_J452=Va/Pnv_J452 + Ta/Pnot;
+  var ic_l_J452=Vu/Pnv_J452 + Tu/Pnot;
+  var dc_a_J452=ic_a_J452/lim_a_J452;
+  var dc_l_J452=ic_l_J452/lim_l_J452;
+  var app_J452=(t2>=0.0297 && t2<=0.0724 &&
+                (sz>=8 && sz<=14) && Fu2<=121 &&
+                Fu1/Fy1>=1.0 && Fu1/Fy1<=1.62 &&
+                Fu2/Fy2>=1.0 && Fu2/Fy2<=1.62);
+
+  /* ================================================================
+     J4.5.3 — Combined Shear + Screw Tension (Eq. J4.5.3-1)
+     IC = V/Pnvs + T/Pnts ≤ 1.30/Ω (ASD),  ≤ 1.30φ (LRFD)
+     Ω=3.00, φ=0.50
+  ================================================================ */
+  var Om_J453=3.00, ph_J453=0.50;
+  var lim_a_J453=1.30/Om_J453, lim_l_J453=1.30*ph_J453;
+  var ic_a_J453=Va/Pnvs_mfr + Ta/Pnts_mfr;
+  var ic_l_J453=Vu/Pnvs_mfr + Tu/Pnts_mfr;
+  var dc_a_J453=ic_a_J453/lim_a_J453;
+  var dc_l_J453=ic_l_J453/lim_l_J453;
+
+  /* ----------------------------------------------------------------
+     Demand cards
+  ---------------------------------------------------------------- */
+  document.getElementById('demCards').innerHTML=
+    '<div class="dem-card"><div class="v">'+f3(Va)+'</div><div class="l">V<sub>a</sub> — ASD Shear (k)</div></div>'
+   +'<div class="dem-card"><div class="v">'+f3(Ta)+'</div><div class="l">T<sub>a</sub> — ASD Tension (k)</div></div>'
+   +'<div class="dem-card alt"><div class="v">'+f3(Vu)+'</div><div class="l">V<sub>u</sub> — LRFD Shear (k)</div></div>'
+   +'<div class="dem-card alt"><div class="v">'+f3(Tu)+'</div><div class="l">T<sub>u</sub> — LRFD Tension (k)</div></div>'
+   +'<div class="dem-card"><div class="v">'+f2(ratio)+'</div><div class="l">t₂/t₁ ratio</div></div>'
+   +'<div class="dem-card"><div class="v">'+f2(dw)+'″</div><div class="l">d<sub>w</sub> = min(d<sub>h</sub>,¾")</div></div>';
+
+  /* ----------------------------------------------------------------
+     Detail panel builders
+  ---------------------------------------------------------------- */
+  function dcRow(lbl,dc_a,dc_l){
+    var gov=Math.max(dc_a,dc_l);
+    var col=gov<=0.8?'#16a34a':gov<=1.0?'#d97706':'#dc2626';
+    return '<div class="mrow" style="font-size:.95em">'
+      +lbl+': <span style="color:'+col+';font-weight:700">D/C = '+f3(gov)
+      +'</span> &nbsp;<small style="color:#888">[ASD: '+f3(dc_a)+' | LRFD: '+f3(dc_l)+']</small></div>';
+  }
+
+  /* J4.3.1 detail */
+  var det1='<div class="cref-hdr">J4.3.1 — Tilting and Bearing</div>'
+    +'<div class="mrow">'+J431_case+'</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">Nominal Strength</div>'
+    +(ratio>=2.5
+      ?('<div class="mrow">P<sub>nv</sub> = 2.7 t&#x2081; F<sub>u1</sub> d</div>'
+        +'<div class="mrow ind">= 2.7 &times; '+t1+' &times; '+Fu1+' &times; '+d+' = <span class="cval">'+f3(Pnv1)+' kips</span></div>')
+      :('<div class="mrow">Eq.-1 (Tilt): 4.2&radic;(t&#x2082;&sup3;&sdot;d)&sdot;F<sub>u2</sub> = <span class="cval">'+f3(Pnv_tilt)+'</span> k</div>'
+        +'<div class="mrow">Eq.-2 (Brg t&#x2082;): 2.7 t&#x2082; F<sub>u2</sub> d = <span class="cval">'+f3(Pnv_b2)+'</span> k</div>'
+        +'<div class="mrow">Eq.-3 (Brg t&#x2081;): 2.7 t&#x2081; F<sub>u1</sub> d = <span class="cval">'+f3(Pnv_b1)+'</span> k</div>'
+        +'<div class="mrow"><strong>P<sub>nv</sub> = '+f3(Pnv1)+' kips</strong> (governs)</div>'))
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om1+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = P<sub>nv</sub>/&#937; = '+f3(Pnv1)+'/'+Om1+' = <span class="cval">'+f3(Pa1)+' kips</span></div>'
+    +'<div class="mrow">V<sub>a</sub>/P<sub>a</sub> = '+f3(Va)+'/'+f3(Pa1)+' = '+f3(dc_a1)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph1+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph1+' &times; '+f3(Pnv1)+' = <span class="cval">'+f3(phPn1)+' kips</span></div>'
+    +'<div class="mrow">V<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Vu)+'/'+f3(phPn1)+' = '+f3(dc_l1)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Tilting/Bearing',dc_a1,dc_l1);
+
+  /* J6.1 detail */
+  var det2='<div class="cref-hdr">J6.1 — Sheet Shear Rupture (2 Parallel Planes)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">Net Shear Area</div>'
+    +'<div class="mrow">A<sub>nv</sub> = 2 &times; e<sub>clear</sub> &times; t&#x2081;</div>'
+    +'<div class="mrow ind">= 2 &times; '+e_clr+' &times; '+t1+' = <span class="cval">'+f4(Anv)+' in&sup2;</span></div>'
+    +'<div class="mrow">P<sub>nv</sub> = 0.6 F<sub>u1</sub> A<sub>nv</sub></div>'
+    +'<div class="mrow ind">= 0.6 &times; '+Fu1+' &times; '+f4(Anv)+' = <span class="cval">'+f3(Pnv2)+' kips</span></div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om2+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f3(Pnv2)+'/'+Om2+' = <span class="cval">'+f3(Pa2)+' kips</span></div>'
+    +'<div class="mrow">V<sub>a</sub>/P<sub>a</sub> = '+f3(Va)+'/'+f3(Pa2)+' = '+f3(dc_a2)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph2+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph2+' &times; '+f3(Pnv2)+' = <span class="cval">'+f3(phPn2)+' kips</span></div>'
+    +'<div class="mrow">V<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Vu)+'/'+f3(phPn2)+' = '+f3(dc_l2)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Shear Rupture',dc_a2,dc_l2);
+
+  /* J6.2 detail */
+  var det3='<div class="cref-hdr">J6.2 — Sheet Tension Rupture</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">Net Tension Area</div>'
+    +'<div class="mrow">U<sub>sl</sub> = '+f2(Usl)+' (single screw row, uniform force)</div>'
+    +'<div class="mrow">A<sub>nt</sub> = (s &minus; d) &times; t&#x2081;</div>'
+    +'<div class="mrow ind">= ('+s+' &minus; '+d+') &times; '+t1+' = <span class="cval">'+f3(Ant)+' in&sup2;</span></div>'
+    +'<div class="mrow">P<sub>nt</sub> = U<sub>sl</sub> &times; F<sub>u1</sub> &times; A<sub>nt</sub></div>'
+    +'<div class="mrow ind">= '+Usl+' &times; '+Fu1+' &times; '+f3(Ant)+' = <span class="cval">'+f2(Pnt2)+' kips</span></div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om_J62+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f2(Pnt2)+'/'+Om_J62+' = <span class="cval">'+f2(Pa_J62)+' kips</span></div>'
+    +'<div class="mrow">T<sub>a</sub>/P<sub>a</sub> = '+f3(Ta)+'/'+f2(Pa_J62)+' = '+f3(dc_a_J62)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph_J62+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph_J62+' &times; '+f2(Pnt2)+' = <span class="cval">'+f2(phPn_J62)+' kips</span></div>'
+    +'<div class="mrow">T<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Tu)+'/'+f2(phPn_J62)+' = '+f3(dc_l_J62)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Tension Rupture',dc_a_J62,dc_l_J62);
+
+  /* J4.3.2 detail */
+  var det4='<div class="cref-hdr">J4.3.2 — Screw Shear (Manufacturer / Test Value)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="mrow">P<sub>nvs</sub> = <span class="cval">'+f2(Pnvs_mfr)+' kips</span> (given from manufacturer tables or testing per J4.3.2)</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om_J432+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f2(Pnvs_mfr)+'/'+Om_J432+' = <span class="cval">'+f3(Pa_J432)+' kips</span></div>'
+    +'<div class="mrow">V<sub>a</sub>/P<sub>a</sub> = '+f3(Va)+'/'+f3(Pa_J432)+' = '+f3(dc_a_J432)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph_J432+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph_J432+' &times; '+f2(Pnvs_mfr)+' = <span class="cval">'+f2(phPn_J432)+' kips</span></div>'
+    +'<div class="mrow">V<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Vu)+'/'+f2(phPn_J432)+' = '+f3(dc_l_J432)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Screw Shear (Mfr.)',dc_a_J432,dc_l_J432);
+
+  /* J4.4.1 detail */
+  var det5='<div class="cref-hdr">J4.4.1 — Screw Pull-Out (Eq. J4.4.1-1)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="mrow">t<sub>c</sub> = t&#x2082; = '+t2+' in (thin sheet, internal threads)</div>'
+    +'<div class="mrow">P<sub>not</sub> = 0.85 t<sub>c</sub> d F<sub>u2</sub></div>'
+    +'<div class="mrow ind">= 0.85 &times; '+t2+' &times; '+d+' &times; '+Fu2+' = <span class="cval">'+f3(Pnot)+' kips</span></div>'
+    +'<div class="mrow" style="color:#d97706;font-style:italic;font-size:.9em">&#8594; Governs tension capacity (lowest P<sub>a</sub>)</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om_J441+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f3(Pnot)+'/'+Om_J441+' = <span class="cval">'+f3(Pa_J441)+' kips</span></div>'
+    +'<div class="mrow">T<sub>a</sub>/P<sub>a</sub> = '+f3(Ta)+'/'+f3(Pa_J441)+' = '+f3(dc_a_J441)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph_J441+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph_J441+' &times; '+f3(Pnot)+' = <span class="cval">'+f3(phPn_J441)+' kips</span></div>'
+    +'<div class="mrow">T<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Tu)+'/'+f3(phPn_J441)+' = '+f3(dc_l_J441)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Pull-Out',dc_a_J441,dc_l_J441);
+
+  /* J4.4.2 detail */
+  var det6='<div class="cref-hdr">J4.4.2 — Screw Pull-Over (Eq. J4.4.2-1)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="mrow">d<sub>w</sub> = min(d<sub>h</sub>, &#190;&Prime;) = min('+dh+', 0.750) = <span class="cval">'+f3(dw)+' in</span></div>'
+    +'<div class="mrow">P<sub>nov</sub> = 1.5 t&#x2081; d<sub>w</sub> F<sub>u1</sub></div>'
+    +'<div class="mrow ind">= 1.5 &times; '+t1+' &times; '+f3(dw)+' &times; '+Fu1+' = <span class="cval">'+f3(Pnov)+' kips</span></div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om_J442+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f3(Pnov)+'/'+Om_J442+' = <span class="cval">'+f3(Pa_J442)+' kips</span></div>'
+    +'<div class="mrow">T<sub>a</sub>/P<sub>a</sub> = '+f3(Ta)+'/'+f3(Pa_J442)+' = '+f3(dc_a_J442)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph_J442+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph_J442+' &times; '+f3(Pnov)+' = <span class="cval">'+f3(phPn_J442)+' kips</span></div>'
+    +'<div class="mrow">T<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Tu)+'/'+f3(phPn_J442)+' = '+f3(dc_l_J442)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Pull-Over',dc_a_J442,dc_l_J442);
+
+  /* J4.4.3 detail */
+  var det7='<div class="cref-hdr">J4.4.3 — Screw Tension Strength (Manufacturer / Test Value)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="mrow">P<sub>nts</sub> = <span class="cval">'+f2(Pnts_mfr)+' kips</span> (given from manufacturer tables or testing per J4.4.3)</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">ASD (&#937; = '+Om_J443+')</div>'
+    +'<div class="mrow">P<sub>a</sub> = '+f2(Pnts_mfr)+'/'+Om_J443+' = <span class="cval">'+f3(Pa_J443)+' kips</span></div>'
+    +'<div class="mrow">T<sub>a</sub>/P<sub>a</sub> = '+f3(Ta)+'/'+f3(Pa_J443)+' = '+f3(dc_a_J443)+'</div>'
+    +'<hr class="csep">'
+    +'<div class="sub-head">LRFD (&#981; = '+ph_J443+')</div>'
+    +'<div class="mrow">&#981;P<sub>n</sub> = '+ph_J443+' &times; '+f2(Pnts_mfr)+' = <span class="cval">'+f2(phPn_J443)+' kips</span></div>'
+    +'<div class="mrow">T<sub>u</sub>/&#981;P<sub>n</sub> = '+f3(Tu)+'/'+f2(phPn_J443)+' = '+f3(dc_l_J443)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('Screw Tension (Mfr.)',dc_a_J443,dc_l_J443);
+
+  /* J4.5.1 detail */
+  var app1_html=(app_J451
+    ?'<span class="app-ok">&#10003; All limits satisfied</span>'
+    :'<span class="app-no">&#9888; Check applicability limits (see Notes)</span>');
+  var det8='<div class="cref-hdr">J4.5.1 — Combined Shear + Pull-Over (Eq. J4.5.1-1)</div>'
+    +'<div class="callout">Applicability: '+app1_html
+    +' &nbsp;| t&#x2081; &le; 0.0445" ('+t1+') &nbsp;| No.12 or No.14 &nbsp;| F<sub>u1</sub> &le; 70 ksi ('+Fu1+') &nbsp;| t&#x2082;/t&#x2081; &ge; 2.5 ('+f2(ratio)+')</div>'
+    +'<div class="mrow"><em>Interaction Equation:</em>&nbsp; IC = '+fr('V','P<sub>nv</sub>')+' + 0.71 &times; '+fr('T','P<sub>nov</sub>')+' &le; '+fr('1.10','&#937;')+' (ASD)&nbsp; or &nbsp;1.10&phi; (LRFD)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">ASD — P<sub>nv</sub> = '+f3(Pnv1)+' k, P<sub>nov</sub> = '+f3(Pnov)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Va)+'/'+f3(Pnv1)+' + 0.71 &times; ('+f3(Ta)+'/'+f3(Pnov)+')</div>'
+    +'<div class="mrow ind">= '+f3(Va/Pnv1)+' + '+f3(0.71*Ta/Pnov)+' = <span class="cval">'+f3(ic_a_J451)+'</span></div>'
+    +'<div class="mrow">Limit = 1.10/&#937; = 1.10/'+Om_J451+' = <span class="cval">'+f3(lim_a_J451)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_a_J451)+'/'+f3(lim_a_J451)+' = '+f3(dc_a_J451)+'</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">LRFD — P<sub>nv</sub> = '+f3(Pnv1)+' k, P<sub>nov</sub> = '+f3(Pnov)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Vu)+'/'+f3(Pnv1)+' + 0.71 &times; ('+f3(Tu)+'/'+f3(Pnov)+')</div>'
+    +'<div class="mrow ind">= '+f3(Vu/Pnv1)+' + '+f3(0.71*Tu/Pnov)+' = <span class="cval">'+f3(ic_l_J451)+'</span></div>'
+    +'<div class="mrow">Limit = 1.10&phi; = 1.10 &times; '+ph_J451+' = <span class="cval">'+f3(lim_l_J451)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_l_J451)+'/'+f3(lim_l_J451)+' = '+f3(dc_l_J451)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('J4.5.1 Combined',dc_a_J451,dc_l_J451);
+
+  /* J4.5.2 detail */
+  var app2_html=(app_J452
+    ?'<span class="app-ok">&#10003; All limits satisfied</span>'
+    :'<span class="app-no">&#9888; Check applicability limits (see Notes)</span>');
+  var det9='<div class="cref-hdr">J4.5.2 — Combined Shear + Pull-Out (Eq. J4.5.2-1)</div>'
+    +'<div class="callout">Applicability: '+app2_html
+    +' &nbsp;| 0.0297 &le; t&#x2082; &le; 0.0724" ('+t2+') &nbsp;| No.8&ndash;14 &nbsp;| F<sub>u2</sub> &le; 121 ksi ('+Fu2+')'
+    +' &nbsp;| 1.0 &le; F<sub>u1</sub>/F<sub>y1</sub> &le; 1.62 ('+f2(Fu1/Fy1)+') &nbsp;| 1.0 &le; F<sub>u2</sub>/F<sub>y2</sub> &le; 1.62 ('+f2(Fu2/Fy2)+')</div>'
+    +'<div class="mrow"><em>Special P<sub>nv</sub></em> (J4.5.2-2): 4.2'+ov('t&#x2082;&sup3;&sdot;d')+'&sdot;F<sub>u2</sub> = 4.2'+ov(f4(Math.pow(t2,3))+'&times;'+d)+'&times;'+Fu2+' = <span class="cval">'+f3(Pnv_J452)+' kips</span></div>'
+    +'<div class="mrow"><em>Interaction Equation:</em>&nbsp; IC = '+fr('V','P<sub>nv</sub>')+' + '+fr('T','P<sub>not</sub>')+' &le; '+fr('1.15','&#937;')+' (ASD)&nbsp; or &nbsp;1.15&phi; (LRFD)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">ASD — P<sub>nv</sub> = '+f3(Pnv_J452)+' k, P<sub>not</sub> = '+f3(Pnot)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Va)+'/'+f3(Pnv_J452)+' + '+f3(Ta)+'/'+f3(Pnot)+'</div>'
+    +'<div class="mrow ind">= '+f3(Va/Pnv_J452)+' + '+f3(Ta/Pnot)+' = <span class="cval">'+f3(ic_a_J452)+'</span></div>'
+    +'<div class="mrow">Limit = 1.15/&#937; = 1.15/'+Om_J452+' = <span class="cval">'+f3(lim_a_J452)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_a_J452)+'/'+f3(lim_a_J452)+' = '+f3(dc_a_J452)+'</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">LRFD — P<sub>nv</sub> = '+f3(Pnv_J452)+' k, P<sub>not</sub> = '+f3(Pnot)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Vu)+'/'+f3(Pnv_J452)+' + '+f3(Tu)+'/'+f3(Pnot)+'</div>'
+    +'<div class="mrow ind">= '+f3(Vu/Pnv_J452)+' + '+f3(Tu/Pnot)+' = <span class="cval">'+f3(ic_l_J452)+'</span></div>'
+    +'<div class="mrow">Limit = 1.15&phi; = 1.15 &times; '+ph_J452+' = <span class="cval">'+f3(lim_l_J452)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_l_J452)+'/'+f3(lim_l_J452)+' = '+f3(dc_l_J452)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('J4.5.2 Combined',dc_a_J452,dc_l_J452);
+
+  /* J4.5.3 detail */
+  var det10='<div class="cref-hdr">J4.5.3 — Combined Shear + Screw Tension (Eq. J4.5.3-1)</div>'
+    +'<div class="mrow"><em>Interaction Equation:</em>&nbsp; IC = '+fr('V','P<sub>nvs</sub>')+' + '+fr('T','P<sub>nts</sub>')+' &le; '+fr('1.30','&#937;')+' (ASD)&nbsp; or &nbsp;1.30&phi; (LRFD)</div>'
+    +'<div class="two-col-det">'
+    +'<div>'
+    +'<div class="sub-head">ASD — P<sub>nvs</sub> = '+f2(Pnvs_mfr)+' k, P<sub>nts</sub> = '+f2(Pnts_mfr)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Va)+'/'+f2(Pnvs_mfr)+' + '+f3(Ta)+'/'+f2(Pnts_mfr)+'</div>'
+    +'<div class="mrow ind">= '+f3(Va/Pnvs_mfr)+' + '+f3(Ta/Pnts_mfr)+' = <span class="cval">'+f3(ic_a_J453)+'</span></div>'
+    +'<div class="mrow">Limit = 1.30/&#937; = 1.30/'+Om_J453+' = <span class="cval">'+f3(lim_a_J453)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_a_J453)+'/'+f3(lim_a_J453)+' = '+f3(dc_a_J453)+'</div>'
+    +'</div>'
+    +'<div>'
+    +'<div class="sub-head">LRFD — P<sub>nvs</sub> = '+f2(Pnvs_mfr)+' k, P<sub>nts</sub> = '+f2(Pnts_mfr)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Vu)+'/'+f2(Pnvs_mfr)+' + '+f3(Tu)+'/'+f2(Pnts_mfr)+'</div>'
+    +'<div class="mrow ind">= '+f3(Vu/Pnvs_mfr)+' + '+f3(Tu/Pnts_mfr)+' = <span class="cval">'+f3(ic_l_J453)+'</span></div>'
+    +'<div class="mrow">Limit = 1.30&phi; = 1.30 &times; '+ph_J453+' = <span class="cval">'+f3(lim_l_J453)+'</span></div>'
+    +'<div class="mrow">D/C = '+f3(ic_l_J453)+'/'+f3(lim_l_J453)+' = '+f3(dc_l_J453)+'</div>'
+    +'</div>'
+    +'</div>'
+    +dcRow('J4.5.3 Combined',dc_a_J453,dc_l_J453);
+
+  /* ----------------------------------------------------------------
+     Build check array — dc = governing (max of ASD, LRFD)
+  ---------------------------------------------------------------- */
+  function dStr(va,vu,lbl){
+    return '<small style="color:#666">ASD:</small> '+f3(va)+'k &nbsp;<small style="color:#166534">LRFD:</small> '+f3(vu)+'k &nbsp;<small style="color:#888">('+lbl+')</small>';
+  }
+  function cStr(pa,phPn){
+    return '<small style="color:#666">P<sub>a</sub>=</small>'+f3(pa)+'k<br><small style="color:#166534">&phi;P<sub>n</sub>=</small>'+f3(phPn)+'k';
+  }
+  function icStr(ic_a,ic_l,lim_a,lim_l){
+    return '<small style="color:#666">IC<sub>a</sub>=</small>'+f3(ic_a)+'&le;'+f3(lim_a)
+          +'<br><small style="color:#166534">IC<sub>u</sub>=</small>'+f3(ic_l)+'&le;'+f3(lim_l);
+  }
+
+  var chks=[
+    {n:'Tilting / Bearing',          nt:'Eq. J4.3.1',            r:'J4.3.1',
+     d:dStr(Va,Vu,'shear'),          c:cStr(Pa1,phPn1),
+     dc:Math.max(dc_a1,dc_l1),      dc_a:dc_a1,dc_l:dc_l1,     stiff:false, det:det1},
+    {n:'Sheet Shear Rupture',        nt:'2 parallel planes',      r:'J6.1',
+     d:dStr(Va,Vu,'shear'),          c:cStr(Pa2,phPn2),
+     dc:Math.max(dc_a2,dc_l2),      dc_a:dc_a2,dc_l:dc_l2,     stiff:false, det:det2},
+    {n:'Sheet Tension Rupture',      nt:'U<sub>sl</sub>=1.0',     r:'J6.2',
+     d:dStr(Ta,Tu,'tension'),        c:cStr(Pa_J62,phPn_J62),
+     dc:Math.max(dc_a_J62,dc_l_J62),dc_a:dc_a_J62,dc_l:dc_l_J62,stiff:false,det:det3},
+    {n:'Screw Shear — Mfr.',         nt:'Manufacturer / Tables',  r:'J4.3.2',
+     d:dStr(Va,Vu,'shear'),          c:cStr(Pa_J432,phPn_J432),
+     dc:Math.max(dc_a_J432,dc_l_J432),dc_a:dc_a_J432,dc_l:dc_l_J432,stiff:false,det:det4},
+    {n:'Pull-Out',                   nt:'Governs tension',        r:'J4.4.1',
+     d:dStr(Ta,Tu,'tension'),        c:cStr(Pa_J441,phPn_J441),
+     dc:Math.max(dc_a_J441,dc_l_J441),dc_a:dc_a_J441,dc_l:dc_l_J441,stiff:false,det:det5},
+    {n:'Pull-Over',                  nt:'d<sub>w</sub>=min(d<sub>h</sub>,¾")',r:'J4.4.2',
+     d:dStr(Ta,Tu,'tension'),        c:cStr(Pa_J442,phPn_J442),
+     dc:Math.max(dc_a_J442,dc_l_J442),dc_a:dc_a_J442,dc_l:dc_l_J442,stiff:false,det:det6},
+    {n:'Screw Tension — Mfr.',       nt:'Manufacturer / Tables',  r:'J4.4.3',
+     d:dStr(Ta,Tu,'tension'),        c:cStr(Pa_J443,phPn_J443),
+     dc:Math.max(dc_a_J443,dc_l_J443),dc_a:dc_a_J443,dc_l:dc_l_J443,stiff:false,det:det7},
+    {n:'Combined V + Pull-Over',     nt:'Eq. J4.5.1-1',           r:'J4.5.1',
+     d:icStr(ic_a_J451,ic_l_J451,lim_a_J451,lim_l_J451),
+     c:'&#937;='+Om_J451+' / &phi;='+ph_J451,
+     dc:Math.max(dc_a_J451,dc_l_J451),dc_a:dc_a_J451,dc_l:dc_l_J451,stiff:true,det:det8},
+    {n:'Combined V + Pull-Out',      nt:'Eq. J4.5.2-1',           r:'J4.5.2',
+     d:icStr(ic_a_J452,ic_l_J452,lim_a_J452,lim_l_J452),
+     c:'&#937;='+Om_J452+' / &phi;='+ph_J452,
+     dc:Math.max(dc_a_J452,dc_l_J452),dc_a:dc_a_J452,dc_l:dc_l_J452,stiff:true,det:det9},
+    {n:'Combined V + Screw Tension', nt:'Eq. J4.5.3-1',           r:'J4.5.3',
+     d:icStr(ic_a_J453,ic_l_J453,lim_a_J453,lim_l_J453),
+     c:'&#937;='+Om_J453+' / &phi;='+ph_J453,
+     dc:Math.max(dc_a_J453,dc_l_J453),dc_a:dc_a_J453,dc_l:dc_l_J453,stiff:true,det:det10},
+  ];
+
+  /* ---- render check table ---- */
+  var tb=document.getElementById('chkTb');
+  tb.innerHTML='';
+  chks.forEach(function(c,i){
+    var dc_v=c.dc;
+    var pct=Math.min(dc_v*100,150);
+    var col=dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var rowCls=c.stiff?'class="alt-row"':'';
+    tb.innerHTML+=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td style="font-size:.82em">'+c.d+'</td>'
+      +'<td style="font-size:.82em">'+c.c+'</td>'
+      +'<td>'
+        +'<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc_v)+'</span>'
+        +'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'
+        +'</div>'
+        +'<div style="font-size:.75em;color:#888;margin-top:2px">ASD:'+f3(c.dc_a)+' | LRFD:'+f3(c.dc_l)+'</div>'
+      +'</td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  /* ---- summary banner ---- */
+  var allDC=chks.map(function(c){return c.dc;});
+  var maxDC=Math.max.apply(null,allDC);
+  var pass=maxDC<=1.0;
+  var govChk=chks[allDC.indexOf(maxDC)];
+  var sb=document.getElementById('sumBox');
+  sb.className='summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML='<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong>'
+    +' &nbsp;&bull;&nbsp; Governs: <strong>'+govChk.n+'</strong> ('+govChk.r+')'
+    +' &nbsp;&bull;&nbsp; t&#x2082;/t&#x2081; = '+f2(ratio)
+    +' &nbsp;&bull;&nbsp; No.'+sz+' screw</p>';
+
+  /* ---- applicability notes ---- */
+  var notes='<strong>Applicability Notes — J4.5 Combined Interaction Equations:</strong>'
+    +'<ul>'
+    +'<li><strong>J4.5.1:</strong> Applies when t&#x2081; &le; 0.0445" ('+t1+'&Prime; '+(t1<=0.0445?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', Screw No. 12 or 14 ('+(sz===12||sz===14?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', F<sub>u1</sub> &le; 70 ksi ('+Fu1+' '+(Fu1<=70?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', t&#x2082;/t&#x2081; &ge; 2.5 ('+f2(ratio)+' '+(ratio>=2.5?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+'). '
+    +(app_J451?'<strong><span class="app-ok">All conditions met.</span></strong>':'<strong><span class="app-no">Not all conditions met — check does not apply.</span></strong>')+'</li>'
+    +'<li><strong>J4.5.2:</strong> Applies when 0.0297&Prime; &le; t&#x2082; &le; 0.0724&Prime; ('+t2+'&Prime; '+(t2>=0.0297&&t2<=0.0724?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', Screw No. 8&ndash;14 ('+(sz>=8&&sz<=14?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', F<sub>u2</sub> &le; 121 ksi ('+Fu2+' '+(Fu2<=121?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', 1.0 &le; F<sub>u1</sub>/F<sub>y1</sub> &le; 1.62 ('+f2(Fu1/Fy1)+' '+(Fu1/Fy1>=1.0&&Fu1/Fy1<=1.62?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', 1.0 &le; F<sub>u2</sub>/F<sub>y2</sub> &le; 1.62 ('+f2(Fu2/Fy2)+' '+(Fu2/Fy2>=1.0&&Fu2/Fy2<=1.62?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+'). '
+    +(app_J452?'<strong><span class="app-ok">All conditions met.</span></strong>':'<strong><span class="app-no">Not all conditions met — check does not apply.</span></strong>')+'</li>'
+    +'<li><strong>J4.5.3:</strong> Always applies — uses manufacturer screw capacities directly.</li>'
+    +'<li><strong>J6.1 shear rupture:</strong> Uses 2 shear planes (one per side of screw), with A<sub>nv</sub> = 2&times;e<sub>clear</sub>&times;t&#x2081; per screw.</li>'
+    +'<li><strong>J6.2 tension rupture:</strong> Based on tributary width s (net area = (s&minus;d)&times;t&#x2081;). Verify U<sub>sl</sub>=1.0 is appropriate for your loading geometry.</li>'
+    +'<li>Pre-filled values match AISI D100-17E Design Manual Vol.1 Example IV-11.</li>'
+    +'</ul>';
+  document.getElementById('noteBox').innerHTML=notes;
+
+  document.getElementById('results').className='results show';
+}
+
+/* run on load with defaults */
+window.onload=function(){calc();};
+</script>
+</body>
+</html>

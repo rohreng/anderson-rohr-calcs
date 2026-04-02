@@ -182,6 +182,27 @@ export const CALCS: CalcMeta[] = [
     spec: "AISC DG01 / ACI 318-19",
     status: "ready",
   },
+  // ── Cold-Formed Steel (CFS) ───────────────────────────────────
+  {
+    slug: "cfs-weld",
+    label: "CFS Weld Connection Designer",
+    subtitle: "All 8 weld types — fillet, arc spot, arc seam, flare bevel, flare V-groove, groove butt · ASD + LRFD",
+    htmlFile: "/Calcs/AISI_S100_16_Weld_Calculator.html",
+    category: "CFS",
+    spec: "AISI S100-16 Chapter J",
+    status: "ready",
+    group: "CFS Connections",
+  },
+  {
+    slug: "cfs-screw",
+    label: "CFS Screw Connection Designer",
+    subtitle: "Tilting/bearing · pull-out · pull-over · screw tension · combined V+T interactions · ASD + LRFD",
+    htmlFile: "/Calcs/AISI_S100_16_Screw_Calculator.html",
+    category: "CFS",
+    spec: "AISI S100-16 J4.3–J4.5 / J6",
+    status: "ready",
+    group: "CFS Connections",
+  },
   // ── Foundations ──────────────────────────────────────────────
   {
     slug: "holdown-footing",

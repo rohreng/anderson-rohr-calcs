@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AISI S100-16 CFS Weld Calculator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+/* Tab navigation */
+.tab-nav{display:flex;flex-wrap:wrap;gap:0;background:#f0f4fa;border-bottom:2px solid #2a5298;padding:0 16px}
+.tab-btn{background:none;border:none;padding:10px 14px;font-size:.82em;font-weight:600;color:#555;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab-btn.active{color:#1e3c72;border-bottom-color:#2a5298;background:#fff}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <h1>AISI S100-16 Cold-Formed Steel — Weld Connection Calculator</h1>
+  <p>Eight weld types per AISI S100-16 Chapter J &bull; ASD &amp; LRFD &bull; Example values from AISI D100-17E Design Manual Part IV §5.1</p>
+  <div class="ref-tags">
+    <span class="tag">AISI S100-16</span>
+    <span class="tag">Chapter J Welds</span>
+    <span class="tag">ASD &amp; LRFD</span>
+    <span class="tag">D100-17E Design Manual</span>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('t1',this)">IV-1 Fillet Lap</button>
+  <button class="tab-btn" onclick="showTab('t2',this)">IV-2 Arc Spot</button>
+  <button class="tab-btn" onclick="showTab('t3',this)">IV-3 Arc Seam</button>
+  <button class="tab-btn" onclick="showTab('t4',this)">IV-4 Flare-Bevel (t≤0.10)</button>
+  <button class="tab-btn" onclick="showTab('t5',this)">IV-5 Flare-Bevel (t&gt;0.10)</button>
+  <button class="tab-btn" onclick="showTab('t6',this)">IV-6 Flare V-Groove</button>
+  <button class="tab-btn" onclick="showTab('t7',this)">IV-7 Groove Butt</button>
+  <button class="tab-btn" onclick="showTab('t8',this)">IV-8 Sidelap Arc Seam</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-1 ══ -->
+<div id="t1" class="tab-panel active">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.5 — Fillet Weld in Lap Joint <span class="badge">Example IV-1</span></h2>
+    <div class="callout">Two overlapping CFS sheets welded with two fillet welds of length L. Check sheet shear capacity (governing when L/t &ge; 25), gross-section yielding (D2-1), and net-section rupture (D3-1).</div>
+    <div class="g3">
+      <div class="ig"><label>t<sub>1</sub> — thinner sheet <span class="unit">in</span></label><input id="iv1_t1" value="0.060"><div class="hint">Thinner connected sheet</div></div>
+      <div class="ig"><label>t<sub>2</sub> — thicker sheet <span class="unit">in</span></label><input id="iv1_t2" value="0.105"></div>
+      <div class="ig"><label>L — weld length <span class="unit">in</span></label><input id="iv1_L" value="2.25"></div>
+      <div class="ig"><label>w — sheet width <span class="unit">in</span></label><input id="iv1_w" value="2.50"></div>
+      <div class="ig"><label>n — number of welds</label><input id="iv1_n" value="2"></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv1_Fy" value="50"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv1_Fu" value="65"></div>
+      <div class="ig"><label>P<sub>D</sub> — dead load <span class="unit">kips</span></label><input id="iv1_Pd" value="1.0"></div>
+      <div class="ig"><label>P<sub>L</sub> — live load <span class="unit">kips</span></label><input id="iv1_Pl" value="3.0"></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV1()">Calculate</button>
+  </div>
+  <div id="res1" class="results">
+    <div id="sum1" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem1" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk1"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-2 ══ -->
+<div id="t2" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.2 — Arc Spot (Puddle) Weld <span class="badge">Example IV-2</span></h2>
+    <div class="callout">Single-thickness CFS deck sheet arc-spot welded to heavier structural member. Checks: weld metal shear, sheet bearing/shear, shear rupture, block shear, tension rupture, weld tension, and combined shear+tension.</div>
+    <div class="g3">
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv2_t" value="0.060"><div class="hint">Single CFS sheet over structural support</div></div>
+      <div class="ig"><label>d — visible weld diameter <span class="unit">in</span></label><input id="iv2_d" value="0.625"></div>
+      <div class="ig"><label>w — sheet width <span class="unit">in</span></label><input id="iv2_w" value="3.75"></div>
+      <div class="ig"><label>n — number of welds</label><input id="iv2_n" value="2"></div>
+      <div class="ig"><label>e — end/edge distance <span class="unit">in</span></label><input id="iv2_e" value="1.25"><div class="hint">CL to nearest end/edge (load direction)</div></div>
+      <div class="ig"><label>s — transverse spacing <span class="unit">in</span></label><input id="iv2_s" value="1.25"><div class="hint">CL-to-CL transverse weld spacing</div></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv2_Fy" value="33"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv2_Fu" value="45"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv2_Fxx" value="60"></div>
+      <div class="ig"><label>P<sub>1</sub> — total shear ASD <span class="unit">kips</span></label><input id="iv2_Pv" value="1.30"><div class="hint">Total connection shear demand</div></div>
+      <div class="ig"><label>P<sub>2</sub> — total tension ASD <span class="unit">kips</span></label><input id="iv2_Pt" value="0.90"><div class="hint">Total connection tension demand</div></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV2()">Calculate</button>
+  </div>
+  <div id="res2" class="results">
+    <div id="sum2" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem2" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk2"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-3 ══ -->
+<div id="t3" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.3 — Arc Seam Weld <span class="badge">Example IV-3</span></h2>
+    <div class="callout">CFS sheet arc-seam welded to structural member — elongated puddle weld. Checks weld metal shear and base metal shear, plus rupture checks (shear rupture and tension rupture per J6).</div>
+    <div class="g3">
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv3_t" value="0.060"></div>
+      <div class="ig"><label>d — weld width <span class="unit">in</span></label><input id="iv3_d" value="0.50"></div>
+      <div class="ig"><label>L — weld length <span class="unit">in</span></label><input id="iv3_L" value="1.5"><div class="hint">Max = 3d per J2.3</div></div>
+      <div class="ig"><label>w — sheet width <span class="unit">in</span></label><input id="iv3_w" value="4.50"></div>
+      <div class="ig"><label>n — number of welds</label><input id="iv3_n" value="1"></div>
+      <div class="ig"><label>e — edge distance <span class="unit">in</span></label><input id="iv3_e" value="1.75"><div class="hint">Weld CL to sheet edge</div></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv3_Fy" value="50"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv3_Fu" value="65"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv3_Fxx" value="60"></div>
+      <div class="ig"><label>P<sub>ASD</sub> — ASD demand <span class="unit">kips</span></label><input id="iv3_Pasd" value="2.80"></div>
+      <div class="ig"><label>P<sub>LRFD</sub> — LRFD demand <span class="unit">kips</span></label><input id="iv3_Plrfd" value="4.20"></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV3()">Calculate</button>
+  </div>
+  <div id="res3" class="results">
+    <div id="sum3" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem3" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk3"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-4 ══ -->
+<div id="t4" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.6 — Flare-Bevel Groove Weld, t &le; 0.10 in <span class="badge">Example IV-4</span></h2>
+    <div class="callout">CFS stud to track flare-bevel groove weld where sheet thickness &le; 0.10 in. Per J2.6(a), weld shear capacity = 0.833·t·L·F<sub>u</sub>. Solve for required weld length to carry applied load.</div>
+    <div class="g3">
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv4_t" value="0.060"><div class="hint">t &le; 0.10 in governs this case</div></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv4_Fy" value="50"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv4_Fu" value="65"></div>
+      <div class="ig"><label>P<sub>D</sub> — dead load <span class="unit">kips</span></label><input id="iv4_Pd" value="1.0"></div>
+      <div class="ig"><label>P<sub>L</sub> — live load <span class="unit">kips</span></label><input id="iv4_Pl" value="3.0"></div>
+      <div class="ig"><label>Load direction</label>
+        <select id="iv4_dir">
+          <option value="transverse" selected>Transverse (⊥ weld axis)</option>
+          <option value="parallel">Parallel (∥ weld axis)</option>
+        </select>
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calcIV4()">Calculate</button>
+  </div>
+  <div id="res4" class="results">
+    <div id="sum4" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem4" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity/Req'd</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk4"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-5 ══ -->
+<div id="t5" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.6 — Flare-Bevel Groove Weld, t &gt; 0.10 in <span class="badge">Example IV-5</span></h2>
+    <div class="callout">Back-to-back C-section flare-bevel groove weld where t &gt; 0.10 in. Effective throat determined from J2.6 Table. Both weld metal (J2.6) and base metal (1.50·t·L·F<sub>u</sub>) checked.</div>
+    <div class="g3">
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv5_t" value="0.120"><div class="hint">t &gt; 0.10 in governs this case</div></div>
+      <div class="ig"><label>R — inside radius <span class="unit">in</span></label><input id="iv5_R" value="0.50"></div>
+      <div class="ig"><label>w<sub>1</sub> — weld width (larger) <span class="unit">in</span></label><input id="iv5_w1" value="0.1875"><div class="hint">Measured weld widths</div></div>
+      <div class="ig"><label>w<sub>2</sub> — weld width (smaller) <span class="unit">in</span></label><input id="iv5_w2" value="0.125"></div>
+      <div class="ig"><label>L — weld length <span class="unit">in</span></label><input id="iv5_L" value="4.0"></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv5_Fy" value="60"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv5_Fu" value="75"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv5_Fxx" value="70"></div>
+      <div class="ig"><label>P<sub>D</sub> — dead load <span class="unit">kips</span></label><input id="iv5_Pd" value="1.0"></div>
+      <div class="ig"><label>P<sub>L</sub> — live load <span class="unit">kips</span></label><input id="iv5_Pl" value="3.0"></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV5()">Calculate</button>
+  </div>
+  <div id="res5" class="results">
+    <div id="sum5" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem5" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk5"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-6 ══ -->
+<div id="t6" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.6 — Flare V-Groove Weld <span class="badge">Example IV-6</span></h2>
+    <div class="callout">Back-to-back C-sections with flare V-groove weld at flanges. Effective throat from J2.6 Table (0.75R minus fill). Sheet governs: 1.50·t·L·F<sub>u</sub>.</div>
+    <div class="g3">
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv6_t" value="0.120"></div>
+      <div class="ig"><label>R — inside radius <span class="unit">in</span></label><input id="iv6_R" value="0.50"></div>
+      <div class="ig"><label>d — unfilled depression <span class="unit">in</span></label><input id="iv6_d" value="0.125"></div>
+      <div class="ig"><label>L — weld length <span class="unit">in</span></label><input id="iv6_L" value="4.0"></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv6_Fy" value="60"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv6_Fu" value="75"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv6_Fxx" value="70"></div>
+      <div class="ig"><label>P<sub>D</sub> — dead load <span class="unit">kips</span></label><input id="iv6_Pd" value="1.0"></div>
+      <div class="ig"><label>P<sub>L</sub> — live load <span class="unit">kips</span></label><input id="iv6_Pl" value="3.0"></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV6()">Calculate</button>
+  </div>
+  <div id="res6" class="results">
+    <div id="sum6" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem6" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk6"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-7 ══ -->
+<div id="t7" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.1 — Groove Butt Weld <span class="badge">Example IV-7</span></h2>
+    <div class="callout">Full-penetration groove butt weld joining two CFS sheets. Three capacity checks: tension yielding, weld shear (0.6F<sub>xx</sub>), and base metal shear (F<sub>y</sub>/√3). Governing capacity is the minimum.</div>
+    <div class="g3">
+      <div class="ig"><label>t<sub>e</sub> — effective throat <span class="unit">in</span></label><input id="iv7_te" value="0.135"><div class="hint">= t for full-pen groove weld</div></div>
+      <div class="ig"><label>L — weld length <span class="unit">in</span></label><input id="iv7_L" value="8.0"></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="iv7_Fy" value="50"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv7_Fxx" value="60"></div>
+      <div class="ig"><label>P<sub>D</sub> — dead load <span class="unit">kips</span></label><input id="iv7_Pd" value="1.0"></div>
+      <div class="ig"><label>P<sub>L</sub> — live load <span class="unit">kips</span></label><input id="iv7_Pl" value="3.0"></div>
+      <div class="ig"><label>Load type</label>
+        <select id="iv7_type">
+          <option value="shear" selected>Shear</option>
+          <option value="tension">Tension</option>
+        </select>
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calcIV7()">Calculate</button>
+  </div>
+  <div id="res7" class="results">
+    <div id="sum7" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem7" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk7"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TAB IV-8 ══ -->
+<div id="t8" class="tab-panel">
+<div class="content">
+  <div class="blk">
+    <h2>&#167; J2.4.1 — Top Arc Seam Sidelap Weld <span class="badge">Example IV-8</span></h2>
+    <div class="callout">Arc seam weld joining two overlapping CFS deck sheets at sidelap. Capacity per Eq. J2.4.1-1. Also checks minimum longitudinal spacing per Commentary C-J2.4.1.</div>
+    <div class="g3">
+      <div class="ig"><label>L<sub>w</sub> — weld length <span class="unit">in</span></label><input id="iv8_Lw" value="1.5"></div>
+      <div class="ig"><label>t — sheet thickness <span class="unit">in</span></label><input id="iv8_t" value="0.0358"></div>
+      <div class="ig"><label>F<sub>sy</sub> — yield strength <span class="unit">ksi</span></label><input id="iv8_Fsy" value="50"></div>
+      <div class="ig"><label>F<sub>u</sub> <span class="unit">ksi</span></label><input id="iv8_Fu" value="60"></div>
+      <div class="ig"><label>F<sub>xx</sub> — electrode <span class="unit">ksi</span></label><input id="iv8_Fxx" value="60"></div>
+      <div class="ig"><label>h<sub>st</sub> — steel deck rib height <span class="unit">in</span></label><input id="iv8_hst" value="1.0"></div>
+      <div class="ig"><label>s — provided spacing <span class="unit">in</span></label><input id="iv8_s" value="2.5"><div class="hint">Longitudinal weld spacing to check</div></div>
+      <div class="ig"><label>P<sub>ASD</sub> — ASD demand <span class="unit">kips</span></label><input id="iv8_Pasd" value="0.50"></div>
+      <div class="ig"><label>P<sub>LRFD</sub> — LRFD demand <span class="unit">kips</span></label><input id="iv8_Plrfd" value="0.75"></div>
+    </div>
+    <button class="calc-btn" onclick="calcIV8()">Calculate</button>
+  </div>
+  <div id="res8" class="results">
+    <div id="sum8" class="summary"></div>
+    <div class="blk alt-blk"><h2>Demand Summary</h2><div id="dem8" class="dem-grid"></div></div>
+    <div class="blk"><h2>Check Results</h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:28%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chk8"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+</div><!-- /.container -->
+
+<script>
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function toggleDet(i){var el=document.getElementById('det_'+i);var btn=document.getElementById('dbtn_'+i);var open=el.classList.toggle('open');btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';}
+
+function showTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function gv(id){return parseFloat(document.getElementById(id).value)||0;}
+
+function renderChecks(tbId,chks){
+  var tb=document.getElementById(tbId);
+  tb.innerHTML='';
+  var prefix=tbId;
+  chks.forEach(function(c,i){
+    var uid=prefix+'_'+i;
+    var dc_v=(c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct=dc_v!==null?Math.min(dc_v*100,150):0;
+    var col=dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt=dc_v!==null?f3(dc_v):'&mdash;';
+    var rowCls=c.stiff?'class="alt-row"':'';
+    tb.innerHTML+=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+uid+'" onclick="toggleDet(\''+uid+'\')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+uid+'">'+c.det+'</div></td></tr>';
+  });
+}
+
+function renderSummary(sumId,chks,title){
+  var dcs=chks.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC=dcs.length?Math.max.apply(null,dcs):0;
+  var pass=maxDC<=1.0;
+  var sb=document.getElementById(sumId);
+  sb.className='summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML='<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>'+title+' &nbsp;|&nbsp; Max D/C = <strong>'+f3(maxDC)+'</strong></p>';
+}
+
+function renderDem(demId,cards){
+  var el=document.getElementById(demId);
+  el.innerHTML='';
+  cards.forEach(function(c){
+    el.innerHTML+='<div class="dem-card'+(c.alt?' alt':'')+'"><div class="v">'+c.v+'</div><div class="l">'+c.l+'</div></div>';
+  });
+}
+
+function showRes(resId){document.getElementById(resId).classList.add('show');}
+
+// ─── IV-1 : J2.5 Fillet Weld in Lap Joint ────────────────────────────────────
+function calcIV1(){
+  var t1=gv('iv1_t1'),t2=gv('iv1_t2'),L=gv('iv1_L'),w=gv('iv1_w'),n=gv('iv1_n');
+  var Fy=gv('iv1_Fy'),Fu=gv('iv1_Fu'),Pd=gv('iv1_Pd'),Pl=gv('iv1_Pl');
+
+  var PASD=Pd+Pl;
+  var PLRFD=1.2*Pd+1.6*Pl;
+
+  // Check L/t ratio → which equation governs
+  var t=Math.min(t1,t2); // use thinner
+  var Lt=L/t;
+  // J2.5-1: Pn=0.75*tw*L*Fxx (weld metal) — not computed here, sheet governs
+  // J2.5-2: Pn=2.5*t*L*Fu when L/t < 25 (not applicable if L/t>=25)
+  // J2.5-3: Pn=0.75*t1*L*Fu when L/t >= 25 (transverse load governs)
+  var useEq3=(Lt>=25);
+  // Per example IV-1: L/t = 2.25/0.060 = 37.5 >= 25 → use J2.5-3
+  // Pn per weld = 0.75*t1*L*Fu
+  var Pn_weld=0.75*t1*L*Fu; // per weld
+  var Pn_total=n*Pn_weld;
+  // ASD: Omega=3.05 (J2.5-3), phi=0.50
+  var Om_J25=3.05, phi_J25=0.50;
+  var Pa_sheet=Pn_total/Om_J25;
+  var Pu_sheet=phi_J25*Pn_total;
+
+  // D2-1: Gross section yielding
+  var Ag=w*t1; // gross area of thinner sheet
+  var Pn_gross=Ag*Fy;
+  var Om_D2=1.67, phi_D2=0.90;
+  var Pa_gross=Pn_gross/Om_D2;
+  var Pu_gross=phi_D2*Pn_gross;
+
+  // D3-1: Net section rupture (conservatively Ae=An=Ag for full-width welds, but connection factor U)
+  // Per example IV-1: U=1.0 (weld along full width), An=Ag
+  var An=Ag;
+  var Ae=An; // U=1.0
+  var Pn_net=Ae*Fu;
+  var Om_D3=2.00, phi_D3=0.75;
+  var Pa_net=Pn_net/Om_D3;
+  var Pu_net=phi_D3*Pn_net;
+
+  var dc_sh_asd=PASD/Pa_sheet, dc_sh_lrfd=PLRFD/Pu_sheet;
+  var dc_gy_asd=PASD/Pa_gross, dc_gy_lrfd=PLRFD/Pu_gross;
+  var dc_nr_asd=PASD/Pa_net, dc_nr_lrfd=PLRFD/Pu_net;
+
+  var chks=[
+    {n:'Sheet Shear (ASD)', nt:'Eq. J2.5-3, L/t='+f1(Lt)+(useEq3?' ≥25':' <25'), r:'J2.5-3',
+     d:f2(PASD)+' kips', c:f2(Pa_sheet)+' kips',
+     dc:dc_sh_asd,
+     det:'<div class="cref-hdr">J2.5-3 Sheet Shear (L/t = '+f1(Lt)+' &ge; 25)</div>'
+       +'<div class="mrow"><span class="ceq">P<sub>n</sub></span> = 0.75 &middot; t<sub>1</sub> &middot; L &middot; F<sub>u</sub> per weld</div>'
+       +'<div class="mrow ind">= 0.75 &times; '+t1+' &times; '+L+' &times; '+Fu+' = <span class="cval">'+f3(Pn_weld)+' kips/weld</span></div>'
+       +'<div class="mrow"><span class="ceq">P<sub>n,total</sub></span> = '+n+' welds &times; '+f3(Pn_weld)+' = <span class="cval">'+f3(Pn_total)+' kips</span></div>'
+       +'<div class="mrow"><span class="ceq">&Omega;</span> = 3.05 &nbsp;|&nbsp; <span class="ceq">P<sub>a</sub></span> = '+f3(Pn_total)+'/3.05 = <span class="cval">'+f2(Pa_sheet)+' kips</span></div>'
+       +'<div class="mrow">D/C = '+f2(PASD)+'/'+f2(Pa_sheet)+' = <span class="cval">'+f3(dc_sh_asd)+'</span></div>'},
+    {n:'Sheet Shear (LRFD)', nt:'Eq. J2.5-3, &phi;=0.50', r:'J2.5-3',
+     d:f2(PLRFD)+' kips', c:f2(Pu_sheet)+' kips',
+     dc:dc_sh_lrfd,
+     det:'<div class="cref-hdr">J2.5-3 LRFD (&phi; = 0.50)</div>'
+       +'<div class="mrow"><span class="ceq">P<sub>u</sub></span> = 1.2('+Pd+')+1.6('+Pl+') = <span class="cval">'+f2(PLRFD)+' kips</span></div>'
+       +'<div class="mrow"><span class="ceq">&phi;P<sub>n</sub></span> = 0.50 &times; '+f3(Pn_total)+' = <span class="cval">'+f2(Pu_sheet)+' kips</span></div>'
+       +'<div class="mrow">D/C = '+f2(PLRFD)+'/'+f2(Pu_sheet)+' = <span class="cval">'+f3(dc_sh_lrfd)+'</span></div>'},
+    {n:'Gross Yielding (ASD)', nt:'Gross area Ag=w&times;t₁', r:'D2-1',
+     d:f2(PASD)+' kips', c:f2(Pa_gross)+' kips',
+     dc:dc_gy_asd, stiff:true,
+     det:'<div class="cref-hdr">D2-1 Gross Section Yielding</div>'
+       +'<div class="mrow"><span class="ceq">A<sub>g</sub></span> = '+w+' &times; '+t1+' = <span class="cval">'+f4(Ag)+' in²</span></div>'
+       +'<div class="mrow"><span class="ceq">P<sub>n</sub></span> = A<sub>g</sub> &middot; F<sub>y</sub> = '+f4(Ag)+' &times; '+Fy+' = <span class="cval">'+f3(Pn_gross)+' kips</span></div>'
+       +'<div class="mrow">&Omega; = 1.67 &nbsp;|&nbsp; P<sub>a</sub> = '+f3(Pn_gross)+'/1.67 = <span class="cval">'+f2(Pa_gross)+' kips</span></div>'},
+    {n:'Gross Yielding (LRFD)', nt:'&phi;=0.90', r:'D2-1',
+     d:f2(PLRFD)+' kips', c:f2(Pu_gross)+' kips',
+     dc:dc_gy_lrfd, stiff:true,
+     det:'<div class="cref-hdr">D2-1 LRFD (&phi; = 0.90)</div>'
+       +'<div class="mrow"><span class="ceq">&phi;P<sub>n</sub></span> = 0.90 &times; '+f3(Pn_gross)+' = <span class="cval">'+f2(Pu_gross)+' kips</span></div>'},
+    {n:'Net Rupture (ASD)', nt:'U=1.0, A<sub>e</sub>=A<sub>g</sub>', r:'D3-1',
+     d:f2(PASD)+' kips', c:f2(Pa_net)+' kips',
+     dc:dc_nr_asd,
+     det:'<div class="cref-hdr">D3-1 Net Section Rupture (U=1.0)</div>'
+       +'<div class="mrow"><span class="ceq">A<sub>e</sub></span> = U &middot; A<sub>n</sub> = 1.0 &times; '+f4(Ag)+' = <span class="cval">'+f4(Ae)+' in²</span></div>'
+       +'<div class="mrow"><span class="ceq">P<sub>n</sub></span> = A<sub>e</sub> &middot; F<sub>u</sub> = '+f4(Ae)+' &times; '+Fu+' = <span class="cval">'+f3(Pn_net)+' kips</span></div>'
+       +'<div class="mrow">&Omega; = 2.00 &nbsp;|&nbsp; P<sub>a</sub> = '+f3(Pn_net)+'/2.00 = <span class="cval">'+f2(Pa_net)+' kips</span></div>'},
+    {n:'Net Rupture (LRFD)', nt:'&phi;=0.75', r:'D3-1',
+     d:f2(PLRFD)+' kips', c:f2(Pu_net)+' kips',
+     dc:dc_nr_lrfd,
+     det:'<div class="cref-hdr">D3-1 LRFD (&phi; = 0.75)</div>'
+       +'<div class="mrow"><span class="ceq">&phi;P<sub>n</sub></span> = 0.75 &times; '+f3(Pn_net)+' = <span class="cval">'+f2(Pu_net)+' kips</span></div>'}
+  ];
+
+  renderChecks('chk1',chks);
+  renderDem('dem1',[
+    {v:f2(PASD)+' k',l:'P<sub>ASD</sub> = D+L'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub> = 1.2D+1.6L'},
+    {v:f1(Lt),l:'L/t ratio'},{v:useEq3?'Eq.J2.5-3':'Eq.J2.5-2',l:'Governing equation'},
+    {v:f2(Pa_sheet)+' k',l:'Sheet shear (ASD)',alt:true},{v:f2(Pa_gross)+' k',l:'Gross yield (ASD)',alt:true}
+  ]);
+  renderSummary('sum1',chks,'J2.5 Fillet Lap — Fy='+Fy+' ksi, Fu='+Fu+' ksi');
+  showRes('res1');
+}
+
+// ─── IV-2 : J2.2 Arc Spot Weld ───────────────────────────────────────────────
+function calcIV2(){
+  var t=gv('iv2_t'),d=gv('iv2_d'),w=gv('iv2_w'),n=gv('iv2_n');
+  var e=gv('iv2_e'),s_sp=gv('iv2_s');
+  var Fy=gv('iv2_Fy'),Fu=gv('iv2_Fu'),Fxx=gv('iv2_Fxx');
+  var P1=gv('iv2_Pv'),P2=gv('iv2_Pt'); // total shear and tension ASD demands
+
+  // Effective diameters
+  var da=d-t;  // J2.2.2.1: da = d - t (sheet shear, weld tension)
+  var de_calc=Math.min(0.7*d-1.5*t, 0.55*d); // J2.2.2.1-5 effective weld diameter
+  var de=Math.max(de_calc, 3/8); // minimum 3/8" requires special welding procedures
+  var de_ok=(de_calc>=3/8);
+  var Aw=Math.PI*de*de/4; // weld area based on de for weld metal shear
+
+  // ── J2.2.2.1-1: Weld metal shear (Ω=2.55, φ=0.60) — uses de
+  var Pn_wm_ea=0.75*Aw*Fxx; // per weld
+  var Om_wm=2.55, phi_wm=0.60;
+  var Pa_wm=n*Pn_wm_ea/Om_wm, Pu_wm=phi_wm*n*Pn_wm_ea;
+
+  // ── J2.2.2.1-2: Sheet shear around weld (Ω=2.20, φ=0.70) — uses da
+  var Pn_sh_ea=2.20*t*da*Fu; // per weld
+  var Om_sh=2.20, phi_sh=0.70;
+  var Pa_sh=n*Pn_sh_ea/Om_sh, Pu_sh=phi_sh*n*Pn_sh_ea;
+
+  // ── J6.1 Shear Rupture: Anv = 2n*(e_end - d/2)*t — each weld has 2 shear planes to nearest end
+  // e = end/edge distance in direction of load
+  var Anv_sr=2*n*(e-d/2)*t;
+  var Pn_sr=0.6*Fu*Anv_sr;
+  var Om_sr=2.50, phi_sr=0.60;
+  var Pa_sr=Pn_sr/Om_sr, Pu_sr=phi_sr*Pn_sr;
+
+  // ── J6.3 Block Shear: 2 outer shear planes (length=e) + 1 tension plane (length=s-d)
+  var Agv_bs=2*e*t;          // 2 outer shear planes
+  var Anv_bs=2*(e-d/2)*t;    // net (deduct half-hole at each)
+  var Ant_bs=(s_sp-d)*t;     // tension plane between welds (net)
+  var Pn_bs1=0.6*Fu*Anv_bs + Fu*Ant_bs;
+  var Pn_bs2=0.6*Fy*Agv_bs + Fu*Ant_bs;
+  var Pn_bs=Math.min(Pn_bs1,Pn_bs2);
+  var Om_bs=2.50, phi_bs=0.60;
+  var Pa_bs=Pn_bs/Om_bs, Pu_bs=phi_bs*Pn_bs;
+
+  // ── J6.2 Tension Rupture (rational per A1.2(c), Ω=3.00, φ=0.55)
+  // Shear lag factor: Usl = 0.9 + 0.1*(da/s_avg) where s_avg = w/n
+  var s_avg=w/n;
+  var Usl=0.9+0.1*(da/s_avg);
+  var Ant_tr=(w-n*da)*t; // net tension area
+  var Ae_tr=Usl*Ant_tr;
+  var Pn_tr=Fu*Ae_tr;
+  var Om_tr=3.00, phi_tr=0.55;
+  var Pa_tr=Pn_tr/Om_tr, Pu_tr=phi_tr*Pn_tr;
+
+  // ── J2.2.3 Weld Tension: min of weld metal (J2.2.3-1) and sheet (J2.2.3-2)
+  // J2.2.3-1: Pnt = (π/4)*de²*Fxx  (no 0.75 factor in tension)
+  var Pnt_wm_ea=Aw*Fxx; // per weld (Aw uses de)
+  // J2.2.3-2: Pnt = 0.8*(Fu/Fy)²*t*da*Fu  (sheet governs typically)
+  var Pnt_sh_ea=0.8*Math.pow(Fu/Fy,2)*t*da*Fu; // per weld
+  var Pnt_ea=Math.min(Pnt_wm_ea, Pnt_sh_ea); // governing per weld
+  var wt_governs=(Pnt_wm_ea<=Pnt_sh_ea)?'J2.2.3-1':'J2.2.3-2';
+  var Om_wt=3.00, phi_wt=0.50;
+  var Pa_wt=n*Pnt_ea/Om_wt, Pu_wt=phi_wt*n*Pnt_ea;
+
+  // ── J2.2.4 Combined (1.5-power interaction), per weld
+  // Pav per weld = sheet shear governs between weld-metal and sheet
+  var Pav_ea=Math.min(Pn_wm_ea/Om_wm, Pn_sh_ea/Om_sh); // governing ASD cap per weld
+  var Pat_ea=Pnt_ea/Om_wt; // ASD tension cap per weld
+  var V_ea=P1/n, T_ea=P2/n; // demand per weld
+  var T_check=T_ea/Pat_ea; // must check if > 0.15 to use full interaction
+  var IC_asd=0;
+  if(T_check>0.15){
+    IC_asd=Math.pow(V_ea/Pav_ea,1.5)+Math.pow(T_ea/Pat_ea,1.5);
+  } else {
+    IC_asd=V_ea/Pav_ea; // tension negligible, just shear D/C
+  }
+
+  var dc_wm=P1/Pa_wm, dc_sh=P1/Pa_sh, dc_sr=P1/Pa_sr, dc_bs=P1/Pa_bs;
+  var dc_tr=P2/Pa_tr, dc_wt=P2/Pa_wt;
+
+  var chks=[
+    {n:'Weld Metal Shear (ASD)',nt:'d<sub>e</sub>='+f3(de)+' in'+(de_ok?'':' ⚠ &lt;3/8"'), r:'J2.2.2.1-1',
+     d:f2(P1)+' k', c:f2(Pa_wm)+' k', dc:dc_wm,
+     det:'<div class="cref-hdr">J2.2.2.1-1 Weld Metal Shear (uses d<sub>e</sub>)</div>'
+       +'<div class="mrow">d<sub>e</sub> = min(0.7d&minus;1.5t, 0.55d) = min('+f3(0.7*d-1.5*t)+', '+f3(0.55*d)+') = <span class="cval">'+f3(de_calc)+' in</span>'+(de_ok?'':' → use min 3/8"')+'</div>'
+       +'<div class="mrow">A<sub>w</sub> = &pi;d<sub>e</sub>&sup2;/4 = &pi;('+f3(de)+')/4 = <span class="cval">'+f4(Aw)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>n</sub>/weld = 0.75&times;A<sub>w</sub>&times;F<sub>xx</sub> = 0.75&times;'+f4(Aw)+'&times;'+Fxx+' = <span class="cval">'+f3(Pn_wm_ea)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.55 | P<sub>a</sub> = '+n+'&times;'+f3(Pn_wm_ea)+'/2.55 = <span class="cval">'+f2(Pa_wm)+' k</span></div>'},
+    {n:'Sheet Shear (ASD)',nt:'2.20·t·d<sub>a</sub>·F<sub>u</sub> — governs shear', r:'J2.2.2.1-2',
+     d:f2(P1)+' k', c:f2(Pa_sh)+' k', dc:dc_sh, stiff:true,
+     det:'<div class="cref-hdr">J2.2.2.1-2 Sheet Shear (uses d<sub>a</sub>=d&minus;t)</div>'
+       +'<div class="mrow">d<sub>a</sub> = '+d+'&minus;'+t+' = <span class="cval">'+f3(da)+' in</span></div>'
+       +'<div class="mrow">P<sub>n</sub>/weld = 2.20&times;t&times;d<sub>a</sub>&times;F<sub>u</sub> = 2.20&times;'+t+'&times;'+f3(da)+'&times;'+Fu+' = <span class="cval">'+f3(Pn_sh_ea)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.20 | P<sub>a</sub> = '+n+'&times;'+f3(Pn_sh_ea)+'/2.20 = <span class="cval">'+f2(Pa_sh)+' k</span></div>'},
+    {n:'Shear Rupture (ASD)',nt:'A<sub>nv</sub>=2n(e&minus;d/2)t — e=end dist.', r:'J6.1',
+     d:f2(P1)+' k', c:f2(Pa_sr)+' k', dc:dc_sr,
+     det:'<div class="cref-hdr">J6.1 Shear Rupture — each weld has 2 longitudinal shear planes</div>'
+       +'<div class="mrow">A<sub>nv</sub> = 2n(e&minus;d/2)t = 2&times;'+n+'&times;('+e+'&minus;'+f3(d/2)+')&times;'+t+' = <span class="cval">'+f4(Anv_sr)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>n</sub> = 0.6&times;F<sub>u</sub>&times;A<sub>nv</sub> = 0.6&times;'+Fu+'&times;'+f4(Anv_sr)+' = <span class="cval">'+f3(Pn_sr)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.50 | P<sub>a</sub> = <span class="cval">'+f2(Pa_sr)+' k</span></div>'},
+    {n:'Block Shear (ASD)',nt:'2 outer shear + 1 tension plane', r:'J6.3',
+     d:f2(P1)+' k', c:f2(Pa_bs)+' k', dc:dc_bs,
+     det:'<div class="cref-hdr">J6.3 Block Shear Rupture</div>'
+       +'<div class="mrow">A<sub>gv</sub> = 2&times;e&times;t = 2&times;'+e+'&times;'+t+' = <span class="cval">'+f4(Agv_bs)+' in&sup2;</span> (2 outer shear legs)</div>'
+       +'<div class="mrow">A<sub>nv</sub> = 2&times;(e&minus;d/2)&times;t = <span class="cval">'+f4(Anv_bs)+' in&sup2;</span></div>'
+       +'<div class="mrow">A<sub>nt</sub> = (s&minus;d)&times;t = ('+s_sp+'&minus;'+d+')&times;'+t+' = <span class="cval">'+f4(Ant_bs)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>n1</sub> = 0.6F<sub>u</sub>A<sub>nv</sub>+F<sub>u</sub>A<sub>nt</sub> = '+f3(Pn_bs1)+' k &nbsp;(Eq. J6.3-2)</div>'
+       +'<div class="mrow">P<sub>n2</sub> = 0.6F<sub>y</sub>A<sub>gv</sub>+F<sub>u</sub>A<sub>nt</sub> = '+f3(Pn_bs2)+' k &nbsp;(Eq. J6.3-1 &mdash; governs)</div>'
+       +'<div class="mrow">P<sub>n</sub> = min = <span class="cval">'+f3(Pn_bs)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.50 | P<sub>a</sub> = <span class="cval">'+f2(Pa_bs)+' k</span></div>'},
+    {n:'Tension Rupture (ASD)',nt:'U<sub>sl</sub>='+f3(Usl)+', A<sub>e</sub>=U<sub>sl</sub>&times;A<sub>nt</sub>', r:'J6.2',
+     d:f2(P2)+' k', c:f2(Pa_tr)+' k', dc:dc_tr,
+     det:'<div class="cref-hdr">J6.2 Tension Rupture — rational per A1.2(c)</div>'
+       +'<div class="mrow">s<sub>avg</sub> = w/n = '+w+'/'+n+' = <span class="cval">'+f3(s_avg)+' in</span></div>'
+       +'<div class="mrow">U<sub>sl</sub> = 0.9 + 0.1&times;(d<sub>a</sub>/s<sub>avg</sub>) = 0.9 + 0.1&times;('+f3(da)+'/'+f3(s_avg)+') = <span class="cval">'+f3(Usl)+'</span></div>'
+       +'<div class="mrow">A<sub>nt</sub> = (w&minus;n&times;d<sub>a</sub>)&times;t = <span class="cval">'+f4(Ant_tr)+' in&sup2;</span></div>'
+       +'<div class="mrow">A<sub>e</sub> = U<sub>sl</sub>&times;A<sub>nt</sub> = '+f3(Usl)+'&times;'+f4(Ant_tr)+' = <span class="cval">'+f4(Ae_tr)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>nt</sub> = F<sub>u</sub>&times;A<sub>e</sub> = '+Fu+'&times;'+f4(Ae_tr)+' = <span class="cval">'+f3(Pn_tr)+' k</span></div>'
+       +'<div class="mrow">&Omega;=3.00 | P<sub>a</sub> = <span class="cval">'+f2(Pa_tr)+' k</span></div>'},
+    {n:'Weld Tension (ASD)',nt:'min(J2.2.3-1 weld, J2.2.3-2 sheet) = '+wt_governs, r:'J2.2.3',
+     d:f2(P2)+' k', c:f2(Pa_wt)+' k', dc:dc_wt, stiff:true,
+     det:'<div class="cref-hdr">J2.2.3 Weld Tension (min of weld metal and sheet)</div>'
+       +'<div class="mrow">J2.2.3-1 (weld metal): P<sub>nt</sub> = A<sub>w</sub>&times;F<sub>xx</sub> = '+f4(Aw)+'&times;'+Fxx+' = <span class="cval">'+f3(Pnt_wm_ea)+' k/weld</span></div>'
+       +'<div class="mrow">J2.2.3-2 (sheet): P<sub>nt</sub> = 0.8(F<sub>u</sub>/F<sub>y</sub>)&sup2;&times;t&times;d<sub>a</sub>&times;F<sub>u</sub> = <span class="cval">'+f3(Pnt_sh_ea)+' k/weld</span></div>'
+       +'<div class="mrow">Governing: '+wt_governs+' = <span class="cval">'+f3(Pnt_ea)+' k/weld</span></div>'
+       +'<div class="mrow">&Omega;=3.00 | P<sub>a</sub> = '+n+'&times;'+f3(Pnt_ea)+'/3.00 = <span class="cval">'+f2(Pa_wt)+' k</span></div>'},
+    {n:'Combined V+T (ASD)',nt:'1.5-power interaction per weld', r:'J2.2.4-1',
+     d:'IC='+f3(IC_asd), c:'IC &le; 1.0', dc:IC_asd, stiff:true,
+     det:'<div class="cref-hdr">J2.2.4-1 Combined Shear+Tension (1.5-power exponent)</div>'
+       +'<div class="mrow">(V/P<sub>av</sub>)<sup>1.5</sup> + (T/P<sub>at</sub>)<sup>1.5</sup> &le; 1.0 &nbsp; [if T/P<sub>at</sub> &gt; 0.15]</div>'
+       +'<div class="mrow">V/weld = '+f2(P1)+'/'+n+' = <span class="cval">'+f3(V_ea)+' k</span> &nbsp;|&nbsp; P<sub>av</sub>/weld = <span class="cval">'+f3(Pav_ea)+' k</span></div>'
+       +'<div class="mrow">T/weld = '+f2(P2)+'/'+n+' = <span class="cval">'+f3(T_ea)+' k</span> &nbsp;|&nbsp; P<sub>at</sub>/weld = <span class="cval">'+f3(Pat_ea)+' k</span></div>'
+       +'<div class="mrow">T/P<sub>at</sub> = '+f3(T_check)+(T_check>0.15?' > 0.15 → full interaction':' &le; 0.15 → shear only')+'</div>'
+       +'<div class="mrow">IC = ('+f3(V_ea/Pav_ea)+')<sup>1.5</sup> + ('+f3(T_ea/Pat_ea)+')<sup>1.5</sup> = <span class="cval">'+f3(IC_asd)+'</span></div>'}
+  ];
+
+  renderChecks('chk2',chks);
+  renderDem('dem2',[
+    {v:f2(P1)+' k',l:'P<sub>1</sub> shear (ASD)'},{v:f2(P2)+' k',l:'P<sub>2</sub> tension (ASD)'},
+    {v:f3(da)+' in',l:'d<sub>a</sub>=d&minus;t'},{v:f3(de)+' in',l:'d<sub>e</sub> (weld metal)'},
+    {v:f2(Pa_bs)+' k',l:'Block shear (ASD) ← governs',alt:true},{v:f3(IC_asd),l:'Combined IC',alt:true}
+  ]);
+  renderSummary('sum2',chks,'J2.2 Arc Spot — Fy='+Fy+' ksi, Fu='+Fu+' ksi');
+  showRes('res2');
+}
+
+// ─── IV-3 : J2.3 Arc Seam Weld ───────────────────────────────────────────────
+function calcIV3(){
+  var t=gv('iv3_t'),d=gv('iv3_d'),L=gv('iv3_L'),w=gv('iv3_w'),n=gv('iv3_n');
+  var e=gv('iv3_e'),Fy=gv('iv3_Fy'),Fu=gv('iv3_Fu'),Fxx=gv('iv3_Fxx');
+  var Pasd=gv('iv3_Pasd'),Plrfd=gv('iv3_Plrfd');
+
+  // Arc seam effective diameters (J2.3.2.1)
+  var da=d-t;                    // Eq. J2.3.2.1-4: da = d - t  (for base metal)
+  var de=0.7*d-1.5*t;            // Eq. J2.3.2.1-3: de for weld metal area
+  // Effective weld area (J2.3.2.1-1): Aw = π*de²/4 + L*de
+  var Aw_seam=(Math.PI/4)*de*de + L*de;
+
+  // ── J2.3.2.1-1 Weld metal shear: Pn = 0.75*Aw*Fxx (Ω=2.55, φ=0.60)
+  var Pn_wm=0.75*Aw_seam*Fxx; // per weld
+  var Om=2.55, phi=0.60;
+  var Pa_wm=n*Pn_wm/Om, Pu_wm=phi*n*Pn_wm;
+
+  // ── J2.3.2.1-2 Base metal shear: Pn = 2.5*t*Fu*(0.25*L + 0.96*da) (Ω=2.55, φ=0.60)
+  var Pn_bm=2.5*t*Fu*(0.25*L + 0.96*da); // per weld
+  var Pa_bm=n*Pn_bm/Om, Pu_bm=phi*n*Pn_bm;
+
+  // ── J6.1 Shear Rupture: Anv = 2*n*(e - d/2)*t  (e = edge distance)
+  var e_net=e-d/2;
+  var Anv=2*n*e_net*t;
+  var Pn_sr=0.6*Fu*Anv;
+  var Om_sr=2.50, phi_sr=0.60;
+  var Pa_sr=Pn_sr/Om_sr, Pu_sr=phi_sr*Pn_sr;
+
+  // ── J6.2 Tension Rupture (Ω=2.50, φ=0.60 — per J6.2 direct, not rational)
+  // Effective hole length for arc seam = L + d  (Eq. J6.2-3 modified)
+  var dh=L+d;
+  var An_t=(w - n*dh)*t; if(An_t<0)An_t=0;
+  var Usl_t=(n===1)?1.0:(0.9+0.1*(da/(w/n))); // Usl=1.0 for single weld (J6.2-4)
+  var Ae_t=Usl_t*An_t;
+  var Pn_tr=Fu*Ae_t;
+  var Om_tr=2.50, phi_tr=0.60;
+  var Pa_tr=Pn_tr/Om_tr, Pu_tr=phi_tr*Pn_tr;
+
+  // ── D2-1 Gross Section Yielding
+  var Ag=w*t;
+  var Pn_gy=Ag*Fy;
+  var Pa_gy=Pn_gy/1.67, Pu_gy=0.90*Pn_gy;
+
+  // ── D3-1 Net Rupture (full width, no holes away from connection)
+  var An_net=w*t; // holes away from connection, full width
+  var Pn_nr=An_net*Fu;
+  var Pa_nr=Pn_nr/2.00, Pu_nr=0.75*Pn_nr;
+
+  var dc_wm_asd=Pasd/Pa_wm, dc_wm_lrfd=Plrfd/Pu_wm;
+  var dc_bm_asd=Pasd/Pa_bm, dc_bm_lrfd=Plrfd/Pu_bm;
+  var dc_sr_asd=Pasd/Pa_sr, dc_tr_asd=Pasd/Pa_tr;
+
+  var chks=[
+    {n:'Weld Metal Shear (ASD)',nt:'A<sub>w</sub>=πd<sub>e</sub>²/4+Ld<sub>e</sub>', r:'J2.3.2.1-1',
+     d:f2(Pasd)+' k', c:f2(Pa_wm)+' k', dc:dc_wm_asd,
+     det:'<div class="cref-hdr">J2.3.2.1-1 Weld Metal Shear</div>'
+       +'<div class="mrow">d<sub>e</sub> = 0.7d&minus;1.5t = 0.7&times;'+d+'&minus;1.5&times;'+t+' = <span class="cval">'+f3(de)+' in</span></div>'
+       +'<div class="mrow">A<sub>w</sub> = &pi;d<sub>e</sub>&sup2;/4 + L&middot;d<sub>e</sub> = &pi;('+f3(de)+')/4 + '+L+'&times;'+f3(de)+' = <span class="cval">'+f4(Aw_seam)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>n</sub>/weld = 0.75&times;'+f4(Aw_seam)+'&times;'+Fxx+' = <span class="cval">'+f3(Pn_wm)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.55 | P<sub>a</sub> = '+n+'&times;'+f3(Pn_wm)+'/2.55 = <span class="cval">'+f2(Pa_wm)+' k</span></div>'},
+    {n:'Weld Metal Shear (LRFD)',nt:'&phi;=0.60', r:'J2.3.2.1-1',
+     d:f2(Plrfd)+' k', c:f2(Pu_wm)+' k', dc:dc_wm_lrfd,
+     det:'<div class="cref-hdr">J2.3.2.1-1 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.60&times;'+n+'&times;'+f3(Pn_wm)+' = <span class="cval">'+f2(Pu_wm)+' k</span></div>'},
+    {n:'Base Metal Shear (ASD)',nt:'2.5tF<sub>u</sub>(0.25L+0.96d<sub>a</sub>) ← governs', r:'J2.3.2.1-2',
+     d:f2(Pasd)+' k', c:f2(Pa_bm)+' k', dc:dc_bm_asd, stiff:true,
+     det:'<div class="cref-hdr">J2.3.2.1-2 Base Metal Shear (d<sub>a</sub>=d&minus;t)</div>'
+       +'<div class="mrow">d<sub>a</sub> = d&minus;t = '+d+'&minus;'+t+' = <span class="cval">'+f3(da)+' in</span></div>'
+       +'<div class="mrow">P<sub>n</sub>/weld = 2.5&times;'+t+'&times;'+Fu+'&times;(0.25&times;'+L+' + 0.96&times;'+f3(da)+') = <span class="cval">'+f3(Pn_bm)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.55 | P<sub>a</sub> = '+n+'&times;'+f3(Pn_bm)+'/2.55 = <span class="cval">'+f2(Pa_bm)+' k</span></div>'},
+    {n:'Base Metal Shear (LRFD)',nt:'&phi;=0.60', r:'J2.3.2.1-2',
+     d:f2(Plrfd)+' k', c:f2(Pu_bm)+' k', dc:dc_bm_lrfd, stiff:true,
+     det:'<div class="cref-hdr">J2.3.2.1-2 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.60&times;'+n+'&times;'+f3(Pn_bm)+' = <span class="cval">'+f2(Pu_bm)+' k</span></div>'},
+    {n:'Shear Rupture (ASD)',nt:'A<sub>nv</sub>=2n(e&minus;d/2)t', r:'J6.1',
+     d:f2(Pasd)+' k', c:f2(Pa_sr)+' k', dc:dc_sr_asd,
+     det:'<div class="cref-hdr">J6.1 Shear Rupture</div>'
+       +'<div class="mrow">e<sub>net</sub> = e&minus;d/2 = '+e+'&minus;'+f3(d/2)+' = <span class="cval">'+f3(e_net)+' in</span></div>'
+       +'<div class="mrow">A<sub>nv</sub> = 2&times;'+n+'&times;'+f3(e_net)+'&times;'+t+' = <span class="cval">'+f4(Anv)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>n</sub> = 0.6&times;'+Fu+'&times;'+f4(Anv)+' = <span class="cval">'+f3(Pn_sr)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.50 | P<sub>a</sub> = <span class="cval">'+f2(Pa_sr)+' k</span></div>'},
+    {n:'Tension Rupture (ASD)',nt:'d<sub>h</sub>=L+d, U<sub>sl</sub>='+f2(Usl_t), r:'J6.2',
+     d:f2(Pasd)+' k', c:f2(Pa_tr)+' k', dc:dc_tr_asd,
+     det:'<div class="cref-hdr">J6.2 Tension Rupture (&Omega;=2.50)</div>'
+       +'<div class="mrow">d<sub>h</sub> = L+d = '+L+'+'+d+' = <span class="cval">'+f3(dh)+' in</span></div>'
+       +'<div class="mrow">A<sub>nt</sub> = (w&minus;n&middot;d<sub>h</sub>)&times;t = ('+w+'&minus;'+n+'&times;'+f3(dh)+')&times;'+t+' = <span class="cval">'+f4(An_t)+' in&sup2;</span></div>'
+       +'<div class="mrow">U<sub>sl</sub> = <span class="cval">'+f2(Usl_t)+'</span> &nbsp;A<sub>e</sub> = '+f2(Usl_t)+'&times;'+f4(An_t)+' = <span class="cval">'+f4(Ae_t)+' in&sup2;</span></div>'
+       +'<div class="mrow">P<sub>nt</sub> = '+Fu+'&times;'+f4(Ae_t)+' = <span class="cval">'+f3(Pn_tr)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.50 | P<sub>a</sub> = <span class="cval">'+f2(Pa_tr)+' k</span></div>'},
+    {n:'Gross Yielding (ASD)',nt:'A<sub>g</sub>=w&times;t', r:'D2-1',
+     d:f2(Pasd)+' k', c:f2(Pa_gy)+' k', dc:Pasd/Pa_gy,
+     det:'<div class="cref-hdr">D2-1 Gross Section Yielding</div>'
+       +'<div class="mrow">P<sub>n</sub> = A<sub>g</sub>F<sub>y</sub> = '+w+'&times;'+t+'&times;'+Fy+' = <span class="cval">'+f3(Pn_gy)+' k</span></div>'
+       +'<div class="mrow">&Omega;=1.67 | P<sub>a</sub> = <span class="cval">'+f2(Pa_gy)+' k</span></div>'},
+    {n:'Net Rupture (ASD)',nt:'Full width (away from conn.)', r:'D3-1',
+     d:f2(Pasd)+' k', c:f2(Pa_nr)+' k', dc:Pasd/Pa_nr,
+     det:'<div class="cref-hdr">D3-1 Net Section Rupture (away from connection)</div>'
+       +'<div class="mrow">P<sub>n</sub> = w&times;t&times;F<sub>u</sub> = '+w+'&times;'+t+'&times;'+Fu+' = <span class="cval">'+f3(Pn_nr)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.00 | P<sub>a</sub> = <span class="cval">'+f2(Pa_nr)+' k</span></div>'}
+  ];
+
+  renderChecks('chk3',chks);
+  renderDem('dem3',[
+    {v:f2(Pasd)+' k',l:'P<sub>ASD</sub>'},{v:f2(Plrfd)+' k',l:'P<sub>LRFD</sub>'},
+    {v:f3(de)+' in',l:'d<sub>e</sub> (weld)'},{v:f3(da)+' in',l:'d<sub>a</sub>=d&minus;t'},
+    {v:f2(Pa_bm)+' k',l:'Base metal (ASD) ← governs',alt:true},{v:f2(Pa_sr)+' k',l:'Shear rupture (ASD)',alt:true}
+  ]);
+  renderSummary('sum3',chks,'J2.3 Arc Seam — Fy='+Fy+' ksi, Fu='+Fu+' ksi');
+  showRes('res3');
+}
+
+// ─── IV-4 : J2.6 Flare-Bevel t≤0.10 ─────────────────────────────────────────
+function calcIV4(){
+  var t=gv('iv4_t'),Fy=gv('iv4_Fy'),Fu=gv('iv4_Fu');
+  var Pd=gv('iv4_Pd'),Pl=gv('iv4_Pl');
+  var dir=document.getElementById('iv4_dir').value;
+
+  var PASD=Pd+Pl;
+  var PLRFD=1.2*Pd+1.6*Pl;
+
+  // J2.6(a) t≤0.10: Pn = 0.833*t*L*Fu  (Ω=2.55, φ=0.60)
+  // Solve for required L
+  var Om=2.55, phi=0.60;
+  // ASD: Pn/Ω = Pa → Pn = Ω*Pa = Ω*PASD
+  // 0.833*t*Lreq*Fu = Ω*PASD → Lreq = Ω*PASD/(0.833*t*Fu)
+  var Lreq_asd=Om*PASD/(0.833*t*Fu);
+  var Lreq_lrfd=PLRFD/(phi*0.833*t*Fu);
+  var Lreq=Math.max(Lreq_asd,Lreq_lrfd);
+
+  // Capacity for the required length:
+  var Pn_at_Lreq=0.833*t*Lreq*Fu;
+  var Pa_at_Lreq=Pn_at_Lreq/Om;
+  var Pu_at_Lreq=phi*Pn_at_Lreq;
+
+  // D/C at required length = exactly 1.0 for governing case
+  var dc_asd=PASD/Pa_at_Lreq;
+  var dc_lrfd=PLRFD/Pu_at_Lreq;
+
+  var chks=[
+    {n:'Weld Shear — Req\'d Length (ASD)',nt:'t='+t+'≤0.10 in, P<sub>n</sub>=0.833tLF<sub>u</sub>', r:'J2.6(a)',
+     d:f2(PASD)+' k', c:'L<sub>req</sub>='+f2(Lreq_asd)+' in',
+     dc:dc_asd,
+     det:'<div class="cref-hdr">J2.6(a) Flare-Bevel, t &le; 0.10 in</div>'
+       +'<div class="mrow">P<sub>n</sub> = 0.833 &middot; t &middot; L &middot; F<sub>u</sub></div>'
+       +'<div class="mrow">L<sub>req</sub> = &Omega;&middot;P / (0.833&middot;t&middot;F<sub>u</sub>)</div>'
+       +'<div class="mrow ind">= '+Om+'&times;'+f2(PASD)+' / (0.833&times;'+t+'&times;'+Fu+') = <span class="cval">'+f2(Lreq_asd)+' in (ASD governs)</span></div>'
+       +'<div class="mrow">L<sub>req,LRFD</sub> = '+f2(Lreq_lrfd)+' in</div>'
+       +'<div class="mrow"><strong>Use L<sub>req</sub> = '+f2(Lreq)+' in</strong></div>'},
+    {n:'Weld Shear — Req\'d Length (LRFD)',nt:'&phi;=0.60', r:'J2.6(a)',
+     d:f2(PLRFD)+' k', c:'L<sub>req</sub>='+f2(Lreq_lrfd)+' in',
+     dc:dc_lrfd,
+     det:'<div class="cref-hdr">J2.6(a) LRFD</div>'
+       +'<div class="mrow">L<sub>req</sub> = P<sub>u</sub> / (&phi;&middot;0.833&middot;t&middot;F<sub>u</sub>)</div>'
+       +'<div class="mrow ind">= '+f2(PLRFD)+' / ('+phi+'&times;0.833&times;'+t+'&times;'+Fu+') = <span class="cval">'+f2(Lreq_lrfd)+' in</span></div>'}
+  ];
+
+  renderChecks('chk4',chks);
+  renderDem('dem4',[
+    {v:f2(PASD)+' k',l:'P<sub>ASD</sub>'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub>'},
+    {v:f2(Lreq_asd)+' in',l:'L<sub>req</sub> (ASD)',alt:true},{v:f2(Lreq_lrfd)+' in',l:'L<sub>req</sub> (LRFD)',alt:true}
+  ]);
+  renderSummary('sum4',chks,'J2.6 Flare-Bevel t≤0.10 — Fu='+Fu+' ksi, t='+t+' in');
+  showRes('res4');
+}
+
+// ─── IV-5 : J2.6 Flare-Bevel t>0.10 ─────────────────────────────────────────
+function calcIV5(){
+  var t=gv('iv5_t'),R=gv('iv5_R'),w1=gv('iv5_w1'),w2=gv('iv5_w2'),L=gv('iv5_L');
+  var Fy=gv('iv5_Fy'),Fu=gv('iv5_Fu'),Fxx=gv('iv5_Fxx');
+  var Pd=gv('iv5_Pd'),Pl=gv('iv5_Pl');
+
+  var PASD=Pd+Pl, PLRFD=1.2*Pd+1.6*Pl;
+
+  // J2.6 Table: for t>0.10, full flare bevel: tw_full = 5/16*R
+  var tw_full=0.625*R; // = 5/8*R (per J2.6 Table footnote for full fill)
+  // Average measured weld width
+  var w_avg=(w1+w2)/2;
+  // Effective throat: tw = min(tw_full, w_avg * 0.707) — use actual fill if less
+  var tw=Math.min(tw_full, w_avg); // conservative: use w_avg as throat if < full
+
+  // ── Weld metal (J2.6): Pn = 0.75*tw*L*Fxx (Ω=2.80, φ=0.55)
+  var Pn_wm=0.75*tw*L*Fxx;
+  var Om_wm=2.80, phi_wm=0.55;
+  var Pa_wm=Pn_wm/Om_wm, Pu_wm=phi_wm*Pn_wm;
+
+  // ── Sheet metal (J2.6): Pn = 1.50*t*L*Fu (Ω=2.80, φ=0.55)
+  var Pn_sh=1.50*t*L*Fu;
+  var Pa_sh=Pn_sh/Om_wm, Pu_sh=phi_wm*Pn_sh;
+
+  var dc_wm_asd=PASD/Pa_wm, dc_wm_lrfd=PLRFD/Pu_wm;
+  var dc_sh_asd=PASD/Pa_sh, dc_sh_lrfd=PLRFD/Pu_sh;
+
+  var chks=[
+    {n:'Weld Metal (ASD)',nt:'t<sub>w</sub>=min(0.625R, w̄)', r:'J2.6',
+     d:f2(PASD)+' k', c:f2(Pa_wm)+' k', dc:dc_wm_asd,
+     det:'<div class="cref-hdr">J2.6 Weld Metal Shear (t&gt;0.10 in)</div>'
+       +'<div class="mrow">t<sub>w,full</sub> = 0.625R = 0.625&times;'+R+' = <span class="cval">'+f4(tw_full)+' in</span></div>'
+       +'<div class="mrow">w&#772; = ('+w1+'+'+w2+')/2 = <span class="cval">'+f4(w_avg)+' in</span></div>'
+       +'<div class="mrow">t<sub>w</sub> = min('+f4(tw_full)+', '+f4(w_avg)+') = <span class="cval">'+f4(tw)+' in</span></div>'
+       +'<div class="mrow">P<sub>n</sub> = 0.75&middot;t<sub>w</sub>&middot;L&middot;F<sub>xx</sub> = 0.75&times;'+f4(tw)+'&times;'+L+'&times;'+Fxx+' = <span class="cval">'+f3(Pn_wm)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.80 | P<sub>a</sub> = <span class="cval">'+f2(Pa_wm)+' k</span></div>'},
+    {n:'Weld Metal (LRFD)',nt:'&phi;=0.55', r:'J2.6',
+     d:f2(PLRFD)+' k', c:f2(Pu_wm)+' k', dc:dc_wm_lrfd,
+     det:'<div class="cref-hdr">J2.6 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.55&times;'+f3(Pn_wm)+' = <span class="cval">'+f2(Pu_wm)+' k</span></div>'},
+    {n:'Sheet Metal (ASD)',nt:'1.50·t·L·F<sub>u</sub> — governs when sheet&lt;weld', r:'J2.6',
+     d:f2(PASD)+' k', c:f2(Pa_sh)+' k', dc:dc_sh_asd, stiff:true,
+     det:'<div class="cref-hdr">J2.6 Sheet Metal Capacity</div>'
+       +'<div class="mrow">P<sub>n</sub> = 1.50&middot;t&middot;L&middot;F<sub>u</sub> = 1.50&times;'+t+'&times;'+L+'&times;'+Fu+' = <span class="cval">'+f3(Pn_sh)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.80 | P<sub>a</sub> = <span class="cval">'+f2(Pa_sh)+' k</span></div>'},
+    {n:'Sheet Metal (LRFD)',nt:'&phi;=0.55', r:'J2.6',
+     d:f2(PLRFD)+' k', c:f2(Pu_sh)+' k', dc:dc_sh_lrfd, stiff:true,
+     det:'<div class="cref-hdr">J2.6 Sheet Metal LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.55&times;'+f3(Pn_sh)+' = <span class="cval">'+f2(Pu_sh)+' k</span></div>'}
+  ];
+
+  renderChecks('chk5',chks);
+  renderDem('dem5',[
+    {v:f2(PASD)+' k',l:'P<sub>ASD</sub>'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub>'},
+    {v:f4(tw)+' in',l:'t<sub>w</sub> effective throat'},{v:f2(Pa_wm)+' k',l:'Weld metal (ASD)'},
+    {v:f2(Pa_sh)+' k',l:'Sheet metal (ASD)',alt:true},{v:f2(Math.min(Pa_wm,Pa_sh))+' k',l:'Governing',alt:true}
+  ]);
+  renderSummary('sum5',chks,'J2.6 Flare-Bevel t>0.10 — Fy='+Fy+' ksi, Fu='+Fu+' ksi');
+  showRes('res5');
+}
+
+// ─── IV-6 : J2.6 Flare V-Groove ──────────────────────────────────────────────
+function calcIV6(){
+  var t=gv('iv6_t'),R=gv('iv6_R'),d_fill=gv('iv6_d'),L=gv('iv6_L');
+  var Fy=gv('iv6_Fy'),Fu=gv('iv6_Fu'),Fxx=gv('iv6_Fxx');
+  var Pd=gv('iv6_Pd'),Pl=gv('iv6_Pl');
+
+  var PASD=Pd+Pl, PLRFD=1.2*Pd+1.6*Pl;
+
+  // J2.6 Table: Flare V-groove tw_full = 0.75*R
+  var tw_full=0.75*R;
+  var tw=tw_full - d_fill; // reduced by unfilled depression
+
+  // Same equations as flare bevel (Ω=2.80, φ=0.55)
+  var Pn_wm=0.75*tw*L*Fxx;
+  var Pn_sh=1.50*t*L*Fu;
+  var Om=2.80, phi=0.55;
+  var Pa_wm=Pn_wm/Om, Pu_wm=phi*Pn_wm;
+  var Pa_sh=Pn_sh/Om, Pu_sh=phi*Pn_sh;
+
+  var dc_wm_asd=PASD/Pa_wm, dc_wm_lrfd=PLRFD/Pu_wm;
+  var dc_sh_asd=PASD/Pa_sh, dc_sh_lrfd=PLRFD/Pu_sh;
+
+  var chks=[
+    {n:'Weld Metal (ASD)',nt:'t<sub>w</sub>=0.75R&minus;d<sub>fill</sub>', r:'J2.6',
+     d:f2(PASD)+' k', c:f2(Pa_wm)+' k', dc:dc_wm_asd,
+     det:'<div class="cref-hdr">J2.6 Flare V-Groove Weld Metal</div>'
+       +'<div class="mrow">t<sub>w,full</sub> = 0.75R = 0.75&times;'+R+' = <span class="cval">'+f4(tw_full)+' in</span></div>'
+       +'<div class="mrow">t<sub>w</sub> = t<sub>w,full</sub> &minus; d<sub>fill</sub> = '+f4(tw_full)+'&minus;'+d_fill+' = <span class="cval">'+f4(tw)+' in</span></div>'
+       +'<div class="mrow">P<sub>n</sub> = 0.75&middot;t<sub>w</sub>&middot;L&middot;F<sub>xx</sub> = 0.75&times;'+f4(tw)+'&times;'+L+'&times;'+Fxx+' = <span class="cval">'+f3(Pn_wm)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.80 | P<sub>a</sub> = <span class="cval">'+f2(Pa_wm)+' k</span></div>'},
+    {n:'Weld Metal (LRFD)',nt:'&phi;=0.55', r:'J2.6',
+     d:f2(PLRFD)+' k', c:f2(Pu_wm)+' k', dc:dc_wm_lrfd,
+     det:'<div class="cref-hdr">J2.6 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.55&times;'+f3(Pn_wm)+' = <span class="cval">'+f2(Pu_wm)+' k</span></div>'},
+    {n:'Sheet Metal (ASD)',nt:'1.50·t·L·F<sub>u</sub>', r:'J2.6',
+     d:f2(PASD)+' k', c:f2(Pa_sh)+' k', dc:dc_sh_asd, stiff:true,
+     det:'<div class="cref-hdr">J2.6 Sheet Metal Capacity</div>'
+       +'<div class="mrow">P<sub>n</sub> = 1.50&middot;t&middot;L&middot;F<sub>u</sub> = 1.50&times;'+t+'&times;'+L+'&times;'+Fu+' = <span class="cval">'+f3(Pn_sh)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.80 | P<sub>a</sub> = <span class="cval">'+f2(Pa_sh)+' k</span></div>'},
+    {n:'Sheet Metal (LRFD)',nt:'&phi;=0.55', r:'J2.6',
+     d:f2(PLRFD)+' k', c:f2(Pu_sh)+' k', dc:dc_sh_lrfd, stiff:true,
+     det:'<div class="cref-hdr">J2.6 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>n</sub> = 0.55&times;'+f3(Pn_sh)+' = <span class="cval">'+f2(Pu_sh)+' k</span></div>'}
+  ];
+
+  renderChecks('chk6',chks);
+  renderDem('dem6',[
+    {v:f2(PASD)+' k',l:'P<sub>ASD</sub>'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub>'},
+    {v:f4(tw)+' in',l:'t<sub>w</sub> effective throat'},{v:f2(Pa_wm)+' k',l:'Weld metal (ASD)'},
+    {v:f2(Pa_sh)+' k',l:'Sheet metal (ASD)',alt:true},{v:f2(Math.min(Pa_wm,Pa_sh))+' k',l:'Governing',alt:true}
+  ]);
+  renderSummary('sum6',chks,'J2.6 Flare V-Groove — Fy='+Fy+' ksi, Fu='+Fu+' ksi');
+  showRes('res6');
+}
+
+// ─── IV-7 : J2.1 Groove Butt Weld ────────────────────────────────────────────
+function calcIV7(){
+  var te=gv('iv7_te'),L=gv('iv7_L'),Fy=gv('iv7_Fy'),Fxx=gv('iv7_Fxx');
+  var Pd=gv('iv7_Pd'),Pl=gv('iv7_Pl');
+  var loadType=document.getElementById('iv7_type').value;
+
+  var PASD=Pd+Pl, PLRFD=1.2*Pd+1.6*Pl;
+  var A=L*te; // weld area
+
+  if(loadType==='tension'){
+    // Tension: Pn = L*te*Fy (Ω=1.70, φ=0.90)
+    var Pn_t=A*Fy;
+    var Pa_t=Pn_t/1.70, Pu_t=0.90*Pn_t;
+
+    var chks=[
+      {n:'Tension Yielding (ASD)',nt:'P<sub>n</sub>=L·t<sub>e</sub>·F<sub>y</sub>', r:'J2.1',
+       d:f2(PASD)+' k', c:f2(Pa_t)+' k', dc:PASD/Pa_t,
+       det:'<div class="cref-hdr">J2.1 Groove Butt — Tension</div>'
+         +'<div class="mrow">A = L&middot;t<sub>e</sub> = '+L+'&times;'+te+' = <span class="cval">'+f4(A)+' in&sup2;</span></div>'
+         +'<div class="mrow">P<sub>n</sub> = A&middot;F<sub>y</sub> = '+f4(A)+'&times;'+Fy+' = <span class="cval">'+f3(Pn_t)+' k</span></div>'
+         +'<div class="mrow">&Omega;=1.70 | P<sub>a</sub> = <span class="cval">'+f2(Pa_t)+' k</span></div>'},
+      {n:'Tension Yielding (LRFD)',nt:'&phi;=0.90', r:'J2.1',
+       d:f2(PLRFD)+' k', c:f2(Pu_t)+' k', dc:PLRFD/Pu_t,
+       det:'<div class="cref-hdr">J2.1 LRFD Tension</div>'
+         +'<div class="mrow">&phi;P<sub>n</sub> = 0.90&times;'+f3(Pn_t)+' = <span class="cval">'+f2(Pu_t)+' k</span></div>'}
+    ];
+    renderChecks('chk7',chks);
+    renderDem('dem7',[
+      {v:f2(PASD)+' k',l:'P<sub>ASD</sub>'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub>'},
+      {v:f4(A)+' in²',l:'Weld area'},{v:f2(Pa_t)+' k',l:'Tension cap (ASD)',alt:true}
+    ]);
+    renderSummary('sum7',chks,'J2.1 Groove Butt (Tension) — Fy='+Fy+' ksi');
+  } else {
+    // Shear: three checks
+    // 1) Weld shear: Pn = 0.6*Fxx*A (Ω=1.90, φ=0.80)
+    var Pn_ws=0.6*Fxx*A;
+    var Pa_ws=Pn_ws/1.90, Pu_ws=0.80*Pn_ws;
+    // 2) Base metal: Pn = Fy/sqrt(3)*A = 0.577*Fy*A (Ω=1.70, φ=0.90)
+    var Pn_bm=Fy/Math.sqrt(3)*A;
+    var Pa_bm=Pn_bm/1.70, Pu_bm=0.90*Pn_bm;
+    // 3) Tension yielding as reference (not shear check)
+    var Pn_ty=Fy*A;
+    var Pa_ty=Pn_ty/1.70, Pu_ty=0.90*Pn_ty;
+
+    var chks=[
+      {n:'Weld Shear (ASD)',nt:'0.6F<sub>xx</sub>·L·t<sub>e</sub>', r:'J2.1',
+       d:f2(PASD)+' k', c:f2(Pa_ws)+' k', dc:PASD/Pa_ws,
+       det:'<div class="cref-hdr">J2.1 Weld Shear</div>'
+         +'<div class="mrow">P<sub>n</sub> = 0.6&middot;F<sub>xx</sub>&middot;L&middot;t<sub>e</sub> = 0.6&times;'+Fxx+'&times;'+L+'&times;'+te+' = <span class="cval">'+f3(Pn_ws)+' k</span></div>'
+         +'<div class="mrow">&Omega;=1.90 | P<sub>a</sub> = <span class="cval">'+f2(Pa_ws)+' k</span></div>'},
+      {n:'Weld Shear (LRFD)',nt:'&phi;=0.80', r:'J2.1',
+       d:f2(PLRFD)+' k', c:f2(Pu_ws)+' k', dc:PLRFD/Pu_ws,
+       det:'<div class="cref-hdr">J2.1 LRFD Weld Shear</div>'
+         +'<div class="mrow">&phi;P<sub>n</sub> = 0.80&times;'+f3(Pn_ws)+' = <span class="cval">'+f2(Pu_ws)+' k</span></div>'},
+      {n:'Base Metal Shear (ASD)',nt:'F<sub>y</sub>/√3·L·t<sub>e</sub> — governs', r:'J2.1', stiff:true,
+       d:f2(PASD)+' k', c:f2(Pa_bm)+' k', dc:PASD/Pa_bm,
+       det:'<div class="cref-hdr">J2.1 Base Metal Shear (governs)</div>'
+         +'<div class="mrow">P<sub>n</sub> = (F<sub>y</sub>/&radic;3)&middot;L&middot;t<sub>e</sub> = ('+Fy+'/1.732)&times;'+L+'&times;'+te+' = <span class="cval">'+f3(Pn_bm)+' k</span></div>'
+         +'<div class="mrow">&Omega;=1.70 | P<sub>a</sub> = <span class="cval">'+f2(Pa_bm)+' k</span></div>'},
+      {n:'Base Metal Shear (LRFD)',nt:'&phi;=0.90', r:'J2.1', stiff:true,
+       d:f2(PLRFD)+' k', c:f2(Pu_bm)+' k', dc:PLRFD/Pu_bm,
+       det:'<div class="cref-hdr">J2.1 LRFD Base Metal Shear</div>'
+         +'<div class="mrow">&phi;P<sub>n</sub> = 0.90&times;'+f3(Pn_bm)+' = <span class="cval">'+f2(Pu_bm)+' k</span></div>'}
+    ];
+    renderChecks('chk7',chks);
+    renderDem('dem7',[
+      {v:f2(PASD)+' k',l:'P<sub>ASD</sub>'},{v:f2(PLRFD)+' k',l:'P<sub>LRFD</sub>'},
+      {v:f4(A)+' in²',l:'Weld area'},{v:f2(Pa_ws)+' k',l:'Weld shear (ASD)'},
+      {v:f2(Pa_bm)+' k',l:'Base metal (ASD)',alt:true},{v:f2(Math.min(Pa_ws,Pa_bm))+' k',l:'Governing',alt:true}
+    ]);
+    renderSummary('sum7',chks,'J2.1 Groove Butt (Shear) — Fy='+Fy+' ksi, Fxx='+Fxx+' ksi');
+  }
+  showRes('res7');
+}
+
+// ─── IV-8 : J2.4.1 Sidelap Arc Seam ─────────────────────────────────────────
+function calcIV8(){
+  var Lw=gv('iv8_Lw'),t=gv('iv8_t'),Fsy=gv('iv8_Fsy'),Fu=gv('iv8_Fu'),Fxx=gv('iv8_Fxx');
+  var hst=gv('iv8_hst'),s_prov=gv('iv8_s');
+  var Pasd=gv('iv8_Pasd'),Plrfd=gv('iv8_Plrfd');
+
+  // ── J2.4.1-1: Pnv = [4.0*(Fu/Fsy) - 1.52] * (t/Lw)^0.33 * Lw * t * Fu
+  var ratio=Fu/Fsy;
+  var bracket=4.0*ratio - 1.52;
+  var tLw_exp=Math.pow(t/Lw, 0.33);
+  var Pnv=bracket * tLw_exp * Lw * t * Fu;
+  // Ω=2.60, φ=0.60
+  var Om=2.60, phi=0.60;
+  var Pa_v=Pnv/Om, Pu_v=phi*Pnv;
+
+  // ── Min spacing (C-J2.4.1-1 Commentary):
+  // s_min = [6.67*(Fu/Fsy) - 2.53] * Lw * (t/Lw)^0.33
+  var s_min=(6.67*ratio - 2.53)*Lw*tLw_exp;
+  var spacing_ok=(s_prov>=s_min);
+
+  var dc_asd=Pasd/Pa_v, dc_lrfd=Plrfd/Pu_v;
+  // Spacing: dc = s_min/s_prov (pass if ≤1.0 i.e. s_prov ≥ s_min)
+  var dc_sp=s_min/s_prov;
+
+  var chks=[
+    {n:'Arc Seam Shear (ASD)',nt:'Eq. J2.4.1-1', r:'J2.4.1-1',
+     d:f3(Pasd)+' k', c:f3(Pa_v)+' k', dc:dc_asd,
+     det:'<div class="cref-hdr">J2.4.1-1 Top Arc Seam Sidelap Weld</div>'
+       +'<div class="mrow">F<sub>u</sub>/F<sub>sy</sub> = '+Fu+'/'+Fsy+' = <span class="cval">'+f4(ratio)+'</span></div>'
+       +'<div class="mrow">Bracket = 4.0&times;'+f4(ratio)+'&minus;1.52 = <span class="cval">'+f4(bracket)+'</span></div>'
+       +'<div class="mrow">(t/L<sub>w</sub>)<sup>0.33</sup> = ('+t+'/'+Lw+')<sup>0.33</sup> = <span class="cval">'+f4(tLw_exp)+'</span></div>'
+       +'<div class="mrow">P<sub>nv</sub> = '+f4(bracket)+'&times;'+f4(tLw_exp)+'&times;'+Lw+'&times;'+t+'&times;'+Fu+' = <span class="cval">'+f3(Pnv)+' k</span></div>'
+       +'<div class="mrow">&Omega;=2.60 | P<sub>a</sub> = '+f3(Pnv)+'/2.60 = <span class="cval">'+f3(Pa_v)+' k</span></div>'},
+    {n:'Arc Seam Shear (LRFD)',nt:'&phi;=0.60', r:'J2.4.1-1',
+     d:f3(Plrfd)+' k', c:f3(Pu_v)+' k', dc:dc_lrfd,
+     det:'<div class="cref-hdr">J2.4.1-1 LRFD</div>'
+       +'<div class="mrow">&phi;P<sub>nv</sub> = 0.60&times;'+f3(Pnv)+' = <span class="cval">'+f3(Pu_v)+' k</span></div>'},
+    {n:'Min. Spacing Check',nt:'C-J2.4.1-1 Commentary', r:'C-J2.4.1',
+     d:'s='+f2(s_prov)+' in', c:'s<sub>min</sub>='+f2(s_min)+' in',
+     dc:dc_sp, stiff:true,
+     det:'<div class="cref-hdr">C-J2.4.1-1 Minimum Longitudinal Spacing</div>'
+       +'<div class="mrow">s<sub>min</sub> = [6.67&times;(F<sub>u</sub>/F<sub>sy</sub>)&minus;2.53]&middot;L<sub>w</sub>&middot;(t/L<sub>w</sub>)<sup>0.33</sup></div>'
+       +'<div class="mrow ind">= [6.67&times;'+f4(ratio)+'&minus;2.53]&times;'+Lw+'&times;'+f4(tLw_exp)+' = <span class="cval">'+f2(s_min)+' in</span></div>'
+       +'<div class="mrow">Provided s = '+f2(s_prov)+' in &nbsp; '+(spacing_ok?'<span class="pass">&#10003; OK</span>':'<span class="fail">&#10007; NG</span>')+'</div>'}
+  ];
+
+  renderChecks('chk8',chks);
+  renderDem('dem8',[
+    {v:f3(Pasd)+' k',l:'P<sub>ASD</sub>'},{v:f3(Plrfd)+' k',l:'P<sub>LRFD</sub>'},
+    {v:f3(Pnv)+' k',l:'P<sub>nv</sub> nominal'},{v:f3(Pa_v)+' k',l:'P<sub>a</sub> allow (ASD)'},
+    {v:f2(s_min)+' in',l:'s<sub>min</sub>',alt:true},{v:f2(s_prov)+' in',l:'s provided',alt:true}
+  ]);
+  renderSummary('sum8',chks,'J2.4.1 Sidelap Arc Seam — Fsy='+Fsy+' ksi, Fu='+Fu+' ksi');
+  showRes('res8');
+}
+</script>
+</body>
+</html>
