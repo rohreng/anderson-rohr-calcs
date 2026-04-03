@@ -118,12 +118,12 @@ svg.diagram{max-width:100%;border-radius:8px}
   <div class="blk-body">
     <div class="row">
       <div class="ig">
-        <label>V<sub>x</sub> — Wind-X Force, along NS (kips)</label>
-        <input type="number" id="Vx" value="30" min="0" step="0.1"/>
+        <label>V<sub>x</sub> — Wind-X Force, along EW (kips)</label>
+        <input type="number" id="Vx" value="20" min="0" step="0.1" oninput="updateDiagram()"/>
       </div>
       <div class="ig">
-        <label>V<sub>y</sub> — Wind-Y Force, along EW (kips)</label>
-        <input type="number" id="Vy" value="20" min="0" step="0.1"/>
+        <label>V<sub>y</sub> — Wind-Y Force, along NS (kips)</label>
+        <input type="number" id="Vy" value="30" min="0" step="0.1" oninput="updateDiagram()"/>
       </div>
     </div>
     <div class="row">
@@ -144,37 +144,53 @@ svg.diagram{max-width:100%;border-radius:8px}
 <div class="blk">
   <div class="blk-hd open" onclick="togBlk(this)"><span>Shearwall Layout</span><span class="tog">▶</span></div>
   <div class="blk-body">
-    <h3 class="sec" style="margin-top:0">NS Shearwalls — resist Wind-X (EW direction shearwalls)</h3>
-    <p class="ref" style="margin-bottom:8px">Shearwalls with length running EW, resisting NS wind. Typically the N and S walls. Enter total shearwall length on each line.</p>
+    <h3 class="sec" style="margin-top:0">EW Shearwalls — resist Wind-X (V<sub>x</sub>)</h3>
+    <p class="ref" style="margin-bottom:8px">Walls running NS, resisting EW (X-direction) wind. Typically the East and West walls. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
     <div id="swX">
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" value="North Wall" class="sw-label"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1"/></div>
-        <div class="ig"><label>Location — dist. from S (ft)</label><input type="number" class="sw-loc" value="120" min="0" step="1"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig">
+          <label>Location — dist. from W (ft)</label>
+          <input type="number" class="sw-loc" value="60" min="0" step="1" oninput="updateDiagram()"/>
+          <span class="ref" style="margin-top:2px">East wall → enter B (building width)</span>
+        </div>
       </div>
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" value="South Wall" class="sw-label"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1"/></div>
-        <div class="ig"><label>Location — dist. from S (ft)</label><input type="number" class="sw-loc" value="0" min="0" step="1"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig">
+          <label>Location — dist. from W (ft)</label>
+          <input type="number" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <span class="ref" style="margin-top:2px">West wall → enter 0</span>
+        </div>
       </div>
     </div>
-    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('X')" id="btnAddX">+ Add NS Line</button>
+    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('X')" id="btnAddX">+ Add EW Wall Line</button>
 
-    <h3 class="sec">EW Shearwalls — resist Wind-Y (NS direction shearwalls)</h3>
-    <p class="ref" style="margin-bottom:8px">Shearwalls with length running NS, resisting EW wind. Typically the E and W walls. Enter total shearwall length on each line.</p>
+    <h3 class="sec">NS Shearwalls — resist Wind-Y (V<sub>y</sub>)</h3>
+    <p class="ref" style="margin-bottom:8px">Walls running EW, resisting NS (Y-direction) wind. Typically the North and South walls. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
     <div id="swY">
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" value="East Wall" class="sw-label"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1"/></div>
-        <div class="ig"><label>Location — dist. from W (ft)</label><input type="number" class="sw-loc" value="60" min="0" step="1"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig">
+          <label>Location — dist. from S (ft)</label>
+          <input type="number" class="sw-loc" value="120" min="0" step="1" oninput="updateDiagram()"/>
+          <span class="ref" style="margin-top:2px">North wall → enter D (building depth)</span>
+        </div>
       </div>
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" value="West Wall" class="sw-label"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1"/></div>
-        <div class="ig"><label>Location — dist. from W (ft)</label><input type="number" class="sw-loc" value="0" min="0" step="1"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig">
+          <label>Location — dist. from S (ft)</label>
+          <input type="number" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <span class="ref" style="margin-top:2px">South wall → enter 0</span>
+        </div>
       </div>
     </div>
-    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('Y')" id="btnAddY">+ Add EW Line</button>
+    <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('Y')" id="btnAddY">+ Add NS Wall Line</button>
   </div>
 </div>
 
@@ -201,12 +217,12 @@ svg.diagram{max-width:100%;border-radius:8px}
   </div>
 
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction — Wind Along NS (D = depth)</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction — Wind Along EW (B = width) | E &amp; W Shearwalls</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wxBody"></div>
   </div>
 
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction — Wind Along EW (B = width)</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction — Wind Along NS (D = depth) | N &amp; S Shearwalls</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wyBody"></div>
   </div>
 
@@ -239,69 +255,182 @@ function togBlk(hd){
 // ─── SHEARWALL ROWS ──────────────────────────────────────────────────────────
 function addSW(dir){
   var container=document.getElementById('sw'+dir);
-  var label=dir==='X'?'Int. Wall '+(container.children.length+1):'Int. Wall '+(container.children.length+1);
-  var defLen=dir==='X'?parseFloat(document.getElementById('B').value)||60:parseFloat(document.getElementById('D').value)||120;
+  var n=container.children.length+1;
+  var label='Interior Wall '+n;
+  // dir X = EW shearwalls (E/W walls, run NS, length≈D); dir Y = NS shearwalls (N/S walls, run EW, length≈B)
+  var B=parseFloat(document.getElementById('B').value)||60;
+  var D=parseFloat(document.getElementById('D').value)||120;
+  var defLen=dir==='X'?D:B;
+  var defLoc=dir==='X'?(B/2).toFixed(0):(D/2).toFixed(0);
+  var locHint=dir==='X'?'Dist. from West wall (ft)':'Dist. from South wall (ft)';
   var div=document.createElement('div');
   div.className='sw-row'; div.dataset.dir=dir;
-  div.innerHTML='<div class="ig"><label>Line Label</label><input type="text" value="'+label+'" class="sw-label"/></div>'
-    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="'+defLen+'" min="1" step="1"/></div>'
-    +'<div class="ig"><label>Location (ft)</label><input type="number" class="sw-loc" value="'+(defLen/2).toFixed(0)+'" min="0" step="1"/></div>'
-    +'<button onclick="this.parentElement.remove()" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
+  div.innerHTML='<div class="ig"><label>Line Label</label><input type="text" value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="'+defLen+'" min="1" step="1" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>'+locHint+'</label><input type="number" class="sw-loc" value="'+defLoc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
+    +'<button onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
   container.appendChild(div);
+  updateDiagram();
 }
 
 // ─── PLAN DIAGRAM ────────────────────────────────────────────────────────────
+function getSWRowsForDiagram(dir){
+  var rows=document.getElementById('sw'+dir).querySelectorAll('.sw-row');
+  var out=[];
+  rows.forEach(function(r){
+    out.push({
+      label: r.querySelector('.sw-label').value||'',
+      len: parseFloat(r.querySelector('.sw-len').value)||0,
+      loc: parseFloat(r.querySelector('.sw-loc').value)||0
+    });
+  });
+  return out;
+}
+
 function updateDiagram(){
   var B=parseFloat(document.getElementById('B').value)||60;
   var D=parseFloat(document.getElementById('D').value)||120;
-  var W=520, H=320;
-  var margin=50;
-  var scale=Math.min((W-2*margin)/B,(H-2*margin)/D);
+  var Vx=parseFloat(document.getElementById('Vx').value)||0;
+  var Vy=parseFloat(document.getElementById('Vy').value)||0;
+
+  // ── Canvas layout ──────────────────────────────────────────────────────────
+  // Reserve space: left=80 (axes+Vx arrows), right=70 (D label), top=60 (Vy arrows), bottom=80 (B label+legend)
+  var W=560, H=420;
+  var ml=80, mr=70, mt=65, mb=90;
+  var maxBW=W-ml-mr, maxDH=H-mt-mb;
+  var scale=Math.min(maxBW/B, maxDH/D);
   var bw=B*scale, dh=D*scale;
-  var ox=(W-bw)/2, oy=(H-dh)/2;
+  // Centre the building in the available space
+  var ox=ml+(maxBW-bw)/2;
+  var oy=mt+(maxDH-dh)/2;
+  // Bottom of SVG where Y=0 (South) in plan coords
+  var bottom=oy+dh;  // SVG y of South wall
+  var top=oy;        // SVG y of North wall
+  var left=ox;       // SVG x of West wall
+  var right=ox+bw;   // SVG x of East wall
+
+  // ── Read shearwalls ────────────────────────────────────────────────────────
+  var swX=getSWRowsForDiagram('X'); // EW walls, resist V_x, loc=dist from W (X position)
+  var swY=getSWRowsForDiagram('Y'); // NS walls, resist V_y, loc=dist from S (Y position)
 
   var svg='<svg width="'+W+'" height="'+H+'" class="diagram" xmlns="http://www.w3.org/2000/svg">'
+    +'<defs>'
+    +'<pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#93c5fd" stroke-width="0.7"/></pattern>'
+    +'<marker id="arrX" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#1e3c72"/></marker>'
+    +'<marker id="arrY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#c2410c"/></marker>'
+    +'<marker id="arrAx" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#374151"/></marker>'
+    +'</defs>'
+    // Background
     +'<rect width="'+W+'" height="'+H+'" fill="#f8faff" rx="8"/>'
-    // Diaphragm
-    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>'
-    // Hatching for diaphragm
-    +'<pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#93c5fd" stroke-width="0.8"/></pattern>'
-    +'<rect x="'+(ox+1)+'" y="'+(oy+1)+'" width="'+(bw-2)+'" height="'+(dh-2)+'" fill="url(#hatch)"/>'
-    // NS shearwalls (thick lines at top/bottom)
-    +'<line x1="'+ox+'" y1="'+oy+'" x2="'+(ox+bw)+'" y2="'+oy+'" stroke="#1e3c72" stroke-width="5"/>'
-    +'<line x1="'+ox+'" y1="'+(oy+dh)+'" x2="'+(ox+bw)+'" y2="'+(oy+dh)+'" stroke="#1e3c72" stroke-width="5"/>'
-    // EW shearwalls
-    +'<line x1="'+ox+'" y1="'+oy+'" x2="'+ox+'" y2="'+(oy+dh)+'" stroke="#7c3aed" stroke-width="5"/>'
-    +'<line x1="'+(ox+bw)+'" y1="'+oy+'" x2="'+(ox+bw)+'" y2="'+(oy+dh)+'" stroke="#7c3aed" stroke-width="5"/>'
-    // Wind arrows — X direction (→ NS, pointing south)
-    +'<defs><marker id="arrX" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1e3c72"/></marker>'
-    +'<marker id="arrY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#7c3aed"/></marker></defs>'
-    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2-15)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2-15)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
-    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
-    +'<line x1="'+(ox-35)+'" y1="'+(oy+dh/2+15)+'" x2="'+(ox-8)+'" y2="'+(oy+dh/2+15)+'" stroke="#1e3c72" stroke-width="2" marker-end="url(#arrX)"/>'
-    +'<text x="'+(ox-38)+'" y="'+(oy+dh/2-25)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="bold">V_x</text>'
-    // Wind arrows — Y direction (top, pointing down)
-    +'<line x1="'+(ox+bw/2-15)+'" y1="'+(oy-35)+'" x2="'+(ox+bw/2-15)+'" y2="'+(oy-8)+'" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrY)"/>'
-    +'<line x1="'+(ox+bw/2)+'" y1="'+(oy-35)+'" x2="'+(ox+bw/2)+'" y2="'+(oy-8)+'" stroke="#7c3aed" stroke-width="2" marker-end="url(#arrY)"/>'
-    +'<text x="'+(ox+bw/2+18)+'" y="'+(oy-20)+'" font-size="10" fill="#7c3aed" font-weight="bold">V_y</text>'
-    // Labels
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2-4)+'" text-anchor="middle" font-size="13" fill="#1e3c72" font-weight="700">DIAPHRAGM</text>'
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2+12)+'" text-anchor="middle" font-size="11" fill="#374151">B='+f1(B)+'ft × D='+f1(D)+'ft</text>'
-    // Dimension arrows B
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh+32)+'" text-anchor="middle" font-size="11" fill="#374151" font-weight="600">B = '+f1(B)+' ft (EW)</text>'
-    // Dimension D
-    +'<text x="'+(ox+bw+32)+'" y="'+(oy+dh/2+4)+'" font-size="11" fill="#374151" font-weight="600" transform="rotate(90,'+(ox+bw+32)+','+(oy+dh/2+4)+')">D = '+f1(D)+' ft (NS)</text>'
-    // Compass
-    +'<text x="'+(ox+bw-12)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700">N</text>'
-    +'<text x="'+(ox+bw-12)+'" y="'+(oy+dh-4)+'" font-size="12" fill="#64748b" font-weight="700">S</text>'
-    +'<text x="'+(ox+4)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700">W</text>'
-    +'<text x="'+(ox+bw-18)+'" y="'+(oy+14)+'" font-size="12" fill="#64748b" font-weight="700"></text>'
-    // Legend
-    +'<rect x="'+(ox)+'" y="'+(oy+dh+42)+'" width="12" height="4" fill="#1e3c72"/>'
-    +'<text x="'+(ox+16)+'" y="'+(oy+dh+48)+'" font-size="10" fill="#374151">NS Shearwall (resist V_x)</text>'
-    +'<rect x="'+(ox+180)+'" y="'+(oy+dh+42)+'" width="12" height="4" fill="#7c3aed"/>'
-    +'<text x="'+(ox+196)+'" y="'+(oy+dh+48)+'" font-size="10" fill="#374151">EW Shearwall (resist V_y)</text>'
-    +'</svg>';
+    // ── Diaphragm fill & hatch ──────────────────────────────────────────────
+    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="#dbeafe"/>'
+    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="url(#hatch)"/>';
+
+  // ── EW shearwalls (resist V_x): vertical lines at x=loc from West ─────────
+  var swXColors=['#1e3c72','#1e3c72','#1e3c72','#1e3c72'];
+  swX.forEach(function(sw,i){
+    var sx=ox+sw.loc*scale;
+    if(sx<ox||sx>right+1) return; // out of range, skip
+    svg+='<line x1="'+sx+'" y1="'+top+'" x2="'+sx+'" y2="'+bottom+'" stroke="#1e3c72" stroke-width="4" stroke-linecap="round"/>';
+    // Label at top
+    var lx=sx, ly=top-6;
+    svg+='<text x="'+lx+'" y="'+ly+'" text-anchor="middle" font-size="9" font-weight="700" fill="#1e3c72">'+sw.label+'</text>';
+    // Length annotation
+    if(sw.len>0){
+      svg+='<text x="'+lx+'" y="'+(ly-11)+'" text-anchor="middle" font-size="8" fill="#1e3c72">'+sw.len+' ft</text>';
+    }
+  });
+
+  // ── NS shearwalls (resist V_y): horizontal lines at y=loc from South ──────
+  swY.forEach(function(sw,i){
+    var sy=bottom-sw.loc*scale; // loc from S: 0=bottom, D=top
+    if(sy>bottom+1||sy<top-1) return;
+    svg+='<line x1="'+left+'" y1="'+sy+'" x2="'+right+'" y2="'+sy+'" stroke="#7c3aed" stroke-width="4" stroke-linecap="round"/>';
+    // Label at right
+    svg+='<text x="'+(right+4)+'" y="'+(sy+4)+'" font-size="9" font-weight="700" fill="#7c3aed">'+sw.label+'</text>';
+    if(sw.len>0){
+      svg+='<text x="'+(right+4)+'" y="'+(sy-6)+'" font-size="8" fill="#7c3aed">'+sw.len+' ft</text>';
+    }
+  });
+
+  // ── Diaphragm outline (on top of shearwall lines) ──────────────────────────
+  svg+='<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="none" stroke="#1a202c" stroke-width="2"/>';
+
+  // ── Compass labels ─────────────────────────────────────────────────────────
+  svg+='<text x="'+(ox+4)+'" y="'+(oy+14)+'" font-size="11" fill="#64748b" font-weight="700">W</text>'
+    +'<text x="'+(ox+bw-16)+'" y="'+(oy+14)+'" font-size="11" fill="#64748b" font-weight="700">E</text>'
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+14)+'" text-anchor="middle" font-size="11" fill="#64748b" font-weight="700">N</text>'
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh-4)+'" text-anchor="middle" font-size="11" fill="#64748b" font-weight="700">S</text>';
+
+  // ── Diaphragm centre label ─────────────────────────────────────────────────
+  svg+='<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2-6)+'" text-anchor="middle" font-size="13" fill="#1e3c72" font-weight="700">DIAPHRAGM</text>'
+    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2+10)+'" text-anchor="middle" font-size="10" fill="#374151">B='+f1(B)+' ft × D='+f1(D)+' ft</text>';
+
+  // ── Dimension annotation B (below building) ────────────────────────────────
+  svg+='<line x1="'+left+'" y1="'+(bottom+22)+'" x2="'+right+'" y2="'+(bottom+22)+'" stroke="#374151" stroke-width="1" marker-start="url(#arrAx)" marker-end="url(#arrAx)"/>'
+    +'<text x="'+(left+bw/2)+'" y="'+(bottom+36)+'" text-anchor="middle" font-size="11" fill="#374151" font-weight="600">B = '+f1(B)+' ft (EW)</text>';
+
+  // ── Dimension annotation D (right of building) ────────────────────────────
+  var dx=right+32;
+  svg+='<line x1="'+dx+'" y1="'+top+'" x2="'+dx+'" y2="'+bottom+'" stroke="#374151" stroke-width="1" marker-start="url(#arrAx)" marker-end="url(#arrAx)"/>'
+    +'<text x="'+(dx+12)+'" y="'+(oy+dh/2+4)+'" font-size="11" fill="#374151" font-weight="600" transform="rotate(90,'+(dx+12)+','+(oy+dh/2+4)+')">D = '+f1(D)+' ft (NS)</text>';
+
+  // ── V_x arrows — EW wind, from West, pointing East (→) ────────────────────
+  var arrLen=34, arrGap=8;
+  var axStart=left-arrLen-arrGap, axEnd=left-arrGap;
+  var vxShow=(Vx>0);
+  var arrColor_x='#1e3c72';
+  [-14,0,14].forEach(function(dy){
+    var ay=bottom-dh/2+dy;
+    svg+='<line x1="'+axStart+'" y1="'+ay+'" x2="'+axEnd+'" y2="'+ay+'" stroke="'+arrColor_x+'" stroke-width="2" marker-end="url(#arrX)"/>';
+  });
+  svg+='<text x="'+(axStart+arrLen/2)+'" y="'+(bottom-dh/2-22)+'" text-anchor="middle" font-size="10" fill="'+arrColor_x+'" font-weight="700">V'
+    +'<tspan font-size="8" dy="2">x</tspan>'
+    +'<tspan dy="-2"> (EW)</tspan></text>';
+  if(vxShow){
+    svg+='<text x="'+(axStart+arrLen/2)+'" y="'+(bottom-dh/2-10)+'" text-anchor="middle" font-size="9" fill="'+arrColor_x+'">'+f1(Vx)+' kips</text>';
+  }
+
+  // ── V_y arrows — NS wind, from South, pointing North (↑) ──────────────────
+  var ayStart=bottom+arrGap, ayEnd=bottom+arrLen+arrGap;
+  var vyShow=(Vy>0);
+  var arrColor_y='#c2410c';
+  [-14,0,14].forEach(function(dx2){
+    var ax=left+bw/2+dx2;
+    svg+='<line x1="'+ax+'" y1="'+ayEnd+'" x2="'+ax+'" y2="'+(ayStart)+'" stroke="'+arrColor_y+'" stroke-width="2" marker-end="url(#arrY)"/>';
+  });
+  svg+='<text x="'+(left+bw/2+32)+'" y="'+(ayEnd-4)+'" font-size="10" fill="'+arrColor_y+'" font-weight="700">V'
+    +'<tspan font-size="8" dy="2">y</tspan>'
+    +'<tspan dy="-2"> (NS)</tspan></text>';
+  if(vyShow){
+    svg+='<text x="'+(left+bw/2+32)+'" y="'+(ayEnd-16)+'" font-size="9" fill="'+arrColor_y+'">'+f1(Vy)+' kips</text>';
+  }
+
+  // ── X-Y Axis indicator (bottom-left corner) ────────────────────────────────
+  var axX=left-2, axY=bottom+52; // origin of the mini axes
+  var axL=28;
+  svg+='<circle cx="'+axX+'" cy="'+axY+'" r="2.5" fill="#374151"/>'
+    // X axis (→ East)
+    +'<line x1="'+axX+'" y1="'+axY+'" x2="'+(axX+axL)+'" y2="'+axY+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arrAx)"/>'
+    +'<text x="'+(axX+axL+4)+'" y="'+(axY+4)+'" font-size="10" fill="#374151" font-weight="700">X (EW)</text>'
+    // Y axis (↑ North) — up in SVG = -y
+    +'<line x1="'+axX+'" y1="'+axY+'" x2="'+axX+'" y2="'+(axY-axL)+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arrAx)"/>'
+    +'<text x="'+(axX-4)+'" y="'+(axY-axL-4)+'" text-anchor="end" font-size="10" fill="#374151" font-weight="700">Y (NS)</text>';
+
+  // ── Sign convention note (bottom right of diagram) ─────────────────────────
+  var scx=right-5, scy=bottom+50;
+  svg+='<text x="'+scx+'" y="'+scy+'" text-anchor="end" font-size="9" fill="#374151" font-style="italic">Sign convention: + V forces shown</text>'
+    +'<text x="'+scx+'" y="'+(scy+12)+'" text-anchor="end" font-size="9" fill="#374151" font-style="italic">V'
+    +'<tspan font-size="7" dy="1">x</tspan><tspan dy="-1"> acts EW on E/W shearwalls  |  V</tspan><tspan font-size="7" dy="1">y</tspan><tspan dy="-1"> acts NS on N/S shearwalls</tspan></text>';
+
+  // ── Legend ─────────────────────────────────────────────────────────────────
+  var lx0=left, lly=bottom+72;
+  svg+='<rect x="'+lx0+'" y="'+(lly-7)+'" width="18" height="4" fill="#1e3c72" rx="1"/>'
+    +'<text x="'+(lx0+22)+'" y="'+lly+'" font-size="9" fill="#374151">EW SW (resist V<tspan font-size="7" dy="1">x</tspan><tspan dy="-1">)</tspan></text>'
+    +'<rect x="'+(lx0+120)+'" y="'+(lly-7)+'" width="18" height="4" fill="#7c3aed" rx="1"/>'
+    +'<text x="'+(lx0+142)+'" y="'+lly+'" font-size="9" fill="#374151">NS SW (resist V<tspan font-size="7" dy="1">y</tspan><tspan dy="-1">)</tspan></text>';
+
+  svg+='</svg>';
   document.getElementById('diagWrap').innerHTML=svg;
 }
 
@@ -439,7 +568,12 @@ function renderDir(res, container){
     +'<div class="metric"><div class="label">Chord Force T = C = M/B_perp</div><div class="val warn-val">'+f2(res.chord_T)+' kips</div></div>'
     +'</div>';
   html+='<div class="ref">M = w·L²/8 = V·L_along/8 = '+f2(res.V)+'×'+f1(res.L_along)+'/8 = '+f1(res.M_max)+' kip·ft | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
-  html+='<div class="ref" style="margin-top:4px">Chord members: '+res.label.indexOf('X')>=0?'EW edge members (top plates, bond beams) at N and S edges':'NS edge members (top plates, bond beams) at E and W edges'+'</div>';
+  // Wind-X = EW wind: diaphragm spans EW, chord members at N & S edges (running EW)
+  // Wind-Y = NS wind: diaphragm spans NS, chord members at E & W edges (running NS)
+  var chordEdge=res.label.indexOf('X')>=0
+    ?'EW chord members (top plates, bond beams) at N and S edges'
+    :'NS chord members (top plates, bond beams) at E and W edges';
+  html+='<div class="ref" style="margin-top:4px">'+chordEdge+'</div>';
 
   // Calc detail
   html+='<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.8em;color:#374151;line-height:1.7">'
@@ -481,15 +615,30 @@ function calculate(){
   var swX=getSWRows('X');
   var swY=getSWRows('Y');
 
-  // Wind-X: wind along NS (D), shearwalls in EW direction, chord spans B
-  var wx=calcDir(Vx, D, B, swX, 'Wind-X (NS)');
-  // Wind-Y: wind along EW (B), shearwalls in NS direction, chord spans D
-  var wy=calcDir(Vy, B, D, swY, 'Wind-Y (EW)');
+  // Validate — warn if two walls share the same location (causes ÷0 in moment equilibrium)
+  function checkSwLocs(sws, dirName, farWallName, farVal){
+    if(sws.length>=2){
+      var locs=sws.map(function(s){return s.loc;});
+      var unique=locs.filter(function(v,i,a){return a.indexOf(v)===i;});
+      if(unique.length<locs.length){
+        alert('Warning – '+dirName+' shearwalls have duplicate locations!\n\nTwo or more lines share the same distance value — this causes an Infinity reaction (÷ zero lever arm).\n\nTip: The '+farWallName+' wall should be at '+farVal+' ft (= building dimension), and the opposite wall at 0.\n\nFix the Location inputs before calculating.');
+        return false;
+      }
+    }
+    return true;
+  }
+  if(!checkSwLocs(swX,'EW (V\u2093)','East',f1(B))) return;
+  if(!checkSwLocs(swY,'NS (V\u1D67)','North',f1(D))) return;
+
+  // Wind-X: EW wind (X direction), diaphragm spans EW (L=B), chord spans NS (B_perp=D), E/W shearwalls
+  var wx=calcDir(Vx, B, D, swX, 'Wind-X (EW)');
+  // Wind-Y: NS wind (Y direction), diaphragm spans NS (L=D), chord spans EW (B_perp=B), N/S shearwalls
+  var wy=calcDir(Vy, D, B, swY, 'Wind-Y (NS)');
 
   // Seismic (if entered) — same geometry
   var sx=null, sy=null;
-  if(Vx_s>0) sx=calcDir(Vx_s, D, B, swX, 'Seismic-X (NS)');
-  if(Vy_s>0) sy=calcDir(Vy_s, B, D, swY, 'Seismic-Y (EW)');
+  if(Vx_s>0) sx=calcDir(Vx_s, B, D, swX, 'Seismic-X (EW)');
+  if(Vy_s>0) sy=calcDir(Vy_s, D, B, swY, 'Seismic-Y (NS)');
 
   // Governing
   var gov_v_x = Math.max(wx.v_dia, sx?sx.v_dia:0);
@@ -571,8 +720,12 @@ function calculate(){
   var p=new URLSearchParams(window.location.search);
   if(p.get('src')!=='mwfrs') return;
 
-  var vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0');
-  var vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');
+  // MWFRS sends: vx = NS wind force, vy = EW wind force (its own X/Y convention)
+  // Diaphragm uses X=EW, Y=NS → swap them on import
+  var mwfrs_vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0'); // MWFRS NS force
+  var mwfrs_vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');                   // MWFRS EW force
+  var vx=mwfrs_vy;  // EW force → our V_x
+  var vy=mwfrs_vx;  // NS force → our V_y
   var B=parseFloat(p.get('B')||'0');
   var D=parseFloat(p.get('D')||'0');
   var story=p.get('story')||'';
@@ -583,13 +736,31 @@ function calculate(){
   if(D>0){ document.getElementById('D').value=D; }
   if(story) document.getElementById('level').value=story;
 
+  // Set default shearwall locations to match building geometry
+  if(B>0||D>0){
+    var swXrows=document.getElementById('swX').querySelectorAll('.sw-row');
+    if(swXrows.length>=2){
+      // East wall loc = B, West wall loc = 0 (already 0)
+      swXrows[0].querySelector('.sw-loc').value=B||60;  // East wall
+      if(D>0) swXrows[0].querySelector('.sw-len').value=D;
+      if(D>0) swXrows[1].querySelector('.sw-len').value=D;
+    }
+    var swYrows=document.getElementById('swY').querySelectorAll('.sw-row');
+    if(swYrows.length>=2){
+      // North wall loc = D, South wall loc = 0 (already 0)
+      swYrows[0].querySelector('.sw-loc').value=D||120; // North wall
+      if(B>0) swYrows[0].querySelector('.sw-len').value=B;
+      if(B>0) swYrows[1].querySelector('.sw-len').value=B;
+    }
+  }
+
   // Build back link
   var back=document.referrer||'asce716_mwfrs_calculator.html';
   document.getElementById('importLink').href=back;
 
   var infoStr='';
-  if(vx>0) infoStr+='V_x = '+((vx/1000).toFixed(2))+' kips (Wind-X NS)  ';
-  if(vy>0) infoStr+='V_y = '+((vy/1000).toFixed(2))+' kips (Wind-Y EW)  ';
+  if(vx>0) infoStr+='V\u2093 = '+((vx/1000).toFixed(2))+' kips (Wind-X EW)  ';
+  if(vy>0) infoStr+='V\u1D67 = '+((vy/1000).toFixed(2))+' kips (Wind-Y NS)  ';
   if(story) infoStr+='Level: '+story+'  ';
   document.getElementById('importInfo').textContent=infoStr;
   document.getElementById('importBanner').style.display='block';
