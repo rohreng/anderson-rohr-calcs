@@ -437,11 +437,17 @@ function calculate(){
 
       // Net story shear (GCpi cancels in lateral sum)
       var p_net = qz_i*G*Cp_WW - qh_val*G*Cp_LW;  // psf net lateral
-      var F_net = p_net * stories[i].h * Bperp;    // lbs
+      // Tributary height to diaphragm at this level:
+      //   Roof (i=0): only upper half of story height reaches roof diaphragm
+      //   Intermediate floor (i>0): half of story above + half of story below
+      //   Lower half of bottom story goes directly to foundation, not through a diaphragm
+      var trib_h = (i===0) ? stories[0].h/2 : (stories[i-1].h + stories[i].h)/2;
+      var F_net = p_net * trib_h * Bperp;    // lbs — wall wind force tributary to this diaphragm
 
       rows.push({
         label: stories[i].label,
         h: stories[i].h,
+        trib_h: trib_h,
         zMid: zmid,
         Kz: kz_i,
         qz: qz_i,
@@ -451,7 +457,8 @@ function calculate(){
         pLW_B: pLW_B,
         pSW: pSW,
         p_net: p_net,
-        F_net: F_net
+        F_net: F_net,
+        F_parapet: 0   // populated below if parapet exists
       });
     }
 
@@ -488,6 +495,21 @@ function calculate(){
       pp_LW: qp*(-1.0),
       GCpn_WW:1.5, GCpn_LW:-1.0
     };
+    // Apply parapet force to the roof diaphragm level (top story, index 0)
+    // Net parapet force = (pp,WW − pp,LW) × hp × B⊥ — acts at roof level
+    function applyParapet(dir){
+      var F_par = (parapetData.pp_WW - parapetData.pp_LW) * parapetData.hp * dir.Bperp;
+      dir.rows[0].F_parapet = F_par;
+      dir.rows[0].F_net += F_par;
+      // Recalculate all cumulative shears after adding parapet
+      var vc = 0;
+      for(var j=0; j<dir.rows.length; j++){
+        vc += dir.rows[j].F_net;
+        dir.rows[j].V_cum = vc;
+      }
+    }
+    applyParapet(wx);
+    applyParapet(wy);
   }
 
   // ─── Roof pressures ──────────────────────────────────────────────────────
@@ -606,23 +628,39 @@ function renderDir(dir, container){
   html+='<div class="ref" style="margin-top:4px">Case A (+GCpi, pos. internal): WW = qz·G·Cp,WW − qh·(+GCpi) → lower WW, governs LW/SW element design | Case B (−GCpi, neg. internal): WW = qz·G·Cp,WW + qh·GCpi → higher WW, governs WW element design | LW shown is Case B (−GCpi) paired with WW Case B | Net P_lat = WW − Cp,LW·qh·G (GCpi cancels) — for story shear only, not parapet design | Ref: Fig. 27.3-1, §26.13</div>';
 
   // Story shear table
-  html+='<h3 class="sec">Story Shear Forces — F = p_net × h_story × B⊥</h3>';
+  html+='<h3 class="sec">Diaphragm Forces &amp; Story Shears</h3>';
   html+='<table class="res-tbl"><thead><tr>'
-    +'<th>Story</th><th>h_story (ft)</th><th>p_net (psf)</th>'
-    +'<th>Story Force F (kips)</th><th>Cumulative Shear V (kips)</th>'
+    +'<th>Story</th>'
+    +'<th>h_trib (ft)<br><span style="font-weight:400;font-size:.85em">trib. to diaphragm</span></th>'
+    +'<th>p_net (psf)</th>'
+    +'<th>Wall Wind F (kips)<br><span style="font-weight:400;font-size:.85em">p_net × h_trib × B⊥</span></th>'
+    +'<th>Parapet F (kips)<br><span style="font-weight:400;font-size:.85em">roof level only</span></th>'
+    +'<th>Diaphragm F (kips)<br><span style="font-weight:400;font-size:.85em">wall + parapet → diaphragm design</span></th>'
+    +'<th>Cumul. Shear V (kips)<br><span style="font-weight:400;font-size:.85em">→ shearwall design below</span></th>'
     +'</tr></thead><tbody>';
 
   dir.rows.forEach(function(r){
+    var F_wall = r.F_net - (r.F_parapet||0);
+    var F_par  = r.F_parapet || 0;
     html+='<tr>'
       +'<td>'+r.label+'</td>'
-      +'<td>'+f1(r.h)+'</td>'
+      +'<td>'+f1(r.trib_h)+'</td>'
       +'<td>'+f1(r.p_net)+'</td>'
-      +'<td style="font-weight:600">'+f2(r.F_net/1000)+'</td>'
-      +'<td style="font-weight:700;color:#1e3c72">'+f2(r.V_cum/1000)+'</td>'
+      +'<td>'+f2(F_wall/1000)+'</td>'
+      +'<td style="color:#7c3aed;font-weight:600">'+(F_par ? f2(F_par/1000) : '—')+'</td>'
+      +'<td style="font-weight:700;color:#1e3c72">'+f2(r.F_net/1000)+'</td>'
+      +'<td style="font-weight:700;color:#0369a1">'+f2(r.V_cum/1000)+'</td>'
       +'</tr>';
   });
   html+='</tbody></table>';
-  html+='<div class="ref" style="margin-top:4px">F = p_net (psf) × h_story (ft) × B⊥ ('+f1(dir.Bperp)+' ft) / 1000 → kips | V = cumulative from top</div>';
+  html+='<div class="ref" style="margin-top:4px">'
+    +'h_trib: roof = h_story/2 (upper half of wall to roof diaphragm — lower half goes directly to foundation); '
+    +'intermediate floor = (h_story_above + h_story_below)/2. '
+    +'Parapet F = (pp,WW − pp,LW) × hp × B⊥ (§27.3.5), applied at roof level. '
+    +'Diaphragm F = total force to that diaphragm — use this for diaphragm design. '
+    +'Cumul. V = sum of all diaphragm forces above — use for shearwall design below that level. '
+    +'B⊥ = '+f1(dir.Bperp)+' ft | Ref: Fig. 27.3-1, §26.13, §27.3.5'
+    +'</div>';
 
   container.innerHTML=html;
 }
@@ -692,7 +730,7 @@ function renderSend(wx,wy,container){
   var wxBase=wx.rows[wx.rows.length-1].V_cum; // base shear Wind-X
   var wyBase=wy.rows[wy.rows.length-1].V_cum; // base shear Wind-Y
 
-  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568">Base shear values (lbs) from story shear tables. Open any calc in a new tab with the shear pre-filled.</p>';
+  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568"><b>Stacked Shearwall</b> receives the <b>cumulative story shear V</b> at the selected level (sum of all diaphragm forces above — what the shearwall below must resist). <b>Diaphragm Designer</b> receives the <b>diaphragm force F</b> at the selected level only (tributary wall wind + parapet at that level — what that diaphragm must span).</p>';
 
   html+='<div class="kv" style="margin-bottom:14px">'
     +'<div class="kv-item">Wind-X Base Shear = <span>'+fi(wxBase)+' lbs ('+f2(wxBase/1000)+' kips)</span></div>'
@@ -755,7 +793,7 @@ function updateSendPreview(){
   });
   var idx=parseInt(stSel.value)||0;
   var r=rows[idx];
-  document.getElementById('sendPreview').textContent='Will send cumulative shear = '+fi(r?r.V_cum:0)+' lbs';
+  document.getElementById('sendPreview').textContent='Will send cumulative story shear V = '+fi(r?r.V_cum:0)+' lbs (for shearwall design below this level)';
 }
 
 function doSendShear(){
@@ -780,8 +818,8 @@ function doSendDiaphragm(){
   var base=window.location.href.replace(/\/[^/]*$/,'/');
   var url=base+'rectangular_diaphragm_calculator.html'
     +'?src=mwfrs'
-    +'&vx='+Math.round(rx.V_cum)
-    +'&vy='+Math.round(ry.V_cum)
+    +'&vx='+Math.round(rx.F_net)   // diaphragm force at this level (not cumulative)
+    +'&vy='+Math.round(ry.F_net)
     +'&B='+Bval+'&D='+Dval
     +'&story='+encodeURIComponent(rx.label);
   window.open(url,'_blank');
