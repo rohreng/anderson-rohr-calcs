@@ -291,17 +291,27 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <!-- BLOCK 3: FIGURE SELECTION & TRIBUTARY AREA -->
 <div class="blk">
   <h2>3. Figure Selection &amp; Effective Wind Area <span class="badge">ASCE 7-16 §26.2, §30.3</span></h2>
-  <div class="g3" style="margin-bottom:14px">
+  <div class="g4" style="margin-bottom:14px">
     <div class="ig" style="grid-column:span 2">
-      <label>C&amp;C Figure (Roof Type / Building Height)</label>
-      <select id="figSel" onchange="updateFigNote()">
-        <option value="30.3-1">Fig 30.3-1 &mdash; Walls, h &le; 60 ft</option>
-        <option value="30.3-2A">Fig 30.3-2A &mdash; Gable / Monoslope Roof, &theta; &le; 7&deg;, h &le; 60 ft</option>
-        <option value="30.3-2B">Fig 30.3-2B &mdash; Gable / Hip Roof, 7&deg; &lt; &theta; &le; 27&deg;, h &le; 60 ft</option>
-        <option value="30.3-2D">Fig 30.3-2D &mdash; Gable Roof, 27&deg; &lt; &theta; &le; 45&deg;, h &le; 60 ft</option>
-        <option value="30.3-5A">Fig 30.3-5A &mdash; Monoslope Roof, 3&deg; &le; &theta; &le; 10&deg;, h &le; 60 ft</option>
-        <option value="30.6-1">Fig 30.6-1 &mdash; Walls &amp; Roofs, h &gt; 60 ft</option>
+      <label>Wall Figure <span class="unit">(select "None" to skip walls)</span></label>
+      <select id="wallFig" onchange="updateFigNotes()">
+        <option value="none">— No Walls —</option>
+        <option value="30.3-1" selected>Fig 30.3-1 &mdash; Walls, h &le; 60 ft</option>
+        <option value="30.6-1-wall">Fig 30.6-1 &mdash; Walls, h &gt; 60 ft</option>
       </select>
+      <span class="hint">ASCE 7-16 §30.3 (h≤60) or §30.6 (h>60)</span>
+    </div>
+    <div class="ig" style="grid-column:span 2">
+      <label>Roof Figure <span class="unit">(select "None" to skip roof)</span></label>
+      <select id="roofFig" onchange="updateFigNotes()">
+        <option value="none" selected>— No Roof —</option>
+        <option value="30.3-2A">Fig 30.3-2A &mdash; Gable / Monoslope, &theta; &le; 7&deg;, h &le; 60 ft</option>
+        <option value="30.3-2B">Fig 30.3-2B &mdash; Gable / Hip, 7&deg; &lt; &theta; &le; 27&deg;, h &le; 60 ft</option>
+        <option value="30.3-2D">Fig 30.3-2D &mdash; Gable, 27&deg; &lt; &theta; &le; 45&deg;, h &le; 60 ft</option>
+        <option value="30.3-5A">Fig 30.3-5A &mdash; Monoslope, 3&deg; &le; &theta; &le; 10&deg;, h &le; 60 ft</option>
+        <option value="30.6-1-roof">Fig 30.6-1 &mdash; Flat/Low-slope Roof, h &gt; 60 ft</option>
+      </select>
+      <span class="hint">ASCE 7-16 §30.3 (h≤60) or §30.6 (h>60)</span>
     </div>
     <div class="ig">
       <label>Include Overhangs?</label>
@@ -311,7 +321,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       </select>
     </div>
   </div>
-  <div id="figNote" class="callout" style="margin-bottom:14px"></div>
+  <div id="figNoteWall" class="callout" style="margin-bottom:8px;display:none"></div>
+  <div id="figNoteRoof" class="callout" style="margin-bottom:14px;display:none"></div>
   <div class="g3">
     <div class="ig">
       <label>Component Span Length, L <span class="unit">(ft)</span></label>
@@ -344,9 +355,12 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <!-- Computed parameters cards -->
   <div class="dem-grid" id="demOut"></div>
 
+  <!-- Reference pressure table (10/50/100 sf) -->
+  <div id="refTableOut"></div>
+
   <!-- Pressure table -->
   <div class="blk">
-    <h2>Design Pressures by Zone
+    <h2>Component Design Pressure &mdash; Effective Wind Area A = <span id="compAreaLabel">—</span> sf
       <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &ldquo;&#9656; Calc&rdquo; to expand any zone</span>
     </h2>
     <div style="overflow-x:auto">
@@ -579,6 +593,23 @@ var GCP={
       {name:'Roof Zone 3', desc:'Roof Corner',    oh:false, pos:null,                            neg:[-3.20,-3.04,-2.83,-2.67,-2.51,-2.30]}
     ]
   }
+  ,'30.6-1-wall':{
+    title:'Figure 30.6-1 \u2014 Walls, h > 60 ft',
+    ref:'ASCE 7-16 \u00a730.6.2',
+    zones:[
+      {name:'Wall Zone 4', desc:'Wall Interior',  oh:false, pos:[0.90,0.90,0.82,0.75,0.69,0.60], neg:[-0.90,-0.90,-0.85,-0.80,-0.75,-0.70]},
+      {name:'Wall Zone 5', desc:'Wall Corner',    oh:false, pos:[0.90,0.90,0.82,0.75,0.69,0.60], neg:[-1.80,-1.80,-1.57,-1.40,-1.23,-1.00]}
+    ]
+  }
+  ,'30.6-1-roof':{
+    title:'Figure 30.6-1 \u2014 Flat/Low-slope Roof, h > 60 ft',
+    ref:'ASCE 7-16 \u00a730.6.2',
+    zones:[
+      {name:'Roof Zone 1', desc:'Roof Interior',  oh:false, pos:null, neg:[-1.40,-1.31,-1.20,-1.10,-1.02,-0.90]},
+      {name:'Roof Zone 2', desc:'Roof Perimeter', oh:false, pos:null, neg:[-2.30,-2.18,-2.01,-1.89,-1.76,-1.60]},
+      {name:'Roof Zone 3', desc:'Roof Corner',    oh:false, pos:null, neg:[-3.20,-3.04,-2.83,-2.67,-2.51,-2.30]}
+    ]
+  }
 };
 
 // ─── Figure notes ─────────────────────────────────────────────────────────────
@@ -588,12 +619,22 @@ var FIG_NOTES={
   '30.3-2B':'<strong>Fig 30.3-2B — Gable/Hip 7&deg;&ndash;27&deg;:</strong> Use for moderate roof slopes. Note that Zone 1 GCp values vary significantly with area — check Zone 2r/2n at ridge for governing negative pressures.',
   '30.3-2D':'<strong>Fig 30.3-2D — Gable 27&deg;&ndash;45&deg;:</strong> Steep gable roofs. Positive GCp values are significant; check both positive and negative cases. Zone 3e (eave corner) typically governs.',
   '30.3-5A':'<strong>Fig 30.3-5A — Monoslope 3&deg;&ndash;10&deg;:</strong> Single-slope roofs. High-side and low-side zones differ; primed zones (2&prime;, 3&prime;) are on the high side and have larger suctions.',
-  '30.6-1':'<strong>Fig 30.6-1 — h &gt; 60 ft:</strong> Applies to taller buildings. Roof zones have positive GCp for walls only; roof zones are negative (suction). Confirm h exceeds 60 ft before using.'
+  '30.6-1':'<strong>Fig 30.6-1 — h &gt; 60 ft:</strong> Applies to taller buildings. Roof zones have positive GCp for walls only; roof zones are negative (suction). Confirm h exceeds 60 ft before using.',
+  '30.6-1-wall':'<strong>Fig 30.6-1 — Walls (h &gt; 60 ft):</strong> Applies to buildings taller than 60 ft. Zone 4 = wall interior; Zone 5 = wall corners within distance <em>a</em> from corner.',
+  '30.6-1-roof':'<strong>Fig 30.6-1 — Flat/Low-slope Roof (h &gt; 60 ft):</strong> Roof zones for buildings taller than 60 ft. All zones are negative (suction/uplift). Zone 1 = interior; Zone 2 = perimeter; Zone 3 = corners.'
 };
 
-function updateFigNote(){
-  var fig=document.getElementById('figSel').value;
-  document.getElementById('figNote').innerHTML=FIG_NOTES[fig]||'';
+function updateFigNotes(){
+  var wallFig=document.getElementById('wallFig').value;
+  var roofFig=document.getElementById('roofFig').value;
+  var wallNote=document.getElementById('figNoteWall');
+  var roofNote=document.getElementById('figNoteRoof');
+  var wn=FIG_NOTES[wallFig]||FIG_NOTES[wallFig.replace('-wall','')]||'';
+  var rn=FIG_NOTES[roofFig]||FIG_NOTES[roofFig.replace('-roof','')]||'';
+  wallNote.innerHTML=wn;
+  wallNote.style.display=wn?'':'none';
+  roofNote.innerHTML=rn;
+  roofNote.style.display=rn?'':'none';
 }
 
 // ─── Effective area auto-calculation ─────────────────────────────────────────
@@ -637,6 +678,66 @@ function interpGCp(gcpArr, A){
   return slope*logA+intercept;
 }
 
+// ─── Reference Pressure Table (10, 50, 100 sf) ────────────────────────────────
+function renderRefTable(allZoneItems, qh, GCpi){
+  var refAreas=[10,50,100];
+  var html='<div class="blk" style="margin-bottom:20px;border-left-color:#7c3aed">';
+  html+='<h2 style="color:#6d28d9">Pressure Reference Table &mdash; 10, 50 &amp; 100 sf '
+    +'<span class="badge" style="background:#ede9fe;color:#5b21b6">All Zones</span></h2>';
+  html+='<div style="overflow-x:auto"><table class="prs-table">';
+  html+='<thead>';
+  html+='<tr style="background:#4c1d95">';
+  html+='<th rowspan="2" style="background:#4c1d95;text-align:left;vertical-align:middle">Zone</th>';
+  html+='<th rowspan="2" style="background:#4c1d95;text-align:left;vertical-align:middle">Description</th>';
+  html+='<th rowspan="2" style="background:#4c1d95;text-align:center;vertical-align:middle">Type</th>';
+  refAreas.forEach(function(sf){
+    html+='<th colspan="3" style="background:#5b21b6;text-align:center">'+sf+' sf</th>';
+  });
+  html+='</tr>';
+  html+='<tr>';
+  refAreas.forEach(function(){
+    html+='<th style="background:#6d28d9;text-align:center;font-size:.78em">p(+)<br>psf</th>';
+    html+='<th style="background:#6d28d9;text-align:center;font-size:.78em">p(&minus;)<br>psf</th>';
+    html+='<th style="background:#7c3aed;text-align:center;font-size:.78em">Gov&nbsp;|p|<br>psf</th>';
+  });
+  html+='</tr></thead><tbody>';
+
+  allZoneItems.forEach(function(item){
+    var z=item.z;
+    var typeLabel=item.figKey.indexOf('roof')>=0 ? 'Roof' : (item.figKey.indexOf('wall')>=0||item.figKey==='30.3-1'||item.figKey==='30.3-2A'||item.figKey==='30.3-2B'||item.figKey==='30.3-2D'||item.figKey==='30.3-5A') ? (z.name.toLowerCase().indexOf('wall')>=0?'Wall':'Roof') : '—';
+    // Better type detection based on zone name
+    if(z.name.toLowerCase().indexOf('wall')>=0) typeLabel='Wall';
+    else if(item.figKey==='30.3-1') typeLabel='Wall';
+    else if(item.figKey==='30.6-1-wall') typeLabel='Wall';
+    else typeLabel='Roof';
+
+    html+='<tr'+(z.oh?' class="oh-row"':'')+'>';
+    html+='<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong></td>';
+    html+='<td style="font-size:.85em;color:#555">'+z.desc+'</td>';
+    html+='<td style="text-align:center;font-size:.8em;color:#6d28d9;font-weight:600">'+typeLabel+'</td>';
+    refAreas.forEach(function(sf){
+      var gcpPos=z.pos ? interpGCp(z.pos, sf) : null;
+      var gcpNeg=interpGCp(z.neg, sf);
+      var pPos=(gcpPos!==null) ? qh*(gcpPos+GCpi) : null;
+      var pNeg=qh*(gcpNeg-GCpi);
+      var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
+      html+='<td style="text-align:center;color:#1e40af;font-weight:600">'+(pPos!==null?f1(pPos):'&mdash;')+'</td>';
+      html+='<td style="text-align:center;color:#c2410c;font-weight:600">'+f1(pNeg)+'</td>';
+      html+='<td style="text-align:center;font-weight:700;color:#5b21b6">'+f1(govP)+'</td>';
+    });
+    html+='</tr>';
+  });
+
+  html+='</tbody></table></div>';
+  html+='<div style="font-size:.75em;color:#718096;margin-top:6px">'
+    +'GC<sub>p</sub> log-linearly interpolated per ASCE 7-16 figure curves at exactly 10, 50 &amp; 100 sf. '
+    +'p(+) = q<sub>h</sub>&times;[GC<sub>p</sub>(+)+GC<sub>pi</sub>]; p(&minus;) = q<sub>h</sub>&times;[GC<sub>p</sub>(&minus;)&minus;GC<sub>pi</sub>]. '
+    +'Minimum |p| = 16 psf per §30.2.2 — verify independently.'
+    +'</div>';
+  html+='</div>';
+  document.getElementById('refTableOut').innerHTML=html;
+}
+
 // ─── Main calculation ─────────────────────────────────────────────────────────
 function runCalc(){
   var V=+document.getElementById('V').value;
@@ -646,37 +747,50 @@ function runCalc(){
   var Kd=+document.getElementById('Kd').value;
   var Kzt=+document.getElementById('Kzt').value;
   var GCpi=+document.getElementById('GCpi').value;
-  var fig=document.getElementById('figSel').value;
+  var wallFig=document.getElementById('wallFig').value;
+  var roofFig=document.getElementById('roofFig').value;
   var inclOH=document.getElementById('overhangs').value==='yes';
   var A=+document.getElementById('effArea').value;
 
-  // Validate
   if(!V||!h||!minDim){alert('Enter all required building parameters.');return;}
+  if(wallFig==='none'&&roofFig==='none'){alert('Select at least one wall or roof figure.');return;}
   if(A<10) A=10;
 
-  // Computed parameters
   var hh=Math.max(15,h);
   var Kh=getKh(h,exp);
   var khRow=getKhTableRow(h);
   var qh=0.00256*Kh*Kzt*Kd*V*V;
   var a=Math.max(0.1*minDim, 0.4*h, 3);
 
-  // Get figure data
-  var figData=GCP[fig];
-  if(!figData){alert('Figure data not found.');return;}
+  // Collect all zones from selected figures
+  var allZoneItems=[];
+  [wallFig, roofFig].forEach(function(figKey){
+    if(figKey==='none') return;
+    var data=GCP[figKey];
+    if(!data) return;
+    data.zones.forEach(function(z){
+      if(z.oh && !inclOH) return;
+      allZoneItems.push({z:z, figKey:figKey, figTitle:data.title});
+    });
+  });
 
-  // ─── Summary banner ───────────────────────────────────────────────────────
+  // Combined figure title for summary
+  var titles=[];
+  if(wallFig!=='none' && GCP[wallFig]) titles.push(GCP[wallFig].title);
+  if(roofFig!=='none' && GCP[roofFig]) titles.push(GCP[roofFig].title);
+
+  // ─── Summary banner ───────────────────────────────────────────────────────────────
   var sumBox=document.getElementById('sumBox');
   sumBox.className='summary sum-info';
-  document.getElementById('sumTitle').innerHTML='&#9654;&nbsp; '+figData.title;
+  document.getElementById('sumTitle').innerHTML='&#9654;&nbsp; '+titles.join(' &nbsp;+&nbsp; ');
   document.getElementById('sumSub').innerHTML=
     'q<sub>h</sub> = <strong>'+f2(qh)+' psf</strong> &nbsp;|&nbsp; '
     +'K<sub>h</sub> = <strong>'+f3(Kh)+'</strong> &nbsp;|&nbsp; '
     +'Zone dimension a = <strong>'+f1(a)+' ft</strong> &nbsp;|&nbsp; '
-    +'Effective area A = <strong>'+f1(A)+' sf</strong> &nbsp;|&nbsp; '
+    +'Component A = <strong>'+f1(A)+' sf</strong> &nbsp;|&nbsp; '
     +'V = '+V+' mph, Exp '+exp+', h = '+h+' ft';
 
-  // ─── Demand cards ─────────────────────────────────────────────────────────
+  // ─── Demand cards ─────────────────────────────────────────────────────────────
   var demOut=document.getElementById('demOut');
   demOut.innerHTML=
     '<div class="dem-card"><div class="v">'+f2(qh)+'</div><div class="l">q<sub>h</sub> (psf)<br>Velocity Pressure</div></div>'
@@ -685,53 +799,44 @@ function runCalc(){
     +'<div class="dem-card"><div class="v">'+f2(Kd)+'</div><div class="l">K<sub>d</sub><br>Directional</div></div>'
     +'<div class="dem-card"><div class="v">\u00b1'+GCpi+'</div><div class="l">GC<sub>pi</sub><br>Internal Pressure</div></div>'
     +'<div class="dem-card hilite"><div class="v">'+f1(a)+' ft</div><div class="l">Zone dim. a<br>= max(0.1&times;'+minDim+', 0.4&times;'+h+', 3)</div></div>'
-    +'<div class="dem-card"><div class="v">'+f1(A)+' sf</div><div class="l">Eff. Wind Area<br>Used for GCp</div></div>';
+    +'<div class="dem-card"><div class="v">'+f1(A)+' sf</div><div class="l">Component Area<br>Used for GCp</div></div>';
 
-  // ─── Pressure table ───────────────────────────────────────────────────────
+  // ─── Reference table: 10, 50, 100 sf ─────────────────────────────────────
+  renderRefTable(allZoneItems, qh, GCpi);
+
+  // ─── Component table: at entered effective wind area ───────────────────────
+  document.getElementById('compAreaLabel').textContent=f1(A);
+  _lastZonePressures=[];
   var tb=document.getElementById('prsBody');
   tb.innerHTML='';
-  _lastZonePressures = [];   // reset for new calc run
-
-  var zones=figData.zones;
   var rowIdx=0;
-
-  zones.forEach(function(z,zi){
-    if(z.oh && !inclOH) return; // skip overhangs if not requested
-
+  allZoneItems.forEach(function(item){
+    var z=item.z;
     var gcpPos=z.pos ? interpGCp(z.pos, A) : null;
     var gcpNeg=interpGCp(z.neg, A);
-
     var pPos=(gcpPos!==null) ? qh*(gcpPos+GCpi) : null;
     var pNeg=qh*(gcpNeg-GCpi);
     var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
-    if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP});   // skip overhangs in dropdown
-
+    if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP});
     var gcpPosStr=(gcpPos!==null)?f3(gcpPos):'&mdash;';
     var pPosStr=(pPos!==null)?f1(pPos):'&mdash;';
-    var pNegStr=f1(pNeg);
-    var govStr=f1(govP);
-
     var rowCls=z.oh?'class="oh-row"':'';
-
-    // Build detail panel
-    var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, h, Kh, khRow, Kzt, Kd, qh, GCpi, fig);
-
+    var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, h, Kh, khRow, Kzt, Kd, qh, GCpi, item.figKey);
     var i=rowIdx++;
     tb.innerHTML+=
       '<tr '+rowCls+'>'
-      +'<td><strong>'+(z.oh?'<em>':'')+(z.name)+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':'')+'</td>'
+      +'<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':'')+'</td>'
       +'<td style="font-size:.85em;color:#555">'+z.desc+'</td>'
       +'<td style="text-align:center">'+gcpPosStr+'</td>'
       +'<td style="text-align:center">'+f3(gcpNeg)+'</td>'
       +'<td style="text-align:center;color:#1e40af;font-weight:600">'+pPosStr+'</td>'
-      +'<td style="text-align:center;color:#c2410c;font-weight:600">'+pNegStr+'</td>'
-      +'<td class="gov-cell" style="text-align:center">'+govStr+'</td>'
+      +'<td style="text-align:center;color:#c2410c;font-weight:600">'+f1(pNeg)+'</td>'
+      +'<td class="gov-cell" style="text-align:center">'+f1(govP)+'</td>'
       +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
       +'</tr>'
       +'<tr class="det-row"><td colspan="8"><div class="calc-det" id="det_'+i+'">'+detHtml+'</div></td></tr>';
   });
 
-  // Populate send-panel zone dropdown from computed pressures
   document.getElementById('sendPanel').style.display = _lastZonePressures.length ? '' : 'none';
   _populateSendZoneDropdown();
 
@@ -866,7 +971,7 @@ function sendToMasonryShear(){ _sendToMasonry('bvf'); }
 function sendToMasonryTension(){ _sendToMasonry('baf'); }
 
 // Initialize figure note on load
-updateFigNote();
+updateFigNotes();
 calcEffArea();
 </script>
 </body>
