@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFS Stud — Combined Bending &amp; Compression</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.brace-opts{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.brace-row{display:flex;align-items:center;gap:10px;font-size:.9em}
+.brace-row input[type=checkbox]{width:16px;height:16px}
+.hidden{display:none}
+table.prop-table td:first-child{font-weight:600;color:#333;width:40%}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>CFS Stud — Combined Bending &amp; Compression</h1>
+  <p>LRFD beam-column design check for cold-formed steel C-section studs with lips (S-sections)</p>
+  <div class="ref-tags">
+    <span class="tag">AISI S100-16</span>
+    <span class="tag">Chapter E — Compression</span>
+    <span class="tag">Chapter F — Flexure</span>
+    <span class="tag">Chapter G — Shear</span>
+    <span class="tag">Section H1.2 — Combined</span>
+    <span class="tag">D100-17E Ex. III-1A</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+<svg id="svgSchema" viewBox="0 0 820 240" style="width:100%;max-height:260px;font-family:'Segoe UI',sans-serif;font-size:11px">
+  <defs>
+    <marker id="arrDn" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
+    <marker id="arrUp" markerWidth="7" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#dc2626"/></marker>
+    <marker id="arrLt" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#2a5298"/></marker>
+    <marker id="dimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+    <marker id="dimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+  </defs>
+
+  <!-- CROSS SECTION (left panel) -->
+  <text x="105" y="18" text-anchor="middle" font-weight="bold" fill="#1e3c72">Cross-Section</text>
+  <!-- C-section outline -->
+  <polyline points="75,30 75,210 145,210 145,195 90,195 90,45 145,45 145,30 75,30" fill="none" stroke="#374151" stroke-width="3"/>
+  <!-- lips -->
+  <line x1="145" y1="210" x2="145" y2="195" stroke="#374151" stroke-width="3"/>
+  <line x1="145" y1="45" x2="145" y2="30" stroke="#374151" stroke-width="3"/>
+  <!-- shear center dot -->
+  <circle cx="64" cy="120" r="4" fill="#dc2626"/>
+  <text x="55" y="115" fill="#dc2626" font-size="9">S.C.</text>
+  <!-- centroid dot -->
+  <circle cx="92" cy="120" r="3" fill="#2a5298"/>
+  <!-- dimension labels -->
+  <text x="108" y="125" fill="#555" font-style="italic">D</text>
+  <text x="127" y="28" fill="#555" font-style="italic">B</text>
+  <text x="155" y="200" fill="#555" font-style="italic">C</text>
+  <!-- xo arrow -->
+  <line x1="64" y1="132" x2="92" y2="132" stroke="#dc2626" stroke-width="1" stroke-dasharray="3,2"/>
+  <text x="74" y="142" fill="#dc2626" font-size="9">x&#x2080;</text>
+  <!-- Pu arrow down top -->
+  <line x1="80" y1="5" x2="80" y2="29" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+  <text x="57" y="14" fill="#374151" font-weight="bold">P&#x1D462;</text>
+  <!-- Mu moment arrow (curved label) -->
+  <text x="155" y="120" fill="#2a5298" font-weight="bold">M&#x1D462;&#x2093;</text>
+  <path d="M153,110 Q168,120 153,130" fill="none" stroke="#2a5298" stroke-width="1.5"/>
+
+  <!-- ELEVATION (right panel) -->
+  <text x="510" y="18" text-anchor="middle" font-weight="bold" fill="#1e3c72">Elevation — Stud Span</text>
+  <!-- ground supports (pinned) -->
+  <polygon points="430,200 470,200 450,220" fill="none" stroke="#374151" stroke-width="1.5"/>
+  <line x1="435" y1="222" x2="465" y2="222" stroke="#374151" stroke-width="1.5"/>
+  <polygon points="550,200 590,200 570,220" fill="none" stroke="#374151" stroke-width="1.5"/>
+  <line x1="555" y1="222" x2="585" y2="222" stroke="#374151" stroke-width="1.5"/>
+  <!-- stud web line -->
+  <line x1="450" y1="30" x2="450" y2="200" stroke="#374151" stroke-width="3"/>
+  <line x1="570" y1="30" x2="570" y2="200" stroke="#374151" stroke-width="3"/>
+  <!-- Axial Pu arrows at top and bottom -->
+  <line x1="450" y1="5" x2="450" y2="28" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+  <line x1="570" y1="5" x2="570" y2="28" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+  <text x="455" y="15" fill="#374151" font-size="10" font-weight="bold">P&#x1D462;</text>
+  <!-- Distributed lateral load (wind) -->
+  <line x1="400" y1="50" x2="448" y2="50" stroke="#2a5298" stroke-width="1.5" marker-end="url(#arrLt)"/>
+  <line x1="400" y1="90" x2="448" y2="90" stroke="#2a5298" stroke-width="1.5" marker-end="url(#arrLt)"/>
+  <line x1="400" y1="130" x2="448" y2="130" stroke="#2a5298" stroke-width="1.5" marker-end="url(#arrLt)"/>
+  <line x1="400" y1="170" x2="448" y2="170" stroke="#2a5298" stroke-width="1.5" marker-end="url(#arrLt)"/>
+  <text x="360" y="115" fill="#2a5298" font-weight="bold">w&#x1D462;</text>
+  <!-- brace indicators (dashed lines mid-span) -->
+  <line x1="450" y1="115" x2="570" y2="115" stroke="#16a34a" stroke-width="1" stroke-dasharray="5,3"/>
+  <circle cx="450" cy="115" r="4" fill="#16a34a"/>
+  <circle cx="570" cy="115" r="4" fill="#16a34a"/>
+  <text x="502" y="110" fill="#16a34a" font-size="9">L&#x1D47;&#x2C7; brace</text>
+  <!-- Span dimension -->
+  <line x1="450" y1="232" x2="570" y2="232" stroke="#f59e0b" stroke-width="1.5" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+  <text x="510" y="228" text-anchor="middle" fill="#f59e0b" font-weight="bold">L (span)</text>
+  <!-- Legend -->
+  <circle cx="620" cy="35" r="4" fill="#dc2626"/>
+  <text x="628" y="39" fill="#dc2626" font-size="9">Shear center</text>
+  <circle cx="620" cy="52" r="3" fill="#2a5298"/>
+  <text x="628" y="56" fill="#2a5298" font-size="9">Centroid</text>
+  <line x1="616" y1="68" x2="632" y2="68" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4,2"/>
+  <text x="636" y="72" fill="#16a34a" font-size="9">Brace point</text>
+</svg>
+</div>
+
+<!-- BLOCK 1: SECTION & MATERIAL -->
+<div class="blk">
+  <h2>1. Section &amp; Material</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Section (S-Section Stud)</label>
+      <select id="sec" onchange="fillSectionHint()">
+        <option value="">&#8212; Select Section &#8212;</option>
+      </select>
+      <div class="hint">Sections from SSMA Technical Guide 2024</div>
+    </div>
+    <div class="ig">
+      <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fy" onchange="fillSectionHint()">
+        <option value="33" selected>33 ksi</option>
+        <option value="50">50 ksi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>E <span class="unit">(ksi)</span></label>
+      <input type="number" id="Es" value="29500">
+    </div>
+    <div class="ig">
+      <label>G <span class="unit">(ksi)</span></label>
+      <input type="number" id="Gs" value="11300">
+    </div>
+  </div>
+  <div id="secHint" style="margin-top:10px;font-size:.82em;color:#2a5298;background:#dbeafe;padding:8px 12px;border-radius:6px;display:none"></div>
+</div>
+
+<!-- BLOCK 2: DEMANDS -->
+<div class="blk">
+  <h2>2. Factored Demands <span class="badge">LRFD</span></h2>
+  <div class="callout">Enter LRFD factored demands from structural analysis. Positive P<sub>u</sub> = compression. Positive M<sub>ux</sub> = strong-axis bending (produces compression in one flange).</div>
+  <div class="g3">
+    <div class="ig">
+      <label>P<sub>u</sub> — Axial Compression <span class="unit">(kips)</span></label>
+      <input type="number" id="Pu" value="2.0" step="0.1">
+    </div>
+    <div class="ig">
+      <label>M<sub>ux</sub> — Strong-Axis Moment <span class="unit">(in-kip)</span></label>
+      <input type="number" id="Mu" value="60" step="1">
+    </div>
+    <div class="ig">
+      <label>V<sub>ux</sub> — Shear <span class="unit">(kips)</span></label>
+      <input type="number" id="Vu" value="0.5" step="0.1">
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 3: GEOMETRY -->
+<div class="blk">
+  <h2>3. Geometry &amp; Effective Lengths</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>L — Span / Strong-Axis Unbraced Length <span class="unit">(in)</span></label>
+      <input type="number" id="Lspan" value="120" step="6" min="1" oninput="syncBraceDefaults()">
+      <div class="hint">= unbraced length for strong-axis flexural buckling (K<sub>x</sub>L<sub>x</sub>)</div>
+    </div>
+    <div class="ig">
+      <label>K<sub>x</sub> — Strong-Axis Eff. Length Factor</label>
+      <input type="number" id="Kx" value="1.0" step="0.05" min="0.1" max="2.0">
+    </div>
+    <div class="ig">
+      <label>C<sub>b</sub> — Moment Gradient Factor</label>
+      <input type="number" id="Cb" value="1.0" step="0.05" min="1.0">
+      <div class="hint">1.0 = conservative (uniform moment). Use C<sub>b</sub> &gt;1 for linearly varying moment.</div>
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 4: BRACING -->
+<div class="blk alt-blk">
+  <h2>4. Bracing Conditions <span class="badge-green">Weak Axis &amp; Torsional</span></h2>
+  <div class="callout">
+    Enter the brace spacing for lateral (weak-axis) and torsional bracing. Enter <strong>0</strong> for each if the stud is continuously braced in that direction (e.g., sheathing attached). These are separate from the strong-axis span above.
+  </div>
+  <div class="g2" style="margin-top:14px">
+    <div>
+      <div class="sub-head">Weak-Axis (Lateral) Bracing</div>
+      <div class="g3">
+        <div class="ig">
+          <label>L<sub>by</sub> — Weak-Axis Brace Spacing <span class="unit">(in)</span></label>
+          <input type="number" id="Lby" value="0" step="6" min="0">
+          <div class="hint">0 = continuously braced (sheathing controls lateral deflection)</div>
+        </div>
+        <div class="ig">
+          <label>K<sub>y</sub></label>
+          <input type="number" id="Ky" value="1.0" step="0.05" min="0.1" max="2.0">
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="sub-head">Torsional Bracing</div>
+      <div class="g3">
+        <div class="ig">
+          <label>L<sub>bt</sub> — Torsional Brace Spacing <span class="unit">(in)</span></label>
+          <input type="number" id="Lbt" value="0" step="6" min="0">
+          <div class="hint">0 = continuously braced against twist (sheathing or blocking prevents rotation)</div>
+        </div>
+        <div class="ig">
+          <label>K<sub>t</sub></label>
+          <input type="number" id="Kt" value="1.0" step="0.05" min="0.1" max="2.0">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:16px">
+    <div class="sub-head">LTB Bracing (Flexure)</div>
+    <div class="g3">
+      <div class="ig">
+        <label>L<sub>b</sub> — Lateral-Torsional Brace Spacing <span class="unit">(in)</span></label>
+        <input type="number" id="Lb" value="0" step="6" min="0">
+        <div class="hint">0 = continuously braced against LTB. Typically = L<sub>by</sub>. Used for flexural LTB check only.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+  <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+  <div class="blk"><h2>Design Demands &amp; Capacities</h2><div id="demOut"></div></div>
+  <div class="blk">
+    <h2>Check Results
+      <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &#9656; Calc to expand any check</span>
+    </h2>
+    <table class="chk-table">
+      <thead>
+        <tr>
+          <th style="width:26%">Check</th>
+          <th>Reference</th>
+          <th>Demand</th>
+          <th>Capacity (&phi;R<sub>n</sub>)</th>
+          <th>D/C</th>
+          <th>Status</th>
+          <th style="width:68px">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+  <div class="note-box" id="notesBox"></div>
+</div>
+
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script src="ssma_sections.js"></script>
+<script>
+"use strict";
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// ── SSMA inside corner radius by thickness code (from SSMA Technical Guide p.5) ──
+var INSIDE_R = {
+  '18': 0.0843, '27': 0.0796, '30': 0.0781, '33': 0.0764,
+  '43': 0.0712, '54': 0.0849, '68': 0.1069, '97': 0.1525, '118': 0.1863
+};
+
+// ── SSMA stiffening lip length by flange width code ──
+var LIP_LEN = {
+  '125': 0.188, '137': 0.375, '162': 0.500,
+  '200': 0.625, '250': 0.625, '300': 0.625,
+  '350': 1.000
+};
+
+// ── Design thickness by code ──
+var T_DES = {
+  '18': 0.0188, '27': 0.0283, '30': 0.0312, '33': 0.0346,
+  '43': 0.0451, '54': 0.0566, '68': 0.0713, '97': 0.1017, '118': 0.1242
+};
+
+// ── Populate section dropdown from SSMA database ──
+(function populateDropdown(){
+  if(typeof SSMA === 'undefined'){
+    console.error('SSMA database not loaded - check ssma_sections.js path.');
+    return;
+  }
+  SSMA.populateStudSelect('sec', {placeholder: '— Select Section —'});
+})();
+
+function syncBraceDefaults(){}
+
+function fillSectionHint(){
+  var sn = document.getElementById('sec').value;
+  var fy = +document.getElementById('Fy').value;
+  var hint = document.getElementById('secHint');
+  if(!sn || typeof SSMA === 'undefined'){ hint.style.display='none'; return; }
+  var p = SSMA.getStudProps(sn, fy);
+  if(!p){ hint.innerHTML='Section not available at '+fy+' ksi.'; hint.style.display='block'; return; }
+  var m = sn.match(/^(\d+)S(\d+)-(\d+)$/);
+  if(!m){ hint.style.display='none'; return; }
+  var D=+m[1]/100, B=+m[2]/100, tc=m[3];
+  hint.innerHTML = '<strong>'+sn+'</strong> &nbsp;|&nbsp; '
+    + 'Web: '+D+'" &nbsp; Flange: '+B+'" &nbsp; t: '+p.thickness_in+'" &nbsp; A<sub>g</sub>: '+p.area_in2+' in&sup2;'
+    + ' &nbsp; I<sub>x</sub>: '+p.Ix_in4+' in&sup4; &nbsp; r<sub>x</sub>: '+p.Rx_in+'" &nbsp; r<sub>y</sub>: '+p.Ry_in+'"'
+    + ' &nbsp; S<sub>xe</sub>: '+p.Sxe_in3+' in&sup3; &nbsp; L<sub>u</sub>: '+p.Lu_ft+' ft';
+  hint.style.display='block';
+}
+
+// ── Main calculation ─────────────────────────────────────────────────────────
+function runCalc(){
+  if(typeof SSMA === 'undefined'){ alert('ERROR: ssma_sections.js not loaded. Place the calculator and ssma_sections.js in the same folder.'); return; }
+  var sn = document.getElementById('sec').value;
+  if(!sn){ alert('Please select a section.'); return; }
+  var Fy = +document.getElementById('Fy').value;
+  var p  = SSMA.getStudProps(sn, Fy);
+  if(!p){ alert('Section '+sn+' not found at '+Fy+' ksi.'); return; }
+
+  // ── Unpack section properties ──
+  var Ag  = p.area_in2;
+  var t   = p.thickness_in;
+  var Ix  = p.Ix_in4,  Sx  = p.Sx_in3,  rx  = p.Rx_in;
+  var Iy  = p.Iy_in4,  ry  = p.Ry_in;
+  var Ixe = p.Ixe_in4, Sxe = p.Sxe_in3;
+  var Mal = p.Mal_inkip, Mad = p.Mad_inkip;
+  var Vag = p.Vag_lb / 1000;  // convert to kips
+  var Lu_ft = p.Lu_ft || 9999;
+  var J   = (p.Jx1000_in4 || 0) / 1000;  // in^4
+  var Cw  = p.Cw_in6  || 0;
+  var xo  = Math.abs(p.Xo_in  || 0);
+  var ro  = p.Ro_in   || Math.sqrt(rx*rx + ry*ry + xo*xo);
+  var beta= p.beta_in || (1 - Math.pow(xo/ro, 2));
+
+  // ── Inputs ──
+  var E   = +document.getElementById('Es').value;
+  var G   = +document.getElementById('Gs').value;
+  var Pu  = +document.getElementById('Pu').value;
+  var Mu  = +document.getElementById('Mu').value;
+  var Vu  = +document.getElementById('Vu').value;
+  var L   = +document.getElementById('Lspan').value;
+  var Kx  = +document.getElementById('Kx').value;
+  var Cb  = +document.getElementById('Cb').value;
+  var Lby = +document.getElementById('Lby').value;
+  var Ky  = +document.getElementById('Ky').value;
+  var Lbt = +document.getElementById('Lbt').value;
+  var Kt  = +document.getElementById('Kt').value;
+  var Lb  = +document.getElementById('Lb').value;
+  var pi  = Math.PI;
+
+  // ── Parse section name for geometry ──
+  var m = sn.match(/^(\d+)S(\d+)-(\d+)$/);
+  var D_in = +m[1]/100, B_in = +m[2]/100, tc = m[3];
+  var Ri = INSIDE_R[tc] || (1.5*t);
+  var Rc = Ri + t/2;                      // centerline radius
+  var h_flat = D_in - 2*(Ri + t);         // flat web height
+  var b_flat = B_in - 2*(Ri + t);         // flat flange width (both corner arcs)
+  var lip = LIP_LEN[m[2]] || 0.5;
+  var lip_flat = Math.max(0, lip - (Ri + t));
+
+  // ── Effective lengths ──
+  var KxLx = Kx * L;
+  var KyLy = (Lby <= 0) ? 0 : Ky * Lby;
+  var KtLt = (Lbt <= 0) ? 0 : Kt * Lbt;
+  var Lb_ltb = (Lb <= 0) ? 0 : Lb;
+
+  // ── COMPRESSION — Global buckling (AISI S100-16 §E2) ──
+  var sig_ex = (pi*pi*E) / Math.pow(KxLx/rx, 2);
+  var sig_ey = (KyLy <= 0) ? Infinity : (pi*pi*E) / Math.pow(KyLy/ry, 2);
+  var sig_t  = (KtLt <= 0) ? Infinity : (G*J + pi*pi*E*Cw/Math.pow(KtLt, 2)) / (Ag*ro*ro);
+
+  // Fe for singly-symmetric C-section: min(sig_ey, Fe_ft)
+  // Fe_ft = flexural-torsional (AISI E2.2, symmetry about x-axis)
+  var Fe_ft;
+  if(sig_t === Infinity){
+    Fe_ft = sig_ex;  // purely strong-axis flexural (torsional restraint → no FT)
+  } else {
+    var disc = Math.pow(sig_ex + sig_t, 2) - 4*beta*sig_ex*sig_t;
+    if(disc < 0) disc = 0;
+    Fe_ft = (sig_ex + sig_t - Math.sqrt(disc)) / (2*beta);
+  }
+  var Fe_y  = (sig_ey === Infinity) ? Infinity : sig_ey;
+  var Fe    = (Fe_y === Infinity) ? Fe_ft : Math.min(Fe_ft, Fe_y);
+
+  // Fn (AISI §E2, Eqs. E2-2, E2-3)
+  var lam_c = Math.sqrt(Fy / Fe);
+  var Fn, comp_eq;
+  if(lam_c <= 1.5){
+    Fn = Math.pow(0.658, lam_c*lam_c) * Fy;
+    comp_eq = 'E2-2';
+  } else {
+    Fn = 0.877 * Fe;
+    comp_eq = 'E2-3';
+  }
+  var Pne = Ag * Fn;  // global nominal strength
+
+  // ── COMPRESSION — Local (§E3.1, effective width) ──
+  // Web only (primary slender element): k=4 stiffened, uniform compression
+  var phi_loc = (KtLt <= 0 && KyLy <= 0) ? Fn/Fy : 1.0;  // stress ratio adjustment
+  var lam_w = (1.052/Math.sqrt(4)) * (h_flat/t) * Math.sqrt(Fn/E);
+  var rho_w = (lam_w <= 0.673) ? 1.0 : Math.min(1.0, (1 - 0.22/lam_w)/lam_w);
+  var h_eff  = rho_w * h_flat;
+  var Ae     = Ag - (h_flat - h_eff)*t;   // approximate (web reduction only)
+  var Pnl    = Ae * Fn;
+
+  // phi_c = 0.85 for both global and local (AISI §B3.2.2)
+  var phi_c  = 0.85;
+  var phiPne = phi_c * Pne;
+  var phiPnl = phi_c * Pnl;
+  var phiPn  = phiPnl;   // local-global governs over pure global
+
+  // ── COMPRESSION — Distortional (§E4, note) ──
+  // Approximate Fcrd from bending distortional
+  var Mnd    = (Mad !== null) ? 1.67 * Mad : null;  // ASD -> nominal
+  var Fcrd_approx = Mnd ? Mnd / Sxe : null;  // rough estimate (compression Fcrd ~ bending Fcrd)
+  var Pnd_approx  = Fcrd_approx ? Ag * Fcrd_approx : null;
+  var phiPnd      = Pnd_approx ? (0.80 * Pnd_approx) : null;
+
+  // ── FLEXURE — LTB (AISI §F2.1) ──
+  var My = Sx * Fy;         // first yield moment (gross section)
+  var Mne;
+  var ltb_zone, ltb_eq;
+  var Lu_in = Lu_ft * 12;
+  if(Lb_ltb <= 0){
+    // Continuously braced → no LTB
+    Mne = My; ltb_zone = 'No LTB (continuously braced)'; ltb_eq = 'F2.1-1 (Me &ge; 2.78M<sub>y</sub>)';
+  } else if(Lb_ltb <= Lu_in){
+    Mne = My; ltb_zone = 'No LTB (L<sub>b</sub> &le; L<sub>u</sub>)'; ltb_eq = 'F2.1-1';
+  } else {
+    // Compute Me (elastic critical LTB moment, AISI S100-16 §F2.1.2)
+    var GJ = G*J;
+    var inner = GJ + pi*pi*E*Cw/(Lb_ltb*Lb_ltb);
+    var Me = Cb * (pi/Lb_ltb) * Math.sqrt(E*Iy * inner);
+    if(Me >= 2.78*My){
+      Mne = My; ltb_zone = 'Compact LTB'; ltb_eq = 'F2.1-1';
+    } else if(Me > 0.56*My){
+      Mne = (10/9)*My*(1 - (10*My)/(36*Me));
+      ltb_zone = 'Inelastic LTB'; ltb_eq = 'F2.1-2';
+    } else {
+      Mne = Me;
+      ltb_zone = 'Elastic LTB'; ltb_eq = 'F2.1-3';
+    }
+  }
+
+  // ── FLEXURE — Local interaction (§F3.1) ──
+  // Mnl = min(Mne, Sxe*Fy) — conservative with SSMA tabulated Sxe
+  var Mnl_ideal = Sxe * Fy;
+  var Mnl = Math.min(Mne, Mnl_ideal);
+
+  // ── FLEXURE — Distortional (§F4.1) ──
+  var Mnd_dist = (Mad !== null) ? 1.67 * Mad : Sxe * Fy;  // ASD to nominal
+  var Mnd_d    = Mnd_dist;
+
+  // Governing flexural nominal
+  var Mn = Math.min(Mnl, Mnd_d);
+  var phi_b  = 0.90;
+  var phiMnl = phi_b * Mnl;
+  var phiMnd = phi_b * Mnd_d;
+  var phiMn  = phi_b * Mn;
+
+  // ── SHEAR (§G2.1) ──
+  // SSMA Vag (ASD) → LRFD using φ_v=1.0, Ω_v=1.60 (AISI S100-07/16 for C-sections without holes)
+  var Omega_v = 1.60;
+  var phi_v   = 1.00;
+  var phiVn   = phi_v * Omega_v * Vag;   // in kips
+
+  // ── COMBINED — AISI §H1.2 ──
+  var Pao  = phiPn;   // controlling compression
+  var Max  = phiMn;   // controlling flexure
+  var dc_combined = (Pao > 0 && Max > 0) ? (Pu/Pao + Mu/Max) : null;
+
+  // ── Build check table ──
+  var chks = [];
+
+  // 1. Global compression
+  (function(){
+    var braceDesc;
+    if(KyLy <= 0 && KtLt <= 0) braceDesc = 'Strong-axis flexural only (weak axis &amp; torsion continuously braced)';
+    else if(KyLy <= 0) braceDesc = 'Flexural-torsional (torsion unbraced)';
+    else if(KtLt <= 0) braceDesc = 'min(Weak-axis flexural, Strong-axis) (torsion braced)';
+    else braceDesc = 'min(Weak-axis flexural, Flexural-torsional)';
+
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;E2 &mdash; Global Buckling (Flexural &amp; Flexural-Torsional)</div><div class="cbox">';
+    d+='<div class="mrow">Section: <strong>'+sn+'</strong> &nbsp; A<sub>g</sub>='+f3(Ag)+' in&sup2; &nbsp; r<sub>x</sub>='+f3(rx)+'" &nbsp; r<sub>y</sub>='+f3(ry)+'" &nbsp; r<sub>o</sub>='+f3(ro)+'"</div>';
+    d+='<div class="mrow">x<sub>o</sub>='+f3(xo)+'" &nbsp; &beta;='+f4(beta)+' &nbsp; J='+f5(J)+' in&sup4; &nbsp; C<sub>w</sub>='+f3(Cw)+' in&sup6;</div>';
+    d+='<hr class="csep">';
+    d+='<div class="mrow"><span class="ceq">Strong-axis flexural (Eq. C-E2-1):</span> &sigma;<sub>ex</sub> = '+fr('&pi;&sup2;E','(K<sub>x</sub>L<sub>x</sub>/r<sub>x</sub>)&sup2;')+'</div>';
+    d+='<div class="mrow ind">K<sub>x</sub>L<sub>x</sub>/r<sub>x</sub> = '+f1(Kx)+'&times;'+f1(L)+'/'+f3(rx)+' = <strong>'+f1(KxLx/rx)+'</strong></div>';
+    d+='<div class="mrow ind">&sigma;<sub>ex</sub> = '+fr('&pi;&sup2;&times;'+E, f1(Math.pow(KxLx/rx,2)))+' = <span class="cval">'+f2(sig_ex)+' ksi</span></div>';
+    if(KyLy > 0){
+      d+='<hr class="csep">';
+      d+='<div class="mrow"><span class="ceq">Weak-axis flexural (Eq. C-E2-2):</span> &sigma;<sub>ey</sub> = '+fr('&pi;&sup2;E','(K<sub>y</sub>L<sub>y</sub>/r<sub>y</sub>)&sup2;')+'</div>';
+      d+='<div class="mrow ind">K<sub>y</sub>L<sub>y</sub>/r<sub>y</sub> = '+f1(Ky)+'&times;'+f1(Lby)+'/'+f3(ry)+' = <strong>'+f1(KyLy/ry)+'</strong></div>';
+      d+='<div class="mrow ind">&sigma;<sub>ey</sub> = <span class="cval">'+f2(sig_ey)+' ksi</span></div>';
+    } else {
+      d+='<div class="mrow" style="color:#16a34a">&#10003; Weak axis continuously braced &mdash; &sigma;<sub>ey</sub> = &infin;</div>';
+    }
+    if(KtLt > 0){
+      d+='<hr class="csep">';
+      d+='<div class="mrow"><span class="ceq">Torsional stress (Eq. C-E2-4):</span> &sigma;<sub>t</sub> = '+fr('1','A<sub>g</sub>r<sub>o</sub>&sup2;')+'(GJ + '+fr('&pi;&sup2;EC<sub>w</sub>','(K<sub>t</sub>L<sub>t</sub>)&sup2;')+')</div>';
+      d+='<div class="mrow ind">= '+fr('1',f3(Ag)+'&times;'+f3(ro*ro))+'('+f1(G)+'&times;'+f5(J)+' + '+fr('&pi;&sup2;&times;'+E+'&times;'+f3(Cw),f1(Math.pow(KtLt,2)))+') = <span class="cval">'+f2(sig_t)+' ksi</span></div>';
+      d+='<hr class="csep">';
+      d+='<div class="mrow"><span class="ceq">Flexural-torsional (Eq. E2-8, singly-symmetric):</span></div>';
+      d+='<div class="mrow">F<sub>e,ft</sub> = '+fr('&sigma;<sub>ex</sub>+&sigma;<sub>t</sub> &minus; '+ov('(&sigma;<sub>ex</sub>+&sigma;<sub>t</sub>)&sup2;&minus;4&beta;&sigma;<sub>ex</sub>&sigma;<sub>t</sub>'),'2&beta;')+'</div>';
+      d+='<div class="mrow ind">= '+fr(f2(sig_ex)+'+'+f2(sig_t)+' &minus; '+ov('('+f2(sig_ex+sig_t)+')&sup2;&minus;4&times;'+f4(beta)+'&times;'+f2(sig_ex)+'&times;'+f2(sig_t)),'2&times;'+f4(beta))+' = <span class="cval">'+f2(Fe_ft)+' ksi</span></div>';
+    } else {
+      d+='<div class="mrow" style="color:#16a34a">&#10003; Torsionally braced &mdash; F<sub>e,ft</sub> = &sigma;<sub>ex</sub> = '+f2(sig_ex)+' ksi (no flexural-torsional)</div>';
+    }
+    d+='<hr class="csep">';
+    d+='<div class="mrow"><strong>F<sub>e</sub> = min(...) = <span class="cval">'+f2(Fe)+' ksi</span></strong> &nbsp; &lambda;<sub>c</sub> = '+ov('F<sub>y</sub>/F<sub>e</sub>')+' = '+ov(Fy+'/'+f2(Fe))+' = <span class="cval">'+f3(lam_c)+'</span></div>';
+    d+='<hr class="csep">';
+    if(lam_c <= 1.5){
+      d+='<div class="mrow"><span class="ceq">Eq. E2-2 (&lambda;<sub>c</sub>&le;1.5): F<sub>n</sub> = 0.658<sup>&lambda;<sub>c</sub>&sup2;</sup>&middot;F<sub>y</sub></span></div>';
+      d+='<div class="mrow ind">= 0.658<sup>'+f3(lam_c*lam_c)+'</sup>&times;'+Fy+' = <span class="cval">'+f2(Fn)+' ksi</span></div>';
+    } else {
+      d+='<div class="mrow"><span class="ceq">Eq. E2-3 (&lambda;<sub>c</sub>&gt;1.5): F<sub>n</sub> = 0.877&middot;F<sub>e</sub></span></div>';
+      d+='<div class="mrow ind">= 0.877&times;'+f2(Fe)+' = <span class="cval">'+f2(Fn)+' ksi</span></div>';
+    }
+    d+='<div class="mrow">P<sub>ne</sub> = A<sub>g</sub>&middot;F<sub>n</sub> = '+f3(Ag)+'&times;'+f2(Fn)+' = <span class="cval">'+f2(Pne)+' kips</span></div>';
+    d+='<div class="mrow"><strong>&phi;<sub>c</sub>P<sub>ne</sub></strong> = 0.85&times;'+f2(Pne)+' = <span class="cval">'+f2(phiPne)+' kips</span></div>';
+    d+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Pu),f2(phiPne))+' = <span class="cval">'+f3(Pu/phiPne)+'</span></div></div>';
+
+    chks.push({n:'Global Compression (P<sub>ne</sub>)', r:'AISI S100-16 §E2',
+      d:'P<sub>u</sub>='+f2(Pu)+' k', c:'&phi;P<sub>ne</sub>='+f2(phiPne)+' k',
+      dc:Pu/phiPne, nt:braceDesc+' &mdash; '+comp_eq+', &lambda;<sub>c</sub>='+f3(lam_c), stiff:false, det:d});
+  })();
+
+  // 2. Local-Global Compression
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;E3.1 &mdash; Local Buckling Interacting with Global Buckling (Effective Width)</div><div class="cbox">';
+    d+='<div class="mrow">Flat web height: h = D &minus; 2(R<sub>i</sub>+t) = '+f3(D_in)+'&minus;2('+f4(Ri)+'+'+f3(t)+') = <span class="cval">'+f3(h_flat)+'"</span></div>';
+    d+='<div class="mrow">h/t = '+f3(h_flat)+'/'+f4(t)+' = <span class="cval">'+f1(h_flat/t)+'</span></div>';
+    d+='<div class="mrow"><span class="ceq">Stiffened web (k=4.0): &lambda; = '+fr('1.052','&radic;k')+' &middot; '+fr('h','t')+' &middot; '+ov(fr('F<sub>n</sub>','E'))+'</span></div>';
+    d+='<div class="mrow ind">&lambda; = '+fr('1.052',ov('4.0'))+'&times;'+f1(h_flat/t)+'&times;'+ov(f4(Fn)+'/'+E)+' = <span class="cval">'+f3(lam_w)+'</span></div>';
+    if(lam_w <= 0.673){
+      d+='<div class="mrow">&lambda;&le;0.673 &rarr; &rho; = 1.0 (web fully effective)</div>';
+    } else {
+      d+='<div class="mrow">&rho; = '+fr('1&minus;0.22/&lambda;','&lambda;')+' = '+fr('1&minus;0.22/'+f3(lam_w),f3(lam_w))+' = <span class="cval">'+f3(rho_w)+'</span></div>';
+    }
+    d+='<div class="mrow">h<sub>eff</sub> = &rho;&middot;h = '+f3(rho_w)+'&times;'+f3(h_flat)+' = '+f3(h_eff)+'"</div>';
+    d+='<div class="mrow">A<sub>e</sub> &asymp; A<sub>g</sub> &minus; (h&minus;h<sub>eff</sub>)&middot;t = '+f3(Ag)+'&minus;'+f3((h_flat-h_eff)*t)+' = <span class="cval">'+f3(Ae)+' in&sup2;</span></div>';
+    d+='<div class="mrow hint" style="color:#78350f;font-size:.85em;">&#9432; Flanges &amp; lips assumed fully effective (typical for SSMA sections). Verify flange b/t per AISI §B4.</div>';
+    d+='<hr class="csep">';
+    d+='<div class="mrow">P<sub>nl</sub> = A<sub>e</sub>&middot;F<sub>n</sub> = '+f3(Ae)+'&times;'+f2(Fn)+' = <span class="cval">'+f2(Pnl)+' kips</span></div>';
+    d+='<div class="mrow"><strong>&phi;<sub>c</sub>P<sub>nl</sub></strong> = 0.85&times;'+f2(Pnl)+' = <span class="cval">'+f2(phiPnl)+' kips</span></div>';
+    d+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Pu),f2(phiPnl))+' = <span class="cval">'+f3(Pu/phiPnl)+'</span></div></div>';
+
+    chks.push({n:'Compression — Local&ndash;Global (P<sub>nl</sub>)', r:'AISI S100-16 §E3.1',
+      d:'P<sub>u</sub>='+f2(Pu)+' k', c:'&phi;P<sub>nl</sub>='+f2(phiPnl)+' k',
+      dc:Pu/phiPnl, nt:'Eff. web &rho;='+f3(rho_w)+', A<sub>e</sub>='+f3(Ae)+' in&sup2;', stiff:false, det:d});
+  })();
+
+  // 3. Distortional Compression (approximate)
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;E4 &mdash; Distortional Buckling (Approximate)</div><div class="cbox">';
+    if(phiPnd !== null){
+      d+='<div class="mrow callout" style="background:#fff8e1;border:1px solid #fbbf24;padding:6px 10px;border-radius:4px;font-size:.88em;color:#78350f;">&#9888; Approximation: uses distortional bending stress F<sub>crd</sub> &asymp; M<sub>nd</sub>/S<sub>xe</sub>. For precise P<sub>nd</sub>, perform full AISI §E4 calculation with rotational stiffness K&phi;.</div>';
+      d+='<div class="mrow">M<sub>nd</sub> = &Omega;<sub>b</sub>&middot;M<sub>ad</sub> = 1.67&times;'+f2(Mad)+' = '+f2(Mnd_dist)+' k-in</div>';
+      d+='<div class="mrow">F<sub>crd</sub> &asymp; M<sub>nd</sub>/S<sub>xe</sub> = '+f2(Mnd_dist)+'/'+f3(Sxe)+' = <span class="cval">'+f2(Fcrd_approx)+' ksi</span></div>';
+      d+='<div class="mrow">P<sub>nd</sub> &asymp; A<sub>g</sub>&middot;F<sub>crd</sub> = '+f3(Ag)+'&times;'+f2(Fcrd_approx)+' = '+f2(Pnd_approx)+' kips</div>';
+      d+='<div class="mrow"><strong>&phi;<sub>c</sub>P<sub>nd</sub></strong> (approx) = 0.80&times;'+f2(Pnd_approx)+' = <span class="cval">'+f2(phiPnd)+' kips</span></div>';
+      d+='<hr class="csep"><div class="mrow">D/C (approx) = '+fr(f2(Pu),f2(phiPnd))+' = <span class="cval">'+f3(Pu/phiPnd)+'</span></div></div>';
+      chks.push({n:'Compression — Distortional (P<sub>nd</sub>) <em>approx</em>', r:'AISI S100-16 §E4',
+        d:'P<sub>u</sub>='+f2(Pu)+' k', c:'&phi;P<sub>nd</sub>&asymp;'+f2(phiPnd)+' k',
+        dc:Pu/phiPnd, nt:'Approximation &mdash; verify with full §E4', stiff:false, det:d});
+    } else {
+      d+='<div class="mrow">Distortional compression data unavailable. Perform per AISI S100-16 §E4.</div></div>';
+      chks.push({n:'Compression — Distortional (P<sub>nd</sub>)', r:'AISI S100-16 §E4',
+        d:'P<sub>u</sub>='+f2(Pu)+' k', c:'See detail', dc:null, nt:'Full §E4 calc required', stiff:false, det:d});
+    }
+  })();
+
+  // 4. LTB flexure
+  (function(){
+    var Lu_in = Lu_ft * 12;
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;F2.1 &mdash; Lateral-Torsional Buckling</div><div class="cbox">';
+    d+='<div class="mrow">M<sub>y</sub> = S<sub>x</sub>&middot;F<sub>y</sub> = '+f3(Sx)+'&times;'+Fy+' = <span class="cval">'+f2(My)+' k-in</span> (first yield, gross section)</div>';
+    d+='<div class="mrow">L<sub>u</sub> (SSMA) = '+f1(Lu_ft)+' ft = '+f1(Lu_in)+'" &nbsp; L<sub>b</sub> = '+f1(Lb_ltb)+'"</div>';
+    if(Lb_ltb <= 0){
+      d+='<div class="mrow" style="color:#16a34a">&#10003; Continuously braced against LTB &mdash; M<sub>ne</sub> = M<sub>y</sub></div>';
+    } else if(Lb_ltb <= Lu_in){
+      d+='<div class="mrow" style="color:#16a34a">&#10003; L<sub>b</sub> &le; L<sub>u</sub>: No LTB reduction &mdash; M<sub>ne</sub> = M<sub>y</sub></div>';
+    } else {
+      var GJ = G*J;
+      var inner = GJ + pi*pi*E*Cw/(Lb_ltb*Lb_ltb);
+      var Me = Cb * (pi/Lb_ltb) * Math.sqrt(E*Iy*inner);
+      d+='<div class="mrow"><span class="ceq">Eq. F2.1-5: M<sub>e</sub> = C<sub>b</sub>&middot;'+fr('&pi;','L<sub>b</sub>')+ov('EI<sub>y</sub>(GJ+'+fr('&pi;&sup2;EC<sub>w</sub>','L<sub>b</sub>&sup2;')+')')+'</span></div>';
+      d+='<div class="mrow ind">= '+f2(Cb)+'&times;'+fr('&pi;',f1(Lb_ltb))+ov(f1(E)+'&times;'+f3(Iy)+'&times;('+f1(GJ)+'+'+fr('&pi;&sup2;&times;'+f1(E)+'&times;'+f3(Cw),f1(Lb_ltb*Lb_ltb))+')')+' = <span class="cval">'+f2(Me)+' k-in</span></div>';
+      d+='<div class="mrow">2.78M<sub>y</sub> = '+f2(2.78*My)+' k-in &nbsp; 0.56M<sub>y</sub> = '+f2(0.56*My)+' k-in</div>';
+      if(Me >= 2.78*My){
+        d+='<div class="mrow">M<sub>e</sub>&ge;2.78M<sub>y</sub> &rarr; <span class="ceq">Eq. F2.1-1:</span> M<sub>ne</sub> = M<sub>y</sub> = <span class="cval">'+f2(My)+' k-in</span></div>';
+      } else if(Me > 0.56*My){
+        d+='<div class="mrow"><span class="ceq">Eq. F2.1-2 (Inelastic LTB):</span> M<sub>ne</sub> = '+fr('10','9')+'M<sub>y</sub>(1&minus;'+fr('10M<sub>y</sub>','36M<sub>e</sub>')+')</div>';
+        d+='<div class="mrow ind">= '+fr('10','9')+'&times;'+f2(My)+'&times;(1&minus;'+fr('10&times;'+f2(My),'36&times;'+f2(Me))+') = <span class="cval">'+f2(Mne)+' k-in</span></div>';
+      } else {
+        d+='<div class="mrow"><span class="ceq">Eq. F2.1-3 (Elastic LTB):</span> M<sub>ne</sub> = M<sub>e</sub> = <span class="cval">'+f2(Mne)+' k-in</span></div>';
+      }
+    }
+    d+='<div class="mrow"><strong>M<sub>ne</sub> = <span class="cval">'+f2(Mne)+' k-in</span></strong> ('+ltb_zone+')</div>';
+    d+='<hr class="csep"><div class="mrow">D/C basis = M<sub>ne</sub> only (combined local+LTB check below)</div></div>';
+    chks.push({n:'Flexure — Lateral-Torsional Buckling (M<sub>ne</sub>)', r:'AISI S100-16 §F2.1',
+      d:'M<sub>u</sub>='+f2(Mu)+' k-in', c:'M<sub>ne</sub>='+f2(Mne)+' k-in (used in F3)',
+      dc:null, nt:ltb_zone, stiff:false, det:d});
+  })();
+
+  // 5. Flexural local-global
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;F3.1 &mdash; Local Buckling Interacting with Global Buckling (Effective Section)</div><div class="cbox">';
+    d+='<div class="mrow">S<sub>xe</sub> (from SSMA at F<sub>y</sub>='+Fy+' ksi) = <span class="cval">'+f3(Sxe)+' in&sup3;</span></div>';
+    d+='<div class="mrow">M<sub>nl,ideal</sub> = S<sub>xe</sub>&middot;F<sub>y</sub> = '+f3(Sxe)+'&times;'+Fy+' = <span class="cval">'+f2(Mnl_ideal)+' k-in</span></div>';
+    d+='<div class="mrow">M<sub>ne</sub> = '+f2(Mne)+' k-in (from LTB check above)</div>';
+    d+='<div class="mrow"><span class="ceq">M<sub>nl</sub> = min(M<sub>ne</sub>, S<sub>xe</sub>&middot;F<sub>y</sub>) = min('+f2(Mne)+', '+f2(Mnl_ideal)+') = <span class="cval">'+f2(Mnl)+' k-in</span></span></div>';
+    d+='<div class="mrow"><strong>&phi;<sub>b</sub>M<sub>nl</sub></strong> = 0.90&times;'+f2(Mnl)+' = <span class="cval">'+f2(phiMnl)+' k-in</span></div>';
+    d+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Mu),f2(phiMnl))+' = <span class="cval">'+f3(Mu/phiMnl)+'</span></div></div>';
+    chks.push({n:'Flexure — Local (M<sub>nl</sub>)', r:'AISI S100-16 §F3.1',
+      d:'M<sub>u</sub>='+f2(Mu)+' k-in', c:'&phi;M<sub>nl</sub>='+f2(phiMnl)+' k-in',
+      dc:Mu/phiMnl, nt:'S<sub>xe</sub>='+f3(Sxe)+' in&sup3; from SSMA', stiff:false, det:d});
+  })();
+
+  // 6. Distortional flexure
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;F4.1 &mdash; Distortional Buckling (Flexure)</div><div class="cbox">';
+    d+='<div class="mrow">M<sub>ad</sub> (SSMA ASD, K&phi;=0) = '+f2(Mad)+' k-in &nbsp;&rarr;&nbsp; M<sub>nd</sub> = &Omega;<sub>b</sub>&middot;M<sub>ad</sub> = 1.67&times;'+f2(Mad)+' = <span class="cval">'+f2(Mnd_d)+' k-in</span></div>';
+    d+='<div class="mrow"><strong>&phi;<sub>b</sub>M<sub>nd</sub></strong> = 0.90&times;'+f2(Mnd_d)+' = <span class="cval">'+f2(phiMnd)+' k-in</span></div>';
+    d+='<div class="mrow hint" style="color:#78350f;font-size:.85em;">&#9432; Based on K&phi;=0 (no rotational restraint) per SSMA table notes. With sheathing, K&phi;&gt;0 may increase capacity.</div>';
+    d+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Mu),f2(phiMnd))+' = <span class="cval">'+f3(Mu/phiMnd)+'</span></div></div>';
+    chks.push({n:'Flexure — Distortional (M<sub>nd</sub>)', r:'AISI S100-16 §F4.1',
+      d:'M<sub>u</sub>='+f2(Mu)+' k-in', c:'&phi;M<sub>nd</sub>='+f2(phiMnd)+' k-in',
+      dc:Mu/phiMnd, nt:'M<sub>ad</sub>='+f2(Mad)+' k-in (SSMA, K&phi;=0)', stiff:false, det:d});
+  })();
+
+  // 7. Shear
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;G2.1 &mdash; Shear Strength (Web, No Holes)</div><div class="cbox">';
+    d+='<div class="mrow">V<sub>ag</sub> (SSMA ASD gross shear) = '+f2(Vag)+' kips</div>';
+    d+='<div class="mrow"><span class="ceq">&phi;<sub>v</sub>V<sub>n</sub> = &phi;<sub>v</sub>&middot;&Omega;<sub>v</sub>&middot;V<sub>ag</sub></span> &nbsp; (&phi;<sub>v</sub>=1.0, &Omega;<sub>v</sub>=1.60, AISI S100-16)</div>';
+    d+='<div class="mrow">= 1.0&times;1.60&times;'+f2(Vag)+' = <span class="cval">'+f2(phiVn)+' kips</span></div>';
+    d+='<div class="mrow hint" style="color:#78350f;font-size:.85em;">&#9432; For sections with web punchouts, also check V<sub>net</sub> per AISI §G4. SSMA tables provide V<sub>net</sub> allowable.</div>';
+    d+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Vu),f2(phiVn))+' = <span class="cval">'+f3(Vu/phiVn)+'</span></div></div>';
+    chks.push({n:'Shear (V<sub>n</sub>)', r:'AISI S100-16 §G2.1',
+      d:'V<sub>u</sub>='+f2(Vu)+' k', c:'&phi;V<sub>n</sub>='+f2(phiVn)+' k',
+      dc:Vu/phiVn, nt:'Gross web (no punchouts)', stiff:false, det:d});
+  })();
+
+  // 8. Combined (governing check — highlighted)
+  (function(){
+    var d='';
+    d+='<div class="cref-hdr">AISI S100-16 &sect;H1.2 &mdash; Combined Bending and Compression</div><div class="cbox">';
+    d+='<div class="mrow"><span class="ceq">Eq. H1.2-1:</span> '+fr('P<sub>u</sub>','&phi;<sub>c</sub>P<sub>n</sub>')+' + '+fr('M<sub>ux</sub>','&phi;<sub>b</sub>M<sub>nx</sub>')+' &le; 1.0</div>';
+    d+='<div class="mrow">Controlling &phi;<sub>c</sub>P<sub>n</sub> = &phi;P<sub>nl</sub> = <span class="cval">'+f2(phiPnl)+' kips</span></div>';
+    d+='<div class="mrow">Controlling &phi;<sub>b</sub>M<sub>nx</sub> = min(&phi;M<sub>nl</sub>,&phi;M<sub>nd</sub>) = min('+f2(phiMnl)+','+f2(phiMnd)+') = <span class="cval">'+f2(phiMn)+' k-in</span></div>';
+    d+='<hr class="csep">';
+    d+='<div class="mrow">'+fr(f2(Pu),f2(phiPnl))+' + '+fr(f2(Mu),f2(phiMn))+' = '+f3(Pu/phiPnl)+' + '+f3(Mu/phiMn)+' = <span class="cval">'+f3(dc_combined)+'</span></div>';
+    var chk_str = dc_combined <= 1.0 ? '<span class="pass">&#10003; PASS</span>' : '<span class="fail">&#10007; FAIL</span>';
+    d+='<div class="mrow"><strong>Interaction ratio = '+f3(dc_combined)+'</strong> &nbsp; '+chk_str+'</div></div>';
+    chks.push({n:'<strong>Combined Bending + Compression</strong>', r:'AISI S100-16 §H1.2',
+      d:'P/&phi;P + M/&phi;M',
+      c:'&le; 1.0',
+      dc:dc_combined,
+      nt:'P<sub>u</sub>/&phi;P<sub>nl</sub>='+f3(Pu/phiPnl)+' + M<sub>u</sub>/&phi;M<sub>n</sub>='+f3(Mu/phiMn), stiff:true, det:d});
+  })();
+
+  // ── Render ──
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c,i){
+    var dc_v = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct  = dc_v !== null ? Math.min(dc_v*100, 150) : 0;
+    var col  = dc_v === null ? '#9ca3af' : dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>' : dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? 'class="alt-row"' : '';
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  // Summary
+  var dcs = chks.map(function(c){return c.dc;}).filter(function(v){return v!==null&&isFinite(v)&&v>=0;});
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var pass = maxDC <= 1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'&#10004; All Checks Pass':'&#10008; One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+sn+' @ F<sub>y</sub>='+Fy+' ksi'
+    +'&nbsp;|&nbsp; Span = '+f1(L/12)+' ft &nbsp;|&nbsp; P<sub>u</sub>='+f2(Pu)+' k &nbsp; M<sub>ux</sub>='+f2(Mu)+' k-in &nbsp; V<sub>u</sub>='+f2(Vu)+' k</p>';
+
+  // Section Properties table
+  var props = SSMA.getStudPropsForTable(sn, Fy);
+  var ph = '<table class="prop-table"><tr><th colspan="4">'+sn+' @ F<sub>y</sub>='+Fy+' ksi</th></tr>';
+  ph += '<tr><td>A<sub>g</sub></td><td>'+Ag+' in&sup2;</td><td>I<sub>x</sub></td><td>'+Ix+' in&sup4;</td></tr>';
+  ph += '<tr><td>S<sub>x</sub></td><td>'+Sx+' in&sup3;</td><td>r<sub>x</sub></td><td>'+rx+'"</td></tr>';
+  ph += '<tr><td>I<sub>y</sub></td><td>'+Iy+' in&sup4;</td><td>r<sub>y</sub></td><td>'+ry+'"</td></tr>';
+  ph += '<tr><td>I<sub>xe</sub></td><td>'+Ixe+' in&sup4;</td><td>S<sub>xe</sub></td><td>'+Sxe+' in&sup3;</td></tr>';
+  ph += '<tr><td>J (gross)</td><td>'+f5(J)+' in&sup4;</td><td>C<sub>w</sub></td><td>'+f3(Cw)+' in&sup6;</td></tr>';
+  ph += '<tr><td>x<sub>o</sub></td><td>'+f3(xo)+'"</td><td>r<sub>o</sub></td><td>'+f3(ro)+'"</td></tr>';
+  ph += '<tr><td>&beta;</td><td>'+f4(beta)+'</td><td>L<sub>u</sub></td><td>'+(Lu_ft||'—')+' ft</td></tr>';
+  ph += '<tr><td>h<sub>flat</sub></td><td>'+f3(h_flat)+'"</td><td>b<sub>flat,flange</sub></td><td>'+f3(b_flat)+'"</td></tr>';
+  ph += '</table>';
+  document.getElementById('propOut').innerHTML = ph;
+
+  // Demand cards
+  var dem = '<div class="dem-grid">';
+  dem += '<div class="dem-card"><div class="v">'+f2(Pu)+' k</div><div class="l">P<sub>u</sub><br>Factored Axial</div></div>';
+  dem += '<div class="dem-card"><div class="v">'+f2(Mu)+' k-in</div><div class="l">M<sub>ux</sub><br>Factored Moment</div></div>';
+  dem += '<div class="dem-card"><div class="v">'+f2(Vu)+' k</div><div class="l">V<sub>u</sub><br>Factored Shear</div></div>';
+  dem += '<div class="dem-card alt"><div class="v">'+f2(phiPnl)+' k</div><div class="l">&phi;P<sub>nl</sub><br>Compression Cap.</div></div>';
+  dem += '<div class="dem-card alt"><div class="v">'+f2(phiMn)+' k-in</div><div class="l">&phi;M<sub>n</sub><br>Flexure Cap.</div></div>';
+  dem += '<div class="dem-card alt"><div class="v">'+f2(phiVn)+' k</div><div class="l">&phi;V<sub>n</sub><br>Shear Cap.</div></div>';
+  dem += '<div class="dem-card '+(dc_combined<=1.0?'alt':'')+'"><div class="v" style="color:'+(dc_combined<=1.0?'#166534':'#dc2626')+'">'+f3(dc_combined)+'</div><div class="l">H1.2 Interaction<br>Combined Check</div></div>';
+  dem += '</div>';
+  document.getElementById('demOut').innerHTML = dem;
+
+  // Notes
+  var notes = '<strong>Engineering Notes (AISI S100-16 / D100-17E):</strong><ul>'
+    +'<li>Strong-axis unbraced length = L = span (K<sub>x</sub>L<sub>x</sub>). Adjust K<sub>x</sub> for end conditions (1.0 = pinned both ends).</li>'
+    +'<li>Effective area A<sub>e</sub> accounts for web reduction only. Flanges assumed fully effective based on SSMA section proportions. Verify per AISI §B4 for non-standard conditions.</li>'
+    +'<li>Distortional compression (&sect;E4) and distortional flexure (&sect;F4) both use K&phi;=0 (no rotational restraint). If sheathing provides continuous lateral support to the compression flange, K&phi;&gt;0 may significantly increase capacity per AISI &sect;I6.2.</li>'
+    +'<li>Shear capacity &phi;V<sub>n</sub> = 1.60&times;V<sub>ag</sub> applies to webs without holes. For sections with standard SSMA punchouts, check net shear per &sect;G4: &phi;V<sub>net</sub> = 1.28&times;V<sub>net</sub>.</li>'
+    +'<li>Combined interaction per &sect;H1.2 uses the most restrictive compression and flexural capacities (local or distortional governs over global).</li>'
+    +'<li>For members subject to significant lateral translation (sway frames), amplified moments per &sect;C1 must be used for M<sub>ux</sub>.</li>'
+    +'<li>Moment gradient factor C<sub>b</sub>&gt;1.0 reduces the effective unbraced length for LTB. Per AISI, C<sub>b</sub> = 1.0 is always conservative.</li>'
+    +'</ul>';
+  document.getElementById('notesBox').innerHTML = notes;
+
+  document.getElementById('results').className = 'results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Extra format helper (5 decimal places for J)
+function f5(v){return isFinite(v)?v.toFixed(5):'N/A';}
+</script>
+</body>
+</html>

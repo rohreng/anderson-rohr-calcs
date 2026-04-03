@@ -214,6 +214,17 @@ export const CALCS: CalcMeta[] = [
   },
   // ── Cold-Formed Steel (CFS) ───────────────────────────────────
   {
+    slug: "cfs-stud-combined",
+    label: "CFS Stud — Combined Axial + Bending",
+    subtitle: "SSMA stud section dropdown · global / local / distortional compression · LTB · flexure · combined H1.2",
+    htmlFile: "/Calcs/CFS_Stud_Combined_Bending_Compression.html",
+    category: "CFS",
+    spec: "AISI S100-16 §E2 / E3 / E4 / F2 / F3 / F4 / G2 / H1.2",
+    status: "ready",
+    group: "CFS Members",
+    keywords: ["cold-formed", "CFS", "stud", "SSMA", "axial", "compression", "bending", "combined", "H1.2", "LTB", "lateral torsional buckling", "distortional", "local buckling", "flexural-torsional", "AISI S100", "light gauge", "framing"],
+  },
+  {
     slug: "cfs-weld",
     label: "CFS Weld Connection Designer",
     subtitle: "All 8 weld types — fillet, arc spot, arc seam, flare bevel, flare V-groove, groove butt · ASD + LRFD",
