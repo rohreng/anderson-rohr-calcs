@@ -9,6 +9,7 @@ export type CalcMeta = {
   spec: string;
   status: "ready" | "wip" | "planned";
   group?: string;         // optional — calcs sharing a group are rendered as one expandable card
+  keywords?: string[];    // extra search terms pulled from calc content
 };
 
 export const CALCS: CalcMeta[] = [
@@ -21,6 +22,7 @@ export const CALCS: CalcMeta[] = [
     category: "Wind / Loads",
     spec: "SDPWS 2021 / ASCE 7-16",
     status: "ready",
+    keywords: ["diaphragm", "shearwall", "chord", "drag strut", "unit shear", "wind", "seismic", "lateral", "wood", "plywood", "OSB", "rectangular", "SDPWS"],
   },
   {
     slug: "wood-diaphragm",
@@ -30,6 +32,7 @@ export const CALCS: CalcMeta[] = [
     category: "Wind / Loads",
     spec: "SDPWS-21 §4.2 / ASCE 7-22",
     status: "ready",
+    keywords: ["wood", "diaphragm", "WSP", "blocked", "unblocked", "sheathing", "fastener", "nailing", "chord", "drag strut", "deflection", "plywood", "OSB", "SDPWS", "lateral"],
   },
   {
     slug: "mwfrs-wind",
@@ -39,6 +42,7 @@ export const CALCS: CalcMeta[] = [
     category: "Wind / Loads",
     spec: "ASCE 7-16 Ch.27 Pt.1",
     status: "ready",
+    keywords: ["MWFRS", "wind", "pressure", "story shear", "parapet", "directional procedure", "Cp", "GCp", "velocity", "exposure", "building", "ASCE 7", "lateral force"],
   },
   {
     slug: "cc-wind",
@@ -48,27 +52,30 @@ export const CALCS: CalcMeta[] = [
     category: "Wind / Loads",
     spec: "ASCE 7-16 Ch.30",
     status: "ready",
+    keywords: ["components", "cladding", "C&C", "wind", "GCp", "effective wind area", "zone", "pressure", "ASCE 7", "roof", "wall", "cladding"],
   },
   // ── Connections ──────────────────────────────────────────────
   {
     slug: "base-plate",
-    label: "Single Base Plate",
-    subtitle: "Axial · shear · moment · anchor bolt concrete checks (DG1 Ex. 4.4 & 4.10)",
+    label: "RISA Table Import",
+    subtitle: "Multi-member table format — load RISA Excel export to check all columns at once",
     htmlFile: "/Calcs/column_base_plate_v3.html",
     category: "Connections",
     spec: "AISC DG1",
     status: "ready",
     group: "Base Plate Designers",
+    keywords: ["column", "anchor bolt", "axial", "shear", "moment", "multi-member", "table", "envelope", "concrete", "grout", "pedestal", "DG1"],
   },
   {
     slug: "base-plate-v1",
-    label: "RISA Table Import",
-    subtitle: "Multi-member table format — paste RISA export to check all columns at once",
+    label: "Single Base Plate",
+    subtitle: "Axial · shear · moment · anchor bolt concrete checks (DG1 Ex. 4.4 & 4.10)",
     htmlFile: "/Calcs/column_base_plate_calculator.html",
     category: "Connections",
     spec: "AISC DG1",
     status: "ready",
     group: "Base Plate Designers",
+    keywords: ["column", "anchor bolt", "axial", "shear", "moment", "single", "bearing", "concrete", "grout", "pedestal", "DG1"],
   },
   {
     slug: "gusset",
@@ -78,6 +85,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22",
     status: "ready",
+    keywords: ["HSS", "brace", "gusset plate", "Whitmore", "fillet weld", "bolt", "buckling", "A500", "A36", "column", "lateral brace", "block shear", "AISC 360"],
   },
   {
     slug: "brace-connection",
@@ -87,6 +95,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22",
     status: "ready",
+    keywords: ["channel", "HSS", "brace", "eccentric", "torsion", "stiffener", "shear", "tension", "bolt", "connection", "out-of-plane", "AISC 360"],
   },
   // ── Members ──────────────────────────────────────────────────
   {
@@ -97,6 +106,7 @@ export const CALCS: CalcMeta[] = [
     category: "Members",
     spec: "AISC 360-22",
     status: "ready",
+    keywords: ["channel", "joist", "bearing", "web yielding", "crippling", "flange bending", "torsion", "stiffener", "DG9", "AISC 360", "steel beam"],
   },
   {
     slug: "unistrut",
@@ -106,6 +116,7 @@ export const CALCS: CalcMeta[] = [
     category: "Members",
     spec: "Unistrut Tables",
     status: "ready",
+    keywords: ["unistrut", "P1000", "strut channel", "span", "load capacity", "framing", "support", "mechanical", "hanger", "strut"],
   },
   // ── Members ──────────────────────────────────────────────────
   {
@@ -116,6 +127,7 @@ export const CALCS: CalcMeta[] = [
     category: "Members",
     spec: "ASCE 7-22",
     status: "ready",
+    keywords: ["wood", "header", "jamb", "stud", "lumber", "opening", "window", "door", "load accumulation", "dead load", "live load", "snow", "NDS", "floor"],
   },
   {
     slug: "stacked-shearwall",
@@ -125,6 +137,7 @@ export const CALCS: CalcMeta[] = [
     category: "Members",
     spec: "SDPWS 2021",
     status: "ready",
+    keywords: ["shearwall", "wood", "perforated", "multi-story", "uplift", "holdown", "hold-down", "sheathing", "nailing", "SDPWS", "Simpson", "HDUE", "lateral", "sill plate"],
   },
   // ── Masonry ──────────────────────────────────────────────────
   {
@@ -135,6 +148,7 @@ export const CALCS: CalcMeta[] = [
     category: "Masonry",
     spec: "TMS 402-22 / MDG REK-07/09",
     status: "ready",
+    keywords: ["masonry", "CMU", "bearing", "uplift", "steel beam", "seat", "headed stud", "ASD", "TMS 402", "MDG", "block wall", "bearing stress"],
   },
   {
     slug: "masonry-anchor-bolt",
@@ -144,6 +158,7 @@ export const CALCS: CalcMeta[] = [
     category: "Masonry",
     spec: "TMS 402-22 SD / MDG REK-08",
     status: "ready",
+    keywords: ["masonry", "CMU", "anchor bolt", "headed bolt", "tension", "shear", "strength design", "LRFD", "TMS 402", "block shear", "interaction"],
   },
   {
     slug: "unreinforced-cmu-wall",
@@ -153,6 +168,7 @@ export const CALCS: CalcMeta[] = [
     category: "Masonry",
     spec: "TMS 402-22 \u00A78.2 / MDG-2022",
     status: "ready",
+    keywords: ["CMU", "masonry", "unreinforced", "bearing wall", "wind", "flexure", "axial", "ASD", "unity check", "4 inch", "6 inch", "TMS 402", "net tension", "block"],
   },
   {
     slug: "masonry-lap-length",
@@ -162,6 +178,7 @@ export const CALCS: CalcMeta[] = [
     category: "Masonry",
     spec: "TMS 402-22 / MDG REK-10",
     status: "ready",
+    keywords: ["masonry", "CMU", "development length", "lap splice", "rebar", "reinforcement", "deformed bar", "TMS 402", "Class A", "cover", "bar size"],
   },
   // ── Steel / Members ──────────────────────────────────────────
   {
@@ -172,6 +189,7 @@ export const CALCS: CalcMeta[] = [
     category: "Members",
     spec: "AISC 360-22 §F11 / E3 / H1",
     status: "ready",
+    keywords: ["plate", "flat bar", "bending", "LTB", "lateral torsional buckling", "compression", "combined loading", "H1", "F11", "rectangular", "AISC 360", "strong axis", "weak axis"],
   },
   // ── Steel / Connections ───────────────────────────────────────
   {
@@ -182,6 +200,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22 §F13.2 / G2 / J10.2",
     status: "ready",
+    keywords: ["stiffener", "web", "I-shape", "W-shape", "beam", "girder", "proportioning", "opening", "local web yielding", "transverse", "AISC 360", "shear", "F13", "G2", "J10"],
   },
   {
     slug: "column-bearing-plate-slab",
@@ -191,6 +210,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC DG01 / ACI 318-19",
     status: "ready",
+    keywords: ["column", "bearing plate", "concrete slab", "punching shear", "two-way shear", "one-way shear", "ACI 318", "bearing pressure", "AISC DG1", "plate bending"],
   },
   // ── Cold-Formed Steel (CFS) ───────────────────────────────────
   {
@@ -202,6 +222,7 @@ export const CALCS: CalcMeta[] = [
     spec: "AISI S100-16 Chapter J",
     status: "ready",
     group: "CFS Connections",
+    keywords: ["cold-formed", "CFS", "weld", "fillet", "arc spot", "puddle weld", "arc seam", "flare bevel", "flare V-groove", "groove butt", "AISI S100", "thin sheet", "light gauge"],
   },
   {
     slug: "cfs-screw",
@@ -212,6 +233,7 @@ export const CALCS: CalcMeta[] = [
     spec: "AISI S100-16 J4.3–J4.5 / J6",
     status: "ready",
     group: "CFS Connections",
+    keywords: ["cold-formed", "CFS", "screw", "self-drilling", "self-tapping", "tilting", "bearing", "pull-out", "pull-over", "AISI S100", "sheet metal", "light gauge", "combined"],
   },
   // ── Foundations ──────────────────────────────────────────────
   {
@@ -222,6 +244,7 @@ export const CALCS: CalcMeta[] = [
     category: "Foundations",
     spec: "ACI 318-19",
     status: "ready",
+    keywords: ["footing", "spread footing", "holdown", "hold-down", "shearwall", "uplift", "foundation", "ACI 318", "concrete", "soil", "bearing capacity", "ENERCALC"],
   },
   {
     slug: "wri-stiffened-slab",
@@ -231,6 +254,7 @@ export const CALCS: CalcMeta[] = [
     category: "Foundations",
     spec: "WRI / ACI 318-19",
     status: "ready",
+    keywords: ["slab", "foundation", "ribbed", "WRI", "stiffened slab", "grade beam", "slab-on-ground", "flexure", "deflection", "expansive soil", "ACI 318", "post-tension"],
   },
   {
     slug: "straight-shaft-pier",
@@ -241,6 +265,7 @@ export const CALCS: CalcMeta[] = [
     spec: "ACI 318-19 / ASD",
     status: "ready",
     group: "Drilled Pier Designers",
+    keywords: ["pier", "drilled pier", "caisson", "skin friction", "end bearing", "uplift", "rebar", "ACI 318", "geotechnical", "straight shaft", "deep foundation"],
   },
   {
     slug: "belled-pier",
@@ -251,5 +276,6 @@ export const CALCS: CalcMeta[] = [
     spec: "ACI 318-19 / ASD",
     status: "ready",
     group: "Drilled Pier Designers",
+    keywords: ["pier", "drilled pier", "bell", "belled", "caisson", "underreamed", "end bearing", "uplift", "rebar", "ACI 318", "geotechnical", "deep foundation", "frustum"],
   },
 ];
