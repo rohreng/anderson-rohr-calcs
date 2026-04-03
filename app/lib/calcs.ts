@@ -139,16 +139,39 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
     keywords: ["shearwall", "wood", "perforated", "multi-story", "uplift", "holdown", "hold-down", "sheathing", "nailing", "SDPWS", "Simpson", "HDUE", "lateral", "sill plate"],
   },
-  // ── Masonry ──────────────────────────────────────────────────
+  // ── Masonry — CMU Walls (listed first) ───────────────────────
+  {
+    slug: "masonry-reinforced-wall-asd",
+    label: "Reinforced Masonry Wall — ASD",
+    subtitle: "8″ / 10″ / 12″ CMU · single & double reinforced · partial & full grout · axial, OOP flexure & deflection, OOP shear, combined, in-plane shear",
+    htmlFile: "/Calcs/masonry_reinforced_wall_asd_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 / MDG-2022 Ch. 11",
+    status: "ready",
+    group: "CMU Walls",
+    keywords: ["masonry", "CMU", "reinforced", "wall", "ASD", "allowable stress", "shear wall", "out-of-plane", "in-plane", "flexure", "axial", "combined", "TMS 402", "MDG", "partial grout", "full grout", "wind", "seismic", "8 inch", "10 inch", "12 inch", "deflection"],
+  },
+  {
+    slug: "unreinforced-cmu-wall",
+    label: "Unreinforced CMU Bearing Wall",
+    subtitle: "4\u2033 & 6\u2033 CMU \u2014 combined axial + wind flexure, net tension \u00B7 ASD unity check",
+    htmlFile: "/Calcs/unreinforced_cmu_wall_asd_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 \u00A78.2 / MDG-2022",
+    status: "ready",
+    group: "CMU Walls",
+    keywords: ["CMU", "masonry", "unreinforced", "bearing wall", "wind", "flexure", "axial", "ASD", "unity check", "4 inch", "6 inch", "TMS 402", "net tension", "block"],
+  },
+  // ── Masonry — Connections & Details ──────────────────────────
   {
     slug: "masonry-bearing-uplift",
-    label: "Masonry Bearing & Uplift",
+    label: "Masonry Bearing Plate with Uplift",
     subtitle: "Effective bearing area (layouts A/B/C) · bearing stress · headed stud uplift (ASD)",
     htmlFile: "/Calcs/masonry_bearing_uplift_calculator.html",
     category: "Masonry",
     spec: "TMS 402-22 / MDG REK-07/09",
     status: "ready",
-    keywords: ["masonry", "CMU", "bearing", "uplift", "steel beam", "seat", "headed stud", "ASD", "TMS 402", "MDG", "block wall", "bearing stress"],
+    keywords: ["masonry", "CMU", "bearing", "bearing plate", "uplift", "steel beam", "seat", "headed stud", "ASD", "TMS 402", "MDG", "block wall", "bearing stress"],
   },
   {
     slug: "masonry-anchor-bolt",
@@ -161,16 +184,6 @@ export const CALCS: CalcMeta[] = [
     keywords: ["masonry", "CMU", "anchor bolt", "headed bolt", "tension", "shear", "strength design", "LRFD", "TMS 402", "block shear", "interaction"],
   },
   {
-    slug: "unreinforced-cmu-wall",
-    label: "Unreinforced CMU Bearing Wall",
-    subtitle: "4\u2033 & 6\u2033 CMU \u2014 combined axial + wind flexure, net tension \u00B7 ASD unity check",
-    htmlFile: "/Calcs/unreinforced_cmu_wall_asd_calculator.html",
-    category: "Masonry",
-    spec: "TMS 402-22 \u00A78.2 / MDG-2022",
-    status: "ready",
-    keywords: ["CMU", "masonry", "unreinforced", "bearing wall", "wind", "flexure", "axial", "ASD", "unity check", "4 inch", "6 inch", "TMS 402", "net tension", "block"],
-  },
-  {
     slug: "masonry-lap-length",
     label: "Masonry Development & Lap Splice",
     subtitle: "Deformed bar development length & Class A lap splice per Eq. 6-2",
@@ -179,17 +192,6 @@ export const CALCS: CalcMeta[] = [
     spec: "TMS 402-22 / MDG REK-10",
     status: "ready",
     keywords: ["masonry", "CMU", "development length", "lap splice", "rebar", "reinforcement", "deformed bar", "TMS 402", "Class A", "cover", "bar size"],
-  },
-  {
-    slug: "masonry-reinforced-wall-asd",
-    label: "Reinforced Masonry Wall — ASD",
-    subtitle: "8″ / 10″ / 12″ CMU · single & double reinforced · partial & full grout · axial, OOP flexure, OOP shear, combined, in-plane shear",
-    htmlFile: "/Calcs/masonry_reinforced_wall_asd_calculator.html",
-    category: "Masonry",
-    spec: "TMS 402-22 / MDG-2022 Ch. 11",
-    status: "ready",
-    group: "Masonry Walls",
-    keywords: ["masonry", "CMU", "reinforced", "wall", "ASD", "allowable stress", "shear wall", "out-of-plane", "in-plane", "flexure", "axial", "combined", "TMS 402", "MDG", "partial grout", "full grout", "wind", "seismic", "8 inch", "10 inch", "12 inch"],
   },
   // ── Steel / Members ──────────────────────────────────────────
   {
