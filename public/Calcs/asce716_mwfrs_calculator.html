@@ -574,14 +574,19 @@ function renderDir(dir, container){
     +'</div>';
 
   // Wall pressure table
-  html+='<h3 class="sec">Wall Pressures — Design Pressures p = q·G·Cp ± qh·GCpi</h3>';
+  html+='<h3 class="sec">Wall Pressures — Design Pressures p = q·G·Cp ± qh·GCpi</h3>'
+    +'<div class="ref" style="margin-bottom:8px;line-height:1.6">'
+    +'<b>Case A (+GCpi):</b> Positive internal pressure — acts outward on all surfaces. Gives lower WW pressure; governs LW and side wall element design. '
+    +'<b>Case B (−GCpi):</b> Negative internal pressure — acts inward on all surfaces. Gives higher WW pressure; governs windward wall element design. '
+    +'<b>Net P_lat</b> = WW + |LW| (GCpi cancels in lateral sum) — used for story shear force only, <i>not</i> parapet or element design.'
+    +'</div>';
   html+='<table class="res-tbl"><thead><tr>'
     +'<th>Story</th><th>z_mid (ft)</th><th>Kz</th><th>qz (psf)</th>'
-    +'<th>WW Case A (psf)<br><span style="font-weight:400;font-size:.85em">−GCpi (compression)</span></th>'
-    +'<th>WW Case B (psf)<br><span style="font-weight:400;font-size:.85em">+GCpi (uplift)</span></th>'
-    +'<th>LW (psf)<br><span style="font-weight:400;font-size:.85em">Case A governs</span></th>'
-    +'<th>SW (psf)</th>'
-    +'<th>Net p_lat (psf)<br><span style="font-weight:400;font-size:.85em">WW−LW (no GCpi)</span></th>'
+    +'<th>WW Case A (psf)<br><span style="font-weight:400;font-size:.85em">+GCpi (pos. internal pressure)</span></th>'
+    +'<th>WW Case B (psf)<br><span style="font-weight:400;font-size:.85em">−GCpi (neg. internal, governs WW)</span></th>'
+    +'<th>LW (psf)<br><span style="font-weight:400;font-size:.85em">Case B (−GCpi), pairs w/ WW Case B</span></th>'
+    +'<th>SW (psf)<br><span style="font-weight:400;font-size:.85em">Side Wall (ext. only)</span></th>'
+    +'<th>Net P_lat (psf)<br><span style="font-weight:400;font-size:.85em">WW+|LW|, GCpi cancels — shear calc only</span></th>'
     +'</tr></thead><tbody>';
 
   dir.rows.forEach(function(r){
@@ -598,7 +603,7 @@ function renderDir(dir, container){
       +'</tr>';
   });
   html+='</tbody></table>';
-  html+='<div class="ref" style="margin-top:4px">WW Case A: +qz·G·Cp,WW − qh·GCpi | LW Case A: qh·G·Cp,LW + qh·GCpi | Net: qz·G·0.8 − qh·G·Cp,LW (GCpi cancels) | Ref: Fig. 27.3-1, §26.13</div>';
+  html+='<div class="ref" style="margin-top:4px">Case A (+GCpi, pos. internal): WW = qz·G·Cp,WW − qh·(+GCpi) → lower WW, governs LW/SW element design | Case B (−GCpi, neg. internal): WW = qz·G·Cp,WW + qh·GCpi → higher WW, governs WW element design | LW shown is Case B (−GCpi) paired with WW Case B | Net P_lat = WW − Cp,LW·qh·G (GCpi cancels) — for story shear only, not parapet design | Ref: Fig. 27.3-1, §26.13</div>';
 
   // Story shear table
   html+='<h3 class="sec">Story Shear Forces — F = p_net × h_story × B⊥</h3>';
