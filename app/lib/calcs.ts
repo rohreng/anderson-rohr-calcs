@@ -180,6 +180,17 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
     keywords: ["masonry", "CMU", "development length", "lap splice", "rebar", "reinforcement", "deformed bar", "TMS 402", "Class A", "cover", "bar size"],
   },
+  {
+    slug: "masonry-reinforced-wall-asd",
+    label: "Reinforced Masonry Wall — ASD",
+    subtitle: "8″ / 10″ / 12″ CMU · single & double reinforced · partial & full grout · axial, OOP flexure, OOP shear, combined, in-plane shear",
+    htmlFile: "/Calcs/masonry_reinforced_wall_asd_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 / MDG-2022 Ch. 11",
+    status: "ready",
+    group: "Masonry Walls",
+    keywords: ["masonry", "CMU", "reinforced", "wall", "ASD", "allowable stress", "shear wall", "out-of-plane", "in-plane", "flexure", "axial", "combined", "TMS 402", "MDG", "partial grout", "full grout", "wind", "seismic", "8 inch", "10 inch", "12 inch"],
+  },
   // ── Steel / Members ──────────────────────────────────────────
   {
     slug: "f11-plate-bending",

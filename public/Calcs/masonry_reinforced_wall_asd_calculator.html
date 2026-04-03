@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reinforced Masonry Wall — ASD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk.ip-blk{border-left-color:#7c3aed}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-purple{font-size:.7em;background:#f3e8ff;color:#6b21a8;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#f0f0f0;color:#444}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.25em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.4}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}
+.dem-card.warn .v{color:#92400e}
+.dem-card.pur{border-color:#7c3aed;background:#f5f3ff}
+.dem-card.pur .v{color:#5b21b6}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:5px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:14px}
+.import-panel{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:14px 18px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.import-panel span{font-size:.88em;font-weight:600;color:#166534;flex:1;min-width:180px}
+.imp-btn{background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-size:.82em;transition:background .15s}
+.imp-btn:hover{background:#15803d}
+.imp-note{background:#dcfce7;border:1px solid #4ade80;border-radius:6px;padding:7px 12px;font-size:.82em;color:#14532d;display:none}
+.double-row{display:none}
+/* Math / Detail styles */
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic;margin-right:4px}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Reinforced Masonry Wall &mdash; ASD</h1>
+    <p>8&Prime;, 10&Prime;, 12&Prime; CMU &nbsp;&middot;&nbsp; Single / Double Reinforced &nbsp;&middot;&nbsp; Partial / Full Grout &nbsp;&middot;&nbsp; TMS 402-22 / MDG-2022</p>
+    <div class="ref-tags">
+      <span class="tag">TMS 402-22</span>
+      <span class="tag">MDG-2022 Ch.&thinsp;11</span>
+      <span class="tag">§8.3.4 Axial &amp; Flexure</span>
+      <span class="tag">§8.3.5 Shear</span>
+      <span class="tag">ASCE/SEI 7-22</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- IMPORT PANEL -->
+    <div class="import-panel">
+      <span>&#8594; Import pressures / shears from other ARE calculators:</span>
+      <button class="imp-btn" onclick="openCCCalc()">&#128250; Open C&amp;C Wind Calc</button>
+      <button class="imp-btn" onclick="openDiaphCalc()">&#128250; Open Diaphragm Calc</button>
+      <div id="impNote" class="imp-note"></div>
+    </div>
+
+    <!-- SCHEMATIC -->
+    <div class="schema-wrap">
+      <svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:240px">
+        <defs>
+          <marker id="arrDn" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#1e3c72"/></marker>
+          <marker id="arrUp" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M8,0 L0,4 L8,8z" fill="#1e3c72"/></marker>
+          <marker id="arrL"  markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M8,0 L0,4 L8,8z" fill="#dc2626"/></marker>
+          <marker id="arrR"  markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#dc2626"/></marker>
+          <marker id="dimL"  markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto"><path d="M6,0 L6,6 L0,3z" fill="#d97706"/></marker>
+          <marker id="dimR"  markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#d97706"/></marker>
+        </defs>
+
+        <!-- ELEVATION (left side) -->
+        <!-- Wall -->
+        <rect x="60" y="30" width="55" height="170" fill="#d1d5db" stroke="#374151" stroke-width="1.5"/>
+        <!-- Hatching top (foundation) -->
+        <rect x="40" y="200" width="95" height="18" fill="#9ca3af" stroke="#374151" stroke-width="1.5"/>
+        <!-- CMU bond lines elevation -->
+        <line x1="60" y1="62" x2="115" y2="62" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="60" y1="94" x2="115" y2="94" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="60" y1="126" x2="115" y2="126" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="60" y1="158" x2="115" y2="158" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="87" y1="30" x2="87" y2="62" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="87" y1="94" x2="87" y2="126" stroke="#6b7280" stroke-width="0.8"/>
+        <line x1="87" y1="158" x2="87" y2="200" stroke="#6b7280" stroke-width="0.8"/>
+        <!-- Vertical rebar in elevation -->
+        <line x1="87" y1="35" x2="87" y2="198" stroke="#dc2626" stroke-width="2" stroke-dasharray="5,4"/>
+        <!-- Wind load arrows (OOP) -->
+        <line x1="28" y1="55" x2="55" y2="55" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrR)"/>
+        <line x1="28" y1="85" x2="55" y2="85" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrR)"/>
+        <line x1="28" y1="115" x2="55" y2="115" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrR)"/>
+        <line x1="28" y1="145" x2="55" y2="145" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrR)"/>
+        <line x1="28" y1="175" x2="55" y2="175" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrR)"/>
+        <text x="14" y="118" font-size="9" fill="#2563eb" font-weight="700" transform="rotate(-90,14,118)">w (psf)</text>
+        <!-- Axial load arrow -->
+        <line x1="87" y1="10" x2="87" y2="26" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+        <text x="94" y="20" font-size="9" fill="#374151" font-weight="700">P</text>
+        <!-- In-plane shear arrow -->
+        <line x1="115" y1="30" x2="140" y2="30" stroke="#dc2626" stroke-width="2" marker-end="url(#arrR)"/>
+        <text x="143" y="34" font-size="9" fill="#dc2626" font-weight="700">V</text>
+        <!-- Height dim -->
+        <line x1="120" y1="30" x2="120" y2="200" stroke="#d97706" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimL)"/>
+        <text x="128" y="120" font-size="9" fill="#d97706">h</text>
+        <!-- Labels -->
+        <text x="55" y="225" font-size="10" fill="#374151" font-weight="600" text-anchor="middle">ELEVATION</text>
+
+        <!-- CROSS-SECTION (right side) -->
+        <!-- Wall outline -->
+        <rect x="270" y="60" width="160" height="110" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>
+        <!-- Face shells (dark) -->
+        <rect x="270" y="60" width="160" height="14" fill="#9ca3af" stroke="#374151" stroke-width="1"/>
+        <rect x="270" y="156" width="160" height="14" fill="#9ca3af" stroke="#374151" stroke-width="1"/>
+        <!-- Webs (partial grout representation) -->
+        <rect x="290" y="74" width="12" height="82" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
+        <rect x="340" y="74" width="12" height="82" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
+        <rect x="390" y="74" width="12" height="82" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
+        <!-- Rebar in grouted cores -->
+        <circle cx="346" cy="115" r="5" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
+        <text x="353" y="118" font-size="8" fill="#dc2626" font-weight="700">As (ten.)</text>
+        <!-- Compression rebar (double reinf) -->
+        <circle cx="346" cy="74" r="4" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="1" opacity="0.4" id="csSym"/>
+        <text x="353" y="77" font-size="7" fill="#1d4ed8" opacity="0.5" id="csLbl">A's (comp.)</text>
+        <!-- Dimension arrows: t (wall thickness) -->
+        <line x1="445" y1="60" x2="445" y2="170" stroke="#d97706" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimL)"/>
+        <text x="452" y="120" font-size="9" fill="#d97706">t</text>
+        <!-- d arrow -->
+        <line x1="260" y1="74" x2="260" y2="115" stroke="#dc2626" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimL)"/>
+        <text x="245" y="100" font-size="9" fill="#dc2626">d</text>
+        <!-- tfs label -->
+        <line x1="245" y1="60" x2="245" y2="74" stroke="#374151" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimL)"/>
+        <text x="200" y="70" font-size="8" fill="#374151">t<tspan dy="2" font-size="6">fs</tspan></text>
+        <!-- b = 12" label -->
+        <line x1="270" y1="185" x2="430" y2="185" stroke="#d97706" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimL)"/>
+        <text x="340" y="196" font-size="9" fill="#d97706" text-anchor="middle">b = 12&Prime; (1-ft strip)</text>
+
+        <text x="350" y="225" font-size="10" fill="#374151" font-weight="600" text-anchor="middle">CROSS-SECTION</text>
+
+        <!-- Legend -->
+        <rect x="590" y="40" width="140" height="100" fill="#f9fafb" stroke="#d1d5db" stroke-width="1" rx="4"/>
+        <text x="660" y="57" font-size="9" fill="#374151" font-weight="700" text-anchor="middle">LEGEND</text>
+        <line x1="600" y1="70" x2="620" y2="70" stroke="#2563eb" stroke-width="2" marker-end="url(#arrR)"/>
+        <text x="625" y="73" font-size="8" fill="#374151">OOP wind w (psf)</text>
+        <line x1="600" y1="85" x2="620" y2="85" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+        <text x="625" y="88" font-size="8" fill="#374151">Axial P (lb/ft)</text>
+        <line x1="600" y1="100" x2="620" y2="100" stroke="#dc2626" stroke-width="2" marker-end="url(#arrR)"/>
+        <text x="625" y="103" font-size="8" fill="#374151">In-plane V (plf)</text>
+        <circle cx="610" cy="117" r="4" fill="#dc2626"/>
+        <text x="625" y="120" font-size="8" fill="#374151">Tension steel</text>
+        <circle cx="610" cy="131" r="3" fill="#1d4ed8" opacity="0.6"/>
+        <text x="625" y="134" font-size="8" fill="#374151">Comp. steel (dbl.)</text>
+      </svg>
+    </div>
+
+    <!-- BLOCK 1: WALL CONFIGURATION -->
+    <div class="blk">
+      <h2>&#9679; Wall Configuration <span class="badge">CMU Size &amp; Reinforcement</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Nominal Wall Size</label>
+          <select id="wSize" onchange="updateHints()">
+            <option value="8">8&Prime; CMU (t = 7.625&Prime;)</option>
+            <option value="10">10&Prime; CMU (t = 9.625&Prime;)</option>
+            <option value="12">12&Prime; CMU (t = 11.625&Prime;)</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Grout Condition</label>
+          <select id="grout" onchange="updateHints()">
+            <option value="partial">Partially Grouted</option>
+            <option value="full">Fully Grouted</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Reinforcement Type</label>
+          <select id="rfType" onchange="toggleDoubleReinf()">
+            <option value="single">Single Reinforced</option>
+            <option value="double">Double Reinforced</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <div id="sizeHint" class="callout">&#8505;&nbsp; 8&Prime; CMU: t = 7.625&Prime;, t<sub>fs</sub> = 1.25&Prime;, A<sub>n</sub> (partial) = 30.0 in&sup2;/ft, A<sub>n</sub> (full) = 91.5 in&sup2;/ft</div>
+      </div>
+    </div>
+
+    <!-- BLOCK 2: MATERIAL PROPERTIES -->
+    <div class="blk">
+      <h2>&#9679; Material Properties <span class="badge">TMS 402-22 §4.2</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Masonry Type</label>
+          <select id="mtype" onchange="updateHints()">
+            <option value="cmu">CMU (concrete masonry)</option>
+            <option value="clay">Clay brick masonry</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>f&prime;<sub>m</sub> — Specified Compressive Strength <span class="unit">psi</span></label>
+          <select id="fm" onchange="updateHints()">
+            <option value="1500">1,500 psi</option>
+            <option value="2000" selected>2,000 psi</option>
+            <option value="2500">2,500 psi</option>
+            <option value="3000">3,000 psi</option>
+            <option value="3500">3,500 psi</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Steel Grade</label>
+          <select id="grade">
+            <option value="60" selected>Grade 60 (F<sub>s</sub> = 32,000 psi)</option>
+            <option value="40">Grade 40/50 (F<sub>s</sub> = 20,000 psi)</option>
+          </select>
+        </div>
+      </div>
+      <div id="matHint" class="callout" style="margin-top:10px">&#8505;&nbsp; CMU: E<sub>m</sub> = 900 × 2000 = 1,800,000 psi &nbsp;|&nbsp; n = E<sub>s</sub>/E<sub>m</sub> = 16.1 &nbsp;|&nbsp; F<sub>b</sub> = 0.45 × 2000 = 900 psi</div>
+    </div>
+
+    <!-- BLOCK 3: WALL GEOMETRY & AXIAL LOAD -->
+    <div class="blk">
+      <h2>&#9679; Wall Geometry &amp; Axial Load <span class="badge">Slenderness / Capacity</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Wall Height h <span class="unit">ft</span></label>
+          <input type="number" id="hWall" value="12" step="0.5" min="1">
+          <span class="hint">Unsupported height for slenderness</span>
+        </div>
+        <div class="ig">
+          <label>Axial Load P <span class="unit">lb/ft</span></label>
+          <input type="number" id="Paxial" value="0" step="100" min="0">
+          <span class="hint">Factored compressive load per foot of wall</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;border-top:1px dashed #ccc;padding-top:14px">
+        <div style="font-weight:600;color:#1e3c72;font-size:.9em;margin-bottom:10px">Vertical (Out-of-Plane) Reinforcement:</div>
+        <div class="g3">
+          <div class="ig">
+            <label>OOP Bar Size</label>
+            <select id="barOOP">
+              <option value="4">#4 (0.20 in&sup2;)</option>
+              <option value="5" selected>#5 (0.31 in&sup2;)</option>
+              <option value="6">#6 (0.44 in&sup2;)</option>
+              <option value="7">#7 (0.60 in&sup2;)</option>
+              <option value="8">#8 (0.79 in&sup2;)</option>
+              <option value="9">#9 (1.00 in&sup2;)</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>OOP Bar Spacing s <span class="unit">in</span></label>
+            <input type="number" id="sOOP" value="32" step="4" min="8">
+            <span class="hint">Center-to-center spacing of vertical bars</span>
+          </div>
+          <div class="ig">
+            <label>Effective Depth d <span class="unit">in</span></label>
+            <input type="number" id="dOOP" value="3.81" step="0.01" min="1">
+            <span class="hint">From compression face to tension steel C.L.</span>
+          </div>
+        </div>
+        <!-- Double Reinforced additional inputs -->
+        <div id="dblRow" class="double-row">
+          <div style="font-weight:600;color:#1e40af;font-size:.86em;margin:12px 0 8px;padding-top:10px;border-top:1px dashed #c7d2e8">Compression Steel (Double Reinforced):</div>
+          <div class="g3">
+            <div class="ig">
+              <label>Comp. Bar Size</label>
+              <select id="barOOP2">
+                <option value="4">#4 (0.20 in&sup2;)</option>
+                <option value="5" selected>#5 (0.31 in&sup2;)</option>
+                <option value="6">#6 (0.44 in&sup2;)</option>
+                <option value="7">#7 (0.60 in&sup2;)</option>
+                <option value="8">#8 (0.79 in&sup2;)</option>
+              </select>
+            </div>
+            <div class="ig">
+              <label>Comp. Bar Spacing <span class="unit">in</span></label>
+              <input type="number" id="sOOP2" value="32" step="4" min="8">
+            </div>
+            <div class="ig">
+              <label>Comp. Steel Depth d&prime; <span class="unit">in</span></label>
+              <input type="number" id="dOOP2" value="1.50" step="0.01" min="0.5">
+              <span class="hint">From comp. face to comp. steel C.L.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 4: OUT-OF-PLANE LOADING -->
+    <div class="blk alt-blk">
+      <h2>&#9679; Out-of-Plane Loading <span class="badge-green">OOP Wind / Seismic</span></h2>
+      <div class="g2">
+        <div class="ig">
+          <label>Design Wind Pressure w <span class="unit">psf</span></label>
+          <input type="number" id="wWind" value="20" step="0.5" min="0">
+          <span class="hint">Net OOP pressure (C&amp;C or seismic). Import from C&amp;C Calc above.</span>
+        </div>
+        <div class="ig">
+          <label>OOP Moment Calculation</label>
+          <select id="mCalcType">
+            <option value="simple">Simply Supported: M = wh&sup2;/8</option>
+            <option value="cantilever">Cantilever: M = wh&sup2;/2</option>
+            <option value="fixed">Fixed-Fixed: M = wh&sup2;/12</option>
+            <option value="manual">Manual Input</option>
+          </select>
+        </div>
+      </div>
+      <div class="g2" style="margin-top:12px">
+        <div class="ig" id="manualMRow" style="display:none">
+          <label>Manual Moment M<sub>oop</sub> <span class="unit">lb&middot;ft/ft</span></label>
+          <input type="number" id="MoopManual" value="0" step="100" min="0">
+          <span class="hint">Moment per unit width of wall (per ft)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 5: IN-PLANE SHEAR -->
+    <div class="blk ip-blk">
+      <h2>&#9679; In-Plane Shear <span class="badge-purple">Shear Wall Demand</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Unit Shear v <span class="unit">plf</span></label>
+          <input type="number" id="vIP" value="500" step="10" min="0">
+          <span class="hint">V/L<sub>w</sub>. Import from Diaphragm Calc above.</span>
+        </div>
+        <div class="ig">
+          <label>Wall Length L<sub>w</sub> <span class="unit">ft</span></label>
+          <input type="number" id="Lwall" value="20" step="0.5" min="1">
+          <span class="hint">Used to compute total V = v × L<sub>w</sub></span>
+        </div>
+        <div class="ig">
+          <label>M / (V &middot; d<sub>v</sub>) Ratio</label>
+          <input type="number" id="MVdv" value="1.0" step="0.05" min="0.25" max="1.0">
+          <span class="hint">Clamped to [0.25, 1.0] per TMS §8.3.5</span>
+        </div>
+      </div>
+      <div style="margin-top:14px;border-top:1px dashed #c4b5fd;padding-top:12px">
+        <div style="font-weight:600;color:#5b21b6;font-size:.9em;margin-bottom:10px">Horizontal (In-Plane Shear) Reinforcement:</div>
+        <div class="g3">
+          <div class="ig">
+            <label>Horiz. Bar Size</label>
+            <select id="barIP">
+              <option value="0">None (Fvs = 0)</option>
+              <option value="4" selected>#4 (0.20 in&sup2;)</option>
+              <option value="5">#5 (0.31 in&sup2;)</option>
+              <option value="6">#6 (0.44 in&sup2;)</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Horiz. Bar Spacing s <span class="unit">in</span></label>
+            <input type="number" id="sIP" value="48" step="8" min="8">
+            <span class="hint">Vertical spacing between horizontal bars</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runChecks()">&#9654;&nbsp; Run All Checks</button>
+
+    <!-- ============================================================ -->
+    <!-- RESULTS -->
+    <!-- ============================================================ -->
+    <div class="results" id="resultsDiv">
+
+      <div id="summBanner" class="summary"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+        <!-- Section Properties -->
+        <div>
+          <h3 style="color:#1e3c72;margin-bottom:8px;font-size:1em">Section &amp; Material Properties</h3>
+          <table class="prop-table">
+            <tr><th>Property</th><th>Value</th></tr>
+            <tbody id="propTbl"></tbody>
+          </table>
+        </div>
+        <!-- Demand Summary -->
+        <div>
+          <h3 style="color:#1e3c72;margin-bottom:8px;font-size:1em">Applied Demands</h3>
+          <table class="prop-table">
+            <tr><th>Demand</th><th>Value</th></tr>
+            <tbody id="demTbl"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Demand Cards -->
+      <div class="dem-grid" id="demCards"></div>
+
+      <!-- Check Table -->
+      <h3 style="color:#1e3c72;margin-bottom:10px;font-size:1em">Code Checks (ASD)</h3>
+      <table class="chk-table" id="chkTable">
+        <thead>
+          <tr>
+            <th style="width:22%">Check</th>
+            <th style="width:16%">Reference</th>
+            <th style="width:18%">Demand</th>
+            <th style="width:18%">Allowable</th>
+            <th style="width:14%">D/C</th>
+            <th style="width:8%">Status</th>
+            <th style="width:6%">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="chkBody"></tbody>
+      </table>
+
+      <div id="notesBox" class="note-box" style="margin-top:16px"></div>
+
+    </div><!-- end .results -->
+
+  </div><!-- end .content -->
+</div><!-- end .container -->
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+var BAR_AREA = {0:0, 4:0.20, 5:0.31, 6:0.44, 7:0.60, 8:0.79, 9:1.00};
+var BAR_DIA  = {0:0, 4:0.500, 5:0.625, 6:0.750, 7:0.875, 8:1.000, 9:1.128};
+
+var CMU_DIMS = {
+  8:  {t:7.625,  tfs:1.25},
+  10: {t:9.625,  tfs:1.375},
+  12: {t:11.625, tfs:1.50}
+};
+
+// Relative paths to linked calculators (update if served from same host)
+var CC_CALC_PATH   = '../ARE Web Calcs/anderson-rohr-calcs/public/Calcs/asce716_cc_wind_calculator.html';
+var DIAP_CALC_PATH = '../ARE Web Calcs/anderson-rohr-calcs/public/Calcs/rectangular_diaphragm_calculator.html';
+
+// ============================================================
+// MATH HELPERS
+// ============================================================
+function fr(n, d) {
+  return '<span class="mfr"><span class="mn">' + n + '</span><span class="md">' + d + '</span></span>';
+}
+function ov(x) {
+  return '&radic;<span style="text-decoration:overline;padding:0 2px">' + x + '</span>';
+}
+function toggleDet(i) {
+  var el  = document.getElementById('det_' + i);
+  var btn = document.getElementById('dbtn_' + i);
+  var open = el.classList.toggle('open');
+  btn.textContent = open ? '\u25BE Calc' : '\u25B6 Calc';
+}
+function f1(v) { return v.toFixed(1); }
+function f2(v) { return v.toFixed(2); }
+function f3(v) { return v.toFixed(3); }
+function f4(v) { return v.toFixed(4); }
+function fp(v) { return v.toFixed(0); }
+function fk(v) { return (v/1000).toFixed(2); } // lb to kip
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function updateHints() {
+  var size  = parseInt(document.getElementById('wSize').value);
+  var grout = document.getElementById('grout').value;
+  var fm    = parseInt(document.getElementById('fm').value);
+  var mtype = document.getElementById('mtype').value;
+  var c     = CMU_DIMS[size];
+  var An_p  = (2 * c.tfs * 12).toFixed(1);
+  var An_f  = (c.t * 12).toFixed(1);
+  document.getElementById('sizeHint').innerHTML =
+    '&#8505;&nbsp; ' + size + '&Prime; CMU: t = ' + c.t + '&Prime;, t<sub>fs</sub> = ' + c.tfs +
+    '&Prime; &nbsp;|&nbsp; A<sub>n</sub> (partial) = ' + An_p +
+    ' in&sup2;/ft &nbsp;|&nbsp; A<sub>n</sub> (full) = ' + An_f + ' in&sup2;/ft' +
+    ' &nbsp;|&nbsp; d (typ.) = ' + f2(c.t / 2) + '&Prime; at mid-depth';
+  var Em = (mtype === 'clay' ? 700 : 900) * fm;
+  var n  = 29000000 / Em;
+  var Fb = 0.45 * fm;
+  document.getElementById('matHint').innerHTML =
+    '&#8505;&nbsp; E<sub>m</sub> = ' + (mtype==='clay'?'700':'900') + ' &times; ' + fm +
+    ' = ' + fp(Em) + ' psi &nbsp;|&nbsp; n = ' + f2(n) + ' &nbsp;|&nbsp; F<sub>b</sub> = 0.45 &times; ' +
+    fm + ' = ' + fp(Fb) + ' psi';
+  // Auto-suggest effective depth = t/2 (typical single-wythe center bar)
+  document.getElementById('dOOP').value = f2(c.t / 2);
+}
+
+function toggleDoubleReinf() {
+  var isDouble = document.getElementById('rfType').value === 'double';
+  document.getElementById('dblRow').style.display = isDouble ? 'block' : 'none';
+}
+
+document.getElementById('mCalcType').addEventListener('change', function() {
+  document.getElementById('manualMRow').style.display = (this.value === 'manual') ? 'flex' : 'none';
+});
+
+function openCCCalc() {
+  var url = CC_CALC_PATH + '?target=masonry_wall&return=' + encodeURIComponent(window.location.href);
+  window.open(url, '_blank');
+}
+function openDiaphCalc() {
+  var url = DIAP_CALC_PATH + '?target=masonry_wall&return=' + encodeURIComponent(window.location.href);
+  window.open(url, '_blank');
+}
+function showImportNote(msg) {
+  var el = document.getElementById('impNote');
+  el.textContent = '\u2713 ' + msg;
+  el.style.display = 'block';
+}
+
+// Read URL params on load
+window.addEventListener('load', function() {
+  updateHints();
+  var params = new URLSearchParams(window.location.search);
+  if (params.has('cc_press')) {
+    var p = parseFloat(params.get('cc_press'));
+    document.getElementById('wWind').value = p;
+    showImportNote('C&C wind pressure imported: ' + p + ' psf');
+  }
+  if (params.has('ip_shear')) {
+    var v = parseFloat(params.get('ip_shear'));
+    document.getElementById('vIP').value = v;
+    showImportNote('In-plane unit shear imported: ' + v + ' plf');
+  }
+  if (params.has('wall_lw')) {
+    document.getElementById('Lwall').value = parseFloat(params.get('wall_lw'));
+  }
+});
+
+// ============================================================
+// MAIN CALCULATION
+// ============================================================
+function runChecks() {
+  // ---- READ INPUTS ----
+  var size   = parseInt(document.getElementById('wSize').value);
+  var grout  = document.getElementById('grout').value;
+  var rfType = document.getElementById('rfType').value;
+  var mtype  = document.getElementById('mtype').value;
+  var fm     = parseInt(document.getElementById('fm').value);
+  var grade  = document.getElementById('grade').value;
+  var h_ft   = parseFloat(document.getElementById('hWall').value);
+  var P_plf  = parseFloat(document.getElementById('Paxial').value) || 0;
+  var w_psf  = parseFloat(document.getElementById('wWind').value) || 0;
+  var mCalcT = document.getElementById('mCalcType').value;
+  var v_plf  = parseFloat(document.getElementById('vIP').value) || 0;
+  var Lw_ft  = parseFloat(document.getElementById('Lwall').value) || 1;
+  var MVdv_i = Math.min(1.0, Math.max(0.25, parseFloat(document.getElementById('MVdv').value) || 1.0));
+  var barOOP = parseInt(document.getElementById('barOOP').value);
+  var sOOP   = parseFloat(document.getElementById('sOOP').value);
+  var dOOP   = parseFloat(document.getElementById('dOOP').value);
+  var barIP  = parseInt(document.getElementById('barIP').value);
+  var sIP    = parseFloat(document.getElementById('sIP').value) || 48;
+  var barOOP2 = 0, sOOP2 = 32, dOOP2 = 1.5;
+  if (rfType === 'double') {
+    barOOP2 = parseInt(document.getElementById('barOOP2').value);
+    sOOP2   = parseFloat(document.getElementById('sOOP2').value);
+    dOOP2   = parseFloat(document.getElementById('dOOP2').value);
+  }
+
+  // ---- SECTION PROPERTIES ----
+  var c   = CMU_DIMS[size];
+  var t   = c.t;
+  var tfs = c.tfs;
+  var h_in = h_ft * 12;
+
+  var An;  // net area per foot (in²/ft)
+  var In;  // moment of inertia per foot (in⁴/ft)
+  if (grout === 'full') {
+    An = t * 12;
+    In = 12 * Math.pow(t, 3) / 12; // = t³ in⁴/ft
+  } else {
+    An = 2 * tfs * 12;
+    var d_fs = t / 2 - tfs / 2;
+    var I_each = 12 * Math.pow(tfs, 3) / 12 + 12 * tfs * d_fs * d_fs;
+    In = 2 * I_each;
+  }
+  var r_in = Math.sqrt(In / An);
+  var h_r  = h_in / r_in;
+
+  // ---- MATERIAL PROPERTIES ----
+  var Em = (mtype === 'clay' ? 700 : 900) * fm;
+  var Es = 29000000;
+  var n  = Es / Em;
+  var Fb = 0.45 * fm;
+  var Fs = (grade === '60') ? 32000 : 20000;
+  var gamma_g = (grout === 'full') ? 1.0 : 0.70;
+
+  // ---- STEEL AREAS PER FOOT ----
+  var As_perft = BAR_AREA[barOOP] / sOOP * 12;       // tension / primary vert. (in²/ft)
+  var A2_perft = (rfType === 'double') ? BAR_AREA[barOOP2] / sOOP2 * 12 : 0; // comp. steel (in²/ft)
+  var Ast_perft = As_perft + A2_perft;                // total vertical steel per foot
+  var Av_per_in = BAR_AREA[barIP] / (barIP === 0 ? 48 : sIP); // horiz. steel area per inch height
+  var b  = 12; // in (1 ft width for all per-unit calcs)
+
+  // ---- AXIAL CAPACITY ----
+  var R_factor;
+  if (h_r <= 99) {
+    R_factor = 1 - Math.pow(h_r / 140, 2);
+  } else {
+    R_factor = Math.pow(70 / h_r, 2);
+  }
+  var Pa_allow = (0.30 * fm * An + 0.65 * Ast_perft * Fs) * R_factor;
+  var fa       = P_plf / An;
+  var Fa       = Pa_allow / An;
+  var dc_axial = (Pa_allow > 0) ? P_plf / Pa_allow : 0;
+
+  // ---- OOP MOMENT ----
+  var Moop_lbft; // lb·ft per ft of wall width
+  if (mCalcT === 'simple')    Moop_lbft = w_psf * h_ft * h_ft / 8;
+  else if (mCalcT === 'cantilever') Moop_lbft = w_psf * h_ft * h_ft / 2;
+  else if (mCalcT === 'fixed') Moop_lbft = w_psf * h_ft * h_ft / 12;
+  else Moop_lbft = parseFloat(document.getElementById('MoopManual').value) || 0;
+  var Moop_lbin = Moop_lbft * 12; // lb·in per ft width
+  var Voop_plf  = w_psf * h_ft / 2; // shear at base per ft width
+
+  // ---- OOP FLEXURE ----
+  var fb_oop, fs_oop, fs2_oop = 0, k_oop, j_oop, kd_oop;
+  var rho_t = As_perft / (b * dOOP);
+
+  if (rfType === 'single') {
+    var np = n * rho_t;
+    k_oop  = Math.sqrt(np * np + 2 * np) - np;
+    j_oop  = 1 - k_oop / 3;
+    kd_oop = k_oop * dOOP;
+    fb_oop = (Moop_lbin > 0) ? 2 * Moop_lbin / (j_oop * k_oop * b * dOOP * dOOP) : 0;
+    fs_oop = (Moop_lbin > 0) ? Moop_lbin / (As_perft * j_oop * dOOP) : 0;
+  } else {
+    // Double reinforced
+    var nAs  = n * As_perft;
+    var n2A2 = 2 * n * A2_perft;
+    var qa   = b / 2;
+    var qb   = nAs + n2A2;
+    var qc   = -(nAs * dOOP + n2A2 * dOOP2);
+    kd_oop   = (-qb + Math.sqrt(qb * qb - 4 * qa * qc)) / (2 * qa);
+    k_oop    = kd_oop / dOOP;
+    var mom_arm = (b * kd_oop / 2) * (dOOP - kd_oop / 3);
+    if (kd_oop > dOOP2) mom_arm += 2 * n * A2_perft * (kd_oop - dOOP2) / kd_oop * (dOOP - dOOP2);
+    fb_oop  = (Moop_lbin > 0 && mom_arm > 0) ? Moop_lbin / mom_arm : 0;
+    fs_oop  = n * fb_oop * (dOOP - kd_oop) / kd_oop;
+    fs2_oop = (kd_oop > dOOP2) ? 2 * n * fb_oop * (kd_oop - dOOP2) / kd_oop : 0;
+    j_oop   = 1 - k_oop / 3; // approximate for display
+  }
+
+  var dc_fb = (Fb > 0) ? fb_oop / Fb : 0;
+  var dc_fs = (Fs > 0) ? fs_oop / Fs : 0;
+  var dc_flex = Math.max(dc_fb, dc_fs);
+
+  // ---- COMBINED AXIAL + OOP FLEXURE ----
+  var dc_comb = (Fa > 0 ? fa / Fa : 0) + (Fb > 0 ? fb_oop / Fb : 0);
+
+  // ---- OOP SHEAR ----
+  // M/Vdv for OOP: M = wh²/8, V = wh/2, dv = t
+  // Result is always >> 1.0, so clamp to 1.0
+  var MVdv_oop = 1.0;
+  var Fvm_oop = 0.5 * (4.0 - 1.75 * MVdv_oop) * Math.sqrt(fm) + 0.25 * fa;
+  var Fv_oop  = Math.min(2.0 * Math.sqrt(fm), Fvm_oop) * gamma_g;
+  var fv_oop  = (Voop_plf > 0) ? Voop_plf / An : 0;
+  var dc_oop_v = (Fv_oop > 0) ? fv_oop / Fv_oop : 0;
+
+  // ---- IN-PLANE SHEAR ----
+  var fv_ip    = v_plf / An;  // psi — unit shear divided by net area per ft
+  var Fvm_ip   = 0.5 * (4.0 - 1.75 * MVdv_i) * Math.sqrt(fm) + 0.25 * fa;
+  // Fvs uses: 0.5 * Av * Fs * dv / (Anv * s)
+  // Per-foot: dv = 0.8*Lw*12 [in], Anv = An * Lw [in²]
+  // → Fvs = 0.5 * (Av/s) * Fs * 0.8*12 / An = 0.5 * Av_per_in * Fs * 9.6 / An
+  var Fvs_ip   = (barIP > 0) ? 0.5 * Av_per_in * Fs * 9.6 / An : 0;
+  var Fvm_cap;
+  if (MVdv_i <= 0.25)      Fvm_cap = 3.0 * Math.sqrt(fm);
+  else if (MVdv_i >= 1.0)  Fvm_cap = 2.0 * Math.sqrt(fm);
+  else                     Fvm_cap = 3.0 * Math.sqrt(fm) - (MVdv_i - 0.25) / 0.75 * Math.sqrt(fm);
+  var Fv_ip    = Math.min(Fvm_cap, (Fvm_ip + Fvs_ip)) * gamma_g;
+  var dc_ip_v  = (Fv_ip > 0) ? fv_ip / Fv_ip : 0;
+
+  // ============================================================
+  // BUILD DETAIL PANELS
+  // ============================================================
+
+  function buildAxialDet() {
+    var s = '';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.4.2 &mdash; Allowable Axial Compression (Reinforced)</div>';
+    s += '<div class="cbox">';
+    if (h_r <= 99) {
+      s += '<div class="mrow"><span class="ceq">Eq. 8-16:</span> P<sub>a</sub> = (0.30f&prime;<sub>m</sub>A<sub>n</sub> + 0.65A<sub>st</sub>F<sub>s</sub>)' + fr('R where R = 1 &minus;', '') + '</div>';
+      s += '<div class="mrow ind">' + fr('', '') + ' where R = 1 &minus; ' + fr('(h/r)', '140') + '<sup>2</sup></div>';
+    } else {
+      s += '<div class="mrow"><span class="ceq">Eq. 8-17:</span> P<sub>a</sub> = (0.30f&prime;<sub>m</sub>A<sub>n</sub> + 0.65A<sub>st</sub>F<sub>s</sub>) &times; ' + fr('70', 'h/r') + '<sup>2</sup></div>';
+    }
+    s += '<hr class="csep">';
+    s += '<div class="mrow"><span class="ceq">h/r:</span> ' + fr(f2(h_in) + '&Prime;', f2(r_in) + '&Prime;') + ' = <span class="cval">' + f2(h_r) + '</span> ' + (h_r <= 99 ? '&le; 99 &rarr; Eq. 8-16' : '&gt; 99 &rarr; Eq. 8-17') + '</div>';
+    s += '<div class="mrow"><span class="ceq">R:</span> ';
+    if (h_r <= 99) {
+      s += '1 &minus; (' + f2(h_r) + '/140)<sup>2</sup> = <span class="cval">' + f4(R_factor) + '</span></div>';
+    } else {
+      s += '(70/' + f2(h_r) + ')<sup>2</sup> = <span class="cval">' + f4(R_factor) + '</span></div>';
+    }
+    s += '<div class="mrow"><span class="ceq">P<sub>a</sub>:</span> (0.30 &times; ' + fm + ' &times; ' + f1(An) + ' + 0.65 &times; ' + f3(Ast_perft) + ' &times; ' + fp(Fs) + ') &times; ' + f4(R_factor) + '</div>';
+    s += '<div class="mrow ind">= (' + fp(0.30*fm*An) + ' + ' + fp(0.65*Ast_perft*Fs) + ') &times; ' + f4(R_factor) + ' = <span class="cval">' + fp(Pa_allow) + ' lb/ft</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow">f<sub>a</sub> = P/A<sub>n</sub> = ' + fp(P_plf) + '/' + f1(An) + ' = <span class="cval">' + f2(fa) + ' psi</span></div>';
+    s += '<div class="mrow">D/C = P/P<sub>a</sub> = ' + fr(fp(P_plf), fp(Pa_allow)) + ' = <span class="cval">' + f3(dc_axial) + '</span></div>';
+    s += '</div>';
+    return s;
+  }
+
+  function buildFlexDet() {
+    var s = '';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.2 / MDG-2022 &sect;11.4.1 &mdash; Out-of-Plane Flexure</div>';
+    s += '<div class="cbox">';
+    s += '<div class="mrow"><span class="ceq">Inputs:</span> b = ' + b + '&Prime;, d = ' + f2(dOOP) + '&Prime;, A<sub>s</sub> = ' + f3(As_perft) + ' in&sup2;/ft, E<sub>m</sub> = ' + fp(Em) + ' psi, n = ' + f2(n) + '</div>';
+    s += '<hr class="csep">';
+    if (rfType === 'single') {
+      s += '<div class="mrow"><span class="ceq">Eq. 11.4-1:</span> &rho; = A<sub>s</sub>/(b&middot;d) = ' + f3(As_perft) + '/(' + b + '&times;' + f2(dOOP) + ') = <span class="cval">' + f4(rho_t) + '</span></div>';
+      s += '<div class="mrow"><span class="ceq">n&rho; =</span> ' + f2(n) + ' &times; ' + f4(rho_t) + ' = <span class="cval">' + f4(n*rho_t) + '</span></div>';
+      s += '<div class="mrow"><span class="ceq">Eq. 11.4-2:</span> k = ' + ov('(n&rho;)<sup>2</sup> + 2n&rho;') + ' &minus; n&rho; = <span class="cval">' + f4(k_oop) + '</span></div>';
+      s += '<div class="mrow"><span class="ceq">j = </span> 1 &minus; k/3 = 1 &minus; ' + f4(k_oop) + '/3 = <span class="cval">' + f4(j_oop) + '</span></div>';
+      s += '<hr class="csep">';
+      s += '<div class="mrow"><span class="ceq">M<sub>oop</sub>:</span> ' + f2(Moop_lbft) + ' lb&middot;ft/ft &rarr; ' + fp(Moop_lbin) + ' lb&middot;in/ft</div>';
+      s += '<div class="mrow"><span class="ceq">Eq. 11.4-3:</span> f<sub>b</sub> = ' + fr('2M', 'jkbd<sup>2</sup>') + ' = ' + fr('2 &times; ' + fp(Moop_lbin), f4(j_oop) + '&times;' + f4(k_oop) + '&times;' + b + '&times;' + f2(dOOP) + '<sup>2</sup>') + ' = <span class="cval">' + f1(fb_oop) + ' psi</span> &nbsp; F<sub>b</sub> = ' + f1(Fb) + ' psi</div>';
+      s += '<div class="mrow ind">D/C<sub>masonry</sub> = ' + fr(f1(fb_oop), f1(Fb)) + ' = <span class="cval">' + f3(dc_fb) + '</span></div>';
+      s += '<div class="mrow"><span class="ceq">Eq. 11.4-4:</span> f<sub>s</sub> = ' + fr('M', 'A<sub>s</sub>&middot;j&middot;d') + ' = ' + fr(fp(Moop_lbin), f3(As_perft) + '&times;' + f4(j_oop) + '&times;' + f2(dOOP)) + ' = <span class="cval">' + f1(fs_oop) + ' psi</span> &nbsp; F<sub>s</sub> = ' + fp(Fs) + ' psi</div>';
+      s += '<div class="mrow ind">D/C<sub>steel</sub> = ' + fr(f1(fs_oop), fp(Fs)) + ' = <span class="cval">' + f3(dc_fs) + '</span></div>';
+    } else {
+      // Double reinforced detail
+      var nAs_v  = n * As_perft;
+      var n2A2_v = 2 * n * A2_perft;
+      s += '<div class="mrow"><span class="ceq">Double Reinf.</span> Tension A<sub>s</sub> = ' + f3(As_perft) + ' in&sup2;/ft at d = ' + f2(dOOP) + '&Prime;; Comp. A&prime;<sub>s</sub> = ' + f3(A2_perft) + ' in&sup2;/ft at d&prime; = ' + f2(dOOP2) + '&Prime;</div>';
+      s += '<div class="mrow"><span class="ceq">kd from:</span> (b/2)x<sup>2</sup> + (nA<sub>s</sub>+2nA&prime;<sub>s</sub>)x &minus; (nA<sub>s</sub>d+2nA&prime;<sub>s</sub>d&prime;) = 0</div>';
+      s += '<div class="mrow ind">kd = <span class="cval">' + f3(kd_oop) + '&Prime;</span> &rarr; k = ' + f4(k_oop) + '</div>';
+      s += '<div class="mrow"><span class="ceq">f<sub>b</sub> =</span> M / [(bkd/2)(d&minus;kd/3) + 2nA&prime;<sub>s</sub>(kd&minus;d&prime;)/kd&middot;(d&minus;d&prime;)] = <span class="cval">' + f1(fb_oop) + ' psi</span></div>';
+      s += '<div class="mrow"><span class="ceq">f<sub>s</sub> =</span> n&middot;f<sub>b</sub>&middot;(d&minus;kd)/kd = <span class="cval">' + f1(fs_oop) + ' psi</span></div>';
+      s += '<div class="mrow"><span class="ceq">f&prime;<sub>s</sub> =</span> 2n&middot;f<sub>b</sub>&middot;(kd&minus;d&prime;)/kd = <span class="cval">' + f1(fs2_oop) + ' psi</span></div>';
+      s += '<div class="mrow ind">D/C<sub>masonry</sub> = ' + f3(dc_fb) + ' &nbsp; D/C<sub>steel</sub> = ' + f3(dc_fs) + '</div>';
+    }
+    s += '</div>';
+    return s;
+  }
+
+  function buildCombDet() {
+    var s = '';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.4.1 &mdash; Combined Axial Compression + Flexure</div>';
+    s += '<div class="cbox">';
+    s += '<div class="mrow"><span class="ceq">Eq. 8-14:</span> ' + fr('f<sub>a</sub>', 'F<sub>a</sub>') + ' + ' + fr('f<sub>b</sub>', 'F<sub>b</sub>') + ' &le; 1.0</div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow">f<sub>a</sub>/F<sub>a</sub> = ' + f2(fa) + '/' + f2(Fa) + ' = <span class="cval">' + f3(fa/Fa) + '</span></div>';
+    s += '<div class="mrow">f<sub>b</sub>/F<sub>b</sub> = ' + f1(fb_oop) + '/' + f1(Fb) + ' = <span class="cval">' + f3(dc_fb) + '</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow">Unity = ' + f3(fa/Fa) + ' + ' + f3(dc_fb) + ' = <span class="cval">' + f3(dc_comb) + '</span></div>';
+    s += '</div>';
+    return s;
+  }
+
+  function buildOOPShearDet() {
+    var s = '';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.2 &mdash; Out-of-Plane Shear (Reinforced Masonry)</div>';
+    s += '<div class="cbox">';
+    s += '<div class="mrow"><span class="ceq">V<sub>oop</sub>:</span> wh/2 = ' + f1(w_psf) + ' &times; ' + f1(h_ft) + '/2 = <span class="cval">' + f1(Voop_plf) + ' lb/ft</span></div>';
+    s += '<div class="mrow"><span class="ceq">f<sub>v</sub>:</span> V<sub>oop</sub>/A<sub>n</sub> = ' + f1(Voop_plf) + '/' + f1(An) + ' = <span class="cval">' + f2(fv_oop) + ' psi</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow"><span class="ceq">M/Vd<sub>v</sub></span> for OOP &raquo; 1.0 (governs upper limit of F<sub>vm</sub>)</div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub>:</span> (1/2)[4.0 &minus; 1.75(1.0)]&radic;f&prime;<sub>m</sub> + 0.25f<sub>a</sub></div>';
+    s += '<div class="mrow ind">= 0.5 &times; ' + f2(4.0-1.75*MVdv_oop) + ' &times; ' + ov(fp(fm)) + ' + 0.25 &times; ' + f2(fa) + '</div>';
+    s += '<div class="mrow ind">= ' + f2(0.5*(4.0-1.75*MVdv_oop)*Math.sqrt(fm)) + ' + ' + f2(0.25*fa) + ' = <span class="cval">' + f2(Fvm_oop) + ' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>v,oop</sub>:</span> min(F<sub>vm</sub>, 2.0&radic;f&prime;<sub>m</sub>) &times; &gamma;<sub>g</sub> = min(' + f2(Fvm_oop) + ', ' + f2(2.0*Math.sqrt(fm)) + ') &times; ' + f1(gamma_g) + ' = <span class="cval">' + f2(Fv_oop) + ' psi</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow">D/C = ' + fr(f2(fv_oop), f2(Fv_oop)) + ' = <span class="cval">' + f3(dc_oop_v) + '</span></div>';
+    s += '</div>';
+    return s;
+  }
+
+  function buildIPShearDet() {
+    var s = '';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.1 / MDG-2022 &sect;11.4.3 &mdash; In-Plane Shear</div>';
+    s += '<div class="cbox">';
+    s += '<div class="mrow"><span class="ceq">Unit shear v:</span> ' + fp(v_plf) + ' plf &nbsp;|&nbsp; A<sub>n</sub> = ' + f1(An) + ' in&sup2;/ft</div>';
+    s += '<div class="mrow"><span class="ceq">f<sub>v</sub>:</span> v/A<sub>n</sub> = ' + fp(v_plf) + '/' + f1(An) + ' = <span class="cval">' + f2(fv_ip) + ' psi</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow"><span class="ceq">M/Vd<sub>v</sub> =</span> ' + f3(MVdv_i) + ' (user input, clamped [0.25, 1.0])</div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub>:</span> (1/2)[4.0 &minus; 1.75 &times; ' + f3(MVdv_i) + ']&radic;' + fp(fm) + ' + 0.25 &times; ' + f2(fa) + '</div>';
+    s += '<div class="mrow ind">= 0.5 &times; ' + f3(4.0-1.75*MVdv_i) + ' &times; ' + f2(Math.sqrt(fm)) + ' + ' + f2(0.25*fa) + ' = <span class="cval">' + f2(Fvm_ip) + ' psi</span></div>';
+    if (barIP > 0) {
+      s += '<div class="mrow"><span class="ceq">F<sub>vs</sub>:</span> 0.5 &times; (A<sub>v</sub>/s) &times; F<sub>s</sub> &times; (0.8 &times; 12) / A<sub>n</sub></div>';
+      s += '<div class="mrow ind">= 0.5 &times; ' + f4(Av_per_in) + ' &times; ' + fp(Fs) + ' &times; 9.6 / ' + f1(An) + ' = <span class="cval">' + f2(Fvs_ip) + ' psi</span></div>';
+    } else {
+      s += '<div class="mrow"><span class="ceq">F<sub>vs</sub>:</span> No horizontal reinforcement &rarr; 0 psi</div>';
+    }
+    s += '<div class="mrow"><span class="ceq">F<sub>v,max</sub>:</span> ';
+    s += (MVdv_i <= 0.25) ? '3.0' : (MVdv_i >= 1.0 ? '2.0' : f2(3.0-(MVdv_i-0.25)/0.75));
+    s += '&radic;f&prime;<sub>m</sub> = <span class="cval">' + f2(Fvm_cap) + ' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>v,ip</sub>:</span> min(' + f2(Fvm_cap) + ', ' + f2(Fvm_ip+Fvs_ip) + ') &times; &gamma;<sub>g</sub> (' + f1(gamma_g) + ') = <span class="cval">' + f2(Fv_ip) + ' psi</span></div>';
+    s += '<hr class="csep">';
+    s += '<div class="mrow">D/C = ' + fr(f2(fv_ip), f2(Fv_ip)) + ' = <span class="cval">' + f3(dc_ip_v) + '</span></div>';
+    s += '</div>';
+    return s;
+  }
+
+  // ============================================================
+  // BUILD CHECKS ARRAY
+  // ============================================================
+  var chks = [];
+
+  chks.push({
+    n:   'Axial Compression',
+    r:   'TMS 402-22 &sect;8.3.4.2',
+    d:   'P = ' + fp(P_plf) + ' lb/ft',
+    c:   'P<sub>a</sub> = ' + fp(Pa_allow) + ' lb/ft',
+    dc:  dc_axial,
+    nt:  'h/r = ' + f2(h_r) + ' | R = ' + f3(R_factor),
+    stiff: false,
+    det: buildAxialDet()
+  });
+
+  chks.push({
+    n:   'OOP Flexure — Masonry',
+    r:   'TMS 402-22 &sect;8.3.2',
+    d:   'f<sub>b</sub> = ' + f1(fb_oop) + ' psi',
+    c:   'F<sub>b</sub> = ' + f1(Fb) + ' psi',
+    dc:  dc_fb,
+    nt:  'k = ' + f3(k_oop) + ' | j = ' + (j_oop ? f3(j_oop) : '—'),
+    stiff: false,
+    det: buildFlexDet()
+  });
+
+  chks.push({
+    n:   'OOP Flexure — Steel',
+    r:   'TMS 402-22 &sect;8.3.2',
+    d:   'f<sub>s</sub> = ' + f1(fs_oop) + ' psi',
+    c:   'F<sub>s</sub> = ' + fp(Fs) + ' psi',
+    dc:  dc_fs,
+    nt:  'A<sub>s</sub> = ' + f3(As_perft) + ' in&sup2;/ft | &rho; = ' + f4(rho_t),
+    stiff: false,
+    det: '' // shares detail with masonry flexure panel above
+  });
+
+  chks.push({
+    n:   'Combined Axial + Flexure',
+    r:   'TMS 402-22 &sect;8.3.4.1',
+    d:   'f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub>',
+    c:   '&le; 1.0',
+    dc:  dc_comb,
+    nt:  'f<sub>a</sub>/F<sub>a</sub> = ' + f3(fa/Fa) + ' | f<sub>b</sub>/F<sub>b</sub> = ' + f3(dc_fb),
+    stiff: false,
+    det: buildCombDet()
+  });
+
+  chks.push({
+    n:   'OOP Shear',
+    r:   'TMS 402-22 &sect;8.3.5.1.2',
+    d:   'f<sub>v</sub> = ' + f2(fv_oop) + ' psi',
+    c:   'F<sub>v</sub> = ' + f2(Fv_oop) + ' psi',
+    dc:  dc_oop_v,
+    nt:  'V = ' + f1(Voop_plf) + ' lb/ft | &gamma;<sub>g</sub> = ' + f1(gamma_g),
+    stiff: false,
+    det: buildOOPShearDet()
+  });
+
+  chks.push({
+    n:   'In-Plane Shear',
+    r:   'TMS 402-22 &sect;8.3.5.1.1',
+    d:   'f<sub>v</sub> = ' + f2(fv_ip) + ' psi',
+    c:   'F<sub>v</sub> = ' + f2(Fv_ip) + ' psi',
+    dc:  dc_ip_v,
+    nt:  'F<sub>vm</sub> = ' + f2(Fvm_ip) + ' | F<sub>vs</sub> = ' + f2(Fvs_ip) + ' psi',
+    stiff: false,
+    det: buildIPShearDet()
+  });
+
+  // ============================================================
+  // RENDER RESULTS
+  // ============================================================
+  var maxDC = 0, anyFail = false;
+  chks.forEach(function(c) { if (c.dc > maxDC) maxDC = c.dc; if (c.dc > 1.0) anyFail = true; });
+
+  // Summary banner
+  var sb = document.getElementById('summBanner');
+  sb.className = 'summary ' + (anyFail ? 'sum-fail' : 'sum-pass');
+  sb.innerHTML = '<h3>' + (anyFail ? '&#10008; FAIL' : '&#10004; PASS') + ' &mdash; Max D/C = ' + f3(maxDC) + '</h3>' +
+    '<div style="font-size:.88em">' + size + '&Prime; CMU | ' + grout + ' grout | ' +
+    (rfType === 'single' ? 'Single' : 'Double') + ' Reinforced | f&prime;<sub>m</sub> = ' + fm + ' psi | Grade ' + grade + '</div>';
+
+  // Section properties table
+  var propRows = [
+    ['Wall size / actual thickness', size + '&Prime; nominal, t = ' + f2(t) + '&Prime;'],
+    ['Face shell thickness t<sub>fs</sub>', f2(tfs) + '&Prime;'],
+    ['Grout condition', grout === 'full' ? 'Fully Grouted' : 'Partially Grouted'],
+    ['Net area A<sub>n</sub>', f1(An) + ' in&sup2;/ft'],
+    ['Moment of inertia I<sub>n</sub>', f1(In) + ' in&sup4;/ft'],
+    ['Radius of gyration r', f3(r_in) + '&Prime;'],
+    ['Slenderness h/r', f2(h_r) + (h_r > 99 ? ' &gt; 99 (Eq. 8-17)' : ' &le; 99 (Eq. 8-16)')],
+    ['Elastic modulus E<sub>m</sub>', fp(Em) + ' psi'],
+    ['Modular ratio n = E<sub>s</sub>/E<sub>m</sub>', f2(n)],
+    ['F<sub>b</sub> = 0.45f&prime;<sub>m</sub>', f1(Fb) + ' psi'],
+    ['F<sub>s</sub> (Grade ' + grade + ')', fp(Fs) + ' psi'],
+    ['&gamma;<sub>g</sub> (shear grout factor)', f1(gamma_g)],
+    ['A<sub>s</sub> vertical (OOP)', '#' + barOOP + ' @ ' + f1(sOOP) + '&Prime; = ' + f3(As_perft) + ' in&sup2;/ft'],
+  ];
+  if (rfType === 'double') {
+    propRows.push(['A&prime;<sub>s</sub> comp. steel', '#' + barOOP2 + ' @ ' + f1(sOOP2) + '&Prime; = ' + f3(A2_perft) + ' in&sup2;/ft']);
+  }
+  if (barIP > 0) {
+    propRows.push(['A<sub>v</sub> horizontal (IP)', '#' + barIP + ' @ ' + f1(sIP) + '&Prime; = ' + f3(Av_per_in*12) + ' in&sup2;/ft']);
+  }
+  var pTbl = document.getElementById('propTbl');
+  pTbl.innerHTML = propRows.map(function(r) { return '<tr><td>' + r[0] + '</td><td><strong>' + r[1] + '</strong></td></tr>'; }).join('');
+
+  // Demand table
+  var demRows = [
+    ['Axial P', fp(P_plf) + ' lb/ft'],
+    ['OOP Wind Pressure w', f1(w_psf) + ' psf'],
+    ['OOP Moment M<sub>oop</sub>', f2(Moop_lbft) + ' lb&middot;ft/ft'],
+    ['OOP Shear V<sub>oop</sub>', f1(Voop_plf) + ' lb/ft'],
+    ['In-Plane Unit Shear v', fp(v_plf) + ' plf'],
+    ['In-Plane Total V', fk(v_plf * Lw_ft) + ' kips (L<sub>w</sub> = ' + f1(Lw_ft) + ' ft)'],
+    ['M/Vd<sub>v</sub> in-plane', f3(MVdv_i)],
+    ['Effective depth d', f2(dOOP) + '&Prime;'],
+  ];
+  document.getElementById('demTbl').innerHTML = demRows.map(function(r) { return '<tr><td>' + r[0] + '</td><td><strong>' + r[1] + '</strong></td></tr>'; }).join('');
+
+  // Demand cards
+  var cards = [
+    { v: fp(P_plf) + ' lb/ft',  l: 'Axial P', cls: '' },
+    { v: f1(fa) + ' psi',        l: 'fa (axial stress)', cls: '' },
+    { v: f2(Moop_lbft) + '<br><span style="font-size:.75em">lb·ft/ft</span>', l: 'OOP Moment', cls: 'alt' },
+    { v: f1(fb_oop) + ' psi',    l: 'fb (masonry flex.)', cls: 'alt' },
+    { v: f1(fs_oop) + ' psi',    l: 'fs (steel stress)', cls: 'alt' },
+    { v: fp(v_plf) + ' plf',     l: 'In-Plane Unit Shear', cls: 'pur' },
+    { v: f2(fv_ip) + ' psi',     l: 'fv in-plane', cls: 'pur' },
+    { v: f3(maxDC),              l: 'Max D/C Ratio', cls: maxDC > 1 ? 'warn' : 'alt' },
+  ];
+  document.getElementById('demCards').innerHTML = cards.map(function(c) {
+    return '<div class="dem-card ' + c.cls + '"><div class="v">' + c.v + '</div><div class="l">' + c.l + '</div></div>';
+  }).join('');
+
+  // Check table
+  var tbody = document.getElementById('chkBody');
+  var html = '';
+  chks.forEach(function(chk, i) {
+    var dc   = chk.dc;
+    var pf   = dc <= 1.0 ? 'pass' : 'fail';
+    var pftx = dc <= 1.0 ? 'PASS' : 'FAIL';
+    var pct  = Math.min(100, dc * 100);
+    var barC = dc <= 0.75 ? '#16a34a' : dc <= 1.0 ? '#f59e0b' : '#dc2626';
+    var rowCls = chk.stiff ? 'alt-row' : '';
+    var detBtn = chk.det
+      ? '<button id="dbtn_' + i + '" class="det-btn" onclick="toggleDet(' + i + ')">&#9658; Calc</button>'
+      : '&mdash;';
+    html += '<tr class="' + rowCls + '">';
+    html += '<td><strong>' + chk.n + '</strong><br><small style="color:#666">' + chk.nt + '</small></td>';
+    html += '<td><small>' + chk.r + '</small></td>';
+    html += '<td>' + chk.d + '</td>';
+    html += '<td>' + chk.c + '</td>';
+    html += '<td><div class="dc-cell"><div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%;background:' + barC + '"></div></div><strong>' + f3(dc) + '</strong></div></td>';
+    html += '<td class="' + pf + '">' + pftx + '</td>';
+    html += '<td>' + detBtn + '</td>';
+    html += '</tr>';
+    if (chk.det) {
+      html += '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + i + '">' + chk.det + '</div></td></tr>';
+    }
+  });
+  tbody.innerHTML = html;
+
+  // Engineering notes
+  var notes = [
+    'All stresses computed per unit length of wall (1-ft strip). Section properties assume uniform reinforcement spacing.',
+    'Axial allowable P<sub>a</sub> includes steel contribution. For pure axial capacity the steel term (0.65A<sub>st</sub>F<sub>s</sub>) is included per MDG Eq. 8-16/17.',
+    'OOP moment computed as M = w&middot;h&sup2;/C for selected support condition. Verify end-fixity with actual construction.',
+    'In-plane F<sub>vs</sub> derived for full-wall shear demand; d<sub>v</sub> = 0.8L<sub>w</sub> per TMS §8.3.5.1.',
+    'Partial grout &gamma;<sub>g</sub> = 0.70 reduces allowable shear per TMS §8.3.5.1.',
+    'Max in-plane shear stress limited to ' + f2(Fvm_cap) + ' psi (M/Vd<sub>v</sub> = ' + f3(MVdv_i) + '). Check boundary element needs separately.',
+    'Double-reinforced analysis assumes compression steel yields before masonry reaches F<sub>b</sub>; verify fs&prime; &le; F<sub>s</sub>.',
+  ];
+  document.getElementById('notesBox').innerHTML = '<strong>Engineering Notes &amp; Assumptions:</strong><ul style="margin-top:6px">' +
+    notes.map(function(n) { return '<li>' + n + '</li>'; }).join('') + '</ul>';
+
+  // Show results
+  document.getElementById('resultsDiv').className = 'results show';
+  document.getElementById('resultsDiv').scrollIntoView({behavior:'smooth', block:'start'});
+}
+</script>
+</body>
+</html>
