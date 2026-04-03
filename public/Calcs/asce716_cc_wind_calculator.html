@@ -681,59 +681,76 @@ function interpGCp(gcpArr, A){
 // ─── Reference Pressure Table (10, 50, 100 sf) ────────────────────────────────
 function renderRefTable(allZoneItems, qh, GCpi){
   var refAreas=[10,50,100];
-  var html='<div class="blk" style="margin-bottom:20px;border-left-color:#7c3aed">';
-  html+='<h2 style="color:#6d28d9">Pressure Reference Table &mdash; 10, 50 &amp; 100 sf '
-    +'<span class="badge" style="background:#ede9fe;color:#5b21b6">All Zones</span></h2>';
-  html+='<div style="overflow-x:auto"><table class="prs-table">';
-  html+='<thead>';
-  html+='<tr style="background:#4c1d95">';
-  html+='<th rowspan="2" style="background:#4c1d95;text-align:left;vertical-align:middle">Zone</th>';
-  html+='<th rowspan="2" style="background:#4c1d95;text-align:left;vertical-align:middle">Description</th>';
-  html+='<th rowspan="2" style="background:#4c1d95;text-align:center;vertical-align:middle">Type</th>';
-  refAreas.forEach(function(sf){
-    html+='<th colspan="3" style="background:#5b21b6;text-align:center">'+sf+' sf</th>';
-  });
+  var visZones=allZoneItems.filter(function(item){return !item.z.oh;});
+  if(visZones.length===0){document.getElementById('refTableOut').innerHTML='';return;}
+
+  // Determine pressure column label based on which figure types are present
+  var hasWall=visZones.some(function(i){return i.figKey==='30.3-1'||i.figKey==='30.6-1-wall'||i.figKey==='30.6-1';});
+  var hasRoof=visZones.some(function(i){return i.figKey!=='30.3-1'&&i.figKey!=='30.6-1-wall'&&i.figKey!=='30.6-1';});
+  var pLabel=(hasWall&&hasRoof)?'Pressure, <em>p</em>\u00a0(psf)':hasWall?'Wall Pressure, <em>p</em>\u00a0(psf)':'Roof Pressure, <em>p</em>\u00a0(psf)';
+
+  var html='<div class="blk" style="margin-bottom:20px;border-left-color:#1e3c72">';
+  html+='<h2 style="color:#1e3c72">Pressure Reference Table &mdash; 10, 50 &amp; 100 sf '
+    +'<span class="badge" style="background:#dbeafe;color:#1e40af">All Zones</span></h2>';
+  html+='<div style="overflow-x:auto">';
+  html+='<table class="prs-table" style="border-collapse:collapse;width:100%;font-size:.87em">';
+
+  // Header row 1 — section group labels
+  html+='<thead><tr>';
+  html+='<th colspan="'+refAreas.length+'" style="background:#1e3c72;color:#fff;text-align:center;padding:7px 10px;border-right:3px solid #fff">'
+    +'GC<sub>p</sub><span style="font-weight:400;font-size:.82em;padding-left:6px">Effective Wind Area, ft\u00b2</span></th>';
+  html+='<th rowspan="2" style="background:#1e3c72;color:#fff;text-align:center;vertical-align:middle;padding:7px 12px;border-left:3px solid #fff;border-right:3px solid #fff;min-width:90px">Zone</th>';
+  html+='<th colspan="'+refAreas.length+'" style="background:#1e3c72;color:#fff;text-align:center;padding:7px 10px;border-left:3px solid #fff">'
+    +pLabel+'<span style="font-weight:400;font-size:.82em;padding-left:6px">Effective Wind Area, ft\u00b2</span></th>';
   html+='</tr>';
+  // Header row 2 — area labels (zone th already rowspanned above)
   html+='<tr>';
-  refAreas.forEach(function(){
-    html+='<th style="background:#6d28d9;text-align:center;font-size:.78em">p(+)<br>psf</th>';
-    html+='<th style="background:#6d28d9;text-align:center;font-size:.78em">p(&minus;)<br>psf</th>';
-    html+='<th style="background:#7c3aed;text-align:center;font-size:.78em">Gov&nbsp;|p|<br>psf</th>';
-  });
+  refAreas.forEach(function(sf){html+='<th style="background:#2a5298;color:#fff;text-align:center;padding:5px 8px;font-size:.85em">'+sf+'&nbsp;ft\u00b2</th>';});
+  refAreas.forEach(function(sf){html+='<th style="background:#2a5298;color:#fff;text-align:center;padding:5px 8px;font-size:.85em">'+sf+'&nbsp;ft\u00b2</th>';});
   html+='</tr></thead><tbody>';
 
-  allZoneItems.forEach(function(item){
+  visZones.forEach(function(item,idx){
     var z=item.z;
-    var typeLabel=item.figKey.indexOf('roof')>=0 ? 'Roof' : (item.figKey.indexOf('wall')>=0||item.figKey==='30.3-1'||item.figKey==='30.3-2A'||item.figKey==='30.3-2B'||item.figKey==='30.3-2D'||item.figKey==='30.3-5A') ? (z.name.toLowerCase().indexOf('wall')>=0?'Wall':'Roof') : '—';
-    // Better type detection based on zone name
-    if(z.name.toLowerCase().indexOf('wall')>=0) typeLabel='Wall';
-    else if(item.figKey==='30.3-1') typeLabel='Wall';
-    else if(item.figKey==='30.6-1-wall') typeLabel='Wall';
-    else typeLabel='Roof';
+    var hasPos=z.pos!==null&&z.pos!==undefined;
+    var rowBg=idx%2===0?'#fff':'#f5f7ff';
+    var zCell='<td rowspan="'+(hasPos?2:1)+'" style="text-align:center;vertical-align:middle;font-weight:700;padding:6px 10px;'
+      +'border-left:3px solid #1e3c72;border-right:3px solid #1e3c72;background:'+rowBg+'">'
+      +z.name+'<br><span style="font-size:.78em;font-weight:400;color:#555">'+z.desc+'</span></td>';
 
-    html+='<tr'+(z.oh?' class="oh-row"':'')+'>';
-    html+='<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong></td>';
-    html+='<td style="font-size:.85em;color:#555">'+z.desc+'</td>';
-    html+='<td style="text-align:center;font-size:.8em;color:#6d28d9;font-weight:600">'+typeLabel+'</td>';
-    refAreas.forEach(function(sf){
-      var gcpPos=z.pos ? interpGCp(z.pos, sf) : null;
-      var gcpNeg=interpGCp(z.neg, sf);
-      var pPos=(gcpPos!==null) ? qh*(gcpPos+GCpi) : null;
-      var pNeg=qh*(gcpNeg-GCpi);
-      var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
-      html+='<td style="text-align:center;color:#1e40af;font-weight:600">'+(pPos!==null?f1(pPos):'&mdash;')+'</td>';
-      html+='<td style="text-align:center;color:#c2410c;font-weight:600">'+f1(pNeg)+'</td>';
-      html+='<td style="text-align:center;font-weight:700;color:#5b21b6">'+f1(govP)+'</td>';
+    var data=refAreas.map(function(sf){
+      var gp=hasPos?interpGCp(z.pos,sf):null;
+      var gn=interpGCp(z.neg,sf);
+      return{gcpPos:gp,gcpNeg:gn,pPos:(gp!==null)?qh*(gp+GCpi):null,pNeg:qh*(gn-GCpi)};
     });
-    html+='</tr>';
+
+    if(hasPos){
+      // Positive row
+      html+='<tr style="background:'+rowBg+'">';
+      data.forEach(function(d){html+='<td style="text-align:center;color:#1e40af;font-weight:600;padding:5px 9px">'+(d.gcpPos>=0?'+':'')+f2(d.gcpPos)+'</td>';});
+      html+=zCell;
+      data.forEach(function(d){var r=Math.round(d.pPos);html+='<td style="text-align:center;color:#1e40af;font-weight:600;padding:5px 9px">'+(r>=0?'+':'')+r+'</td>';});
+      html+='</tr>';
+      // Negative row
+      html+='<tr style="background:'+rowBg+'">';
+      data.forEach(function(d){html+='<td style="text-align:center;color:#c2410c;font-weight:600;padding:5px 9px">'+f2(d.gcpNeg)+'</td>';});
+      data.forEach(function(d){html+='<td style="text-align:center;color:#c2410c;font-weight:600;padding:5px 9px">'+Math.round(d.pNeg)+'</td>';});
+      html+='</tr>';
+    } else {
+      // Suction-only zone (one row)
+      html+='<tr style="background:'+rowBg+'">';
+      data.forEach(function(d){html+='<td style="text-align:center;color:#c2410c;font-weight:600;padding:5px 9px">'+f2(d.gcpNeg)+'</td>';});
+      html+=zCell;
+      data.forEach(function(d){html+='<td style="text-align:center;color:#c2410c;font-weight:600;padding:5px 9px">'+Math.round(d.pNeg)+'</td>';});
+      html+='</tr>';
+    }
   });
 
   html+='</tbody></table></div>';
   html+='<div style="font-size:.75em;color:#718096;margin-top:6px">'
     +'GC<sub>p</sub> log-linearly interpolated per ASCE 7-16 figure curves at exactly 10, 50 &amp; 100 sf. '
-    +'p(+) = q<sub>h</sub>&times;[GC<sub>p</sub>(+)+GC<sub>pi</sub>]; p(&minus;) = q<sub>h</sub>&times;[GC<sub>p</sub>(&minus;)&minus;GC<sub>pi</sub>]. '
-    +'Minimum |p| = 16 psf per §30.2.2 — verify independently.'
-    +'</div>';
+    +'p(+) = q<sub>h</sub>\u00d7[GC<sub>p</sub>(+)+GC<sub>pi</sub>]; '
+    +'p(\u2212) = q<sub>h</sub>\u00d7[GC<sub>p</sub>(\u2212)\u2212GC<sub>pi</sub>]. '
+    +'Minimum |p| = 16 psf per \u00a730.2.2 \u2014 verify independently.</div>';
   html+='</div>';
   document.getElementById('refTableOut').innerHTML=html;
 }
