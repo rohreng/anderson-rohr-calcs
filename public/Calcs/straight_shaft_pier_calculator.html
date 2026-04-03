@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Straight Shaft Drilled Pier — Capacity &amp; Reinforcement</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table,.rebar-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th,.rebar-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td,.rebar-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td,.rebar-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.rebar-table tr.gov-row td{background:#fef9c3!important;font-weight:700;border-left:3px solid #d97706}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}
+.dem-card.warn .v{color:#92400e}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.cval-warn{color:#b45309;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.schema-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.schema-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Straight Shaft Drilled Pier</h1>
+  <p>Allowable Bearing Capacity, Uplift Check &amp; Reinforcement Design (ASD)</p>
+  <div class="ref-tags">
+    <span class="tag">ACI 318-19 §26.8</span>
+    <span class="tag">ACI 336.3R-14</span>
+    <span class="tag">IBC 2021 §1810</span>
+    <span class="tag">ASD Method</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Schematic -->
+  <div class="schema-wrap">
+    <div style="font-weight:700;color:#1e3c72;margin-bottom:10px;font-size:.9em">SCHEMATIC DIAGRAM</div>
+    <div class="schema-grid">
+
+      <!-- Elevation View -->
+      <div>
+        <div style="font-size:.8em;color:#555;text-align:center;margin-bottom:6px;font-weight:600">ELEVATION — Pier Profile</div>
+        <svg viewBox="0 0 280 360" width="100%" style="max-height:340px">
+          <defs>
+            <!-- Right-pointing path + orient="auto" = marker always follows line direction -->
+            <marker id="arrDn" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+              <path d="M0,0 L0,7 L8,3.5z" fill="#374151"/>
+            </marker>
+            <!-- Dimension: auto-start-reverse flips arrow at marker-start end -->
+            <marker id="dimL" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto-start-reverse">
+              <path d="M0,0 L0,7 L8,3.5z" fill="#f59e0b"/>
+            </marker>
+            <marker id="dimR" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto-start-reverse">
+              <path d="M0,0 L0,7 L8,3.5z" fill="#f59e0b"/>
+            </marker>
+            <pattern id="hatch" patternUnits="userSpaceOnUse" width="6" height="6">
+              <path d="M0,6 L6,0" stroke="#9ca3af" stroke-width="0.7"/>
+            </pattern>
+          </defs>
+          <!-- Ground surface -->
+          <line x1="30" y1="55" x2="250" y2="55" stroke="#6b7280" stroke-width="2"/>
+          <text x="36" y="50" font-size="9" fill="#6b7280">Grade</text>
+          <!-- Hatch above grade -->
+          <rect x="30" y="35" width="220" height="20" fill="url(#hatch)" opacity="0.5"/>
+          <!-- Applied load arrow -->
+          <line x1="140" y1="20" x2="140" y2="52" stroke="#374151" stroke-width="2" marker-end="url(#arrDn)"/>
+          <text x="148" y="32" font-size="9" fill="#374151" font-weight="700">P (kips)</text>
+          <!-- Pier shaft — light blue fill -->
+          <rect x="100" y="55" width="80" height="230" fill="#bfdbfe" stroke="#2a5298" stroke-width="1.5"/>
+          <!-- Skin friction zone label (upper part of penetration) -->
+          <rect x="100" y="200" width="80" height="60" fill="#93c5fd" opacity="0.5"/>
+          <text x="143" y="233" font-size="8" fill="#1e40af" text-anchor="middle" font-style="italic">Skin</text>
+          <text x="143" y="244" font-size="8" fill="#1e40af" text-anchor="middle" font-style="italic">Friction</text>
+          <!-- End bearing zone -->
+          <rect x="100" y="260" width="80" height="25" fill="#86efac" opacity="0.7"/>
+          <text x="143" y="276" font-size="8" fill="#166534" text-anchor="middle" font-weight="600">End Bearing</text>
+          <!-- Bottom of pier -->
+          <line x1="100" y1="285" x2="180" y2="285" stroke="#2a5298" stroke-width="2"/>
+          <!-- Bearing layer hatch -->
+          <rect x="30" y="285" width="220" height="30" fill="url(#hatch)" opacity="0.8"/>
+          <text x="36" y="308" font-size="9" fill="#374151">Bearing Stratum</text>
+          <!-- Depth to bearing dim line -->
+          <line x1="68" y1="55" x2="68" y2="200" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+          <text x="30" y="132" font-size="8" fill="#b45309" text-anchor="middle">z<tspan baseline-shift="sub" font-size="7">bearing</tspan></text>
+          <!-- Bearing line (top of bearing material) -->
+          <line x1="30" y1="200" x2="250" y2="200" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="5,3"/>
+          <text x="190" y="196" font-size="8" fill="#16a34a" font-weight="600">Top of Bearing</text>
+          <!-- Penetration dim line -->
+          <line x1="68" y1="200" x2="68" y2="285" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+          <text x="30" y="247" font-size="8" fill="#b45309" text-anchor="middle">D<tspan baseline-shift="sub" font-size="7">pen</tspan></text>
+          <!-- Diameter dim -->
+          <line x1="100" y1="340" x2="180" y2="340" stroke="#f59e0b" stroke-width="1" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+          <text x="140" y="355" font-size="9" fill="#b45309" text-anchor="middle">D (diameter)</text>
+          <!-- Skin friction arrows on shaft sides -->
+          <line x1="88" y1="215" x2="98" y2="215" stroke="#1e40af" stroke-width="1.2" marker-end="url(#arrDn)"/>
+          <line x1="88" y1="230" x2="98" y2="230" stroke="#1e40af" stroke-width="1.2" marker-end="url(#arrDn)"/>
+          <line x1="192" y1="215" x2="182" y2="215" stroke="#1e40af" stroke-width="1.2" marker-end="url(#arrDn)"/>
+          <line x1="192" y1="230" x2="182" y2="230" stroke="#1e40af" stroke-width="1.2" marker-end="url(#arrDn)"/>
+          <!-- Uplift arrow (dashed red) -->
+          <line x1="140" y1="285" x2="140" y2="315" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4,2"/>
+          <text x="148" y="307" font-size="8" fill="#dc2626">Soil Uplift</text>
+        </svg>
+      </div>
+
+      <!-- Cross-Section View -->
+      <div>
+        <div style="font-size:.8em;color:#555;text-align:center;margin-bottom:6px;font-weight:600">CROSS-SECTION — Reinforcement Layout</div>
+        <svg viewBox="0 0 280 280" width="100%" style="max-height:280px">
+          <defs>
+            <radialGradient id="concGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style="stop-color:#e5e7eb"/>
+              <stop offset="100%" style="stop-color:#d1d5db"/>
+            </radialGradient>
+          </defs>
+          <!-- Concrete section -->
+          <circle cx="140" cy="140" r="100" fill="url(#concGrad)" stroke="#374151" stroke-width="2"/>
+          <!-- Cover ring indicator -->
+          <circle cx="140" cy="140" r="84" fill="none" stroke="#9ca3af" stroke-width="0.8" stroke-dasharray="4,3"/>
+          <!-- Spiral tie -->
+          <circle cx="140" cy="140" r="76" fill="none" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="6,3"/>
+          <!-- 8 rebar dots equally spaced on cage circle (r=76) -->
+          <g fill="#dc2626" stroke="#7f1d1d" stroke-width="0.8">
+            <circle cx="216" cy="140" r="7"/>
+            <circle cx="194" cy="194" r="7"/>
+            <circle cx="140" cy="216" r="7"/>
+            <circle cx="86"  cy="194" r="7"/>
+            <circle cx="64"  cy="140" r="7"/>
+            <circle cx="86"  cy="86"  r="7"/>
+            <circle cx="140" cy="64"  r="7"/>
+            <circle cx="194" cy="86"  r="7"/>
+          </g>
+          <!-- Diameter dimension -->
+          <line x1="40" y1="140" x2="240" y2="140" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,3"/>
+          <text x="140" y="155" font-size="9" fill="#b45309" text-anchor="middle">D</text>
+          <!-- Cover label -->
+          <line x1="140" y1="40" x2="140" y2="64" stroke="#9ca3af" stroke-width="1"/>
+          <text x="148" y="54" font-size="8" fill="#6b7280">Cover</text>
+          <!-- Spiral label -->
+          <line x1="216" y1="100" x2="220" y2="80" stroke="#7c3aed" stroke-width="1"/>
+          <text x="222" y="78" font-size="8" fill="#7c3aed">Spiral/Tie</text>
+          <!-- Rebar label -->
+          <line x1="216" y1="148" x2="236" y2="165" stroke="#dc2626" stroke-width="1"/>
+          <text x="236" y="174" font-size="8" fill="#dc2626">Long. Bar</text>
+          <!-- Ag label -->
+          <text x="140" y="130" font-size="10" fill="#374151" text-anchor="middle" font-weight="700">A<tspan baseline-shift="sub" font-size="8">g</tspan> = πD²/4</text>
+          <text x="140" y="148" font-size="9" fill="#6b7280" text-anchor="middle">(gross section)</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block 1: Geotechnical Parameters -->
+  <div class="blk">
+    <h2>1. Geotechnical Parameters <span class="badge">From Geotechnical Report</span></h2>
+    <div class="g3">
+      <div class="ig">
+        <label>Allowable End Bearing <span class="unit">(psf)</span></label>
+        <input type="number" id="q_end" value="40000">
+        <span class="hint">From geotechnical report</span>
+      </div>
+      <div class="ig">
+        <label>Allowable Skin Friction <span class="unit">(psf)</span></label>
+        <input type="number" id="q_skin" value="4000">
+        <span class="hint">Along pier shaft in bearing stratum</span>
+      </div>
+      <div class="ig">
+        <label>Depth to Bearing Material <span class="unit">(ft)</span></label>
+        <input type="number" id="z_bearing" value="18">
+        <span class="hint">From grade to top of bearing stratum</span>
+      </div>
+      <div class="ig">
+        <label>Minimum Penetration <span class="unit">(ft)</span></label>
+        <input type="number" id="pen_min" value="2">
+        <span class="hint">Min. depth into bearing stratum</span>
+      </div>
+      <div class="ig">
+        <label>End Bearing Material</label>
+        <input type="text" id="bearing_mat" value="Gray Limestone">
+      </div>
+    </div>
+  </div>
+
+  <!-- Block 2: Uplift Parameters -->
+  <div class="blk">
+    <h2>2. Uplift Parameters</h2>
+    <div class="g3">
+      <div class="ig">
+        <label>Soil Uplift Pressure <span class="unit">(psf)</span></label>
+        <input type="number" id="p_uplift" value="1400">
+        <span class="hint">Expansive soil / hydrostatic pressure on perimeter</span>
+      </div>
+      <div class="ig">
+        <label>Depth Considered for Uplift <span class="unit">(ft)</span></label>
+        <input type="number" id="z_uplift" value="10">
+        <span class="hint">Active uplift zone depth</span>
+      </div>
+      <div class="ig">
+        <label>Additional Uplift Resistance <span class="unit">(psf)</span></label>
+        <input type="number" id="p_resist" value="0">
+        <span class="hint">e.g. Bell resistance; 0 if none</span>
+      </div>
+      <div class="ig">
+        <label>Wind Induced Uplift, Net <span class="unit">(kips)</span></label>
+        <input type="number" id="P_wind" value="0">
+        <span class="hint">Net uplift from lateral load analysis</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Block 3: Pier Geometry & Design Loads -->
+  <div class="blk">
+    <h2>3. Pier Geometry &amp; Design Loads</h2>
+    <div class="g3">
+      <div class="ig">
+        <label>Shaft Diameter <span class="unit">(in)</span></label>
+        <select id="diam" onchange="updateSchematic()">
+          <option value="12">12 in</option>
+          <option value="14">14 in</option>
+          <option value="16">16 in</option>
+          <option value="18" selected>18 in</option>
+          <option value="20">20 in</option>
+          <option value="22">22 in</option>
+          <option value="24">24 in</option>
+          <option value="28">28 in</option>
+          <option value="30">30 in</option>
+          <option value="32">32 in</option>
+          <option value="36">36 in</option>
+          <option value="42">42 in</option>
+          <option value="48">48 in</option>
+          <option value="54">54 in</option>
+          <option value="60">60 in</option>
+        </select>
+      </div>
+      <div class="ig">
+        <label>Total Penetration into Bearing <span class="unit">(ft)</span></label>
+        <input type="number" id="pen_total" value="6">
+        <span class="hint">Must be ≥ minimum penetration</span>
+      </div>
+      <div class="ig">
+        <label>Required Axial Load (Service) <span class="unit">(kips)</span></label>
+        <input type="number" id="P_req" value="100">
+        <span class="hint">ASD service load — from structural analysis</span>
+      </div>
+      <div class="ig">
+        <label>Concrete Unit Weight <span class="unit">(pcf)</span></label>
+        <input type="number" id="wc" value="150">
+        <span class="hint">Normal weight = 150 pcf</span>
+      </div>
+    </div>
+    <div id="geoHint" style="margin-top:12px;font-size:.82em;color:#2a5298;background:#eff6ff;padding:8px 12px;border-radius:6px;display:none"></div>
+  </div>
+
+  <!-- Block 4: Reinforcement -->
+  <div class="blk alt-blk">
+    <h2>4. Reinforcement <span class="badge-green">ACI 318-19 §26.8</span></h2>
+    <div class="g3">
+      <div class="ig">
+        <label>Rebar Grade <span class="unit">(ksi)</span></label>
+        <select id="Fy_sel">
+          <option value="60" selected>Grade 60 — F<sub>y</sub> = 60 ksi</option>
+          <option value="40">Grade 40 — F<sub>y</sub> = 40 ksi</option>
+          <option value="75">Grade 75 — F<sub>y</sub> = 75 ksi</option>
+          <option value="80">Grade 80 — F<sub>y</sub> = 80 ksi</option>
+        </select>
+      </div>
+      <div class="ig">
+        <label>Min. Reinforcement Ratio <span class="unit">(%)</span></label>
+        <input type="number" id="rho_min" value="0.5" step="0.1">
+        <span class="hint">ACI 336.3R-14: ≥ 0.5% (col. action: ≥ 1.0%)</span>
+      </div>
+      <div class="ig">
+        <label>Preferred Bar Size</label>
+        <select id="bar_pref">
+          <option value="#4">#4 (A<sub>b</sub>=0.20 in²)</option>
+          <option value="#5">#5 (A<sub>b</sub>=0.31 in²)</option>
+          <option value="#6" selected>#6 (A<sub>b</sub>=0.44 in²)</option>
+          <option value="#7">#7 (A<sub>b</sub>=0.60 in²)</option>
+          <option value="#8">#8 (A<sub>b</sub>=0.79 in²)</option>
+          <option value="#9">#9 (A<sub>b</sub>=1.00 in²)</option>
+          <option value="#10">#10 (A<sub>b</sub>=1.27 in²)</option>
+          <option value="#11">#11 (A<sub>b</sub>=1.56 in²)</option>
+        </select>
+        <span class="hint">Calculator will show all bar options in results</span>
+      </div>
+      <div class="ig">
+        <label>Clear Cover <span class="unit">(in)</span></label>
+        <input type="number" id="cover" value="3">
+        <span class="hint">ACI 318-19 §20.6.1.4: 3" min. for piers</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+  <!-- ===== RESULTS ===== -->
+  <div id="results" class="results">
+    <div id="sumBox" class="summary"></div>
+
+    <!-- Geometry Summary -->
+    <div class="blk">
+      <h2>Pier Geometry</h2>
+      <div id="geoOut"></div>
+    </div>
+
+    <!-- Demand Cards -->
+    <div class="blk">
+      <h2>Design Summary</h2>
+      <div id="demOut"></div>
+    </div>
+
+    <!-- Check Table -->
+    <div class="blk">
+      <h2>Check Results
+        <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &#9656; Calc to expand any check</span>
+      </h2>
+      <table class="chk-table">
+        <thead>
+          <tr>
+            <th style="width:28%">Check</th>
+            <th>Reference</th>
+            <th>Demand</th>
+            <th>Capacity</th>
+            <th>D/C</th>
+            <th>Status</th>
+            <th style="width:70px">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="chkTb"></tbody>
+      </table>
+    </div>
+
+    <!-- Rebar Schedule -->
+    <div class="blk alt-blk">
+      <h2>Reinforcement Schedule <span class="badge-green">ACI 318-19 §26.8.2</span></h2>
+      <div id="rebarOut"></div>
+    </div>
+
+    <div class="note-box">
+      <strong>Engineering Notes:</strong>
+      <ul>
+        <li>Bearing capacities are <strong>allowable (ASD)</strong> values from geotechnical report. Confirm geotechnical report allows ASD design values as input.</li>
+        <li>Skin friction is applied only over penetration <em>beyond</em> the minimum penetration requirement per standard practice.</li>
+        <li>Soil uplift force is computed as: Uplift Pressure × Perimeter × Uplift Depth. This is an applied load from expansive soil or hydrostatic pressure acting on the pier shaft.</li>
+        <li>Uplift steel is designed by ASD: A<sub>s</sub> = Net Uplift / (0.6 × F<sub>y</sub>). Confirm this approach with project geotechnical engineer for site-specific conditions.</li>
+        <li>Minimum reinforcement per <strong>ACI 318-19 §26.8.2.1</strong>: ρ<sub>min</sub> ≥ 0.005A<sub>g</sub> for drilled piers. If pier acts in column action (L<sub>eff</sub>/D &gt; 3), use ρ<sub>min</sub> ≥ 0.01A<sub>g</sub> per ACI 318-19 §10.6.1.1.</li>
+        <li>Minimum bar count: <strong>6 bars</strong> for D ≤ 20 in; <strong>8 bars</strong> for D &gt; 20 in per ACI 336.3R-14 §7.3 and ACI 318-19 §26.8.2.2.</li>
+        <li>Spiral ties or hoops: Use #3 spiral at 6 in pitch or #4 ties at 12 in spacing per ACI 318-19 §25.7. Confinement steel is not designed in this calculator — provide per ACI requirements.</li>
+        <li>This calculator does not check: concrete compressive capacity of shaft, lateral load/moment capacity, or slenderness effects. Verify separately if applicable.</li>
+        <li>Pier concrete: Minimum f'c = 3,000 psi per IBC 2021 §1810.3.5. Typical is 4,000–5,000 psi.</li>
+      </ul>
+    </div>
+  </div><!-- end results -->
+
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+/* ===== NUMBER FORMAT HELPERS ===== */
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+
+/* Vertical fraction */
+function fr(n,d){
+  return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';
+}
+
+/* Toggle expand/collapse detail panel */
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+/* Rebar area lookup (in²/bar) */
+var REBAR_AREA = {
+  '#3':0.11, '#4':0.20, '#5':0.31, '#6':0.44,
+  '#7':0.60, '#8':0.79, '#9':1.00, '#10':1.27,
+  '#11':1.56, '#14':2.25, '#18':4.00
+};
+var REBAR_DIA = {
+  '#3':0.375,'#4':0.500,'#5':0.625,'#6':0.750,
+  '#7':0.875,'#8':1.000,'#9':1.128,'#10':1.270,
+  '#11':1.410,'#14':1.693,'#18':2.257
+};
+
+function updateSchematic(){
+  /* Update geometry hint on diameter change */
+  var D_in = parseFloat(document.getElementById('diam').value);
+  if(!D_in) return;
+  var circ = (Math.PI * D_in / 12).toFixed(3);
+  var area_sf = (Math.PI/4 * (D_in/12)*(D_in/12)).toFixed(4);
+  var area_in2 = (Math.PI/4 * D_in * D_in).toFixed(2);
+  var hint = document.getElementById('geoHint');
+  hint.style.display='block';
+  hint.innerHTML = '\u25B6 '+D_in+'\u2033 pier &mdash; Circumference: '+circ+' ft &nbsp;|&nbsp; Area: '+area_sf+' sf ('+area_in2+' in&sup2;)';
+}
+
+function runCalc(){
+  /* ===== READ INPUTS ===== */
+  var D_in    = parseFloat(document.getElementById('diam').value);
+  var pen     = parseFloat(document.getElementById('pen_total').value);
+  var P_req   = parseFloat(document.getElementById('P_req').value);
+  var wc      = parseFloat(document.getElementById('wc').value);
+
+  var q_end   = parseFloat(document.getElementById('q_end').value);
+  var q_skin  = parseFloat(document.getElementById('q_skin').value);
+  var z_bear  = parseFloat(document.getElementById('z_bearing').value);
+  var pen_min = parseFloat(document.getElementById('pen_min').value);
+  var bearing_mat = document.getElementById('bearing_mat').value;
+
+  var p_uplift = parseFloat(document.getElementById('p_uplift').value);
+  var z_uplift = parseFloat(document.getElementById('z_uplift').value);
+  var p_resist = parseFloat(document.getElementById('p_resist').value);
+  var P_wind   = parseFloat(document.getElementById('P_wind').value);
+
+  var Fy       = parseFloat(document.getElementById('Fy_sel').value);
+  var rho_min  = parseFloat(document.getElementById('rho_min').value)/100;
+  var bar_pref = document.getElementById('bar_pref').value;
+  var cover    = parseFloat(document.getElementById('cover').value);
+
+  /* ===== GEOMETRY ===== */
+  var D_ft   = D_in / 12;
+  var circ   = Math.PI * D_ft;                     /* perimeter (ft) */
+  var Ag_sf  = Math.PI / 4 * D_ft * D_ft;          /* gross area (sf) */
+  var Ag_in2 = Math.PI / 4 * D_in * D_in;          /* gross area (in²) */
+  var total_depth = z_bear + pen;                   /* ft from grade to bottom */
+
+  /* ===== BEARING CAPACITY ===== */
+  var pen_active = Math.max(0, pen - pen_min);      /* penetration with friction (ft) */
+  var SF_kips = circ * pen_active * q_skin / 1000; /* skin friction (kips) */
+  var EB_kips = Ag_sf * q_end / 1000;              /* end bearing (kips) */
+  var Total_cap = SF_kips + EB_kips;               /* total allowable capacity (kips) */
+
+  /* ===== PIER WEIGHT ===== */
+  var vol_cuyd = Ag_sf * total_depth / 27;          /* volume (cu. yd.) */
+  var pier_wt  = Ag_sf * total_depth * wc / 1000;  /* weight (kips) */
+
+  /* ===== UPLIFT ===== */
+  var soil_uplift  = p_uplift * circ * z_uplift / 1000;  /* kips — soil uplift on perimeter */
+  var total_uplift = P_wind + soil_uplift;                /* total uplift (kips) */
+  var uplift_resist_kips = p_resist * circ * z_uplift / 1000; /* additional resistance (kips) */
+  var net_uplift   = Math.max(0, total_uplift - pier_wt - uplift_resist_kips); /* net tension on steel after pier self-weight (kips) */
+
+  /* ===== STEEL DESIGN ===== */
+  var fs_allow  = 0.6 * Fy;                        /* ASD allowable tensile stress (ksi) */
+  var As_uplift = net_uplift / fs_allow;            /* steel required for uplift (in²) */
+  var As_min    = rho_min * Ag_in2;                 /* minimum ACI steel (in²) */
+  var As_req    = Math.max(As_uplift, As_min);      /* governing required steel (in²) */
+
+  /* ===== MINIMUM BAR COUNT (ACI 318-19 §26.8.2.2 / ACI 336.3R-14 §7.3) ===== */
+  var n_min_bars = D_in <= 20 ? 6 : 8;             /* absolute min bar count */
+
+  /* ===== PREFERRED BAR SELECTION ===== */
+  var A_bar_pref = REBAR_AREA[bar_pref];
+  var n_by_steel = Math.ceil(As_req / A_bar_pref);
+  var n_bars_sel = Math.max(n_by_steel, n_min_bars);
+  var As_prov    = n_bars_sel * A_bar_pref;
+
+  /* ===== GEOMETRY OUTPUT TABLE ===== */
+  document.getElementById('geoOut').innerHTML =
+    '<table class="prop-table">'
+    +'<thead><tr><th>Property</th><th>Value</th><th>Unit</th></tr></thead>'
+    +'<tbody>'
+    +'<tr><td>Shaft Diameter, D</td><td>'+D_in+'</td><td>in</td></tr>'
+    +'<tr><td>Shaft Circumference, C = πD</td><td>'+f3(circ)+'</td><td>ft</td></tr>'
+    +'<tr><td>Gross Cross-Section Area, A<sub>g</sub></td><td>'+f4(Ag_sf)+' sf &nbsp;/&nbsp; '+f2(Ag_in2)+' in²</td><td></td></tr>'
+    +'<tr><td>Depth to Bearing Material</td><td>'+f1(z_bear)+'</td><td>ft</td></tr>'
+    +'<tr><td>Total Penetration, D<sub>pen</sub></td><td>'+f1(pen)+'</td><td>ft</td></tr>'
+    +'<tr><td>Penetration with Friction (D<sub>pen</sub> − D<sub>pen,min</sub>)</td><td>'+f1(pen_active)+'</td><td>ft</td></tr>'
+    +'<tr><td>Total Depth from Grade</td><td>'+f1(total_depth)+'</td><td>ft</td></tr>'
+    +'<tr><td>Pier Volume</td><td>'+f3(vol_cuyd)+'</td><td>cu. yd.</td></tr>'
+    +'<tr><td>Pier Weight ('+wc+' pcf concrete)</td><td>'+f2(pier_wt)+'</td><td>kips</td></tr>'
+    +'<tr><td>End Bearing Material</td><td colspan="2">'+bearing_mat+'</td></tr>'
+    +'</tbody></table>';
+
+  /* ===== DEMAND CARDS ===== */
+  var demHTML = '<div class="dem-grid">';
+  demHTML += '<div class="dem-card"><div class="v">'+f1(Total_cap)+' k</div><div class="l">Total Bearing<br>Capacity (ASD)</div></div>';
+  demHTML += '<div class="dem-card"><div class="v">'+f1(SF_kips)+' k</div><div class="l">Skin Friction<br>Capacity</div></div>';
+  demHTML += '<div class="dem-card"><div class="v">'+f1(EB_kips)+' k</div><div class="l">End Bearing<br>Capacity</div></div>';
+  demHTML += '<div class="dem-card warn"><div class="v">'+f1(total_uplift)+' k</div><div class="l">Total Uplift<br>Force</div></div>';
+  demHTML += '<div class="dem-card"><div class="v">'+f2(pier_wt)+' k</div><div class="l">Pier<br>Self-Weight</div></div>';
+  demHTML += '<div class="dem-card alt"><div class="v">'+f2(As_req)+' in²</div><div class="l">Governing Steel<br>Required (A<sub>s,req</sub>)</div></div>';
+  demHTML += '<div class="dem-card alt"><div class="v">'+n_bars_sel+'-'+bar_pref+'</div><div class="l">Selected Reinf.<br>('+f2(As_prov)+' in²)</div></div>';
+  demHTML += '</div>';
+  document.getElementById('demOut').innerHTML = demHTML;
+
+  /* ===== BUILD CHECKS ===== */
+  var chks = [];
+
+  /* --- CHECK 1: Axial Bearing Capacity --- */
+  (function(){
+    var dc = P_req / Total_cap;
+    var det = '';
+    det += '<div class="cref-hdr">IBC 2021 §1810.3.3 &amp; §1810.4.1 — Geotechnical Axial Capacity (ASD)</div>';
+    det += '<div class="cbox">';
+    det += '<div class="sub-head">Pier Geometry</div>';
+    det += '<div class="mrow"><span class="ceq">Circumference:</span> C = &pi; &times; '+fr('D','12')
+      +' = &pi; &times; '+fr(D_in,'12')+' = <span class="cval">'+f3(circ)+' ft</span></div>';
+    det += '<div class="mrow"><span class="ceq">Gross Area:</span> A<sub>g</sub> = '+fr('&pi;','4')
+      +' &times; '+fr('D','12')+'&sup2; = '+fr('&pi;','4')+' &times; '+fr(D_in,'12')+'&sup2; = <span class="cval">'+f4(Ag_sf)+' sf</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="sub-head">Skin Friction Capacity</div>';
+    det += '<div class="mrow"><span class="ceq">Active Penetration:</span> D<sub>pen,act</sub> = D<sub>pen</sub> &minus; D<sub>pen,min</sub>'
+      +' = '+f1(pen)+' &minus; '+f1(pen_min)+' = <span class="cval">'+f1(pen_active)+' ft</span></div>';
+    det += '<div class="mrow"><span class="ceq">Eq. (Skin Friction):</span> Q<sub>s</sub> = C &times; D<sub>pen,act</sub> &times; q<sub>s</sub></div>';
+    det += '<div class="mrow ind">= '+f3(circ)+' ft &times; '+f1(pen_active)+' ft &times; '+q_skin+' psf &times; '+fr('1 kip','1000 lb')+'</div>';
+    det += '<div class="mrow ind">= <span class="cval">'+f2(SF_kips)+' kips</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="sub-head">End Bearing Capacity</div>';
+    det += '<div class="mrow"><span class="ceq">Eq. (End Bearing):</span> Q<sub>b</sub> = A<sub>g</sub> &times; q<sub>end</sub></div>';
+    det += '<div class="mrow ind">= '+f4(Ag_sf)+' sf &times; '+q_end+' psf &times; '+fr('1 kip','1000 lb')+'</div>';
+    det += '<div class="mrow ind">= <span class="cval">'+f2(EB_kips)+' kips</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="sub-head">Total Allowable Capacity</div>';
+    det += '<div class="mrow"><span class="ceq">Q<sub>all</sub></span> = Q<sub>s</sub> + Q<sub>b</sub> = '+f2(SF_kips)+' + '+f2(EB_kips)
+      +' = <span class="cval">'+f2(Total_cap)+' kips</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow">D/C = '+fr('P<sub>service</sub>','Q<sub>all</sub>')+' = '+fr(f1(P_req)+' kips',f1(Total_cap)+' kips')
+      +' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    det += '</div>';
+    chks.push({
+      n: 'Axial Bearing Capacity',
+      r: 'IBC 2021 §1810.3.3',
+      d: 'P = '+f1(P_req)+' kips',
+      c: 'Q<sub>all</sub> = '+f1(Total_cap)+' kips',
+      dc: dc,
+      nt: 'ASD — Skin friction + end bearing in '+bearing_mat,
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 2: Skin Friction Component (informational) --- */
+  (function(){
+    var pct_sf = SF_kips / Total_cap;
+    var det = '';
+    det += '<div class="cref-hdr">ACI 336.3R-14 §5.2 — Skin Friction Contribution</div>';
+    det += '<div class="cbox">';
+    det += '<div class="mrow"><span class="ceq">Friction contribution:</span> '+fr('Q<sub>s</sub>','Q<sub>all</sub>')
+      +' = '+fr(f2(SF_kips)+' kips',f2(Total_cap)+' kips')+' = <span class="cval">'+f1(pct_sf*100)+'%</span></div>';
+    det += '<div class="mrow"><span class="ceq">Bearing contribution:</span> '+fr('Q<sub>b</sub>','Q<sub>all</sub>')
+      +' = '+fr(f2(EB_kips)+' kips',f2(Total_cap)+' kips')+' = <span class="cval">'+f1((1-pct_sf)*100)+'%</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow" style="font-size:.92em;color:#555">Note: skin friction acts only over penetration beyond minimum (' +f1(pen_min)+' ft). '
+      +'Increasing total penetration increases skin friction linearly.</div>';
+    det += '</div>';
+    chks.push({
+      n: 'Skin Friction',
+      r: 'ACI 336.3R-14 §5.2',
+      d: 'Q<sub>s</sub> = '+f1(SF_kips)+' kips',
+      c: '('+f1(pct_sf*100)+'% of Q<sub>all</sub>)',
+      dc: null,
+      nt: 'Informational — over '+f1(pen_active)+' ft active penetration',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 3: End Bearing Component (informational) --- */
+  (function(){
+    var pct_eb = EB_kips / Total_cap;
+    var det = '';
+    det += '<div class="cref-hdr">ACI 336.3R-14 §5.1 — End Bearing Capacity</div>';
+    det += '<div class="cbox">';
+    det += '<div class="mrow"><span class="ceq">End bearing:</span> Q<sub>b</sub> = A<sub>g</sub> &times; q<sub>end</sub></div>';
+    det += '<div class="mrow ind">= '+f4(Ag_sf)+' sf &times; '+q_end+' psf &divide; 1000 = <span class="cval">'+f2(EB_kips)+' kips</span></div>';
+    det += '<div class="mrow"><span class="ceq">% of total:</span> '+fr('Q<sub>b</sub>','Q<sub>all</sub>')
+      +' = '+fr(f2(EB_kips),f2(Total_cap))+' = <span class="cval">'+f1(pct_eb*100)+'%</span></div>';
+    det += '</div>';
+    chks.push({
+      n: 'End Bearing',
+      r: 'ACI 336.3R-14 §5.1',
+      d: 'Q<sub>b</sub> = '+f1(EB_kips)+' kips',
+      c: '('+f1(pct_eb*100)+'% of Q<sub>all</sub>)',
+      dc: null,
+      nt: 'At '+bearing_mat+', q<sub>end</sub> = '+q_end+' psf',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 4: Minimum Penetration --- */
+  (function(){
+    var dc = pen_min / pen;
+    var det = '';
+    det += '<div class="cref-hdr">Geotechnical Report — Minimum Penetration Requirement</div>';
+    det += '<div class="cbox">';
+    det += '<div class="mrow"><span class="ceq">Required:</span> D<sub>pen,min</sub> = <span class="cval">'+f1(pen_min)+' ft</span> (per geotechnical report)</div>';
+    det += '<div class="mrow"><span class="ceq">Provided:</span> D<sub>pen</sub> = <span class="cval">'+f1(pen)+' ft</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow">D/C = '+fr('D<sub>pen,min</sub>','D<sub>pen</sub>')+' = '+fr(f1(pen_min)+' ft',f1(pen)+' ft')
+      +' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    det += '<div class="mrow" style="font-size:.9em;color:#555">D/C &le; 1.0 required (penetration exceeds minimum)</div>';
+    det += '</div>';
+    chks.push({
+      n: 'Minimum Penetration',
+      r: 'Geotechnical Report',
+      d: 'D<sub>pen,min</sub> = '+f1(pen_min)+' ft',
+      c: 'D<sub>pen</sub> = '+f1(pen)+' ft',
+      dc: dc,
+      nt: 'Into bearing material ('+bearing_mat+')',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 5: Uplift Force Breakdown (informational) --- */
+  (function(){
+    var det = '';
+    det += '<div class="cref-hdr">IBC 2021 §1604.1 &amp; ACI 336.3R-14 §7.3 — Uplift Force &amp; Pier Self-Weight</div>';
+    det += '<div class="cbox">';
+    det += '<div class="sub-head">Gross Uplift Forces</div>';
+    det += '<div class="mrow"><span class="ceq">Soil Uplift:</span> T<sub>soil</sub> = p<sub>uplift</sub> &times; C &times; z<sub>uplift</sub></div>';
+    det += '<div class="mrow ind">= '+p_uplift+' psf &times; '+f3(circ)+' ft &times; '+f1(z_uplift)+' ft &divide; 1000</div>';
+    det += '<div class="mrow ind">= <span class="cval">'+f2(soil_uplift)+' kips</span></div>';
+    det += '<div class="mrow"><span class="ceq">Wind Uplift:</span> T<sub>wind</sub> = <span class="cval">'+f2(P_wind)+' kips</span> (from structural analysis)</div>';
+    det += '<div class="mrow"><span class="ceq">Total Gross Uplift:</span> T<sub>gross</sub> = T<sub>soil</sub> + T<sub>wind</sub> = '+f2(soil_uplift)+' + '+f2(P_wind)
+      +' = <span class="cval">'+f2(total_uplift)+' kips</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="sub-head">Resistances Reducing Steel Demand</div>';
+    det += '<div class="mrow"><span class="ceq">Pier Self-Weight:</span> W<sub>pier</sub> = A<sub>g</sub> &times; (z<sub>bear</sub> + D<sub>pen</sub>) &times; w<sub>c</sub></div>';
+    det += '<div class="mrow ind">= '+f4(Ag_sf)+' sf &times; '+f1(total_depth)+' ft &times; '+wc+' pcf &divide; 1000</div>';
+    det += '<div class="mrow ind">= <span class="cval">'+f2(pier_wt)+' kips</span></div>';
+    if(uplift_resist_kips > 0){
+      det += '<div class="mrow"><span class="ceq">Additional Resistance:</span> R<sub>add</sub> = '+p_resist+' psf &times; '+f3(circ)+' ft &times; '+f1(z_uplift)+' ft &divide; 1000 = <span class="cval">'+f2(uplift_resist_kips)+' kips</span></div>';
+    }
+    det += '<hr class="csep">';
+    det += '<div class="sub-head">Net Tension Demand on Steel</div>';
+    det += '<div class="mrow"><span class="ceq">Eq.:</span> T<sub>net</sub> = T<sub>gross</sub> &minus; W<sub>pier</sub>'+(uplift_resist_kips>0?' &minus; R<sub>add</sub>':'')+'</div>';
+    det += '<div class="mrow ind">= '+f2(total_uplift)+' &minus; '+f2(pier_wt)+(uplift_resist_kips>0?' &minus; '+f2(uplift_resist_kips):'')+' = <span class="cval">'+f2(net_uplift)+' kips</span>'
+      +(net_uplift<=0 ? ' &nbsp;<span style="color:#16a34a">(Self-weight alone resists uplift &mdash; steel per ACI min.)</span>' : '')+'</div>';
+    det += '</div>';
+    chks.push({
+      n: 'Uplift Force Breakdown',
+      r: 'IBC 2021 §1604.1',
+      d: 'T<sub>gross</sub> = '+f1(total_uplift)+' kips',
+      c: 'W<sub>pier</sub> = '+f1(pier_wt)+' kips',
+      dc: null,
+      nt: 'T<sub>net</sub> = '+f2(net_uplift)+' kips (pier wt. reduces steel demand)',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 6: Uplift Steel (ASD) --- */
+  (function(){
+    var dc = (As_prov > 0) ? As_uplift / As_prov : null;
+    var det = '';
+    det += '<div class="cref-hdr">ACI 336.3R-14 §7.3 &amp; ACI 318-19 §26.8 — Uplift Steel (ASD)</div>';
+    det += '<div class="cbox">';
+    det += '<div class="sub-head">Net Tension on Reinforcement</div>';
+    det += '<div class="mrow"><span class="ceq">Gross Uplift:</span> T<sub>gross</sub> = <span class="cval">'+f2(total_uplift)+' kips</span></div>';
+    det += '<div class="mrow"><span class="ceq">Less Pier Self-Weight:</span> &minus;W<sub>pier</sub> = &minus;<span class="cval">'+f2(pier_wt)+' kips</span></div>';
+    if(uplift_resist_kips > 0){
+      det += '<div class="mrow"><span class="ceq">Less Additional Resistance:</span> &minus;R<sub>add</sub> = &minus;<span class="cval">'+f2(uplift_resist_kips)+' kips</span></div>';
+    }
+    det += '<div class="mrow"><span class="ceq">Net Tension on Steel:</span> T<sub>net</sub> = T<sub>gross</sub> &minus; W<sub>pier</sub>'+(uplift_resist_kips>0?' &minus; R<sub>add</sub>':'')+'</div>';
+    det += '<div class="mrow ind">= '+f2(total_uplift)+' &minus; '+f2(pier_wt)+(uplift_resist_kips>0?' &minus; '+f2(uplift_resist_kips):'')+' = <span class="cval">'+f2(net_uplift)+' kips</span>'
+      +(net_uplift<=0 ? ' &nbsp;<em style="color:#16a34a">(≤ 0 — ACI minimum governs)</em>' : '')+'</div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow"><span class="ceq">ASD Allowable Tensile Stress:</span> f<sub>s,allow</sub> = 0.6 &times; F<sub>y</sub> = 0.6 &times; '+Fy+' ksi = <span class="cval">'+f1(fs_allow)+' ksi</span></div>';
+    det += '<div class="mrow"><span class="ceq">Required Uplift Steel:</span> A<sub>s,uplift</sub> = '+fr('T<sub>net</sub>','f<sub>s,allow</sub>')+'</div>';
+    det += '<div class="mrow ind">= '+fr(f2(net_uplift)+' kips',f1(fs_allow)+' ksi')+' = <span class="cval">'+f2(As_uplift)+' in&sup2;</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow"><span class="ceq">Provided ('+n_bars_sel+'-'+bar_pref+'):</span> A<sub>s,prov</sub> = '+n_bars_sel+' &times; '+f2(A_bar_pref)+' = <span class="cval">'+f2(As_prov)+' in&sup2;</span></div>';
+    if(dc !== null){
+      det += '<div class="mrow">D/C = '+fr('A<sub>s,uplift</sub>','A<sub>s,prov</sub>')+' = '+fr(f2(As_uplift),f2(As_prov))
+        +' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    }
+    det += '</div>';
+    chks.push({
+      n: 'Uplift Steel Req\'d (ASD)',
+      r: 'ACI 336.3R-14 §7.3',
+      d: 'A<sub>s,uplift</sub> = '+f2(As_uplift)+' in&sup2;',
+      c: 'A<sub>s,prov</sub> = '+f2(As_prov)+' in&sup2;',
+      dc: dc,
+      nt: 'T<sub>net</sub> = T<sub>gross</sub> &minus; W<sub>pier</sub> = '+f2(net_uplift)+' kips',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 7: ACI Minimum Reinforcement --- */
+  (function(){
+    var dc = (As_prov > 0) ? As_min / As_prov : null;
+    var det = '';
+    det += '<div class="cref-hdr">ACI 318-19 §26.8.2.1 &amp; ACI 336.3R-14 §7.3 — Minimum Longitudinal Reinforcement</div>';
+    det += '<div class="cbox">';
+    det += '<div class="mrow"><span class="ceq">Gross Area:</span> A<sub>g</sub> = '+fr('&pi;','4')+' &times; '+D_in+'&sup2; = <span class="cval">'+f2(Ag_in2)+' in&sup2;</span></div>';
+    det += '<div class="mrow"><span class="ceq">Min. Ratio (user):</span> &rho;<sub>min</sub> = <span class="cval">'+f2(rho_min*100)+'%</span></div>';
+    det += '<div class="mrow" style="font-size:.85em;color:#555">Per ACI 318-19 §26.8.2.1a: &rho;<sub>min</sub> &ge; 0.5% for drilled piers. '
+      +'Use 1.0% if pier acts as column (L<sub>eff</sub>/D &gt; 3).</div>';
+    det += '<div class="mrow"><span class="ceq">Eq. (ACI Min.):</span> A<sub>s,min</sub> = &rho;<sub>min</sub> &times; A<sub>g</sub></div>';
+    det += '<div class="mrow ind">= '+f3(rho_min)+' &times; '+f2(Ag_in2)+' in&sup2; = <span class="cval">'+f2(As_min)+' in&sup2;</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow"><span class="ceq">Min. Bar Count (ACI 318-19 §26.8.2.2):</span> n<sub>min</sub> = <span class="cval">'+n_min_bars+' bars</span> '
+      +'(D '+(D_in<=20?'&le;':'&gt;')+' 20 in)</div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow"><span class="ceq">Provided:</span> '+n_bars_sel+'-'+bar_pref+' → A<sub>s,prov</sub> = '+n_bars_sel+' &times; '+f2(A_bar_pref)+' = <span class="cval">'+f2(As_prov)+' in&sup2;</span></div>';
+    if(dc !== null){
+      det += '<div class="mrow">D/C = '+fr('A<sub>s,min</sub>','A<sub>s,prov</sub>')+' = '+fr(f2(As_min),f2(As_prov))
+        +' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    }
+    det += '</div>';
+    chks.push({
+      n: 'Min. Longitudinal Reinf.',
+      r: 'ACI 318-19 §26.8.2.1',
+      d: 'A<sub>s,min</sub> = '+f2(As_min)+' in&sup2; ('+f2(rho_min*100)+'%)',
+      c: 'A<sub>s,prov</sub> = '+f2(As_prov)+' in&sup2;',
+      dc: dc,
+      nt: 'Min. '+n_min_bars+' bars for D'+(D_in<=20?' ≤':' >')+' 20 in',
+      stiff: false,
+      det: det
+    });
+  })();
+
+  /* --- CHECK 8: Governing Reinforcement (highlighted) --- */
+  (function(){
+    var governs = (As_uplift >= As_min) ? 'Uplift' : 'ACI Min. Reinf.';
+    var dc = (As_prov > 0) ? As_req / As_prov : null;
+    var det = '';
+    det += '<div class="cref-hdr">Governing Reinforcement Requirement</div>';
+    det += '<div class="cbox">';
+    det += '<div class="mrow"><span class="ceq">Uplift Req\'d:</span> A<sub>s,uplift</sub> = <span class="cval">'+f2(As_uplift)+' in&sup2;</span></div>';
+    det += '<div class="mrow"><span class="ceq">ACI Min. Req\'d:</span> A<sub>s,min</sub> = <span class="cval">'+f2(As_min)+' in&sup2;</span></div>';
+    det += '<div class="mrow"><span class="ceq">Governs:</span> <strong>'+governs+'</strong></div>';
+    det += '<div class="mrow"><span class="ceq">Required:</span> A<sub>s,req</sub> = max('+f2(As_uplift)+', '+f2(As_min)+') = <span class="cval">'+f2(As_req)+' in&sup2;</span></div>';
+    det += '<hr class="csep">';
+    det += '<div class="mrow"><span class="ceq">Selected:</span> '+n_bars_sel+'-'+bar_pref+' @ A<sub>b</sub>='+f2(A_bar_pref)+' in² each</div>';
+    det += '<div class="mrow"><span class="ceq">Provided:</span> A<sub>s,prov</sub> = '+n_bars_sel+' &times; '+f2(A_bar_pref)+' = <span class="cval">'+f2(As_prov)+' in&sup2;</span></div>';
+    if(dc !== null){
+      det += '<div class="mrow">D/C = '+fr('A<sub>s,req</sub>','A<sub>s,prov</sub>')+' = '+fr(f2(As_req),f2(As_prov))
+        +' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    }
+    det += '</div>';
+    chks.push({
+      n: 'Governing Reinforcement',
+      r: 'ACI 318-19 §26.8 / ACI 336.3R-14',
+      d: 'A<sub>s,req</sub> = '+f2(As_req)+' in&sup2;',
+      c: 'A<sub>s,prov</sub> = '+f2(As_prov)+' in&sup2;',
+      dc: dc,
+      nt: 'Controls: '+governs+' | '+n_bars_sel+'-'+bar_pref+' | T<sub>net</sub>='+f2(net_uplift)+' k',
+      stiff: true,
+      det: det
+    });
+  })();
+
+  /* ===== RENDER CHECK TABLE ===== */
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c,i){
+    var dc_v = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct  = dc_v !== null ? Math.min(dc_v*100, 150) : 0;
+    var col  = dc_v === null ? '#9ca3af' : dc_v <= 0.8 ? '#16a34a' : dc_v <= 1.0 ? '#d97706' : '#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>'
+             : dc_v <= 1.0   ? '<span class="pass">PASS</span>'
+                             : '<span class="fail">FAIL</span>';
+    var dtxt = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? 'class="alt-row"' : '';
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt ? '<br><small style="color:#555">'+c.nt+'</small>' : '')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v !== null ? '<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>' : '')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  /* ===== REBAR SCHEDULE TABLE ===== */
+  var barSizes = ['#4','#5','#6','#7','#8','#9','#10','#11','#14'];
+  var rebarHTML = '<p style="font-size:.83em;color:#555;margin-bottom:10px">Minimum bars required to satisfy <strong>both</strong> uplift steel (A<sub>s,uplift</sub>='
+    +f2(As_uplift)+' in²) and ACI minimum (A<sub>s,min</sub>='+f2(As_min)+' in²). Min. '+n_min_bars+' bars required for D='+D_in+'".</p>';
+  rebarHTML += '<table class="rebar-table"><thead><tr>'
+    +'<th>Bar Size</th><th>A<sub>b</sub> (in²)</th>'
+    +'<th>Qty for Uplift</th><th>Qty for Min. ACI</th>'
+    +'<th>Qty Provided</th><th>A<sub>s,prov</sub> (in²)</th>'
+    +'<th>&rho;<sub>prov</sub> (%)</th><th>Status</th>'
+    +'</tr></thead><tbody>';
+
+  barSizes.forEach(function(bs){
+    var ab = REBAR_AREA[bs];
+    var n_up  = Math.ceil(As_uplift / ab);
+    var n_aci = Math.ceil(As_min / ab);
+    var n_req_steel = Math.max(n_up, n_aci);
+    var n_prov = Math.max(n_req_steel, n_min_bars);
+    var as_p   = n_prov * ab;
+    var rho_p  = as_p / Ag_in2 * 100;
+    var ok = as_p >= As_req && n_prov >= n_min_bars;
+    var isSel = (bs === bar_pref);
+    rebarHTML += '<tr'+(isSel?' class="gov-row"':'')+'>'
+      +'<td><strong>'+bs+'</strong></td>'
+      +'<td>'+f2(ab)+'</td>'
+      +'<td>'+n_up+'</td>'
+      +'<td>'+n_aci+'</td>'
+      +'<td><strong>'+n_prov+'</strong></td>'
+      +'<td>'+f2(as_p)+'</td>'
+      +'<td>'+f2(rho_p)+'%</td>'
+      +'<td>'+(ok ? '<span class="pass">&#10003; OK</span>' : '<span class="fail">&#10007;</span>')+'</td>'
+      +'</tr>';
+  });
+  rebarHTML += '</tbody></table>';
+  rebarHTML += '<p style="font-size:.78em;color:#888;margin-top:8px">&#9733; Highlighted row = preferred bar size selected above. All quantities include minimum bar count requirement.</p>';
+  document.getElementById('rebarOut').innerHTML = rebarHTML;
+
+  /* ===== SUMMARY BANNER ===== */
+  var dcs = chks.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var pass = maxDC <= 1.0;
+  var D_in_disp = document.getElementById('diam').value;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(pass ? 'sum-pass' : 'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '
+    +D_in_disp+'&quot; pier &nbsp;|&nbsp; Penetration = '+f1(pen)+' ft into '+bearing_mat
+    +'&nbsp;|&nbsp; Total Capacity = '+f1(Total_cap)+' kips'
+    +'&nbsp;|&nbsp; Reinf: '+n_bars_sel+'-'+bar_pref+' (A<sub>s</sub>='+f2(As_prov)+' in&sup2;)'
+    +'</p>';
+
+  /* Show results */
+  document.getElementById('results').className = 'results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+/* Init schematic hint on load */
+window.onload = function(){updateSchematic();};
+</script>
+</body>
+</html>
