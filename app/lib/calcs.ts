@@ -163,6 +163,16 @@ export const CALCS: CalcMeta[] = [
     spec: "TMS 402-22 / MDG REK-10",
     status: "ready",
   },
+  // ── Steel / Members ──────────────────────────────────────────
+  {
+    slug: "f11-plate-bending",
+    label: "Rectangular Plate / Bar Bending & Compression",
+    subtitle: "Strong-axis LTB · weak-axis flexure · axial compression · combined loading per H1",
+    htmlFile: "/Calcs/F11_plate_bending_calculator.html",
+    category: "Members",
+    spec: "AISC 360-22 §F11 / E3 / H1",
+    status: "ready",
+  },
   // ── Steel / Connections ───────────────────────────────────────
   {
     slug: "web-stiffener",
