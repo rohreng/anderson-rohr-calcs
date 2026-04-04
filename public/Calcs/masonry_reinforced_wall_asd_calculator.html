@@ -85,6 +85,12 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .cval{color:#15803d;font-weight:700}
 .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
 .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.tab-bar{display:flex;gap:0;border-bottom:3px solid #2a5298;margin:-8px -8px 20px -8px;padding:0 8px}
+.tab-btn{background:#f0f4ff;border:1.5px solid #c7d2e8;border-bottom:none;padding:10px 26px;font-size:.93em;font-weight:600;color:#1e3c72;cursor:pointer;border-radius:7px 7px 0 0;margin-right:4px;transition:background .15s}
+.tab-btn.active{background:#2a5298;color:#fff;border-color:#2a5298}
+.tab-btn:hover:not(.active){background:#dbeafe}
+.par-import{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px 18px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.par-import span{font-size:.88em;font-weight:600;color:#92400e;flex:1;min-width:180px}
 @page{size:letter portrait;margin:.45in .5in}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -119,7 +125,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="container">
 
   <div class="header">
-    <h1>Reinforced Masonry Wall &mdash; ASD</h1>
+    <h1>Reinforced Masonry Wall &amp; Parapet &mdash; ASD</h1>
     <p>8&Prime;, 10&Prime;, 12&Prime; CMU &nbsp;&middot;&nbsp; Single / Double Reinforced &nbsp;&middot;&nbsp; Partial / Full Grout &nbsp;&middot;&nbsp; TMS 402-22 / MDG-2022</p>
     <div class="ref-tags">
       <span class="tag">TMS 402-22</span>
@@ -132,6 +138,15 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   </div>
 
   <div class="content">
+
+    <!-- TAB SWITCHER -->
+    <div class="tab-bar">
+      <button id="tabWall"    class="tab-btn active" onclick="switchTab('wall')">&#x1F9F1; Wall (Pin&ndash;Pin)</button>
+      <button id="tabParapet" class="tab-btn"         onclick="switchTab('parapet')">&#x1F3D7; Parapet (Cantilever)</button>
+    </div>
+
+    <!-- ══════════ WALL TAB ══════════ -->
+    <div id="wallTab">
 
     <!-- IMPORT PANEL -->
     <div class="import-panel">
@@ -576,6 +591,261 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       </table>
       <div id="notesBox" class="note-box" style="margin-top:16px"></div>
     </div>
+
+    </div><!-- end #wallTab -->
+
+    <!-- ══════════ PARAPET TAB ══════════ -->
+    <div id="parapetTab" style="display:none">
+
+      <!-- Parapet import panel -->
+      <div class="par-import">
+        <span>&#8594; Import parapet wind pressure from C&amp;C Calc:</span>
+        <button class="imp-btn" onclick="loadParapetCCFromMemory()" title="Load Zone 4/5 parapet pressure from browser memory" style="background:#d97706">&#9654; Load Parapet Pressure from Memory</button>
+        <div id="parImpNote" class="imp-note"></div>
+      </div>
+
+      <!-- Parapet ASD note -->
+      <div class="asd-note">
+        <strong>Parapet — ASD (TMS 402-22 Ch.&thinsp;8):</strong> Parapet modeled as a <strong>cantilever fixed at roof bond beam</strong>. M = w&times;h<sub>p</sub>&sup2;/2 &nbsp;|&nbsp; V = w&times;h<sub>p</sub>. Effective height for F<sub>a</sub>: h<sub>eff</sub> = 2h<sub>p</sub> (fixed&ndash;free). Service-level loads. Ref: TMS 402-22 &sect;8.3 / MDG-2022 Ch.&thinsp;11.
+      </div>
+
+      <!-- Parapet schematic -->
+      <div class="schema-wrap">
+        <div class="schema-grid" style="grid-template-columns:1fr 1fr 1fr">
+          <!-- PANEL 1: Parapet cantilever section -->
+          <div class="schema-panel">
+            <div class="lbl">Parapet Section &mdash; Cantilever</div>
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+              <defs>
+                <marker id="paR"    markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#2563eb"/></marker>
+                <marker id="paDim"  markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>
+                <marker id="paDimR" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#dc2626"/></marker>
+              </defs>
+              <!-- Fixed base hatch (roof/bond beam level) -->
+              <rect x="60" y="162" width="80" height="10" fill="#374151" opacity="0.85"/>
+              <line x1="60" y1="172" x2="70" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="72" y1="172" x2="82" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="84" y1="172" x2="94" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="96" y1="172" x2="106" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="108" y1="172" x2="118" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="120" y1="172" x2="130" y2="182" stroke="#374151" stroke-width="1"/>
+              <line x1="132" y1="172" x2="140" y2="182" stroke="#374151" stroke-width="1"/>
+              <!-- Exterior face shell -->
+              <rect x="74" y="18" width="7" height="144" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
+              <!-- Core -->
+              <rect x="81" y="18" width="22" height="144" fill="#f3f4f6" stroke="#d1d5db" stroke-width="0.7"/>
+              <!-- Interior face shell -->
+              <rect x="103" y="18" width="7" height="144" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
+              <!-- Rebar — vertical dashed line near interior face -->
+              <line x1="101" y1="18" x2="101" y2="162" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3"/>
+              <text x="115" y="68" font-size="7.5" fill="#dc2626" font-weight="700">As</text>
+              <!-- Free top — no support symbol, just a horizontal line -->
+              <line x1="65" y1="18" x2="145" y2="18" stroke="#6b7280" stroke-width="1" stroke-dasharray="3,2"/>
+              <text x="150" y="21" font-size="6" fill="#6b7280">free</text>
+              <!-- Wind arrows: left-to-right -->
+              <line x1="14" y1="40"  x2="72" y2="40"  stroke="#2563eb" stroke-width="1.5" marker-end="url(#paR)"/>
+              <line x1="14" y1="68"  x2="72" y2="68"  stroke="#2563eb" stroke-width="1.5" marker-end="url(#paR)"/>
+              <line x1="14" y1="96"  x2="72" y2="96"  stroke="#2563eb" stroke-width="1.5" marker-end="url(#paR)"/>
+              <line x1="14" y1="124" x2="72" y2="124" stroke="#2563eb" stroke-width="1.5" marker-end="url(#paR)"/>
+              <line x1="14" y1="152" x2="72" y2="152" stroke="#2563eb" stroke-width="1.5" marker-end="url(#paR)"/>
+              <text x="5" y="92" font-size="8" fill="#2563eb" font-weight="700" transform="rotate(-90,5,92)">w (psf)</text>
+              <!-- hp dimension on right -->
+              <line x1="136" y1="18" x2="136" y2="162" stroke="#d97706" stroke-width="1" marker-start="url(#paDim)" marker-end="url(#paDim)"/>
+              <text x="142" y="95" font-size="9" fill="#d97706" font-weight="700">h&#x2095;</text>
+              <!-- t dimension at bottom -->
+              <line x1="74" y1="192" x2="110" y2="192" stroke="#d97706" stroke-width="1" marker-start="url(#paDim)" marker-end="url(#paDim)"/>
+              <text x="92" y="199" font-size="8" fill="#d97706" font-weight="700" text-anchor="middle">t</text>
+              <!-- M₀ moment symbol at base -->
+              <text x="148" y="167" font-size="8" fill="#dc2626" font-weight="700">M&#x2080;</text>
+              <text x="148" y="176" font-size="6.5" fill="#dc2626">base</text>
+            </svg>
+          </div>
+          <!-- PANEL 2: Building elevation showing parapet above wall -->
+          <div class="schema-panel">
+            <div class="lbl">Wall + Parapet Elevation</div>
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+              <defs>
+                <marker id="elDim" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>
+              </defs>
+              <!-- Ground -->
+              <line x1="30" y1="185" x2="170" y2="185" stroke="#374151" stroke-width="2"/>
+              <!-- Wall body -->
+              <rect x="60" y="95" width="80" height="90" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>
+              <!-- Parapet above wall (darker) -->
+              <rect x="60" y="50" width="80" height="45" fill="#d1d5db" stroke="#374151" stroke-width="1.5"/>
+              <!-- Roof line dashed -->
+              <line x1="40" y1="95" x2="170" y2="95" stroke="#6b7280" stroke-width="1" stroke-dasharray="4,3"/>
+              <text x="172" y="97" font-size="6" fill="#6b7280">roof</text>
+              <!-- Labels -->
+              <text x="100" y="145" font-size="9" fill="#374151" font-weight="700" text-anchor="middle">WALL</text>
+              <text x="100" y="73" font-size="9" fill="#374151" font-weight="700" text-anchor="middle">PARAPET</text>
+              <!-- h dimension -->
+              <line x1="148" y1="95" x2="148" y2="185" stroke="#d97706" stroke-width="1" marker-start="url(#elDim)" marker-end="url(#elDim)"/>
+              <text x="154" y="144" font-size="8" fill="#d97706" font-weight="700">h</text>
+              <!-- hp dimension -->
+              <line x1="148" y1="50" x2="148" y2="95" stroke="#d97706" stroke-width="1" marker-start="url(#elDim)" marker-end="url(#elDim)"/>
+              <text x="154" y="77" font-size="8" fill="#d97706" font-weight="700">h&#x2095;</text>
+            </svg>
+          </div>
+          <!-- PANEL 3: Free body at base -->
+          <div class="schema-panel">
+            <div class="lbl">Free Body at Fixed Base</div>
+            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+              <defs>
+                <marker id="fbArrow" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#dc2626"/></marker>
+                <marker id="fbMom"   markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#7c3aed"/></marker>
+              </defs>
+              <!-- Wall cross-section at base -->
+              <rect x="72" y="20" width="56" height="140" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>
+              <!-- Fixed base -->
+              <rect x="60" y="160" width="80" height="8" fill="#374151" opacity="0.8"/>
+              <!-- Shear V arrow -->
+              <line x1="128" y1="160" x2="172" y2="160" stroke="#dc2626" stroke-width="2" marker-end="url(#fbArrow)"/>
+              <text x="148" y="156" font-size="9" fill="#dc2626" font-weight="700" text-anchor="middle">V</text>
+              <!-- Moment M arc arrow -->
+              <path d="M150,145 A18,18 0 0,1 168,155" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#fbMom)"/>
+              <text x="168" y="145" font-size="9" fill="#7c3aed" font-weight="700">M</text>
+              <!-- Equations -->
+              <text x="100" y="185" font-size="8.5" fill="#dc2626" font-weight="700" text-anchor="middle">V = w &times; h&#x2095;</text>
+              <text x="100" y="197" font-size="8.5" fill="#7c3aed" font-weight="700" text-anchor="middle">M = w &times; h&#x2095;&sup2; / 2</text>
+            </svg>
+          </div>
+        </div>
+      </div><!-- end schema-wrap -->
+
+      <!-- PARAPET INPUTS -->
+      <!-- Block 1: Material & Section -->
+      <div class="blk">
+        <h2>1. Material &amp; Wall Section <span class="badge">TMS 402-22 Ch.&thinsp;8</span></h2>
+        <div class="g4" style="margin-bottom:12px">
+          <div class="ig">
+            <label>CMU Size <span class="unit">in</span></label>
+            <select id="p_wSize" onchange="updateParapetHints()">
+              <option value="8" selected>8&Prime; CMU</option>
+              <option value="10">10&Prime; CMU</option>
+              <option value="12">12&Prime; CMU</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Grout Condition</label>
+            <select id="p_grout">
+              <option value="partial">Partially Grouted</option>
+              <option value="full">Fully Grouted</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Masonry Strength f&prime;<sub>m</sub> <span class="unit">psi</span></label>
+            <select id="p_fm">
+              <option value="1500">1500 psi</option>
+              <option value="2000" selected>2000 psi</option>
+              <option value="2500">2500 psi</option>
+              <option value="3000">3000 psi</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Steel Grade</label>
+            <select id="p_grade">
+              <option value="60" selected>Grade 60 — F<sub>s</sub> = 32,000 psi</option>
+              <option value="40">Grade 40 — F<sub>s</sub> = 20,000 psi</option>
+            </select>
+          </div>
+        </div>
+        <div id="p_matHint" class="hint" style="margin-top:4px"></div>
+      </div>
+
+      <!-- Block 2: Geometry & Loads -->
+      <div class="blk">
+        <h2>2. Parapet Geometry &amp; Loads <span class="badge">ASCE 7-16 §30.9</span></h2>
+        <div class="g3">
+          <div class="ig">
+            <label>Parapet Height h<sub>p</sub> <span class="unit">ft</span></label>
+            <input type="number" id="p_hp" value="3" step="0.5" min="0.5">
+            <span class="hint">Unsupported height above roof bond beam</span>
+          </div>
+          <div class="ig">
+            <label>OOP Wind Pressure w <span class="unit">psf</span></label>
+            <input type="number" id="p_wWind" value="30" step="0.5" min="1">
+            <span class="hint">C&amp;C parapet zone pressure (gov. |p|)</span>
+          </div>
+          <div class="ig">
+            <label>Axial Load at Base P <span class="unit">lb/ft</span></label>
+            <input type="number" id="p_Paxial" value="0" step="10" min="0">
+            <span class="hint">Self-weight of parapet above base (0 = conservative)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Block 3: Reinforcement -->
+      <div class="blk alt-blk">
+        <h2>3. Vertical Reinforcement <span class="badge-green">OOP Tension Steel</span></h2>
+        <div class="g4">
+          <div class="ig">
+            <label>Bar Size</label>
+            <select id="p_barOOP">
+              <option value="4">#4 (0.20 in&sup2;)</option>
+              <option value="5" selected>#5 (0.31 in&sup2;)</option>
+              <option value="6">#6 (0.44 in&sup2;)</option>
+              <option value="7">#7 (0.60 in&sup2;)</option>
+              <option value="8">#8 (0.79 in&sup2;)</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Bar Spacing s <span class="unit">in</span></label>
+            <select id="p_sOOP">
+              <option value="8">8&Prime;</option>
+              <option value="16">16&Prime;</option>
+              <option value="24" selected>24&Prime;</option>
+              <option value="32">32&Prime;</option>
+              <option value="40">40&Prime;</option>
+              <option value="48">48&Prime;</option>
+            </select>
+          </div>
+          <div class="ig">
+            <label>Effective Depth d <span class="unit">in</span></label>
+            <input type="number" id="p_dOOP" value="3.81" step="0.01" min="1">
+            <span class="hint" id="p_dHint">Dist. from compression face to tension steel CL</span>
+          </div>
+          <div class="ig">
+            <label>Masonry Type</label>
+            <select id="p_mtype">
+              <option value="concrete" selected>Concrete Masonry (CMU)</option>
+              <option value="clay">Clay Masonry (Brick)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button class="calc-btn" onclick="runParapetChecks()">&#9654;&nbsp; Run Parapet Checks</button>
+
+      <!-- PARAPET RESULTS -->
+      <div class="results" id="parapetResultsDiv">
+        <div id="p_summBanner" class="summary"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+          <div>
+            <h3 style="color:#1e3c72;margin-bottom:8px;font-size:1em">Section &amp; Material Properties</h3>
+            <table class="prop-table"><tr><th>Property</th><th>Value</th></tr><tbody id="p_propTbl"></tbody></table>
+          </div>
+          <div>
+            <h3 style="color:#1e3c72;margin-bottom:8px;font-size:1em">Applied Demands (Cantilever Base)</h3>
+            <table class="prop-table"><tr><th>Demand</th><th>Value</th></tr><tbody id="p_demTbl"></tbody></table>
+          </div>
+        </div>
+        <div class="dem-grid" id="p_demCards"></div>
+        <h3 style="color:#1e3c72;margin-bottom:10px;font-size:1em">Code Checks — ASD (TMS 402-22 &sect;8.3)</h3>
+        <table class="chk-table" id="p_chkTable">
+          <thead>
+            <tr>
+              <th style="width:22%">Check</th><th style="width:15%">Reference</th>
+              <th style="width:18%">Demand</th><th style="width:18%">Allowable</th>
+              <th style="width:14%">D/C</th><th style="width:7%">Status</th><th style="width:6%">Detail</th>
+            </tr>
+          </thead>
+          <tbody id="p_chkBody"></tbody>
+        </table>
+        <div id="p_notesBox" class="note-box" style="margin-top:16px"></div>
+      </div>
+
+    </div><!-- end #parapetTab -->
 
   </div><!-- end .content -->
 </div><!-- end .container -->
@@ -1277,6 +1547,201 @@ function loadState(evt) {
     evt.target.value = '';
   };
   reader.readAsText(file);
+}
+
+// ============================================================
+// TAB SWITCHER
+// ============================================================
+function switchTab(tab) {
+  document.getElementById('wallTab').style.display    = (tab==='wall')    ? '' : 'none';
+  document.getElementById('parapetTab').style.display = (tab==='parapet') ? '' : 'none';
+  document.getElementById('tabWall').classList.toggle('active',    tab==='wall');
+  document.getElementById('tabParapet').classList.toggle('active', tab==='parapet');
+  if (tab==='parapet') updateParapetHints();
+}
+
+// ============================================================
+// PARAPET: HINTS / IMPORT / CALCULATION
+// ============================================================
+function updateParapetHints() {
+  var size  = parseInt(document.getElementById('p_wSize').value);
+  var fm    = parseInt(document.getElementById('p_fm').value);
+  var mtype = document.getElementById('p_mtype').value;
+  var c     = CMU_DIMS[size];
+  var Em    = (mtype==='clay' ? 700 : 900) * fm;
+  var n     = 29000000 / Em;
+  var Fb    = 0.45 * fm;
+  var Fs    = (document.getElementById('p_grade').value==='60') ? 32000 : 20000;
+  var sugD  = f2(c.t / 2);
+  document.getElementById('p_matHint').innerHTML =
+    '&#8505;&nbsp; '+size+'&Prime; CMU: t = '+c.t+'&Prime;, t<sub>fs</sub> = '+c.tfs+'&Prime; | E<sub>m</sub> = '+fp(Em)+' psi | n = '+f2(n)+' | F<sub>b</sub> = '+fp(Fb)+' psi | F<sub>s</sub> = '+fp(Fs)+' psi | Suggested d = '+sugD+'&Prime;';
+  document.getElementById('p_dHint').textContent = 'Dist. from comp. face to tension steel CL. Suggested: '+sugD+'\u2033 (mid-depth).';
+  document.getElementById('p_dOOP').value = sugD;
+}
+
+function loadParapetCCFromMemory() {
+  try {
+    var data = JSON.parse(localStorage.getItem('ARE_cc_wind') || 'null');
+    if (!data) { alert('No C\u0026C data in browser memory.\nRun the C\u0026C Wind Calc with a parapet height \u2014 it saves automatically.'); return; }
+    var govP = data.govP_parapet || data.govP;
+    var zone = data.zone_parapet || data.zone || '?';
+    if (!govP) { alert('No parapet zone pressures found. Run C\u0026C calc with parapet height > 0.'); return; }
+    document.getElementById('p_wWind').value = (Math.round(govP * 10) / 10).toFixed(1);
+    var note = document.getElementById('parImpNote');
+    note.textContent = '\u2713 Loaded ' + govP.toFixed(1) + ' psf from ' + zone;
+    note.style.display = 'block';
+  } catch(e) { alert('Error reading C\u0026C data from memory.'); }
+}
+
+function runParapetChecks() {
+  // ── Inputs ─────────────────────────────────────────────────
+  var wSize  = parseInt(document.getElementById('p_wSize').value);
+  var grout  = document.getElementById('p_grout').value;
+  var fm     = parseInt(document.getElementById('p_fm').value);
+  var grade  = document.getElementById('p_grade').value;
+  var mtype  = document.getElementById('p_mtype').value;
+  var hp_ft  = parseFloat(document.getElementById('p_hp').value) || 3;
+  var w_psf  = parseFloat(document.getElementById('p_wWind').value) || 0;
+  var P_plf  = parseFloat(document.getElementById('p_Paxial').value) || 0;
+  var barOOP = parseInt(document.getElementById('p_barOOP').value);
+  var sOOP   = parseInt(document.getElementById('p_sOOP').value);
+  var dOOP   = parseFloat(document.getElementById('p_dOOP').value);
+
+  var c    = CMU_DIMS[wSize];
+  var t    = c.t, tfs = c.tfs;
+  var b    = 12;                         // per-foot strip (in/ft)
+  var hp_in= hp_ft * 12;                 // parapet height in inches
+  var Em   = (mtype==='clay' ? 700 : 900) * fm;
+  var n    = 29000000 / Em;
+  var Fb   = 0.45 * fm;
+  var Fs   = (grade==='60') ? 32000 : 20000;
+  var Fa_h = 2 * hp_in;                  // effective height for Fa = 2×hp (cantilever)
+  var r    = t / Math.sqrt(12);          // radius of gyration
+  var Fa   = 0.25 * fm * (1 - Math.pow(Fa_h / (140 * r), 2));
+  Fa = Math.max(0, Fa);
+  // Gross & net area per foot
+  var An_gross = t * b;
+  var An_net   = (grout==='full') ? t * b : 2 * tfs * b;
+  var An_use   = An_net;
+
+  // ── Reinforcement ───────────────────────────────────────────
+  var As_perft = BAR_AREA[barOOP] / sOOP * 12;  // in²/ft
+  var rho_t    = As_perft / (b * dOOP);
+  var np       = n * rho_t;
+  var k_oop    = Math.sqrt(np*np + 2*np) - np;
+  var j_oop    = 1 - k_oop / 3;
+  var kd_oop   = k_oop * dOOP;
+
+  // ── Demands — Cantilever ────────────────────────────────────
+  var V_plf     = w_psf * hp_ft;                            // shear at base, lb/ft
+  var M_lbft    = w_psf * hp_ft * hp_ft / 2;               // moment at base, lb-ft/ft
+  var M_lbin    = M_lbft * 12;                              // lb-in/ft
+  var fa        = P_plf / An_use;                           // axial stress, psi
+
+  // ── Flexure checks (TMS 402-22 §8.3.2) ─────────────────────
+  var fb_oop = (M_lbin > 0) ? 2 * M_lbin / (j_oop * k_oop * b * dOOP * dOOP) : 0;
+  var fs_oop = (M_lbin > 0) ? M_lbin / (As_perft * j_oop * dOOP) : 0;
+
+  // ── Shear check (TMS 402-22 §8.3.5.1.2) ───────────────────
+  var gamma_g   = (grout==='full') ? 1.0 : 0.75;
+  var fv_oop    = V_plf / (An_gross * gamma_g);
+  var Fvm_v     = (1/3) * Math.sqrt(fm) + 0.45 * fa;      // masonry shear contribution
+  Fvm_v = Math.min(Fvm_v, 0.125 * Math.sqrt(fm));
+  var Fv_oop    = Math.min(gamma_g * Fvm_v, 0.125 * Math.sqrt(fm));
+  Fv_oop = Math.max(Fv_oop, 0);
+
+  // ── Combined axial + flexure (TMS 402-22 §8.3.4.1) ─────────
+  var dc_fa   = fa / Fa;
+  var dc_fb   = fb_oop / Fb;
+  var dc_comb = dc_fa + dc_fb;
+
+  // ── D/C ratios ──────────────────────────────────────────────
+  var dc_oop_fb = fb_oop / Fb;
+  var dc_oop_fs = fs_oop / Fs;
+  var dc_oop_v  = (Fv_oop > 0) ? fv_oop / Fv_oop : 0;
+
+  var allPass = [dc_oop_fb, dc_oop_fs, dc_comb, dc_oop_v].every(function(x){ return x <= 1.0; });
+
+  // ── Slenderness check (TMS 402-22 §8.3.4) ──────────────────
+  var hpOverT  = hp_in / t;  // actual h_p/t
+
+  // ── Render ──────────────────────────────────────────────────
+  var res = document.getElementById('parapetResultsDiv');
+  res.className = 'results show';
+
+  var banner = document.getElementById('p_summBanner');
+  banner.className = 'summary ' + (allPass ? 'sum-pass' : 'sum-fail');
+  banner.innerHTML = '<h3>'+(allPass?'&#10003; PASS &mdash; All Checks':'&#10007; FAIL &mdash; Overstressed')+'</h3>'
+    +'<p>Parapet: '+wSize+'&Prime; CMU, h<sub>p</sub> = '+hp_ft+' ft, w = '+w_psf+' psf | '
+    +(allPass?'Governing D/C = ':'Overstress in ')+f2(Math.max(dc_oop_fb,dc_oop_fs,dc_comb,dc_oop_v))+(allPass?'':' &mdash; revise reinforcement or wall size')+'</p>';
+
+  var propRows = [
+    ['CMU Size',         wSize+'&Prime; (t = '+t+'&Prime;, t<sub>fs</sub> = '+tfs+'&Prime;)'],
+    ['Grout',            grout==='full'?'Fully Grouted':'Partially Grouted'],
+    ['f&prime;<sub>m</sub>', fp(fm)+' psi'],
+    ['E<sub>m</sub>',    fp(Em)+' psi'],
+    ['n (E<sub>s</sub>/E<sub>m</sub>)', f2(n)],
+    ['F<sub>b</sub>',    fp(Fb)+' psi'],
+    ['F<sub>s</sub>',    fp(Fs)+' psi'],
+    ['F<sub>a</sub>',    fp(Fa)+' psi (h<sub>eff</sub>=2h<sub>p</sub>='+f1(Fa_h/12)+' ft)'],
+    ['h<sub>p</sub>/t',  f2(hpOverT)+' (limit 30)'],
+    ['A<sub>s</sub>',    '#'+barOOP+' @ '+sOOP+'&Prime; = '+f3(As_perft)+' in&sup2;/ft, d = '+f2(dOOP)+'&Prime;'],
+    ['k, j',             f3(k_oop)+' , '+f3(j_oop)]
+  ];
+  document.getElementById('p_propTbl').innerHTML = propRows.map(function(r){return '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td></tr>';}).join('');
+
+  var demRows = [
+    ['Parapet Height h<sub>p</sub>', f2(hp_ft)+' ft = '+f1(hp_in)+'&Prime;'],
+    ['Wind pressure w',  f1(w_psf)+' psf'],
+    ['Shear at base V',  fp(Math.round(V_plf))+' lb/ft'],
+    ['Moment at base M', fp(Math.round(M_lbft))+' lb&middot;ft/ft = '+fp(Math.round(M_lbin))+' lb&middot;in/ft'],
+    ['Axial P',          P_plf>0 ? fp(Math.round(P_plf))+' lb/ft' : '0 (not applied)']
+  ];
+  document.getElementById('p_demTbl').innerHTML = demRows.map(function(r){return '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td></tr>';}).join('');
+
+  var dcColor = function(dc){ return dc>1.0?'#dc2626':dc>0.85?'#d97706':'#16a34a'; };
+  var cards = [
+    {v:f1(fb_oop),  l:'f<sub>b</sub> (psi)<br>Masonry Compression',dc:dc_oop_fb},
+    {v:f1(fs_oop),  l:'f<sub>s</sub> (psi)<br>Steel Tension',       dc:dc_oop_fs},
+    {v:f2(dc_comb), l:'D/C Combined<br>f<sub>a</sub>/F<sub>a</sub>+f<sub>b</sub>/F<sub>b</sub>',dc:dc_comb},
+    {v:f1(fv_oop),  l:'f<sub>v</sub> (psi)<br>OOP Shear',           dc:dc_oop_v}
+  ];
+  document.getElementById('p_demCards').innerHTML = cards.map(function(c){
+    return '<div class="dem-card '+(c.dc>1.0?'warn':'alt')+'"><div class="v" style="color:'+dcColor(c.dc)+'">'+c.v+'</div><div class="l">'+c.l+'</div></div>';
+  }).join('');
+
+  function dcBar(dc){ var w=Math.min(100,Math.round(dc*100)); return '<div class="dc-bar" style="min-width:70px"><div class="dc-fill" style="width:'+w+'%;background:'+(dc>1.0?'#dc2626':dc>0.85?'#d97706':'#16a34a')+'"></div></div> '+f2(dc); }
+  function status(dc){ return dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>'; }
+
+  var chks = [
+    {n:'OOP Flexure &mdash; Masonry', r:'TMS 402-22 &sect;8.3.2',   d:'f<sub>b</sub> = '+f1(fb_oop)+' psi', c:'F<sub>b</sub> = '+fp(Fb)+' psi',  dc:dc_oop_fb, nt:'M = '+fp(Math.round(M_lbft))+' lb&middot;ft/ft | cantilever base'},
+    {n:'OOP Flexure &mdash; Steel',   r:'TMS 402-22 &sect;8.3.2',   d:'f<sub>s</sub> = '+f1(fs_oop)+' psi', c:'F<sub>s</sub> = '+fp(Fs)+' psi',  dc:dc_oop_fs, nt:'A<sub>s</sub> = '+f3(As_perft)+' in&sup2;/ft | j = '+f3(j_oop)},
+    {n:'Combined Axial + Flexure',    r:'TMS 402-22 &sect;8.3.4.1', d:'f<sub>a</sub>/F<sub>a</sub>+f<sub>b</sub>/F<sub>b</sub>', c:'&le; 1.0', dc:dc_comb, nt:'f<sub>a</sub> = '+f1(fa)+' psi | F<sub>a</sub> = '+fp(Fa)+' psi'},
+    {n:'OOP Shear',                   r:'TMS 402-22 &sect;8.3.5.1.2',d:'f<sub>v</sub> = '+f2(fv_oop)+' psi', c:'F<sub>v</sub> = '+f2(Fv_oop)+' psi', dc:dc_oop_v, nt:'V = '+fp(Math.round(V_plf))+' lb/ft | &gamma;<sub>g</sub> = '+f1(gamma_g)},
+    {n:'Slenderness h<sub>p</sub>/t', r:'TMS 402-22 &sect;8.3.4',   d:'h<sub>p</sub>/t = '+f2(hpOverT),      c:'&le; 30',                          dc:hpOverT/30, nt:'h<sub>p</sub> = '+f1(hp_in)+'&Prime;, t = '+t+'&Prime;'}
+  ];
+  document.getElementById('p_chkBody').innerHTML = chks.map(function(ch, i){
+    return '<tr>'
+      +'<td><strong>'+ch.n+'</strong><br><span class="na" style="font-size:.78em">'+ch.nt+'</span></td>'
+      +'<td style="font-size:.85em">'+ch.r+'</td>'
+      +'<td>'+ch.d+'</td>'
+      +'<td>'+ch.c+'</td>'
+      +'<td>'+dcBar(ch.dc)+'</td>'
+      +'<td>'+status(ch.dc)+'</td>'
+      +'<td></td>'
+      +'</tr>';
+  }).join('');
+
+  var notes = [];
+  if(hpOverT>30) notes.push('<li><strong>h\u209a/t = '+f2(hpOverT)+' &gt; 30:</strong> Exceeds TMS 402 slenderness limit of 30. Reduce parapet height or use a thicker wall section.</li>');
+  if(dc_comb>1.0) notes.push('<li><strong>Combined stress &gt; 1.0:</strong> Increase bar size, reduce spacing, or increase f\u2032m.</li>');
+  if(dc_oop_fb>1.0) notes.push('<li><strong>Masonry flexure overstressed:</strong> f<sub>b</sub>/F<sub>b</sub> = '+f2(dc_oop_fb)+'. Increase f\u2032m or increase reinforcement.</li>');
+  if(dc_oop_fs>1.0) notes.push('<li><strong>Steel overstressed:</strong> f<sub>s</sub>/F<sub>s</sub> = '+f2(dc_oop_fs)+'. Increase bar size or reduce spacing.</li>');
+  if(dc_oop_v>1.0)  notes.push('<li><strong>Shear overstressed:</strong> Increase grouting to full or increase wall thickness.</li>');
+  document.getElementById('p_notesBox').innerHTML = notes.length
+    ? '<strong>Design Notes:</strong><ul>'+notes.join('')+'</ul>'
+    : '<strong>&#10003; No issues.</strong> All ASD checks pass for this parapet configuration.';
+  res.scrollIntoView({behavior:'smooth',block:'start'});
 }
 </script>
 </body>

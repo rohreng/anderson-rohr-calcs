@@ -38,6 +38,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .prop-table td,.prs-table td{padding:7px 10px;border-bottom:1px solid #eee}
 .prop-table tr:nth-child(even) td,.prs-table tr:nth-child(even) td{background:#f5f7ff}
 .prs-table tr.oh-row td{background:#fef9c3!important;border-left:3px solid #ca8a04}
+.prs-table tr.par-row td{background:#fef3c7!important;border-left:3px solid #d97706}
 .prs-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
 .prs-table td.gov-cell{background:#fff3cd!important;font-weight:700;color:#92400e}
 .dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
@@ -222,6 +223,11 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <label>Least Horizontal Dimension <span class="unit">(ft)</span></label>
       <input type="number" id="minDim" value="50" min="5">
       <span class="hint">Smallest plan dimension — sets zone width 'a'</span>
+    </div>
+    <div class="ig">
+      <label>Parapet Height, h<sub>p</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="hp" value="0" min="0" step="0.5">
+      <span class="hint">Height above roof line; 0 = no parapet. Adds Zone 4/5 parapet rows at q<sub>h+hp</sub> per §30.9</span>
     </div>
   </div>
 </div>
@@ -1015,10 +1021,11 @@ function renderRefTable(allZoneItems, qh, GCpi){
       +'border-left:3px solid #1e3c72;border-right:3px solid #1e3c72;background:'+rowBg+'">'
       +z.name+'<br><span style="font-size:.78em;font-weight:400;color:#555">'+z.desc+'</span></td>';
 
+    var qhR=item.qhOverride||qh;
     var data=refAreas.map(function(sf){
       var gp=hasPos?interpGCp(z.pos,sf):null;
       var gn=interpGCp(z.neg,sf);
-      return{gcpPos:gp,gcpNeg:gn,pPos:(gp!==null)?qh*(gp+GCpi):null,pNeg:qh*(gn-GCpi)};
+      return{gcpPos:gp,gcpNeg:gn,pPos:(gp!==null)?qhR*(gp+GCpi):null,pNeg:qhR*(gn-GCpi)};
     });
 
     if(hasPos){
@@ -1067,6 +1074,7 @@ function runCalc(){
   var inclOH=document.getElementById('overhangs').value==='yes';
   var A=+document.getElementById('effArea').value;
 
+  var hp=+document.getElementById('hp').value||0;
   if(!V||!h||!minDim){alert('Enter all required building parameters.');return;}
   if(wallFig==='none'&&roofFig==='none'){alert('Select at least one wall or roof figure.');return;}
   if(A<10) A=10;
@@ -1076,6 +1084,15 @@ function runCalc(){
   var khRow=getKhTableRow(h);
   var qh=0.00256*Kh*Kzt*Kd*V*V;
   var a=Math.max(0.1*minDim, 0.4*h, 3);
+
+  // Parapet: velocity pressure at top of parapet (h + hp)
+  var Kh_par=0, khRow_par=null, qh_par=0;
+  if(hp>0){
+    var h_par=h+hp;
+    Kh_par=getKh(h_par,exp);
+    khRow_par=getKhTableRow(h_par);
+    qh_par=0.00256*Kh_par*Kzt*Kd*V*V;
+  }
 
   // Collect all zones from selected figures
   var allZoneItems=[];
@@ -1088,6 +1105,23 @@ function runCalc(){
       allZoneItems.push({z:z, figKey:figKey, figTitle:data.title});
     });
   });
+
+  // Insert parapet zones after last wall zone, before roof zones (ASCE 7-16 §30.9)
+  if(hp>0 && wallFig!=='none' && GCP[wallFig]){
+    var wallZones=GCP[wallFig].zones;
+    var z4src=null, z5src=null;
+    wallZones.forEach(function(z){
+      if(z.name.indexOf('Zone 4')>=0||z.name.indexOf('Wall Zone 4')>=0) z4src=z;
+      if(z.name.indexOf('Zone 5')>=0||z.name.indexOf('Wall Zone 5')>=0) z5src=z;
+    });
+    var parItems=[];
+    if(z4src) parItems.push({z:{name:'Zone 4 \u2014 Parapet',desc:'Parapet Interior \u2014 q at h+h\u209a',oh:false,pos:z4src.pos,neg:z4src.neg,isParapet:true},figKey:'parapet',qhOverride:qh_par,h_eff:h+hp,Kh_eff:Kh_par,khRow_eff:khRow_par});
+    if(z5src) parItems.push({z:{name:'Zone 5 \u2014 Parapet',desc:'Parapet Corner \u2014 q at h+h\u209a',oh:false,pos:z5src.pos,neg:z5src.neg,isParapet:true},figKey:'parapet',qhOverride:qh_par,h_eff:h+hp,Kh_eff:Kh_par,khRow_eff:khRow_par});
+    // Find insertion point: after last wall fig item
+    var insertAt=0;
+    allZoneItems.forEach(function(item,idx){ if(item.figKey===wallFig) insertAt=idx+1; });
+    parItems.reverse().forEach(function(pi){ allZoneItems.splice(insertAt,0,pi); });
+  }
 
   // Combined figure title for summary
   var titles=[];
@@ -1108,7 +1142,8 @@ function runCalc(){
   // ─── Demand cards ─────────────────────────────────────────────────────────────
   var demOut=document.getElementById('demOut');
   demOut.innerHTML=
-    '<div class="dem-card"><div class="v">'+f2(qh)+'</div><div class="l">q<sub>h</sub> (psf)<br>Velocity Pressure</div></div>'
+    '<div class="dem-card"><div class="v">'+f2(qh)+'</div><div class="l">q<sub>h</sub> (psf)<br>Vel. Pressure @ h='+f1(h)+' ft</div></div>'
+    +(hp>0?'<div class="dem-card" style="border-color:#d97706;background:#fffbeb"><div class="v" style="color:#92400e">'+f2(qh_par)+'</div><div class="l">q<sub>p</sub> (psf)<br>Parapet @ h+h<sub>p</sub>='+f1(h+hp)+' ft</div></div>':'')
     +'<div class="dem-card"><div class="v">'+f3(Kh)+'</div><div class="l">K<sub>h</sub><br>Exp '+exp+' @ h='+f1(hh)+' ft</div></div>'
     +'<div class="dem-card"><div class="v">'+f3(Kzt)+'</div><div class="l">K<sub>zt</sub><br>Topo Factor</div></div>'
     +'<div class="dem-card"><div class="v">'+f2(Kd)+'</div><div class="l">K<sub>d</sub><br>Directional</div></div>'
@@ -1127,20 +1162,24 @@ function runCalc(){
   var rowIdx=0;
   allZoneItems.forEach(function(item){
     var z=item.z;
+    var qhZ=item.qhOverride||qh;
+    var hZ=item.h_eff||h;
+    var KhZ=item.Kh_eff||Kh;
+    var khRowZ=item.khRow_eff||khRow;
     var gcpPos=z.pos ? interpGCp(z.pos, A) : null;
     var gcpNeg=interpGCp(z.neg, A);
-    var pPos=(gcpPos!==null) ? qh*(gcpPos+GCpi) : null;
-    var pNeg=qh*(gcpNeg-GCpi);
+    var pPos=(gcpPos!==null) ? qhZ*(gcpPos+GCpi) : null;
+    var pNeg=qhZ*(gcpNeg-GCpi);
     var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
-    if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP});
+    if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP, isParapet:!!z.isParapet});
     var gcpPosStr=(gcpPos!==null)?f3(gcpPos):'&mdash;';
     var pPosStr=(pPos!==null)?f1(pPos):'&mdash;';
-    var rowCls=z.oh?'class="oh-row"':'';
-    var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, h, Kh, khRow, Kzt, Kd, qh, GCpi, item.figKey);
+    var rowCls=z.oh?'class="oh-row"':z.isParapet?'class="par-row"':'';
+    var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, hZ, KhZ, khRowZ, Kzt, Kd, qhZ, GCpi, item.figKey);
     var i=rowIdx++;
     tb.innerHTML+=
       '<tr '+rowCls+'>'
-      +'<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':'')+'</td>'
+      +'<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':z.isParapet?' <span style="font-size:.75em;color:#92400e">§30.9</span>':'')+'</td>'
       +'<td style="font-size:.85em;color:#555">'+z.desc+'</td>'
       +'<td style="text-align:center">'+gcpPosStr+'</td>'
       +'<td style="text-align:center">'+f3(gcpNeg)+'</td>'
@@ -1157,12 +1196,19 @@ function runCalc(){
 
   // Save all zone pressures to localStorage for cross-calc import
   if (_lastZonePressures.length) {
-    var maxZone = _lastZonePressures.reduce(function(best, z){ return z.govP > best.govP ? z : best; });
+    var wallZones = _lastZonePressures.filter(function(z){ return !z.isParapet; });
+    var parZones  = _lastZonePressures.filter(function(z){ return  z.isParapet; });
+    var maxWall   = wallZones.length ? wallZones.reduce(function(b,z){return z.govP>b.govP?z:b;}) : null;
+    var maxPar    = parZones.length  ? parZones.reduce(function(b,z) {return z.govP>b.govP?z:b;}) : null;
+    var maxZone   = _lastZonePressures.reduce(function(b,z){return z.govP>b.govP?z:b;});
     try {
       localStorage.setItem('ARE_cc_wind', JSON.stringify({
-        govP: maxZone.govP,
-        zone: maxZone.name,
+        govP:    maxWall ? maxWall.govP : maxZone.govP,
+        zone:    maxWall ? maxWall.name : maxZone.name,
+        govP_parapet: maxPar ? maxPar.govP : null,
+        zone_parapet: maxPar ? maxPar.name : null,
         allZones: _lastZonePressures,
+        hp: hp,
         saved: new Date().toISOString()
       }));
     } catch(e) {}
