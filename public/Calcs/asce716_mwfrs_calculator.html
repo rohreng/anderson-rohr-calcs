@@ -127,8 +127,8 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
   <div class="blk-hd open" onclick="togBlk(this)"><span>Building Geometry</span><span class="tog">▶</span></div>
   <div class="blk-body">
     <div class="row">
-      <div class="ig"><label>Width B (ft) — EW</label><input type="number" id="B" value="60" min="10" step="1"/></div>
-      <div class="ig"><label>Depth D (ft) — NS</label><input type="number" id="D" value="120" min="10" step="1"/></div>
+      <div class="ig"><label>Width B (ft) — EW</label><input type="number" id="B" value="60" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
+      <div class="ig"><label>Depth D (ft) — NS</label><input type="number" id="D" value="120" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1"/></div>
       <div class="ig">
         <label>Roof Type</label>
@@ -142,7 +142,8 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
     <div class="row">
       <div class="ig"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5"/></div>
     </div>
-    <div class="ref">Wind-X: wind along NS axis (L=D, B_⊥=B) | Wind-Y: wind along EW axis (L=B, B_⊥=D)</div>
+    <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B)</div>
+    <div id="mwfrsDiagWrap" style="margin-top:12px;text-align:center"></div>
   </div>
 </div>
 
@@ -180,13 +181,13 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 
   <!-- Wind-X -->
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction (Wind Along NS — L=Depth, B=Width)</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction (Wind Along EW — L=Width, B=Depth)</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wxBody"></div>
   </div>
 
   <!-- Wind-Y -->
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction (Wind Along EW — L=Width, B=Depth)</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction (Wind Along NS — L=Depth, B=Width)</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wyBody"></div>
   </div>
 
@@ -478,8 +479,8 @@ function calculate(){
     };
   }
 
-  var wx=calcDir(Ddim, B, 'Wind-X (NS)');  // wind along NS: L=depth, B_perp=width
-  var wy=calcDir(B, Ddim, 'Wind-Y (EW)'); // wind along EW: L=width, B_perp=depth
+  var wx=calcDir(B, Ddim, 'Wind-X (EW)');  // wind along EW: L=width, B_perp=depth
+  var wy=calcDir(Ddim, B, 'Wind-Y (NS)'); // wind along NS: L=depth, B_perp=width
 
   // ─── Parapet ─────────────────────────────────────────────────────────────
   var parapetData=null;
@@ -545,8 +546,8 @@ function calculate(){
     }
   }
 
-  var roofX=getRoofPressures(Ddim, B, qh_val, 'Wind-X (L='+f1(Ddim)+'ft)');
-  var roofY=getRoofPressures(B, Ddim, qh_val, 'Wind-Y (L='+f1(B)+'ft)');
+  var roofX=getRoofPressures(B, Ddim, qh_val, 'Wind-X (L='+f1(B)+'ft)');
+  var roofY=getRoofPressures(Ddim, B, qh_val, 'Wind-Y (L='+f1(Ddim)+'ft)');
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
   document.getElementById('results').style.display='block';
@@ -742,7 +743,7 @@ function renderSend(wx,wy,container){
   html+='<h4>▶ Send Story Shear to Stacked Shearwall / Other Calculators</h4>';
   html+='<div class="send-row">';
   html+='<div class="ig" style="flex:0 0 160px"><label>Wind Direction</label>'
-    +'<select id="sendDir" onchange="updateSendPreview()"><option value="X">Wind-X (NS)</option><option value="Y">Wind-Y (EW)</option></select></div>';
+    +'<select id="sendDir" onchange="updateSendPreview()"><option value="X">Wind-X (EW)</option><option value="Y">Wind-Y (NS)</option></select></div>';
   html+='<div class="ig" style="flex:0 0 160px"><label>Story Level</label>'
     +'<select id="sendStory" onchange="updateSendPreview()">';
   wx.rows.forEach(function(r,i){
@@ -825,6 +826,163 @@ function doSendDiaphragm(){
   window.open(url,'_blank');
 }
 
+// ─── MWFRS BUILDING PLAN DIAGRAM ─────────────────────────────────────────────
+function drawMWFRSDiagram(){
+  var B=parseFloat(document.getElementById('B').value)||60;
+  var Ddim=parseFloat(document.getElementById('D').value)||120;
+  var wrap=document.getElementById('mwfrsDiagWrap');
+  if(!wrap) return;
+
+  // SVG canvas and margin zones (dedicated, no overlap)
+  // ml: West wall label zone
+  // mr: East wall label + D dim string zone
+  // mt: North wall label + N compass zone
+  // mb: B dim string + South wall label zone
+  var W=580, H=370;
+  var ml=76, mr=92, mt=52, mb=80;
+  var bldW=W-ml-mr, bldH=H-mt-mb;
+
+  // Scale building proportionally to fit inside bld zone
+  var scale=Math.min(bldW/B, bldH/Ddim);
+  var bW=B*scale, bH=Ddim*scale;
+
+  // Building rect (centred in bld zone)
+  var bx=ml+(bldW-bW)/2;
+  var by=mt+(bldH-bH)/2;
+  var bx2=bx+bW, by2=by+bH;
+  var bcx=bx+bW/2, bcy=by+bH/2;
+
+  // Marker defs
+  function ar(id,col){
+    return '<marker id="'+id+'" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">'
+      +'<path d="M0,0 L0,6 L8,3 Z" fill="'+col+'"/></marker>';
+  }
+  function arR(id,col){
+    // "reverse" marker — arrowhead points toward x1 (use as marker-start)
+    return '<marker id="'+id+'" markerWidth="8" markerHeight="8" refX="1" refY="3" orient="auto">'
+      +'<path d="M8,0 L8,6 L0,3 Z" fill="'+col+'"/></marker>';
+  }
+
+  // Wind-X arrow (→ inside building, upper-left quadrant)
+  var wxArY=by+bH*0.30;
+  var wxArLen=Math.min(bW*0.45,68);
+  var wxArX1=bx+bW*0.10, wxArX2=wxArX1+wxArLen;
+
+  // Wind-Y arrow (↑ inside building, lower-right quadrant)
+  var wyArX=bx+bW*0.72;
+  var wyArLen=Math.min(bH*0.45,68);
+  var wyArY2=by+bH*0.78, wyArY1=wyArY2-wyArLen;  // y1=top(arrowhead), y2=base
+
+  // B dim string (below building)  — dedicated zone: by2+8 to by2+50
+  var dimBY=by2+20;     // dim line y
+  var dimBTextY=by2+36; // text y
+
+  // D dim string (right of building) — dedicated zone: bx2+8 to bx2+72
+  var dimDX=bx2+20;     // dim line x
+  var dimDTextX=bx2+54; // text x (rotated)
+
+  // South wall label — below B dim string
+  var southY=dimBTextY+20;
+
+  // X-Y axis — bottom-left corner
+  var axX0=22, axY0=H-16;
+
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H
+    +'" style="display:block;margin:0 auto;max-width:100%;background:#fff;border-radius:8px">'
+    +'<defs>'
+    +ar('arWX','#cc0044')+ar('arWY','#1e3c72')
+    +ar('arDim','#555')+arR('arDimS','#555')
+    +'</defs>'
+
+    // Building fill + border
+    +'<rect x="'+bx+'" y="'+by+'" width="'+bW+'" height="'+bH+'" fill="#dde8f7" stroke="#1e3c72" stroke-width="2"/>'
+
+    // ── Wall labels ──────────────────────────────────────────────────
+    // NORTH WALL — centered horizontally, in top margin
+    +'<text x="'+bcx+'" y="'+(by-8)+'" text-anchor="middle" dominant-baseline="alphabetic"'
+    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8">NORTH WALL</text>'
+
+    // SOUTH WALL — in bottom margin, below B dim text
+    +'<text x="'+bcx+'" y="'+southY+'" text-anchor="middle" dominant-baseline="hanging"'
+    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8">SOUTH WALL</text>'
+
+    // WEST WALL — rotated -90°, centred vertically, in left margin
+    +'<text x="'+(bx-14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8"'
+    +' transform="rotate(-90,'+(bx-14)+','+bcy+')">WEST WALL</text>'
+
+    // EAST WALL — rotated -90°, centred vertically, in right margin
+    +'<text x="'+(bx2+14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8"'
+    +' transform="rotate(-90,'+(bx2+14)+','+bcy+')">EAST WALL</text>'
+
+    // ── Wind-X arrow (→, EW) inside building ─────────────────────────
+    +'<line x1="'+wxArX1+'" y1="'+wxArY+'" x2="'+wxArX2+'" y2="'+wxArY
+    +'" stroke="#cc0044" stroke-width="2.5" marker-end="url(#arWX)"/>'
+    +'<text x="'+(wxArX1+(wxArX2-wxArX1)/2)+'" y="'+(wxArY-7)+'" text-anchor="middle"'
+    +' font-size="11" fill="#cc0044" font-weight="700">Wind-X (EW)</text>'
+
+    // ── Wind-Y arrow (↑, NS) inside building ─────────────────────────
+    // Line from y2 (base/south) up to y1 (arrowhead/north)
+    +'<line x1="'+wyArX+'" y1="'+wyArY2+'" x2="'+wyArX+'" y2="'+wyArY1
+    +'" stroke="#1e3c72" stroke-width="2.5" marker-end="url(#arWY)"/>'
+    +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2-6)+'" text-anchor="start"'
+    +' dominant-baseline="middle" font-size="11" fill="#1e3c72" font-weight="700">Wind-Y</text>'
+    +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2+8)+'" text-anchor="start"'
+    +' dominant-baseline="middle" font-size="11" fill="#1e3c72" font-weight="700">(NS)</text>'
+
+    // ── B dimension string (below building) ──────────────────────────
+    // Extension ticks
+    +'<line x1="'+bx+'" y1="'+(by2+4)+'" x2="'+bx+'" y2="'+(by2+26)+'" stroke="#555" stroke-width="1"/>'
+    +'<line x1="'+bx2+'" y1="'+(by2+4)+'" x2="'+bx2+'" y2="'+(by2+26)+'" stroke="#555" stroke-width="1"/>'
+    // Dimension line with inward-pointing arrows
+    +'<line x1="'+bx+'" y1="'+dimBY+'" x2="'+bx2+'" y2="'+dimBY
+    +'" stroke="#555" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
+    // Text
+    +'<rect x="'+(bcx-30)+'" y="'+(dimBY-7)+'" width="60" height="14" fill="#fff"/>'
+    +'<text x="'+bcx+'" y="'+dimBY+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="11.5" fill="#374151" font-weight="600">'+f1(B)+' ft</text>'
+    // Label below line
+    +'<text x="'+bcx+'" y="'+dimBTextY+'" text-anchor="middle" dominant-baseline="hanging"'
+    +' font-size="11" fill="#374151">B (EW width)</text>'
+
+    // ── D dimension string (right of building) ────────────────────────
+    // Extension ticks
+    +'<line x1="'+(bx2+4)+'" y1="'+by+'" x2="'+(bx2+26)+'" y2="'+by+'" stroke="#555" stroke-width="1"/>'
+    +'<line x1="'+(bx2+4)+'" y1="'+by2+'" x2="'+(bx2+26)+'" y2="'+by2+'" stroke="#555" stroke-width="1"/>'
+    // Dimension line with outward-pointing arrows (vertical, from by to by2)
+    +'<line x1="'+dimDX+'" y1="'+by+'" x2="'+dimDX+'" y2="'+by2
+    +'" stroke="#555" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
+    // Text (background rect for clarity, then text)
+    +'<rect x="'+(dimDX-7)+'" y="'+(bcy-30)+'" width="14" height="60" fill="#fff"/>'
+    +'<text x="'+dimDX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="11.5" fill="#374151" font-weight="600"'
+    +' transform="rotate(-90,'+dimDX+','+bcy+')">'+f1(Ddim)+' ft</text>'
+    // Label (further right, also rotated)
+    +'<text x="'+dimDTextX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
+    +' font-size="11" fill="#374151" transform="rotate(-90,'+dimDTextX+','+bcy+')">D (NS depth)</text>'
+
+    // ── X-Y axis (bottom-left) ────────────────────────────────────────
+    +'<line x1="'+axX0+'" y1="'+axY0+'" x2="'+(axX0+28)+'" y2="'+axY0
+    +'" stroke="#555" stroke-width="1.5" marker-end="url(#arDim)"/>'
+    +'<text x="'+(axX0+32)+'" y="'+(axY0+1)+'" text-anchor="start" dominant-baseline="middle"'
+    +' font-size="10" fill="#555" font-weight="700">X (E)</text>'
+    +'<line x1="'+axX0+'" y1="'+axY0+'" x2="'+axX0+'" y2="'+(axY0-28)
+    +'" stroke="#555" stroke-width="1.5" marker-end="url(#arDim)"/>'
+    +'<text x="'+(axX0)+'" y="'+(axY0-32)+'" text-anchor="middle" dominant-baseline="auto"'
+    +' font-size="10" fill="#555" font-weight="700">Y (N)</text>'
+
+    // ── North arrow (top margin, right side) ──────────────────────────
+    +'<text x="'+(W-16)+'" y="'+(mt-28)+'" text-anchor="middle" dominant-baseline="auto"'
+    +' font-size="13" fill="#cc0044" font-weight="900">N</text>'
+    +'<line x1="'+(W-16)+'" y1="'+(mt-24)+'" x2="'+(W-16)+'" y2="'+(mt-12)
+    +'" stroke="#cc0044" stroke-width="1.5" marker-end="url(#arWX)"/>'
+
+    +'</svg>';
+
+  wrap.innerHTML=svg;
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
   // Set today's date
@@ -841,6 +999,7 @@ document.addEventListener('DOMContentLoaded',function(){
   });
 
   toggleRoofInputs();
+  drawMWFRSDiagram();
 });
 
 // expose updateSendPreview to inline handlers

@@ -293,142 +293,127 @@ function updateDiagram(){
   var Vx=parseFloat(document.getElementById('Vx').value)||0;
   var Vy=parseFloat(document.getElementById('Vy').value)||0;
 
-  // ── Canvas layout ──────────────────────────────────────────────────────────
-  // Reserve space: left=80 (axes+Vx arrows), right=70 (D label), top=60 (Vy arrows), bottom=80 (B label+legend)
-  var W=560, H=420;
-  var ml=80, mr=70, mt=65, mb=90;
-  var maxBW=W-ml-mr, maxDH=H-mt-mb;
-  var scale=Math.min(maxBW/B, maxDH/D);
+  // ── Canvas layout ─────────────────────────────────────────────────────────
+  // Zones: ml=wall label(left), mr=wall label+D dim(right), mt=wall label(top), mb=B dim+legend(bot)
+  var W=600, H=370;
+  var ml=68, mr=88, mt=38, mb=68;
+  var maxBW=W-ml-mr, maxDH=H-mt-mb;  // 444 × 264 px available
+  var scale=Math.min(maxBW*0.9/B, maxDH*0.9/D);
   var bw=B*scale, dh=D*scale;
-  // Centre the building in the available space
-  var ox=ml+(maxBW-bw)/2;
-  var oy=mt+(maxDH-dh)/2;
-  // Bottom of SVG where Y=0 (South) in plan coords
-  var bottom=oy+dh;  // SVG y of South wall
-  var top=oy;        // SVG y of North wall
-  var left=ox;       // SVG x of West wall
-  var right=ox+bw;   // SVG x of East wall
+  var ox=ml+(maxBW-bw)/2, oy=mt+(maxDH-dh)/2;
+  var left=ox, right=ox+bw, top=oy, bottom=oy+dh;
+  var cx=left+bw/2, cy=top+dh/2;  // building centre
 
-  // ── Read shearwalls ────────────────────────────────────────────────────────
-  var swX=getSWRowsForDiagram('X'); // EW walls, resist V_x, loc=dist from W (X position)
-  var swY=getSWRowsForDiagram('Y'); // NS walls, resist V_y, loc=dist from S (Y position)
+  // ── Read shearwalls ───────────────────────────────────────────────────────
+  var swX=getSWRowsForDiagram('X'); // EW walls (vertical), resist V_x, loc=dist from W
+  var swY=getSWRowsForDiagram('Y'); // NS walls (horizontal), resist V_y, loc=dist from S
 
   var svg='<svg width="'+W+'" height="'+H+'" class="diagram" xmlns="http://www.w3.org/2000/svg">'
     +'<defs>'
     +'<pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#93c5fd" stroke-width="0.7"/></pattern>'
-    +'<marker id="arrX" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#1e3c72"/></marker>'
-    +'<marker id="arrY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#c2410c"/></marker>'
-    +'<marker id="arrAx" markerWidth="7" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,7 3,0 6" fill="#374151"/></marker>'
+    +'<marker id="arX" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#1e3c72"/></marker>'
+    +'<marker id="arY" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#c2410c"/></marker>'
+    +'<marker id="arD" markerWidth="7" markerHeight="5" refX="3.5" refY="2.5" orient="auto"><polygon points="7 2.5,0 0,0 5" fill="#475569"/></marker>'
+    +'<marker id="arD2" markerWidth="7" markerHeight="5" refX="3.5" refY="2.5" orient="auto"><polygon points="0 2.5,7 0,7 5" fill="#475569"/></marker>'
     +'</defs>'
-    // Background
     +'<rect width="'+W+'" height="'+H+'" fill="#f8faff" rx="8"/>'
-    // ── Diaphragm fill & hatch ──────────────────────────────────────────────
-    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="#dbeafe"/>'
-    +'<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="url(#hatch)"/>';
+    // Diaphragm fill + hatch
+    +'<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="#dbeafe"/>'
+    +'<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="url(#hatch)"/>';
 
-  // ── EW shearwalls (resist V_x): vertical lines at x=loc from West ─────────
-  var swXColors=['#1e3c72','#1e3c72','#1e3c72','#1e3c72'];
-  swX.forEach(function(sw,i){
-    var sx=ox+sw.loc*scale;
-    if(sx<ox||sx>right+1) return; // out of range, skip
+  // ── EW shearwalls (vertical lines, resist V_x) ────────────────────────────
+  swX.forEach(function(sw){
+    var sx=left+sw.loc*scale;
+    if(sx<left-2||sx>right+2) return;
+    var isWest=(sw.loc/B<0.03), isEast=(sw.loc/B>0.97);
     svg+='<line x1="'+sx+'" y1="'+top+'" x2="'+sx+'" y2="'+bottom+'" stroke="#1e3c72" stroke-width="4" stroke-linecap="round"/>';
-    // Label at top
-    var lx=sx, ly=top-6;
-    svg+='<text x="'+lx+'" y="'+ly+'" text-anchor="middle" font-size="9" font-weight="700" fill="#1e3c72">'+sw.label+'</text>';
-    // Length annotation
+    // Label: rotated -90° (reads bottom-to-top), anchored at wall x, vertically centred
+    var lx, anchor;
+    if(isWest){  lx=left-14; anchor='middle'; }
+    else if(isEast){ lx=right+14; anchor='middle'; }
+    else { lx=sx+14; anchor='middle'; }
+    svg+='<text x="'+lx+'" y="'+cy+'" text-anchor="'+anchor+'" dominant-baseline="middle"'
+      +' font-size="9" font-weight="700" fill="#1e3c72"'
+      +' transform="rotate(-90,'+lx+','+cy+')">'+sw.label+'</text>';
     if(sw.len>0){
-      svg+='<text x="'+lx+'" y="'+(ly-11)+'" text-anchor="middle" font-size="8" fill="#1e3c72">'+sw.len+' ft</text>';
+      // length annotation: small text at same x, offset 14px further from building
+      var llx=isWest?(lx-13):isEast?(lx+13):(lx+13);
+      svg+='<text x="'+llx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle"'
+        +' font-size="8" fill="#1e3c72"'
+        +' transform="rotate(-90,'+llx+','+cy+')">'+sw.len+' ft</text>';
     }
   });
 
-  // ── NS shearwalls (resist V_y): horizontal lines at y=loc from South ──────
-  swY.forEach(function(sw,i){
+  // ── NS shearwalls (horizontal lines, resist V_y) ──────────────────────────
+  swY.forEach(function(sw){
     var sy=bottom-sw.loc*scale; // loc from S: 0=bottom, D=top
-    if(sy>bottom+1||sy<top-1) return;
+    if(sy>bottom+2||sy<top-2) return;
+    var isSouth=(sw.loc/D<0.03), isNorth=(sw.loc/D>0.97);
     svg+='<line x1="'+left+'" y1="'+sy+'" x2="'+right+'" y2="'+sy+'" stroke="#7c3aed" stroke-width="4" stroke-linecap="round"/>';
-    // Label at right
-    svg+='<text x="'+(right+4)+'" y="'+(sy+4)+'" font-size="9" font-weight="700" fill="#7c3aed">'+sw.label+'</text>';
+    // Label: horizontal, centred on wall width
+    var ly, anchor2='middle';
+    if(isNorth){ ly=top-14; }       // above building
+    else if(isSouth){ ly=bottom+16; } // below building
+    else { ly=sy-10; }               // above line, inside
+    svg+='<text x="'+cx+'" y="'+ly+'" text-anchor="middle" font-size="9" font-weight="700" fill="#7c3aed">'+sw.label+'</text>';
     if(sw.len>0){
-      svg+='<text x="'+(right+4)+'" y="'+(sy-6)+'" font-size="8" fill="#7c3aed">'+sw.len+' ft</text>';
+      var lly2=isNorth?(top-24):isSouth?(bottom+27):(sy-21);
+      svg+='<text x="'+cx+'" y="'+lly2+'" text-anchor="middle" font-size="8" fill="#7c3aed">'+sw.len+' ft</text>';
     }
   });
 
-  // ── Diaphragm outline (on top of shearwall lines) ──────────────────────────
-  svg+='<rect x="'+ox+'" y="'+oy+'" width="'+bw+'" height="'+dh+'" fill="none" stroke="#1a202c" stroke-width="2"/>';
+  // ── Building outline (on top) ─────────────────────────────────────────────
+  svg+='<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="none" stroke="#1a202c" stroke-width="2.5"/>';
 
-  // ── Compass labels ─────────────────────────────────────────────────────────
-  svg+='<text x="'+(ox+4)+'" y="'+(oy+14)+'" font-size="11" fill="#64748b" font-weight="700">W</text>'
-    +'<text x="'+(ox+bw-16)+'" y="'+(oy+14)+'" font-size="11" fill="#64748b" font-weight="700">E</text>'
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+14)+'" text-anchor="middle" font-size="11" fill="#64748b" font-weight="700">N</text>'
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh-4)+'" text-anchor="middle" font-size="11" fill="#64748b" font-weight="700">S</text>';
+  // ── "DIAPHRAGM" centre label ──────────────────────────────────────────────
+  svg+='<text x="'+cx+'" y="'+(cy-8)+'" text-anchor="middle" font-size="12" fill="#1e3c72" font-weight="700">DIAPHRAGM</text>'
+    +'<text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="10" fill="#374151">B='+f1(B)+' ft × D='+f1(D)+' ft</text>';
 
-  // ── Diaphragm centre label ─────────────────────────────────────────────────
-  svg+='<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2-6)+'" text-anchor="middle" font-size="13" fill="#1e3c72" font-weight="700">DIAPHRAGM</text>'
-    +'<text x="'+(ox+bw/2)+'" y="'+(oy+dh/2+10)+'" text-anchor="middle" font-size="10" fill="#374151">B='+f1(B)+' ft × D='+f1(D)+' ft</text>';
-
-  // ── Dimension annotation B (below building) ────────────────────────────────
-  svg+='<line x1="'+left+'" y1="'+(bottom+22)+'" x2="'+right+'" y2="'+(bottom+22)+'" stroke="#374151" stroke-width="1" marker-start="url(#arrAx)" marker-end="url(#arrAx)"/>'
-    +'<text x="'+(left+bw/2)+'" y="'+(bottom+36)+'" text-anchor="middle" font-size="11" fill="#374151" font-weight="600">B = '+f1(B)+' ft (EW)</text>';
-
-  // ── Dimension annotation D (right of building) ────────────────────────────
-  var dx=right+32;
-  svg+='<line x1="'+dx+'" y1="'+top+'" x2="'+dx+'" y2="'+bottom+'" stroke="#374151" stroke-width="1" marker-start="url(#arrAx)" marker-end="url(#arrAx)"/>'
-    +'<text x="'+(dx+12)+'" y="'+(oy+dh/2+4)+'" font-size="11" fill="#374151" font-weight="600" transform="rotate(90,'+(dx+12)+','+(oy+dh/2+4)+')">D = '+f1(D)+' ft (NS)</text>';
-
-  // ── V_x arrows — EW wind, from West, pointing East (→) ────────────────────
-  var arrLen=34, arrGap=8;
-  var axStart=left-arrLen-arrGap, axEnd=left-arrGap;
-  var vxShow=(Vx>0);
-  var arrColor_x='#1e3c72';
-  [-14,0,14].forEach(function(dy){
-    var ay=bottom-dh/2+dy;
-    svg+='<line x1="'+axStart+'" y1="'+ay+'" x2="'+axEnd+'" y2="'+ay+'" stroke="'+arrColor_x+'" stroke-width="2" marker-end="url(#arrX)"/>';
-  });
-  svg+='<text x="'+(axStart+arrLen/2)+'" y="'+(bottom-dh/2-22)+'" text-anchor="middle" font-size="10" fill="'+arrColor_x+'" font-weight="700">V'
-    +'<tspan font-size="8" dy="2">x</tspan>'
-    +'<tspan dy="-2"> (EW)</tspan></text>';
-  if(vxShow){
-    svg+='<text x="'+(axStart+arrLen/2)+'" y="'+(bottom-dh/2-10)+'" text-anchor="middle" font-size="9" fill="'+arrColor_x+'">'+f1(Vx)+' kips</text>';
+  // ── V_x arrow INSIDE building — upper portion, pointing right ────────────
+  var vxArrLen=Math.min(50, bw*0.22);
+  var vxAy=top+dh*0.30;  // y position of arrow (upper area)
+  var vxAx1=left+bw*0.07, vxAx2=vxAx1+vxArrLen;
+  svg+='<line x1="'+vxAx1+'" y1="'+vxAy+'" x2="'+vxAx2+'" y2="'+vxAy+'" stroke="#1e3c72" stroke-width="2.5" marker-end="url(#arX)"/>'
+    +'<text x="'+(vxAx2+5)+'" y="'+(vxAy-7)+'" font-size="10" font-weight="700" fill="#1e3c72">V\u2093 (EW)</text>';
+  if(Vx>0){
+    svg+='<text x="'+(vxAx2+5)+'" y="'+(vxAy+10)+'" font-size="9" fill="#1e3c72">'+f1(Vx)+' kips</text>';
   }
 
-  // ── V_y arrows — NS wind, from South, pointing North (↑) ──────────────────
-  var ayStart=bottom+arrGap, ayEnd=bottom+arrLen+arrGap;
-  var vyShow=(Vy>0);
-  var arrColor_y='#c2410c';
-  [-14,0,14].forEach(function(dx2){
-    var ax=left+bw/2+dx2;
-    svg+='<line x1="'+ax+'" y1="'+ayEnd+'" x2="'+ax+'" y2="'+(ayStart)+'" stroke="'+arrColor_y+'" stroke-width="2" marker-end="url(#arrY)"/>';
-  });
-  svg+='<text x="'+(left+bw/2+32)+'" y="'+(ayEnd-4)+'" font-size="10" fill="'+arrColor_y+'" font-weight="700">V'
-    +'<tspan font-size="8" dy="2">y</tspan>'
-    +'<tspan dy="-2"> (NS)</tspan></text>';
-  if(vyShow){
-    svg+='<text x="'+(left+bw/2+32)+'" y="'+(ayEnd-16)+'" font-size="9" fill="'+arrColor_y+'">'+f1(Vy)+' kips</text>';
+  // ── V_y arrow INSIDE building — right portion, pointing up ───────────────
+  var vyArrLen=Math.min(45, dh*0.30);
+  var vyAx=left+bw*0.72;  // x position
+  var vyAy2=bottom-dh*0.10, vyAy1=vyAy2-vyArrLen;  // y1 (tip, up) y2 (tail, down)
+  svg+='<line x1="'+vyAx+'" y1="'+vyAy2+'" x2="'+vyAx+'" y2="'+vyAy1+'" stroke="#c2410c" stroke-width="2.5" marker-end="url(#arY)"/>'
+    +'<text x="'+(vyAx+7)+'" y="'+(vyAy1+10)+'" font-size="10" font-weight="700" fill="#c2410c">V\u1D67 (NS)</text>';
+  if(Vy>0){
+    svg+='<text x="'+(vyAx+7)+'" y="'+(vyAy1+23)+'" font-size="9" fill="#c2410c">'+f1(Vy)+' kips</text>';
   }
 
-  // ── X-Y Axis indicator (bottom-left corner) ────────────────────────────────
-  var axX=left-2, axY=bottom+52; // origin of the mini axes
-  var axL=28;
-  svg+='<circle cx="'+axX+'" cy="'+axY+'" r="2.5" fill="#374151"/>'
-    // X axis (→ East)
-    +'<line x1="'+axX+'" y1="'+axY+'" x2="'+(axX+axL)+'" y2="'+axY+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arrAx)"/>'
-    +'<text x="'+(axX+axL+4)+'" y="'+(axY+4)+'" font-size="10" fill="#374151" font-weight="700">X (EW)</text>'
-    // Y axis (↑ North) — up in SVG = -y
-    +'<line x1="'+axX+'" y1="'+axY+'" x2="'+axX+'" y2="'+(axY-axL)+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arrAx)"/>'
-    +'<text x="'+(axX-4)+'" y="'+(axY-axL-4)+'" text-anchor="end" font-size="10" fill="#374151" font-weight="700">Y (NS)</text>';
+  // ── Dimension string B (below building) ───────────────────────────────────
+  var bdY=bottom+26;
+  svg+='<line x1="'+left+'" y1="'+bdY+'" x2="'+right+'" y2="'+bdY+'" stroke="#475569" stroke-width="1" marker-start="url(#arD)" marker-end="url(#arD2)"/>'
+    +'<text x="'+cx+'" y="'+(bdY+14)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#374151">WIDTH B = '+f1(B)+' ft (EW)</text>';
 
-  // ── Sign convention note (bottom right of diagram) ─────────────────────────
-  var scx=right-5, scy=bottom+50;
-  svg+='<text x="'+scx+'" y="'+scy+'" text-anchor="end" font-size="9" fill="#374151" font-style="italic">Sign convention: + V forces shown</text>'
-    +'<text x="'+scx+'" y="'+(scy+12)+'" text-anchor="end" font-size="9" fill="#374151" font-style="italic">V'
-    +'<tspan font-size="7" dy="1">x</tspan><tspan dy="-1"> acts EW on E/W shearwalls  |  V</tspan><tspan font-size="7" dy="1">y</tspan><tspan dy="-1"> acts NS on N/S shearwalls</tspan></text>';
+  // ── Dimension string D (right of building) ────────────────────────────────
+  var ddX=right+44;
+  svg+='<line x1="'+ddX+'" y1="'+top+'" x2="'+ddX+'" y2="'+bottom+'" stroke="#475569" stroke-width="1" marker-start="url(#arD)" marker-end="url(#arD2)"/>'
+    +'<text x="'+(ddX+14)+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="600" fill="#374151"'
+    +' transform="rotate(90,'+(ddX+14)+','+cy+')">DEPTH D = '+f1(D)+' ft (NS)</text>';
 
-  // ── Legend ─────────────────────────────────────────────────────────────────
-  var lx0=left, lly=bottom+72;
-  svg+='<rect x="'+lx0+'" y="'+(lly-7)+'" width="18" height="4" fill="#1e3c72" rx="1"/>'
-    +'<text x="'+(lx0+22)+'" y="'+lly+'" font-size="9" fill="#374151">EW SW (resist V<tspan font-size="7" dy="1">x</tspan><tspan dy="-1">)</tspan></text>'
-    +'<rect x="'+(lx0+120)+'" y="'+(lly-7)+'" width="18" height="4" fill="#7c3aed" rx="1"/>'
-    +'<text x="'+(lx0+142)+'" y="'+lly+'" font-size="9" fill="#374151">NS SW (resist V<tspan font-size="7" dy="1">y</tspan><tspan dy="-1">)</tspan></text>';
+  // ── X-Y axis indicator (bottom-left, dedicated zone) ─────────────────────
+  var axO=18, axOy=H-18, axL=24;
+  svg+='<circle cx="'+axO+'" cy="'+axOy+'" r="2" fill="#374151"/>'
+    +'<line x1="'+axO+'" y1="'+axOy+'" x2="'+(axO+axL)+'" y2="'+axOy+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arX)"/>'
+    +'<text x="'+(axO+axL+3)+'" y="'+(axOy+4)+'" font-size="9" font-weight="700" fill="#374151">X (EW)</text>'
+    +'<line x1="'+axO+'" y1="'+axOy+'" x2="'+axO+'" y2="'+(axOy-axL)+'" stroke="#374151" stroke-width="1.5" marker-end="url(#arY)"/>'
+    +'<text x="'+(axO-3)+'" y="'+(axOy-axL-3)+'" text-anchor="end" font-size="9" font-weight="700" fill="#374151">Y (NS)</text>';
+
+  // ── Legend (bottom-centre) ────────────────────────────────────────────────
+  var lgy=H-10, lgx=cx-110;
+  svg+='<rect x="'+lgx+'" y="'+(lgy-7)+'" width="16" height="4" fill="#1e3c72" rx="1"/>'
+    +'<text x="'+(lgx+20)+'" y="'+lgy+'" font-size="9" fill="#374151">EW Shearwall (resist V\u2093)</text>'
+    +'<rect x="'+(lgx+160)+'" y="'+(lgy-7)+'" width="16" height="4" fill="#7c3aed" rx="1"/>'
+    +'<text x="'+(lgx+180)+'" y="'+lgy+'" font-size="9" fill="#374151">NS Shearwall (resist V\u1D67)</text>';
 
   svg+='</svg>';
   document.getElementById('diagWrap').innerHTML=svg;
@@ -720,12 +705,9 @@ function calculate(){
   var p=new URLSearchParams(window.location.search);
   if(p.get('src')!=='mwfrs') return;
 
-  // MWFRS sends: vx = NS wind force, vy = EW wind force (its own X/Y convention)
-  // Diaphragm uses X=EW, Y=NS → swap them on import
-  var mwfrs_vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0'); // MWFRS NS force
-  var mwfrs_vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');                   // MWFRS EW force
-  var vx=mwfrs_vy;  // EW force → our V_x
-  var vy=mwfrs_vx;  // NS force → our V_y
+  // MWFRS sends: vx = EW wind force (Wind-X), vy = NS wind force (Wind-Y) — matches X=EW, Y=NS convention
+  var vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0'); // EW force → V_x
+  var vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');                   // NS force → V_y
   var B=parseFloat(p.get('B')||'0');
   var D=parseFloat(p.get('D')||'0');
   var story=p.get('story')||'';
