@@ -85,9 +85,37 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .cval{color:#15803d;font-weight:700}
 .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
 .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+@page{size:letter portrait;margin:.45in .5in}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{background:#fff!important;width:100%!important;margin:0!important;padding:0!important}
+  .container{max-width:100%!important;width:100%!important;box-shadow:none!important;border-radius:0!important;margin:0!important;padding:0!important}
+  .blk,.dem-card,.sum-pass,.sum-fail,.note-box,.callout,.asd-note,.schema-wrap{border-radius:0!important;box-shadow:none!important}
+  .calc-btn,#printBtn,#saveLoadPanel,button.det-btn{display:none!important}
+  .calc-det{display:block!important;max-height:none!important;overflow:visible!important}
+  .header,.blk,.chk-table thead th,.sum-pass,.sum-fail,.dem-card{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .blk,.chk-table,.dem-grid,.schema-wrap{break-inside:avoid;page-break-inside:avoid}
+  .results{display:block!important}
+}
 </style>
 </head>
 <body>
+<!-- Floating Print Button -->
+<button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
+  style="position:fixed;top:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;gap:6px;white-space:nowrap">
+  &#x1F5A8;&nbsp;Print / PDF
+</button>
+<!-- Save / Load Buttons -->
+<div id="saveLoadPanel" style="position:fixed;top:58px;right:16px;z-index:9999;display:flex;gap:6px">
+  <button onclick="saveState()" title="Save inputs to .json file"
+    style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2)">
+    &#8659;&nbsp;Save
+  </button>
+  <label title="Load a previously saved .json file"
+    style="background:#1d4ed8;color:#fff;border:none;padding:7px 14px;border-radius:7px;cursor:pointer;font-size:.82em;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2);margin:0;display:inline-flex;align-items:center">
+    &#8657;&nbsp;Load<input type="file" accept=".json" style="display:none" onchange="loadState(event)">
+  </label>
+</div>
 <div class="container">
 
   <div class="header">
@@ -122,167 +150,99 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <div class="schema-wrap">
       <div class="schema-grid">
 
-        <!-- PANEL 1: OOP Elevation with wind loading -->
+        <!-- PANEL 1: Wall Section — shows t dimension (cross-section through wall thickness) -->
         <div class="schema-panel">
-          <div class="lbl">Out-of-Plane Loading — Elevation</div>
-          <svg viewBox="0 0 200 210" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+          <div class="lbl">Wall Section &mdash; Out-of-Plane Loading</div>
+          <svg viewBox="0 0 200 215" xmlns="http://www.w3.org/2000/svg" style="width:100%">
             <defs>
+              <!-- Wind / load arrows (orient=auto, tip in line direction) -->
               <marker id="aR" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#2563eb"/></marker>
-              <marker id="aD" markerWidth="6" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
-              <marker id="aU" markerWidth="6" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#374151"/></marker>
-              <marker id="aDy" markerWidth="6" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#d97706"/></marker>
-              <marker id="aUy" markerWidth="6" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#d97706"/></marker>
+              <marker id="aDark" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#374151"/></marker>
+              <!-- Dimension arrows: auto-start-reverse makes start arrow point OUTWARD correctly -->
+              <marker id="dimOr" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>
             </defs>
 
-            <!-- Wall fill -->
-            <rect x="52" y="20" width="100" height="170" fill="#d1d5db" stroke="#374151" stroke-width="1.5"/>
+            <!-- Exterior face shell (section hatch = gray filled) -->
+            <rect x="78" y="22" width="7" height="164" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
+            <!-- Hatch lines on exterior face shell -->
+            <line x1="78" y1="30" x2="85" y2="22" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="46" x2="85" y2="38" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="62" x2="85" y2="54" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="78" x2="85" y2="70" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="94" x2="85" y2="86" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="110" x2="85" y2="102" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="126" x2="85" y2="118" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="142" x2="85" y2="134" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="158" x2="85" y2="150" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="174" x2="85" y2="166" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="78" y1="186" x2="85" y2="178" stroke="#555" stroke-width="0.5" opacity="0.6"/>
 
-            <!-- CMU bond pattern — even courses (joints at x=52,84,116,148) -->
-            <!-- Course lines horizontal -->
-            <line x1="52" y1="44" x2="152" y2="44" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="52" y1="68" x2="152" y2="68" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="52" y1="92" x2="152" y2="92" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="52" y1="116" x2="152" y2="116" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="52" y1="140" x2="152" y2="140" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="52" y1="164" x2="152" y2="164" stroke="#9ca3af" stroke-width="0.8"/>
-            <!-- Vertical head joints — even courses -->
-            <line x1="86" y1="20" x2="86" y2="44" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="120" y1="20" x2="120" y2="44" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="86" y1="68" x2="86" y2="92" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="120" y1="68" x2="120" y2="92" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="86" y1="116" x2="86" y2="140" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="120" y1="116" x2="120" y2="140" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="86" y1="164" x2="86" y2="190" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="120" y1="164" x2="120" y2="190" stroke="#9ca3af" stroke-width="0.8"/>
-            <!-- Vertical head joints — odd courses (staggered) -->
-            <line x1="70" y1="44" x2="70" y2="68" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="103" y1="44" x2="103" y2="68" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="136" y1="44" x2="136" y2="68" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="70" y1="92" x2="70" y2="116" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="103" y1="92" x2="103" y2="116" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="136" y1="92" x2="136" y2="116" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="70" y1="140" x2="70" y2="164" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="103" y1="140" x2="103" y2="164" stroke="#9ca3af" stroke-width="0.8"/>
-            <line x1="136" y1="140" x2="136" y2="164" stroke="#9ca3af" stroke-width="0.8"/>
+            <!-- Core (hollow / grouted) -->
+            <rect x="85" y="22" width="22" height="164" fill="#f3f4f6" stroke="#d1d5db" stroke-width="0.7"/>
 
-            <!-- Rebar (vertical, dashed red line at center of wall) -->
-            <line x1="102" y1="22" x2="102" y2="188" stroke="#dc2626" stroke-width="1.8" stroke-dasharray="5,4"/>
+            <!-- Interior face shell -->
+            <rect x="107" y="22" width="7" height="164" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
+            <!-- Hatch lines on interior face shell -->
+            <line x1="107" y1="30" x2="114" y2="22" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="46" x2="114" y2="38" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="62" x2="114" y2="54" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="78" x2="114" y2="70" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="94" x2="114" y2="86" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="110" x2="114" y2="102" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="126" x2="114" y2="118" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="142" x2="114" y2="134" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="158" x2="114" y2="150" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="174" x2="114" y2="166" stroke="#555" stroke-width="0.5" opacity="0.6"/>
+            <line x1="107" y1="186" x2="114" y2="178" stroke="#555" stroke-width="0.5" opacity="0.6"/>
 
-            <!-- Wind arrows (OOP) — hitting exterior face from left -->
-            <line x1="10" y1="32" x2="49" y2="32" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="56" x2="49" y2="56" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="80" x2="49" y2="80" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="104" x2="49" y2="104" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="128" x2="49" y2="128" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="152" x2="49" y2="152" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <line x1="10" y1="176" x2="49" y2="176" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
-            <text x="6" y="105" font-size="8" fill="#2563eb" font-weight="700" transform="rotate(-90,6,105)">w (psf)</text>
+            <!-- Face labels -->
+            <text x="81" y="14" font-size="6.5" fill="#374151" text-anchor="middle">EXT.</text>
+            <text x="111" y="14" font-size="6.5" fill="#374151" text-anchor="middle">INT.</text>
 
-            <!-- Axial load P arrows at top -->
-            <line x1="76" y1="8" x2="76" y2="18" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
-            <line x1="102" y1="8" x2="102" y2="18" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
-            <line x1="128" y1="8" x2="128" y2="18" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
-            <text x="155" y="14" font-size="9" fill="#374151" font-weight="700">P</text>
+            <!-- Wind arrows (OOP) — horizontal, from exterior face inward (left to right) -->
+            <line x1="14" y1="44" x2="76" y2="44" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <line x1="14" y1="68" x2="76" y2="68" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <line x1="14" y1="92" x2="76" y2="92" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <line x1="14" y1="116" x2="76" y2="116" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <line x1="14" y1="140" x2="76" y2="140" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <line x1="14" y1="164" x2="76" y2="164" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
+            <text x="5" y="108" font-size="8" fill="#2563eb" font-weight="700" transform="rotate(-90,5,108)">w (psf)</text>
+
+            <!-- Axial load P arrow at top -->
+            <line x1="96" y1="3" x2="96" y2="20" stroke="#374151" stroke-width="1.5" marker-end="url(#aDark)"/>
+            <text x="152" y="15" font-size="9" fill="#374151" font-weight="700">P</text>
+
+            <!-- Rebar (tension side = near interior face) -->
+            <circle cx="104" cy="104" r="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
+            <text x="117" y="107" font-size="8" fill="#dc2626" font-weight="700">As</text>
 
             <!-- Pin support at bottom -->
-            <polygon points="102,190 94,202 110,202" fill="none" stroke="#374151" stroke-width="1.5"/>
-            <line x1="86" y1="204" x2="118" y2="204" stroke="#374151" stroke-width="1.5"/>
-            <line x1="84" y1="207" x2="90" y2="204" stroke="#374151" stroke-width="1"/>
-            <line x1="92" y1="207" x2="98" y2="204" stroke="#374151" stroke-width="1"/>
-            <line x1="100" y1="207" x2="106" y2="204" stroke="#374151" stroke-width="1"/>
-            <line x1="108" y1="207" x2="114" y2="204" stroke="#374151" stroke-width="1"/>
-            <!-- Pin support at top -->
-            <polygon points="102,20 94,8 110,8" fill="none" stroke="#374151" stroke-width="1.5"/>
-            <line x1="86" y1="6" x2="118" y2="6" stroke="#374151" stroke-width="1.5"/>
+            <polygon points="96,186 88,198 104,198" fill="none" stroke="#374151" stroke-width="1.5"/>
+            <line x1="80" y1="200" x2="112" y2="200" stroke="#374151" stroke-width="1.5"/>
+            <line x1="78" y1="203" x2="84" y2="200" stroke="#374151" stroke-width="1"/>
+            <line x1="87" y1="203" x2="93" y2="200" stroke="#374151" stroke-width="1"/>
+            <line x1="96" y1="203" x2="102" y2="200" stroke="#374151" stroke-width="1"/>
+            <line x1="105" y1="203" x2="111" y2="200" stroke="#374151" stroke-width="1"/>
 
-            <!-- h dimension arrow -->
-            <line x1="162" y1="20" x2="162" y2="190" stroke="#d97706" stroke-width="1" marker-start="url(#aUy)" marker-end="url(#aDy)"/>
-            <text x="168" y="110" font-size="9" fill="#d97706" font-weight="700">h</text>
+            <!-- Pin support at top (inverted triangle = wall pinned at top too) -->
+            <polygon points="96,22 88,10 104,10" fill="none" stroke="#374151" stroke-width="1.5"/>
+            <line x1="80" y1="8" x2="112" y2="8" stroke="#374151" stroke-width="1.5"/>
 
-            <!-- Wall boundary label -->
-            <text x="102" y="207" font-size="0" fill="none"/> <!-- spacer -->
+            <!-- h dimension — vertical double-headed arrow on right (auto-start-reverse = both tips point outward) -->
+            <line x1="136" y1="22" x2="136" y2="186" stroke="#d97706" stroke-width="1" marker-start="url(#dimOr)" marker-end="url(#dimOr)"/>
+            <text x="142" y="109" font-size="9" fill="#d97706" font-weight="700">h</text>
+
+            <!-- t dimension — horizontal double-headed arrow at bottom -->
+            <line x1="78" y1="208" x2="114" y2="208" stroke="#d97706" stroke-width="1" marker-start="url(#dimOr)" marker-end="url(#dimOr)"/>
+            <text x="96" y="215" font-size="8" fill="#d97706" font-weight="700" text-anchor="middle">t</text>
           </svg>
         </div>
 
-        <!-- PANEL 2: CMU Plan View (horizontal section) -->
+        <!-- PANEL 2: CMU Plan View (looking down) — live, updates with grout spacing -->
         <div class="schema-panel">
-          <div class="lbl">CMU Plan Section (Looking Down)</div>
-          <svg viewBox="0 0 210 210" xmlns="http://www.w3.org/2000/svg" style="width:100%">
-            <defs>
-              <marker id="aRb" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#2563eb"/></marker>
-              <marker id="aDy2" markerWidth="6" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#d97706"/></marker>
-              <marker id="aUy2" markerWidth="6" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#d97706"/></marker>
-              <marker id="aDr" markerWidth="6" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#dc2626"/></marker>
-              <marker id="aUr" markerWidth="6" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#dc2626"/></marker>
-            </defs>
-
-            <!-- Background labels: exterior / interior face -->
-            <text x="105" y="30" font-size="8" fill="#6b7280" text-anchor="middle">EXTERIOR FACE</text>
-            <text x="105" y="188" font-size="8" fill="#6b7280" text-anchor="middle">INTERIOR FACE</text>
-            <text x="15" y="115" font-size="7" fill="#374151" text-anchor="middle" transform="rotate(-90,15,115)">WALL LENGTH →</text>
-
-            <!-- ===== CMU in plan — 2 blocks shown ===== -->
-            <!-- The plan view: top = exterior face, bottom = interior face -->
-            <!-- Wall runs left-right. Thickness direction is top-bottom in this drawing. -->
-            <!-- Each block is nominally 16" long × 7.625" deep. Scale: about 8px per inch -->
-            <!-- 16" → 80px wide per block (showing 2 blocks = 160px) -->
-            <!-- 7.625" → 95px deep -->
-            <!-- Face shell: 1.25" → 16px deep -->
-            <!-- Core: 5.125" → 63px deep -->
-
-            <!-- Exterior face shell (full width) -->
-            <rect x="25" y="38" width="160" height="16" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
-
-            <!-- Interior face shell (full width) -->
-            <rect x="25" y="117" width="160" height="16" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>
-
-            <!-- Left end web (block 1 left edge) -->
-            <rect x="25" y="54" width="11" height="63" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
-
-            <!-- Middle web (between block 1 & 2) -->
-            <rect x="102" y="54" width="11" height="63" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
-
-            <!-- Right end web -->
-            <rect x="174" y="54" width="11" height="63" fill="#9ca3af" stroke="#374151" stroke-width="0.8"/>
-
-            <!-- Cell 1 (left) — EMPTY (hollow) -->
-            <rect x="36" y="54" width="66" height="63" fill="#f3f4f6" stroke="#d1d5db" stroke-width="0.8"/>
-            <text x="69" y="89" font-size="8" fill="#9ca3af" text-anchor="middle">hollow</text>
-
-            <!-- Cell 2 (right) — GROUTED with rebar -->
-            <rect x="113" y="54" width="61" height="63" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.8"/>
-            <text x="143" y="66" font-size="7" fill="#1d4ed8" text-anchor="middle" font-style="italic">grout</text>
-            <!-- Rebar circle in grouted cell (towards interior face → lower y) -->
-            <circle cx="143" cy="102" r="5" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
-            <text x="155" y="104" font-size="7" fill="#dc2626" font-weight="700">As</text>
-
-            <!-- Compression rebar circle (double reinf — near exterior face) -->
-            <circle cx="143" cy="62" r="3.5" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="0.8" opacity="0.45" id="compBarSymbol"/>
-            <text x="130" y="58" font-size="6" fill="#1d4ed8" opacity="0.5" id="compBarLabel">A's</text>
-
-            <!-- Joint between blocks (head joint) -->
-            <rect x="102" y="38" width="11" height="95" fill="#9ca3af" stroke="#374151" stroke-width="0.5"/>
-
-            <!-- d dimension: exterior face to rebar (in thickness direction) -->
-            <line x1="8" y1="54" x2="8" y2="102" stroke="#dc2626" stroke-width="1" marker-start="url(#aUr)" marker-end="url(#aDr)"/>
-            <text x="11" y="82" font-size="8" fill="#dc2626" font-weight="700">d</text>
-
-            <!-- t dimension: total wall thickness -->
-            <line x1="193" y1="38" x2="193" y2="133" stroke="#d97706" stroke-width="1" marker-start="url(#aUy2)" marker-end="url(#aDy2)"/>
-            <text x="197" y="90" font-size="8" fill="#d97706" font-weight="700">t</text>
-
-            <!-- tfs dimension: face shell -->
-            <line x1="200" y1="38" x2="200" y2="54" stroke="#374151" stroke-width="1" marker-start="url(#aUy2)" marker-end="url(#aDy2)"/>
-            <text x="200" y="47" font-size="6.5" fill="#374151">t<tspan dy="1.5" font-size="5">fs</tspan></text>
-
-            <!-- OOP wind arrow (from exterior — pointing "into" the cross-section) -->
-            <line x1="105" y1="15" x2="105" y2="35" stroke="#2563eb" stroke-width="2" marker-end="url(#aRb)" transform="rotate(90,105,25)"/>
-            <text x="105" y="15" font-size="8" fill="#2563eb" text-anchor="middle">w →</text>
-
-            <!-- 12" strip label -->
-            <line x1="25" y1="142" x2="185" y2="142" stroke="#6b7280" stroke-width="0.7" stroke-dasharray="2,2"/>
-            <text x="105" y="157" font-size="7.5" fill="#6b7280" text-anchor="middle">← 2 blocks shown (partial grout) →</text>
-
+          <div class="lbl">CMU Plan View (Looking Down)</div>
+          <svg id="cmuPlanSvg" viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg" style="width:100%">
+            <!-- populated by updatePlanDiagram() on load and whenever inputs change -->
           </svg>
         </div>
 
@@ -295,6 +255,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
               <marker id="aLp" markerWidth="7" markerHeight="6" refX="1" refY="3" orient="auto"><path d="M7,0 L0,3 L7,6z" fill="#7c3aed"/></marker>
               <marker id="aDy3" markerWidth="6" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#d97706"/></marker>
               <marker id="aUy3" markerWidth="6" markerHeight="7" refX="3" refY="1" orient="auto"><path d="M0,7 L6,7 L3,0z" fill="#d97706"/></marker>
+              <!-- Correct horizontal dimension arrow using auto-start-reverse -->
+              <marker id="dimOr3" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>
             </defs>
 
             <!-- Wall rectangle -->
@@ -345,10 +307,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
             <line x1="142" y1="190" x2="148" y2="202" stroke="#6b7280" stroke-width="0.7"/>
             <line x1="154" y1="190" x2="160" y2="202" stroke="#6b7280" stroke-width="0.7"/>
 
-            <!-- Lw dimension -->
-            <line x1="30" y1="208" x2="160" y2="208" stroke="#d97706" stroke-width="1" marker-start="url(#aUy3)" marker-end="url(#aDy3)" transform="rotate(90,95,208)"/>
-            <line x1="30" y1="206" x2="160" y2="206" stroke="#d97706" stroke-width="1"/>
-            <text x="95" y="210" font-size="9" fill="#d97706" font-weight="700" text-anchor="middle">L<tspan dy="2" font-size="6.5">w</tspan></text>
+            <!-- Lw dimension — horizontal double-headed arrow, tips point outward -->
+            <line x1="30" y1="206" x2="160" y2="206" stroke="#d97706" stroke-width="1" marker-start="url(#dimOr3)" marker-end="url(#dimOr3)"/>
+            <text x="95" y="214" font-size="9" fill="#d97706" font-weight="700" text-anchor="middle">L<tspan dy="2" font-size="6.5">w</tspan></text>
 
             <!-- Legend small -->
             <rect x="130" y="55" width="7" height="4" fill="#93c5fd"/>
@@ -463,7 +424,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           </div>
           <div class="ig">
             <label>OOP Bar Spacing s <span class="unit">in</span></label>
-            <input type="number" id="sOOP" value="32" step="4" min="8">
+            <input type="number" id="sOOP" value="32" step="4" min="8" onchange="updatePlanDiagram()">
             <span class="hint">C-C spacing of vertical bars</span>
           </div>
           <div class="ig">
@@ -640,6 +601,7 @@ function fk(v){return (v/1000).toFixed(2);}
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('dOOP').addEventListener('input', function() { dOOP_userEdited = true; });
   updateHints();
+  updatePlanDiagram();
   // Read URL params
   var params = new URLSearchParams(window.location.search);
   if (params.has('cc_press')) {
@@ -684,16 +646,13 @@ function updateHints() {
   if (!dOOP_userEdited) {
     document.getElementById('dOOP').value = sugD;
   }
+  updatePlanDiagram();
 }
 
 function toggleDoubleReinf() {
   var isDouble = document.getElementById('rfType').value === 'double';
   document.getElementById('dblRow').style.display = isDouble ? 'block' : 'none';
-  // Show compression bar on SVG (faint)
-  var sym = document.getElementById('compBarSymbol');
-  var lbl = document.getElementById('compBarLabel');
-  if (sym) { sym.style.opacity = isDouble ? '1' : '0.2'; }
-  if (lbl) { lbl.style.opacity = isDouble ? '1' : '0.2'; }
+  updatePlanDiagram();
 }
 
 function toggleManualM() {
@@ -1136,6 +1095,136 @@ function runChecks() {
 
   document.getElementById('resultsDiv').className='results show';
   document.getElementById('resultsDiv').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ============================================================
+// CMU PLAN VIEW — live diagram (updates on input changes)
+// ============================================================
+function updatePlanDiagram() {
+  var svg = document.getElementById('cmuPlanSvg');
+  if (!svg) return;
+  var sVal   = parseFloat(document.getElementById('sOOP').value) || 32;
+  var wSize  = parseInt(document.getElementById('wSize').value);
+  var grout  = document.getElementById('grout').value;
+  var rfType = document.getElementById('rfType').value;
+  var c = CMU_DIMS[wSize];
+  var t = c.t, tfs = c.tfs;
+
+  // CMU cells are 8" C/C; show one full repeat (sVal/8 cells, capped 1–8)
+  var nCells = Math.max(1, Math.min(8, Math.round(sVal / 8)));
+  var cellPx = 22;           // px per 8" cell
+  var scale  = 9.5;          // px per inch (wall depth direction)
+  var wallD  = Math.round(t   * scale);
+  var fsD    = Math.round(tfs * scale);
+  var coreD  = wallD - 2 * fsD;
+
+  var mL = 16, mT = 26, mB = 52, mR = 38;
+  var cellsW = nCells * cellPx;
+  var svgW   = mL + cellsW + mR;
+  var svgH   = mT + wallD  + mB;
+  svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
+
+  var x0    = mL;
+  var extY  = mT;
+  var coreY = extY + fsD;
+  var intY  = extY + wallD - fsD;
+  var endX  = x0 + cellsW;
+
+  var html = '<defs>'
+    + '<marker id="dimPOr" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>'
+    + '<marker id="dimPRed" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#dc2626"/></marker>'
+    + '</defs>';
+
+  // Labels
+  html += '<text x="' + (x0 + cellsW/2) + '" y="16" font-size="7.5" fill="#6b7280" text-anchor="middle">EXTERIOR FACE</text>';
+  html += '<text x="' + (x0 + cellsW/2) + '" y="' + (intY + fsD + 13) + '" font-size="7.5" fill="#6b7280" text-anchor="middle">INTERIOR FACE</text>';
+
+  // Exterior face shell
+  html += '<rect x="' + x0 + '" y="' + extY + '" width="' + cellsW + '" height="' + fsD + '" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>';
+  // Interior face shell
+  html += '<rect x="' + x0 + '" y="' + intY + '" width="' + cellsW + '" height="' + fsD + '" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>';
+
+  // Cells
+  for (var i = 0; i < nCells; i++) {
+    var cx = x0 + i * cellPx;
+    var isGrouted = (grout === 'full') || (i === nCells - 1);
+    html += '<rect x="' + cx + '" y="' + coreY + '" width="' + cellPx + '" height="' + coreD + '" fill="' + (isGrouted ? '#bfdbfe' : '#f3f4f6') + '" stroke="' + (isGrouted ? '#93c5fd' : '#d1d5db') + '" stroke-width="0.8"/>';
+    if (isGrouted && coreD > 10) {
+      html += '<text x="' + (cx+cellPx/2) + '" y="' + (coreY+Math.min(10,coreD-3)) + '" font-size="6" fill="#1d4ed8" text-anchor="middle" font-style="italic">grout</text>';
+      // Tension rebar (near interior face = larger y in top-down view)
+      var rbY = intY - 5;
+      html += '<circle cx="' + (cx+cellPx/2) + '" cy="' + rbY + '" r="3" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>';
+      if (i === nCells - 1) {
+        html += '<text x="' + (cx+cellPx/2+5) + '" y="' + (rbY+3) + '" font-size="7" fill="#dc2626" font-weight="700">As</text>';
+      }
+      // Compression rebar near exterior face (double reinforced)
+      if (rfType === 'double') {
+        var cbY = extY + fsD + 5;
+        html += '<circle cx="' + (cx+cellPx/2) + '" cy="' + cbY + '" r="2.5" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="0.8"/>';
+        if (i === nCells - 1) html += '<text x="' + (cx+cellPx/2+4) + '" y="' + (cbY+3) + '" font-size="6.5" fill="#1d4ed8" font-weight="700">A\'s</text>';
+      }
+    }
+    // Web divider between cells
+    if (i < nCells - 1) {
+      html += '<line x1="' + (cx+cellPx) + '" y1="' + coreY + '" x2="' + (cx+cellPx) + '" y2="' + (coreY+coreD) + '" stroke="#374151" stroke-width="1"/>';
+    }
+  }
+
+  // t dimension (right side, vertical)
+  var dimX = endX + 10;
+  html += '<line x1="' + dimX + '" y1="' + extY + '" x2="' + dimX + '" y2="' + (intY+fsD) + '" stroke="#d97706" stroke-width="1" marker-start="url(#dimPOr)" marker-end="url(#dimPOr)"/>';
+  html += '<text x="' + (dimX+4) + '" y="' + (extY+wallD/2+3) + '" font-size="7.5" fill="#d97706" font-weight="700">t</text>';
+
+  // Rebar spacing dimension (bottom, red)
+  var spcY = intY + fsD + 28;
+  html += '<line x1="' + x0 + '" y1="' + spcY + '" x2="' + endX + '" y2="' + spcY + '" stroke="#dc2626" stroke-width="1" marker-start="url(#dimPRed)" marker-end="url(#dimPRed)"/>';
+  html += '<text x="' + (x0+cellsW/2) + '" y="' + (spcY+11) + '" font-size="7.5" fill="#dc2626" font-weight="700" text-anchor="middle">s = ' + sVal + '&Prime; (8&Prime; C/C cells)</text>';
+
+  svg.innerHTML = html;
+}
+
+// ============================================================
+// SAVE / LOAD STATE
+// ============================================================
+function saveState() {
+  var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','Paxial','ecc',
+             'wWind','mCalcType','MoopManual','vIP','Lwall','MVdv',
+             'barOOP','sOOP','dOOP','barOOP2','sOOP2','dOOP2','barIP','sIP'];
+  var state = {saved: new Date().toISOString()};
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) state[id] = el.value;
+  });
+  var blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'MasonryWall_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadState(evt) {
+  var file = evt.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var s = JSON.parse(e.target.result);
+      var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','Paxial','ecc',
+                 'wWind','mCalcType','MoopManual','vIP','Lwall','MVdv',
+                 'barOOP','sOOP','dOOP','barOOP2','sOOP2','dOOP2','barIP','sIP'];
+      ids.forEach(function(id){
+        var el = document.getElementById(id);
+        if (el && s[id] !== undefined) el.value = s[id];
+      });
+      if (s.dOOP !== undefined) dOOP_userEdited = true;
+      toggleDoubleReinf();
+      toggleManualM();
+      updateHints();
+    } catch(err) { alert('Could not load file: ' + err.message); }
+    evt.target.value = '';
+  };
+  reader.readAsText(file);
 }
 </script>
 </body>
