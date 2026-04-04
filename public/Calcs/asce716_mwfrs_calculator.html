@@ -52,6 +52,12 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 .send-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
 .send-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:7px 16px;border-radius:6px;cursor:pointer;font-size:.82em;font-weight:700;white-space:nowrap}
 .send-btn:hover{opacity:.9}
+.save-load-bar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.sl-btn{background:none;border:1.5px solid #2a5298;border-radius:6px;padding:5px 14px;font-size:.8em;font-weight:700;color:#1e3c72;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s}
+.sl-btn:hover{background:#e8f0fb}
+.sl-btn.save{border-color:#15803d;color:#15803d}
+.sl-btn.save:hover{background:#f0fdf4}
+.sl-label{font-size:.77em;color:#718096}
 @page{size:letter portrait;margin:.45in .5in .45in .5in}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -90,6 +96,12 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       <div class="ig" style="flex:1"><label>Job No.</label><input type="text" id="projNum" placeholder="2025-001"/></div>
       <div class="ig" style="flex:1"><label>Date</label><input type="date" id="projDate"/></div>
       <div class="ig" style="flex:1"><label>Engineer</label><input type="text" id="projEng" placeholder="Initials"/></div>
+    </div>
+    <div class="save-load-bar">
+      <button class="sl-btn save" onclick="saveInputsMWFRS()" title="Save all inputs to a .json file">💾 Save Inputs</button>
+      <button class="sl-btn" onclick="document.getElementById('mwfrsLoadFile').click()" title="Load previously saved inputs">📂 Load Inputs</button>
+      <input type="file" id="mwfrsLoadFile" accept=".json" style="display:none" onchange="loadInputsMWFRS(this)"/>
+      <span class="sl-label">Save / restore all inputs as a .json file</span>
     </div>
   </div>
 </div>
@@ -838,8 +850,8 @@ function drawMWFRSDiagram(){
   // mr: East wall label + D dim string zone
   // mt: North wall label + N compass zone
   // mb: B dim string + South wall label zone
-  var W=580, H=370;
-  var ml=76, mr=92, mt=52, mb=80;
+  var W=600, H=370;
+  var ml=76, mr=112, mt=52, mb=80;
   var bldW=W-ml-mr, bldH=H-mt-mb;
 
   // Scale building proportionally to fit inside bld zone
@@ -877,9 +889,9 @@ function drawMWFRSDiagram(){
   var dimBY=by2+20;     // dim line y
   var dimBTextY=by2+36; // text y
 
-  // D dim string (right of building) — dedicated zone: bx2+8 to bx2+72
-  var dimDX=bx2+20;     // dim line x
-  var dimDTextX=bx2+54; // text x (rotated)
+  // D dim string (right of building) — starts after EAST WALL label zone (bx2+28)
+  var dimDX=bx2+44;     // dim line x (clear of EAST WALL label at bx2+14)
+  var dimDTextX=bx2+72; // text x (rotated)
 
   // South wall label — below B dim string
   var southY=dimBTextY+20;
@@ -947,9 +959,9 @@ function drawMWFRSDiagram(){
     +' font-size="11" fill="#374151">B (EW width)</text>'
 
     // ── D dimension string (right of building) ────────────────────────
-    // Extension ticks
-    +'<line x1="'+(bx2+4)+'" y1="'+by+'" x2="'+(bx2+26)+'" y2="'+by+'" stroke="#555" stroke-width="1"/>'
-    +'<line x1="'+(bx2+4)+'" y1="'+by2+'" x2="'+(bx2+26)+'" y2="'+by2+'" stroke="#555" stroke-width="1"/>'
+    // Extension ticks (start after EAST WALL label)
+    +'<line x1="'+(bx2+28)+'" y1="'+by+'" x2="'+(bx2+50)+'" y2="'+by+'" stroke="#555" stroke-width="1"/>'
+    +'<line x1="'+(bx2+28)+'" y1="'+by2+'" x2="'+(bx2+50)+'" y2="'+by2+'" stroke="#555" stroke-width="1"/>'
     // Dimension line with outward-pointing arrows (vertical, from by to by2)
     +'<line x1="'+dimDX+'" y1="'+by+'" x2="'+dimDX+'" y2="'+by2
     +'" stroke="#555" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
@@ -972,15 +984,91 @@ function drawMWFRSDiagram(){
     +'<text x="'+(axX0)+'" y="'+(axY0-32)+'" text-anchor="middle" dominant-baseline="auto"'
     +' font-size="10" fill="#555" font-weight="700">Y (N)</text>'
 
-    // ── North arrow (top margin, right side) ──────────────────────────
-    +'<text x="'+(W-16)+'" y="'+(mt-28)+'" text-anchor="middle" dominant-baseline="auto"'
-    +' font-size="13" fill="#cc0044" font-weight="900">N</text>'
-    +'<line x1="'+(W-16)+'" y1="'+(mt-24)+'" x2="'+(W-16)+'" y2="'+(mt-12)
-    +'" stroke="#cc0044" stroke-width="1.5" marker-end="url(#arWX)"/>'
+    // ── North arrow (top-left, compact compass) ───────────────────────
+    +'<line x1="55" y1="42" x2="55" y2="18" stroke="#cc0044" stroke-width="2" marker-end="url(#arWX)"/>'
+    +'<text x="55" y="14" text-anchor="middle" dominant-baseline="alphabetic"'
+    +' font-size="12" fill="#cc0044" font-weight="900">N</text>'
 
     +'</svg>';
 
   wrap.innerHTML=svg;
+}
+
+// ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
+function saveInputsMWFRS(){
+  var storyRows=document.getElementById('storyRows').children;
+  var stories=[];
+  for(var i=0;i<storyRows.length;i++){
+    stories.push({
+      label: storyRows[i].querySelector('input[type=text]').value,
+      h: storyRows[i].querySelector('.sh').value
+    });
+  }
+  var data={
+    _version:1, _calc:'mwfrs',
+    projName: document.getElementById('projName').value,
+    projNum:  document.getElementById('projNum').value,
+    projDate: document.getElementById('projDate').value,
+    projEng:  document.getElementById('projEng').value,
+    V:     document.getElementById('V').value,
+    exp:   document.getElementById('exp').value,
+    encl:  document.getElementById('encl').value,
+    Kzt:   document.getElementById('Kzt').value,
+    Ke:    document.getElementById('Ke').value,
+    B:     document.getElementById('B').value,
+    D:     document.getElementById('D').value,
+    h:     document.getElementById('h').value,
+    roofType: document.getElementById('roofType').value,
+    theta: document.getElementById('theta').value,
+    hp:    document.getElementById('hp').value,
+    stories: stories
+  };
+  var proj=data.projName||data.projNum||'mwfrs';
+  var fname=proj.replace(/[^a-z0-9_\-]/gi,'_').replace(/_+/g,'_')+'_mwfrs.json';
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadInputsMWFRS(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var d=JSON.parse(e.target.result);
+      if(d._calc!=='mwfrs'){alert('This file is not an MWFRS calculator save file.');return;}
+      var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined)el.value=v;};
+      set('projName',d.projName); set('projNum',d.projNum);
+      set('projDate',d.projDate); set('projEng',d.projEng);
+      set('V',d.V); set('exp',d.exp); set('encl',d.encl);
+      set('Kzt',d.Kzt); set('Ke',d.Ke);
+      set('B',d.B); set('D',d.D); set('h',d.h);
+      set('roofType',d.roofType); set('theta',d.theta); set('hp',d.hp);
+      toggleRoofInputs();
+      // Rebuild story rows
+      if(d.stories&&d.stories.length){
+        var container=document.getElementById('storyRows');
+        container.innerHTML='';
+        d.stories.forEach(function(s,i){
+          var div=document.createElement('div');
+          div.className='story-row row'; div.dataset.idx=i;
+          div.innerHTML='<div class="ig" style="flex:0 0 70px"><label>Story</label>'
+            +'<input type="text" value="'+s.label+'" '+(i===0?'readonly ':'')+'style="background:#f7fafc"/></div>'
+            +'<div class="ig"><label>Floor-to-Floor Height (ft)</label>'
+            +'<input type="number" class="sh" value="'+s.h+'" min="1" step="0.5"/></div>'
+            +'<button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>';
+          container.appendChild(div);
+        });
+      }
+      drawMWFRSDiagram();
+      alert('Inputs loaded successfully.');
+    }catch(err){alert('Error reading file: '+err.message);}
+  };
+  reader.readAsText(file);
+  input.value=''; // reset so same file can be re-loaded
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────

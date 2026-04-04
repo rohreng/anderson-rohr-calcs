@@ -52,6 +52,12 @@ svg.diagram{max-width:100%;border-radius:8px}
 .metric .val{font-size:1.15em;font-weight:700;color:#1e3c72;margin-top:2px}
 .metric .val.warn-val{color:#dc2626}
 .metric .val.ok-val{color:#15803d}
+.save-load-bar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.sl-btn{background:none;border:1.5px solid #2a5298;border-radius:6px;padding:5px 14px;font-size:.8em;font-weight:700;color:#1e3c72;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s}
+.sl-btn:hover{background:#e8f0fb}
+.sl-btn.save{border-color:#15803d;color:#15803d}
+.sl-btn.save:hover{background:#f0fdf4}
+.sl-label{font-size:.77em;color:#718096}
 @page{size:letter portrait;margin:.45in .5in .45in .5in}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -96,6 +102,12 @@ svg.diagram{max-width:100%;border-radius:8px}
       <div class="ig"><label>Level / Diaphragm</label><input type="text" id="level" placeholder="Roof, Floor 2…"/></div>
       <div class="ig"><label>Date</label><input type="date" id="projDate"/></div>
       <div class="ig"><label>Engineer</label><input type="text" id="projEng" placeholder="Initials"/></div>
+    </div>
+    <div class="save-load-bar">
+      <button class="sl-btn save" onclick="saveInputsDia()" title="Save all inputs to a .json file">💾 Save Inputs</button>
+      <button class="sl-btn" onclick="document.getElementById('diaLoadFile').click()" title="Load previously saved inputs">📂 Load Inputs</button>
+      <input type="file" id="diaLoadFile" accept=".json" style="display:none" onchange="loadInputsDia(this)"/>
+      <span class="sl-label">Save / restore all inputs as a .json file</span>
     </div>
   </div>
 </div>
@@ -749,6 +761,87 @@ function calculate(){
 
   updateDiagram();
 })();
+
+// ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
+function saveInputsDia(){
+  function getSWRows(dir){
+    var rows=[];
+    document.querySelectorAll('#sw'+dir+' .sw-row').forEach(function(row){
+      rows.push({
+        label: row.querySelector('.sw-label').value,
+        len:   row.querySelector('.sw-len').value,
+        loc:   row.querySelector('.sw-loc').value
+      });
+    });
+    return rows;
+  }
+  var data={
+    _version:1, _calc:'diaphragm',
+    projName: document.getElementById('projName').value,
+    level:    document.getElementById('level').value,
+    projDate: document.getElementById('projDate').value,
+    projEng:  document.getElementById('projEng').value,
+    B:    document.getElementById('B').value,
+    D:    document.getElementById('D').value,
+    Vx:   document.getElementById('Vx').value,
+    Vy:   document.getElementById('Vy').value,
+    Vx_s: document.getElementById('Vx_s').value,
+    Vy_s: document.getElementById('Vy_s').value,
+    swX:  getSWRows('X'),
+    swY:  getSWRows('Y')
+  };
+  var proj=data.projName||data.level||'diaphragm';
+  var lvl=data.level?'_'+data.level:'';
+  var fname=(proj+lvl).replace(/[^a-z0-9_\-]/gi,'_').replace(/_+/g,'_')+'_diaphragm.json';
+  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadInputsDia(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var d=JSON.parse(e.target.result);
+      if(d._calc!=='diaphragm'){alert('This file is not a Diaphragm Designer save file.');return;}
+      var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined)el.value=v;};
+      set('projName',d.projName); set('level',d.level);
+      set('projDate',d.projDate); set('projEng',d.projEng);
+      set('B',d.B); set('D',d.D);
+      set('Vx',d.Vx); set('Vy',d.Vy);
+      set('Vx_s',d.Vx_s); set('Vy_s',d.Vy_s);
+      // Rebuild shearwall rows
+      function buildSWRows(dir, rows){
+        var container=document.getElementById('sw'+dir);
+        container.innerHTML='';
+        var B=parseFloat(d.B)||60, D=parseFloat(d.D)||120;
+        var locHint=dir==='X'?'Location — dist. from W (ft)':'Location — dist. from S (ft)';
+        rows.forEach(function(sw){
+          var div=document.createElement('div');
+          div.className='sw-row'; div.dataset.dir=dir;
+          div.innerHTML='<div class="ig"><label>Line Label</label>'
+            +'<input type="text" value="'+sw.label+'" class="sw-label" oninput="updateDiagram()"/></div>'
+            +'<div class="ig"><label>Total SW Length (ft)</label>'
+            +'<input type="number" class="sw-len" value="'+sw.len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
+            +'<div class="ig"><label>'+locHint+'</label>'
+            +'<input type="number" class="sw-loc" value="'+sw.loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
+            +'<button onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
+          container.appendChild(div);
+        });
+      }
+      if(d.swX&&d.swX.length) buildSWRows('X',d.swX);
+      if(d.swY&&d.swY.length) buildSWRows('Y',d.swY);
+      updateDiagram();
+      alert('Inputs loaded successfully.');
+    }catch(err){alert('Error reading file: '+err.message);}
+  };
+  reader.readAsText(file);
+  input.value='';
+}
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
