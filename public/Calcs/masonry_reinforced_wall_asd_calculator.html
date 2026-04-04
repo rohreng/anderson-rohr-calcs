@@ -136,8 +136,14 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <!-- IMPORT PANEL -->
     <div class="import-panel">
       <span>&#8594; Import from other ARE calculators:</span>
-      <button class="imp-btn" onclick="openCCCalc()">&#128250; Open C&amp;C Wind Calc</button>
-      <button class="imp-btn" onclick="openDiaphCalc()">&#128250; Open Diaphragm Calc</button>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <button class="imp-btn" onclick="openCCCalc()">&#128250; Open C&amp;C Wind Calc</button>
+        <button class="imp-btn" onclick="loadCCFromMemory()" title="Load last C&C result saved in browser memory" style="background:#059669">&#9654; Load C&amp;C from Memory</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+        <button class="imp-btn" onclick="openDiaphCalc()">&#128250; Open Diaphragm Calc</button>
+        <button class="imp-btn" onclick="loadDiaphFromMemory()" title="Load last Diaphragm result saved in browser memory" style="background:#059669">&#9654; Load Diaphragm from Memory</button>
+      </div>
       <div id="impNote" class="imp-note"></div>
     </div>
 
@@ -160,6 +166,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
               <marker id="aDark" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6z" fill="#374151"/></marker>
               <!-- Dimension arrows: auto-start-reverse makes start arrow point OUTWARD correctly -->
               <marker id="dimOr" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#d97706"/></marker>
+              <!-- Red dimension arrow for 'd' label -->
+              <marker id="dimRed" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#dc2626"/></marker>
             </defs>
 
             <!-- Exterior face shell (section hatch = gray filled) -->
@@ -195,9 +203,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
             <line x1="107" y1="174" x2="114" y2="166" stroke="#555" stroke-width="0.5" opacity="0.6"/>
             <line x1="107" y1="186" x2="114" y2="178" stroke="#555" stroke-width="0.5" opacity="0.6"/>
 
-            <!-- Face labels -->
-            <text x="81" y="14" font-size="6.5" fill="#374151" text-anchor="middle">EXT.</text>
-            <text x="111" y="14" font-size="6.5" fill="#374151" text-anchor="middle">INT.</text>
+            <!-- Face labels — vertical text centered in face shells at mid-height (avoids overlap with pin supports) -->
+            <text x="81.5" y="104" font-size="5.5" fill="#374151" text-anchor="middle" transform="rotate(-90,81.5,104)">EXT.</text>
+            <text x="110.5" y="104" font-size="5.5" fill="#374151" text-anchor="middle" transform="rotate(-90,110.5,104)">INT.</text>
 
             <!-- Wind arrows (OOP) — horizontal, from exterior face inward (left to right) -->
             <line x1="14" y1="44" x2="76" y2="44" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aR)"/>
@@ -212,9 +220,12 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
             <line x1="96" y1="3" x2="96" y2="20" stroke="#374151" stroke-width="1.5" marker-end="url(#aDark)"/>
             <text x="152" y="15" font-size="9" fill="#374151" font-weight="700">P</text>
 
-            <!-- Rebar (tension side = near interior face) -->
-            <circle cx="104" cy="104" r="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>
-            <text x="117" y="107" font-size="8" fill="#dc2626" font-weight="700">As</text>
+            <!-- Rebar — vertical dashed line, tension steel near interior face, full height -->
+            <line x1="105" y1="22" x2="105" y2="186" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3"/>
+            <text x="118" y="82" font-size="7.5" fill="#dc2626" font-weight="700">As</text>
+            <!-- d dimension: horizontal from exterior face to rebar centerline -->
+            <line x1="79" y1="33" x2="104" y2="33" stroke="#dc2626" stroke-width="0.8" marker-start="url(#dimRed)" marker-end="url(#dimRed)"/>
+            <text x="91" y="31" font-size="6" fill="#dc2626" font-weight="700" text-anchor="middle">d</text>
 
             <!-- Pin support at bottom -->
             <polygon points="96,186 88,198 104,198" fill="none" stroke="#374151" stroke-width="1.5"/>
@@ -424,8 +435,16 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           </div>
           <div class="ig">
             <label>OOP Bar Spacing s <span class="unit">in</span></label>
-            <input type="number" id="sOOP" value="32" step="4" min="8" onchange="updatePlanDiagram()">
-            <span class="hint">C-C spacing of vertical bars</span>
+            <select id="sOOP" onchange="updatePlanDiagram()">
+              <option value="8">8&Prime;</option>
+              <option value="16">16&Prime;</option>
+              <option value="24">24&Prime;</option>
+              <option value="32" selected>32&Prime;</option>
+              <option value="40">40&Prime;</option>
+              <option value="48">48&Prime;</option>
+              <option value="56">56&Prime;</option>
+            </select>
+            <span class="hint">C-C spacing of vertical bars (8&Prime; cell grid)</span>
           </div>
           <div class="ig">
             <label>Effective Depth d <span class="unit">in</span></label>
@@ -571,8 +590,8 @@ var CMU_DIMS = {
   10: {t:9.625,  tfs:1.375},
   12: {t:11.625, tfs:1.50}
 };
-var CC_CALC_PATH   = '../ARE Web Calcs/anderson-rohr-calcs/public/Calcs/asce716_cc_wind_calculator.html';
-var DIAP_CALC_PATH = '../ARE Web Calcs/anderson-rohr-calcs/public/Calcs/rectangular_diaphragm_calculator.html';
+var CC_CALC_PATH   = 'asce716_cc_wind_calculator.html';
+var DIAP_CALC_PATH = 'rectangular_diaphragm_calculator.html';
 
 // Track if user has manually edited d to avoid auto-resetting
 var dOOP_userEdited = false;
@@ -660,9 +679,35 @@ function toggleManualM() {
     (document.getElementById('mCalcType').value === 'manual') ? 'flex' : 'none';
 }
 
-function openCCCalc()   { window.open(CC_CALC_PATH   + '?target=masonry_wall&return='+encodeURIComponent(window.location.href), '_blank'); }
-function openDiaphCalc(){ window.open(DIAP_CALC_PATH + '?target=masonry_wall&return='+encodeURIComponent(window.location.href), '_blank'); }
+function openCCCalc()   { window.open(CC_CALC_PATH,   '_blank'); }
+function openDiaphCalc(){ window.open(DIAP_CALC_PATH, '_blank'); }
 function showImportNote(msg){ var e=document.getElementById('impNote'); e.textContent='\u2713 '+msg; e.style.display='block'; }
+
+function loadCCFromMemory() {
+  try {
+    var data = JSON.parse(localStorage.getItem('ARE_cc_wind') || 'null');
+    if (!data || !data.govP) {
+      alert('No C\u0026C wind data found in browser memory.\nRun the C\u0026C Wind Calc on this site \u2014 it saves automatically.');
+      return;
+    }
+    document.getElementById('wWind').value = (Math.round(data.govP * 10) / 10).toFixed(1);
+    showImportNote('C\u0026C wind pressure loaded: ' + data.govP.toFixed(1) + ' psf' + (data.zone ? ' (Zone: ' + data.zone + ')' : ''));
+  } catch(e) { alert('Error reading C\u0026C data from browser memory.'); }
+}
+
+function loadDiaphFromMemory() {
+  try {
+    var data = JSON.parse(localStorage.getItem('ARE_diaphragm') || 'null');
+    if (!data || (!data.gov_v_x && !data.gov_v_y)) {
+      alert('No diaphragm data found in browser memory.\nRun the Diaphragm Calc on this site \u2014 it saves automatically.');
+      return;
+    }
+    var vMax = Math.max(data.gov_v_x || 0, data.gov_v_y || 0);
+    document.getElementById('vIP').value = Math.round(vMax);
+    if (data.B) document.getElementById('Lwall').value = data.B;
+    showImportNote('Diaphragm shear loaded: ' + Math.round(vMax) + ' plf (governing EW/NS)' + (data.B ? ' | L\u1d21 = ' + data.B + ' ft' : ''));
+  } catch(e) { alert('Error reading diaphragm data from browser memory.'); }
+}
 
 // ============================================================
 // MAIN CALCULATION
@@ -1103,24 +1148,25 @@ function runChecks() {
 function updatePlanDiagram() {
   var svg = document.getElementById('cmuPlanSvg');
   if (!svg) return;
-  var sVal   = parseFloat(document.getElementById('sOOP').value) || 32;
+  var sVal   = parseInt(document.getElementById('sOOP').value) || 32;
   var wSize  = parseInt(document.getElementById('wSize').value);
   var grout  = document.getElementById('grout').value;
   var rfType = document.getElementById('rfType').value;
   var c = CMU_DIMS[wSize];
   var t = c.t, tfs = c.tfs;
 
-  // CMU cells are 8" C/C; show one full repeat (sVal/8 cells, capped 1–8)
-  var nCells = Math.max(1, Math.min(8, Math.round(sVal / 8)));
-  var cellPx = 22;           // px per 8" cell
+  // Always show 7 cells (56" total width); which cells are grouted depends on sVal
+  // Cell position (in inches) = i * 8; grouted when cellPos % sVal === 0
+  var nCells = 7;
+  var cellPx = 21;           // px per 8" cell (7×21 = 147px = 56")
   var scale  = 9.5;          // px per inch (wall depth direction)
   var wallD  = Math.round(t   * scale);
   var fsD    = Math.round(tfs * scale);
   var coreD  = wallD - 2 * fsD;
 
-  var mL = 16, mT = 26, mB = 52, mR = 38;
-  var cellsW = nCells * cellPx;
-  var svgW   = mL + cellsW + mR;
+  var mL = 12, mT = 26, mB = 52, mR = 36;
+  var cellsW = nCells * cellPx;   // always 147
+  var svgW   = mL + cellsW + mR;  // always 195
   var svgH   = mT + wallD  + mB;
   svg.setAttribute('viewBox', '0 0 ' + svgW + ' ' + svgH);
 
@@ -1144,24 +1190,30 @@ function updatePlanDiagram() {
   // Interior face shell
   html += '<rect x="' + x0 + '" y="' + intY + '" width="' + cellsW + '" height="' + fsD + '" fill="#9ca3af" stroke="#374151" stroke-width="1.2"/>';
 
-  // Cells
+  // Find last grouted cell index for labeling
+  var lastGroutedI = -1;
+  for (var j = 0; j < nCells; j++) {
+    if (grout === 'full' || (j * 8) % sVal === 0) lastGroutedI = j;
+  }
+
+  // Cells — grouted when (i*8) % sVal === 0 or fully grouted
   for (var i = 0; i < nCells; i++) {
     var cx = x0 + i * cellPx;
-    var isGrouted = (grout === 'full') || (i === nCells - 1);
+    var isGrouted = (grout === 'full') || ((i * 8) % sVal === 0);
     html += '<rect x="' + cx + '" y="' + coreY + '" width="' + cellPx + '" height="' + coreD + '" fill="' + (isGrouted ? '#bfdbfe' : '#f3f4f6') + '" stroke="' + (isGrouted ? '#93c5fd' : '#d1d5db') + '" stroke-width="0.8"/>';
     if (isGrouted && coreD > 10) {
       html += '<text x="' + (cx+cellPx/2) + '" y="' + (coreY+Math.min(10,coreD-3)) + '" font-size="6" fill="#1d4ed8" text-anchor="middle" font-style="italic">grout</text>';
       // Tension rebar (near interior face = larger y in top-down view)
       var rbY = intY - 5;
       html += '<circle cx="' + (cx+cellPx/2) + '" cy="' + rbY + '" r="3" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>';
-      if (i === nCells - 1) {
+      if (i === lastGroutedI) {
         html += '<text x="' + (cx+cellPx/2+5) + '" y="' + (rbY+3) + '" font-size="7" fill="#dc2626" font-weight="700">As</text>';
       }
       // Compression rebar near exterior face (double reinforced)
       if (rfType === 'double') {
         var cbY = extY + fsD + 5;
         html += '<circle cx="' + (cx+cellPx/2) + '" cy="' + cbY + '" r="2.5" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="0.8"/>';
-        if (i === nCells - 1) html += '<text x="' + (cx+cellPx/2+4) + '" y="' + (cbY+3) + '" font-size="6.5" fill="#1d4ed8" font-weight="700">A\'s</text>';
+        if (i === lastGroutedI) html += '<text x="' + (cx+cellPx/2+4) + '" y="' + (cbY+3) + '" font-size="6.5" fill="#1d4ed8" font-weight="700">A\'s</text>';
       }
     }
     // Web divider between cells
@@ -1175,10 +1227,10 @@ function updatePlanDiagram() {
   html += '<line x1="' + dimX + '" y1="' + extY + '" x2="' + dimX + '" y2="' + (intY+fsD) + '" stroke="#d97706" stroke-width="1" marker-start="url(#dimPOr)" marker-end="url(#dimPOr)"/>';
   html += '<text x="' + (dimX+4) + '" y="' + (extY+wallD/2+3) + '" font-size="7.5" fill="#d97706" font-weight="700">t</text>';
 
-  // Rebar spacing dimension (bottom, red)
+  // Rebar spacing dimension (bottom, red) — always spans full 56" (7 cells)
   var spcY = intY + fsD + 28;
   html += '<line x1="' + x0 + '" y1="' + spcY + '" x2="' + endX + '" y2="' + spcY + '" stroke="#dc2626" stroke-width="1" marker-start="url(#dimPRed)" marker-end="url(#dimPRed)"/>';
-  html += '<text x="' + (x0+cellsW/2) + '" y="' + (spcY+11) + '" font-size="7.5" fill="#dc2626" font-weight="700" text-anchor="middle">s = ' + sVal + '&Prime; (8&Prime; C/C cells)</text>';
+  html += '<text x="' + (x0+cellsW/2) + '" y="' + (spcY+11) + '" font-size="7.5" fill="#dc2626" font-weight="700" text-anchor="middle">s = ' + sVal + '&Prime; o.c. &nbsp;|&nbsp; 7 cells @ 8&Prime; = 56&Prime;</text>';
 
   svg.innerHTML = html;
 }

@@ -422,8 +422,18 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       </div>
     </div>
 
+    <!-- Target 3: Masonry Reinforced Wall -->
+    <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:12px">
+      <div style="font-weight:700;font-size:.95em;margin-bottom:4px">&#x1F9F1; Masonry Reinforced Wall &mdash; ASD</div>
+      <div style="font-size:.82em;color:#374151;margin-bottom:8px">Send selected zone pressure as OOP wind load (psf). Saves to browser memory &amp; opens calc pre-filled.</div>
+      <button onclick="sendToMasonryWall()"
+        style="background:linear-gradient(135deg,#92400e,#d97706);color:#fff;border:none;padding:8px 20px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">
+        &#9654;&nbsp; Send to Masonry Wall Calc
+      </button>
+    </div>
+
     <p style="font-size:.78em;color:#6b7280;margin-top:10px">
-      &#9432;&nbsp; All pressures sent are governing |p| for the selected zone. Verify zone assignment and tributary area against your project drawings.
+      &#9432;&nbsp; All pressures sent are governing |p| for the selected zone. Verify zone assignment and tributary area against your project drawings. Results are also saved to browser memory for use with the &ldquo;Load from Memory&rdquo; button in any calculator on this site.
     </p>
   </div>
 
@@ -1145,6 +1155,19 @@ function runCalc(){
   document.getElementById('sendPanel').style.display = _lastZonePressures.length ? '' : 'none';
   _populateSendZoneDropdown();
 
+  // Save all zone pressures to localStorage for cross-calc import
+  if (_lastZonePressures.length) {
+    var maxZone = _lastZonePressures.reduce(function(best, z){ return z.govP > best.govP ? z : best; });
+    try {
+      localStorage.setItem('ARE_cc_wind', JSON.stringify({
+        govP: maxZone.govP,
+        zone: maxZone.name,
+        allZones: _lastZonePressures,
+        saved: new Date().toISOString()
+      }));
+    } catch(e) {}
+  }
+
   document.getElementById('results').className='results show';
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1274,6 +1297,22 @@ function _sendToMasonry(paramName){
 
 function sendToMasonryShear(){ _sendToMasonry('bvf'); }
 function sendToMasonryTension(){ _sendToMasonry('baf'); }
+
+function sendToMasonryWall(){
+  var info = _getSendZoneInfo();
+  if(!isFinite(info.govP) || info.govP <= 0){ alert('Run the calculation first, then select a zone.'); return; }
+  // Update localStorage with the specifically selected zone
+  try {
+    var stored = JSON.parse(localStorage.getItem('ARE_cc_wind') || '{}');
+    stored.govP = info.govP;
+    stored.zone = info.zoneName;
+    localStorage.setItem('ARE_cc_wind', JSON.stringify(stored));
+  } catch(e) {}
+  var psf = Math.round(info.govP * 10) / 10;
+  var base = location.href.replace(/[^/]*$/, '');
+  var url = base + 'masonry_reinforced_wall_asd_calculator.html?cc_press=' + psf + '&src=cc-wind&zone=' + encodeURIComponent(info.zoneName);
+  window.open(url, '_blank');
+}
 
 // Initialize figure note on load
 updateFigNotes();
