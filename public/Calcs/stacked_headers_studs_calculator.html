@@ -260,6 +260,17 @@ select.ti{cursor:pointer;padding:2px 1px}
 </div>
 
 
+<!-- Export to Foundation Design banner -->
+<div id="exportBanner" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff;border-radius:10px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+  <div>
+    <div style="font-weight:700;font-size:1.05em;margin-bottom:4px">&#9670; Export Lowest Floor Loads → Foundation Design</div>
+    <div style="font-size:.85em;opacity:.9">Sends accumulated DL + LL + Snow (plf) for each wall segment at the <strong>lowest floor</strong> to the Integrated Foundation Calculator.</div>
+  </div>
+  <button onclick="exportToFoundation()" style="background:#fff;color:#5b21b6;border:none;padding:10px 22px;border-radius:7px;font-weight:700;font-size:.93em;cursor:pointer;white-space:nowrap;flex-shrink:0">
+    &#9654;&nbsp; Export to Foundation Design &rarr;
+  </button>
+</div>
+
 <div class="note-box">
   <strong>Engineering Notes (NDS 2018 ASD):</strong>
   <ul>
@@ -268,6 +279,7 @@ select.ti{cursor:pointer;padding:2px 1px}
     <li><strong>King studs:</strong> Size set per header row. Wind trib=(open/2)&times;(ht/2). Point load at top-of-opening. §3.9 combined. C<sub>D</sub>=1.6.</li>
     <li><strong>Wall studs:</strong> Named rows editable; add/remove per floor. Loads stack floor-to-floor. Trial size+spacing per row. Max D/C=0.96. C<sub>r</sub>=1.15.</li>
     <li><strong>All loads UNFACTORED (ASD). Verify load combinations per ASCE 7-22 §2.4.</strong></li>
+    <li><strong>Export:</strong> Click "Export to Foundation Design" above to send the lowest floor's accumulated wall loads (plf) to the integrated grade beam &amp; pier calculator.</li>
   </ul>
 </div>
 
@@ -1055,6 +1067,35 @@ function render(){
     out+='</div>'; // floor-blk
   });
   document.getElementById('floorsContainer').innerHTML=out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXPORT TO FOUNDATION DESIGN
+   Saves lowest-floor accumulated stud loads (plf) to localStorage and opens
+   the integrated grade beam / pier calculator in a new tab.
+═══════════════════════════════════════════════════════════════════════════ */
+function exportToFoundation(){
+  var lastFi = floors.length - 1;
+  var lastFloor = floors[lastFi];
+  var studsData = lastFloor.studs.map(function(s){
+    var ld = calcStudLoads(s, lastFi);
+    return {
+      label: s.label,
+      dlPlf: Math.round(ld.dlPlf),
+      llPlf: Math.round(ld.llPlf),
+      slPlf: Math.round(ld.slPlf)
+    };
+  });
+  var payload = {
+    source: 'stacked-headers',
+    floorName: lastFloor.name,
+    exported: new Date().toLocaleString(),
+    studs: studsData
+  };
+  try { localStorage.setItem('areCalcs_foundationExport', JSON.stringify(payload)); }
+  catch(e){ alert('Could not save to localStorage. Open the integrated calc manually.'); return; }
+  var base = location.href.replace(/[^/]*$/, '');
+  window.open(base + 'headers_gradebeam_pier_calculator.html', '_blank');
 }
 
 </script>
