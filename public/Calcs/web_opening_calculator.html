@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W-Shape Beam — Web Opening Check (AISC Design Guide 2) | ARE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1500px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.green-blk{border-left-color:#16a34a}
+.blk.stiff-blk{border-left-color:#7c3aed}
+.blk.hole-blk{border-left-color:#dc2626}
+.blk.load-blk{border-left-color:#0891b2}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-red{font-size:.7em;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-cyan{font-size:.7em;background:#cffafe;color:#0e7490;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-purple{font-size:.7em;background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.g5{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.sw-hint{font-size:.75em;color:#16a34a;margin-top:3px;font-weight:600}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.add-btn{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;padding:8px 18px;font-size:.88em;border-radius:6px;cursor:pointer;transition:opacity .2s}
+.add-btn:hover{opacity:.85}
+.auto-btn{background:linear-gradient(135deg,#5b21b6,#7c3aed);color:#fff;border:none;padding:8px 20px;font-size:.88em;border-radius:6px;cursor:pointer;transition:opacity .2s}
+.auto-btn:hover{opacity:.85}
+.del-btn{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.82em;transition:background .15s}
+.del-btn:hover{background:#fecaca}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table,.combo-table,.holes-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th,.combo-table th,.holes-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td,.combo-table td,.holes-table td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:middle}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.combo-table tr:nth-child(even) td{background:#f5f7ff}
+.combo-table tr.gov-row td{background:#dcfce7!important;font-weight:700;border-left:3px solid #16a34a}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.ltb-primary td{font-weight:600;background:#eff6ff!important}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.3em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.72em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#dc2626;background:#fef2f2}
+.dem-card.warn .v{color:#dc2626}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.callout-blue{background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:9px 12px;font-size:.82em;color:#1e40af;margin-bottom:10px}
+.callout-cyan{background:#ecfeff;border:1px solid #67e8f9;border-radius:6px;padding:9px 12px;font-size:.82em;color:#0e7490;margin-bottom:10px}
+.callout-green{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:9px 12px;font-size:.82em;color:#166534;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+details.defl-block{border:1px solid #bbf7d0;border-radius:8px;margin-bottom:10px;overflow:hidden;background:#fff}
+details.defl-block>summary{cursor:pointer;padding:10px 14px;background:#f0fdf4;font-weight:600;font-size:.88em;list-style:none;display:flex;align-items:center;gap:10px;color:#166534;user-select:none}
+details.defl-block>summary::-webkit-details-marker{display:none}
+details.defl-block>summary::before{content:'\25B6';font-size:.7em;transition:transform .18s;display:inline-block;flex-shrink:0}
+details.defl-block[open]>summary::before{transform:rotate(90deg)}
+details.defl-block>summary .defl-sum-status{margin-left:auto;font-size:.85em;padding:2px 9px;border-radius:4px}
+.defl-inner{padding:10px 14px 12px}
+.defl-cat-table{width:100%;border-collapse:collapse;font-size:.84em;margin-top:6px}
+.defl-cat-table th{background:#1e3c72;color:#fff;padding:6px 10px;text-align:left}
+.defl-cat-table td{padding:6px 10px;border-bottom:1px solid #eee}
+.defl-cat-table tr:last-child td{border-bottom:none}
+.defl-cat-table tr.ll-row td{background:#eff6ff}
+.defl-cat-table tr.tot-row td{background:#f0fdf4;font-weight:600}
+.schema-grid{display:grid;grid-template-columns:3fr 1fr;gap:20px;align-items:start}
+.toggle-row{display:flex;gap:24px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.radio-lbl{display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:600;font-size:.9em}
+.radio-lbl input{accent-color:#2a5298;width:16px;height:16px}
+.radio-lbl.lrfd-lbl{color:#1e3c72}
+.radio-lbl.asd-lbl{color:#0891b2}
+.cb-lbl{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;font-size:.9em}
+.cb-lbl input{accent-color:#7c3aed;width:16px;height:16px}
+.hole-section-hdr{font-size:.9em;font-weight:700;color:#dc2626;margin:14px 0 8px;border-bottom:1px dashed #fca5a5;padding-bottom:4px}
+.holes-table th{background:#dc2626}
+.holes-table input,.holes-table select{padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:.88em;width:100%}
+.holes-table td{padding:5px 8px}
+.method-lrfd{color:#1e3c72;font-weight:700}
+.method-asd{color:#0891b2;font-weight:700}
+.hole-result-hdr{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;padding:10px 16px;border-radius:8px 8px 0 0;font-weight:700;margin-top:20px}
+.hole-result-body{border:1px solid #fca5a5;border-top:none;border-radius:0 0 8px 8px;padding:14px;margin-bottom:16px}
+@media(max-width:700px){.schema-grid{grid-template-columns:1fr}}
+/* ---- PRINT ---- */
+@media print{
+  body{background:#fff!important;padding:4px!important}
+  .container{box-shadow:none!important;border-radius:0!important;max-width:100%!important}
+  .header{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .calc-btn,.add-btn,.auto-btn,.del-btn,.print-btn{display:none!important}
+  .blk{page-break-inside:avoid;border:1px solid #ccc!important}
+  .hole-result-hdr,.hole-result-body{page-break-inside:avoid}
+  .results{display:block!important}
+  .calc-det{display:block!important;background:#f8f9ff!important}
+  input,select{border:none!important;background:transparent!important}
+  .toggle-row,.cb-lbl{pointer-events:none}
+  #stiffInputs{display:block!important}
+  .schema-wrap{page-break-after:always}
+  .note-box{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>W-Shape Beam &mdash; Web Opening Check</h1>
+  <p>Simply supported or with cantilever overhangs &middot; uniform gravity load &middot; multiple openings &middot; LRFD or ASD &middot; ASCE 7-16 load combinations</p>
+  <div class="ref-tags">
+    <span class="tag">AISC Design Guide 2</span><span class="tag">AISC 360-22 §F2 LTB</span><span class="tag">AISC 360-22 §G2.1</span>
+    <span class="tag">AISC 360-22 §J10.8</span><span class="tag">ASCE 7-16 §2.3/§2.4</span>
+    <span class="tag">LRFD &amp; ASD</span><span class="tag">Multiple Openings</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SVG -->
+<div class="schema-wrap">
+  <div class="schema-grid">
+    <div>
+      <div class="sub-head" id="svgSubHead">Beam Elevation &mdash; Simply Supported, Uniform Load</div>
+      <svg id="svgElev" width="100%" viewBox="0 0 640 215" style="border:1px solid #eee;border-radius:6px;background:#fafafa">
+        <defs>
+          <marker id="arrDn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#374151"/></marker>
+          <marker id="dimL"  markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+          <marker id="dimR"  markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+        </defs>
+        <rect x="50" y="85" width="540" height="55" fill="#e8edf5" stroke="#1e3c72" stroke-width="1.5"/>
+        <rect x="50" y="80" width="540" height="10" fill="#2a5298" opacity="0.75" stroke="#1e3c72" stroke-width="1"/>
+        <rect x="50" y="140" width="540" height="10" fill="#2a5298" opacity="0.75" stroke="#1e3c72" stroke-width="1"/>
+        <g id="svgPartialLoads"></g>
+        <g id="svgPloads"></g>
+        <g id="svgHoles"></g>
+        <g id="svgSupports"></g>
+        <line x1="55" y1="42" x2="585" y2="42" stroke="#374151" stroke-width="1.5"/>
+        <line x1="80"  y1="42" x2="80"  y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="140" y1="42" x2="140" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="200" y1="42" x2="200" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="260" y1="42" x2="260" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="320" y1="42" x2="320" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="380" y1="42" x2="380" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="440" y1="42" x2="440" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="500" y1="42" x2="500" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <line x1="560" y1="42" x2="560" y2="78" stroke="#374151" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        <text x="320" y="28" text-anchor="middle" font-size="12" fill="#374151" font-weight="bold">w<tspan font-size="9" dy="3">u</tspan> <tspan font-size="9" dy="-3" fill="#888">(or w</tspan><tspan font-size="7" dy="2" fill="#888">a</tspan><tspan font-size="9" dy="-2" fill="#888">)</tspan></text>
+        <line x1="50" y1="205" x2="590" y2="205" stroke="#f59e0b" stroke-width="1.2" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+        <text id="lblSpan" x="320" y="201" text-anchor="middle" font-size="10" fill="#b45309">L = 36 ft</text>
+      </svg>
+    </div>
+    <div>
+      <div class="sub-head">Cross Section at Hole #<span id="xsHoleNum">1</span></div>
+      <svg id="svgXs" width="100%" viewBox="0 0 210 280" style="border:1px solid #eee;border-radius:6px;background:#fafafa">
+        <rect id="xs_tf"  x="15" y="28"  width="180" height="14" fill="#2a5298" opacity="0.75" stroke="#1e3c72" stroke-width="1"/>
+        <rect id="xs_web" x="97" y="42"  width="16"  height="162" fill="#e0e6f0" stroke="#1e3c72" stroke-width="1"/>
+        <rect id="xs_bf"  x="15" y="204" width="180" height="14" fill="#2a5298" opacity="0.75" stroke="#1e3c72" stroke-width="1"/>
+        <circle id="xs_holeC" cx="105" cy="123" r="30" fill="white" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,3"/>
+        <rect    id="xs_holeR" x="90" y="93" width="30" height="60" fill="white" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,3" display="none"/>
+        <line x1="105" y1="10" x2="105" y2="265" stroke="#2a5298" stroke-width="0.8" stroke-dasharray="4,4" opacity="0.4"/>
+        <line id="xs_eCL" x1="175" y1="123" x2="175" y2="123" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <text x="200" y="123" font-size="9" fill="#374151" dominant-baseline="middle">d</text>
+        <text id="xs_doLbl" x="105" y="127" text-anchor="middle" font-size="9" fill="#dc2626" dominant-baseline="middle">D&#8320;</text>
+        <text id="xs_stLbl" x="7" y="75"  font-size="8" fill="#1e3c72" text-anchor="middle">s<tspan font-size="6" dy="2">t</tspan></text>
+        <text id="xs_sbLbl" x="7" y="178" font-size="8" fill="#1e3c72" text-anchor="middle">s<tspan font-size="6" dy="2">b</tspan></text>
+      </svg>
+    </div>
+  </div>
+  <p style="font-size:.75em;color:#888;margin-top:8px;text-align:center">Schematic updates after Run All Checks. Cross section shown for Hole #1.</p>
+</div>
+
+<!-- BLOCK 1: Section & Material -->
+<div class="blk">
+  <h2>&#9312; Section &amp; Material <span class="badge">AISC 16th Ed.</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>W-Shape Section</label>
+      <select id="sec" onchange="fillSectionHint()">
+        <option value="">&#8212; Select Section &#8212;</option>
+        <optgroup label="W4"><option value="W4x13">W4&times;13</option></optgroup>
+        <optgroup label="W5"><option value="W5x16">W5&times;16</option><option value="W5x19">W5&times;19</option></optgroup>
+        <optgroup label="W6"><option value="W6x9">W6&times;9</option><option value="W6x12">W6&times;12</option><option value="W6x15">W6&times;15</option><option value="W6x20">W6&times;20</option><option value="W6x25">W6&times;25</option></optgroup>
+        <optgroup label="W8"><option value="W8x10">W8&times;10</option><option value="W8x18">W8&times;18</option><option value="W8x24">W8&times;24</option><option value="W8x31">W8&times;31</option><option value="W8x40">W8&times;40</option><option value="W8x48">W8&times;48</option><option value="W8x58">W8&times;58</option><option value="W8x67">W8&times;67</option></optgroup>
+        <optgroup label="W10"><option value="W10x12">W10&times;12</option><option value="W10x17">W10&times;17</option><option value="W10x22">W10&times;22</option><option value="W10x33">W10&times;33</option><option value="W10x45">W10&times;45</option><option value="W10x60">W10&times;60</option><option value="W10x77">W10&times;77</option><option value="W10x100">W10&times;100</option></optgroup>
+        <optgroup label="W12"><option value="W12x16">W12&times;16</option><option value="W12x26">W12&times;26</option><option value="W12x35">W12&times;35</option><option value="W12x50">W12&times;50</option><option value="W12x65">W12&times;65</option><option value="W12x79">W12&times;79</option><option value="W12x96">W12&times;96</option><option value="W12x120">W12&times;120</option></optgroup>
+        <optgroup label="W14"><option value="W14x22">W14&times;22</option><option value="W14x30">W14&times;30</option><option value="W14x38">W14&times;38</option><option value="W14x48">W14&times;48</option><option value="W14x61">W14&times;61</option><option value="W14x68">W14&times;68</option><option value="W14x82">W14&times;82</option><option value="W14x99">W14&times;99</option><option value="W14x120">W14&times;120</option><option value="W14x145">W14&times;145</option></optgroup>
+        <optgroup label="W16"><option value="W16x26">W16&times;26</option><option value="W16x31">W16&times;31</option><option value="W16x40">W16&times;40</option><option value="W16x57">W16&times;57</option><option value="W16x77">W16&times;77</option><option value="W16x100">W16&times;100</option></optgroup>
+        <optgroup label="W18"><option value="W18x35">W18&times;35</option><option value="W18x46">W18&times;46</option><option value="W18x50">W18&times;50</option><option value="W18x65">W18&times;65</option><option value="W18x71">W18&times;71</option><option value="W18x86">W18&times;86</option><option value="W18x97">W18&times;97</option><option value="W18x119">W18&times;119</option></optgroup>
+        <optgroup label="W21"><option value="W21x44">W21&times;44</option><option value="W21x57">W21&times;57</option><option value="W21x68">W21&times;68</option><option value="W21x83">W21&times;83</option><option value="W21x101">W21&times;101</option><option value="W21x122">W21&times;122</option></optgroup>
+        <optgroup label="W24"><option value="W24x55" selected>W24&times;55</option><option value="W24x62">W24&times;62</option><option value="W24x76">W24&times;76</option><option value="W24x84">W24&times;84</option><option value="W24x94">W24&times;94</option><option value="W24x104">W24&times;104</option><option value="W24x131">W24&times;131</option></optgroup>
+        <optgroup label="W27"><option value="W27x84">W27&times;84</option><option value="W27x94">W27&times;94</option><option value="W27x114">W27&times;114</option><option value="W27x146">W27&times;146</option></optgroup>
+        <optgroup label="W30"><option value="W30x90">W30&times;90</option><option value="W30x108">W30&times;108</option><option value="W30x116">W30&times;116</option><option value="W30x132">W30&times;132</option><option value="W30x148">W30&times;148</option><option value="W30x173">W30&times;173</option></optgroup>
+        <optgroup label="W33"><option value="W33x118">W33&times;118</option><option value="W33x130">W33&times;130</option><option value="W33x152">W33&times;152</option><option value="W33x169">W33&times;169</option></optgroup>
+        <optgroup label="W36"><option value="W36x135">W36&times;135</option><option value="W36x150">W36&times;150</option><option value="W36x160">W36&times;160</option><option value="W36x182">W36&times;182</option><option value="W36x210">W36&times;210</option><option value="W36x232">W36&times;232</option></optgroup>
+        <optgroup label="W40"><option value="W40x149">W40&times;149</option><option value="W40x167">W40&times;167</option><option value="W40x183">W40&times;183</option><option value="W40x211">W40&times;211</option><option value="W40x264">W40&times;264</option></optgroup>
+        <optgroup label="W44"><option value="W44x230">W44&times;230</option><option value="W44x262">W44&times;262</option><option value="W44x290">W44&times;290</option></optgroup>
+      </select>
+      <div id="secHint" class="hint"></div>
+    </div>
+    <div class="ig">
+      <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fy"><option value="36">36 &mdash; A36</option><option value="50" selected>50 &mdash; A572 Gr.50/A992</option><option value="65">65 &mdash; A572 Gr.65</option></select>
+    </div>
+    <div class="ig">
+      <label>E <span class="unit">(ksi)</span></label>
+      <input type="number" id="Es" value="29000" step="100" min="25000">
+    </div>
+  </div>
+</div>
+
+<!-- BLOCK 2: Design Method & Loading -->
+<div class="blk load-blk">
+  <h2>&#9313; Design Method &amp; Loading <span class="badge-cyan">ASCE 7-16 §2.3/§2.4</span></h2>
+
+  <!-- LRFD / ASD toggle -->
+  <div class="toggle-row">
+    <span style="font-weight:700;font-size:.9em;color:#333">Design Method:</span>
+    <label class="radio-lbl lrfd-lbl"><input type="radio" name="method" id="methLRFD" value="LRFD" checked onchange="toggleMethod()"> &nbsp;LRFD &mdash; Strength Design</label>
+    <label class="radio-lbl asd-lbl"><input type="radio" name="method" id="methASD"  value="ASD"  onchange="toggleMethod()"> &nbsp;ASD &mdash; Allowable Stress Design</label>
+  </div>
+
+  <div id="methCallout" class="callout-blue" style="margin-bottom:14px">
+    <strong class="method-lrfd">LRFD Selected:</strong> Factored loads from ASCE 7-16 §2.3.1 governs design.
+    Capacities: &phi;<sub>b</sub>=0.90 (flexure), &phi;<sub>v</sub>=1.00 (shear §G2.1), &phi;=0.90 (AISC Design Guide 2 opening checks).
+  </div>
+
+  <!-- Unfactored Loads -->
+  <div style="margin-bottom:10px;font-weight:700;font-size:.9em;color:#0891b2">Unfactored (Service) Loads &mdash; k/ft along beam</div>
+  <div class="g5">
+    <div class="ig">
+      <label>Dead Load w<sub>D</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wD" value="0.607" step="0.01" min="0">
+      <div class="hint">Excluding self-weight; superimposed DL</div>
+    </div>
+    <div class="ig">
+      <label>Live Load w<sub>L</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wL" value="0.800" step="0.01" min="0">
+      <div class="hint">Floor or occupancy live load</div>
+    </div>
+    <div class="ig">
+      <label>Roof Live w<sub>Lr</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wLr" value="0" step="0.01" min="0">
+      <div class="hint">Roof live (0 for floor beams)</div>
+    </div>
+    <div class="ig">
+      <label>Snow w<sub>S</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wS" value="0" step="0.01" min="0">
+      <div class="hint">Snow load (0 if N/A)</div>
+    </div>
+    <div class="ig">
+      <label>Rain w<sub>R</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wR" value="0" step="0.01" min="0">
+      <div class="hint">Rain/ponding load (0 if N/A)</div>
+    </div>
+  </div>
+
+  <!-- Self-weight -->
+  <div style="margin-top:12px;display:flex;align-items:center;gap:12px">
+    <label class="cb-lbl" style="color:#16a34a">
+      <input type="checkbox" id="inclSW" checked onchange="updateSWHint()">
+      &nbsp; Include beam self-weight in Dead Load
+    </label>
+    <span id="swHint" class="sw-hint"></span>
+  </div>
+
+  <!-- Span & Bracing -->
+  <div class="g4" style="margin-top:16px">
+    <div class="ig">
+      <label>Span L <span class="unit">(ft)</span></label>
+      <input type="number" id="L" value="36" step="0.5" min="1" onchange="updateSWHint();updateSVGPreview()">
+      <div class="hint">Clear span, center-to-center of supports</div>
+    </div>
+    <div class="ig">
+      <label>Left Overhang a<sub>L</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="aLovhg" value="0" step="0.5" min="0" onchange="updateSVGPreview()">
+      <div class="hint">Cantilever left of left support; 0 = simply supported</div>
+    </div>
+    <div class="ig">
+      <label>Right Overhang a<sub>R</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="aRovhg" value="0" step="0.5" min="0" onchange="updateSVGPreview()">
+      <div class="hint">Cantilever right of right support; 0 = simply supported</div>
+    </div>
+    <div class="ig">
+      <label>L<sub>b,top</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="Lbtop" value="0" step="0.5" min="0">
+      <div class="hint">Top flange bracing; 0=fully braced</div>
+    </div>
+    <div class="ig">
+      <label>L<sub>b,bot</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="Lbbot" value="36" step="0.5" min="0">
+      <div class="hint">Bottom flange bracing (used in overhang zones)</div>
+    </div>
+    <div class="ig">
+      <label>C<sub>b</sub> &mdash; LTB Modifier</label>
+      <input type="number" id="Cb" value="1.14" step="0.01" min="1.0" max="3.0">
+      <div class="hint">1.14 uniform load SS; 1.0 conservative; forced 1.0 for holes in cantilever zones</div>
+    </div>
+  </div>
+</div>
+
+<!-- Concentrated Loads sub-section (inside Block 2 area) -->
+<div class="blk load-blk" style="margin-top:-4px">
+  <h2>&#9313;&#8203;&#8203; Concentrated Gravity Loads <span class="badge-cyan">Optional Point Loads</span></h2>
+  <div class="callout-blue" style="margin-bottom:12px">
+    Specify unfactored dead (P<sub>D</sub>) and live (P<sub>L</sub>) point loads. Position x<sub>p</sub> is measured from the <strong>left end of the beam</strong> (same reference as hole x<sub>o</sub>). The governing ASCE 7-16 combination factors (same as distributed loads) are applied automatically.
+  </div>
+  <table class="holes-table" id="ploadsTable" style="margin-bottom:10px">
+    <thead>
+      <tr>
+        <th style="width:36px">#</th>
+        <th>P<sub>D</sub> (k)<br><span style="font-weight:400;font-size:.85em">Unfactored dead</span></th>
+        <th>P<sub>L</sub> (k)<br><span style="font-weight:400;font-size:.85em">Unfactored live</span></th>
+        <th>x<sub>p</sub> from Left End (ft)</th>
+        <th style="width:60px"></th>
+      </tr>
+    </thead>
+    <tbody id="ploadsTbody"></tbody>
+  </table>
+  <div>
+    <button class="add-btn" onclick="addPload()" style="background:linear-gradient(135deg,#0369a1,#0891b2)">&#43; Add Point Load</button>
+    <span style="font-size:.8em;color:#888;margin-left:12px">Leave empty for distributed load only. Point loads are included in M &amp; V demands at each hole.</span>
+  </div>
+</div>
+
+<!-- Partial Uniform Loads sub-section -->
+<div class="blk load-blk" style="margin-top:-4px">
+  <h2>&#9313;&#8203;&#8203;&#8203; Partial Uniform Loads <span class="badge-cyan">Optional</span></h2>
+  <div class="callout-blue" style="margin-bottom:12px">
+    Specify unfactored dead (w<sub>D</sub>) and live (w<sub>L</sub>) intensities for loads that span only part of the beam.
+    Positions x<sub>1</sub> and x<sub>2</sub> are measured from the <strong>left end of the beam</strong>.
+    The governing ASCE 7-16 combination factors are applied automatically.
+    Partial loads are fully included in M &amp; V demands at each hole.
+    <em>Note: Beam deflection check below uses full-span loads only; partial loads may increase deflection.</em>
+  </div>
+  <table class="holes-table" id="partialTable" style="margin-bottom:10px">
+    <thead>
+      <tr>
+        <th style="width:36px">#</th>
+        <th>w<sub>D</sub> (k/ft)<br><span style="font-weight:400;font-size:.85em">Unfactored dead</span></th>
+        <th>w<sub>L</sub> (k/ft)<br><span style="font-weight:400;font-size:.85em">Unfactored live</span></th>
+        <th>x<sub>1</sub> from Left End (ft)<br><span style="font-weight:400;font-size:.85em">Load start</span></th>
+        <th>x<sub>2</sub> from Left End (ft)<br><span style="font-weight:400;font-size:.85em">Load end</span></th>
+        <th style="width:60px"></th>
+      </tr>
+    </thead>
+    <tbody id="partialTbody"></tbody>
+  </table>
+  <div>
+    <button class="add-btn" onclick="addPartialLoad()" style="background:linear-gradient(135deg,#0369a1,#0891b2)">&#43; Add Partial Load</button>
+    <span style="font-size:.8em;color:#888;margin-left:12px">Shown as teal arrows on beam elevation. Stacks with the full-span distributed load.</span>
+  </div>
+</div>
+
+<!-- BLOCK 3: Web Openings -->
+<div class="blk hole-blk">
+  <h2>&#9314; Web Opening(s) <span class="badge-red">Multiple Holes Supported</span></h2>
+  <div class="callout">
+    <strong>Circular:</strong> AISC Design Guide 2 §3.7b4 Eqs.3-29 conversions applied automatically (h<sub>o</sub>=D<sub>o</sub> bending; h<sub>o</sub>=0.9D<sub>o</sub>, a<sub>o</sub>=0.45D<sub>o</sub> shear).
+    &nbsp;<strong>Rectangular:</strong> h<sub>o</sub> and a<sub>o</sub> used directly. Each hole checked independently.
+  </div>
+
+  <table class="holes-table" id="holesTable">
+    <thead>
+      <tr>
+        <th style="width:36px">#</th>
+        <th style="width:90px">Shape</th>
+        <th style="width:90px">D<sub>o</sub> (in)<br><span style="font-weight:400;font-size:.85em">Round only</span></th>
+        <th style="width:90px">h<sub>o</sub> (in)<br><span style="font-weight:400;font-size:.85em">Rect only</span></th>
+        <th style="width:90px">a<sub>o</sub> (in)<br><span style="font-weight:400;font-size:.85em">Rect only</span></th>
+        <th style="width:110px">x<sub>o</sub> from Left End (ft)</th>
+        <th style="width:90px">Eccent. e (in)<br><span style="font-weight:400;font-size:.85em">+above CL</span></th>
+        <th style="width:60px"></th>
+      </tr>
+    </thead>
+    <tbody id="holesTbody"></tbody>
+  </table>
+  <div style="margin-top:10px">
+    <button class="add-btn" onclick="addHole()">&#43; Add Hole</button>
+    <span style="font-size:.8em;color:#888;margin-left:12px">Add one row per opening. Holes are checked independently.</span>
+  </div>
+</div>
+
+<!-- BLOCK 4: Web Stiffeners -->
+<div class="blk stiff-blk">
+  <h2>&#9315; Web Stiffener Design <span class="badge-purple">Optional</span></h2>
+  <div style="margin-bottom:14px">
+    <label class="cb-lbl">
+      <input type="checkbox" id="useStiff" onchange="toggleStiffeners()">
+      &nbsp; Include vertical web stiffeners at all openings
+    </label>
+  </div>
+  <div id="stiffInputs" style="display:none">
+    <div class="callout" style="border-color:#a78bfa;background:#f5f3ff;color:#4c1d95">
+      Two pairs of stiffeners per opening (one each side of web, at each edge of the hole). Applied to all openings.
+    </div>
+    <div class="g4" style="margin-top:12px">
+      <div class="ig"><label>Stiffener Width b<sub>s</sub> <span class="unit">(in/side)</span></label><input type="number" id="bs" value="3.5" step="0.125" min="0.5"><div class="hint">Plate width each side of web</div></div>
+      <div class="ig"><label>Stiffener Thickness t<sub>s</sub> <span class="unit">(in)</span></label><input type="number" id="ts" value="0.375" step="0.0625" min="0.0625"><div class="hint">Typ. 5/16"–1/2"</div></div>
+      <div class="ig"><label>Stiffener F<sub>ys</sub> <span class="unit">(ksi)</span></label><select id="Fys"><option value="36">36 &mdash; A36</option><option value="50" selected>50 &mdash; A572 Gr.50</option></select></div>
+      <div class="ig" style="justify-content:flex-end">
+        <button class="auto-btn" onclick="autoDesignStiff()" style="margin-top:18px">&#9889; Auto-Suggest</button>
+        <div id="autoStiffMsg" style="font-size:.8em;color:#7c3aed;margin-top:5px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+<button class="calc-btn print-btn" style="background:linear-gradient(135deg,#374151,#4b5563);margin-top:4px" onclick="window.print()">&#128438;&nbsp; Print / Export PDF</button>
+
+<!-- RESULTS -->
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+  <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+  <div class="blk load-blk"><h2>Load Combinations &amp; Governing Demand <span id="methBadge" class="badge-cyan">LRFD</span></h2><div id="comboOut"></div></div>
+  <div id="holeResultsOut"></div>
+
+  <!-- Hole Spacing -->
+  <div class="blk" id="spacingOut" style="display:none">
+    <h2>&#9316; Adjacent Hole Spacing <span class="badge">AISC Design Guide 2 §3.7b</span></h2>
+    <div id="spacingContent"></div>
+  </div>
+
+  <!-- Beam Design Checks & Reactions -->
+  <div class="blk stiff-blk" id="beamChkOut" style="display:none">
+    <h2>&#9317; Beam Design Checks &mdash; Bending, Shear &amp; Reactions <span class="badge-purple">AISC 360-22</span></h2>
+    <div id="beamChkContent"></div>
+  </div>
+
+  <!-- Deflection -->
+  <div class="blk green-blk" id="deflOut" style="display:none">
+    <h2>&#9318; Serviceability &mdash; Beam Deflection <span class="badge-green">L/360 &amp; L/240</span></h2>
+    <div id="deflContent"></div>
+  </div>
+
+  <!-- Demand Diagrams -->
+  <div class="blk" id="diagOut" style="display:none">
+    <h2>&#9319; Demand Diagrams &mdash; M &amp; V Envelope <span class="badge">Governing Load</span></h2>
+    <div id="diagContent"></div>
+  </div>
+
+  <div class="note-box">
+    <strong>Notes &amp; Limitations:</strong>
+    <ul>
+      <li>LRFD load combos per ASCE 7-16 §2.3.1; ASD combos per §2.4.1. Gravity loads only (W=E=0 assumed).</li>
+      <li>Self-weight extracted from section designation (e.g. W24&times;55 = 55 plf = 0.055 k/ft). Uniform load (including self-weight) acts over the <em>entire</em> beam length (span + overhangs).</li>
+      <li>LRFD capacities: &phi;<sub>b</sub>=0.90 (flexure), &phi;<sub>v</sub>=1.00 (§G2.1, C<sub>v1</sub>=1.0), &phi;=0.90 (AISC Design Guide 2 openings).</li>
+      <li>ASD capacities: &Omega;<sub>b</sub>=1.67 (flexure/AISC Design Guide 2 openings), &Omega;<sub>v</sub>=1.50 (§G2.1).</li>
+      <li><strong>Overhangs / cantilevers:</strong> All hole and point-load positions (x<sub>o</sub>, x<sub>p</sub>) are measured from the <em>left end of the beam</em> (not the left support). Left support is at x&nbsp;=&nbsp;a<sub>L</sub>; right support at x&nbsp;=&nbsp;a<sub>L</sub>&plus;L. Reactions are computed by statics. In hogging (cantilever) zones, LTB uses L<sub>b,bot</sub> (bottom flange in compression) with C<sub>b</sub>=1.0.</li>
+      <li><strong>Beam design checks (§⑦):</strong> Flexure (AISC 360-22 §F2 LTB) and shear (§G2.1) are checked at the gross unperforated section using the maximum factored demand over the full beam length. These are beam-level checks only; web opening capacities M<sub>m</sub> and V<sub>m</sub> (Design Guide 2) govern locally at each hole and are checked separately in the per-hole results.</li>
+      <li><strong>Deflection (§⑧):</strong> Computed numerically by double integration of M(x)/EI for the unperforated section at unfactored service loads, including the full-span UDL, all partial UDLs, and all concentrated loads. Interior span limits: L/360 (LL), L/240 (total). Cantilever tip limits: a/180 (LL), a/120 (total) per IBC Table 1604.3. Web openings increase flexibility &mdash; see AISC Design Guide 2 Ch.6.</li>
+      <li>Each hole is checked independently at its location. Interaction between adjacent holes not checked (see AISC Design Guide 2 §3.7b for spacing requirements).</li>
+      <li>For multiple holes: clear distance between holes must be &ge; larger of the two adjacent hole lengths (AISC Design Guide 2 §3.7b). Verify manually.</li>
+      <li><strong>Partial uniform loads:</strong> Each partial UDL (w<sub>D</sub>, w<sub>L</sub>) is factored using the same governing ASCE 7-16 combo as the full-span load. Positions x<sub>1</sub> and x<sub>2</sub> are measured from the <em>left end of the beam</em>. Partial loads contribute to reactions and are fully integrated into M(x) and V(x) at each hole, into beam-level checks, and into service-level deflection.</li>
+      <li>Deflection at openings not computed (see AISC Design Guide 2 Ch.6). Composite action and reinforced openings not covered.</li>
+      <li>Section must be compact (Table B4.1b) and F<sub>y</sub>&le;65 ksi per AISC Design Guide 2 §3.1.</li>
+    </ul>
+  </div>
+</div>
+
+</div><!-- /content -->
+</div><!-- /container -->
+<script>
+// ============================================================
+// SECTION DATABASE [A,d,bf,tf,tw,Ix,Sx,Zx,Iy,Sy,ry,rx,J,Cw,rts,ho_d]
+// ============================================================
+var DB={
+  "W4x13":[3.83,4.16,4.060,0.345,0.280,11.3,5.46,6.28,3.86,1.90,1.00,1.72,0.152,6.28,1.20,3.815],
+  "W5x16":[4.68,5.01,5.000,0.360,0.240,21.3,8.51,9.63,7.51,3.00,1.27,2.13,0.192,24.5,1.42,4.650],
+  "W5x19":[5.54,5.15,5.030,0.430,0.270,26.2,10.2,11.6,9.13,3.63,1.28,2.17,0.318,30.5,1.43,4.720],
+  "W6x9":[2.68,5.90,3.940,0.215,0.170,16.4,5.56,6.23,2.20,1.11,0.905,2.47,0.0156,4.29,1.08,5.685],
+  "W6x12":[3.55,6.03,4.000,0.280,0.230,22.1,7.31,8.30,2.99,1.50,0.918,2.49,0.0390,6.23,1.12,5.750],
+  "W6x15":[4.43,5.99,5.990,0.260,0.230,29.1,9.72,10.8,9.32,3.11,1.45,2.56,0.0600,19.5,1.58,5.730],
+  "W6x20":[5.87,6.20,6.020,0.365,0.260,41.4,13.4,14.9,13.3,4.41,1.50,2.66,0.131,31.7,1.65,5.835],
+  "W6x25":[7.34,6.37,6.080,0.455,0.320,53.4,16.7,18.9,17.1,5.61,1.52,2.70,0.461,76.1,1.68,5.915],
+  "W8x10":[2.96,7.89,3.940,0.205,0.170,30.8,7.81,8.87,2.09,1.06,0.841,3.22,0.0147,6.48,0.988,7.685],
+  "W8x18":[5.26,8.14,5.250,0.330,0.230,61.9,15.2,17.0,7.97,3.04,1.23,3.43,0.0826,25.6,1.38,7.810],
+  "W8x24":[7.08,7.93,6.500,0.400,0.245,82.7,20.9,23.1,18.3,5.63,1.61,3.42,0.169,66.4,1.74,7.530],
+  "W8x31":[9.12,8.00,8.000,0.435,0.285,110.,27.5,30.4,37.1,9.27,2.02,3.47,0.313,139.,2.19,7.565],
+  "W8x40":[11.7,8.25,8.070,0.560,0.360,146.,35.5,39.8,49.1,12.2,2.04,3.53,0.619,186.,2.22,7.690],
+  "W8x48":[14.1,8.50,8.110,0.685,0.400,184.,43.2,49.0,60.9,15.0,2.08,3.61,1.00,237.,2.26,7.815],
+  "W8x58":[17.1,8.75,8.220,0.810,0.510,228.,52.0,59.8,75.1,18.3,2.10,3.65,2.70,311.,2.32,7.940],
+  "W8x67":[19.7,9.00,8.280,0.935,0.570,272.,60.4,70.1,88.6,21.4,2.12,3.72,3.38,372.,2.35,8.065],
+  "W10x12":[3.54,9.87,3.960,0.210,0.190,53.8,10.9,12.6,2.18,1.10,0.785,3.90,0.0145,9.95,0.919,9.660],
+  "W10x17":[4.99,10.1,4.010,0.330,0.240,81.9,16.2,18.7,3.56,1.78,0.845,4.05,0.0572,15.2,1.01,9.770],
+  "W10x22":[6.49,10.2,5.750,0.360,0.240,118.,23.2,26.0,11.4,3.97,1.33,4.27,0.118,53.0,1.49,9.840],
+  "W10x33":[9.71,9.73,7.960,0.435,0.290,171.,35.0,38.8,36.6,9.20,1.94,4.20,0.292,157.,2.11,9.295],
+  "W10x45":[13.3,10.1,8.020,0.620,0.350,248.,49.1,54.9,53.4,13.3,2.00,4.32,0.770,248.,2.18,9.480],
+  "W10x60":[17.6,10.2,10.08,0.680,0.420,341.,66.7,74.6,116.,23.0,2.57,4.39,1.69,605.,2.71,9.520],
+  "W10x77":[22.6,10.6,10.19,0.870,0.530,455.,85.9,97.6,154.,30.1,2.60,4.49,3.56,827.,2.75,9.730],
+  "W10x100":[29.4,11.1,10.34,1.120,0.680,623.,112.,130.,207.,40.0,2.65,4.60,8.26,1140.,2.82,9.980],
+  "W12x16":[4.71,11.99,3.990,0.265,0.220,103.,17.1,20.1,3.55,1.78,0.867,4.67,0.0353,18.5,1.02,11.725],
+  "W12x26":[7.65,12.22,6.490,0.380,0.230,204.,33.4,37.2,17.3,5.34,1.51,5.16,0.174,107.,1.68,11.840],
+  "W12x35":[10.3,12.50,6.560,0.520,0.300,285.,45.6,51.2,24.5,7.47,1.54,5.25,0.385,159.,1.72,11.980],
+  "W12x50":[14.6,12.19,8.080,0.640,0.370,394.,64.7,72.4,56.3,13.9,1.96,5.18,0.786,345.,2.15,11.550],
+  "W12x65":[19.1,12.12,12.00,0.605,0.390,533.,87.9,96.8,174.,29.1,3.02,5.28,2.18,1050.,3.23,11.515],
+  "W12x79":[23.2,12.38,12.08,0.735,0.470,662.,107.,119.,216.,35.8,3.05,5.34,3.84,1320.,3.27,11.645],
+  "W12x96":[28.2,12.71,12.16,0.900,0.550,833.,131.,147.,270.,44.4,3.09,5.44,5.45,1820.,3.31,11.810],
+  "W12x120":[35.3,13.12,12.32,1.105,0.710,1070.,163.,186.,345.,56.0,3.13,5.51,13.2,2380.,3.36,12.015],
+  "W14x22":[6.49,13.74,5.000,0.335,0.230,199.,29.0,33.2,7.00,2.80,1.04,5.54,0.208,65.0,1.22,13.405],
+  "W14x30":[8.85,13.84,6.730,0.385,0.270,291.,42.0,47.3,19.6,5.82,1.49,5.73,0.380,142.,1.66,13.455],
+  "W14x38":[11.2,14.10,6.770,0.515,0.310,385.,54.6,61.5,26.7,7.88,1.54,5.87,0.798,223.,1.72,13.585],
+  "W14x48":[14.1,13.79,8.031,0.595,0.340,484.,70.2,78.4,51.4,12.8,1.91,5.85,1.45,411.,2.10,13.195],
+  "W14x61":[17.9,13.89,9.995,0.645,0.375,640.,92.1,102.,107.,21.5,2.45,5.98,3.36,917.,2.64,13.245],
+  "W14x68":[20.0,14.04,10.04,0.720,0.415,723.,103.,115.,121.,24.2,2.46,6.01,3.01,889.,2.65,13.320],
+  "W14x82":[24.0,14.31,10.13,0.855,0.510,881.,123.,139.,148.,29.3,2.48,6.05,5.07,1140.,2.68,13.455],
+  "W14x99":[29.1,14.16,14.57,0.780,0.485,1110.,157.,173.,402.,55.2,3.71,6.17,10.0,4060.,3.95,13.380],
+  "W14x120":[35.3,14.48,14.67,0.940,0.590,1380.,190.,212.,495.,67.5,3.74,6.24,14.0,4060.,3.98,13.540],
+  "W14x145":[42.7,14.78,15.50,1.090,0.680,1710.,232.,260.,677.,87.3,3.98,6.33,26.0,6740.,4.20,13.690],
+  "W16x26":[7.68,15.69,5.500,0.345,0.250,301.,38.4,44.2,9.59,3.49,1.12,6.26,0.262,94.0,1.28,15.345],
+  "W16x31":[9.12,15.88,5.525,0.440,0.275,375.,47.2,54.0,12.4,4.49,1.17,6.41,0.461,123.,1.34,15.440],
+  "W16x40":[11.8,16.01,7.000,0.505,0.305,518.,64.7,73.0,28.9,8.25,1.57,6.63,0.794,308.,1.77,15.505],
+  "W16x57":[16.8,16.43,7.120,0.715,0.430,758.,92.2,105.,43.1,12.1,1.60,6.72,2.22,480.,1.80,15.715],
+  "W16x77":[22.6,16.52,10.30,0.760,0.455,1110.,134.,150.,138.,26.9,2.47,7.00,4.30,1160.,2.66,15.760],
+  "W16x100":[29.5,16.97,10.43,0.985,0.585,1490.,175.,198.,186.,35.7,2.51,7.10,8.25,1600.,2.71,15.985],
+  "W18x35":[10.3,17.70,6.000,0.425,0.300,510.,57.6,66.5,15.3,5.12,1.22,7.04,0.506,170.,1.38,17.275],
+  "W18x46":[13.5,18.06,6.060,0.605,0.360,712.,78.8,90.7,22.5,7.43,1.29,7.25,1.22,250.,1.45,17.455],
+  "W18x50":[14.7,17.99,7.495,0.570,0.355,800.,88.9,101.,40.1,10.7,1.65,7.38,1.24,479.,1.83,17.420],
+  "W18x65":[19.1,18.35,7.590,0.750,0.450,1070.,117.,133.,54.8,14.4,1.69,7.49,2.73,661.,1.87,17.600],
+  "W18x71":[20.8,18.47,7.635,0.810,0.495,1170.,127.,146.,60.3,15.8,1.70,7.50,3.49,730.,1.87,17.660],
+  "W18x86":[25.3,18.39,11.09,0.770,0.480,1530.,166.,186.,175.,31.6,2.63,7.77,4.10,1820.,2.82,17.620],
+  "W18x97":[28.5,18.59,11.15,0.870,0.535,1750.,188.,211.,201.,36.1,2.65,7.82,6.37,2020.,2.84,17.720],
+  "W18x119":[35.1,18.97,11.27,1.060,0.655,2190.,231.,262.,253.,44.9,2.69,7.90,11.2,2580.,2.90,17.910],
+  "W21x44":[13.0,20.66,6.500,0.530,0.350,843.,81.6,95.4,20.7,6.36,1.26,8.06,0.770,275.,1.42,20.130],
+  "W21x57":[16.7,21.06,6.555,0.650,0.405,1170.,111.,129.,30.6,9.35,1.35,8.36,1.77,413.,1.52,20.410],
+  "W21x68":[20.0,21.13,8.270,0.685,0.430,1480.,140.,160.,70.6,17.0,1.88,8.60,2.45,1020.,2.07,20.445],
+  "W21x83":[24.4,21.43,8.355,0.835,0.515,1830.,171.,196.,81.4,19.5,1.83,8.67,4.34,1250.,2.04,20.595],
+  "W21x101":[29.8,21.36,12.29,0.800,0.500,2420.,227.,253.,248.,40.3,2.89,9.02,7.17,3100.,3.10,20.560],
+  "W21x122":[35.9,21.68,12.39,0.960,0.600,2960.,273.,307.,305.,49.2,2.92,9.09,12.1,3860.,3.14,20.720],
+  "W24x55":[16.2,23.57,7.005,0.505,0.395,1350.,114.,134.,29.1,8.30,1.34,9.11,1.18,461.,1.50,23.065],
+  "W24x62":[18.2,23.74,7.040,0.590,0.430,1550.,131.,153.,34.5,9.80,1.38,9.23,1.71,545.,1.54,23.150],
+  "W24x76":[22.4,23.92,8.990,0.680,0.440,2100.,176.,200.,82.5,18.4,1.92,9.69,2.68,1330.,2.12,23.240],
+  "W24x84":[24.7,24.10,9.020,0.770,0.470,2370.,197.,224.,94.4,20.9,1.95,9.79,3.62,1540.,2.15,23.330],
+  "W24x94":[27.7,24.31,9.065,0.875,0.515,2700.,222.,254.,109.,24.0,1.98,9.87,5.26,1710.,2.18,23.435],
+  "W24x104":[30.6,24.06,12.75,0.750,0.500,3100.,258.,289.,259.,40.7,2.91,10.1,5.95,3520.,3.09,23.310],
+  "W24x131":[38.5,24.48,12.86,0.960,0.605,4020.,329.,370.,340.,52.9,2.97,10.2,11.6,4690.,3.16,23.520],
+  "W27x84":[24.8,26.71,9.960,0.640,0.460,2850.,213.,244.,106.,21.2,2.07,10.7,3.44,1850.,2.26,26.070],
+  "W27x94":[27.7,26.92,9.990,0.745,0.490,3270.,243.,278.,124.,24.8,2.12,10.9,5.22,2170.,2.30,26.175],
+  "W27x114":[33.5,27.29,10.07,0.930,0.570,4090.,299.,343.,159.,31.5,2.18,11.0,9.40,2810.,2.36,26.360],
+  "W27x146":[42.9,27.38,13.97,0.975,0.605,5630.,411.,464.,443.,63.5,3.21,11.5,16.5,7540.,3.39,26.405],
+  "W30x90":[26.4,29.53,10.40,0.610,0.470,3610.,245.,283.,115.,22.1,2.09,11.7,3.72,2420.,2.28,28.920],
+  "W30x108":[31.7,29.83,10.48,0.760,0.545,4470.,299.,346.,146.,27.9,2.15,11.9,6.84,3160.,2.34,29.070],
+  "W30x116":[34.2,30.01,10.50,0.850,0.565,4930.,329.,378.,164.,31.3,2.19,12.0,8.99,3560.,2.38,29.160],
+  "W30x132":[38.9,30.31,10.55,0.960,0.615,5770.,381.,437.,196.,37.2,2.25,12.2,13.1,4280.,2.43,29.350],
+  "W30x148":[43.6,30.67,10.59,1.090,0.650,6680.,436.,500.,227.,42.9,2.28,12.4,18.4,5070.,2.47,29.580],
+  "W30x173":[51.0,30.44,14.99,1.065,0.655,8200.,539.,607.,598.,79.8,3.42,13.0,21.6,11100.,3.62,29.375],
+  "W33x118":[34.7,32.86,11.48,0.740,0.550,5900.,359.,415.,187.,32.6,2.32,13.0,5.57,2870.,2.53,32.120],
+  "W33x130":[38.3,33.09,11.51,0.855,0.580,6710.,406.,467.,218.,37.9,2.39,13.2,8.29,3370.,2.60,32.235],
+  "W33x152":[44.8,33.49,11.56,1.055,0.635,8160.,487.,559.,273.,47.2,2.47,13.5,15.3,4270.,2.67,32.435],
+  "W33x169":[49.6,33.82,11.57,1.220,0.670,9290.,549.,629.,310.,53.6,2.50,13.7,22.5,4950.,2.71,32.600],
+  "W36x135":[39.9,35.55,11.95,0.790,0.600,7800.,439.,509.,225.,37.7,2.38,14.0,7.79,3400.,2.58,34.760],
+  "W36x150":[44.3,35.85,11.97,0.940,0.625,9040.,504.,581.,270.,45.1,2.47,14.3,12.6,4150.,2.66,34.910],
+  "W36x160":[47.1,36.01,12.00,0.980,0.650,9760.,542.,624.,295.,49.1,2.50,14.5,14.7,4590.,2.69,35.030],
+  "W36x182":[53.6,36.33,16.60,1.020,0.725,12300.,676.,768.,931.,112.,4.17,15.1,17.6,13700.,4.37,35.310],
+  "W36x210":[61.8,36.69,16.69,1.180,0.830,13200.,719.,833.,1010.,121.,4.05,13.6,27.0,15200.,4.27,35.510],
+  "W36x232":[68.1,37.12,16.74,1.260,0.870,15000.,809.,936.,1010.,121.,3.89,14.8,36.5,16200.,4.12,35.860],
+  "W40x149":[43.8,38.98,11.81,0.830,0.630,12400.,636.,736.,229.,38.8,2.29,16.8,10.7,3900.,2.49,38.150],
+  "W40x167":[49.1,39.36,11.83,0.985,0.650,14200.,724.,835.,272.,46.0,2.35,17.0,16.8,4690.,2.55,38.375],
+  "W40x183":[53.9,39.69,11.81,1.020,0.650,16200.,820.,936.,315.,53.4,2.42,17.3,21.5,5590.,2.61,38.670],
+  "W40x211":[62.1,41.01,11.96,1.420,0.835,21100.,1030.,1200.,389.,65.2,2.50,18.4,50.1,6740.,2.69,39.590],
+  "W40x264":[77.6,40.87,16.02,1.570,0.960,29600.,1490.,1700.,1540.,192.,4.45,19.5,87.3,31900.,4.72,39.300],
+  "W44x230":[67.8,44.02,15.81,1.220,0.710,24800.,1100.,1260.,796.,101.,3.43,19.1,30.0,14600.,3.68,42.800],
+  "W44x262":[77.2,44.55,15.87,1.415,0.785,29000.,1300.,1490.,923.,116.,3.45,19.4,46.9,17100.,3.72,43.135],
+  "W44x290":[85.5,44.93,15.89,1.580,0.865,32700.,1450.,1670.,1040.,130.,3.48,19.6,65.6,19500.,3.76,43.350]
+};
+
+// ============================================================
+// HELPERS
+// ============================================================
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(id){
+  var el=document.getElementById('det_'+id);
+  var btn=document.getElementById('dbtn_'+id);
+  if(!el)return;
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+function getSelfWeight(sn){
+  if(!sn)return 0;
+  var p=sn.split('x');
+  if(p.length<2)return 0;
+  var w=parseFloat(p[1]);
+  return isNaN(w)?0:w/1000; // k/ft
+}
+function fillSectionHint(){
+  var s=document.getElementById('sec').value;
+  var hint=document.getElementById('secHint');
+  if(!s){hint.textContent='';updateSWHint();return;}
+  var D=DB[s]; if(!D){return;}
+  hint.textContent=D[1].toFixed(2)+'" d | '+D[2].toFixed(3)+'" bf | '+D[3].toFixed(3)+'" tf | '+D[4].toFixed(3)+'" tw | Zx='+D[7].toFixed(1)+' in³ | A='+D[0].toFixed(2)+' in²';
+  updateSWHint();
+}
+function updateSWHint(){
+  var sn=document.getElementById('sec').value;
+  var inclSW=document.getElementById('inclSW').checked;
+  var sw=getSelfWeight(sn);
+  var hint=document.getElementById('swHint');
+  if(inclSW && sw>0){hint.textContent='+ '+sw.toFixed(3)+' k/ft self-weight auto-added to D';}
+  else if(inclSW){hint.textContent='(select section to add self-weight)';}
+  else{hint.textContent='';}
+}
+function toggleMethod(){
+  var isLRFD=document.getElementById('methLRFD').checked;
+  var cb=document.getElementById('methCallout');
+  if(isLRFD){
+    cb.className='callout-blue';
+    cb.innerHTML='<strong class="method-lrfd">LRFD Selected:</strong> Factored loads per ASCE 7-16 §2.3.1. Capacities: &phi;<sub>b</sub>=0.90 (flexure), &phi;<sub>v</sub>=1.00 (§G2.1), &phi;=0.90 (AISC Design Guide 2 opening checks).';
+  } else {
+    cb.className='callout-cyan';
+    cb.innerHTML='<strong class="method-asd">ASD Selected:</strong> Allowable loads per ASCE 7-16 §2.4.1. Capacities: &Omega;<sub>b</sub>=1.67 (flexure &amp; AISC Design Guide 2), &Omega;<sub>v</sub>=1.50 (§G2.1).';
+  }
+}
+function toggleStiffeners(){
+  document.getElementById('stiffInputs').style.display=document.getElementById('useStiff').checked?'block':'none';
+}
+function autoDesignStiff(){
+  var sn=document.getElementById('sec').value;
+  if(!sn){alert('Select a section first.');return;}
+  var D=DB[sn]; var bf=D[2],tw=D[4];
+  var Fy=+document.getElementById('Fy').value;
+  var E=+document.getElementById('Es').value;
+  var bs=Math.floor(Math.min(bf/2-tw/2-0.5,6.0)*8)/8;
+  var bt_lim=0.56*Math.sqrt(E/Fy);
+  var ts=Math.ceil(Math.max(bs/bt_lim,tw,0.25)*16)/16;
+  document.getElementById('bs').value=bs.toFixed(3);
+  document.getElementById('ts').value=ts.toFixed(4);
+  document.getElementById('autoStiffMsg').textContent='✓ '+bs.toFixed(3)+'" × '+ts.toFixed(4)+'"';
+}
+
+// ============================================================
+// HOLE MANAGER
+// ============================================================
+var holes=[];
+var holeCount=0;
+function addHole(){
+  holeCount++;
+  var aLv=parseFloat(document.getElementById('aLovhg').value)||0;
+  var Lv=parseFloat(document.getElementById('L').value||'36');
+  var defXo=+(aLv+Lv/4).toFixed(2);  // default to quarter-span from left support
+  holes.push({id:holeCount,shape:'round',Do:10,ho:10,ao:16,xo:defXo,e:0});
+  renderHolesTable();
+}
+function removeHole(id){
+  holes=holes.filter(function(h){return h.id!==id;});
+  renderHolesTable();
+}
+function getHoleFromRow(id){
+  var row=document.getElementById('hrow_'+id);
+  if(!row)return null;
+  var shape=row.querySelector('.hshape').value;
+  var Do=parseFloat(row.querySelector('.hDo').value)||10;
+  var ho=parseFloat(row.querySelector('.hho').value)||10;
+  var ao=parseFloat(row.querySelector('.hao').value)||16;
+  var xo=parseFloat(row.querySelector('.hxo').value)||7;
+  var e=parseFloat(row.querySelector('.he').value)||0;
+  return {id:id,shape:shape,Do:Do,ho:ho,ao:ao,xo:xo,e:e};
+}
+function onShapeChange(id){
+  var row=document.getElementById('hrow_'+id);
+  if(!row)return;
+  var shape=row.querySelector('.hshape').value;
+  row.querySelector('.hDo').disabled=(shape!=='round');
+  row.querySelector('.hho').disabled=(shape!=='rect');
+  row.querySelector('.hao').disabled=(shape!=='rect');
+  row.querySelector('.hDo').style.background=(shape==='round')?'':'#f0f0f0';
+  row.querySelector('.hho').style.background=(shape==='rect')?'':'#f0f0f0';
+  row.querySelector('.hao').style.background=(shape==='rect')?'':'#f0f0f0';
+}
+function renderHolesTable(){
+  var tbody=document.getElementById('holesTbody');
+  tbody.innerHTML='';
+  holes.forEach(function(h,idx){
+    var isRound=(h.shape==='round');
+    var tr=document.createElement('tr');
+    tr.id='hrow_'+h.id;
+    tr.innerHTML=
+      '<td style="text-align:center;font-weight:700;color:#dc2626">'+(idx+1)+'</td>'+
+      '<td><select class="hshape" onchange="onShapeChange('+h.id+')">'+
+        '<option value="round"'+(isRound?' selected':'')+'>&#9711; Round</option>'+
+        '<option value="rect"'+(!isRound?' selected':'')+'>&#9645; Rect</option>'+
+      '</select></td>'+
+      '<td><input type="number" class="hDo" value="'+h.Do+'" step="0.25" min="0.5"'+(isRound?'':' disabled style="background:#f0f0f0"')+'></td>'+
+      '<td><input type="number" class="hho" value="'+h.ho+'" step="0.25" min="0.5"'+(!isRound?'':' disabled style="background:#f0f0f0"')+'></td>'+
+      '<td><input type="number" class="hao" value="'+h.ao+'" step="0.25" min="0.5"'+(!isRound?'':' disabled style="background:#f0f0f0"')+'></td>'+
+      '<td><input type="number" class="hxo" value="'+h.xo+'" step="0.25" min="0"></td>'+
+      '<td><input type="number" class="he"  value="'+h.e+'"  step="0.125"></td>'+
+      '<td><button class="del-btn" onclick="removeHole('+h.id+')">&#10005;</button></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// POINT LOAD MANAGER
+// ============================================================
+var ploads=[], ploadCount=0;
+function addPload(){
+  ploadCount++;
+  var aLv=parseFloat(document.getElementById('aLovhg').value)||0;
+  var Lv=parseFloat(document.getElementById('L').value||'36');
+  var defX=aLv+Lv/2;  // default to midspan between supports
+  ploads.push({id:ploadCount,PD:0,PL:0,xp:defX});
+  renderPloadsTable();
+}
+function removePload(id){
+  ploads=ploads.filter(function(p){return p.id!==id;});
+  renderPloadsTable();
+}
+function getPloadFromRow(id){
+  var row=document.getElementById('prow_'+id);
+  if(!row) return null;
+  var PD=parseFloat(row.querySelector('.pPD').value)||0;
+  var PL=parseFloat(row.querySelector('.pPL').value)||0;
+  var xp=parseFloat(row.querySelector('.pxp').value)||0;
+  return {id:id,PD:PD,PL:PL,xp:xp};
+}
+function renderPloadsTable(){
+  var tbody=document.getElementById('ploadsTbody');
+  tbody.innerHTML='';
+  ploads.forEach(function(p,idx){
+    var tr=document.createElement('tr');
+    tr.id='prow_'+p.id;
+    tr.innerHTML=
+      '<td style="text-align:center;font-weight:700;color:#0891b2">'+(idx+1)+'</td>'+
+      '<td><input type="number" class="pPD" value="'+p.PD+'" step="0.1" min="0"></td>'+
+      '<td><input type="number" class="pPL" value="'+p.PL+'" step="0.1" min="0"></td>'+
+      '<td><input type="number" class="pxp" value="'+p.xp+'" step="0.25" min="0"></td>'+
+      '<td><button class="del-btn" onclick="removePload('+p.id+')">&#10005;</button></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// PARTIAL UNIFORM LOAD MANAGER
+// ============================================================
+var partialLoads=[], partialCount=0;
+function addPartialLoad(){
+  partialCount++;
+  var aLv=parseFloat(document.getElementById('aLovhg').value)||0;
+  var Lv=parseFloat(document.getElementById('L').value||'36');
+  var defX1=aLv+Lv*0.25, defX2=aLv+Lv*0.75;
+  partialLoads.push({id:partialCount,wD:0,wL:0,x1:+defX1.toFixed(2),x2:+defX2.toFixed(2)});
+  renderPartialTable();
+}
+function removePartialLoad(id){
+  partialLoads=partialLoads.filter(function(p){return p.id!==id;});
+  renderPartialTable();
+}
+function getPartialFromRow(id){
+  var row=document.getElementById('prow_p'+id);
+  if(!row) return null;
+  var wD=parseFloat(row.querySelector('.ppwD').value)||0;
+  var wL=parseFloat(row.querySelector('.ppwL').value)||0;
+  var x1=parseFloat(row.querySelector('.ppx1').value)||0;
+  var x2=parseFloat(row.querySelector('.ppx2').value)||0;
+  if(x2<=x1) x2=x1+0.01;
+  return {id:id,wD:wD,wL:wL,x1:x1,x2:x2};
+}
+function renderPartialTable(){
+  var tbody=document.getElementById('partialTbody');
+  tbody.innerHTML='';
+  partialLoads.forEach(function(p,idx){
+    var tr=document.createElement('tr');
+    tr.id='prow_p'+p.id;
+    tr.innerHTML=
+      '<td style="text-align:center;font-weight:700;color:#0891b2">'+(idx+1)+'</td>'+
+      '<td><input type="number" class="ppwD" value="'+p.wD+'" step="0.01" min="0"></td>'+
+      '<td><input type="number" class="ppwL" value="'+p.wL+'" step="0.01" min="0"></td>'+
+      '<td><input type="number" class="ppx1" value="'+p.x1+'" step="0.25" min="0"></td>'+
+      '<td><input type="number" class="ppx2" value="'+p.x2+'" step="0.25" min="0"></td>'+
+      '<td><button class="del-btn" onclick="removePartialLoad('+p.id+')">&#10005;</button></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ============================================================
+// ASCE 7-16 LOAD COMBINATIONS
+// ============================================================
+function computeLoadCombos(wD_tot, wL, wLr, wS, wR, isLRFD){
+  var combos=[];
+  var LrSR_max=Math.max(wLr,wS,wR);
+  if(isLRFD){
+    // ASCE 7-16 §2.3.1, gravity only (W=E=0)
+    // fD/fL = factors applied to concentrated P_D and P_L for each combo
+    combos=[
+      {id:1,label:'1.4D',                  fD:1.4, fL:0.0, wu:1.4*wD_tot,                        eq:'1.4&times;'+f3(wD_tot)},
+      {id:2,label:'1.2D+1.6L+0.5(Lr,S,R)',fD:1.2, fL:1.6, wu:1.2*wD_tot+1.6*wL+0.5*LrSR_max,   eq:'1.2('+f3(wD_tot)+')+1.6('+f3(wL)+')+0.5('+f3(LrSR_max)+')'},
+      {id:3,label:'1.2D+1.6Lr+1.0L',      fD:1.2, fL:1.0, wu:1.2*wD_tot+1.6*wLr+1.0*wL,        eq:'1.2('+f3(wD_tot)+')+1.6('+f3(wLr)+')+1.0('+f3(wL)+')'},
+      {id:4,label:'1.2D+1.6S+1.0L',       fD:1.2, fL:1.0, wu:1.2*wD_tot+1.6*wS+1.0*wL,         eq:'1.2('+f3(wD_tot)+')+1.6('+f3(wS)+')+1.0('+f3(wL)+')'},
+      {id:5,label:'1.2D+1.6R+1.0L',       fD:1.2, fL:1.0, wu:1.2*wD_tot+1.6*wR+1.0*wL,         eq:'1.2('+f3(wD_tot)+')+1.6('+f3(wR)+')+1.0('+f3(wL)+')'}
+    ];
+  } else {
+    // ASCE 7-16 §2.4.1, gravity only (W=E=0)
+    combos=[
+      {id:1, label:'D',              fD:1.00, fL:0.00, wu:wD_tot,                  eq:f3(wD_tot)},
+      {id:2, label:'D+L',            fD:1.00, fL:1.00, wu:wD_tot+wL,              eq:f3(wD_tot)+'+'+f3(wL)},
+      {id:3, label:'D+Lr',           fD:1.00, fL:0.00, wu:wD_tot+wLr,             eq:f3(wD_tot)+'+'+f3(wLr)},
+      {id:4, label:'D+S',            fD:1.00, fL:0.00, wu:wD_tot+wS,              eq:f3(wD_tot)+'+'+f3(wS)},
+      {id:5, label:'D+R',            fD:1.00, fL:0.00, wu:wD_tot+wR,              eq:f3(wD_tot)+'+'+f3(wR)},
+      {id:6, label:'D+0.75L+0.75Lr', fD:1.00, fL:0.75, wu:wD_tot+0.75*wL+0.75*wLr, eq:f3(wD_tot)+'+0.75('+f3(wL)+')+0.75('+f3(wLr)+')'},
+      {id:7, label:'D+0.75L+0.75S',  fD:1.00, fL:0.75, wu:wD_tot+0.75*wL+0.75*wS,  eq:f3(wD_tot)+'+0.75('+f3(wL)+')+0.75('+f3(wS)+')'},
+      {id:8, label:'D+0.75L+0.75R',  fD:1.00, fL:0.75, wu:wD_tot+0.75*wL+0.75*wR,  eq:f3(wD_tot)+'+0.75('+f3(wL)+')+0.75('+f3(wR)+')'}
+    ];
+  }
+  var wu_max=Math.max.apply(null,combos.map(function(c){return c.wu;}));
+  combos.forEach(function(c){c.governs=(Math.abs(c.wu-wu_max)<0.0001);});
+  return {combos:combos,wu_max:wu_max};
+}
+
+// ============================================================
+// SVG UPDATE — supports at dynamic positions for overhangs
+// ============================================================
+function updateSVGPreview(){
+  // Update span label & supports based on current input values (no section props needed)
+  var L=parseFloat(document.getElementById('L').value)||36;
+  var aL=parseFloat(document.getElementById('aLovhg').value)||0;
+  var aR=parseFloat(document.getElementById('aRovhg').value)||0;
+  var L_total=aL+L+aR;
+  var bx0=50,bw=540;
+  var scale_e=bw/L_total;
+  var sup_L_x=bx0+aL*scale_e;
+  var sup_R_x=bx0+(aL+L)*scale_e;
+  // Span label
+  var lblTxt=(aL===0&&aR===0)?('L = '+L+' ft'):('L\u209C\u1D52\u1D57\u2090\u2097 = '+L_total.toFixed(1)+' ft  (a\u2097='+aL+' | L='+L+' | a\u1D63='+aR+' ft)');
+  document.getElementById('lblSpan').textContent=lblTxt;
+  // SVG sub-head
+  var sh=document.getElementById('svgSubHead');
+  if(sh) sh.textContent='Beam Elevation \u2014 '+(aL===0&&aR===0?'Simply Supported':'Overhang Beam')+', Uniform Load';
+  // Draw supports
+  var suppHTML='';
+  // Left: pin
+  suppHTML+='<polygon points="'+sup_L_x.toFixed(1)+',150 '+(sup_L_x+15).toFixed(1)+',175 '+(sup_L_x-15).toFixed(1)+',175" fill="#374151"/>';
+  suppHTML+='<line x1="'+(sup_L_x-25).toFixed(1)+'" y1="175" x2="'+(sup_L_x+25).toFixed(1)+'" y2="175" stroke="#374151" stroke-width="3"/>';
+  // Right: roller
+  suppHTML+='<polygon points="'+sup_R_x.toFixed(1)+',150 '+(sup_R_x+15).toFixed(1)+',175 '+(sup_R_x-15).toFixed(1)+',175" fill="#374151"/>';
+  suppHTML+='<circle cx="'+(sup_R_x-12).toFixed(1)+'" cy="179" r="4" fill="#374151"/>';
+  suppHTML+='<circle cx="'+sup_R_x.toFixed(1)+'" cy="179" r="4" fill="#374151"/>';
+  suppHTML+='<circle cx="'+(sup_R_x+12).toFixed(1)+'" cy="179" r="4" fill="#374151"/>';
+  suppHTML+='<line x1="'+(sup_R_x-25).toFixed(1)+'" y1="185" x2="'+(sup_R_x+25).toFixed(1)+'" y2="185" stroke="#374151" stroke-width="2"/>';
+  // Overhang labels
+  if(aL>0){
+    var mid_aL_x=(bx0+sup_L_x)/2;
+    suppHTML+='<line x1="'+bx0+'" y1="193" x2="'+sup_L_x.toFixed(1)+'" y2="193" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,2"/>';
+    suppHTML+='<text x="'+mid_aL_x.toFixed(1)+'" y="202" text-anchor="middle" font-size="9" fill="#7c3aed" font-weight="600">a\u2097='+aL+' ft</text>';
+  }
+  if(aR>0){
+    var mid_aR_x=(sup_R_x+bx0+bw)/2;
+    suppHTML+='<line x1="'+sup_R_x.toFixed(1)+'" y1="193" x2="'+(bx0+bw).toFixed(1)+'" y2="193" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3,2"/>';
+    suppHTML+='<text x="'+mid_aR_x.toFixed(1)+'" y="202" text-anchor="middle" font-size="9" fill="#7c3aed" font-weight="600">a\u1D63='+aR+' ft</text>';
+  }
+  document.getElementById('svgSupports').innerHTML=suppHTML;
+}
+function updateSVG(d,bf,tf,tw,holeDataArr,L,aL,aR,factPartialSVG,factPloadsSVG){
+  aL=aL||0; aR=aR||0;
+  // Update supports, labels, sub-head
+  updateSVGPreview();
+  var bx0=50,bw=540;
+  var L_total=aL+L+aR;
+  var scale_e=bw/L_total;
+  // Draw partial load arrows (teal)
+  var plSVG=document.getElementById('svgPartialLoads');
+  if(plSVG && factPartialSVG && factPartialSVG.length>0){
+    var ph='';
+    factPartialSVG.forEach(function(p,i){
+      var col='#0891b2';
+      var sx=bx0+p.x1*scale_e, ex=bx0+p.x2*scale_e;
+      var n=Math.max(2,Math.round((ex-sx)/28));
+      ph+='<line x1="'+sx.toFixed(1)+'" y1="55" x2="'+ex.toFixed(1)+'" y2="55" stroke="'+col+'" stroke-width="1.2"/>';
+      for(var j=0;j<=n;j++){
+        var ax=sx+(ex-sx)*j/n;
+        ph+='<line x1="'+ax.toFixed(1)+'" y1="55" x2="'+ax.toFixed(1)+'" y2="78" stroke="'+col+'" stroke-width="1.5" marker-end="url(#arrDn)"/>';
+      }
+      ph+='<text x="'+((sx+ex)/2).toFixed(1)+'" y="51" text-anchor="middle" font-size="8" fill="'+col+'" font-weight="600">w'+(i+1)+'</text>';
+    });
+    plSVG.innerHTML=ph;
+  } else if(plSVG){plSVG.innerHTML='';}
+  // Draw concentrated load arrows (amber)
+  var ppSVG=document.getElementById('svgPloads');
+  if(ppSVG && factPloadsSVG && factPloadsSVG.length>0){
+    var pp='';
+    factPloadsSVG.forEach(function(p,i){
+      var col='#d97706';
+      var px=bx0+p.xp*scale_e;
+      pp+='<line x1="'+px.toFixed(1)+'" y1="60" x2="'+px.toFixed(1)+'" y2="79" stroke="'+col+'" stroke-width="2.5" marker-end="url(#arrDn)"/>';
+      pp+='<circle cx="'+px.toFixed(1)+'" cy="57" r="5" fill="'+col+'" opacity="0.85"/>';
+      pp+='<text x="'+px.toFixed(1)+'" y="49" text-anchor="middle" font-size="8" fill="'+col+'" font-weight="700">P'+(i+1)+'='+p.Pf.toFixed(1)+'k</text>';
+    });
+    ppSVG.innerHTML=pp;
+  } else if(ppSVG){ppSVG.innerHTML='';}
+  var L_total=aL+L+aR;
+  var bx0=50,bw=540,by_top=80,bh=80;
+  var by_mid=by_top+bh/2;
+  var scale_e=bw/L_total;
+  // Elevation: draw all holes (xo measured from left END of beam)
+  var svgHoles=document.getElementById('svgHoles');
+  if(!svgHoles)return;
+  var html='';
+  var colors=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed'];
+  holeDataArr.forEach(function(h,idx){
+    var col=colors[idx%colors.length];
+    var cx=bx0+h.xo*scale_e;
+    if(h.shape==='round'){
+      var r=Math.min((h.Do/2/12)*scale_e,32);
+      html+='<circle cx="'+cx.toFixed(1)+'" cy="'+(by_mid-(h.e/d)*bh).toFixed(1)+'" r="'+r.toFixed(1)+'" fill="white" stroke="'+col+'" stroke-width="2" stroke-dasharray="6,3"/>';
+      html+='<text x="'+cx.toFixed(1)+'" y="'+(by_mid-(h.e/d)*bh+4).toFixed(1)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="bold">'+(idx+1)+'</text>';
+    } else {
+      var aw=Math.min((h.ao/12)*scale_e,60);
+      var ah=Math.min((h.ho/d)*bh*0.9,bh*0.85);
+      html+='<rect x="'+(cx-aw/2).toFixed(1)+'" y="'+(by_mid-ah/2).toFixed(1)+'" width="'+aw.toFixed(1)+'" height="'+ah.toFixed(1)+'" fill="white" stroke="'+col+'" stroke-width="2" stroke-dasharray="6,3"/>';
+      html+='<text x="'+cx.toFixed(1)+'" y="'+(by_mid+4).toFixed(1)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="bold">'+(idx+1)+'</text>';
+    }
+  });
+  svgHoles.innerHTML=html;
+
+  // Cross section (hole #1)
+  if(holeDataArr.length===0)return;
+  var h0=holeDataArr[0];
+  var xs_h=200,xs_y0=30,xs_cx=105;
+  var sc=xs_h/d;
+  var tf_px=Math.max(tf*sc,4);
+  var bf_px=Math.min(bf*sc*2.5,180);
+  var tw_px=Math.max(tw*sc*4,8);
+  var web_h=xs_h-2*tf_px;
+  document.getElementById('xs_tf').setAttribute('x',(xs_cx-bf_px/2).toFixed(1));
+  document.getElementById('xs_tf').setAttribute('y',xs_y0.toFixed(1));
+  document.getElementById('xs_tf').setAttribute('width',bf_px.toFixed(1));
+  document.getElementById('xs_tf').setAttribute('height',tf_px.toFixed(1));
+  document.getElementById('xs_web').setAttribute('x',(xs_cx-tw_px/2).toFixed(1));
+  document.getElementById('xs_web').setAttribute('y',(xs_y0+tf_px).toFixed(1));
+  document.getElementById('xs_web').setAttribute('width',tw_px.toFixed(1));
+  document.getElementById('xs_web').setAttribute('height',web_h.toFixed(1));
+  document.getElementById('xs_bf').setAttribute('x',(xs_cx-bf_px/2).toFixed(1));
+  document.getElementById('xs_bf').setAttribute('y',(xs_y0+xs_h-tf_px).toFixed(1));
+  document.getElementById('xs_bf').setAttribute('width',bf_px.toFixed(1));
+  document.getElementById('xs_bf').setAttribute('height',tf_px.toFixed(1));
+  var heff=h0.shape==='round'?h0.Do:h0.ho;
+  var hole_cy_xs=xs_y0+(d/2-h0.e)*sc;
+  if(h0.shape==='round'){
+    var hr=Math.min((heff/2)*sc,web_h/2*0.9);
+    document.getElementById('xs_holeC').setAttribute('display','');
+    document.getElementById('xs_holeR').setAttribute('display','none');
+    document.getElementById('xs_holeC').setAttribute('cx',xs_cx);
+    document.getElementById('xs_holeC').setAttribute('cy',hole_cy_xs.toFixed(1));
+    document.getElementById('xs_holeC').setAttribute('r',hr.toFixed(1));
+    document.getElementById('xs_doLbl').textContent='D\u2080';
+  } else {
+    var ao_sc=Math.min(h0.ao*sc*0.4,tw_px*3);
+    var ho_sc=Math.min(heff*sc,web_h*0.9);
+    document.getElementById('xs_holeC').setAttribute('display','none');
+    document.getElementById('xs_holeR').setAttribute('display','');
+    document.getElementById('xs_holeR').setAttribute('x',(xs_cx-ao_sc/2).toFixed(1));
+    document.getElementById('xs_holeR').setAttribute('y',(hole_cy_xs-ho_sc/2).toFixed(1));
+    document.getElementById('xs_holeR').setAttribute('width',ao_sc.toFixed(1));
+    document.getElementById('xs_holeR').setAttribute('height',ho_sc.toFixed(1));
+    document.getElementById('xs_doLbl').textContent='h\u2080';
+  }
+  document.getElementById('xs_doLbl').setAttribute('x',xs_cx);
+  document.getElementById('xs_doLbl').setAttribute('y',(hole_cy_xs+3).toFixed(1));
+  var st=(d-heff)/2-h0.e;
+  var sb=(d-heff)/2+h0.e;
+  document.getElementById('xs_stLbl').setAttribute('y',(xs_y0+tf_px+st*sc/2).toFixed(1));
+  document.getElementById('xs_sbLbl').setAttribute('y',(xs_y0+tf_px+st*sc+heff*sc+sb*sc/2).toFixed(1));
+  var mid_y=xs_y0+xs_h/2;
+  var eCL=document.getElementById('xs_eCL');
+  if(Math.abs(h0.e)>0.001){eCL.setAttribute('x1',172);eCL.setAttribute('x2',178);eCL.setAttribute('y1',mid_y.toFixed(1));eCL.setAttribute('y2',hole_cy_xs.toFixed(1));}
+  else{eCL.setAttribute('x1',172);eCL.setAttribute('x2',172);eCL.setAttribute('y1',mid_y.toFixed(1));eCL.setAttribute('y2',mid_y.toFixed(1));}
+}
+// ============================================================
+// CHECK ENGINE — runs AISC Design Guide 2 checks for one hole
+// ============================================================
+function checkHole(hole, idx, d, bf, tf, tw, Sx, Zx, Iy, ry, Jt, Cw, rts, ho_d, Fy, E, L, wu, Lb_top, Lb_bot, Cb, isLRFD, useStiff, bs, ts, Fys, factPloads, aL, aR, factPartial){
+  factPloads = factPloads || [];
+  factPartial = factPartial || [];
+  aL = aL || 0; aR = aR || 0;
+  var phi_dg   = isLRFD ? 0.90 : 1.0;
+  var Omega_dg = isLRFD ? 1.0  : 1.67;  // capacity divisor
+  var phi_b    = isLRFD ? 0.90 : 1.0;
+  var Omega_b  = isLRFD ? 1.0  : 1.67;
+  var phi_v    = isLRFD ? 1.00 : 1.0;
+  var Omega_v  = isLRFD ? 1.0  : 1.50;
+  var hlabel   = isLRFD ? '&phi;' : '1/&Omega;';
+  var capLabel = isLRFD ? '&phi;' : 'Allow.';
+  var suffix   = isLRFD ? '' : '/&Omega;';
+
+  var isRect=(hole.shape==='rect');
+  var xo=hole.xo, e=hole.e;
+  var ho_b, ho_s, ao_s;
+  if(isRect){ho_b=hole.ho; ho_s=hole.ho; ao_s=hole.ao;}
+  else{ho_b=hole.Do; ho_s=0.9*hole.Do; ao_s=0.45*hole.Do;}
+
+  var st_b=(d-ho_b)/2-e, sb_b=(d-ho_b)/2+e;
+  var st_s=(d-ho_s)/2-e, sb_s=(d-ho_s)/2+e;
+
+  // Support clearance — measured from edge of hole to nearest support face
+  var half_hole_in = isRect ? ao_s/2 : ho_b/2;
+  var sup_L_in = aL * 12;          // left support position in inches from left end
+  var sup_R_in = (aL + L) * 12;    // right support position in inches from left end
+  var xo_in = xo * 12;
+  var lo_L = Math.abs(xo_in - sup_L_in) - half_hole_in;
+  var lo_R = Math.abs(xo_in - sup_R_in) - half_hole_in;
+
+  var Mp=Fy*Zx;
+
+  // ==== Overhang-aware reactions & demands at xo (includes partial loads) ====
+  var L_total = aL + L + aR;
+  // Reactions by statics (moments about left support at x=aL)
+  var sum_pMom = factPloads.reduce(function(s,p){return s+(p.xp-aL)*p.Pf;},0);
+  // Partial loads: treat resultant at centroid for moment calc
+  var sum_partMom = factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1)*((p.x1+p.x2)/2-aL);},0);
+  var totalLoad_ch = wu*L_total
+    + factPloads.reduce(function(s,p){return s+p.Pf;},0)
+    + factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1);},0);
+  var R_R_ch = (L>0) ? (wu*L_total*(L_total/2-aL) + sum_pMom + sum_partMom) / L : 0;
+  var R_L_ch = totalLoad_ch - R_R_ch;
+
+  // M(x) and V(x) helper (x = distance from left END, in ft)
+  function M_ft(x){
+    var M=-wu*x*x/2;
+    // Partial load direct contributions
+    factPartial.forEach(function(p){
+      if(x>p.x1){
+        var xeff=Math.min(x,p.x2);
+        M-=p.wu*(xeff-p.x1)*(x-(p.x1+xeff)/2);
+      }
+    });
+    if(x>=aL) M+=R_L_ch*(x-aL);
+    if(x>=(aL+L)) M+=R_R_ch*(x-aL-L);
+    factPloads.forEach(function(p){if(p.xp<=x) M-=p.Pf*(x-p.xp);});
+    return M; // k-ft
+  }
+  function V_ft(x){
+    var V=-wu*x;
+    // Partial load direct contributions
+    factPartial.forEach(function(p){
+      if(x>p.x1) V-=p.wu*(Math.min(x,p.x2)-p.x1);
+    });
+    if(x>=aL) V+=R_L_ch;
+    if(x>=(aL+L)) V+=R_R_ch;
+    factPloads.forEach(function(p){if(p.xp<x) V-=p.Pf;});
+    return V; // k
+  }
+
+  var Mu_raw = M_ft(xo) * 12;   // k-in (signed)
+  var Vu_l   = V_ft(Math.max(0, xo-0.0001));
+  var Vu_r   = V_ft(Math.min(L_total, xo+0.0001));
+  var Mu = Math.abs(Mu_raw);
+  var Vu = Math.max(Math.abs(Vu_l), Math.abs(Vu_r));
+
+  // Detect cantilever (hogging) zone: bottom flange in compression
+  var inCantilever = (Mu_raw < -0.001);
+  // LTB: use appropriate unbraced length and Cb
+  var Lb_ltb = inCantilever ? Lb_bot : Lb_top;
+  var Cb_ltb = inCantilever ? 1.0 : Cb;
+
+  var chks=[];
+  var uid='h'+idx+'_';
+
+  // --- P1: Compact Flange ---
+  var lam_f=bf/(2*tf);
+  var lam_pf=0.38*Math.sqrt(E/Fy);
+  var ok_cf=(lam_f<=lam_pf);
+  var det='<div class="cref-hdr">Table B4.1b &mdash; Flange Compactness</div><div class="cbox">';
+  det+='<div class="mrow">&lambda;<sub>pf</sub>=0.38'+ov('E/F<sub>y</sub>')+'=<span class="cval">'+f2(lam_pf)+'</span> &nbsp; &lambda;<sub>f</sub>=b<sub>f</sub>/(2t<sub>f</sub>)=<span class="cval">'+f2(lam_f)+'</span></div>';
+  det+='<div class="mrow">'+f2(lam_f)+' '+(ok_cf?'&le;':'&gt;')+' '+f2(lam_pf)+' &rarr; '+(ok_cf?'<span class="cval">COMPACT &#10003;</span>':'<span style="color:#dc2626">NON-COMPACT &#10007;</span>')+'</div></div>';
+  chks.push({n:'Compact Flange',r:'AISC 360-22 Table B4.1b',d:'&lambda;<sub>f</sub>='+f2(lam_f),c:'&lambda;<sub>pf</sub>='+f2(lam_pf),dc:lam_f/lam_pf,nt:'AISC Design Guide 2 prerequisite',stiff:ok_cf,det:det});
+
+  // --- P2: Compact Web ---
+  var lam_w=(d-2*tf)/tw;
+  var lam_pw=3.76*Math.sqrt(E/Fy);
+  var ok_cw=(lam_w<=lam_pw);
+  var det2='<div class="cref-hdr">Table B4.1b &mdash; Web Compactness</div><div class="cbox">';
+  det2+='<div class="mrow">&lambda;<sub>pw</sub>=3.76'+ov('E/F<sub>y</sub>')+'=<span class="cval">'+f2(lam_pw)+'</span> &nbsp; &lambda;<sub>w</sub>=(d-2t<sub>f</sub>)/t<sub>w</sub>=<span class="cval">'+f2(lam_w)+'</span></div>';
+  det2+='<div class="mrow">'+f2(lam_w)+' '+(ok_cw?'&le;':'&gt;')+' '+f2(lam_pw)+' &rarr; '+(ok_cw?'<span class="cval">COMPACT &#10003;</span>':'<span style="color:#dc2626">NON-COMPACT &#10007;</span>')+'</div></div>';
+  chks.push({n:'Compact Web',r:'AISC 360-22 Table B4.1b',d:'&lambda;<sub>w</sub>='+f2(lam_w),c:'&lambda;<sub>pw</sub>='+f2(lam_pw),dc:lam_w/lam_pw,nt:'h/t<sub>w</sub>&le;3.76'+ov('E/F<sub>y</sub>'),stiff:ok_cw,det:det2});
+
+  // --- P3: Opening Depth ---
+  var ho_d_r=ho_b/d;
+  var det3='<div class="cref-hdr">AISC Design Guide 2 §3.7b1 &mdash; h<sub>o</sub>/d &le; 0.70</div><div class="cbox">';
+  det3+='<div class="mrow">h<sub>o</sub>='+(isRect?'user h<sub>o</sub>':'D<sub>o</sub>')+' = <span class="cval">'+f2(ho_b)+'"</span> &nbsp; d=<span class="cval">'+f2(d)+'"</span></div>';
+  det3+='<div class="mrow">h<sub>o</sub>/d='+f3(ho_d_r)+' '+(ho_d_r<=0.70?'&le;':'&gt;')+' 0.70 &rarr; '+(ho_d_r<=0.70?'<span class="cval">OK &#10003;</span>':'<span style="color:#dc2626">EXCEEDS &#10007;</span>')+'</div></div>';
+  chks.push({n:'Opening Depth h<sub>o</sub>/d',r:'AISC Design Guide 2 §3.7b1',d:'h<sub>o</sub>/d='+f3(ho_d_r),c:'Limit=0.70',dc:ho_d_r/0.70,nt:'h<sub>o</sub>='+f2(ho_b)+'"',stiff:false,det:det3});
+
+  // --- P4: Opening Parameter ---
+  var po=ao_s/ho_s+6*ho_s/d;
+  var det4='<div class="cref-hdr">AISC Design Guide 2 §3.7a2 Eq.3-24 &mdash; p<sub>o</sub> &le; 5.6</div><div class="cbox">';
+  det4+='<div class="mrow">p<sub>o</sub>=a<sub>o</sub>/h<sub>o</sub>+6h<sub>o</sub>/d = '+f2(ao_s/ho_s)+'+'+f2(6*ho_s/d)+' = <span class="cval">'+f2(po)+'</span></div>';
+  det4+='<div class="mrow">'+f2(po)+' '+(po<=5.6?'&le;':'&gt;')+' 5.6 &rarr; '+(po<=5.6?'<span class="cval">OK &#10003;</span>':'<span style="color:#dc2626">EXCEEDS &#10007;</span>')+'</div></div>';
+  chks.push({n:'Opening Parameter p<sub>o</sub>',r:'AISC Design Guide 2 §3.7a2 Eq.3-24',d:'p<sub>o</sub>='+f2(po),c:'Limit=5.6',dc:po/5.6,nt:'a<sub>o</sub>='+f2(ao_s)+'", h<sub>o</sub>='+f2(ho_s)+'" (shear)',stiff:false,det:det4});
+
+  // --- P5: Tee Depths ---
+  var s_min=0.15*d;
+  var s_min_val=Math.min(st_b,sb_b,st_s,sb_s);
+  var det5='<div class="cref-hdr">AISC Design Guide 2 §3.7b1 &mdash; Tee Depths s &ge; 0.15d = '+f2(s_min)+'"</div><div class="cbox">';
+  det5+='<div class="mrow"><strong>Bending</strong> (h<sub>o</sub>='+f2(ho_b)+'): s<sub>t</sub>=<span class="cval">'+f2(st_b)+'"</span> '+(st_b>=s_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+' &nbsp; s<sub>b</sub>=<span class="cval">'+f2(sb_b)+'"</span> '+(sb_b>=s_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+'</div>';
+  det5+='<div class="mrow"><strong>Shear</strong> (h<sub>o</sub>='+f2(ho_s)+'): s<sub>t</sub>=<span class="cval">'+f2(st_s)+'"</span> '+(st_s>=s_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+' &nbsp; s<sub>b</sub>=<span class="cval">'+f2(sb_s)+'"</span> '+(sb_s>=s_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+'</div></div>';
+  chks.push({n:'Tee Depth Requirements',r:'AISC Design Guide 2 §3.7b1',d:'s<sub>t</sub>='+f2(st_b)+'", s<sub>b</sub>='+f2(sb_b)+'"',c:'s&ge;0.15d='+f2(s_min)+'"',dc:s_min/Math.max(s_min_val,0.001),nt:'All tees, bending &amp; shear dims',stiff:false,det:det5});
+
+  // --- P6: Tee Aspect Ratios ---
+  var nu_b=ao_s/Math.max(sb_s,0.001), nu_t=ao_s/Math.max(st_s,0.001);
+  var det6='<div class="cref-hdr">AISC Design Guide 2 §3.7b1 &mdash; &nu; = a<sub>o</sub>/s &le; 12</div><div class="cbox">';
+  det6+='<div class="mrow">&nu;<sub>b</sub>='+f2(ao_s)+'/'+f2(sb_s)+'=<span class="cval">'+f2(nu_b)+'</span> '+(nu_b<=12?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+' &nbsp; &nu;<sub>t</sub>='+f2(ao_s)+'/'+f2(st_s)+'=<span class="cval">'+f2(nu_t)+'</span> '+(nu_t<=12?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+'</div></div>';
+  chks.push({n:'Tee Aspect Ratio &nu;',r:'AISC Design Guide 2 §3.7b1',d:'&nu;<sub>max</sub>='+f2(Math.max(nu_b,nu_t)),c:'&nu;&le;12',dc:Math.max(nu_b,nu_t)/12,nt:'a<sub>o</sub>/s&le;12 each tee',stiff:false,det:det6});
+
+  // --- P7: Support Clearance ---
+  var lo_min=d, lo_gvn=Math.min(lo_L,lo_R);
+  var det7='<div class="cref-hdr">AISC Design Guide 2 §3.7b &mdash; Edge Clearance &ge; d</div><div class="cbox">';
+  det7+='<div class="mrow">Left: '+f2(lo_L)+'" '+(lo_L>=lo_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+' &nbsp; Right: '+f2(lo_R)+'" '+(lo_R>=lo_min?'&#10003;':'<span style="color:#dc2626">&#10007;</span>')+' &nbsp; Req: &ge;d='+f2(lo_min)+'"</div></div>';
+  chks.push({n:'Support Clearance',r:'AISC Design Guide 2 §3.7b',d:'l<sub>o,min</sub>='+f2(lo_gvn)+'"',c:'&ge;d='+f2(lo_min)+'"',dc:lo_min/Math.max(lo_gvn,0.001),nt:'Edge of hole to nearest support',stiff:false,det:det7});
+
+  // --- LTB — Standalone Primary ---
+  var Lp=1.76*ry*Math.sqrt(E/Fy);
+  var Lr=1.95*rts*(E/(0.7*Fy))*Math.sqrt(Jt/(Sx*ho_d)+Math.sqrt(Math.pow(Jt/(Sx*ho_d),2)+6.76*Math.pow(0.7*Fy/E,2)));
+  var Lb=Lb_ltb; // compression flange: top for sagging (span), bottom for hogging (cantilever)
+  var Mn_ltb, ltb_case, Fcr_ltb;
+  var compFlangeLabel=inCantilever?'L<sub>b,bot</sub>':'L<sub>b,top</sub>';
+  if(Lb<=Lp){Mn_ltb=Mp;ltb_case='No LTB &mdash; '+compFlangeLabel+'&le;L<sub>p</sub>='+f2(Lp/12)+' ft';}
+  else if(Lb<=Lr){Mn_ltb=Math.min(Cb_ltb*(Mp-(Mp-0.7*Fy*Sx)*((Lb-Lp)/(Lr-Lp))),Mp);ltb_case='Inelastic LTB';}
+  else{Fcr_ltb=Cb_ltb*Math.PI*Math.PI*E/Math.pow(Lb/rts,2)*Math.sqrt(1+0.078*Jt/(Sx*ho_d)*Math.pow(Lb/rts,2));Mn_ltb=Math.min(Fcr_ltb*Sx,Mp);ltb_case='Elastic LTB &mdash; '+compFlangeLabel+'&gt;L<sub>r</sub>='+f2(Lr/12)+' ft';}
+  var cap_ltb=(phi_b*Mn_ltb)/Omega_b;
+  var ltbFlangeNote=inCantilever?'Bottom flange in compression (cantilever/hogging zone); C<sub>b</sub>=1.0 used':'Top flange in compression (positive moment/sagging zone)';
+  var det_ltb='<div class="cref-hdr">AISC 360-22 §F2 &mdash; LTB ('+(isLRFD?'LRFD':'ASD')+')</div><div class="cbox">';
+  det_ltb+='<div class="mrow">M<sub>p</sub>=F<sub>y</sub>Z<sub>x</sub>='+f1(Mp)+' k-in &nbsp; L<sub>p</sub>='+f2(Lp/12)+' ft &nbsp; L<sub>r</sub>='+f2(Lr/12)+' ft</div>';
+  det_ltb+='<div class="mrow">'+compFlangeLabel+'='+f2(Lb/12)+' ft &nbsp;|&nbsp; C<sub>b</sub>='+f2(Cb_ltb)+' &nbsp;|&nbsp; Case: <span class="cval">'+ltb_case+'</span></div>';
+  det_ltb+='<div class="mrow">M<sub>n</sub>=<span class="cval">'+f1(Mn_ltb)+' k-in</span> &nbsp; '+capLabel+'M<sub>n</sub>='+f1(cap_ltb)+' k-in</div>';
+  det_ltb+='<div class="mrow">D/C = M<sub>u</sub>/'+capLabel+'M<sub>n</sub> = '+fr(f1(Mu),f1(cap_ltb))+' = <span class="cval">'+f3(Mu/cap_ltb)+'</span></div></div>';
+  chks.push({n:'Lateral-Torsional Buckling<br><small>'+ltbFlangeNote+'</small>',r:'AISC 360-22 §F2',d:(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f1(Mu)+' k-in',c:capLabel+'M<sub>n</sub>='+f1(cap_ltb)+' k-in',dc:Mu/cap_ltb,nt:ltb_case,stiff:(Mu/cap_ltb<=1),det:det_ltb,primary:true});
+
+  // --- Gross Shear ---
+  var Aw=d*tw;
+  var h_tw=(d-2*tf)/tw;
+  var cv1_lim=2.24*Math.sqrt(E/Fy);
+  var Cv1=(h_tw<=cv1_lim)?1.0:Math.min(1.0,1.10*Math.sqrt(5.34*E/Fy)/h_tw);
+  var Vn_gs=0.6*Fy*Aw*Cv1;
+  var cap_gs=(phi_v*Vn_gs)/Omega_v;
+  var det_gs='<div class="cref-hdr">AISC 360-22 §G2.1 &mdash; Gross Section Shear</div><div class="cbox">';
+  det_gs+='<div class="mrow">A<sub>w</sub>='+f3(Aw)+' in² &nbsp; C<sub>v1</sub>='+f3(Cv1)+' &nbsp; V<sub>n</sub>=0.6&times;'+Fy+'&times;'+f3(Aw)+'&times;'+f3(Cv1)+'=<span class="cval">'+f2(Vn_gs)+' k</span></div>';
+  det_gs+='<div class="mrow">'+capLabel+'V<sub>n</sub>='+f2(cap_gs)+' k &nbsp; D/C='+f3(Vu/cap_gs)+'</div>';
+  det_gs+='<div style="margin-top:5px;font-size:.85em;color:#555;font-style:italic">Reference &mdash; AISC Design Guide 2 §3.6 opening shear governs at hole.</div></div>';
+  chks.push({n:'Gross Section Shear<br><small>Reference, at opening</small>',r:'AISC 360-22 §G2.1',d:(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+'='+f2(Vu)+' k',c:capLabel+'V<sub>n</sub>='+f2(cap_gs)+' k',dc:Vu/cap_gs,nt:'Unperforated section',stiff:false,det:det_gs});
+
+  // --- AISC Design Guide 2 Mm ---
+  var DeltaAs=ho_b*tw;
+  var Mm=Math.min(Mp*(1-DeltaAs*(ho_b/4+Math.abs(e))/Zx),Mp);
+  var cap_Mm=(phi_dg*Mm)/Omega_dg;
+  var det_mm='<div class="cref-hdr">AISC Design Guide 2 §3.5 Eq.3-6 &mdash; Moment Capacity at Opening</div><div class="cbox">';
+  det_mm+='<div class="mrow"><span class="ceq">M<sub>m</sub>=M<sub>p</sub>[1&minus;&Delta;A<sub>s</sub>(h<sub>o</sub>/4+|e|)/Z<sub>x</sub>]</span></div>';
+  det_mm+='<div class="mrow">M<sub>p</sub>='+f1(Mp)+' k-in &nbsp; &Delta;A<sub>s</sub>='+f2(ho_b)+'&times;'+f3(tw)+'=<span class="cval">'+f3(DeltaAs)+' in²</span></div>';
+  det_mm+='<div class="mrow">M<sub>m</sub>='+f1(Mp)+'[1&minus;'+f3(DeltaAs)+'('+f2(ho_b/4)+'+'+f2(Math.abs(e))+')/'+f1(Zx)+'] = <span class="cval">'+f1(Mm)+' k-in</span></div>';
+  det_mm+='<div class="mrow">'+capLabel+'M<sub>m</sub>='+f2(phi_dg/Omega_dg)+'&times;'+f1(Mm)+' = <span class="cval">'+f1(cap_Mm)+' k-in</span></div>';
+  det_mm+='<hr class="csep"><div class="mrow">D/C = '+fr(f1(Mu),f1(cap_Mm))+' = <span class="cval">'+f3(Mu/cap_Mm)+'</span></div></div>';
+  chks.push({n:'AISC Design Guide 2 Moment Cap. M<sub>m</sub>',r:'AISC Design Guide 2 §3.5 Eq.3-6',d:(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f1(Mu)+' k-in',c:capLabel+'M<sub>m</sub>='+f1(cap_Mm)+' k-in',dc:Mu/cap_Mm,nt:capLabel+'='+f2(phi_dg/Omega_dg)+'; unreinforced',stiff:false,det:det_mm});
+
+  // --- AISC Design Guide 2 Vm ---
+  var Vpb=Fy*tw*sb_s/Math.sqrt(3), Vpt=Fy*tw*st_s/Math.sqrt(3);
+  var nu_b2=ao_s/Math.max(sb_s,0.001), nu_t2=ao_s/Math.max(st_s,0.001);
+  var avb=Math.min(1.0,Math.sqrt(6)/(nu_b2+Math.sqrt(3)));
+  var avt=Math.min(1.0,Math.sqrt(6)/(nu_t2+Math.sqrt(3)));
+  var Vp_g=Fy*tw*d/Math.sqrt(3);
+  var Vm=Math.min(Vpb*avb+Vpt*avt,2/3*Vp_g);
+  var cap_Vm=(phi_dg*Vm)/Omega_dg;
+  var det_vm='<div class="cref-hdr">AISC Design Guide 2 §3.6 Eqs.3-12/3-13 &mdash; Shear Capacity at Opening</div><div class="cbox">';
+  det_vm+='<div class="mrow">s<sub>t</sub>='+f2(st_s)+'", s<sub>b</sub>='+f2(sb_s)+'", a<sub>o</sub>='+f2(ao_s)+'"</div>';
+  det_vm+='<div class="mrow">V<sub>pb</sub>='+f2(Vpb)+' k, &alpha;<sub>vb</sub>='+f3(avb)+' &rarr; V<sub>mb</sub>='+f2(Vpb*avb)+' k</div>';
+  det_vm+='<div class="mrow">V<sub>pt</sub>='+f2(Vpt)+' k, &alpha;<sub>vt</sub>='+f3(avt)+' &rarr; V<sub>mt</sub>='+f2(Vpt*avt)+' k</div>';
+  det_vm+='<div class="mrow">V<sub>m</sub>=min('+f2(Vpb*avb+Vpt*avt)+', '+f2(2/3*Vp_g)+') = <span class="cval">'+f2(Vm)+' k</span></div>';
+  det_vm+='<div class="mrow">'+capLabel+'V<sub>m</sub>=<span class="cval">'+f2(cap_Vm)+' k</span></div>';
+  det_vm+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Vu),f2(cap_Vm))+' = <span class="cval">'+f3(Vu/cap_Vm)+'</span></div></div>';
+  chks.push({n:'AISC Design Guide 2 Shear Cap. V<sub>m</sub>',r:'AISC Design Guide 2 §3.6 Eqs.3-12/3-13',d:(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+'='+f2(Vu)+' k',c:capLabel+'V<sub>m</sub>='+f2(cap_Vm)+' k',dc:Vu/cap_Vm,nt:'&alpha;<sub>v</sub> shear reduction; &mu;=0',stiff:false,det:det_vm});
+
+  // --- M-V Interaction ---
+  var mr=Mu/cap_Mm, vr=Vu/cap_Vm;
+  var R=Math.sqrt(mr*mr+vr*vr*vr);
+  var det_int='<div class="cref-hdr">AISC Design Guide 2 §3.4 Eq.3-3 &mdash; M&ndash;V Interaction</div><div class="cbox">';
+  det_int+='<div class="mrow"><span class="ceq">R='+ov('(M/M<sub>allow</sub>)&sup2;+(V/V<sub>allow</sub>)&sup3;')+'&le;1.0</span></div>';
+  det_int+='<div class="mrow">m/M<sub>a</sub>='+f3(mr)+' &nbsp; v/V<sub>a</sub>='+f3(vr)+' &nbsp; R=<span class="cval">'+f3(R)+'</span></div>';
+  det_int+='<div class="mrow">'+f3(R)+' '+(R<=1?'&le;':'&gt;')+' 1.0 &rarr; '+(R<=1?'<span class="cval">PASS &#10003;</span>':'<span style="color:#dc2626">FAIL &#10007;</span>')+'</div></div>';
+  chks.push({n:'M&ndash;V Interaction',r:'AISC Design Guide 2 §3.4 Eq.3-3',d:'R='+f3(R),c:'R&le;1.0',dc:R,nt:'(m/M)²+(v/V)³&le;1',stiff:(R<=1),det:det_int});
+
+  // --- Stiffener Checks ---
+  if(useStiff && bs>0 && ts>0){
+    var bt_lim=0.56*Math.sqrt(E/Fys);
+    var bt_act=bs/ts;
+    var det_sc='<div class="cref-hdr">§J10.8 &mdash; Stiffener Plate Compactness</div><div class="cbox">';
+    det_sc+='<div class="mrow">Limit=0.56'+ov('E/F<sub>ys</sub>')+'=<span class="cval">'+f2(bt_lim)+'</span> &nbsp; b<sub>s</sub>/t<sub>s</sub>='+f2(bt_act)+'</div>';
+    det_sc+='<div class="mrow">'+f2(bt_act)+' '+(bt_act<=bt_lim?'&le;':'&gt;')+' '+f2(bt_lim)+' &rarr; '+(bt_act<=bt_lim?'<span class="cval">OK &#10003;</span>':'<span style="color:#dc2626">&#10007;</span>')+'</div></div>';
+    chks.push({n:'Stiffener Compactness',r:'AISC 360-22 §J10.8',d:'b<sub>s</sub>/t<sub>s</sub>='+f2(bt_act),c:'Limit='+f2(bt_lim),dc:bt_act/bt_lim,nt:'Outstanding element',stiff:(bt_act<=bt_lim),det:det_sc});
+    var h_cl=d-2*tf;
+    var Ist=2*(ts*Math.pow(bs+tw/2,3)/3);
+    var Ist_req=Math.pow(h_cl/50,4);
+    var det_si='<div class="cref-hdr">§G2.2 &mdash; Stiffener Minimum Stiffness (Pair)</div><div class="cbox">';
+    det_si+='<div class="mrow">I<sub>st</sub>=2&times;t<sub>s</sub>(b<sub>s</sub>+t<sub>w</sub>/2)³/3=<span class="cval">'+f2(Ist)+' in⁴</span></div>';
+    det_si+='<div class="mrow">I<sub>req</sub>=(h/50)⁴=('+f2(h_cl)+'/50)⁴=<span class="cval">'+f2(Ist_req)+' in⁴</span></div>';
+    det_si+='<div class="mrow">'+f2(Ist)+' '+(Ist>=Ist_req?'&ge;':'&lt;')+' '+f2(Ist_req)+' &rarr; '+(Ist>=Ist_req?'<span class="cval">OK &#10003;</span>':'<span style="color:#dc2626">&#10007;</span>')+'</div></div>';
+    chks.push({n:'Stiffener Stiffness I<sub>st</sub>',r:'AISC 360-22 §G2.2',d:'I<sub>st</sub>='+f2(Ist)+' in⁴',c:'I<sub>req</sub>='+f2(Ist_req)+' in⁴',dc:Ist_req/Math.max(Ist,0.001),nt:'Pair, about web face',stiff:(Ist>=Ist_req),det:det_si});
+  }
+
+  return {chks:chks, Mu:Mu, Vu:Vu, cap_Mm:cap_Mm, cap_Vm:cap_Vm, R:R, ho_b:ho_b, ho_s:ho_s, ao_s:ao_s, st_b:st_b, sb_b:sb_b};
+}
+
+// ============================================================
+// RENDER CHECK TABLE
+// ============================================================
+function renderCheckTable(chks, uid){
+  var html='<table class="chk-table"><thead><tr><th style="width:26%">Check</th><th style="width:17%">Reference</th><th>Demand</th><th>Capacity</th><th style="width:130px">D/C Ratio</th><th>Status</th><th style="width:68px">Detail</th></tr></thead><tbody>';
+  chks.forEach(function(c,i){
+    var key=uid+'_'+i;
+    var dc_v=(c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct=dc_v!==null?Math.min(dc_v*100,150):0;
+    var col=dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt=dc_v!==null?f3(dc_v):'&mdash;';
+    var rowCls=c.primary?'ltb-primary':c.stiff?'alt-row':'';
+    html+='<tr class="'+rowCls+'"><td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>';
+    html+='<td><code>'+c.r+'</code></td><td>'+c.d+'</td><td>'+c.c+'</td>';
+    html+='<td><div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+Math.min(pct,100)+'%;background:'+col+'"></div></div><span style="color:'+col+';font-weight:700;min-width:38px;font-size:.85em">'+dtxt+'</span></div></td>';
+    html+='<td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+key+'" onclick="toggleDet(\''+key+'\')">&#9654; Calc</button></td></tr>';
+    html+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+key+'">'+c.det+'</div></td></tr>';
+  });
+  html+='</tbody></table>';
+  return html;
+}
+
+// ============================================================
+// HOLE SPACING CHECK (AISC Design Guide 2 §3.7b)
+// ============================================================
+function checkHoleSpacing(holeData, d){
+  if(holeData.length<2) return [];
+  var sorted=holeData.slice().sort(function(a,b){return a.xo-b.xo;});
+  var results=[];
+  for(var i=0;i<sorted.length-1;i++){
+    var h1=sorted[i], h2=sorted[i+1];
+    var ext1=h1.shape==='round'?h1.Do:h1.ao;  // full hole length
+    var ext2=h2.shape==='round'?h2.Do:h2.ao;
+    var xo1=h1.xo*12, xo2=h2.xo*12;           // centers in inches
+    var clear=xo2-ext2/2-(xo1+ext1/2);         // edge-to-edge clear distance
+    var req=Math.max(ext1,ext2,d);              // AISC Design Guide 2: ≥ larger ao AND ≥ d
+    // Find original indices for display
+    var i1=holeData.indexOf(h1), i2=holeData.indexOf(h2);
+    results.push({i1:i1,i2:i2,clear:clear,req:req,ok:(clear>=req),ext1:ext1,ext2:ext2});
+  }
+  return results;
+}
+
+// ============================================================
+// DEFLECTION CHECK (service loads, unperforated section)
+// ============================================================
+// Numerical double-integration deflection — includes full UDL, partial UDLs, concentrated loads
+// ploadData: [{PD,PL,xp}], partialData: [{wD,wL,x1,x2}], positions in ft from left END of beam
+function computeDeflectionFull(wD_tot, wL, L, E_val, Ix_val, aL, aR, ploadData, partialData){
+  aL=aL||0; aR=aR||0;
+  ploadData=ploadData||[];
+  partialData=partialData||[];
+  var L_total=aL+L+aR;
+  var EI=E_val*Ix_val; // k-in²
+
+  function makeRxn(w_ft, Ploads, Parts){
+    var sp=Ploads.reduce(function(s,p){return s+(p.xp-aL)*p.P;},0);
+    var spart=Parts.reduce(function(s,p){return s+p.w*(p.x2-p.x1)*((p.x1+p.x2)/2-aL);},0);
+    var tot=w_ft*L_total+Ploads.reduce(function(s,p){return s+p.P;},0)+Parts.reduce(function(s,p){return s+p.w*(p.x2-p.x1);},0);
+    var R_R=(L>0)?(w_ft*L_total*(L_total/2-aL)+sp+spart)/L:0;
+    return{R_L:tot-R_R, R_R:R_R};
+  }
+  function M_kft(x, w_ft, R_L, R_R, Ploads, Parts){
+    var M=-w_ft*x*x/2;
+    Parts.forEach(function(p){if(x>p.x1){var xe=Math.min(x,p.x2);M-=p.w*(xe-p.x1)*(x-(p.x1+xe)/2);}});
+    if(x>=aL) M+=R_L*(x-aL);
+    if(x>=(aL+L)) M+=R_R*(x-aL-L);
+    Ploads.forEach(function(p){if(p.xp<=x) M-=p.P*(x-p.xp);});
+    return M; // k-ft
+  }
+  function integrate(w_ft, Ploads, Parts){
+    var rxn=makeRxn(w_ft,Ploads,Parts);
+    var R_L=rxn.R_L, R_R=rxn.R_R;
+    var N=400; var dx_ft=L_total/N; var dx_in=dx_ft*12;
+    // κ(x) = M(x)*12 / EI  [1/in]
+    var kap=[];
+    for(var i=0;i<=N;i++) kap.push(M_kft(i/N*L_total,w_ft,R_L,R_R,Ploads,Parts)*12/EI);
+    // ψ(x) = ∫₀ˣ κ dx_in  [rad]
+    var psi=[0];
+    for(var i=1;i<=N;i++) psi.push(psi[i-1]+(kap[i-1]+kap[i])/2*dx_in);
+    // Ψ(x) = ∫₀ˣ ψ dx_in  [in]
+    var Ps=[0];
+    for(var i=1;i<=N;i++) Ps.push(Ps[i-1]+(psi[i-1]+psi[i])/2*dx_in);
+    // BC: δ(aL)=0 and δ(aL+L)=0  →  Ps[i]+C1*(x_in)+C2=0
+    var i_aL=Math.min(N,Math.max(0,Math.round(aL/L_total*N)));
+    var i_aR=Math.min(N,Math.max(0,Math.round((aL+L)/L_total*N)));
+    var aL_in=aL*12, aLpL_in=(aL+L)*12;
+    var C1=(L>0)?(-(Ps[i_aR]-Ps[i_aL])/(L*12)):0;
+    var C2=-Ps[i_aL]-C1*aL_in;
+    // Final δ array [in] — negative = downward (upward-positive convention)
+    var delta=Ps.map(function(p,i){return p+C1*(i/N*L_total*12)+C2;});
+    // Interior max downward deflection
+    var int_max=0;
+    for(var i=i_aL;i<=i_aR;i++) int_max=Math.max(int_max,Math.abs(delta[i]));
+    return{int:int_max, tipL:Math.abs(delta[0]), tipR:Math.abs(delta[N])};
+  }
+
+  // Build service load arrays
+  var totP =ploadData.map(function(p){return{P:(p.PD||0)+(p.PL||0),xp:p.xp};});
+  var llP  =ploadData.map(function(p){return{P:(p.PL||0),xp:p.xp};});
+  var dlP  =ploadData.map(function(p){return{P:(p.PD||0),xp:p.xp};});
+  var totPt=partialData.map(function(p){return{w:(p.wD||0)+(p.wL||0),x1:p.x1,x2:p.x2};});
+  var llPt =partialData.map(function(p){return{w:(p.wL||0),x1:p.x1,x2:p.x2};});
+  var dlPt =partialData.map(function(p){return{w:(p.wD||0),x1:p.x1,x2:p.x2};});
+
+  var d_tot=integrate(wD_tot+wL, totP, totPt);
+  var d_ll =integrate(wL,        llP,  llPt);
+  var d_dl =integrate(wD_tot,    dlP,  dlPt);
+
+  var L_in=L*12, aL_in=aL*12, aR_in=aR*12;
+  return{
+    delta_DL_int: d_dl.int, delta_LL_int: d_ll.int,  delta_tot_int: d_tot.int,
+    lim_360:L_in/360,        lim_240:L_in/240,
+    ok_360:d_ll.int<=L_in/360, ok_240:d_tot.int<=L_in/240,
+    hasL:aL>0,
+    delta_DL_L:d_dl.tipL, delta_LL_L:d_ll.tipL,   delta_tot_L:d_tot.tipL,
+    lim_L_ll:aL_in/180,     lim_L_tot:aL_in/120,
+    ok_L_ll:aL>0?d_ll.tipL<=aL_in/180:true,
+    ok_L_tot:aL>0?d_tot.tipL<=aL_in/120:true,
+    hasR:aR>0,
+    delta_DL_R:d_dl.tipR, delta_LL_R:d_ll.tipR,   delta_tot_R:d_tot.tipR,
+    lim_R_ll:aR_in/180,     lim_R_tot:aR_in/120,
+    ok_R_ll:aR>0?d_ll.tipR<=aR_in/180:true,
+    ok_R_tot:aR>0?d_tot.tipR<=aR_in/120:true
+  };
+}
+
+// ============================================================
+// BEAM-LEVEL DESIGN CHECKS (bending, shear) & REACTIONS
+// ============================================================
+function computeBeamChecks(wu,L,aL,aR,factPloads,factPartial,d,bf,tf,tw,Sx,Zx,ry,Jt,Cw,rts,ho_d,Fy,E,Lb_top,Lb_bot,Cb,isLRFD){
+  aL=aL||0; aR=aR||0;
+  factPloads=factPloads||[]; factPartial=factPartial||[];
+  var L_total=aL+L+aR;
+  var sp=factPloads.reduce(function(s,p){return s+(p.xp-aL)*p.Pf;},0);
+  var spart=factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1)*((p.x1+p.x2)/2-aL);},0);
+  var totLoad=wu*L_total+factPloads.reduce(function(s,p){return s+p.Pf;},0)+factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1);},0);
+  var R_R=(L>0)?(wu*L_total*(L_total/2-aL)+sp+spart)/L:0;
+  var R_L=totLoad-R_R;
+
+  function Mft(x){
+    var M=-wu*x*x/2;
+    factPartial.forEach(function(p){if(x>p.x1){var xe=Math.min(x,p.x2);M-=p.wu*(xe-p.x1)*(x-(p.x1+xe)/2);}});
+    if(x>=aL) M+=R_L*(x-aL);
+    if(x>=(aL+L)) M+=R_R*(x-aL-L);
+    factPloads.forEach(function(p){if(p.xp<=x) M-=p.Pf*(x-p.xp);});
+    return M;
+  }
+  function Vft(x){
+    var V=-wu*x;
+    factPartial.forEach(function(p){if(x>p.x1) V-=p.wu*(Math.min(x,p.x2)-p.x1);});
+    if(x>=aL) V+=R_L;
+    if(x>=(aL+L)) V+=R_R;
+    factPloads.forEach(function(p){if(p.xp<x) V-=p.Pf;});
+    return V;
+  }
+  // Scan many points for max |M| and max |V|
+  var N=400;
+  var xs=[];
+  for(var i=0;i<=N;i++) xs.push(i/N*L_total);
+  xs.push(aL-0.001,aL+0.001,aL+L-0.001,aL+L+0.001);
+  factPloads.forEach(function(p){xs.push(p.xp-0.0001,p.xp+0.0001);});
+  factPartial.forEach(function(p){xs.push(p.x1+0.0001,p.x2-0.0001);});
+  xs=xs.filter(function(x){return x>=0&&x<=L_total;}).sort(function(a,b){return a-b;});
+  var Mu_max=0, x_Mu=aL+L/2, Mu_raw_max=0;
+  var Vu_max=0, x_Vu=aL;
+  xs.forEach(function(x){
+    var mi=Mft(x), av=Math.abs(mi), vv=Math.abs(Vft(x));
+    if(av>Mu_max){Mu_max=av; x_Mu=x; Mu_raw_max=mi;}
+    if(vv>Vu_max){Vu_max=vv; x_Vu=x;}
+  });
+  var Mu_max_kft=Mu_max; // k-ft (for display)
+  Mu_max*=12; // k-ft → k-in
+
+  // LTB at location of max moment
+  var inCant=(Mu_raw_max<-0.001);
+  var Lb=inCant?Lb_bot:Lb_top;
+  var Cb_use=inCant?1.0:Cb;
+  var Mp=Fy*Zx;
+  var Lp=1.76*ry*Math.sqrt(E/Fy);
+  var Lr=1.95*rts*(E/(0.7*Fy))*Math.sqrt(Jt/(Sx*ho_d)+Math.sqrt(Math.pow(Jt/(Sx*ho_d),2)+6.76*Math.pow(0.7*Fy/E,2)));
+  var Mn, ltb_case;
+  if(Lb<=Lp){Mn=Mp;ltb_case='No LTB (L<sub>b</sub>&le;L<sub>p</sub>)';}
+  else if(Lb<=Lr){Mn=Math.min(Cb_use*(Mp-(Mp-0.7*Fy*Sx)*((Lb-Lp)/(Lr-Lp))),Mp);ltb_case='Inelastic LTB';}
+  else{var Fcr=Cb_use*Math.PI*Math.PI*E/Math.pow(Lb/rts,2)*Math.sqrt(1+0.078*Jt/(Sx*ho_d)*Math.pow(Lb/rts,2));Mn=Math.min(Fcr*Sx,Mp);ltb_case='Elastic LTB';}
+  var phi_b=isLRFD?0.90:1.0, Omega_b=isLRFD?1.0:1.67;
+  var phi_v=isLRFD?1.00:1.0, Omega_v=isLRFD?1.0:1.50;
+  var cap_Mn=(phi_b*Mn)/Omega_b;
+  var dc_M=Mu_max/cap_Mn;
+  var cap_Mp=(phi_b*Mp)/Omega_b;
+  var dc_yield=Mu_max/cap_Mp;
+
+  // Gross section shear (§G2.1)
+  var Aw=d*tw;
+  var h_tw=(d-2*tf)/tw;
+  var cv1_lim=2.24*Math.sqrt(E/Fy);
+  var Cv1=(h_tw<=cv1_lim)?1.0:Math.min(1.0,1.10*Math.sqrt(5.34*E/Fy)/h_tw);
+  var Vn=0.6*Fy*Aw*Cv1;
+  var cap_Vn=(phi_v*Vn)/Omega_v;
+  var dc_V=Vu_max/cap_Vn;
+
+  var capLbl=isLRFD?'&phi;':'Allow.';
+  var compFl=inCant?'L<sub>b,bot</sub>':'L<sub>b,top</sub>';
+  return{R_L:R_L,R_R:R_R,Mu_max:Mu_max,Mu_max_kft:Mu_max_kft,x_Mu:x_Mu,inCant:inCant,Vu_max:Vu_max,x_Vu:x_Vu,
+    Mp:Mp,Lp:Lp,Lr:Lr,Lb:Lb,Cb_use:Cb_use,Mn:Mn,cap_Mn:cap_Mn,dc_M:dc_M,cap_Mp:cap_Mp,dc_yield:dc_yield,ltb_case:ltb_case,compFl:compFl,
+    Aw:Aw,Cv1:Cv1,Vn:Vn,cap_Vn:cap_Vn,dc_V:dc_V,
+    phi_b:phi_b,Omega_b:Omega_b,phi_v:phi_v,Omega_v:Omega_v,capLbl:capLbl,isLRFD:isLRFD};
+}
+
+// ============================================================
+// DEMAND DIAGRAMS SVG — overhang-aware
+// ============================================================
+function drawDemandDiagram(wu, L, holeData, isLRFD, factPloads, aL, aR, factPartial){
+  factPloads = factPloads || [];
+  factPartial = factPartial || [];
+  aL = aL || 0; aR = aR || 0;
+  var L_total = aL + L + aR;
+
+  var bx=55, bw=530;
+  var M_top=22, M_base=148;
+  var V_top=163, V_mid=230, V_bot=297;
+
+  // Reactions (including partial loads)
+  var sum_pMom=factPloads.reduce(function(s,p){return s+(p.xp-aL)*p.Pf;},0);
+  var sum_partMom=factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1)*((p.x1+p.x2)/2-aL);},0);
+  var totalLoad_d=wu*L_total+factPloads.reduce(function(s,p){return s+p.Pf;},0)+factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1);},0);
+  var R_R_d=(L>0)?(wu*L_total*(L_total/2-aL)+sum_pMom+sum_partMom)/L:0;
+  var R_L_d=totalLoad_d-R_R_d;
+
+  function M_x(x){ // x from left END, returns k-ft
+    var M=-wu*x*x/2;
+    factPartial.forEach(function(p){
+      if(x>p.x1){var xeff=Math.min(x,p.x2);M-=p.wu*(xeff-p.x1)*(x-(p.x1+xeff)/2);}
+    });
+    if(x>=aL) M+=R_L_d*(x-aL);
+    if(x>=(aL+L)) M+=R_R_d*(x-aL-L);
+    factPloads.forEach(function(p){if(p.xp<=x) M-=p.Pf*(x-p.xp);});
+    return M;
+  }
+  function V_x(x){ // x from left END, returns k
+    var V=-wu*x;
+    factPartial.forEach(function(p){if(x>p.x1) V-=p.wu*(Math.min(x,p.x2)-p.x1);});
+    if(x>=aL) V+=R_L_d;
+    if(x>=(aL+L)) V+=R_R_d;
+    factPloads.forEach(function(p){if(p.xp<x) V-=p.Pf;});
+    return V;
+  }
+
+  // Sample points: uniform grid + just before/after supports, point loads, and partial load endpoints
+  var xs=[0];
+  var N=80;
+  for(var i=1;i<=N;i++) xs.push(i/N*L_total);
+  xs.push(Math.max(0,aL-0.0001)); xs.push(aL+0.0001);
+  if(aR>0){xs.push(Math.max(0,aL+L-0.0001)); xs.push(aL+L+0.0001);}
+  factPloads.forEach(function(p){
+    xs.push(Math.max(0,p.xp-0.0001));
+    xs.push(Math.min(L_total,p.xp+0.0001));
+  });
+  factPartial.forEach(function(p){
+    xs.push(Math.max(0,p.x1-0.0001)); xs.push(Math.min(L_total,p.x1+0.0001));
+    xs.push(Math.max(0,p.x2-0.0001)); xs.push(Math.min(L_total,p.x2+0.0001));
+  });
+  xs.sort(function(a,b){return a-b;});
+
+  // Compute M and V extremes
+  var M_vals=xs.map(M_x), V_vals=xs.map(V_x);
+  var M_max_pos=Math.max(0.001,Math.max.apply(null,M_vals));
+  var M_max_neg=Math.abs(Math.min(0,Math.min.apply(null,M_vals)));
+  var hasNegM=(M_max_neg>0.01);
+  var V_max=Math.max(0.001,Math.max.apply(null,V_vals.map(Math.abs)));
+
+  // M diagram layout: zero-line positioned by proportion of +/- range
+  var M_h=M_base-M_top-4;
+  var M_zero_y=hasNegM?(M_top+2+M_max_pos/(M_max_pos+M_max_neg)*M_h):M_base;
+  var m_sp=(M_zero_y-M_top-2)/M_max_pos;  // px per k-ft positive
+  var m_sn=hasNegM?((M_base-M_zero_y-2)/M_max_neg):1;
+  function mpy(M){return M>=0?M_zero_y-M*m_sp:M_zero_y+Math.abs(M)*m_sn;}
+
+  var scale_v=V_mid-V_top-4;
+
+  // Build polylines
+  var mPolyAll=bx.toFixed(1)+','+M_zero_y.toFixed(1);
+  var mLine='', vLine='', vFill=bx.toFixed(1)+','+V_mid.toFixed(1);
+  xs.forEach(function(x,i){
+    var px=(bx+x/L_total*bw).toFixed(1);
+    var mpy_v=mpy(M_x(x)).toFixed(1);
+    var vpy_v=(V_mid-V_x(x)/V_max*scale_v).toFixed(1);
+    mPolyAll+=' '+px+','+mpy_v;
+    mLine+=(i?'  ':'')+px+','+mpy_v;
+    vLine+=(i?'  ':'')+px+','+vpy_v;
+    vFill+=' '+px+','+vpy_v;
+  });
+  mPolyAll+=' '+(bx+bw).toFixed(1)+','+M_zero_y.toFixed(1);
+  vFill+=' '+(bx+bw).toFixed(1)+','+V_mid.toFixed(1);
+
+  var dmLabel=isLRFD?'Factored (wu='+f3(wu)+' k/ft)':'Allowable (wa='+f3(wu)+' k/ft)';
+  if(factPloads.length>0){var Ptot=factPloads.reduce(function(s,p){return s+p.Pf;},0);dmLabel+=' + '+f2(Ptot)+'k conc.';}
+  if(aL>0||aR>0) dmLabel+=' &nbsp;|&nbsp; a\u2097='+aL+' L='+L+' a\u1D63='+aR+' ft';
+
+  var svg='<svg width="100%" viewBox="0 0 640 312" style="border:1px solid #eee;border-radius:8px;background:#fafafa">';
+  svg+='<defs>';
+  svg+='<marker id="dArrDn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#374151"/></marker>';
+  // Clip paths for M fill: positive above M_zero_y, negative below
+  svg+='<clipPath id="clipMpos"><rect x="'+bx+'" y="'+M_top+'" width="'+bw+'" height="'+(M_zero_y-M_top).toFixed(1)+'"/></clipPath>';
+  svg+='<clipPath id="clipMneg"><rect x="'+bx+'" y="'+M_zero_y.toFixed(1)+'" width="'+bw+'" height="'+(M_base-M_zero_y).toFixed(1)+'"/></clipPath>';
+  svg+='</defs>';
+
+  // ---- M DIAGRAM ----
+  svg+='<text x="320" y="13" text-anchor="middle" font-size="10.5" fill="#1e3c72" font-weight="bold">Bending Moment (k-ft) &mdash; '+dmLabel+'</text>';
+  svg+='<line x1="'+bx+'" y1="'+M_top+'" x2="'+bx+'" y2="'+M_base+'" stroke="#94a3b8" stroke-width="1"/>';
+  // Baseline (M=0 line)
+  svg+='<line x1="'+bx+'" y1="'+M_zero_y.toFixed(1)+'" x2="'+(bx+bw)+'" y2="'+M_zero_y.toFixed(1)+'" stroke="#374151" stroke-width="'+(hasNegM?'1.2':'1.5')+'"'+(hasNegM?' stroke-dasharray="5,3"':'')+'/>';
+  // Positive M fill (blue, clipped above zero line)
+  svg+='<polygon points="'+mPolyAll+'" fill="#dbeafe" opacity="0.85" clip-path="url(#clipMpos)"/>';
+  // Negative M fill (red, clipped below zero line)
+  if(hasNegM) svg+='<polygon points="'+mPolyAll+'" fill="#fee2e2" opacity="0.85" clip-path="url(#clipMneg)"/>';
+  svg+='<polyline points="'+mLine+'" fill="none" stroke="#1e3c72" stroke-width="2.2"/>';
+  // Axis labels
+  svg+='<text x="'+(bx-4)+'" y="'+(M_top+5)+'" text-anchor="end" font-size="8.5" fill="#1e3c72">'+(hasNegM?'+':'')+f1(M_max_pos)+'</text>';
+  svg+='<text x="'+(bx-4)+'" y="'+(M_zero_y+4).toFixed(1)+'" text-anchor="end" font-size="8.5" fill="#374151">0</text>';
+  if(hasNegM) svg+='<text x="'+(bx-4)+'" y="'+(M_base-1)+'" text-anchor="end" font-size="8.5" fill="#dc2626">&minus;'+f1(M_max_neg)+'</text>';
+
+  // ---- V DIAGRAM ----
+  svg+='<text x="320" y="155" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">Shear Force (kips) &mdash; '+dmLabel+'</text>';
+  svg+='<line x1="'+bx+'" y1="'+V_top+'" x2="'+bx+'" y2="'+V_bot+'" stroke="#94a3b8" stroke-width="1"/>';
+  svg+='<line x1="'+bx+'" y1="'+V_mid+'" x2="'+(bx+bw)+'" y2="'+V_mid+'" stroke="#374151" stroke-width="1.2" stroke-dasharray="5,3"/>';
+  svg+='<polygon points="'+vFill+'" fill="#d1fae5" opacity="0.7"/>';
+  svg+='<polyline points="'+vLine+'" fill="none" stroke="#15803d" stroke-width="2.2"/>';
+  svg+='<text x="'+(bx-4)+'" y="'+(V_top+5)+'" text-anchor="end" font-size="8.5" fill="#15803d">+'+f1(V_max)+'</text>';
+  svg+='<text x="'+(bx-4)+'" y="'+(V_mid+4)+'" text-anchor="end" font-size="8.5" fill="#374151">0</text>';
+  svg+='<text x="'+(bx-4)+'" y="'+V_bot+'" text-anchor="end" font-size="8.5" fill="#dc2626">&minus;'+f1(V_max)+'</text>';
+
+  // ---- PARTIAL LOAD REGION MARKERS ----
+  factPartial.forEach(function(p,i){
+    var px1=(bx+Math.max(0,p.x1)/L_total*bw).toFixed(1);
+    var px2=(bx+Math.min(L_total,p.x2)/L_total*bw).toFixed(1);
+    var pw=Math.max(1,parseFloat(px2)-parseFloat(px1));
+    // Shaded band across both M and V diagrams
+    svg+='<rect x="'+px1+'" y="'+M_top+'" width="'+pw.toFixed(1)+'" height="'+(V_bot-M_top)+'" fill="#cffafe" opacity="0.45"/>';
+    // Top border lines
+    svg+='<line x1="'+px1+'" y1="'+M_top+'" x2="'+px1+'" y2="'+V_bot+'" stroke="#0891b2" stroke-width="1.2" stroke-dasharray="4,3"/>';
+    svg+='<line x1="'+px2+'" y1="'+M_top+'" x2="'+px2+'" y2="'+V_bot+'" stroke="#0891b2" stroke-width="1.2" stroke-dasharray="4,3"/>';
+    // Label
+    var midPx=((parseFloat(px1)+parseFloat(px2))/2).toFixed(1);
+    svg+='<text x="'+midPx+'" y="'+(V_bot+10)+'" text-anchor="middle" font-size="8" fill="#0e7490" font-weight="bold">w'+(i+1)+'='+f3(p.wu)+'k/ft</text>';
+  });
+
+  // ---- CONCENTRATED LOAD MARKERS ----
+  factPloads.forEach(function(p){
+    var px=(bx+p.xp/L_total*bw).toFixed(1);
+    svg+='<line x1="'+px+'" y1="'+(M_zero_y-18).toFixed(1)+'" x2="'+px+'" y2="'+M_zero_y.toFixed(1)+'" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#dArrDn)"/>';
+    svg+='<text x="'+px+'" y="'+(M_zero_y-22).toFixed(1)+'" text-anchor="middle" font-size="8" fill="#b45309" font-weight="bold">P='+p.Pf.toFixed(1)+'k</text>';
+    svg+='<line x1="'+px+'" y1="'+(V_top+5)+'" x2="'+px+'" y2="'+(V_top+20)+'" stroke="#f59e0b" stroke-width="2" marker-end="url(#dArrDn)"/>';
+  });
+
+  // ---- SUPPORT SYMBOLS (inside diagram at M_base baseline) ----
+  var sup_L_px=(bx+aL/L_total*bw).toFixed(1);
+  var sup_R_px=(bx+(aL+L)/L_total*bw).toFixed(1);
+  // Left pin
+  svg+='<polygon points="'+sup_L_px+','+(M_base+1)+' '+(parseFloat(sup_L_px)+9)+','+(M_base+16)+' '+(parseFloat(sup_L_px)-9)+','+(M_base+16)+'" fill="#374151"/>';
+  // Right roller
+  svg+='<polygon points="'+sup_R_px+','+(M_base+1)+' '+(parseFloat(sup_R_px)+9)+','+(M_base+16)+' '+(parseFloat(sup_R_px)-9)+','+(M_base+16)+'" fill="#374151"/>';
+  svg+='<circle cx="'+(parseFloat(sup_R_px)-6)+'" cy="'+(M_base+19)+'" r="3" fill="#374151"/>';
+  svg+='<circle cx="'+(parseFloat(sup_R_px)+6)+'" cy="'+(M_base+19)+'" r="3" fill="#374151"/>';
+  // Overhang dashes on beam baseline
+  if(aL>0) svg+='<line x1="'+bx+'" y1="'+(M_base+1)+'" x2="'+sup_L_px+'" y2="'+(M_base+1)+'" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6,3"/>';
+  if(aR>0) svg+='<line x1="'+sup_R_px+'" y1="'+(M_base+1)+'" x2="'+(bx+bw)+'" y2="'+(M_base+1)+'" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6,3"/>';
+
+  // ---- HOLE MARKERS ----
+  var hcols=['#dc2626','#2563eb','#16a34a','#d97706','#7c3aed','#0891b2'];
+  holeData.forEach(function(h,idx){
+    var col=hcols[idx%hcols.length];
+    var t=h.xo/L_total, px=(bx+t*bw).toFixed(1);
+    var Mx=M_x(h.xo), Vx=V_x(h.xo);
+    var myv=mpy(Mx).toFixed(1);
+    var vyv=(V_mid-Vx/V_max*scale_v).toFixed(1);
+    var off=(t>0.72)?-4:6;
+    svg+='<line x1="'+px+'" y1="'+(M_top-2)+'" x2="'+px+'" y2="'+M_base+'" stroke="'+col+'" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>';
+    svg+='<circle cx="'+px+'" cy="'+myv+'" r="5" fill="'+col+'" stroke="#fff" stroke-width="1.2"/>';
+    svg+='<text x="'+px+'" y="'+(M_top-4)+'" text-anchor="middle" font-size="9" fill="'+col+'" font-weight="bold">#'+(idx+1)+'</text>';
+    svg+='<text x="'+(parseFloat(px)+off).toFixed(1)+'" y="'+(parseFloat(myv)-6).toFixed(1)+'" font-size="7.5" fill="'+col+'">'+f1(Mx)+'</text>';
+    svg+='<line x1="'+px+'" y1="'+V_top+'" x2="'+px+'" y2="'+V_bot+'" stroke="'+col+'" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>';
+    svg+='<circle cx="'+px+'" cy="'+vyv+'" r="5" fill="'+col+'" stroke="#fff" stroke-width="1.2"/>';
+    svg+='<text x="'+(parseFloat(px)+off).toFixed(1)+'" y="'+(parseFloat(vyv)-6).toFixed(1)+'" font-size="7.5" fill="'+col+'">'+f1(Math.abs(Vx))+'k</text>';
+  });
+
+  // ---- SPAN LABEL ----
+  svg+='<line x1="'+sup_L_px+'" y1="304" x2="'+sup_R_px+'" y2="304" stroke="#f59e0b" stroke-width="1.2"/>';
+  svg+='<text x="'+((parseFloat(sup_L_px)+parseFloat(sup_R_px))/2).toFixed(1)+'" y="301" text-anchor="middle" font-size="9" fill="#b45309">L = '+L+' ft</text>';
+  if(aL>0||aR>0){
+    svg+='<line x1="'+bx+'" y1="310" x2="'+(bx+bw)+'" y2="310" stroke="#7c3aed" stroke-width="1.0"/>';
+    svg+='<text x="320" y="308" text-anchor="middle" font-size="8.5" fill="#7c3aed">Total beam = '+L_total.toFixed(1)+' ft</text>';
+  }
+  svg+='</svg>';
+  return svg;
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+function runCalc(){
+  var sn=document.getElementById('sec').value;
+  if(!sn){alert('Please select a W-shape section.');return;}
+  if(holes.length===0){alert('Please add at least one hole using the "+ Add Hole" button.');return;}
+  var D=DB[sn];
+  var As=D[0],d=D[1],bf=D[2],tf=D[3],tw=D[4];
+  var Ix=D[5],Sx=D[6],Zx=D[7],Iy=D[8];
+  var ry=D[10],Jt=D[12],Cw=D[13],rts=D[14],ho_d=D[15];
+
+  var Fy=+document.getElementById('Fy').value;
+  var E=+document.getElementById('Es').value;
+  var L=+document.getElementById('L').value;
+  var aL=+document.getElementById('aLovhg').value||0;
+  var aR=+document.getElementById('aRovhg').value||0;
+  var L_total=aL+L+aR;
+  var Lb_top=+document.getElementById('Lbtop').value*12;
+  var Lb_bot=+document.getElementById('Lbbot').value*12;
+  var Cb=+document.getElementById('Cb').value;
+
+  var wD_in=+document.getElementById('wD').value;
+  var wL   =+document.getElementById('wL').value;
+  var wLr  =+document.getElementById('wLr').value;
+  var wS   =+document.getElementById('wS').value;
+  var wR   =+document.getElementById('wR').value;
+  var inclSW=document.getElementById('inclSW').checked;
+  var sw=inclSW?getSelfWeight(sn):0;
+  var wD_tot=wD_in+sw;
+
+  var isLRFD=document.getElementById('methLRFD').checked;
+  var useStiff=document.getElementById('useStiff').checked;
+  var bs=useStiff?+document.getElementById('bs').value:0;
+  var ts=useStiff?+document.getElementById('ts').value:0;
+  var Fys=useStiff?+document.getElementById('Fys').value:50;
+
+  // Collect holes from table
+  var holeData=holes.map(function(h){return getHoleFromRow(h.id);}).filter(Boolean);
+
+  // Collect point loads from table
+  var ploadData=ploads.map(function(p){return getPloadFromRow(p.id);}).filter(Boolean);
+
+  // Collect partial uniform loads from table
+  var partialData=partialLoads.map(function(p){return getPartialFromRow(p.id);}).filter(Boolean);
+
+  // Load combinations
+  var comboResult=computeLoadCombos(wD_tot,wL,wLr,wS,wR,isLRFD);
+  var wu=comboResult.wu_max;
+  var govCombo=comboResult.combos.find(function(c){return c.governs;});
+
+  // Factor the concentrated loads using the governing combo's D/L factors
+  var factPloads=ploadData.map(function(p){
+    return {Pf:govCombo.fD*p.PD+govCombo.fL*p.PL, xp:p.xp};
+  }).filter(function(p){return p.Pf>0;});
+
+  // Factor the partial uniform loads using the governing combo's D/L factors
+  var factPartial=partialData.map(function(p){
+    return {wu:govCombo.fD*p.wD+govCombo.fL*p.wL, x1:p.x1, x2:p.x2};
+  }).filter(function(p){return p.wu>0;});
+
+  // Update SVG (include concentrated loads for beam elevation)
+  updateSVG(d,bf,tf,tw,holeData,L,aL,aR,factPartial,factPloads);
+
+  // Combo table
+  var comboHTML='<div class="callout-green" style="margin-bottom:12px">';
+  comboHTML+='<strong>Governing '+(isLRFD?'Factored':'Allowable')+' Load:</strong> ';
+  comboHTML+=(isLRFD?'w<sub>u</sub>':'w<sub>a</sub>')+' = <strong>'+f3(wu)+' k/ft</strong>';
+  comboHTML+=' &mdash; Combo: <strong>'+govCombo.label+'</strong>';
+  if(inclSW&&sw>0) comboHTML+=' &nbsp;|&nbsp; Self-weight = '+f3(sw)+' k/ft added to D';
+  if(factPloads.length>0){
+    var Ptot=factPloads.reduce(function(s,p){return s+p.Pf;},0);
+    comboHTML+=' &nbsp;|&nbsp; '+factPloads.length+' conc. load(s): &Sigma;P<sub>f</sub> = '+f2(Ptot)+' k (factored)';
+  }
+  if(factPartial.length>0){
+    var wPtot=factPartial.reduce(function(s,p){return s+p.wu*(p.x2-p.x1);},0);
+    comboHTML+=' &nbsp;|&nbsp; '+factPartial.length+' partial UDL(s): &Sigma;W<sub>partial</sub> = '+f2(wPtot)+' k (factored)';
+  }
+  comboHTML+='</div>';
+  comboHTML+='<table class="combo-table"><thead><tr><th>#</th><th>Combination</th><th>Equation (k/ft)</th><th>'+(isLRFD?'w<sub>u</sub>':'w<sub>a</sub>')+' (k/ft)</th><th>Governs?</th></tr></thead><tbody>';
+  comboResult.combos.forEach(function(c,i){
+    comboHTML+='<tr'+(c.governs?' class="gov-row"':'')+'>';
+    comboHTML+='<td>'+(isLRFD?'LC-':'LC-')+c.id+'</td>';
+    comboHTML+='<td>'+c.label+'</td>';
+    comboHTML+='<td style="font-size:.83em;color:#555">'+c.eq+'</td>';
+    comboHTML+='<td><strong>'+f3(c.wu)+'</strong></td>';
+    comboHTML+='<td>'+(c.governs?'<span class="pass">&#9654; GOVERNS</span>':'&mdash;')+'</td></tr>';
+  });
+  comboHTML+='</tbody></table>';
+  document.getElementById('comboOut').innerHTML=comboHTML;
+  document.getElementById('methBadge').textContent=isLRFD?'LRFD':'ASD';
+  document.getElementById('methBadge').className=isLRFD?'badge-cyan':'badge';
+
+  // Section properties
+  var Lp_ft=1.76*ry*Math.sqrt(E/Fy)/12;
+  var Lr_ft=1.95*rts*(E/(0.7*Fy))*Math.sqrt(Jt/(Sx*ho_d)+Math.sqrt(Math.pow(Jt/(Sx*ho_d),2)+6.76*Math.pow(0.7*Fy/E,2)))/12;
+  var Mp=Fy*Zx;
+  document.getElementById('propOut').innerHTML=
+    '<table class="prop-table"><tbody>'+
+    '<tr><td>A='+f2(As)+' in²</td><td>d='+f2(d)+'"</td><td>b<sub>f</sub>='+f3(bf)+'"</td><td>t<sub>f</sub>='+f3(tf)+'"</td><td>t<sub>w</sub>='+f3(tw)+'"</td></tr>'+
+    '<tr><td>I<sub>x</sub>='+f1(Ix)+' in⁴</td><td>S<sub>x</sub>='+f1(Sx)+' in³</td><td>Z<sub>x</sub>='+f1(Zx)+' in³</td><td>r<sub>y</sub>='+f3(ry)+'"</td><td>r<sub>ts</sub>='+f3(rts)+'"</td></tr>'+
+    '<tr><td>M<sub>p</sub>='+f1(Mp)+' k-in</td><td>L<sub>p</sub>='+f2(Lp_ft)+' ft</td><td>L<sub>r</sub>='+f2(Lr_ft)+' ft</td><td>J='+f4(Jt)+' in⁴</td><td>C<sub>w</sub>='+f1(Cw)+' in⁶</td></tr>'+
+    '<tr><td>w<sub>D,superimposed</sub>='+f3(wD_in)+' k/ft</td><td>w<sub>self-wt</sub>='+f3(sw)+' k/ft</td><td>w<sub>D,total</sub>='+f3(wD_tot)+' k/ft</td><td>w<sub>L</sub>='+f3(wL)+' k/ft</td><td>w<sub>Lr</sub>='+f3(wLr)+' w<sub>S</sub>='+f3(wS)+' w<sub>R</sub>='+f3(wR)+' k/ft</td></tr>'+
+    '</tbody></table>';
+
+  // Per-hole results (collapsible)
+  var holeResultsHTML='';
+  var allPass=true;
+  holeData.forEach(function(hole,idx){
+    var res=checkHole(hole,idx,d,bf,tf,tw,Sx,Zx,Iy,ry,Jt,Cw,rts,ho_d,Fy,E,L,wu,Lb_top,Lb_bot,Cb,isLRFD,useStiff,bs,ts,Fys,factPloads,aL,aR,factPartial);
+    var holeFails=res.chks.some(function(c){return c.dc!==null&&isFinite(c.dc)&&c.dc>1.0;});
+    if(holeFails) allPass=false;
+    var isRect=(hole.shape==='rect');
+    var holeDesc=isRect?('Rect '+f2(res.ho_b)+'"&times;'+f2(res.ao_s)+'"'):('Round D<sub>o</sub>='+f2(hole.Do)+'"');
+    var bodyId='hbody_'+idx;
+    var statusBadge=holeFails
+      ?'<span style="background:#dc2626;color:#fff;padding:2px 10px;border-radius:4px;font-size:.88em;margin-left:10px">FAIL</span>'
+      :'<span style="background:#16a34a;color:#fff;padding:2px 10px;border-radius:4px;font-size:.88em;margin-left:10px">PASS</span>';
+    // Header (always visible, click to toggle)
+    holeResultsHTML+='<div class="hole-result-hdr" style="cursor:pointer;user-select:none;display:flex;align-items:center;flex-wrap:wrap;gap:6px" '
+      +'onclick="(function(b,btn){b.style.display=b.style.display===\'none\'?\'block\':\'none\';btn.textContent=b.style.display===\'none\'?\'\u25B6 Show Details\':\'\u25BC Hide Details\';})'
+      +'(document.getElementById(\''+bodyId+'\'),this.querySelector(\'.htoggle\'))">';
+    holeResultsHTML+='<span style="font-weight:700">Hole #'+(idx+1)+' &mdash; '+holeDesc+'</span>';
+    holeResultsHTML+='<span style="font-size:.88em;opacity:.9">x<sub>o</sub>='+hole.xo+' ft &nbsp;|&nbsp; e='+hole.e+'"</span>';
+    holeResultsHTML+='<span style="font-size:.88em;opacity:.9">'+(isLRFD?'M<sub>u</sub>=':'M<sub>a</sub>=')+f1(res.Mu)+' k-in &nbsp;|&nbsp;'+(isLRFD?'V<sub>u</sub>=':'V<sub>a</sub>=')+f2(res.Vu)+' k</span>';
+    holeResultsHTML+='<span style="font-size:.88em;opacity:.9">R='+f3(res.R)+'</span>';
+    holeResultsHTML+=statusBadge;
+    holeResultsHTML+='<span class="htoggle" style="margin-left:auto;background:rgba(255,255,255,.2);padding:2px 10px;border-radius:4px;font-size:.82em">&#9654; Show Details</span>';
+    holeResultsHTML+='</div>';
+    // Body (starts collapsed; click header to expand)
+    holeResultsHTML+='<div class="hole-result-body" id="'+bodyId+'" style="display:none">';
+    holeResultsHTML+=renderCheckTable(res.chks,'h'+idx);
+    holeResultsHTML+='</div>';
+  });
+  document.getElementById('holeResultsOut').innerHTML=holeResultsHTML;
+
+  // Overall summary
+  document.getElementById('sumBox').className='summary '+(allPass?'sum-pass':'sum-fail');
+  var ovhgInfo=(aL>0||aR>0)?(' &nbsp;|&nbsp; Overhangs: a<sub>L</sub>='+aL+' ft, a<sub>R</sub>='+aR+' ft, L<sub>total</sub>='+L_total.toFixed(1)+' ft'):'';
+  document.getElementById('sumBox').innerHTML=
+    '<h3>'+(allPass?'&#10003; PASS &mdash; All Holes Pass All Checks':'&#10007; FAIL &mdash; One or More Checks Fail')+'</h3>'+
+    '<p>'+sn+' &nbsp;|&nbsp; F<sub>y</sub>='+Fy+' ksi &nbsp;|&nbsp; Method: '+(isLRFD?'LRFD':'ASD')+' &nbsp;|&nbsp; '+
+    'Span L='+L+' ft'+ovhgInfo+' &nbsp;|&nbsp; Governing: '+govCombo.label+' = '+f3(wu)+' k/ft &nbsp;|&nbsp; '+
+    holeData.length+' hole(s) checked</p>';
+
+  // ---- Hole spacing check ----
+  var spacingRes=checkHoleSpacing(holeData,d);
+  if(spacingRes.length>0){
+    var sHTML='<table class="chk-table"><thead><tr><th>Pair</th><th>Clear Dist. (in)</th><th>Required &ge; (in)</th><th>D/C</th><th>Status</th></tr></thead><tbody>';
+    spacingRes.forEach(function(sp){
+      var dc=sp.req/Math.max(sp.clear,0.001);
+      var col=dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+      sHTML+='<tr>';
+      sHTML+='<td>Hole #'+(sp.i1+1)+' &rarr; Hole #'+(sp.i2+1)+'</td>';
+      sHTML+='<td><strong>'+f2(sp.clear)+'"</strong></td>';
+      sHTML+='<td>max(a<sub>o1</sub>='+f2(sp.ext1)+'", a<sub>o2</sub>='+f2(sp.ext2)+'", d='+f2(d)+'") = '+f2(sp.req)+'"</td>';
+      sHTML+='<td><div class="dc-cell"><div class="dc-bar" style="width:90px"><div class="dc-fill" style="width:'+Math.min(dc*100,100).toFixed(0)+'%;background:'+col+'"></div></div><span style="color:'+col+';font-weight:700;margin-left:5px">'+f3(dc)+'</span></div></td>';
+      sHTML+='<td>'+(sp.ok?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td>';
+      sHTML+='</tr>';
+    });
+    sHTML+='</tbody></table>';
+    sHTML+='<div class="callout" style="margin-top:10px">AISC Design Guide 2 §3.7b: Clear edge-to-edge distance between adjacent holes shall be &ge; larger of the two adjacent hole lengths and &ge; d. Verify composite interaction effects if applicable.</div>';
+    document.getElementById('spacingContent').innerHTML=sHTML;
+    document.getElementById('spacingOut').style.display='block';
+  } else {
+    document.getElementById('spacingOut').style.display='none';
+  }
+
+  // ---- Beam-level Design Checks & Reactions ----
+  var bc=computeBeamChecks(wu,L,aL,aR,factPloads,factPartial,d,bf,tf,tw,Sx,Zx,ry,Jt,Cw,rts,ho_d,Fy,E,Lb_top,Lb_bot,Cb,isLRFD);
+  // Beam checks output – moments in k-ft, two flexure rows (§F2.1 Yielding + §F2.2/F2.3 LTB)
+  var colM=bc.dc_M<=0.8?'#16a34a':bc.dc_M<=1.0?'#d97706':'#dc2626';
+  var colY=bc.dc_yield<=0.8?'#16a34a':bc.dc_yield<=1.0?'#d97706':'#dc2626';
+  var colV=bc.dc_V<=0.8?'#16a34a':bc.dc_V<=1.0?'#d97706':'#dc2626';
+  var Mu_kft=bc.Mu_max_kft; // k-ft
+  var cap_Mn_kft=bc.cap_Mn/12, cap_Mp_kft=bc.cap_Mp/12;
+  var Mn_kft=bc.Mn/12, Mp_kft=bc.Mp/12;
+  var bcH='<div class="dem-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:14px">';
+  bcH+='<div class="dem-card"><div class="v">'+f2(bc.R_L)+' k</div><div class="l">Left Reaction R<sub>L</sub> (factored)<br><small>x='+f2(aL)+' ft</small></div></div>';
+  bcH+='<div class="dem-card"><div class="v">'+f2(bc.R_R)+' k</div><div class="l">Right Reaction R<sub>R</sub> (factored)<br><small>x='+f2(aL+L)+' ft</small></div></div>';
+  bcH+='<div class="dem-card'+(bc.dc_M>1||bc.dc_yield>1?' warn':'')+'"><div class="v" style="color:'+(bc.dc_M>bc.dc_yield?colM:colY)+'">'+f2(Mu_kft)+' k-ft</div><div class="l">Max '+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+' (factored)<br><small>x='+f2(bc.x_Mu)+' ft'+(bc.inCant?' &mdash; cantilever':'')+'</small></div></div>';
+  bcH+='<div class="dem-card'+(bc.dc_V>1?' warn':'')+'"><div class="v" style="color:'+colV+'">'+f2(bc.Vu_max)+' k</div><div class="l">Max '+(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+' (factored)<br><small>x='+f2(bc.x_Vu)+' ft</small></div></div>';
+  bcH+='</div>';
+  function bcBar(dc){var c=dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';var pct=Math.min(dc*100,100).toFixed(0);return '<div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+pct+'%;background:'+c+'"></div></div><span style="color:'+c+';font-weight:700;min-width:38px;font-size:.85em">'+f3(dc)+'</span></div>';}
+  bcH+='<table class="chk-table"><thead><tr><th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th style="width:130px">D/C</th><th>Status</th></tr></thead><tbody>';
+  // §F2.1 Yielding row
+  bcH+='<tr><td><strong>Flexure &mdash; Yielding</strong><br><small>M<sub>p</sub>=F<sub>y</sub>Z<sub>x</sub>='+f2(Mp_kft)+' k-ft</small></td>';
+  bcH+='<td><code>AISC 360-22 §F2.1</code></td>';
+  bcH+='<td>'+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f2(Mu_kft)+' k-ft</td>';
+  bcH+='<td>'+bc.capLbl+'M<sub>p</sub>='+f2(cap_Mp_kft)+' k-ft</td>';
+  bcH+='<td>'+bcBar(bc.dc_yield)+'</td><td>'+(bc.dc_yield<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  // §F2.2/F2.3 LTB row
+  bcH+='<tr class="ltb-primary"><td><strong>Flexure &mdash; LTB</strong><br><small>'+bc.compFl+'='+f2(bc.Lb/12)+' ft | C<sub>b</sub>='+f2(bc.Cb_use)+' | '+bc.ltb_case+(bc.inCant?' | Cant., C<sub>b</sub>=1.0':'')+'</small></td>';
+  bcH+='<td><code>AISC 360-22 §F2.2/F2.3</code></td>';
+  bcH+='<td>'+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f2(Mu_kft)+' k-ft</td>';
+  bcH+='<td>'+bc.capLbl+'M<sub>n</sub>='+f2(cap_Mn_kft)+' k-ft<br><small>M<sub>n</sub>='+f2(Mn_kft)+' | M<sub>p</sub>='+f2(Mp_kft)+' k-ft</small></td>';
+  bcH+='<td>'+bcBar(bc.dc_M)+'</td><td>'+(bc.dc_M<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  // §G2.1 Shear row
+  bcH+='<tr><td><strong>Shear &mdash; Gross Section</strong><br><small>A<sub>w</sub>='+f3(bc.Aw)+' in\u00b2 | C<sub>v1</sub>='+f3(bc.Cv1)+'</small></td>';
+  bcH+='<td><code>AISC 360-22 §G2.1</code></td><td>'+(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+'='+f2(bc.Vu_max)+' k</td>';
+  bcH+='<td>'+bc.capLbl+'V<sub>n</sub>='+f2(bc.cap_Vn)+' k<br><small>V<sub>n</sub>=0.6F<sub>y</sub>A<sub>w</sub>C<sub>v1</sub>='+f2(bc.Vn)+' k</small></td>';
+  bcH+='<td>'+bcBar(bc.dc_V)+'</td><td>'+(bc.dc_V<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  bcH+='</tbody></table>';
+  bcH+='<div class="callout-blue" style="margin-top:10px;font-size:.81em"><strong>Note:</strong> Beam-level checks use the gross (unperforated) section. §F2.1 Yielding governs when L<sub>b</sub>&le;L<sub>p</sub>; LTB governs for longer unbraced lengths. Web opening capacities M<sub>m</sub> and V<sub>m</sub> govern locally at each hole.</div>';
+  document.getElementById('beamChkContent').innerHTML=bcH;
+  document.getElementById('beamChkOut').style.display='block';
+
+  // ---- Deflection (numerical double integration, all service loads) ----
+  var defl=computeDeflectionFull(wD_tot,wL,L,E,Ix,aL,aR,ploadData,partialData);
+
+  // Helper: format span ratio string, e.g. "L/360" or "a/240"
+  function spanRat(d_in, span_in, prefix){
+    if(d_in<0.001) return prefix+'/&infin;';
+    return prefix+'/'+Math.round(span_in/d_in);
+  }
+
+  // Helper: build a <details> collapsible deflection block
+  function deflBlock(title, d_dl, d_ll, d_tot, span_in, prefix, lim_ll, lim_tot, ok_ll, ok_tot){
+    var allOK = ok_ll && ok_tot;
+    var statusCls = allOK ? 'pass' : 'fail';
+    var statusIcon = allOK ? '&#10003;' : '&#10007;';
+    // Summary line shows LL and D+L with span ratios
+    var sumTxt = title+' &mdash; &delta;<sub>LL</sub>='+f3(d_ll)+'" ('+spanRat(d_ll,span_in,prefix)
+      +') | &delta;<sub>D+L</sub>='+f3(d_tot)+'" ('+spanRat(d_tot,span_in,prefix)+')';
+    var html='<details class="defl-block">';
+    html+='<summary>'+sumTxt+'<span class="defl-sum-status '+statusCls+'">'+statusIcon+' '+(allOK?'OK':'EXCEEDS')+'</span></summary>';
+    html+='<div class="defl-inner">';
+    html+='<table class="defl-cat-table">';
+    html+='<thead><tr><th>Load Category</th><th>&delta; (in)</th><th>Span Ratio</th><th>Limit</th><th>D/C</th><th>Status</th></tr></thead><tbody>';
+    // Dead load row
+    html+='<tr><td>Dead (D)</td><td>'+f3(d_dl)+'"</td><td>'+spanRat(d_dl,span_in,prefix)+'</td><td>N/A</td><td class="na">&mdash;</td><td class="na">&mdash;</td></tr>';
+    // Live load row
+    var dc_ll = lim_ll>0 ? d_ll/lim_ll : 0;
+    var c_ll = ok_ll ? '#16a34a' : '#dc2626';
+    html+='<tr class="ll-row"><td>Live (L)</td><td>'+f3(d_ll)+'"</td><td>'+spanRat(d_ll,span_in,prefix)+'</td>';
+    html+='<td>'+spanRat(lim_ll,span_in,prefix)+' ('+f3(lim_ll)+'")</td>';
+    html+='<td><span style="color:'+c_ll+';font-weight:700">'+f3(dc_ll)+'</span></td>';
+    html+='<td>'+(ok_ll?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+    // Total D+L row
+    var dc_tot = lim_tot>0 ? d_tot/lim_tot : 0;
+    var c_tot = ok_tot ? '#16a34a' : '#dc2626';
+    html+='<tr class="tot-row"><td>Total (D+L)</td><td>'+f3(d_tot)+'"</td><td>'+spanRat(d_tot,span_in,prefix)+'</td>';
+    html+='<td>'+spanRat(lim_tot,span_in,prefix)+' ('+f3(lim_tot)+'")</td>';
+    html+='<td><span style="color:'+c_tot+';font-weight:700">'+f3(dc_tot)+'</span></td>';
+    html+='<td>'+(ok_tot?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+    html+='</tbody></table></div></details>';
+    return html;
+  }
+
+  var L_in=L*12, aL_in=aL*12, aR_in=aR*12;
+  var dHTML='';
+  dHTML+=deflBlock(
+    'Interior Span (L='+L+' ft)',
+    defl.delta_DL_int, defl.delta_LL_int, defl.delta_tot_int,
+    L_in, 'L',
+    defl.lim_360, defl.lim_240,
+    defl.ok_360, defl.ok_240
+  );
+  if(defl.hasL) dHTML+=deflBlock(
+    'Left Overhang Tip (a<sub>L</sub>='+aL+' ft)',
+    defl.delta_DL_L, defl.delta_LL_L, defl.delta_tot_L,
+    aL_in, 'a',
+    defl.lim_L_ll, defl.lim_L_tot,
+    defl.ok_L_ll, defl.ok_L_tot
+  );
+  if(defl.hasR) dHTML+=deflBlock(
+    'Right Overhang Tip (a<sub>R</sub>='+aR+' ft)',
+    defl.delta_DL_R, defl.delta_LL_R, defl.delta_tot_R,
+    aR_in, 'a',
+    defl.lim_R_ll, defl.lim_R_tot,
+    defl.ok_R_ll, defl.ok_R_tot
+  );
+  var allDeflOK=defl.ok_360&&defl.ok_240&&(aL<=0||defl.ok_L_ll&&defl.ok_L_tot)&&(aR<=0||defl.ok_R_ll&&defl.ok_R_tot);
+  dHTML+='<div class="'+(allDeflOK?'callout-green':'callout')+'" style="margin-top:10px">';
+  dHTML+=allDeflOK?'<strong>&#10003; Deflection OK:</strong> All limits satisfied.':
+    '<strong style="color:#dc2626">&#10007; One or more deflection limits exceeded.</strong> Review results above.';
+  dHTML+='</div>';
+  dHTML+='<div class="callout-blue" style="margin-top:8px;font-size:.81em">Computed numerically (double integration of M/EI, unperforated section) at service (unfactored) loads. Limits: L/360 LL, L/240 D+L (interior); a/180 LL, a/120 D+L (cantilever, IBC Table 1604.3). Click any row to expand load category details. Web openings increase flexibility &mdash; see AISC Design Guide 2 Ch.6.</div>';
+  document.getElementById('deflContent').innerHTML=dHTML;
+  document.getElementById('deflOut').style.display='block';
+
+  // ---- Demand Diagrams ----
+  document.getElementById('diagContent').innerHTML=drawDemandDiagram(wu,L,holeData,isLRFD,factPloads,aL,aR,factPartial);
+  document.getElementById('diagOut').style.display='block';
+
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// Init
+window.addEventListener('DOMContentLoaded',function(){
+  fillSectionHint();
+  toggleMethod();
+  updateSVGPreview(); // draw supports at default positions
+  addHole(); // start with one hole
+});
+</script>
+</body>
+</html>

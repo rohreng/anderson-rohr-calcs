@@ -195,6 +195,16 @@ export const CALCS: CalcMeta[] = [
   },
   // ── Steel / Members ──────────────────────────────────────────
   {
+    slug: "web-opening",
+    label: "W-Shape Beam Web Opening",
+    subtitle: "Multiple openings · Vierendeel tee action · bearing & tee section checks · LRFD & ASD load combinations",
+    htmlFile: "/Calcs/web_opening_calculator.html",
+    category: "Members",
+    spec: "AISC DG2",
+    status: "ready",
+    keywords: ["web opening", "W-shape", "beam", "Vierendeel", "tee section", "opening", "floor beam", "penetration", "AISC DG2", "Design Guide 2", "LRFD", "ASD", "ASCE 7", "gravity", "simply supported", "cantilever"],
+  },
+  {
     slug: "f11-plate-bending",
     label: "Rectangular Plate / Bar Bending & Compression",
     subtitle: "Strong-axis LTB · weak-axis flexure · axial compression · combined loading per H1",
@@ -258,6 +268,17 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
     group: "CFS Connections",
     keywords: ["cold-formed", "CFS", "screw", "self-drilling", "self-tapping", "tilting", "bearing", "pull-out", "pull-over", "AISI S100", "sheet metal", "light gauge", "combined"],
+  },
+  // ── Concrete ─────────────────────────────────────────────────
+  {
+    slug: "concrete-beam-design",
+    label: "Rectangular Concrete Beam Design",
+    subtitle: "Nonprestressed rectangular beam — flexure, shear, deflection, bar spacing, crack control & development length",
+    htmlFile: "/Calcs/concrete_beam_design_calculator.html",
+    category: "Concrete",
+    spec: "ACI 318-19",
+    status: "ready",
+    keywords: ["concrete", "beam", "rectangular", "ACI 318", "flexure", "shear", "deflection", "rebar", "reinforcement", "crack control", "development length", "stirrups", "LRFD", "nonprestressed", "moment", "As", "bar spacing", "d/c ratio"],
   },
   // ── Foundations ──────────────────────────────────────────────
   {

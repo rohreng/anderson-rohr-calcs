@@ -1,0 +1,1848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concrete Beam Design — ACI 318-19 | ARE</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#777}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table,.lc-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th,.lc-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td,.lc-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.lc-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr:nth-child(4n+1) td,.chk-table tr:nth-child(4n+3) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.lc-table tr.govern td{background:#fef9c3;font-weight:700}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:12px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:12px}
+.sw-hint{background:#e0f2fe;border:1px solid #7dd3fc;border-radius:6px;padding:8px 12px;font-size:.82em;color:#0c4a6e;margin-top:8px}
+.bar-hint{background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px 12px;font-size:.82em;color:#1e40af;margin-top:6px}
+/* Math display */
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1>Rectangular Concrete Beam Design</h1>
+  <p>Nonprestressed Rectangular Beam — Flexure, Shear, Deflection &amp; Reinforcement Checks per ACI 318-19 | Anderson Rohr Engineering</p>
+  <div style="display:inline-block;margin-top:8px;background:rgba(220,38,38,.18);border:1px solid rgba(220,38,38,.45);border-radius:6px;padding:3px 14px;font-size:.8em;font-weight:700;letter-spacing:.03em">&#9888; NONPRESTRESSED BEAMS ONLY — Not applicable to prestressed or post-tensioned members</div>
+  <div class="ref-tags">
+    <span class="tag">ACI 318-19</span>
+    <span class="tag">§5.3 Load Combinations</span>
+    <span class="tag">§9.3 Design Limits</span>
+    <span class="tag">§9.5 Design Strength</span>
+    <span class="tag">§9.6 Reinforcement Limits</span>
+    <span class="tag">§9.7 Reinforcement Detailing</span>
+    <span class="tag">§21.2 Strength Reduction Factors</span>
+    <span class="tag">§22.3 Flexural Strength</span>
+    <span class="tag">§22.5 Shear Strength</span>
+    <span class="tag">§24.2 Deflection</span>
+    <span class="tag">§25.2 Bar Spacing</span>
+    <span class="tag">§24.3 Crack Control</span>
+    <span class="tag">§25.4 Development Length</span>
+    <span class="tag">§25.2 Bar Spacing</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- ===== SCHEMATIC ===== -->
+<div class="schema-wrap">
+  <div style="display:grid;grid-template-columns:3fr 2fr;gap:20px;align-items:center">
+    <div>
+      <div style="font-size:.78em;font-weight:700;color:#2a5298;text-align:center;margin-bottom:6px">BEAM ELEVATION — Uniform Dead + Live Load</div>
+      <svg id="elevSVG" width="100%" viewBox="0 0 400 170">
+        <defs>
+          <marker id="aD" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3Z" fill="#374151"/></marker>
+          <marker id="dimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+          <marker id="dimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+          <marker id="reactUp" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M8,0 L8,6 L0,3Z" fill="#16a34a"/></marker>
+          <marker id="aPL" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3Z" fill="#dc2626"/></marker>
+        </defs>
+        <!-- Beam body -->
+        <rect x="40" y="70" width="320" height="55" fill="#d1d5db" stroke="#374151" stroke-width="1.5" rx="2"/>
+        <!-- Rebar hint at bottom -->
+        <ellipse cx="90" cy="116" rx="5" ry="5" fill="#1e3c72"/>
+        <ellipse cx="200" cy="116" rx="5" ry="5" fill="#1e3c72"/>
+        <ellipse cx="310" cy="116" rx="5" ry="5" fill="#1e3c72"/>
+        <!-- Support triangles -->
+        <polygon points="40,125 24,148 56,148" fill="#6b7280" stroke="#374151" stroke-width="1"/>
+        <polygon points="360,125 344,148 376,148" fill="#6b7280" stroke="#374151" stroke-width="1"/>
+        <!-- Ground hatch -->
+        <line x1="18" y1="148" x2="62" y2="148" stroke="#374151" stroke-width="2"/>
+        <line x1="338" y1="148" x2="382" y2="148" stroke="#374151" stroke-width="2"/>
+        <!-- UDL arrows -->
+        <line x1="55" y1="28" x2="345" y2="28" stroke="#374151" stroke-width="1.5"/>
+        <line x1="60"  y1="28" x2="60"  y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="93"  y1="28" x2="93"  y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="126" y1="28" x2="126" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="159" y1="28" x2="159" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="200" y1="28" x2="200" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="240" y1="28" x2="240" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="274" y1="28" x2="274" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="307" y1="28" x2="307" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <line x1="340" y1="28" x2="340" y2="66" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+        <!-- wu label -->
+        <text x="200" y="20" text-anchor="middle" font-size="13" fill="#374151" font-weight="bold">w</text>
+        <text x="208" y="23" font-size="9" fill="#374151">u</text>
+        <text x="218" y="20" font-size="12" fill="#374151"> = 1.2w</text>
+        <text x="274" y="23" font-size="9" fill="#374151">D</text>
+        <text x="279" y="20" font-size="12" fill="#374151"> + 1.6w</text>
+        <text x="334" y="23" font-size="9" fill="#374151">L</text>
+        <!-- Span dim -->
+        <line x1="40" y1="162" x2="360" y2="162" stroke="#f59e0b" stroke-width="1.2" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+        <text x="200" y="170" text-anchor="middle" font-size="11" fill="#d97706" font-weight="600">L (ft)</text>
+        <!-- Reaction arrows -->
+        <line x1="40" y1="155" x2="40" y2="132" stroke="#16a34a" stroke-width="2" marker-end="url(#reactUp)"/>
+        <line x1="360" y1="155" x2="360" y2="132" stroke="#16a34a" stroke-width="2" marker-end="url(#reactUp)"/>
+        <text x="40" y="170" text-anchor="middle" font-size="9" fill="#16a34a">R</text>
+        <text x="360" y="170" text-anchor="middle" font-size="9" fill="#16a34a">R</text>
+        <!-- Concentrated point load arrow (shown dynamically when PD+PL > 0) -->
+        <g id="svgPL" display="none">
+          <line id="svgPLline" x1="200" y1="12" x2="200" y2="66" stroke="#dc2626" stroke-width="2.5" marker-end="url(#aPL)"/>
+          <text id="svgPLlbl" x="200" y="9" text-anchor="middle" font-size="11" fill="#dc2626" font-weight="bold">P</text>
+          <line id="svgPLdim" x1="200" y1="60" x2="200" y2="60" stroke="#dc2626" stroke-width="0.8" stroke-dasharray="3,2"/>
+          <text id="svgPLatxt" x="200" y="170" text-anchor="middle" font-size="9" fill="#dc2626">a</text>
+        </g>
+      </svg>
+    </div>
+    <div>
+      <div style="font-size:.78em;font-weight:700;color:#2a5298;text-align:center;margin-bottom:6px">CROSS-SECTION</div>
+      <svg id="xsectSVG" width="100%" viewBox="0 0 200 200">
+        <defs>
+          <marker id="dimL2" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/></marker>
+          <marker id="dimR2" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>
+        </defs>
+        <!-- Beam outline -->
+        <rect x="35" y="10" width="110" height="158" fill="#d1d5db" stroke="#374151" stroke-width="2"/>
+        <!-- Concrete cross-hatch lines -->
+        <line x1="35" y1="30" x2="55" y2="10" stroke="#aaa" stroke-width="0.5"/>
+        <line x1="35" y1="60" x2="75" y2="20" stroke="#aaa" stroke-width="0.5"/>
+        <line x1="35" y1="90" x2="95" y2="30" stroke="#aaa" stroke-width="0.5"/>
+        <line x1="55" y1="168" x2="145" y2="78" stroke="#aaa" stroke-width="0.5"/>
+        <line x1="85" y1="168" x2="145" y2="108" stroke="#aaa" stroke-width="0.5"/>
+        <line x1="115" y1="168" x2="145" y2="138" stroke="#aaa" stroke-width="0.5"/>
+        <!-- Stirrup rectangle -->
+        <rect x="50" y="25" width="80" height="128" fill="none" stroke="#dc2626" stroke-width="2"/>
+        <!-- Cover annotation line (top) -->
+        <line x1="55" y1="10" x2="55" y2="25" stroke="#9ca3af" stroke-width="0.8" stroke-dasharray="2,2"/>
+        <!-- Tension bars (bottom, 3 bars) -->
+        <circle cx="70"  cy="140" r="6" fill="#1e3c72" stroke="#fff" stroke-width="1"/>
+        <circle cx="90"  cy="140" r="6" fill="#1e3c72" stroke="#fff" stroke-width="1"/>
+        <circle cx="110" cy="140" r="6" fill="#1e3c72" stroke="#fff" stroke-width="1"/>
+        <!-- Compression bars group (top) — toggled by JS -->
+        <g id="xsCompBars" display="none">
+          <circle cx="65"  cy="32" r="5" fill="#16a34a" stroke="#fff" stroke-width="1"/>
+          <circle cx="90"  cy="32" r="5" fill="#16a34a" stroke="#fff" stroke-width="1"/>
+          <circle cx="115" cy="32" r="5" fill="#16a34a" stroke="#fff" stroke-width="1"/>
+          <text x="90" y="47" text-anchor="middle" font-size="7.5" fill="#166534" font-weight="600">A&#x2032;<tspan font-size="6" dy="1.5">s</tspan></text>
+        </g>
+        <!-- Compression zone shading -->
+        <rect id="xsCompZone" x="35" y="10" width="110" height="30" fill="rgba(42,82,152,0.15)" stroke="none"/>
+        <text id="xsCompLabel" x="90" y="67" text-anchor="middle" font-size="8" fill="#1e3c72">comp. zone</text>
+        <!-- Labels -->
+        <line x1="35" y1="186" x2="145" y2="186" stroke="#f59e0b" stroke-width="1.2" marker-start="url(#dimL2)" marker-end="url(#dimR2)"/>
+        <text x="90" y="196" text-anchor="middle" font-size="11" fill="#d97706" font-weight="600">b</text>
+        <line x1="22" y1="10" x2="22" y2="168" stroke="#f59e0b" stroke-width="1.2" marker-start="url(#dimL2)" marker-end="url(#dimR2)"/>
+        <text x="13" y="95" text-anchor="middle" font-size="11" fill="#d97706" font-weight="600">h</text>
+        <line x1="158" y1="10" x2="158" y2="140" stroke="#2a5298" stroke-width="1" stroke-dasharray="3,2"/>
+        <text x="172" y="78" text-anchor="middle" font-size="10" fill="#2a5298" font-weight="700">d</text>
+        <text x="90" y="158" text-anchor="middle" font-size="9" fill="#1e3c72" font-weight="600">A<tspan font-size="7" dy="2">s</tspan></text>
+        <text x="137" y="90" font-size="8" fill="#dc2626">stirrup</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BLOCK 1: GEOMETRY ===== -->
+<div class="blk">
+  <h2>1 &mdash; Beam Geometry <span class="badge">Required</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Beam Width, b <span class="unit">(in)</span></label>
+      <input type="number" id="bw" value="14" min="6" step="1" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Total Depth, h <span class="unit">(in)</span></label>
+      <input type="number" id="hd" value="24" min="8" step="1" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Clear Span Length, L <span class="unit">(ft)</span></label>
+      <input type="number" id="Lft" value="20" min="1" step="0.5" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Support Condition <span class="badge">Table 9.3.1.1</span></label>
+      <select id="suppCond">
+        <option value="ss" selected>Simply Supported (h&#8209;min = L/16)</option>
+        <option value="oec">One End Continuous (L/18.5)</option>
+        <option value="bec">Both Ends Continuous (L/21)</option>
+        <option value="cant">Cantilever (L/8)</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Clear Cover to Stirrups <span class="unit">(in)</span></label>
+      <input type="number" id="cover" value="1.5" min="0.75" step="0.25" oninput="updateHints()">
+      <span class="hint">ACI 318-19 §20.5.1 — 1.5" interior / 2" exterior typical</span>
+    </div>
+    <div class="ig">
+      <label>Exposure Category <span class="badge">ACI 318-19 §20.6.1</span></label>
+      <select id="exposureCat">
+        <option value="interior" selected>Interior (not exposed to weather)</option>
+        <option value="exterior">Exterior (exposed to weather)</option>
+        <option value="soil">Cast against &amp; perm. exposed to soil</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>
+        <input type="checkbox" id="includeHook" onchange="toggleHookInput()" style="margin-right:5px;vertical-align:middle">
+        Include Hook Dev. Length Check (ACI 318-19 §25.4.3.1)
+      </label>
+      <div id="hookInputWrap" style="opacity:0.35;pointer-events:none;margin-top:6px">
+        <label style="font-size:.85em;color:#555">Column / Support Width, b<sub>col</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="bCol" value="16" min="6" step="2">
+        <span class="hint">Available hook embedment = b<sub>col</sub>/2 &minus; 2" (est. col. cover)</span>
+      </div>
+    </div>
+  </div>
+  <div id="swHint" class="sw-hint"></div>
+</div>
+
+<!-- ===== BLOCK 2: MATERIALS ===== -->
+<div class="blk">
+  <h2>2 &mdash; Materials</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>f'<sub>c</sub> &mdash; Concrete Strength <span class="unit">(psi)</span></label>
+      <select id="fcp">
+        <option value="3000">3,000 psi</option>
+        <option value="4000" selected>4,000 psi</option>
+        <option value="5000">5,000 psi</option>
+        <option value="6000">6,000 psi</option>
+        <option value="8000">8,000 psi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>f<sub>y</sub> &mdash; Longitudinal Steel <span class="unit">(ksi)</span></label>
+      <select id="fy">
+        <option value="60" selected>60 ksi — ASTM A615 Gr. 60</option>
+        <option value="80">80 ksi — ASTM A615 Gr. 80</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>f<sub>yt</sub> &mdash; Transverse Steel <span class="unit">(ksi)</span></label>
+      <select id="fyt">
+        <option value="40" selected>40 ksi — ASTM A615 Gr. 40</option>
+        <option value="60">60 ksi — ASTM A615 Gr. 60</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Concrete Unit Weight, w<sub>c</sub> <span class="unit">(pcf)</span></label>
+      <input type="number" id="wc" value="150" disabled>
+      <span class="hint">Normal weight concrete — 150 pcf (fixed per ACI 318-19 §26.4.1)</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BLOCK 3: UNFACTORED LOADS ===== -->
+<div class="blk">
+  <h2>3 &mdash; Unfactored (Service) Loads <span class="badge">ACI 318-19 §5.3.1</span></h2>
+  <div class="callout">Enter service-level loads only. Self-weight is computed automatically from beam dimensions and added to dead load. All load combinations per Table 5.3.1 are evaluated.</div>
+  <div class="sub-head">Uniform Distributed Loads (kip/ft)</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Superimposed Dead, w<sub>D</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wD" value="1.0" min="0" step="0.1">
+      <span class="hint">Excludes self-weight — added automatically</span>
+    </div>
+    <div class="ig">
+      <label>Live Load, w<sub>L</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wL" value="2.0" min="0" step="0.1">
+    </div>
+    <div class="ig">
+      <label>Roof Live, w<sub>Lr</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wLr" value="0" min="0" step="0.1">
+      <span class="hint">Enter 0 if not applicable</span>
+    </div>
+    <div class="ig">
+      <label>Snow Load, w<sub>S</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wS" value="0" min="0" step="0.1">
+    </div>
+    <div class="ig">
+      <label>Wind Load, w<sub>W</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wW" value="0" min="0" step="0.1">
+    </div>
+  </div>
+  <div class="sub-head">Point Loads (kips) — Optional</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Point Dead Load, P<sub>D</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="PD" value="0" min="0" step="0.5" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Point Live Load, P<sub>L</sub> <span class="unit">(kips)</span></label>
+      <input type="number" id="PL" value="0" min="0" step="0.5" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Load Position from Left Support <span class="unit">(ft)</span></label>
+      <input type="number" id="aPL" value="" min="0" step="0.5" placeholder="Default: L/2" oninput="updateHints()">
+      <span class="hint">Blank or 0 defaults to midspan &nbsp;|&nbsp; 0 &lt; a &lt; L</span>
+    </div>
+  </div>
+  <div class="sub-head">Partial Uniform Load — Optional</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Partial Dead Load, w<sub>D,p</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wDp" value="0" min="0" step="0.1">
+    </div>
+    <div class="ig">
+      <label>Partial Live Load, w<sub>L,p</sub> <span class="unit">(k/ft)</span></label>
+      <input type="number" id="wLp" value="0" min="0" step="0.1">
+    </div>
+    <div class="ig">
+      <label>Start Position, a<sub>p</sub> <span class="unit">(ft from left)</span></label>
+      <input type="number" id="aPUL" value="0" min="0" step="0.5">
+    </div>
+    <div class="ig">
+      <label>End Position, b<sub>p</sub> <span class="unit">(ft from left)</span></label>
+      <input type="number" id="bPUL" value="0" min="0" step="0.5">
+      <span class="hint">Leave all zeros to omit &nbsp;|&nbsp; 0 &le; a<sub>p</sub> &lt; b<sub>p</sub> &le; L</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BLOCK 4: LONGITUDINAL REINFORCEMENT ===== -->
+<div class="blk">
+  <h2>4 &mdash; Flexural (Tension) Reinforcement</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Bar Size</label>
+      <select id="barSize" onchange="updateHints()">
+        <option value="3">#3 &mdash; d<sub>b</sub>=0.375", A<sub>b</sub>=0.11 in&sup2;</option>
+        <option value="4">#4 &mdash; d<sub>b</sub>=0.500", A<sub>b</sub>=0.20 in&sup2;</option>
+        <option value="5">#5 &mdash; d<sub>b</sub>=0.625", A<sub>b</sub>=0.31 in&sup2;</option>
+        <option value="6">#6 &mdash; d<sub>b</sub>=0.750", A<sub>b</sub>=0.44 in&sup2;</option>
+        <option value="7">#7 &mdash; d<sub>b</sub>=0.875", A<sub>b</sub>=0.60 in&sup2;</option>
+        <option value="8" selected>#8 &mdash; d<sub>b</sub>=1.000", A<sub>b</sub>=0.79 in&sup2;</option>
+        <option value="9">#9 &mdash; d<sub>b</sub>=1.128", A<sub>b</sub>=1.00 in&sup2;</option>
+        <option value="10">#10 &mdash; d<sub>b</sub>=1.270", A<sub>b</sub>=1.27 in&sup2;</option>
+        <option value="11">#11 &mdash; d<sub>b</sub>=1.410", A<sub>b</sub>=1.56 in&sup2;</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Number of Tension Bars</label>
+      <input type="number" id="nBars" value="3" min="1" max="20" step="1" oninput="updateHints()">
+    </div>
+    <div class="ig">
+      <label>Bar Layers</label>
+      <select id="nLayers">
+        <option value="1" selected>1 layer</option>
+        <option value="2">2 layers</option>
+      </select>
+      <span class="hint">2 layers adds ~1.5d<sub>b</sub> to d offset</span>
+    </div>
+  </div>
+  <div id="barHint" class="bar-hint"></div>
+  <!-- Compression (Top) Reinforcement -->
+  <div class="sub-head" style="margin-top:10px">Compression (Top) Reinforcement &mdash; Optional <span class="badge-green">A&prime;<sub>s</sub></span></div>
+  <div class="g3">
+    <div class="ig">
+      <label>Top Bar Size</label>
+      <select id="barSizeTop" onchange="updateHints()">
+        <option value="0" selected>None (singly reinforced)</option>
+        <option value="3">#3 &mdash; d<sub>b</sub>=0.375", A<sub>b</sub>=0.11 in&sup2;</option>
+        <option value="4">#4 &mdash; d<sub>b</sub>=0.500", A<sub>b</sub>=0.20 in&sup2;</option>
+        <option value="5">#5 &mdash; d<sub>b</sub>=0.625", A<sub>b</sub>=0.31 in&sup2;</option>
+        <option value="6">#6 &mdash; d<sub>b</sub>=0.750", A<sub>b</sub>=0.44 in&sup2;</option>
+        <option value="7">#7 &mdash; d<sub>b</sub>=0.875", A<sub>b</sub>=0.60 in&sup2;</option>
+        <option value="8">#8 &mdash; d<sub>b</sub>=1.000", A<sub>b</sub>=0.79 in&sup2;</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Number of Top (Compression) Bars</label>
+      <input type="number" id="nBarsTop" value="0" min="0" max="20" step="1">
+      <span class="hint">Enhances M<sub>n</sub> (if A&prime;<sub>s</sub> yields) &amp; reduces long-term deflection (&lambda;<sub>&Delta;</sub>)</span>
+    </div>
+  </div>
+  <!-- Skin Reinforcement -->
+  <div id="skinSection" style="margin-top:10px">
+  <div class="sub-head">Skin Reinforcement &mdash; Required if h &gt; 36" <span class="badge">ACI 318-19 §9.7.2.3</span></div>
+  <div class="g3">
+    <div class="ig">
+      <label>Skin Bar Size (each side face)</label>
+      <select id="skinBarSize">
+        <option value="3" selected>#3 &mdash; d<sub>b</sub>=0.375", A<sub>b</sub>=0.11 in&sup2;</option>
+        <option value="4">#4 &mdash; d<sub>b</sub>=0.500", A<sub>b</sub>=0.20 in&sup2;</option>
+        <option value="5">#5 &mdash; d<sub>b</sub>=0.625", A<sub>b</sub>=0.31 in&sup2;</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Skin Bar Spacing, s<sub>sk</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="skinBarS" value="12" min="2" max="24" step="1">
+      <span class="hint">Distributed along both side faces over h/2 from tension face</span>
+    </div>
+  </div>
+  </div><!-- end #skinSection -->
+</div>
+
+<!-- ===== BLOCK 5: SHEAR REINFORCEMENT ===== -->
+<div class="blk">
+  <h2>5 &mdash; Shear (Transverse) Reinforcement</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Stirrup Bar Size <span class="badge">d calc</span></label>
+      <select id="stirrupSize" onchange="updateHints()">
+        <option value="3">#3 &mdash; d<sub>b</sub>=0.375", A<sub>b</sub>=0.11 in&sup2;/leg</option>
+        <option value="4" selected>#4 &mdash; d<sub>b</sub>=0.500", A<sub>b</sub>=0.20 in&sup2;/leg</option>
+        <option value="5">#5 &mdash; d<sub>b</sub>=0.625", A<sub>b</sub>=0.31 in&sup2;/leg</option>
+      </select>
+      <span class="hint">Also used for effective depth: d = h &minus; cover &minus; d<sub>stir</sub> &minus; d<sub>b,long</sub>/2</span>
+    </div>
+    <div class="ig">
+      <label>Number of Legs</label>
+      <select id="nLegs">
+        <option value="2" selected>2 legs (standard)</option>
+        <option value="4">4 legs (wide beam)</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Stirrup Spacing, s <span class="unit">(in)</span></label>
+      <input type="number" id="stirrupS" value="8" min="1" max="24" step="1">
+    </div>
+  </div>
+  <div id="stirrupRec"></div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- ===== RESULTS ===== -->
+<div id="results" class="results">
+
+  <div id="sumBox" class="summary"></div>
+
+  <div class="blk">
+    <h2>Section &amp; Material Properties</h2>
+    <div id="propOut"></div>
+  </div>
+
+  <div class="blk">
+    <h2>Load Combinations &amp; Demands <span class="badge">ACI 318-19 §5.3.1 — Table 5.3.1</span></h2>
+    <div id="lcOut"></div>
+  </div>
+
+  <div class="blk">
+    <h2>Governing Design Demands &amp; Stirrup Spacing Range</h2>
+    <div id="demOut"></div>
+  </div>
+
+  <div class="blk" id="defSumBlk" style="display:none">
+    <h2>Deflection Summary <span class="badge">ACI 318-19 §24.2</span></h2>
+    <div id="defSumOut"></div>
+  </div>
+
+  <div class="blk">
+    <h2>Design Checks <span class="badge">17 Checks</span>
+      <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &#9656; Calc to expand each check</span>
+    </h2>
+    <table class="chk-table">
+      <thead>
+        <tr>
+          <th style="width:27%">Check</th>
+          <th>Code Reference</th>
+          <th>Demand</th>
+          <th>Capacity</th>
+          <th>D/C</th>
+          <th>Status</th>
+          <th style="width:70px">Detail</th>
+        </tr>
+      </thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box">
+    <strong>Engineering Notes &amp; Assumptions:</strong>
+    <ul>
+      <li><strong>Scope — Nonprestressed beams only:</strong> All provisions (§9.3, §22.3, §22.5, §24.2, §25.4) apply exclusively to <em>nonprestressed</em> rectangular beams per ACI 318-19. This calculator is <strong>not valid</strong> for prestressed, post-tensioned, or precast/prestressed members. For prestressed beams, see ACI 318-19 Chapter 26 and §24.2.1(a).</li>
+      <li><strong>Loading model:</strong> Simple span. Reactions: R<sub>L</sub> = w<sub>u</sub>L/2 + P<sub>u</sub>(L&minus;a)/L, R<sub>R</sub> = w<sub>u</sub>L/2 + P<sub>u</sub>a/L. Max M<sub>u</sub> found numerically (400-point scan of span). Max V<sub>u</sub> = max(R<sub>L</sub>, R<sub>R</sub>). Point load position a defaults to L/2 if blank.</li>
+      <li><strong>Shear V<sub>c</sub>:</strong> ACI 318-19 Table 22.5.5.1 detailed equation: V<sub>c</sub> = [8λ(ρ<sub>w</sub>)<sup>1/3</sup>√f'<sub>c</sub>]b<sub>w</sub>d (N<sub>u</sub>=0, gravity beams). λ = 1.0 for normal-weight concrete.</li>
+      <li><strong>φ factors:</strong> 0.90 for flexure (tension-controlled, ε<sub>t</sub> ≥ 0.005); 0.75 for shear. Per ACI 318-19 §21.2.2.</li>
+      <li><strong>Self-weight:</strong> w<sub>SW</sub> = b × h × 150 pcf, automatically included in dead load.</li>
+      <li><strong>Minimum depth:</strong> ACI 318-19 Table 9.3.1.1 applies to beams not supporting partitions that could be damaged. Calculate deflections per ACI 318-19 §24.2 if this condition is not met.</li>
+      <li><strong>Serviceability &amp; detailing checks:</strong> Bar clear spacing (ACI 318-19 §25.2.1), tension development length (ACI 318-19 §25.4.2.2, K<sub>tr</sub>=0), immediate deflection via Branson I<sub>e</sub> (ACI 318-19 §24.2.3.5), max bar spacing / crack control (ACI 318-19 §24.3.2), long-term creep+shrinkage deflection (ACI 318-19 §24.2.4).</li>
+      <li><strong>Not checked here:</strong> Standard/seismic hooks (ACI 318-19 §25.3), lap splices (ACI 318-19 §25.5), bar cutoff locations (ACI 318-19 §9.7.3), T-beam flange geometry (ACI 318-19 §6.3.2), torsion (ACI 318-19 §22.7), seismic special requirements (ACI 318-19 Ch. 18).</li>
+      <li><strong>Tension-controlled requirement:</strong> ACI 318-19 §9.3.3.1 requires ε<sub>t</sub> ≥ 0.004 for P<sub>u</sub> &lt; 0.10f'<sub>c</sub>A<sub>g</sub>.</li>
+    </ul>
+  </div>
+
+</div><!-- end results -->
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+// ============================================================
+// BAR DATABASE  [diameter(in), area(in²)]
+// ============================================================
+var barDB = {
+  3:  [0.375, 0.11],
+  4:  [0.500, 0.20],
+  5:  [0.625, 0.31],
+  6:  [0.750, 0.44],
+  7:  [0.875, 0.60],
+  8:  [1.000, 0.79],
+  9:  [1.128, 1.00],
+  10: [1.270, 1.27],
+  11: [1.410, 1.56]
+};
+var stirrupBarArea = { 3: 0.11, 4: 0.20, 5: 0.31 };
+
+// ============================================================
+// NUMBER FORMATTERS
+// ============================================================
+function f1(v){ return isFinite(v) ? v.toFixed(1) : 'N/A'; }
+function f2(v){ return isFinite(v) ? v.toFixed(2) : 'N/A'; }
+function f3(v){ return isFinite(v) ? v.toFixed(3) : 'N/A'; }
+function f4(v){ return isFinite(v) ? v.toFixed(4) : 'N/A'; }
+function f0(v){ return isFinite(v) ? Math.round(v).toString() : 'N/A'; }
+
+// ============================================================
+// MATH DISPLAY HELPERS
+// ============================================================
+function fr(n, d) {
+  return '<span class="mfr"><span class="mn">' + n + '</span><span class="md">' + d + '</span></span>';
+}
+function ov(x) {
+  return '&radic;<span style="text-decoration:overline;padding:0 2px">' + x + '</span>';
+}
+function toggleDet(i) {
+  var el  = document.getElementById('det_' + i);
+  var btn = document.getElementById('dbtn_' + i);
+  var open = el.classList.toggle('open');
+  btn.textContent = open ? '\u25BE Calc' : '\u25B6 Calc';
+}
+
+// ============================================================
+// LIVE HINTS
+// ============================================================
+function updateHints() {
+  var b       = parseFloat(document.getElementById('bw').value)        || 0;
+  var h       = parseFloat(document.getElementById('hd').value)        || 0;
+  var cover   = parseFloat(document.getElementById('cover').value)     || 1.5;
+  var _szH    = parseInt(document.getElementById('stirrupSize').value) || 4;
+  var stirDia = ({3:0.375, 4:0.5, 5:0.625})[_szH] || 0.5;
+  var barSize = parseInt(document.getElementById('barSize').value)     || 8;
+  var nBars   = parseInt(document.getElementById('nBars').value)       || 1;
+  var nLayers = parseInt(document.getElementById('nLayers').value)     || 1;
+  var Ab      = barDB[barSize][1];
+  var db      = barDB[barSize][0];
+  var As      = nBars * Ab;
+  var d_layer = (nLayers === 2) ? (db + 1.0) : 0; // approx. offset for 2nd layer
+  var d       = h - cover - stirDia - db / 2 - d_layer;
+  var wSW     = b * h / 144 * 150 / 1000;
+
+  document.getElementById('swHint').innerHTML =
+    '<strong>Auto Self-Weight:</strong> w<sub>SW</sub> = (' + f1(b) + '" &times; ' + f1(h) +
+    '") / 144 in&sup2;/ft&sup2; &times; 150 pcf = <strong>' + f3(wSW) + ' k/ft</strong> &mdash; included as dead load.';
+
+  document.getElementById('barHint').innerHTML =
+    'Provided: A<sub>s</sub> = ' + nBars + ' &times; ' + f2(Ab) + ' in&sup2; = <strong>' + f2(As) +
+    ' in&sup2;</strong> &nbsp;|&nbsp; Effective depth d = ' + f2(d) + '"' +
+    (nLayers === 2 ? ' <em>(2-layer offset applied)</em>' : '');
+
+  // Skin section gray-out when h ≤ 36"
+  var _skinSec = document.getElementById('skinSection');
+  if (_skinSec) {
+    var _hVal = parseFloat(document.getElementById('hd').value) || 0;
+    _skinSec.style.opacity = (_hVal > 36) ? '1' : '0.35';
+    _skinSec.style.pointerEvents = (_hVal > 36) ? '' : 'none';
+  }
+
+  // Preview compression bars in SVG
+  var _bst = parseInt(document.getElementById('barSizeTop').value) || 0;
+  var _nbt = parseInt(document.getElementById('nBarsTop').value)   || 0;
+  var _xsComp = document.getElementById('xsCompBars');
+  var _xsLbl  = document.getElementById('xsCompLabel');
+  if (_xsComp) {
+    var _showComp = (_bst > 0 && _nbt > 0);
+    _xsComp.setAttribute('display', _showComp ? 'inline' : 'none');
+    if (_xsLbl) _xsLbl.setAttribute('y', _showComp ? '54' : '31');
+  }
+
+  // Update concentrated point load arrow on beam elevation SVG
+  var _PD     = parseFloat(document.getElementById('PD').value)  || 0;
+  var _PL     = parseFloat(document.getElementById('PL').value)  || 0;
+  var _Lft    = parseFloat(document.getElementById('Lft').value) || 20;
+  var _aPLraw = parseFloat(document.getElementById('aPL').value);
+  var _a_ft   = (isFinite(_aPLraw) && _aPLraw > 0 && _aPLraw < _Lft) ? _aPLraw : _Lft / 2;
+  var _svgPL     = document.getElementById('svgPL');
+  var _svgPLline = document.getElementById('svgPLline');
+  var _svgPLlbl  = document.getElementById('svgPLlbl');
+  var _svgPLdim  = document.getElementById('svgPLdim');
+  var _svgPLatxt = document.getElementById('svgPLatxt');
+  if (_svgPL) {
+    if (_PD + _PL > 0) {
+      // SVG span: x=40 (left support) to x=360 (right support) = 320px wide
+      var _xPL = Math.round(40 + (_a_ft / _Lft) * 320);
+      _svgPL.setAttribute('display', 'inline');
+      if (_svgPLline) { _svgPLline.setAttribute('x1', _xPL); _svgPLline.setAttribute('x2', _xPL); }
+      if (_svgPLlbl)  { _svgPLlbl.setAttribute('x', _xPL); }
+      // dashed vertical dim line from arrow base down to span line
+      if (_svgPLdim)  { _svgPLdim.setAttribute('x1', _xPL); _svgPLdim.setAttribute('x2', _xPL); _svgPLdim.setAttribute('y2', '162'); }
+      if (_svgPLatxt) { _svgPLatxt.setAttribute('x', Math.round(_xPL + 6)); }
+    } else {
+      _svgPL.setAttribute('display', 'none');
+    }
+  }
+}
+
+function toggleHookInput() {
+  var cb   = document.getElementById('includeHook');
+  var wrap = document.getElementById('hookInputWrap');
+  if (!wrap) return;
+  var on = cb && cb.checked;
+  wrap.style.opacity       = on ? '1' : '0.35';
+  wrap.style.pointerEvents = on ? ''  : 'none';
+}
+
+// Init hints on load
+updateHints();
+
+// ============================================================
+// MAIN CALCULATION
+// ============================================================
+function runCalc() {
+
+  // --- Read inputs ---
+  var b       = parseFloat(document.getElementById('bw').value);
+  var h       = parseFloat(document.getElementById('hd').value);
+  var Lft     = parseFloat(document.getElementById('Lft').value);
+  var suppCond    = document.getElementById('suppCond').value;
+  var cover       = parseFloat(document.getElementById('cover').value);
+  var exposureCat  = document.getElementById('exposureCat').value;
+  var includeHook  = document.getElementById('includeHook').checked;
+  var bCol         = includeHook ? (parseFloat(document.getElementById('bCol').value) || 16) : 0;
+
+  var fcp     = parseFloat(document.getElementById('fcp').value);       // psi
+  var fy_ksi  = parseFloat(document.getElementById('fy').value);
+  var fy      = fy_ksi * 1000;                                           // psi
+  var fyt_ksi = parseFloat(document.getElementById('fyt').value);
+  var fyt     = fyt_ksi * 1000;                                          // psi
+
+  var wD_sdl  = parseFloat(document.getElementById('wD').value)  || 0;  // k/ft
+  var wL_in   = parseFloat(document.getElementById('wL').value)  || 0;
+  var wLr_in  = parseFloat(document.getElementById('wLr').value) || 0;
+  var wS_in   = parseFloat(document.getElementById('wS').value)  || 0;
+  var wW_in   = parseFloat(document.getElementById('wW').value)  || 0;
+  var PD_in   = parseFloat(document.getElementById('PD').value)  || 0;  // kips
+  var PL_in   = parseFloat(document.getElementById('PL').value)  || 0;
+  var aPL_raw = parseFloat(document.getElementById('aPL').value);
+  var wDp_raw = parseFloat(document.getElementById('wDp').value) || 0;  // partial dead UDL k/ft
+  var wLp_raw = parseFloat(document.getElementById('wLp').value) || 0;  // partial live UDL k/ft
+  var aPUL_r  = parseFloat(document.getElementById('aPUL').value) || 0;
+  var bPUL_r  = parseFloat(document.getElementById('bPUL').value) || 0;
+
+  var barSize    = parseInt(document.getElementById('barSize').value);
+  var nBars      = parseInt(document.getElementById('nBars').value)      || 1;
+  var nLayers    = parseInt(document.getElementById('nLayers').value)    || 1;
+  var barSizeTop  = parseInt(document.getElementById('barSizeTop').value) || 0;
+  var nBarsTop    = parseInt(document.getElementById('nBarsTop').value)   || 0;
+  var skinBarSz   = parseInt(document.getElementById('skinBarSize').value) || 3;
+  var skinBarS    = parseFloat(document.getElementById('skinBarS').value)  || 12;
+  var stirrupSz   = parseInt(document.getElementById('stirrupSize').value);
+  var stirDia    = ({3:0.375, 4:0.5, 5:0.625})[stirrupSz] || 0.5;  // derive from bar size
+  var nLegs      = parseInt(document.getElementById('nLegs').value);
+  var stirrupS   = parseFloat(document.getElementById('stirrupS').value);
+
+  // Point load position (validated: 0 < a_ft < Lft)
+  var a_ft = (isFinite(aPL_raw) && aPL_raw > 0 && aPL_raw < Lft) ? aPL_raw : Lft / 2;
+
+  // --- Derived geometry ---
+  var db       = barDB[barSize][0];
+  var Ab       = barDB[barSize][1];
+  var As       = nBars * Ab;
+
+  // --- Compression reinforcement (A'_s) ---
+  var A_prime_s = (nBarsTop > 0 && barSizeTop > 0 && barDB[barSizeTop])
+                    ? nBarsTop * barDB[barSizeTop][1] : 0;
+  var db_top    = (A_prime_s > 0) ? barDB[barSizeTop][0] : 0;
+  var d_prime   = (A_prime_s > 0) ? (cover + stirDia + db_top / 2) : 0;
+  var d_layer  = (nLayers === 2) ? (db + 1.0) : 0;
+  var d        = h - cover - stirDia - db / 2 - d_layer;   // effective depth (in)
+  var Ag       = b * h;
+  var Av_leg   = stirrupBarArea[stirrupSz];
+  var Av       = nLegs * Av_leg;                             // in² per stirrup spacing
+
+  // --- Material ---
+  var wc   = 150;   // pcf, normal weight
+  var lam  = 1.0;   // NW concrete lambda factor §19.2.4
+
+  // beta1 per ACI 318-19 §22.2.2.4.3
+  var beta1;
+  if (fcp <= 4000)      beta1 = 0.85;
+  else if (fcp >= 8000) beta1 = 0.65;
+  else                  beta1 = 0.85 - 0.05 * (fcp - 4000) / 1000;
+
+  // --- Self-weight ---
+  var wSW       = b * h / 144 * wc / 1000;     // k/ft
+  var wD_total  = wD_sdl + wSW;                 // total dead (SDL + SW)
+
+  // ============================================================
+  // LOAD COMBINATIONS — ACI 318-19 §5.3.1 (Table 5.3.1)
+  // Demand formulas (simple span):
+  //   Mu = wu * L² / 8 + Pu * L / 4   (k-ft)
+  //   Vu = wu * L / 2 + Pu / 2          (kips)
+  // ============================================================
+  // Validate partial UDL positions
+  var pul_valid = (wDp_raw + wLp_raw > 0 && bPUL_r > aPUL_r && aPUL_r >= 0 && bPUL_r <= Lft);
+  var a_pul = pul_valid ? aPUL_r : 0;
+  var b_pul = pul_valid ? bPUL_r : 0;
+
+  function demandMV(wDf, wLf, wLrf, wSf, wWf, PDf, PLf, wDpFac, wLpFac) {
+    var wu  = wDf + wLf + wLrf + wSf + wWf;
+    var Pu  = PDf + PLf;
+    var wp  = pul_valid ? (wDpFac + wLpFac) : 0;   // factored partial UDL intensity
+    var wp_len = b_pul - a_pul;
+    var wp_cg  = (a_pul + b_pul) / 2;              // centroid from left support
+    // Reactions
+    var RL_udl = wu * Lft / 2;
+    var RR_udl = wu * Lft / 2;
+    var RL_pl  = Pu * (Lft - a_ft) / Lft;
+    var RR_pl  = Pu * a_ft / Lft;
+    var RL_pul = pul_valid ? wp * wp_len * (Lft - wp_cg) / Lft : 0;
+    var RR_pul = pul_valid ? wp * wp_len * wp_cg / Lft : 0;
+    var RL = RL_udl + RL_pl + RL_pul;
+    var RR = RR_udl + RR_pl + RR_pul;
+    // Max moment: scan 400 points along span
+    var Mu_max = 0;
+    for (var xi = 1; xi < 400; xi++) {
+      var xp = xi * Lft / 400;
+      var Mx = RL * xp - wu * xp * xp / 2;
+      if (xp > a_ft) Mx -= Pu * (xp - a_ft);
+      if (pul_valid) {
+        if (xp > a_pul && xp <= b_pul)   Mx -= wp * Math.pow(xp - a_pul, 2) / 2;
+        else if (xp > b_pul)              Mx -= wp * wp_len * (xp - wp_cg);
+      }
+      if (Mx > Mu_max) Mu_max = Mx;
+    }
+    return { Mu: Mu_max, Vu: Math.max(RL, RR), RL: RL, RR: RR };
+  }
+
+  // LrS = max(Lr, S) for the variable-load term
+  var LrS = Math.max(wLr_in, wS_in);
+
+  var LCs = [
+    { eq:'5.3.1a', label:'U = 1.4D',
+      wDf: 1.4*wD_total,  wLf: 0,          wLrf: 0,         wSf: 0, wWf: 0,
+      PDf: 1.4*PD_in,     PLf: 0,           wDpF: 1.4, wLpF: 0 },
+
+    { eq:'5.3.1b', label:'U = 1.2D + 1.6L + 0.5(L<sub>r</sub> or S or R)',
+      wDf: 1.2*wD_total,  wLf: 1.6*wL_in,  wLrf: 0.5*LrS,   wSf: 0, wWf: 0,
+      PDf: 1.2*PD_in,     PLf: 1.6*PL_in,  wDpF: 1.2, wLpF: 1.6 },
+
+    { eq:'5.3.1c', label:'U = 1.2D + 1.6(L<sub>r</sub> or S) + (1.0L or 0.5W)',
+      wDf: 1.2*wD_total,  wLf: wL_in,      wLrf: 1.6*LrS,   wSf: 0, wWf: 0.5*wW_in,
+      PDf: 1.2*PD_in,     PLf: PL_in,       wDpF: 1.2, wLpF: 1.0 },
+
+    { eq:'5.3.1d', label:'U = 1.2D + 1.0W + 1.0L + 0.5(L<sub>r</sub> or S)',
+      wDf: 1.2*wD_total,  wLf: wL_in,      wLrf: 0.5*LrS,   wSf: 0, wWf: wW_in,
+      PDf: 1.2*PD_in,     PLf: PL_in,       wDpF: 1.2, wLpF: 1.0 },
+
+    { eq:'5.3.1f', label:'U = 0.9D + 1.0W',
+      wDf: 0.9*wD_total,  wLf: 0,          wLrf: 0,          wSf: 0, wWf: wW_in,
+      PDf: 0.9*PD_in,     PLf: 0,           wDpF: 0.9, wLpF: 0 }
+  ];
+
+  var lcRes = LCs.map(function(lc) {
+    var mv = demandMV(lc.wDf, lc.wLf, lc.wLrf, lc.wSf, lc.wWf, lc.PDf, lc.PLf,
+                      lc.wDpF * wDp_raw, lc.wLpF * wLp_raw);
+    return { eq: lc.eq, label: lc.label, Mu: mv.Mu, Vu: mv.Vu, RL: mv.RL, RR: mv.RR };
+  });
+
+  var Mu_gov = Math.max.apply(null, lcRes.map(function(r){ return r.Mu; }));
+  var Vu_gov = Math.max.apply(null, lcRes.map(function(r){ return r.Vu; }));
+  var govM   = lcRes.filter(function(r){ return r.Mu === Mu_gov; })[0];
+  var govV   = lcRes.filter(function(r){ return r.Vu === Vu_gov; })[0];
+  // Governing factored reactions (from the Mu-governing combination)
+  var RL_gov = govM ? govM.RL : 0;
+  var RR_gov = govM ? govM.RR : 0;
+  // Unfactored (service-level) reactions — all loads at factor 1.0
+  var svc_rxn = demandMV(wD_total, wL_in, wLr_in, wS_in, wW_in, PD_in, PL_in, wDp_raw, wLp_raw);
+  var RL_svc  = svc_rxn.RL;
+  var RR_svc  = svc_rxn.RR;
+
+  var Mu_kin = Mu_gov * 12;   // k-in (internal use)
+  var Vu_kip = Vu_gov;        // kips
+
+  // ============================================================
+  // MIN DEPTH CHECK — ACI 318-19 Table 9.3.1.1 (§9.3.1.1)
+  // Modified for fy ≠ 60 ksi per §9.3.1.1.1: multiply by (0.4 + fy/100,000)
+  // ============================================================
+  var hMinDenom = { ss: 16, oec: 18.5, bec: 21, cant: 8 };
+  var denom     = hMinDenom[suppCond];
+  var fyMod     = 0.4 + fy / 100000;
+  var hMin      = (Lft * 12) / denom * fyMod;
+
+  // ============================================================
+  // FLEXURAL STRENGTH — ACI 318-19 §22.3
+  // Singly or doubly reinforced (Whitney stress block)
+  // ============================================================
+  var fy_ksi_v  = fy / 1000;
+  var fcp_ksi_v = fcp / 1000;
+  var Es_ksi_v  = 29000;
+  var a, c, eps_t, phi_flex, Mn_kin;
+  var DR_yields = true;
+  var f_prime_s_ksi = 0;
+
+  if (A_prime_s === 0) {
+    // --- Singly reinforced ---
+    a     = As * fy / (0.85 * fcp * b);
+    c     = a / beta1;
+    eps_t = (d - c) / c * 0.003;
+    Mn_kin = As * fy * (d - a / 2) / 1000;
+  } else {
+    // --- Doubly reinforced: assume A's yields first ---
+    var f_cs_net_try = fy_ksi_v - 0.85 * fcp_ksi_v;
+    var a_try = (As * fy_ksi_v - A_prime_s * f_cs_net_try) / (0.85 * fcp_ksi_v * b);
+    var c_try = a_try / beta1;
+    var eps_sp = (c_try > d_prime && c_try > 0)
+                   ? (c_try - d_prime) / c_try * 0.003 : 0;
+
+    if (eps_sp >= fy_ksi_v / Es_ksi_v) {
+      // A's yields — straightforward solution
+      DR_yields      = true;
+      f_prime_s_ksi  = fy_ksi_v;
+      a = a_try; c = c_try;
+      var f_cs_net   = fy_ksi_v - 0.85 * fcp_ksi_v;
+      Mn_kin = (0.85 * fcp_ksi_v * a * b * (d - a / 2) + A_prime_s * f_cs_net * (d - d_prime));
+    } else {
+      // A's doesn't yield — quadratic for c
+      DR_yields = false;
+      var Kq = 0.85 * fcp_ksi_v * beta1 * b;
+      var Bq = -(As * fy_ksi_v - A_prime_s * (87 - 0.85 * fcp_ksi_v));
+      var Cq = -87 * A_prime_s * d_prime;
+      c = (-Bq - Math.sqrt(Math.max(Bq * Bq - 4 * Kq * Cq, 0))) / (2 * Kq);
+      a = beta1 * c;
+      f_prime_s_ksi  = Math.min(87 * (c - d_prime) / c, fy_ksi_v);
+      var f_cs_net2  = Math.max(f_prime_s_ksi - 0.85 * fcp_ksi_v, 0);
+      Mn_kin = (0.85 * fcp_ksi_v * a * b * (d - a / 2) + A_prime_s * f_cs_net2 * (d - d_prime));
+    }
+    eps_t = (d - c) / c * 0.003;
+  }
+
+  // phi factor per ACI 318-19 §21.2.2
+  if      (eps_t >= 0.005)  phi_flex = 0.90;
+  else if (eps_t >= 0.002)  phi_flex = 0.65 + (eps_t - 0.002) * (250 / 3);
+  else                       phi_flex = 0.65;
+
+  var phiMn   = phi_flex * Mn_kin;
+  var DC_flex = Mu_kin / phiMn;
+
+  // ============================================================
+  // MINIMUM FLEXURAL REINFORCEMENT — ACI 318-19 §9.6.1.2
+  // As,min = max( 3√f'c/fy · bw·d ,  200/fy · bw·d )
+  // ============================================================
+  var As_min_a = 3 * Math.sqrt(fcp) / fy * b * d;
+  var As_min_b = 200 / fy * b * d;
+  var As_min   = Math.max(As_min_a, As_min_b);
+  var DC_Asmin = As_min / As;
+
+  // ============================================================
+  // TENSION-CONTROLLED CHECK — ACI 318-19 §9.3.3.1
+  // Nonprestressed beam with Pu < 0.10·f'c·Ag: εt ≥ 0.004
+  // ============================================================
+  var eps_t_req = 0.004;
+  var DC_tc     = eps_t_req / eps_t;
+
+  // ============================================================
+  // SHEAR STRENGTH — ACI 318-19 §22.5
+  // Vc: Table 22.5.5.1 detailed method (members with min Av, Nu=0)
+  //   Vc = [8·λ·(ρw)^(1/3)·√f'c + Nu/(6·Ag)] · bw·d
+  // Vs: §22.5.10.5.3
+  //   Vs = Av·fyt·d / s
+  // ============================================================
+  var rho_w      = As / (b * d);
+  var Vc_detail  = (8 * lam * Math.pow(rho_w, 1/3) * Math.sqrt(fcp)) * b * d / 1000;  // kips
+  var Vc_simple  = 2 * lam * Math.sqrt(fcp) * b * d / 1000;  // kips — simplified check
+
+  // Use detailed method; note simplified is listed for reference
+  var Vc         = Vc_detail;
+  var Vs         = Av * fyt * d / (stirrupS * 1000);          // kips
+  var phi_shear  = 0.75;
+  var Vn         = Vc + Vs;
+  var phiVn      = phi_shear * Vn;
+  var DC_shear   = Vu_kip / phiVn;
+
+  // ============================================================
+  // MINIMUM SHEAR REINFORCEMENT — ACI 318-19 §9.6.3.4 Table 9.6.3.4
+  // Av,min/s = max( 0.75√f'c / fyt · bw ,  50/fyt · bw )
+  // ============================================================
+  var Avmin_s_a = 0.75 * Math.sqrt(fcp) / fyt * b;
+  var Avmin_s_b = 50 / fyt * b;
+  var Avmin_s   = Math.max(Avmin_s_a, Avmin_s_b);
+  var Av_s_prov = Av / stirrupS;
+  var DC_Avmin  = Avmin_s / Av_s_prov;
+
+  // ============================================================
+  // MAXIMUM STIRRUP SPACING — ACI 318-19 §9.7.6.2.2 Table 9.7.6.2.2
+  // If Vs ≤ 4√f'c·bw·d : smax = min(d/2, 24")
+  // If Vs > 4√f'c·bw·d : smax = min(d/4, 12")
+  // ============================================================
+  var Vs_thresh = 4 * Math.sqrt(fcp) * b * d / 1000;   // kips
+  var s_max     = (Vs <= Vs_thresh) ? Math.min(d / 2, 24) : Math.min(d / 4, 12);
+  var DC_smax   = stirrupS / s_max;
+
+  // ============================================================
+  // STIRRUP SPACING DESIGN RANGE (§9.6.3.4 + §9.7.6.2.2 + strength)
+  // ============================================================
+  var Vs_req_str    = Math.max(Vu_kip / phi_shear - Vc, 0);    // kips required from steel
+  var s_req_str     = (Vs_req_str > 0.01) ? Av * fyt * d / (Vs_req_str * 1000) : Infinity;
+  var s_max_avmin   = Av / Avmin_s;          // max s from §9.6.3.4 Av,min
+  var s_max_gov_all = Math.min(s_max, s_max_avmin);             // overall governing max
+
+  // ============================================================
+  // RENDER — Section properties table
+  // ============================================================
+  var suppNames = { ss: 'Simply Supported', oec: 'One End Continuous', bec: 'Both Ends Continuous', cant: 'Cantilever' };
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><thead><tr><th>Property</th><th>Value</th><th>Property</th><th>Value</th></tr></thead><tbody>' +
+    '<tr><td>Width, b</td><td>' + f1(b) + ' in</td><td>Total Depth, h</td><td>' + f1(h) + ' in</td></tr>' +
+    '<tr><td>Effective Depth, d</td><td>' + f2(d) + ' in</td><td>Clear Span, L</td><td>' + f1(Lft) + ' ft</td></tr>' +
+    '<tr><td>f\'<sub>c</sub></td><td>' + fcp + ' psi</td><td>f<sub>y</sub></td><td>' + f1(fy_ksi) + ' ksi</td></tr>' +
+    '<tr><td>&beta;<sub>1</sub></td><td>' + f3(beta1) + '</td><td>&lambda; (NW concrete)</td><td>1.00</td></tr>' +
+    '<tr><td>Tens. Steel, A<sub>s</sub></td><td>' + f2(As) + ' in&sup2; (' + nBars + '-#' + barSize + ')</td><td>A<sub>s,min</sub></td><td>' + f3(As_min) + ' in&sup2;</td></tr>' +
+    (A_prime_s > 0 ? '<tr><td>Comp. Steel, A\'<sub>s</sub></td><td>' + f2(A_prime_s) + ' in&sup2; (' + nBarsTop + '-#' + barSizeTop + ', d\'=' + f2(d_prime) + '")</td><td>f\'<sub>s</sub></td><td>' + f2(f_prime_s_ksi) + ' ksi (' + (DR_yields ? 'yields' : 'elastic') + ')</td></tr>' : '') +
+    '<tr><td>Stirrups</td><td>#' + stirrupSz + ' @ ' + f1(stirrupS) + '" &mdash; ' + nLegs + ' legs (A<sub>v</sub>=' + f2(Av) + ' in&sup2;)</td><td>A<sub>v</sub>/s prov.</td><td>' + f4(Av_s_prov) + ' in&sup2;/in</td></tr>' +
+    '<tr><td>Self-Weight, w<sub>SW</sub></td><td>' + f3(wSW) + ' k/ft</td><td>Support Condition</td><td>' + suppNames[suppCond] + '</td></tr>' +
+    '<tr><td>V<sub>c</sub> (detailed)</td><td>' + f2(Vc_detail) + ' kips</td><td>V<sub>c</sub> (simplified 2&radic;f\'c)</td><td>' + f2(Vc_simple) + ' kips</td></tr>' +
+    '</tbody></table>';
+
+  // ============================================================
+  // RENDER — Load combinations table
+  // ============================================================
+  var lcHtml = '<table class="lc-table"><thead><tr><th>Eq.</th><th>Combination</th><th>M<sub>u</sub> (k-ft)</th><th>V<sub>u</sub> (kips)</th><th>Notes</th></tr></thead><tbody>';
+  lcRes.forEach(function(r) {
+    var isGovM = Math.abs(r.Mu - Mu_gov) < 0.001;
+    var isGovV = Math.abs(r.Vu - Vu_gov) < 0.001;
+    var cls    = (isGovM || isGovV) ? ' class="govern"' : '';
+    var tag    = '';
+    if (isGovM) tag += ' <strong style="color:#92400e">&starf;M</strong>';
+    if (isGovV) tag += ' <strong style="color:#92400e">&starf;V</strong>';
+    lcHtml += '<tr' + cls + '><td><code>' + r.eq + '</code></td><td>' + r.label + '</td><td>' + f2(r.Mu) + tag + '</td><td>' + f2(r.Vu) + '</td><td>' + ((isGovM || isGovV) ? 'GOVERNS' : '') + '</td></tr>';
+  });
+  lcHtml += '</tbody></table>' +
+    '<div style="font-size:.76em;color:#555;margin-top:6px">&starf;M = governs bending demand &nbsp;&nbsp; &starf;V = governs shear demand &nbsp;&nbsp; Highlighted rows govern design.</div>' +
+    '<div style="font-size:.76em;color:#555;margin-top:3px">Self-weight w<sub>SW</sub> = ' + f3(wSW) + ' k/ft included in w<sub>D,total</sub> = ' + f3(wD_total) + ' k/ft for all combinations.</div>';
+  document.getElementById('lcOut').innerHTML = lcHtml;
+
+  // ============================================================
+  // RENDER — Demand cards
+  // ============================================================
+  var s_req_label = isFinite(s_req_str) ? f1(s_req_str) + '"' : 'N/A (V<sub>u</sub>&le;&phi;V<sub>c</sub>)';
+  var bendRatio   = DC_flex;   // Mu / φMn
+  document.getElementById('demOut').innerHTML =
+    '<div class="dem-grid">' +
+    '<div class="dem-card"><div class="v">' + f2(Mu_gov) + ' k-ft</div><div class="l">Max M<sub>u</sub><br>' + govM.eq + '</div></div>' +
+    '<div class="dem-card"><div class="v">' + f2(Vu_kip) + ' kips</div><div class="l">Max V<sub>u</sub><br>' + govV.eq + '</div></div>' +
+    '<div class="dem-card"><div class="v">' + f2(RL_gov) + ' / ' + f2(RL_svc) + ' k</div><div class="l">R<sub>L</sub> factored / service</div></div>' +
+    '<div class="dem-card"><div class="v">' + f2(RR_gov) + ' / ' + f2(RR_svc) + ' k</div><div class="l">R<sub>R</sub> factored / service</div></div>' +
+    '<div class="dem-card"><div class="v">' + f2(d) + '"</div><div class="l">Effective Depth, d</div></div>' +
+    '<div class="dem-card"><div class="v">' + f4(eps_t) + '</div><div class="l">&epsilon;<sub>t</sub> net tensile strain</div></div>' +
+    '<div class="dem-card alt"><div class="v">' + f2(phiMn / 12) + ' k-ft</div><div class="l">&phi;M<sub>n</sub> capacity</div></div>' +
+    '<div class="dem-card alt"><div class="v">' + f2(phiVn) + ' kips</div><div class="l">&phi;V<sub>n</sub> capacity</div></div>' +
+    '<div class="dem-card' + (bendRatio > 1 ? ' alt" style="border-color:#dc2626' : ' alt') + '"><div class="v" style="color:' + (bendRatio > 1 ? '#dc2626' : '#16a34a') + '">' + f3(bendRatio) + '</div><div class="l">Flexural D/C<br>M<sub>u</sub> / &phi;M<sub>n</sub></div></div>' +
+    '<div class="dem-card"><div class="v">' + f2(phi_flex) + '</div><div class="l">&phi; flex (' + (eps_t >= 0.005 ? 'TC' : eps_t >= 0.002 ? 'trans.' : 'CC') + ')</div></div>' +
+    '</div>' +
+    '<div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:8px;padding:12px 16px;margin-top:12px;font-size:.86em">' +
+    '<strong style="color:#0369a1">&#9632; Stirrup Spacing Design Range</strong> &nbsp;&mdash;&nbsp; ' +
+    'Point load @ a = ' + f2(a_ft) + ' ft from left support' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px">' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bae6fd"><div style="font-size:.75em;color:#555;margin-bottom:2px">Min required spacing (strength)</div><div style="font-size:1.1em;font-weight:700;color:#dc2626">s &le; ' + s_req_label + '</div><div style="font-size:.72em;color:#777">A<sub>v</sub>f<sub>yt</sub>d / V<sub>s,req</sub> | ACI 318-19 §22.5.10.5.3</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bae6fd"><div style="font-size:.75em;color:#555;margin-bottom:2px">Max spacing from A<sub>v,min</sub></div><div style="font-size:1.1em;font-weight:700;color:#d97706">s &le; ' + f1(s_max_avmin) + '"</div><div style="font-size:.72em;color:#777">A<sub>v</sub>/(A<sub>v,min</sub>/s) | ACI 318-19 §9.6.3.4</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bae6fd"><div style="font-size:.75em;color:#555;margin-bottom:2px">Max spacing from geometry</div><div style="font-size:1.1em;font-weight:700;color:#d97706">s &le; ' + f1(s_max) + '"</div><div style="font-size:.72em;color:#777">' + (Vs <= Vs_thresh ? 'min(d/2,24")' : 'min(d/4,12")') + ' | ACI 318-19 §9.7.6.2.2</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bae6fd"><div style="font-size:.75em;color:#555;margin-bottom:2px">Governing max spacing</div><div style="font-size:1.1em;font-weight:700;color:#16a34a">s &le; ' + f1(s_max_gov_all) + '"</div><div style="font-size:.72em;color:#777">Controlling limit (use this)</div></div>' +
+    '</div>' +
+    '<div style="margin-top:6px;font-size:.77em;color:#555">Provided s = <strong>' + f1(stirrupS) + '"</strong> &nbsp;&mdash;&nbsp; ' + (stirrupS <= s_max_gov_all && (isFinite(s_req_str) ? stirrupS <= s_req_str : true) ? '<span style="color:#16a34a;font-weight:700">&#10004; Within acceptable range</span>' : '<span style="color:#dc2626;font-weight:700">&#10008; Outside acceptable range &mdash; see checks below</span>') + '</div>' +
+    '</div>' +
+    '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-top:10px;font-size:.86em">' +
+    '<strong style="color:#15803d">&#9632; Support Reactions</strong>' +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:8px">' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bbf7d0"><div style="font-size:.75em;color:#555;margin-bottom:2px">R<sub>L</sub> — Factored (governing ' + govM.eq + ')</div><div style="font-size:1.15em;font-weight:700;color:#1e3c72">' + f2(RL_gov) + ' kips</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bbf7d0"><div style="font-size:.75em;color:#555;margin-bottom:2px">R<sub>R</sub> — Factored (governing ' + govM.eq + ')</div><div style="font-size:1.15em;font-weight:700;color:#1e3c72">' + f2(RR_gov) + ' kips</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bbf7d0"><div style="font-size:.75em;color:#555;margin-bottom:2px">R<sub>L</sub> — Unfactored (service)</div><div style="font-size:1.15em;font-weight:700;color:#374151">' + f2(RL_svc) + ' kips</div></div>' +
+    '<div style="background:#fff;border-radius:6px;padding:8px 12px;border:1px solid #bbf7d0"><div style="font-size:.75em;color:#555;margin-bottom:2px">R<sub>R</sub> — Unfactored (service)</div><div style="font-size:1.15em;font-weight:700;color:#374151">' + f2(RR_svc) + ' kips</div></div>' +
+    '</div>' +
+    '<div style="margin-top:6px;font-size:.77em;color:#555">Service reactions include all unfactored loads (D + L + Lr/S + W). Factored reactions from governing load combination for M<sub>u</sub>.' + (pul_valid ? ' Partial UDL ' + f2(wDp_raw) + '+' + f2(wLp_raw) + ' k/ft from ' + f2(a_pul) + '&ndash;' + f2(b_pul) + ' ft included.' : '') + '</div>' +
+    '</div>';
+
+  // ============================================================
+  // BUILD CHECK TABLE
+  // ============================================================
+  var chks = [];
+
+  // ----- CHECK 1: Minimum Beam Depth -----
+  var det0 = '';
+  det0 += '<div class="cref-hdr">ACI 318-19 Table 9.3.1.1 &mdash; Minimum Depth of Nonprestressed Beams (§9.3.1.1)</div>';
+  det0 += '<div class="cbox">';
+  det0 += '<div class="mrow"><span class="ceq">Eq. Table 9.3.1.1:</span> &nbsp; h<sub>min</sub> = ' + fr('L', denom.toString()) + ' &times; (0.4 + ' + fr('f<sub>y</sub>', '100,000') + ')</div>';
+  det0 += '<div class="mrow ind">L = ' + f1(Lft) + ' ft = ' + f1(Lft * 12) + ' in &nbsp;|&nbsp; Denom = ' + denom + ' &nbsp;|&nbsp; f<sub>y</sub> = ' + f1(fy) + ' psi</div>';
+  det0 += '<div class="mrow ind">= ' + fr(f1(Lft * 12) + '"', denom.toString()) + ' &times; (0.4 + ' + fr(f1(fy), '100,000') + ') = ' + f2(Lft * 12 / denom) + '" &times; ' + f3(fyMod) + '</div>';
+  det0 += '<div class="mrow ind">h<sub>min</sub> = <span class="cval">' + f2(hMin) + ' in</span></div>';
+  det0 += '<hr class="csep">';
+  det0 += '<div class="mrow">h<sub>provided</sub> = ' + f1(h) + '" &nbsp; vs. &nbsp; h<sub>min</sub> = ' + f2(hMin) + '"</div>';
+  det0 += '<div class="mrow">D/C = ' + fr('h<sub>min</sub>', 'h<sub>prov</sub>') + ' = ' + fr(f2(hMin), f1(h)) + ' = <span class="cval">' + f3(hMin / h) + '</span></div>';
+  det0 += '</div>';
+  chks.push({
+    n: 'Min. Beam Depth',
+    r: 'ACI 318-19 Table 9.3.1.1',
+    d: 'h<sub>min</sub> = ' + f2(hMin) + ' in',
+    c: 'h<sub>prov</sub> = ' + f1(h) + ' in',
+    dc: hMin / h,
+    nt: suppNames[suppCond] + ' — L/' + denom + ' min (modified for f<sub>y</sub>)',
+    stiff: false, det: det0
+  });
+
+  // ----- CHECK 2: Minimum Flexural Reinforcement -----
+  var det1 = '';
+  det1 += '<div class="cref-hdr">ACI 318-19 §9.6.1.2 &mdash; Minimum Area of Flexural Reinforcement</div>';
+  det1 += '<div class="cbox">';
+  det1 += '<div class="mrow"><span class="ceq">A<sub>s,min</sub> =</span> greater of:</div>';
+  det1 += '<div class="mrow ind">(a) &nbsp; ' + fr('3' + ov("f'<sub>c</sub>"), 'f<sub>y</sub>') + ' b<sub>w</sub>d = ' + fr('3&times;' + ov(fcp.toString()), f1(fy)) + ' &times; ' + f1(b) + ' &times; ' + f2(d) + ' = <span class="cval">' + f3(As_min_a) + ' in&sup2;</span></div>';
+  det1 += '<div class="mrow ind">(b) &nbsp; ' + fr('200', 'f<sub>y</sub>') + ' b<sub>w</sub>d = ' + fr('200', f1(fy)) + ' &times; ' + f1(b) + ' &times; ' + f2(d) + ' = <span class="cval">' + f3(As_min_b) + ' in&sup2;</span></div>';
+  det1 += '<div class="mrow ind">A<sub>s,min</sub> = max(' + f3(As_min_a) + ', ' + f3(As_min_b) + ') = <span class="cval">' + f3(As_min) + ' in&sup2;</span> &nbsp; (governs: ' + (As_min_a >= As_min_b ? '(a)' : '(b)') + ')</div>';
+  det1 += '<hr class="csep">';
+  det1 += '<div class="mrow">A<sub>s,min</sub> = ' + f3(As_min) + ' in&sup2; &nbsp;|&nbsp; A<sub>s,prov</sub> = ' + f2(As) + ' in&sup2;</div>';
+  det1 += '<div class="mrow">D/C = ' + fr('A<sub>s,min</sub>', 'A<sub>s,prov</sub>') + ' = ' + fr(f3(As_min), f2(As)) + ' = <span class="cval">' + f3(DC_Asmin) + '</span></div>';
+  det1 += '</div>';
+  chks.push({
+    n: 'Min. Flexural Reinf.',
+    r: 'ACI 318-19 §9.6.1.2',
+    d: 'A<sub>s,min</sub> = ' + f3(As_min) + ' in&sup2;',
+    c: 'A<sub>s,prov</sub> = ' + f2(As) + ' in&sup2;',
+    dc: DC_Asmin,
+    nt: 'Required &le; Provided',
+    stiff: false, det: det1
+  });
+
+  // ----- CHECK 3: Tension-Controlled / Max Steel -----
+  var det2 = '';
+  det2 += '<div class="cref-hdr">ACI 318-19 §9.3.3.1 &amp; §21.2.2 &mdash; Tension-Controlled Section &amp; &phi; Factor</div>';
+  det2 += '<div class="cbox">';
+  det2 += '<div class="mrow"><span class="ceq">Stress block depth:</span> a = <span class="cval">' + f2(a) + ' in</span>' + (A_prime_s > 0 ? ' (doubly reinforced — see Check 4 for derivation)' : ' = ' + fr('A<sub>s</sub>f<sub>y</sub>', '0.85f\'<sub>c</sub>b') + ' = ' + fr(f2(As) + '&times;' + f1(fy / 1000) + 'ksi', '0.85&times;' + f1(fcp_ksi_v) + '&times;' + f1(b))) + '</div>';
+  det2 += '<div class="mrow"><span class="ceq">Neutral axis:</span> c = ' + fr('a', '&beta;<sub>1</sub>') + ' = ' + fr(f2(a), f3(beta1)) + ' = <span class="cval">' + f2(c) + ' in</span></div>';
+  det2 += '<div class="mrow"><span class="ceq">Net tensile strain:</span> &epsilon;<sub>t</sub> = ' + fr('d &minus; c', 'c') + ' &times; 0.003 = ' + fr(f2(d) + '&minus;' + f2(c), f2(c)) + ' &times; 0.003 = <span class="cval">' + f4(eps_t) + '</span></div>';
+  det2 += '<div class="mrow">&phi; = <span class="cval">' + f2(phi_flex) + '</span> &nbsp;';
+  if      (eps_t >= 0.005) det2 += '(tension-controlled: &epsilon;<sub>t</sub> &ge; 0.005)';
+  else if (eps_t >= 0.002) det2 += '(transition zone: 0.002 &le; &epsilon;<sub>t</sub> &lt; 0.005 &mdash; &phi; = 0.65 + (&epsilon;<sub>t</sub>&minus;0.002)&times;250/3)';
+  else                     det2 += '(compression-controlled: &epsilon;<sub>t</sub> &lt; 0.002)';
+  det2 += '</div>';
+  det2 += '<hr class="csep">';
+  det2 += '<div class="mrow">ACI 318-19 §9.3.3.1 requires &epsilon;<sub>t</sub> &ge; 0.004 for P<sub>u</sub> &lt; 0.10f\'<sub>c</sub>A<sub>g</sub></div>';
+  det2 += '<div class="mrow">D/C = ' + fr('&epsilon;<sub>t,req</sub>', '&epsilon;<sub>t,prov</sub>') + ' = ' + fr('0.004', f4(eps_t)) + ' = <span class="cval">' + f3(DC_tc) + '</span></div>';
+  det2 += '</div>';
+  chks.push({
+    n: 'Tension-Controlled (Max Steel)',
+    r: 'ACI 318-19 §9.3.3.1',
+    d: '&epsilon;<sub>t,req</sub> = 0.004',
+    c: '&epsilon;<sub>t,prov</sub> = ' + f4(eps_t),
+    dc: DC_tc,
+    nt: 'Beam must be tension-controlled; &epsilon;<sub>t</sub> &ge; 0.004',
+    stiff: false, det: det2
+  });
+
+  // ----- CHECK 4: Flexural Strength -----
+  var det3 = '';
+  det3 += '<div class="cref-hdr">ACI 318-19 §22.3 &amp; §9.5.1(a) &mdash; Nominal Flexural Strength &phi;M<sub>n</sub> &ge; M<sub>u</sub></div>';
+  det3 += '<div class="cbox">';
+  if (A_prime_s === 0) {
+    // Singly reinforced detail
+    det3 += '<div class="mrow"><span class="ceq">Eq. 22.3.1.1:</span> &nbsp; M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d &minus; ' + fr('a', '2') + ')</div>';
+    det3 += '<div class="mrow ind">a = ' + f2(a) + ' in &nbsp; (stress block depth)</div>';
+    det3 += '<div class="mrow ind">M<sub>n</sub> = ' + f2(As) + ' in&sup2; &times; ' + f1(fy / 1000) + ' ksi &times; (' + f2(d) + ' &minus; ' + fr(f2(a), '2') + ') = <span class="cval">' + f2(Mn_kin / 12) + ' k-ft</span></div>';
+  } else {
+    // Doubly reinforced detail
+    det3 += '<div class="mrow"><span class="ceq">Doubly Reinforced Beam — ACI 318-19 §22.3</span></div>';
+    det3 += '<div class="mrow ind">A<sub>s</sub> = ' + f2(As) + ' in&sup2; (tension, ' + nBars + '-#' + barSize + ') &nbsp;|&nbsp; A\'<sub>s</sub> = ' + f2(A_prime_s) + ' in&sup2; (comp., ' + nBarsTop + '-#' + barSizeTop + ', d\'=' + f2(d_prime) + '")</div>';
+    if (DR_yields) {
+      det3 += '<div class="mrow ind">A\'<sub>s</sub> <strong>yields</strong> &mdash; f\'<sub>s</sub> = f<sub>y</sub> = ' + f1(fy_ksi_v) + ' ksi</div>';
+      det3 += '<div class="mrow ind">a = (A<sub>s</sub>f<sub>y</sub> &minus; A\'<sub>s</sub>(f<sub>y</sub>&minus;0.85f\'<sub>c</sub>)) / (0.85f\'<sub>c</sub>b) = <span class="cval">' + f2(a) + ' in</span></div>';
+      det3 += '<div class="mrow ind">M<sub>n</sub> = 0.85f\'<sub>c</sub>ab(d&minus;a/2) + A\'<sub>s</sub>(f<sub>y</sub>&minus;0.85f\'<sub>c</sub>)(d&minus;d\') = <span class="cval">' + f2(Mn_kin / 12) + ' k-ft</span></div>';
+    } else {
+      det3 += '<div class="mrow ind">A\'<sub>s</sub> <strong>does not yield</strong> &mdash; f\'<sub>s</sub> = <span class="cval">' + f2(f_prime_s_ksi) + ' ksi</span> (elastic, quadratic solution for c)</div>';
+      det3 += '<div class="mrow ind">c = <span class="cval">' + f2(c) + ' in</span> &nbsp;|&nbsp; a = &beta;<sub>1</sub>c = <span class="cval">' + f2(a) + ' in</span></div>';
+      det3 += '<div class="mrow ind">M<sub>n</sub> = 0.85f\'<sub>c</sub>ab(d&minus;a/2) + A\'<sub>s</sub>(f\'<sub>s</sub>&minus;0.85f\'<sub>c</sub>)(d&minus;d\') = <span class="cval">' + f2(Mn_kin / 12) + ' k-ft</span></div>';
+    }
+  }
+  det3 += '<hr class="csep">';
+  det3 += '<div class="mrow">&phi; = ' + f2(phi_flex) + ' &nbsp;(&epsilon;<sub>t</sub> = ' + f4(eps_t) + (eps_t >= 0.005 ? ' &ge; 0.005 &rarr; tension-controlled' : ' &rarr; transition') + ')</div>';
+  det3 += '<div class="mrow">&phi;M<sub>n</sub> = ' + f2(phi_flex) + ' &times; ' + f2(Mn_kin / 12) + ' k-ft = <span class="cval">' + f2(phiMn / 12) + ' k-ft</span></div>';
+  det3 += '<hr class="csep">';
+  det3 += '<div class="mrow">Governing M<sub>u</sub> = <span class="cval">' + f2(Mu_gov) + ' k-ft</span> &nbsp;(' + govM.eq + ')</div>';
+  det3 += '<div class="mrow">D/C = ' + fr('M<sub>u</sub>', '&phi;M<sub>n</sub>') + ' = ' + fr(f2(Mu_gov) + ' k-ft', f2(phiMn / 12) + ' k-ft') + ' = <span class="cval">' + f3(DC_flex) + '</span></div>';
+  det3 += '</div>';
+  chks.push({
+    n: 'Flexural Strength &phi;M<sub>n</sub> &ge; M<sub>u</sub>',
+    r: 'ACI 318-19 §22.3 §9.5.1',
+    d: 'M<sub>u</sub> = ' + f2(Mu_gov) + ' k-ft',
+    c: '&phi;M<sub>n</sub> = ' + f2(phiMn / 12) + ' k-ft',
+    dc: DC_flex,
+    nt: '&phi; = ' + f2(phi_flex) + ' &nbsp;|&nbsp; a = ' + f2(a) + '"',
+    stiff: false, det: det3
+  });
+
+  // ----- CHECK 5: Min Shear Reinforcement -----
+  var det4 = '';
+  det4 += '<div class="cref-hdr">ACI 318-19 §9.6.3.4 &amp; Table 9.6.3.4 &mdash; Minimum Shear Reinforcement</div>';
+  det4 += '<div class="cbox">';
+  det4 += '<div class="mrow">Required in all regions where V<sub>u</sub> &gt; &phi;&lambda;' + ov("f'<sub>c</sub>") + 'b<sub>w</sub>d &nbsp;(ACI 318-19 §9.6.3.1)</div>';
+  det4 += '<div class="mrow"><span class="ceq">A<sub>v,min</sub>/s =</span> greater of:</div>';
+  det4 += '<div class="mrow ind">(a) &nbsp; ' + fr('0.75' + ov("f'<sub>c</sub>"), 'f<sub>yt</sub>') + ' b<sub>w</sub> = ' + fr('0.75&times;' + ov(fcp.toString()), f1(fyt)) + ' &times; ' + f1(b) + ' = <span class="cval">' + f4(Avmin_s_a) + ' in&sup2;/in</span></div>';
+  det4 += '<div class="mrow ind">(b) &nbsp; ' + fr('50', 'f<sub>yt</sub>') + ' b<sub>w</sub> = ' + fr('50', f1(fyt)) + ' &times; ' + f1(b) + ' = <span class="cval">' + f4(Avmin_s_b) + ' in&sup2;/in</span></div>';
+  det4 += '<div class="mrow ind">A<sub>v,min</sub>/s = <span class="cval">' + f4(Avmin_s) + ' in&sup2;/in</span></div>';
+  det4 += '<hr class="csep">';
+  det4 += '<div class="mrow">Provided: A<sub>v</sub>/s = ' + f2(Av) + '"/' + f1(stirrupS) + '" = ' + f4(Av_s_prov) + ' in&sup2;/in</div>';
+  det4 += '<div class="mrow">D/C = ' + fr('(A<sub>v,min</sub>/s)', '(A<sub>v</sub>/s)<sub>prov</sub>') + ' = ' + fr(f4(Avmin_s), f4(Av_s_prov)) + ' = <span class="cval">' + f3(DC_Avmin) + '</span></div>';
+  det4 += '</div>';
+  chks.push({
+    n: 'Min. Shear Reinf.',
+    r: 'ACI 318-19 §9.6.3.4 Table 9.6.3.4',
+    d: 'A<sub>v,min</sub>/s = ' + f4(Avmin_s) + ' in&sup2;/in',
+    c: 'A<sub>v</sub>/s = ' + f4(Av_s_prov) + ' in&sup2;/in',
+    dc: DC_Avmin,
+    nt: '#' + stirrupSz + ' @ ' + f1(stirrupS) + '" &mdash; ' + nLegs + ' legs',
+    stiff: false, det: det4
+  });
+
+  // ----- CHECK 6: Shear Strength -----
+  var det5 = '';
+  det5 += '<div class="cref-hdr">ACI 318-19 §22.5 &amp; §9.5.1(b) &mdash; Shear Strength &phi;V<sub>n</sub> &ge; V<sub>u</sub></div>';
+  det5 += '<div class="cbox">';
+  det5 += '<div class="mrow"><span class="ceq">Table 22.5.5.1 (V<sub>c</sub>, N<sub>u</sub>=0):</span> &nbsp; V<sub>c</sub> = [8&lambda;(&rho;<sub>w</sub>)<sup>1/3</sup>' + ov("f'<sub>c</sub>") + ']b<sub>w</sub>d</div>';
+  det5 += '<div class="mrow ind">&rho;<sub>w</sub> = ' + fr('A<sub>s</sub>', 'b<sub>w</sub>d') + ' = ' + fr(f2(As), f1(b) + '&times;' + f2(d)) + ' = <span class="cval">' + f4(rho_w) + '</span></div>';
+  det5 += '<div class="mrow ind">= [8 &times; ' + f1(lam) + ' &times; (' + f4(rho_w) + ')<sup>1/3</sup> &times; ' + ov(fcp.toString()) + '] &times; ' + f1(b) + ' &times; ' + f2(d) + '</div>';
+  det5 += '<div class="mrow ind">= [8 &times; ' + f1(lam) + ' &times; ' + f3(Math.pow(rho_w, 1 / 3)) + ' &times; ' + f2(Math.sqrt(fcp)) + '] &times; ' + f2(b * d) + ' in&sup2;</div>';
+  det5 += '<div class="mrow ind">V<sub>c</sub> = <span class="cval">' + f2(Vc) + ' kips</span></div>';
+  det5 += '<div class="mrow" style="font-size:.85em;color:#555">(Simplified 2&lambda;' + ov("f'c") + 'b<sub>w</sub>d = ' + f2(Vc_simple) + ' kips for reference)</div>';
+  det5 += '<hr class="csep">';
+  det5 += '<div class="mrow"><span class="ceq">ACI 318-19 §22.5.10.5.3 (V<sub>s</sub>):</span> &nbsp; V<sub>s</sub> = ' + fr('A<sub>v</sub>f<sub>yt</sub>d', 's') + ' = ' + fr(f2(Av) + '&times;' + f1(fyt / 1000) + '&times;' + f2(d), f1(stirrupS)) + ' = <span class="cval">' + f2(Vs) + ' kips</span></div>';
+  det5 += '<hr class="csep">';
+  det5 += '<div class="mrow">V<sub>n</sub> = V<sub>c</sub> + V<sub>s</sub> = ' + f2(Vc) + ' + ' + f2(Vs) + ' = <span class="cval">' + f2(Vn) + ' kips</span></div>';
+  det5 += '<div class="mrow">&phi;V<sub>n</sub> = 0.75 &times; ' + f2(Vn) + ' = <span class="cval">' + f2(phiVn) + ' kips</span></div>';
+  det5 += '<hr class="csep">';
+  det5 += '<div class="mrow">Governing V<sub>u</sub> = ' + f2(Vu_kip) + ' kips &nbsp;(' + govV.eq + ')</div>';
+  det5 += '<div class="mrow">D/C = ' + fr('V<sub>u</sub>', '&phi;V<sub>n</sub>') + ' = ' + fr(f2(Vu_kip), f2(phiVn)) + ' = <span class="cval">' + f3(DC_shear) + '</span></div>';
+  det5 += '</div>';
+  chks.push({
+    n: 'Shear Strength &phi;V<sub>n</sub> &ge; V<sub>u</sub>',
+    r: 'ACI 318-19 §22.5 §9.5.1',
+    d: 'V<sub>u</sub> = ' + f2(Vu_kip) + ' kips',
+    c: '&phi;V<sub>n</sub> = ' + f2(phiVn) + ' kips (V<sub>c</sub>=' + f2(Vc) + ' + V<sub>s</sub>=' + f2(Vs) + ')',
+    dc: DC_shear,
+    nt: '&phi; = 0.75 &nbsp;|&nbsp; V<sub>c</sub> per Table 22.5.5.1',
+    stiff: false, det: det5
+  });
+
+  // ----- CHECK 7: Max Stirrup Spacing -----
+  var det6 = '';
+  det6 += '<div class="cref-hdr">ACI 318-19 §9.7.6.2.2 &amp; Table 9.7.6.2.2 &mdash; Maximum Stirrup Spacing</div>';
+  det6 += '<div class="cbox">';
+  det6 += '<div class="mrow"><span class="ceq">Threshold V<sub>s</sub>:</span> &nbsp; 4' + ov("f'<sub>c</sub>") + 'b<sub>w</sub>d = 4&times;' + ov(fcp.toString()) + '&times;' + f1(b) + '&times;' + f2(d) + ' / 1000 = <span class="cval">' + f2(Vs_thresh) + ' kips</span></div>';
+  det6 += '<div class="mrow">V<sub>s,prov</sub> = ' + f2(Vs) + ' kips &nbsp; ' + (Vs <= Vs_thresh ? '&le; threshold &rarr; Use larger spacing limits' : '&gt; threshold &rarr; Use tighter spacing limits') + '</div>';
+  det6 += '<div class="mrow">s<sub>max</sub> = ' + (Vs <= Vs_thresh ? 'min(d/2, 24") = min(' + f2(d / 2) + '", 24")' : 'min(d/4, 12") = min(' + f2(d / 4) + '", 12")') + ' = <span class="cval">' + f2(s_max) + ' in</span></div>';
+  det6 += '<hr class="csep">';
+  det6 += '<div class="mrow">s<sub>provided</sub> = ' + f1(stirrupS) + '" &nbsp;|&nbsp; s<sub>max</sub> = ' + f2(s_max) + '"</div>';
+  det6 += '<div class="mrow">D/C = ' + fr('s<sub>prov</sub>', 's<sub>max</sub>') + ' = ' + fr(f1(stirrupS), f2(s_max)) + ' = <span class="cval">' + f3(DC_smax) + '</span></div>';
+  det6 += '</div>';
+  chks.push({
+    n: 'Max. Stirrup Spacing',
+    r: 'ACI 318-19 Table 9.7.6.2.2',
+    d: 's<sub>prov</sub> = ' + f1(stirrupS) + ' in',
+    c: 's<sub>max</sub> = ' + f2(s_max) + ' in',
+    dc: DC_smax,
+    nt: 'Controls shear ductility',
+    stiff: false, det: det6
+  });
+
+  // ----- CHECK 7b: Stirrup Spacing Design Summary -----
+  var detSS = '';
+  detSS += '<div class="cref-hdr">ACI 318-19 §22.5.10.5.3, §9.6.3.4, §9.7.6.2.2 &mdash; Stirrup Spacing Design (Complete Workflow)</div>';
+  detSS += '<div class="cbox">';
+
+  detSS += '<div class="mrow"><strong>Step 1 &mdash; Factored Shear Demand</strong></div>';
+  detSS += '<div class="mrow ind">V<sub>u</sub> = <span class="cval">' + f2(Vu_kip) + ' kips</span> &nbsp;(governing combination: ' + govV.eq + ')</div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 2 &mdash; Concrete Shear Contribution V<sub>c</sub> (ACI 318-19 Table 22.5.5.1)</strong></div>';
+  detSS += '<div class="mrow ind">V<sub>c</sub> = [8&lambda;(&rho;<sub>w</sub>)<sup>1/3</sup>' + ov("f'<sub>c</sub>") + ']b<sub>w</sub>d &nbsp;| &lambda;=1.0 (NW), &rho;<sub>w</sub>=' + f4(rho_w) + '</div>';
+  detSS += '<div class="mrow ind">= [8 &times; 1.0 &times; (' + f4(rho_w) + ')<sup>1/3</sup> &times; ' + ov(fcp.toString()) + '] &times; ' + f1(b) + '" &times; ' + f2(d) + '" / 1000</div>';
+  detSS += '<div class="mrow ind">V<sub>c</sub> = <span class="cval">' + f2(Vc) + ' kips</span> &nbsp;&mdash;&nbsp; &phi;V<sub>c</sub> = 0.75 &times; ' + f2(Vc) + ' = <span class="cval">' + f2(0.75 * Vc) + ' kips</span></div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 3 &mdash; Required Steel Shear V<sub>s,req</sub> (ACI 318-19 §22.5.1.1)</strong></div>';
+  detSS += '<div class="mrow ind">V<sub>s,req</sub> = V<sub>u</sub>/&phi; &minus; V<sub>c</sub> = ' + f2(Vu_kip) + '/0.75 &minus; ' + f2(Vc) + ' = <span class="cval">' + f2(Vs_req_str) + ' kips</span>' + (Vs_req_str <= 0 ? ' &nbsp;<em>(&le; 0 &rarr; no strength-driven spacing requirement)</em>' : '') + '</div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 4 &mdash; Required Spacing from Strength (ACI 318-19 §22.5.10.5.3)</strong></div>';
+  detSS += '<div class="mrow ind">V<sub>s</sub> = A<sub>v</sub>f<sub>yt</sub>d / s &nbsp;&rarr;&nbsp; s<sub>req,str</sub> = A<sub>v</sub>f<sub>yt</sub>d / V<sub>s,req</sub></div>';
+  if (Vs_req_str > 0.01) {
+    detSS += '<div class="mrow ind">= ' + fr(f2(Av) + ' &times; ' + f1(fyt / 1000) + ' &times; ' + f2(d), f2(Vs_req_str)) + ' = <span class="cval">' + f2(s_req_str) + '"</span></div>';
+  } else {
+    detSS += '<div class="mrow ind">&phi;V<sub>c</sub> &ge; V<sub>u</sub> &rarr; no strength-driven spacing limit. Spacing governed by ACI 318-19 §9.6.3.4 and §9.7.6.2.2 only.</div>';
+  }
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 5 &mdash; Max Spacing from Min Reinforcement (ACI 318-19 §9.6.3.4)</strong></div>';
+  detSS += '<div class="mrow ind">A<sub>v,min</sub>/s = max(0.75' + ov("f'<sub>c</sub>") + '/f<sub>yt</sub>&times;b<sub>w</sub>, 50/f<sub>yt</sub>&times;b<sub>w</sub>) = <span class="cval">' + f4(Avmin_s) + ' in&sup2;/in</span></div>';
+  detSS += '<div class="mrow ind">s<sub>max,A<sub>v</sub></sub> = A<sub>v</sub> / (A<sub>v,min</sub>/s) = ' + f2(Av) + ' / ' + f4(Avmin_s) + ' = <span class="cval">' + f2(s_max_avmin) + '"</span></div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 6 &mdash; Max Spacing from Geometry (ACI 318-19 §9.7.6.2.2 Table 9.7.6.2.2)</strong></div>';
+  detSS += '<div class="mrow ind">Threshold: 4' + ov("f'<sub>c</sub>") + 'b<sub>w</sub>d = 4&times;' + ov(fcp.toString()) + '&times;' + f1(b) + '&times;' + f2(d) + '/1000 = <span class="cval">' + f2(Vs_thresh) + ' kips</span></div>';
+  detSS += '<div class="mrow ind">V<sub>s,prov</sub> = ' + f2(Vs) + ' kips &nbsp;' + (Vs <= Vs_thresh ? '&le; threshold &rarr; s<sub>max</sub> = min(d/2, 24") = min(' + f2(d / 2) + '", 24")' : '&gt; threshold &rarr; s<sub>max</sub> = min(d/4, 12") = min(' + f2(d / 4) + '", 12")') + ' = <span class="cval">' + f2(s_max) + '"</span></div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 7 &mdash; Governing Maximum Spacing (Controlling Limit)</strong></div>';
+  detSS += '<div class="mrow ind">s<sub>gov</sub> = min(s<sub>req,str</sub>, s<sub>max,Av</sub>, s<sub>max,geom</sub>)</div>';
+  detSS += '<div class="mrow ind">= min(' + (Vs_req_str > 0.01 ? f2(s_req_str) + '"' : '&infin;') + ', ' + f2(s_max_avmin) + '", ' + f2(s_max) + '") = <span class="cval">' + f2(s_max_gov_all) + '"</span></div>';
+
+  detSS += '<div class="mrow" style="margin-top:8px"><strong>Step 8 &mdash; Check Provided Stirrup Spacing</strong></div>';
+  detSS += '<div class="mrow ind">Stirrups: #' + stirrupSz + ' @ s<sub>prov</sub> = ' + f1(stirrupS) + '" &nbsp;(' + nLegs + ' legs, A<sub>v</sub> = ' + f2(Av) + ' in&sup2;)</div>';
+  detSS += '<div class="mrow ind">V<sub>s,prov</sub> = A<sub>v</sub>f<sub>yt</sub>d/s = ' + f2(Av) + '&times;' + f1(fyt / 1000) + '&times;' + f2(d) + '/' + f1(stirrupS) + ' = <span class="cval">' + f2(Vs) + ' kips</span></div>';
+  detSS += '<div class="mrow ind">s<sub>prov</sub> = ' + f1(stirrupS) + '" ' + (stirrupS <= s_max_gov_all ? '&le;' : '&gt;') + ' s<sub>gov</sub> = ' + f2(s_max_gov_all) + '" &nbsp;&rarr;&nbsp; D/C = ' + fr('s<sub>prov</sub>', 's<sub>gov</sub>') + ' = ' + fr(f1(stirrupS), f2(s_max_gov_all)) + ' = <span class="cval">' + f3(stirrupS / s_max_gov_all) + '</span></div>';
+  detSS += '</div>';
+
+  var DC_stir_design = stirrupS / s_max_gov_all;
+  chks.push({
+    n: 'Stirrup Spacing Design',
+    r: 'ACI 318-19 §22.5.10.5.3, §9.6.3.4, §9.7.6.2.2',
+    d: 's<sub>prov</sub> = ' + f1(stirrupS) + '" &nbsp;|&nbsp; V<sub>s,prov</sub>=' + f2(Vs) + ' k',
+    c: 's<sub>gov</sub> = ' + f2(s_max_gov_all) + '" &nbsp;|&nbsp; V<sub>s,req</sub>=' + f2(Vs_req_str) + ' k',
+    dc: DC_stir_design,
+    nt: 's<sub>req,str</sub>=' + (Vs_req_str > 0.01 ? f2(s_req_str) + '"' : '&infin;') + ' | s<sub>max,Av</sub>=' + f2(s_max_avmin) + '" | s<sub>max,geom</sub>=' + f2(s_max) + '"',
+    stiff: false, det: detSS
+  });
+
+  // ----- CHECK 8: Bar Spacing §25.2.1 -----
+  var net_bw       = b - 2 * (cover + stirDia);
+  var clear_s_prov = (nBars > 1) ? (net_bw - nBars * db) / (nBars - 1) : 999;
+  var clear_s_req  = Math.max(db, 1.0);
+  var DC_barsp     = (nBars > 1) ? clear_s_req / clear_s_prov : 0;
+  var bars_fit     = (net_bw > 0 && db > 0) ? Math.floor((net_bw + clear_s_req) / (db + clear_s_req)) : 0;
+
+  var det7 = '';
+  det7 += '<div class="cref-hdr">ACI 318-19 §25.2.1 &mdash; Minimum Clear Spacing Between Bars</div>';
+  det7 += '<div class="cbox">';
+  det7 += '<div class="mrow"><span class="ceq">ACI 318-19 §25.2.1 requires clear space &ge;</span> max(d<sub>b</sub>, 1.0", <sup>4</sup>&frasl;<sub>3</sub>d<sub>agg</sub>) &mdash; using max(d<sub>b</sub>, 1.0") (assumes d<sub>agg</sub> &le; &frac34;")</div>';
+  det7 += '<div class="mrow ind">d<sub>b</sub> = ' + f3(db) + '" &nbsp;|&nbsp; s<sub>clear,min</sub> = max(' + f3(db) + '", 1.00") = <span class="cval">' + f2(clear_s_req) + '"</span></div>';
+  det7 += '<div class="mrow"><span class="ceq">Net width inside stirrups:</span> b &minus; 2(c<sub>v</sub> + d<sub>stir</sub>) = ' + f1(b) + ' &minus; 2(' + f2(cover) + ' + ' + f3(stirDia) + ') = <span class="cval">' + f2(net_bw) + '"</span></div>';
+  if (nBars > 1) {
+    det7 += '<div class="mrow"><span class="ceq">Clear spacing provided:</span> ' + fr('b<sub>net</sub> &minus; n&middot;d<sub>b</sub>', 'n &minus; 1') + ' = ' + fr(f2(net_bw) + ' &minus; ' + nBars + '&times;' + f3(db), (nBars - 1).toString()) + ' = <span class="cval">' + f2(clear_s_prov) + '"</span></div>';
+    det7 += '<div class="mrow">D/C = ' + fr('s<sub>min,req</sub>', 's<sub>prov</sub>') + ' = ' + fr(f2(clear_s_req), f2(clear_s_prov)) + ' = <span class="cval">' + f3(DC_barsp) + '</span></div>';
+  } else {
+    det7 += '<div class="mrow">Single bar &mdash; no minimum bar-to-bar spacing requirement applies.</div>';
+  }
+  det7 += '<hr class="csep">';
+  det7 += '<div class="mrow" style="font-size:.85em">Max bars accommodated in 1 layer (net b<sub>w</sub>=' + f2(net_bw) + '", s<sub>min</sub>=' + f2(clear_s_req) + '"): <span class="cval">' + bars_fit + ' bars</span></div>';
+  det7 += '</div>';
+  chks.push({
+    n: 'Bar Spacing (Clear)',
+    r: 'ACI 318-19 §25.2.1',
+    d: 's<sub>clear,min</sub> = ' + f2(clear_s_req) + '"',
+    c: nBars > 1 ? 's<sub>prov</sub> = ' + f2(clear_s_prov) + '"' : 'N/A (1 bar)',
+    dc: nBars > 1 ? DC_barsp : 0,
+    nt: nBars + '-#' + barSize + ' in b=' + f1(b) + '" | net b<sub>w</sub>=' + f2(net_bw) + '" | max ' + bars_fit + ' bars/layer',
+    stiff: false, det: det7
+  });
+
+  // ----- CHECK 9: Development Length §25.4.2.2 -----
+  var ld_net_bw   = b - 2 * (cover + stirDia);
+  var ld_cc_bar   = (nBars > 1) ? (ld_net_bw - db) / (nBars - 1) : 999;
+  var ld_cb_bot   = cover + stirDia + db / 2;
+  var ld_cb_side  = (nBars > 1) ? ld_cc_bar / 2 : cover + stirDia + db / 2;
+  var ld_cb       = Math.min(ld_cb_bot, ld_cb_side);
+  var ld_Ktr      = 0;
+  var ld_conf     = Math.min((ld_cb + ld_Ktr) / db, 2.5);
+  var ld_psi_t    = 1.0;
+  var ld_psi_e    = 1.0;
+  var ld_psi_s    = (barSize <= 6) ? 0.8 : 1.0;
+  var ld_psi_g    = (fy_ksi >= 80) ? 1.15 : 1.0;
+  var ld_prod     = ld_psi_t * ld_psi_e * ld_psi_s * ld_psi_g;
+  var ld_calc_raw = db * (3 * fy * ld_prod) / (40 * lam * Math.sqrt(fcp) * ld_conf);
+  var ld_req      = Math.max(ld_calc_raw, 12);
+  var ld_avail    = Lft * 12 / 2;
+  var DC_devl     = ld_req / ld_avail;
+
+  var det8 = '';
+  det8 += '<div class="cref-hdr">ACI 318-19 §25.4.2.2 &mdash; Development Length, Deformed Bars in Tension</div>';
+  det8 += '<div class="cbox">';
+  det8 += '<div class="mrow"><span class="ceq">Eq. 25.4.2.2:</span> &nbsp; l<sub>d</sub> = ' + fr('3 f<sub>y</sub> &psi;<sub>t</sub>&psi;<sub>e</sub>&psi;<sub>s</sub>&psi;<sub>g</sub>', '40 &lambda; ' + ov("f'<sub>c</sub>") + ' [(c<sub>b</sub>+K<sub>tr</sub>)/d<sub>b</sub>]') + ' &sdot; d<sub>b</sub></div>';
+  det8 += '<div class="mrow ind"><strong>Confinement term (c<sub>b</sub>+K<sub>tr</sub>)/d<sub>b</sub>:</strong></div>';
+  det8 += '<div class="mrow ind">c<sub>b,bottom</sub> = c<sub>v</sub> + d<sub>stir</sub> + d<sub>b</sub>/2 = ' + f2(cover) + ' + ' + f3(stirDia) + ' + ' + f3(db / 2) + ' = <span class="cval">' + f2(ld_cb_bot) + '"</span></div>';
+  det8 += '<div class="mrow ind">c<sub>b,side</sub> = c-c/2 = ' + (nBars > 1 ? f2(ld_cc_bar) + '/2 = <span class="cval">' + f2(ld_cb_side) + '"</span>' : '&infin; (single bar)') + '</div>';
+  det8 += '<div class="mrow ind">c<sub>b</sub> = min(' + f2(ld_cb_bot) + '", ' + (nBars > 1 ? f2(ld_cb_side) : '&infin;') + '") = <span class="cval">' + f2(ld_cb) + '"</span> &nbsp;|&nbsp; K<sub>tr</sub> = 0 (conservative)</div>';
+  det8 += '<div class="mrow ind">(c<sub>b</sub>+K<sub>tr</sub>)/d<sub>b</sub> = (' + f2(ld_cb) + ' + 0)/' + f3(db) + ' = ' + f3(ld_cb / db) + ' &rarr; capped at 2.5 &rarr; <span class="cval">' + f2(ld_conf) + '</span></div>';
+  det8 += '<div class="mrow ind"><strong>Modification factors:</strong> &psi;<sub>t</sub> = ' + ld_psi_t + ' (bottom bars) &nbsp;|&nbsp; &psi;<sub>e</sub> = ' + ld_psi_e + ' (uncoated) &nbsp;|&nbsp; &psi;<sub>s</sub> = ' + ld_psi_s + ' (#' + barSize + ') &nbsp;|&nbsp; &psi;<sub>g</sub> = ' + ld_psi_g + ' (Gr. ' + f1(fy_ksi) + ')</div>';
+  det8 += '<div class="mrow">l<sub>d,calc</sub> = ' + fr('3&times;' + f1(fy) + '&times;' + f3(ld_prod), '40&times;1.0&times;' + ov(fcp.toString()) + '&times;' + f2(ld_conf)) + ' &times; ' + f3(db) + '" = <span class="cval">' + f2(ld_calc_raw) + '"</span></div>';
+  if (ld_req > ld_calc_raw + 0.005) {
+    det8 += '<div class="mrow ind">Minimum per ACI 318-19 §25.4.2.1(b): l<sub>d</sub> &ge; <span class="cval">12.00"</span> (governs)</div>';
+  }
+  det8 += '<hr class="csep">';
+  det8 += '<div class="mrow"><strong>l<sub>d,req</sub> = ' + f2(ld_req) + '"</strong> &nbsp;|&nbsp; Available = L/2 = ' + f2(ld_avail) + '"</div>';
+  det8 += '<div class="mrow">D/C = ' + fr('l<sub>d,req</sub>', 'L/2') + ' = ' + fr(f2(ld_req), f2(ld_avail)) + ' = <span class="cval">' + f3(DC_devl) + '</span></div>';
+  det8 += '<div class="mrow" style="font-size:.8em;color:#555;margin-top:6px">Note: Available embedment taken as L/2 from support to midspan critical section (simple beam). Verify actual bar extensions, standard hooks (ACI 318-19 §25.3), and lap splices (ACI 318-19 §25.5) independently.</div>';
+  det8 += '</div>';
+  chks.push({
+    n: 'Dev. Length (Tension)',
+    r: 'ACI 318-19 §25.4.2.2',
+    d: 'l<sub>d,req</sub> = ' + f2(ld_req) + '"',
+    c: 'l<sub>d,avail</sub> = L/2 = ' + f2(ld_avail) + '"',
+    dc: DC_devl,
+    nt: '#' + barSize + ' | c<sub>b</sub>=' + f2(ld_cb) + '" | &psi;<sub>t</sub>&psi;<sub>e</sub>&psi;<sub>s</sub>&psi;<sub>g</sub>=' + f3(ld_prod),
+    stiff: false, det: det8
+  });
+
+  // ----- CHECK 10: Immediate Deflection §24.2 -----
+  var df_Ec_psi  = 57000 * Math.sqrt(fcp);           // psi per §19.2.2.1(b) NW concrete
+  var df_Ec_ksi  = df_Ec_psi / 1000;
+  var df_Ig      = b * Math.pow(h, 3) / 12;          // in⁴
+  var df_fr      = 7.5 * lam * Math.sqrt(fcp);       // psi per §19.2.3.1
+  var df_Mcr_kin = df_fr * df_Ig / (h / 2) / 1000;  // k-in (fr×Ig/yt, psi×in⁴/in → lb-in → /1000 = k-in)
+  var df_n       = Math.max(Math.round(29000000 / df_Ec_psi), 1);
+  var df_c_cr, df_Icr;
+  if (A_prime_s === 0) {
+    // Singly reinforced cracked NA
+    var df_nAs  = df_n * As;
+    df_c_cr = (-df_nAs + Math.sqrt(df_nAs * df_nAs + 2 * b * df_nAs * d)) / b;
+    df_Icr  = b * Math.pow(df_c_cr, 3) / 3 + df_n * As * Math.pow(d - df_c_cr, 2);
+  } else {
+    // Doubly reinforced cracked NA — quadratic: (b/2)c² + [(n-1)A's + nAs]c - [(n-1)A's·d' + nAs·d] = 0
+    var dr_A = b / 2;
+    var dr_B = (df_n - 1) * A_prime_s + df_n * As;
+    var dr_C = -((df_n - 1) * A_prime_s * d_prime + df_n * As * d);
+    df_c_cr  = (-dr_B + Math.sqrt(Math.max(dr_B * dr_B - 4 * dr_A * dr_C, 0))) / (2 * dr_A);
+    var cs_contrib = (df_c_cr > d_prime)
+                       ? (df_n - 1) * A_prime_s * Math.pow(df_c_cr - d_prime, 2) : 0;
+    df_Icr = b * Math.pow(df_c_cr, 3) / 3 + df_n * As * Math.pow(d - df_c_cr, 2) + cs_contrib;
+  }
+  var df_Lin     = Lft * 12;  // in
+
+  // Service moments (k-in) — include partial UDL using demandMV at service level
+  // Use unfactored loads (factor = 1.0) to get service-level moment
+  var svc_DL  = demandMV(wD_total, 0, 0, 0, 0, PD_in, 0, wDp_raw, 0);
+  var svc_tot = demandMV(wD_total, wL_in, 0, 0, 0, PD_in, PL_in, wDp_raw, wLp_raw);
+  var df_Ma_DL  = svc_DL.Mu * 12;   // k-in
+  var df_Ma_tot = svc_tot.Mu * 12;  // k-in
+
+  function df_Ie(Ma_kin) {
+    if (Ma_kin <= 0 || Ma_kin <= df_Mcr_kin) return df_Ig;
+    var r = df_Mcr_kin / Ma_kin;
+    return Math.min(r * r * r * df_Ig + (1 - r * r * r) * df_Icr, df_Ig);
+  }
+
+  var df_Ie_DL  = df_Ie(df_Ma_DL);
+  var df_Ie_tot = df_Ie(df_Ma_tot);
+
+  // Partial UDL midspan deflection (exact formula, simply-supported beam)
+  // δ_mid = w/(24EIL) * [4Lb(3L²-4b²)/24 - ...] -- simplified via superposition of two running loads
+  function pul_defl_mid(wp, ap, bp, Ie_in4) {
+    if (!pul_valid || wp <= 0 || bp <= ap) return 0;
+    var EI  = df_Ec_ksi * Ie_in4;
+    var L   = df_Lin;  // inches
+    var a_in = ap * 12;  var b_in = bp * 12;  var wp_pli = wp / 12; // k/in
+    // δ_mid from partial UDL a to b: integrate deflection influence function
+    // Use the formula: δ(x=L/2) from load w from a to b
+    // For a unit UDL from 0 to c on span L: δ_mid = wc(3L²-4c²)/(24EI) when c ≤ L/2
+    // General case via superposition: treat [a,b] as [0,b] - [0,a]
+    function defl_0c(c) {  // midspan defl from UDL 0→c (k/in, in)
+      if (c <= 0) return 0;
+      if (c <= L / 2) return wp_pli * c * (3 * L * L - 4 * c * c) / (24 * EI);
+      // c > L/2: use symmetry from right side
+      var d = L - c;
+      return wp_pli * (5 * L * L * L * L / 384 - d * (3 * L * L - 4 * d * d) / 24) / EI;
+    }
+    return defl_0c(b_in) - defl_0c(a_in);
+  }
+
+  function df_defl(w_kft, P_k, wp_kft, Ie_in4) {
+    var d_udl = (w_kft > 0) ? 5 * (w_kft / 12) * Math.pow(df_Lin, 4) / (384 * df_Ec_ksi * Ie_in4) : 0;
+    var d_pt  = (P_k  > 0) ? P_k * Math.pow(df_Lin, 3) / (48  * df_Ec_ksi * Ie_in4) : 0;
+    var d_pul = pul_defl_mid(wp_kft, a_pul, b_pul, Ie_in4);
+    return d_udl + d_pt + d_pul;
+  }
+
+  var df_delta_DL  = df_defl(wD_total, PD_in, wDp_raw, df_Ie_DL);
+  var df_delta_tot = df_defl(wD_total + wL_in, PD_in + PL_in, wDp_raw + wLp_raw, df_Ie_tot);
+  var df_delta_LL  = Math.max(df_delta_tot - df_delta_DL, 0);
+
+  var df_lim_LL  = df_Lin / 360;   // §Table 24.2.2 — live load
+  var df_lim_tot = df_Lin / 240;   // §Table 24.2.2 — total immediate
+  var DC_defl_LL  = (df_delta_LL  > 0) ? df_delta_LL  / df_lim_LL  : 0;
+  var DC_defl_tot = (df_delta_tot > 0) ? df_delta_tot / df_lim_tot : 0;
+  var DC_defl_gov = Math.max(DC_defl_LL, DC_defl_tot);
+
+  var det9 = '';
+  det9 += '<div class="cref-hdr">ACI 318-19 §24.2 &mdash; Immediate (Short-Term) Deflection &mdash; Branson Effective Inertia §24.2.3.5</div>';
+  det9 += '<div class="cbox">';
+  det9 += '<div class="mrow"><span class="ceq">E<sub>c</sub></span> = 57,000' + ov("f'<sub>c</sub>") + ' = 57,000&times;' + ov(fcp.toString()) + ' = <span class="cval">' + f0(df_Ec_psi) + ' psi (' + f0(df_Ec_ksi) + ' ksi)</span> &mdash; ACI 318-19 §19.2.2.1(b)</div>';
+  det9 += '<div class="mrow"><span class="ceq">n</span> = E<sub>s</sub>/E<sub>c</sub> = 29,000,000 / ' + f0(df_Ec_psi) + ' = <span class="cval">' + df_n + '</span></div>';
+  det9 += '<div class="mrow"><span class="ceq">I<sub>g</sub></span> = bh³/12 = ' + f1(b) + '&times;' + f1(h) + '³/12 = <span class="cval">' + f0(df_Ig) + ' in⁴</span></div>';
+  det9 += '<div class="mrow"><span class="ceq">f<sub>r</sub></span> = 7.5&lambda;' + ov("f'<sub>c</sub>") + ' = 7.5&times;1.0&times;' + ov(fcp.toString()) + ' = <span class="cval">' + f1(df_fr) + ' psi</span> &mdash; ACI 318-19 §19.2.3.1</div>';
+  det9 += '<div class="mrow"><span class="ceq">M<sub>cr</sub></span> = f<sub>r</sub>I<sub>g</sub>/y<sub>t</sub> = ' + fr(f1(df_fr) + '&times;' + f0(df_Ig), f1(h / 2)) + '/12,000 = <span class="cval">' + f2(df_Mcr_kin / 12) + ' k-ft</span></div>';
+  det9 += '<hr class="csep">';
+  det9 += '<div class="mrow"><span class="ceq">Cracked Section &mdash; Neutral Axis (singly reinforced):</span></div>';
+  det9 += '<div class="mrow ind">b&sdot;c²/2 = nA<sub>s</sub>(d&minus;c) &rarr; c<sub>cr</sub> = [&minus;nA<sub>s</sub> + ' + ov('(nA<sub>s</sub>)²+2bnA<sub>s</sub>d') + ']/b = <span class="cval">' + f2(df_c_cr) + '"</span></div>';
+  det9 += '<div class="mrow ind">I<sub>cr</sub> = bc<sub>cr</sub>³/3 + nA<sub>s</sub>(d&minus;c<sub>cr</sub>)² = <span class="cval">' + f0(df_Icr) + ' in⁴</span></div>';
+  det9 += '<hr class="csep">';
+  det9 += '<div class="mrow"><span class="ceq">Eq. 24.2.3.5:</span> I<sub>e</sub> = (M<sub>cr</sub>/M<sub>a</sub>)³I<sub>g</sub> + [1&minus;(M<sub>cr</sub>/M<sub>a</sub>)³]I<sub>cr</sub> &le; I<sub>g</sub></div>';
+  det9 += '<div class="mrow ind">At DL service moment M<sub>a,DL</sub> = ' + f2(df_Ma_DL / 12) + ' k-ft: &nbsp; I<sub>e,DL</sub> = <span class="cval">' + f0(df_Ie_DL) + ' in⁴</span></div>';
+  det9 += '<div class="mrow ind">At total service moment M<sub>a,tot</sub> = ' + f2(df_Ma_tot / 12) + ' k-ft: &nbsp; I<sub>e,tot</sub> = <span class="cval">' + f0(df_Ie_tot) + ' in⁴</span></div>';
+  det9 += '<hr class="csep">';
+  det9 += '<div class="mrow"><span class="ceq">Immediate Deflections (5wL⁴/384EI for UDL; PL³/48EI for midspan point load):</span></div>';
+  det9 += '<div class="mrow ind">&delta;<sub>DL</sub> = <span class="cval">' + f3(df_delta_DL) + '"</span> &nbsp;(using I<sub>e,DL</sub>)</div>';
+  det9 += '<div class="mrow ind">&delta;<sub>total</sub> = <span class="cval">' + f3(df_delta_tot) + '"</span> &nbsp;(using I<sub>e,tot</sub>)</div>';
+  det9 += '<div class="mrow ind">&delta;<sub>LL</sub> = &delta;<sub>total</sub> &minus; &delta;<sub>DL</sub> = ' + f3(df_delta_tot) + ' &minus; ' + f3(df_delta_DL) + ' = <span class="cval">' + f3(df_delta_LL) + '"</span></div>';
+  det9 += '<hr class="csep">';
+  det9 += '<div class="mrow"><strong>ACI Table 24.2.2 Deflection Limits:</strong></div>';
+  det9 += '<div class="mrow ind">Live load: &delta;<sub>LL</sub> = ' + f3(df_delta_LL) + '" &le; L/360 = ' + f3(df_lim_LL) + '" &nbsp;&rarr;&nbsp; D/C = <span class="cval">' + f3(DC_defl_LL) + '</span> ' + (DC_defl_LL <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>') + '</div>';
+  det9 += '<div class="mrow ind">Total immed.: &delta;<sub>tot</sub> = ' + f3(df_delta_tot) + '" &le; L/240 = ' + f3(df_lim_tot) + '" &nbsp;&rarr;&nbsp; D/C = <span class="cval">' + f3(DC_defl_tot) + '</span> ' + (DC_defl_tot <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>') + '</div>';
+  det9 += '<div class="mrow" style="font-size:.8em;color:#555;margin-top:8px">&#9888; Long-term deflection (creep + shrinkage) not computed here. Per ACI 318-19 §24.2.4, add &lambda;<sub>&Delta;</sub>&times;&delta;<sub>sustained</sub> where &lambda;<sub>&Delta;</sub> = &xi;/(1+50&rho;\') and &xi; = 2.0 (5 yr sustained). Required when non-structural elements attached.</div>';
+  det9 += '</div>';
+  chks.push({
+    n: 'Immediate Deflection',
+    r: 'ACI 318-19 §24.2, Table 24.2.2',
+    d: '&delta;<sub>LL</sub>=' + f3(df_delta_LL) + '" / &delta;<sub>tot</sub>=' + f3(df_delta_tot) + '"',
+    c: 'L/360=' + f3(df_lim_LL) + '" / L/240=' + f3(df_lim_tot) + '"',
+    dc: DC_defl_gov,
+    nt: 'I<sub>e,tot</sub>=' + f0(df_Ie_tot) + ' in⁴ | M<sub>cr</sub>=' + f2(df_Mcr_kin / 12) + ' k-ft | n=' + df_n,
+    stiff: false, det: det9
+  });
+
+  // ----- CHECK 11: Max Bar Spacing / Crack Control §24.3.2 -----
+  var cc_fs      = (2.0 / 3.0) * fy;                                   // psi per §24.3.2.1
+  var cc_cc      = cover + stirDia;                                     // clear cover to bar surface from tension face
+  var cc_s_max_a = 15 * (40000 / cc_fs) - 2.5 * cc_cc;
+  var cc_s_max_b = 12 * (40000 / cc_fs);
+  var cc_s_max   = Math.min(cc_s_max_a, cc_s_max_b);
+  var cc_bar_cc  = (nBars > 1) ? (net_bw - db) / (nBars - 1) : 999;   // c-c bar spacing
+  var DC_crk     = (nBars > 1) ? cc_bar_cc / cc_s_max : 0;
+
+  var det10 = '';
+  det10 += '<div class="cref-hdr">ACI 318-19 §24.3.2 &mdash; Maximum Spacing of Flexural Reinforcement (Crack Control)</div>';
+  det10 += '<div class="cbox">';
+  det10 += '<div class="mrow"><span class="ceq">ACI 318-19 §24.3.2 max c-c bar spacing (both limits apply):</span></div>';
+  det10 += '<div class="mrow ind">(a) &nbsp;15' + fr('40,000', 'f<sub>s</sub>') + ' &minus; 2.5c<sub>c</sub> &nbsp;&nbsp; (b) &nbsp;12' + fr('40,000', 'f<sub>s</sub>') + ' &nbsp;&mdash; governs</div>';
+  det10 += '<div class="mrow"><span class="ceq">f<sub>s</sub></span> = ' + fr('2', '3') + 'f<sub>y</sub> = ' + fr('2', '3') + '&times;' + f1(fy / 1000) + 'k&times;1000 = <span class="cval">' + f0(cc_fs) + ' psi</span> &mdash; ACI 318-19 §24.3.2.1 permitted estimate</div>';
+  det10 += '<div class="mrow"><span class="ceq">c<sub>c</sub></span> = c<sub>v</sub> + d<sub>stir</sub> = ' + f2(cover) + ' + ' + f3(stirDia) + ' = <span class="cval">' + f2(cc_cc) + '"</span> (clear cover to main bar surface from tension face)</div>';
+  det10 += '<div class="mrow"><span class="ceq">s<sub>max,a</sub></span> = 15&times;' + fr('40,000', f0(cc_fs)) + ' &minus; 2.5&times;' + f2(cc_cc) + ' = ' + f2(15 * 40000 / cc_fs) + ' &minus; ' + f2(2.5 * cc_cc) + ' = <span class="cval">' + f2(cc_s_max_a) + '"</span></div>';
+  det10 += '<div class="mrow"><span class="ceq">s<sub>max,b</sub></span> = 12&times;' + fr('40,000', f0(cc_fs)) + ' = <span class="cval">' + f2(cc_s_max_b) + '"</span></div>';
+  det10 += '<div class="mrow"><span class="ceq">s<sub>max</sub></span> = min(' + f2(cc_s_max_a) + '", ' + f2(cc_s_max_b) + '") = <span class="cval">' + f2(cc_s_max) + '"</span></div>';
+  det10 += '<hr class="csep">';
+  if (nBars > 1) {
+    det10 += '<div class="mrow">c-c bar spacing provided = ' + fr('b<sub>net</sub> &minus; d<sub>b</sub>', 'n &minus; 1') + ' = ' + fr(f2(net_bw) + '&minus;' + f3(db), (nBars - 1).toString()) + ' = <span class="cval">' + f2(cc_bar_cc) + '"</span></div>';
+    det10 += '<div class="mrow">D/C = ' + fr('s<sub>c-c,prov</sub>', 's<sub>max</sub>') + ' = ' + fr(f2(cc_bar_cc), f2(cc_s_max)) + ' = <span class="cval">' + f3(DC_crk) + '</span></div>';
+  } else {
+    det10 += '<div class="mrow">Single bar &mdash; crack control bar spacing check N/A.</div>';
+  }
+  det10 += '<div class="mrow" style="font-size:.8em;color:#555;margin-top:6px">Note: f<sub>s</sub> = &frac23;f<sub>y</sub> is the ACI 318-19 §24.3.2.1 permitted estimate. For a more refined check, compute f<sub>s</sub> = M<sub>a</sub>/(A<sub>s</sub>&times;j&times;d) at service load.</div>';
+  det10 += '</div>';
+  chks.push({
+    n: 'Max Bar Spacing (Crack Control)',
+    r: 'ACI 318-19 §24.3.2',
+    d: 's<sub>c-c,prov</sub> = ' + (nBars > 1 ? f2(cc_bar_cc) + '"' : 'N/A (1 bar)'),
+    c: 's<sub>max</sub> = ' + f2(cc_s_max) + '"',
+    dc: nBars > 1 ? DC_crk : 0,
+    nt: 'f<sub>s</sub>=&frac23;f<sub>y</sub>=' + f0(cc_fs) + ' psi | c<sub>c</sub>=' + f2(cc_cc) + '"',
+    stiff: false, det: det10
+  });
+
+  // ----- CHECK 12: Long-Term Deflection §24.2.4 -----
+  var lt_xi        = 2.0;    // §24.2.4.1.3 — 5 years or more (conservative/typical)
+  var lt_rho_prime = (A_prime_s > 0) ? A_prime_s / (b * d) : 0.0;  // compression steel ratio
+  var lt_lambda    = lt_xi / (1 + 50 * lt_rho_prime);
+  var lt_delta_cp  = lt_lambda * df_delta_DL;           // creep + shrinkage under sustained load
+  var lt_delta_aft = lt_delta_cp + df_delta_LL;         // deflection after non-structural attachment
+  var lt_delta_tot = df_delta_DL + lt_delta_cp + df_delta_LL;  // total long-term
+  var lt_lim_480   = df_Lin / 480;   // L/480 — Table 24.2.2, Row 3 (supporting partitions)
+  var lt_lim_240   = df_Lin / 240;   // L/240 — Table 24.2.2, Row 4 (total, elements susceptible)
+  var DC_lt_480    = lt_delta_aft / lt_lim_480;
+  var DC_lt_tot    = lt_delta_tot / lt_lim_240;
+  var DC_lt_gov    = Math.max(DC_lt_480, DC_lt_tot);
+
+  var det11 = '';
+  det11 += '<div class="cref-hdr">ACI 318-19 §24.2.4 &mdash; Additional Long-Term Deflection Due to Creep &amp; Shrinkage</div>';
+  det11 += '<div class="cbox">';
+  det11 += '<div class="mrow"><span class="ceq">Eq. 24.2.4.1.1:</span> &delta;<sub>cp+sh</sub> = &lambda;<sub>&Delta;</sub> &times; &delta;<sub>sustained</sub></div>';
+  det11 += '<div class="mrow"><span class="ceq">Eq. 24.2.4.1.2:</span> &lambda;<sub>&Delta;</sub> = ' + fr('&xi;', '1 + 50&rho;\'') + '</div>';
+  det11 += '<div class="mrow ind">&xi; = <span class="cval">2.0</span> &mdash; ACI 318-19 §24.2.4.1.3, 5 years or more (conservative design value)</div>';
+  det11 += '<div class="mrow ind">&xi; table: 3 months = 1.0 | 6 months = 1.2 | 12 months = 1.4 | 5+ years = 2.0</div>';
+  det11 += '<div class="mrow ind">&rho;\' = A\'<sub>s</sub>/(b<sub>w</sub>&times;d) = ' + (A_prime_s > 0 ? f4(A_prime_s) + '/(' + f1(b) + '&times;' + f2(d) + ')' : '0') + ' = <span class="cval">' + f4(lt_rho_prime) + '</span>' + (A_prime_s === 0 ? ' (no compression steel)' : '') + '</div>';
+  det11 += '<div class="mrow ind">&lambda;<sub>&Delta;</sub> = ' + fr('2.0', '1 + 50&times;' + f4(lt_rho_prime)) + ' = <span class="cval">' + f3(lt_lambda) + '</span></div>';
+  det11 += '<hr class="csep">';
+  det11 += '<div class="mrow"><span class="ceq">&delta;<sub>DL</sub></span> (immediate sustained) = <span class="cval">' + f3(df_delta_DL) + '"</span> &nbsp;(from Check 10)</div>';
+  det11 += '<div class="mrow"><span class="ceq">&delta;<sub>LL</sub></span> (immediate live) &nbsp;&nbsp;= <span class="cval">' + f3(df_delta_LL) + '"</span> &nbsp;(from Check 10)</div>';
+  det11 += '<div class="mrow"><span class="ceq">&delta;<sub>cp+sh</sub></span> = &lambda;<sub>&Delta;</sub>&times;&delta;<sub>DL</sub> = ' + f2(lt_lambda) + '&times;' + f3(df_delta_DL) + ' = <span class="cval">' + f3(lt_delta_cp) + '"</span></div>';
+  det11 += '<hr class="csep">';
+  det11 += '<div class="mrow"><strong>ACI Table 24.2.2 Long-Term Limits:</strong></div>';
+  det11 += '<div class="mrow ind"><em>Row 3 &mdash; Floor/roof supporting non-structural elements likely to be damaged:</em></div>';
+  det11 += '<div class="mrow ind">&delta;<sub>after attachment</sub> = &delta;<sub>cp+sh</sub> + &delta;<sub>LL</sub> = ' + f3(lt_delta_cp) + ' + ' + f3(df_delta_LL) + ' = <span class="cval">' + f3(lt_delta_aft) + '"</span></div>';
+  det11 += '<div class="mrow ind">Limit = L/480 = ' + f3(lt_lim_480) + '" &nbsp;&rarr;&nbsp; D/C = <span class="cval">' + f3(DC_lt_480) + '</span> ' + (DC_lt_480 <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>') + '</div>';
+  det11 += '<div class="mrow ind" style="margin-top:6px"><em>Row 4 &mdash; Total long-term (elements susceptible to damage by large deflections):</em></div>';
+  det11 += '<div class="mrow ind">&delta;<sub>total,LT</sub> = &delta;<sub>DL</sub> + &delta;<sub>cp+sh</sub> + &delta;<sub>LL</sub> = ' + f3(df_delta_DL) + ' + ' + f3(lt_delta_cp) + ' + ' + f3(df_delta_LL) + ' = <span class="cval">' + f3(lt_delta_tot) + '"</span></div>';
+  det11 += '<div class="mrow ind">Limit = L/240 = ' + f3(lt_lim_240) + '" &nbsp;&rarr;&nbsp; D/C = <span class="cval">' + f3(DC_lt_tot) + '</span> ' + (DC_lt_tot <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>') + '</div>';
+  det11 += '<div class="mrow" style="font-size:.8em;color:#555;margin-top:8px">&#9888; Use actual &xi; per project duration and verify applicability of each limit row. Add compression steel (A\'<sub>s</sub>) to reduce &lambda;<sub>&Delta;</sub> and long-term deflection &mdash; even moderate &rho;\' significantly reduces &delta;<sub>cp+sh</sub>.</div>';
+  det11 += '</div>';
+  chks.push({
+    n: 'Long-Term Deflection',
+    r: 'ACI 318-19 §24.2.4 Table 24.2.2',
+    d: '&delta;<sub>after</sub>=' + f3(lt_delta_aft) + '" / &delta;<sub>LT,tot</sub>=' + f3(lt_delta_tot) + '"',
+    c: 'L/480=' + f3(lt_lim_480) + '" / L/240=' + f3(lt_lim_240) + '"',
+    dc: DC_lt_gov,
+    nt: '&lambda;<sub>&Delta;</sub>=' + f2(lt_lambda) + ' (&xi;=2.0, &rho;\'=' + f4(lt_rho_prime) + ') | &delta;<sub>cp+sh</sub>=' + f3(lt_delta_cp) + '"',
+    stiff: false, det: det11
+  });
+
+  // ============================================================
+  // DEFLECTION SUMMARY PANEL
+  // ============================================================
+  var defSumEl  = document.getElementById('defSumOut');
+  var defSumBlk = document.getElementById('defSumBlk');
+  if (defSumEl) {
+    function defCard(val, lim, label, sublabel) {
+      var ratio = lim > 0 ? val / lim : 0;
+      var clr   = ratio <= 0.8 ? '#16a34a' : ratio <= 1.0 ? '#d97706' : '#dc2626';
+      return '<div style="background:#fff;border-radius:8px;padding:14px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)">' +
+             '<div style="font-size:1.3em;font-weight:700;color:#1e3c72">' + f3(val) + '"</div>' +
+             (lim > 0 ? '<div style="font-size:.78em;color:' + clr + ';font-weight:700;margin-top:2px">Limit: ' + f3(lim) + '" &nbsp; D/C: ' + f3(ratio) + ' ' + (ratio <= 1.0 ? '&#10004;' : '&#10008;') + '</div>' : '') +
+             '<div style="font-size:.75em;color:#555;margin-top:4px;line-height:1.3">' + label + '</div>' +
+             (sublabel ? '<div style="font-size:.7em;color:#888;margin-top:2px">' + sublabel + '</div>' : '') +
+             '</div>';
+    }
+    defSumEl.innerHTML =
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:10px">' +
+      defCard(df_delta_DL, 0,         '&delta;<sub>Dead Load</sub><br>(immediate)', 'I<sub>e,DL</sub>=' + f0(df_Ie_DL) + ' in&sup4;') +
+      defCard(df_delta_LL, df_lim_LL, '&delta;<sub>Live Load</sub><br>(immediate) &le; L/360', '§Table 24.2.2 Row 1') +
+      defCard(df_delta_tot, df_lim_tot,'&delta;<sub>Total</sub><br>(immediate D+L) &le; L/240', 'I<sub>e,tot</sub>=' + f0(df_Ie_tot) + ' in&sup4;') +
+      defCard(lt_delta_cp,  0,         '&delta;<sub>Creep+Shrink</sub><br>(&lambda;<sub>&Delta;</sub>&times;&delta;<sub>DL</sub>)', '&lambda;<sub>&Delta;</sub>=' + f3(lt_lambda)) +
+      defCard(lt_delta_aft, lt_lim_480,'&delta;<sub>After Attach.</sub><br>(&delta;<sub>cp+sh</sub>+&delta;<sub>LL</sub>) &le; L/480', '§Table 24.2.2 Row 3') +
+      defCard(lt_delta_tot, lt_lim_240,'&delta;<sub>Total Long-Term</sub><br>(D+cp+sh+LL) &le; L/240', '§Table 24.2.2 Row 4') +
+      '</div>' +
+      '<div style="font-size:.76em;color:#555;margin-top:4px">Deflection limits per ACI 318-19 Table 24.2.2. Branson I<sub>e</sub> per §24.2.3.5. Long-term multiplier &xi;=2.0 (5-year sustained, conservative). Nonprestressed beam only — §24.2 does not apply to prestressed members.</div>';
+    if (defSumBlk) defSumBlk.style.display = '';
+  }
+
+  // ============================================================
+  // CHECK 13: Skin Reinforcement — ACI 318-19 §9.7.2.3
+  // Required when h > 36 in; A_sk ≥ 0.014(d-30) in²/ft per side
+  // Spacing ≤ min(d/6, 12")
+  // ============================================================
+  var skin_required  = (h > 36);
+  var Ab_skin        = barDB[skinBarSz] ? barDB[skinBarSz][1] : 0.11;
+  var A_sk_min       = skin_required ? Math.max(0.014 * (d - 30), 0) : 0;  // in²/ft per side
+  var A_sk_prov      = Ab_skin * (12 / skinBarS);                           // in²/ft per side
+  var s_sk_max       = Math.min(d / 6, 12);                                 // §9.7.2.3 max spacing
+  var DC_skin_area   = skin_required ? A_sk_min / A_sk_prov : 0;
+  var DC_skin_smax   = skin_required ? skinBarS / s_sk_max  : 0;
+  var DC_skin        = Math.max(DC_skin_area, DC_skin_smax);
+
+  var det12 = '';
+  det12 += '<div class="cref-hdr">ACI 318-19 §9.7.2.3 &mdash; Longitudinal Skin Reinforcement</div>';
+  det12 += '<div class="cbox">';
+  if (!skin_required) {
+    det12 += '<div class="mrow">h = ' + f1(h) + '" &le; 36" &mdash; <strong>Skin reinforcement not required.</strong></div>';
+  } else {
+    det12 += '<div class="mrow">h = ' + f1(h) + '" &gt; 36" &rarr; <strong>Skin reinforcement is required</strong> along both side faces</div>';
+    det12 += '<div class="mrow">Distributed over h/2 = ' + f1(h / 2) + '" from the tension face on each side</div>';
+    det12 += '<hr class="csep">';
+    det12 += '<div class="mrow"><span class="ceq">A<sub>sk,min</sub></span> = 0.014(d &minus; 30) = 0.014 &times; (' + f2(d) + ' &minus; 30) = <span class="cval">' + f3(A_sk_min) + ' in&sup2;/ft per side</span></div>';
+    det12 += '<div class="mrow"><span class="ceq">A<sub>sk,prov</sub></span> = A<sub>b</sub> &times; (12/s) = ' + f2(Ab_skin) + ' &times; (12/' + f1(skinBarS) + ') = <span class="cval">' + f3(A_sk_prov) + ' in&sup2;/ft per side</span> (#' + skinBarSz + ' @ ' + f1(skinBarS) + '")</div>';
+    det12 += '<div class="mrow">D/C (area) = ' + fr('A<sub>sk,min</sub>', 'A<sub>sk,prov</sub>') + ' = ' + fr(f3(A_sk_min), f3(A_sk_prov)) + ' = <span class="cval">' + f3(DC_skin_area) + '</span></div>';
+    det12 += '<hr class="csep">';
+    det12 += '<div class="mrow"><span class="ceq">s<sub>sk,max</sub></span> = min(d/6, 12") = min(' + f2(d / 6) + '", 12") = <span class="cval">' + f2(s_sk_max) + '"</span></div>';
+    det12 += '<div class="mrow">s<sub>sk,prov</sub> = ' + f1(skinBarS) + '" &nbsp; D/C (spacing) = ' + fr(f1(skinBarS), f2(s_sk_max)) + ' = <span class="cval">' + f3(DC_skin_smax) + '</span></div>';
+  }
+  det12 += '</div>';
+  chks.push({
+    n: 'Skin Reinforcement',
+    r: 'ACI 318-19 §9.7.2.3',
+    d: skin_required ? '#' + skinBarSz + ' @ ' + f1(skinBarS) + '" ea. side' : 'N/A (h &le; 36")',
+    c: skin_required ? 'A<sub>sk,min</sub>=' + f3(A_sk_min) + ' in&sup2;/ft, s&le;' + f2(s_sk_max) + '"' : '&mdash;',
+    dc: DC_skin,
+    nt: skin_required ? 'h=' + f1(h) + '" | A<sub>sk,prov</sub>=' + f3(A_sk_prov) + ' in&sup2;/ft | s<sub>max</sub>=' + f2(s_sk_max) + '"' : 'h \u2264 36\u201d \u2014 not required',
+    stiff: false, det: det12
+  });
+
+  // ============================================================
+  // CHECK 14: Compression Bar Development Length — ACI 318-19 §25.5.3.1
+  // l_dc = max[(fy·ψr)/(50λ√f'c)·db ,  0.0003·fy·db ,  8"]
+  // Only applies when A'_s > 0
+  // ============================================================
+  if (A_prime_s > 0) {
+    var psi_r       = 1.0;   // unconfined; 0.75 if enclosed in ties/spirals per §25.5.3.3
+    var l_dc_a      = (fy * psi_r / (50 * lam * Math.sqrt(fcp))) * db_top;  // Eq. 25.5.3.1a
+    var l_dc_b      = 0.0003 * fy * db_top;                                  // Eq. 25.5.3.1b
+    var l_dc        = Math.max(l_dc_a, l_dc_b, 8);                           // min 8" per §25.5.3.1
+    // Reduced by 0.75 if enclosed in ties (ψr already = 1.0 here; note separately)
+    var l_dc_conf   = Math.max(l_dc * 0.75, 8);                              // §25.5.3.3 confined option
+
+    var det13 = '';
+    det13 += '<div class="cref-hdr">ACI 318-19 §25.5.3.1 &mdash; Development Length in Compression (Top Bars)</div>';
+    det13 += '<div class="cbox">';
+    det13 += '<div class="mrow">A\'<sub>s</sub> = ' + f2(A_prime_s) + ' in&sup2; &nbsp; (' + nBarsTop + '-#' + barSizeTop + ', d<sub>b</sub>=' + f3(db_top) + '")</div>';
+    det13 += '<hr class="csep">';
+    det13 += '<div class="mrow"><span class="ceq">Eq. 25.5.3.1a:</span> &ell;<sub>dc</sub> = ' + fr('f<sub>y</sub>&psi;<sub>r</sub>', '50&lambda;' + ov("f'<sub>c</sub>")) + ' &times; d<sub>b</sub> = ' + fr(f0(fy) + '&times;' + f2(psi_r), '50&times;' + f2(lam) + '&times;' + ov(fcp.toString())) + ' &times; ' + f3(db_top) + ' = <span class="cval">' + f2(l_dc_a) + '"</span></div>';
+    det13 += '<div class="mrow"><span class="ceq">Eq. 25.5.3.1b:</span> &ell;<sub>dc</sub> = 0.0003 &times; f<sub>y</sub> &times; d<sub>b</sub> = 0.0003 &times; ' + f0(fy) + ' &times; ' + f3(db_top) + ' = <span class="cval">' + f2(l_dc_b) + '"</span></div>';
+    det13 += '<div class="mrow"><span class="ceq">Required &ell;<sub>dc</sub></span> = max(' + f2(l_dc_a) + '", ' + f2(l_dc_b) + '", 8") = <span class="cval">' + f2(l_dc) + '"</span> &nbsp;(unconfined, &psi;<sub>r</sub>=1.0)</div>';
+    det13 += '<div class="mrow"><span class="ceq">If enclosed in ties &mdash; ACI 318-19 §25.5.3.3:</span> 0.75 &times; ' + f2(l_dc) + '" = <span class="cval">' + f2(l_dc_conf) + '"</span> <em>(min 8")</em></div>';
+    det13 += '<hr class="csep">';
+    det13 += '<div class="mrow" style="color:#0369a1">&#9432; This is the required embedment length for each compression bar into the column or support element. Verify available anchorage against the column/support geometry.</div>';
+    det13 += '</div>';
+    chks.push({
+      n: 'Comp. Bar Dev. Length (A\'<sub>s</sub>)',
+      r: 'ACI 318-19 §25.5.3.1',
+      d: '&ell;<sub>dc,req</sub> = ' + f2(l_dc) + '"',
+      c: '&ell;<sub>dc,conf</sub> = ' + f2(l_dc_conf) + '" (in ties)',
+      dc: 0,   // informational — no demand/capacity ratio without column dimension input
+      nt: nBarsTop + '-#' + barSizeTop + ' | &ell;<sub>dc</sub>=' + f2(l_dc) + '" unconf. / ' + f2(l_dc_conf) + '" conf.',
+      stiff: false, det: det13
+    });
+  }
+
+  // ============================================================
+  // CHECK 15: Minimum Concrete Cover — ACI 318-19 §20.6.1
+  // Table 20.6.1.3.1 — cast-in-place (non-prestressed)
+  // ============================================================
+  // Min cover to the stirrup (same as cover input).
+  // Table 20.6.1.3.1 entries (for non-prestressed members):
+  //   Interior, db≤#5: 1.5" | Interior, db>#5: 1.5" (beams/cols)
+  //   Exterior (weather): db≤#5: 1.5" | db≥#6: 2"
+  //   Cast against soil: 3"
+  // ACI 318-19 Table 20.6.1.3.1 rows for beams/columns:
+  //   Row 1: cast against/perm. exposed to soil → 3"
+  //   Row 2: exposed to weather → #6-#18: 2", #5 & smaller: 1.5"
+  //   Row 3: not exposed → #8 & smaller: 1.5", #9-#18: 1.5"  (beams/cols 1.5" for all sizes)
+  var cov_min_to_stir;
+  var cov_min_to_long;  // cover to longitudinal bar face = cover + stirDia
+  var cov_row_note;
+  if (exposureCat === 'soil') {
+    cov_min_to_stir = 3.0;
+    cov_min_to_long = 3.0;
+    cov_row_note    = 'Cast against &amp; permanently exposed to soil &rarr; min 3"';
+  } else if (exposureCat === 'exterior') {
+    cov_min_to_stir = (barSize >= 6) ? 2.0 : 1.5;
+    cov_min_to_long = (barSize >= 6) ? 2.0 : 1.5;
+    cov_row_note    = 'Exposed to weather &rarr; ' + (barSize >= 6 ? '2" (#6 &amp; larger)' : '1.5" (#5 &amp; smaller)');
+  } else {
+    // Interior: Table 20.6.1.3.1 Row 3 — beams & columns: 1.5" for all bar sizes
+    cov_min_to_stir = 1.5;
+    cov_min_to_long = 1.5;
+    cov_row_note    = 'Not exposed to weather &rarr; 1.5" (beams &amp; columns, all sizes)';
+  }
+  // Provided cover to stirrup face = cover input
+  // Provided cover to longitudinal bar = cover + stirDia
+  var cov_long_prov = cover + stirDia;
+  var DC_cov_stir   = cov_min_to_stir / cover;
+  var DC_cov_long   = cov_min_to_long / cov_long_prov;
+  var DC_cover      = Math.max(DC_cov_stir, DC_cov_long);
+
+  var det14 = '';
+  det14 += '<div class="cref-hdr">ACI 318-19 §20.6.1 Table 20.6.1.3.1 &mdash; Minimum Specified Concrete Cover</div>';
+  det14 += '<div class="cbox">';
+  det14 += '<div class="mrow">Exposure: <strong>' + ({interior:'Interior (not exposed to weather)', exterior:'Exterior (exposed to weather)', soil:'Cast against / perm. exposed to soil'})[exposureCat] + '</strong></div>';
+  det14 += '<div class="mrow">' + cov_row_note + '</div>';
+  det14 += '<hr class="csep">';
+  det14 += '<div class="mrow"><span class="ceq">Cover to stirrup face:</span></div>';
+  det14 += '<div class="mrow ind">Required = <span class="cval">' + f2(cov_min_to_stir) + '"</span> &nbsp;|&nbsp; Provided = <span class="cval">' + f2(cover) + '"</span> (input) &nbsp;|&nbsp; D/C = ' + f3(DC_cov_stir) + '</div>';
+  det14 += '<div class="mrow"><span class="ceq">Cover to longitudinal bar face:</span></div>';
+  det14 += '<div class="mrow ind">Required = <span class="cval">' + f2(cov_min_to_long) + '"</span> &nbsp;|&nbsp; Provided = cover + d<sub>stir</sub> = ' + f2(cover) + ' + ' + f3(stirDia) + ' = <span class="cval">' + f2(cov_long_prov) + '"</span> &nbsp;|&nbsp; D/C = ' + f3(DC_cov_long) + '</div>';
+  det14 += '</div>';
+  chks.push({
+    n: 'Concrete Cover',
+    r: 'ACI 318-19 §20.6.1 Table 20.6.1.3.1',
+    d: 'c<sub>prov</sub> = ' + f2(cover) + '" (to stirrup)',
+    c: 'c<sub>min</sub> = ' + f2(cov_min_to_stir) + '"',
+    dc: DC_cover,
+    nt: ({interior:'Interior', exterior:'Exterior', soil:'Soil'})[exposureCat] + ' | long. bar cover = ' + f2(cov_long_prov) + '"',
+    stiff: false, det: det14
+  });
+
+  // ============================================================
+  // CHECK 16: Standard Hook Development Length — ACI 318-19 §25.4.3.1
+  // Only run when user has opted in via includeHook checkbox
+  // ============================================================
+  if (includeHook) {
+    var hook_psi_e = 1.0;
+    var hook_psi_r = 1.0;
+    var hook_psi_o = 1.0;
+    var hook_psi_c = (fcp <= 6000) ? 1.0 : Math.max(1.0 - (fcp - 6000) / 15000, 0.8);
+    var hook_l_dh_eq  = (fy * hook_psi_e * hook_psi_r * hook_psi_o * hook_psi_c) / (55 * lam * Math.sqrt(fcp)) * db;
+    var hook_l_dh_min = Math.max(8 * db, 6);
+    var hook_l_dh     = Math.max(hook_l_dh_eq, hook_l_dh_min);
+    var col_cover_est = 2.0;
+    var hook_l_avail  = Math.max(bCol / 2 - col_cover_est, 0);
+    var DC_hook       = (hook_l_avail > 0) ? hook_l_dh / hook_l_avail : Infinity;
+
+    var det15 = '';
+    det15 += '<div class="cref-hdr">ACI 318-19 §25.4.3.1 &mdash; Development Length of Standard Hooks in Tension</div>';
+    det15 += '<div class="cbox">';
+    det15 += '<div class="mrow">Tension bars: ' + nBars + '-#' + barSize + ', d<sub>b</sub> = ' + f3(db) + '" &nbsp;(90&deg; standard hook at supports)</div>';
+    det15 += '<hr class="csep">';
+    det15 += '<div class="mrow"><span class="ceq">Eq. 25.4.3.1a:</span> &ell;<sub>dh</sub> = ' + fr('f<sub>y</sub>&psi;<sub>e</sub>&psi;<sub>r</sub>&psi;<sub>o</sub>&psi;<sub>c</sub>', '55&lambda;' + ov("f'<sub>c</sub>")) + ' &times; d<sub>b</sub></div>';
+    det15 += '<div class="mrow ind">&psi;<sub>e</sub>=1.0 (uncoated) &nbsp;|&nbsp; &psi;<sub>r</sub>=1.0 (conservative) &nbsp;|&nbsp; &psi;<sub>o</sub>=1.0 &nbsp;|&nbsp; &psi;<sub>c</sub>=' + f2(hook_psi_c) + ' (f\'<sub>c</sub>=' + (fcp/1000).toFixed(1) + ' ksi)</div>';
+    det15 += '<div class="mrow ind">&ell;<sub>dh</sub> = ' + fr(f0(fy) + '&times;' + f2(hook_psi_e * hook_psi_r * hook_psi_o * hook_psi_c), '55&times;' + f2(lam) + '&times;' + ov(fcp.toString())) + ' &times; ' + f3(db) + ' = <span class="cval">' + f2(hook_l_dh_eq) + '"</span></div>';
+    det15 += '<div class="mrow ind">Min: max(8d<sub>b</sub>, 6") = max(' + f2(8 * db) + '", 6") = <span class="cval">' + f2(hook_l_dh_min) + '"</span></div>';
+    det15 += '<div class="mrow"><span class="ceq">Required &ell;<sub>dh</sub></span> = max(' + f2(hook_l_dh_eq) + '", ' + f2(hook_l_dh_min) + '") = <span class="cval">' + f2(hook_l_dh) + '"</span></div>';
+    det15 += '<hr class="csep">';
+    det15 += '<div class="mrow"><span class="ceq">Available embedment:</span> b<sub>col</sub>/2 &minus; c<sub>col</sub> = ' + f1(bCol) + '"/2 &minus; ' + f1(col_cover_est) + '" = <span class="cval">' + f2(hook_l_avail) + '"</span></div>';
+    det15 += '<div class="mrow">D/C = ' + fr('&ell;<sub>dh</sub>', 'b<sub>col</sub>/2 &minus; c<sub>col</sub>') + ' = ' + fr(f2(hook_l_dh), f2(hook_l_avail)) + ' = <span class="cval">' + f3(DC_hook) + '</span></div>';
+    det15 += '<hr class="csep">';
+    det15 += '<div class="mrow" style="font-size:.82em;color:#555">90&deg; standard hook extends 12d<sub>b</sub> = ' + f2(12 * db) + '" beyond bend. &psi;<sub>r</sub> = 0.8 if side cover &ge; 2.5" and tail cover &ge; 2". &psi;<sub>o</sub> = 0.8 if enclosed by ties &le; 3d<sub>b</sub>.</div>';
+    det15 += '</div>';
+    chks.push({
+      n: 'Hook Dev. Length (&ell;<sub>dh</sub>)',
+      r: 'ACI 318-19 §25.4.3.1',
+      d: '&ell;<sub>dh,req</sub> = ' + f2(hook_l_dh) + '"',
+      c: 'b<sub>col</sub>/2 &minus; c<sub>col</sub> = ' + f2(hook_l_avail) + '"',
+      dc: DC_hook,
+      nt: '#' + barSize + ' d<sub>b</sub>=' + f3(db) + '" | &psi;<sub>c</sub>=' + f2(hook_psi_c) + ' | b<sub>col</sub>=' + f1(bCol) + '"',
+      stiff: false, det: det15
+    });
+  }
+
+  // ============================================================
+  // RENDER CHECK TABLE
+  // ============================================================
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c, i) {
+    var dc_v = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct  = dc_v !== null ? Math.min(dc_v * 100, 150) : 0;
+    var col  = dc_v === null ? '#9ca3af' : dc_v <= 0.8 ? '#16a34a' : dc_v <= 1.0 ? '#d97706' : '#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>' : dc_v <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+    var dtxt = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? ' class="alt-row"' : '';
+    tb.innerHTML +=
+      '<tr' + rowCls + '>' +
+      '<td><strong>' + c.n + '</strong>' + (c.nt ? '<br><small style="color:#555">' + c.nt + '</small>' : '') + '</td>' +
+      '<td><code>' + c.r + '</code></td>' +
+      '<td>' + c.d + '</td>' +
+      '<td>' + c.c + '</td>' +
+      '<td><div class="dc-cell"><span style="color:' + col + ';font-weight:700">' + dtxt + '</span>' +
+      (dc_v !== null ? '<div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' : '') +
+      '</div></td>' +
+      '<td>' + stxt + '</td>' +
+      '<td><button class="det-btn" id="dbtn_' + i + '" onclick="toggleDet(' + i + ')">\u25B6 Calc</button></td>' +
+      '</tr>' +
+      '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + i + '">' + c.det + '</div></td></tr>';
+  });
+
+  // ============================================================
+  // SUMMARY BANNER
+  // ============================================================
+  var dcs    = chks.map(function(c){ return c.dc; }).filter(function(v){ return isFinite(v) && v !== null && v >= 0; });
+  var maxDC  = dcs.length ? Math.max.apply(null, dcs) : 0;
+  var pass   = maxDC <= 1.0;
+  var maxIdx = dcs.indexOf(maxDC);
+  var govChk = chks[maxIdx];
+
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary ' + (pass ? 'sum-pass' : 'sum-fail');
+  sb.innerHTML =
+    '<h3>' + (pass ? '&#10004; All Checks Pass' : '&#10008; One or More Checks Fail') + '</h3>' +
+    '<p>Max D/C = <strong>' + f3(maxDC) + '</strong>' +
+    ' &nbsp;|&nbsp; Governing: <strong>' + (govChk ? govChk.n.replace(/<[^>]+>/g, '') : '—') + '</strong>' +
+    ' &nbsp;|&nbsp; Beam: ' + f1(b) + '" &times; ' + f1(h) + '"' +
+    ' &nbsp;|&nbsp; ' + nBars + '-#' + barSize + ' (A<sub>s</sub>=' + f2(As) + ' in&sup2;)' +
+    ' &nbsp;|&nbsp; f\'<sub>c</sub>=' + fcp + ' psi, f<sub>y</sub>=' + f1(fy_ksi) + ' ksi' +
+    '</p>';
+
+  // ============================================================
+  // STIRRUP SPACING RECOMMENDATION (Block 5 live feedback)
+  // ============================================================
+  var stirrupRecEl = document.getElementById('stirrupRec');
+  if (stirrupRecEl) {
+    var sRStr = isFinite(s_req_str) && s_req_str < 9990
+      ? 's &le; <strong>' + f1(s_req_str) + '"</strong> <em>(strength req.)</em>'
+      : '<strong>No additional Vs required</strong>';
+    stirrupRecEl.innerHTML =
+      '<div style="background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.84em">' +
+      '<span style="color:#0369a1;font-weight:700">&#9632; Stirrup Spacing Range (last run):</span> &nbsp;' +
+      sRStr +
+      ' &nbsp;|&nbsp; Max (A<sub>v,min</sub> §9.6.3.4): <strong>' + f1(s_max_avmin) + '"</strong>' +
+      ' &nbsp;|&nbsp; Max (geometry §9.7.6.2.2): <strong>' + f1(s_max) + '"</strong>' +
+      ' &nbsp;&mdash;&nbsp; <span style="color:#16a34a;font-weight:700">Gov. max: s &le; ' + f1(s_max_gov_all) + '"</span>' +
+      '</div>';
+  }
+
+  // ============================================================
+  // UPDATE CROSS-SECTION SVG — show/hide compression bars
+  // ============================================================
+  var xsComp = document.getElementById('xsCompBars');
+  var xsZone = document.getElementById('xsCompZone');
+  var xsLbl  = document.getElementById('xsCompLabel');
+  if (xsComp) {
+    if (A_prime_s > 0) {
+      xsComp.setAttribute('display', 'inline');
+      // Shift comp-zone label down so it doesn't overlap bars
+      if (xsLbl) xsLbl.setAttribute('y', '54');
+    } else {
+      xsComp.setAttribute('display', 'none');
+      if (xsLbl) xsLbl.setAttribute('y', '31');
+    }
+  }
+
+  document.getElementById('results').className = 'results show';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+</script>
+</body>
+</html>
