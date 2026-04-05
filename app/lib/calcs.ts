@@ -269,6 +269,17 @@ export const CALCS: CalcMeta[] = [
     group: "CFS Connections",
     keywords: ["cold-formed", "CFS", "screw", "self-drilling", "self-tapping", "tilting", "bearing", "pull-out", "pull-over", "AISI S100", "sheet metal", "light gauge", "combined"],
   },
+  // ── Integrated / Multi-System ────────────────────────────────
+  {
+    slug: "headers-gradebeam-pier",
+    label: "Headers → Grade Beams → Piers",
+    subtitle: "Integrated load path: wood opening loads → ACI concrete grade beams → drilled pier foundation with minimum embedment depth",
+    htmlFile: "/Calcs/headers_gradebeam_pier_calculator.html",
+    category: "Integrated",
+    spec: "NDS 2018 / ACI 318-19 / ACI 336.3R",
+    status: "ready",
+    keywords: ["headers", "grade beam", "pier", "drilled pier", "concrete beam", "wood header", "opening", "load path", "NDS", "ACI 318", "ACI 336", "foundation", "integrated", "stacked", "jamb", "embedment", "skin friction", "end bearing", "belled pier", "straight shaft", "stud wall", "LRFD", "ASD"],
+  },
   // ── Concrete ─────────────────────────────────────────────────
   {
     slug: "concrete-beam-design",
