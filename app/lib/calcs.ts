@@ -195,6 +195,16 @@ export const CALCS: CalcMeta[] = [
   },
   // ── Steel / Members ──────────────────────────────────────────
   {
+    slug: "steel-joist-selector",
+    label: "Steel Joist Selector — SJI Load Tables",
+    subtitle: "K, KCS & LH series — ASD load combos · auto-selects lightest joist · 3 alternatives · gravity & uplift reactions",
+    htmlFile: "/Calcs/steel_joist_selector_calculator.html",
+    category: "Members",
+    spec: "SJI K/KCS/LH · IBC/ASCE 7",
+    status: "ready",
+    keywords: ["joist", "steel joist", "open web", "K-series", "KCS", "LH", "longspan", "SJI", "roof", "floor", "span", "spacing", "uniform load", "deflection", "reaction", "uplift", "ASD", "load table", "bar joist"],
+  },
+  {
     slug: "web-opening",
     label: "W-Shape Beam Web Opening",
     subtitle: "Multiple openings · Vierendeel tee action · bearing & tee section checks · LRFD & ASD load combinations",
