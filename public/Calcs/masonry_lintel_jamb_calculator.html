@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masonry Lintel + Jamb Design — ASD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1480px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.85em;margin-bottom:7px}
+.header p{font-size:.95em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk.wind-blk{border-left-color:#d97706}
+.blk.jamb-blk{border-left-color:#7c3aed}
+.blk h2{color:#1e3c72;margin-bottom:14px;font-size:1.08em;border-bottom:2px solid #dde;padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.blk.jamb-blk h2{color:#5b21b6}
+.blk.wind-blk h2{color:#92400e}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-amber{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-purple{font-size:.7em;background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.85em}
+.ig input,.ig select{padding:8px 10px;border:2px solid #ddd;border-radius:6px;font-size:.91em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#f0f0f0;color:#444}
+.unit{font-size:.77em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.73em;color:#888;margin-top:3px}
+.chk-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb}
+.chk-row label{font-size:.87em;color:#333;cursor:pointer;font-weight:500}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:.81em;color:#78350f;margin-bottom:12px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 48px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:18px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.part-hdr{margin:22px 0 12px;padding:10px 18px;border-radius:8px;font-size:1.05em;font-weight:700;display:flex;align-items:center;gap:10px}
+.part-hdr-A{background:#dbeafe;color:#1e3c72;border-left:5px solid #2a5298}
+.part-hdr-B{background:#fef3c7;color:#92400e;border-left:5px solid #d97706}
+.part-hdr-C{background:#ede9fe;color:#5b21b6;border-left:5px solid #7c3aed}
+.summary{padding:14px 18px;border-radius:10px;margin-bottom:16px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.85em;margin-bottom:14px}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:7px 9px;text-align:left;font-size:.84em}
+.prop-table td,.chk-table td{padding:6px 9px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.pass-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.fail-row td{background:#fef2f2!important;border-left:3px solid #dc2626}
+.chk-table tr.info-row td{background:#f0f9ff!important;border-left:3px solid #0369a1}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:9px;margin-bottom:14px}
+.dem-card{background:#fff;border-radius:8px;padding:10px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.dem-card .v{font-size:1.18em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.7em;color:#666;margin-top:3px;line-height:1.4}
+.dem-card.ok{border-color:#16a34a;background:#f0fdf4}.dem-card.ok .v{color:#166534}
+.dem-card.bad{border-color:#dc2626;background:#fef2f2}.dem-card.bad .v{color:#991b1b}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}.dem-card.warn .v{color:#92400e}
+.dem-card.pur{border-color:#7c3aed;background:#faf5ff}.dem-card.pur .v{color:#5b21b6}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:12px;border-radius:6px;background:#e5e7eb;min-width:60px;display:inline-block}
+.dc-fill{height:100%;border-radius:6px;display:block}
+.dc-cell{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:13px 15px;font-size:.81em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:15px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:12px;margin-bottom:16px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:22px}
+.calc-det{display:none;background:#f0f4ff;padding:12px 16px 9px;border-top:1px dashed #93c5fd;font-size:.83em;color:#1a1a1a}
+.calc-det.open{display:block}
+.calc-det.wind-det{background:#fffbeb;border-top-color:#fcd34d}
+.calc-det.jamb-det{background:#faf5ff;border-top-color:#c4b5fd}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 7px;border-radius:4px;cursor:pointer;font-size:.75em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.det-btn.w{border-color:#fcd34d;color:#92400e}.det-btn.w:hover{background:#fef3c7}
+.det-btn.j{border-color:#c4b5fd;color:#5b21b6}.det-btn.j:hover{background:#ede9fe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #bfdbfe;font-size:.9em}
+.cref-hdr.w{color:#92400e;border-bottom-color:#fcd34d}
+.cref-hdr.j{color:#5b21b6;border-bottom-color:#c4b5fd}
+.ceq{font-style:italic;margin-right:4px;color:#1e3c72}
+.ceq.w{color:#92400e}.ceq.j{color:#5b21b6}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #bfdbfe;margin:6px 0}
+.csep.w{border-top-color:#fcd34d}.csep.j{border-top-color:#c4b5fd}
+.cbox{background:#fff;border:1px solid #bfdbfe;border-radius:5px;padding:7px 11px;margin-top:5px;font-size:.97em}
+.cbox.w{border-color:#fcd34d}.cbox.j{border-color:#c4b5fd}
+.overall-banner{padding:16px 20px;border-radius:10px;margin-bottom:20px;font-size:1.05em}
+.schema-wrap h3{font-size:.85em;color:#1e3c72;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+  <h1>Masonry Lintel &amp; Jamb Design — ASD</h1>
+  <p>Reinforced CMU Lintel (REK-06) &nbsp;&middot;&nbsp; Out-of-Plane Wind Check &nbsp;&middot;&nbsp; Reinforced Jamb (REK-04) &nbsp;&middot;&nbsp; TMS 402-22</p>
+  <div class="ref-tags">
+    <span class="tag">TMS 402-22 §5.3 &amp; Ch.8</span>
+    <span class="tag">MDG-2022 REK-04 &amp; REK-06</span>
+    <span class="tag">§8.3.2 Flexure</span>
+    <span class="tag">§8.3.5 Shear</span>
+    <span class="tag">§8.2.6 Combined Axial+Flexure</span>
+    <span class="tag">ASCE 7 §2.4</span>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- SCHEMATIC -->
+<div class="schema-wrap">
+<h3>Wall Elevation — Lintel &amp; Jamb Loading Diagram</h3>
+<svg viewBox="0 0 780 200" style="width:100%;max-width:780px;display:block;margin:0 auto">
+  <defs>
+    <marker id="aD" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0L0,7L8,3.5z" fill="#374151"/></marker>
+    <marker id="aW" markerWidth="8" markerHeight="7" refX="0" refY="3.5" orient="auto"><path d="M8,0L8,7L0,3.5z" fill="#2563eb"/></marker>
+    <marker id="aWr" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0L0,7L8,3.5z" fill="#2563eb"/></marker>
+    <marker id="aDim" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0L7,6L0,3z" fill="#ca8a04"/></marker>
+    <marker id="aDimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L7,3z" fill="#ca8a04"/></marker>
+  </defs>
+  <!-- Jamb left -->
+  <rect x="30" y="20" width="80" height="155" fill="#d1fae5" stroke="#16a34a" stroke-width="2"/>
+  <text x="70" y="100" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">JAMB L</text>
+  <text x="70" y="113" text-anchor="middle" font-size="8" fill="#166534">W_j wide</text>
+  <!-- Jamb right -->
+  <rect x="670" y="20" width="80" height="155" fill="#d1fae5" stroke="#16a34a" stroke-width="2"/>
+  <text x="710" y="100" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">JAMB R</text>
+  <!-- Wall above lintel -->
+  <rect x="110" y="20" width="560" height="30" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>
+  <text x="390" y="40" text-anchor="middle" font-size="9" fill="#374151" font-style="italic">Wall above opening</text>
+  <!-- Lintel -->
+  <rect x="110" y="50" width="560" height="50" fill="#bfdbfe" stroke="#1e3c72" stroke-width="2"/>
+  <text x="390" y="79" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="700">LINTEL (t_lin deep)</text>
+  <!-- Rebar symbol -->
+  <circle cx="390" cy="92" r="4" fill="#dc2626"/>
+  <text x="402" y="96" font-size="8" fill="#dc2626">A_s (bot)</text>
+  <!-- Opening below lintel -->
+  <rect x="110" y="100" width="560" height="75" fill="#fff" stroke="#9ca3af" stroke-width="1" stroke-dasharray="5,3"/>
+  <text x="390" y="142" text-anchor="middle" font-size="11" fill="#9ca3af">Opening</text>
+  <text x="390" y="158" text-anchor="middle" font-size="9" fill="#9ca3af" font-style="italic">L_clear span</text>
+  <!-- Floor line -->
+  <line x1="30" y1="175" x2="750" y2="175" stroke="#374151" stroke-width="2.5"/>
+  <!-- Gravity arrows on lintel -->
+  <line x1="250" y1="10" x2="250" y2="48" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+  <line x1="390" y1="10" x2="390" y2="48" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+  <line x1="530" y1="10" x2="530" y2="48" stroke="#374151" stroke-width="1.5" marker-end="url(#aD)"/>
+  <line x1="220" y1="10" x2="560" y2="10" stroke="#374151" stroke-width="1.5"/>
+  <text x="560" y="14" font-size="9" fill="#374151" font-style="italic">w (D+L)</text>
+  <!-- OOP wind arrows on lintel -->
+  <line x1="50" y1="70" x2="108" y2="70" stroke="#2563eb" stroke-width="2" marker-end="url(#aWr)"/>
+  <line x1="50" y1="82" x2="108" y2="82" stroke="#2563eb" stroke-width="2" marker-end="url(#aWr)"/>
+  <text x="5" y="80" font-size="8" fill="#2563eb" font-weight="600">OOP</text>
+  <text x="5" y="90" font-size="7" fill="#2563eb">w_cc×H/2</text>
+  <!-- Wind on jamb wall (C&C) -->
+  <line x1="2" y1="105" x2="28" y2="105" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aWr)"/>
+  <line x1="2" y1="120" x2="28" y2="120" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aWr)"/>
+  <line x1="2" y1="135" x2="28" y2="135" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aWr)"/>
+  <line x1="2" y1="150" x2="28" y2="150" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aWr)"/>
+  <text x="0" y="100" font-size="7" fill="#2563eb">C&amp;C</text>
+  <text x="0" y="168" font-size="7" fill="#2563eb">wall</text>
+  <!-- OOP point load to jamb at mid-lintel -->
+  <circle cx="110" cy="75" r="5" fill="#dc2626" stroke="#991b1b" stroke-width="1.5"/>
+  <text x="100" y="68" font-size="7" fill="#dc2626">V_oop</text>
+  <!-- Lintel end reactions (vertical) going down to jamb -->
+  <line x1="120" y1="100" x2="120" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>
+  <line x1="660" y1="100" x2="660" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>
+  <text x="128" y="135" font-size="8" fill="#166534">R_L (axial to jamb)</text>
+  <!-- Bearing label -->
+  <rect x="110" y="50" width="30" height="50" fill="rgba(234,179,8,.25)" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <rect x="640" y="50" width="30" height="50" fill="rgba(234,179,8,.25)" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="3,2"/>
+  <text x="125" y="48" font-size="7" fill="#854d0e" text-anchor="middle">Brg</text>
+  <!-- Span dim line -->
+  <line x1="140" y1="188" x2="640" y2="188" stroke="#ca8a04" stroke-width="1.5" marker-start="url(#aDim)" marker-end="url(#aDimR)"/>
+  <text x="390" y="198" text-anchor="middle" font-size="9" fill="#b45309">L_clear</text>
+  <!-- H_wall dim (right side) -->
+  <line x1="758" y1="20" x2="758" y2="175" stroke="#6b7280" stroke-width="1.2" marker-start="url(#aDim)" marker-end="url(#aDimR)"/>
+  <text x="775" y="100" font-size="8" fill="#374151" text-anchor="middle">H_wall</text>
+</svg>
+</div>
+
+<!-- ── BLOCK 1: MATERIALS ────────────────────────────────── -->
+<div class="blk">
+  <h2>&#9632; 1. Material Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>CMU Nominal Size</label>
+      <select id="cmu_size" onchange="setCMUDims()">
+        <option value="5.625">6&Prime; CMU &mdash; b = 5.625&Prime;</option>
+        <option value="7.625" selected>8&Prime; CMU &mdash; b = 7.625&Prime;</option>
+        <option value="11.625">12&Prime; CMU &mdash; b = 11.625&Prime;</option>
+      </select>
+      <div class="hint" id="bHint">b = 7.625&Prime;</div>
+    </div>
+    <div class="ig">
+      <label>f&prime;<sub>m</sub> <span class="unit">(psi)</span></label>
+      <select id="fm">
+        <option value="1500">1,500</option>
+        <option value="1750" selected>1,750</option>
+        <option value="2000">2,000</option>
+        <option value="2500">2,500</option>
+        <option value="3000">3,000</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Steel Grade</label>
+      <select id="steel_grade">
+        <option value="20000">Grade 40 — F<sub>s</sub> = 20,000 psi</option>
+        <option value="32000" selected>Grade 60 — F<sub>s</sub> = 32,000 psi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Mortar Type (for F<sub>t</sub>)</label>
+      <select id="mortar_type">
+        <option value="S" selected>Type S</option>
+        <option value="N">Type N</option>
+      </select>
+      <div class="hint">Affects lintel OOP &amp; jamb tension allowable</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BLOCK 2: OPENING & LINTEL GEOMETRY ───────────────── -->
+<div class="blk">
+  <h2>&#9632; 2. Opening &amp; Lintel Geometry <span class="badge">TMS 402-22 §5.3.1</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Clear Opening Span <span class="unit">(ft)</span></label>
+      <input type="number" id="clear_span" value="8.0" step="0.5" min="0.5" onchange="autoFill()">
+    </div>
+    <div class="ig">
+      <label>Bearing Length Each End <span class="unit">(in)</span></label>
+      <input type="number" id="bearing" value="8" step="1" min="4" onchange="autoFill()">
+      <div class="hint">Min 4&Prime; per §5.3.1.4; 8&Prime; typical</div>
+    </div>
+    <div class="ig">
+      <label>Total Lintel Depth t <span class="unit">(in)</span></label>
+      <input type="number" id="t_lin" value="32" step="8" min="8" onchange="autoFill()">
+      <div class="hint">Multiples of 8&Prime; (CMU courses)</div>
+    </div>
+    <div class="ig">
+      <label>Effective Depth d <span class="unit">(in)</span></label>
+      <input type="number" id="eff_d" value="28.5" step="0.5" min="2">
+      <div class="hint">Auto = t &minus; 3.5&Prime;</div>
+    </div>
+    <div class="ig">
+      <label>Wall Thickness b <span class="unit">(in, read-only)</span></label>
+      <input type="number" id="b_wall" value="7.625" readonly>
+    </div>
+  </div>
+</div>
+
+<!-- ── BLOCK 3: WALL & JAMB GEOMETRY ────────────────────── -->
+<div class="blk jamb-blk">
+  <h2>&#9632; 3. Wall &amp; Jamb Geometry <span class="badge-purple">REK-04</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Total Wall Height H<sub>wall</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="H_wall" value="14" step="0.5" min="4">
+      <div class="hint">Used for OOP wind tributary on lintel</div>
+    </div>
+    <div class="ig">
+      <label>Lintel Soffit Height H<sub>soffit</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="H_soffit" value="10" step="0.5" min="0">
+      <div class="hint">Height from floor to bottom of lintel</div>
+    </div>
+    <div class="ig">
+      <label>Jamb Width W<sub>jamb</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="W_jamb" value="24" step="8" min="8">
+      <div class="hint">Width of masonry pier at opening side</div>
+    </div>
+    <div class="ig">
+      <label>Jamb Height H<sub>jamb</sub> <span class="unit">(ft)</span></label>
+      <input type="number" id="H_jamb" value="14" step="0.5" min="4">
+      <div class="hint">Full wall height (jamb spans floor to top)</div>
+    </div>
+    <div class="ig">
+      <label>Jamb Steel Cover <span class="unit">(in)</span></label>
+      <input type="number" id="cover_jamb" value="2.5" step="0.25" min="1">
+      <div class="hint">Cover to center of vertical bar from wall face</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BLOCK 4: GRAVITY LOADS ────────────────────────────── -->
+<div class="blk">
+  <h2>&#9632; 4. Lintel Gravity Loads <span class="badge">ASD Service Combo</span></h2>
+  <div class="callout">Enter ASD combined service loads (D+L, D+S, etc. per ASCE 7-22 §2.4). Include wall self-weight above opening in <em>w</em>.</div>
+  <div class="g3">
+    <div class="ig">
+      <label>w &mdash; Uniform Dead+Live <span class="unit">(lb/ft)</span></label>
+      <input type="number" id="w_load" value="600" step="50" min="0">
+      <div class="hint">Includes wall above + tributary floor/roof</div>
+    </div>
+    <div class="ig">
+      <label>Wall Weight Above Opening <span class="unit">(psf)</span></label>
+      <input type="number" id="w_wall_psf" value="75" step="5" min="0">
+      <div class="hint">Approx 55–85 psf for 8&Prime; CMU</div>
+    </div>
+    <div class="ig">
+      <label>P<sub>conc</sub> &mdash; Conc. Downward Load <span class="unit">(lb)</span></label>
+      <input type="number" id="P_down" value="0" step="100" min="0">
+      <div class="hint">0 if no concentrated load</div>
+    </div>
+    <div class="ig">
+      <label>P Location from Left <span class="unit">(ft)</span></label>
+      <input type="number" id="a_P" value="4.33" step="0.25" min="0">
+      <div class="hint">Auto = midspan</div>
+    </div>
+    <div class="ig">
+      <label>w<sub>uplift</sub> &mdash; Uplift Combo <span class="unit">(lb/ft)</span></label>
+      <input type="number" id="wu_load" value="0" step="50" min="0">
+      <div class="hint">0.6D combination; 0 if N/A</div>
+    </div>
+    <div class="ig">
+      <label>P<sub>uplift</sub> &mdash; Uplift Load <span class="unit">(lb)</span></label>
+      <input type="number" id="P_uplift" value="0" step="100" min="0">
+    </div>
+  </div>
+</div>
+
+<!-- ── BLOCK 5: WIND LOADING ─────────────────────────────── -->
+<div class="blk wind-blk">
+  <h2>&#9632; 5. Wind Loading (OOP) <span class="badge-amber">C&amp;C Pressure</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>C&amp;C Wind Pressure w<sub>cc</sub> <span class="unit">(psf)</span></label>
+      <input type="number" id="w_cc" value="20" step="1" min="0">
+      <div class="hint">Design C&amp;C pressure on wall from ASCE 7</div>
+    </div>
+    <div class="ig">
+      <label>Lintel OOP Line Load <span class="unit">(lb/ft, read-only)</span></label>
+      <input type="number" id="W_oop_display" value="—" readonly>
+      <div class="hint">= w_cc &times; H_wall/2 (auto-computed)</div>
+    </div>
+  </div>
+  <div class="chk-row">
+    <input type="checkbox" id="windInc" checked>
+    <label for="windInc">Apply &#x2153; allowable stress increase for wind load combinations (TMS 402-22 §8.1.4.1) &mdash; multiplies all wind-load allowables by 4/3</label>
+  </div>
+</div>
+
+<!-- ── BLOCK 6: LINTEL REINFORCEMENT ─────────────────────── -->
+<div class="blk">
+  <h2>&#9632; 6. Lintel Reinforcement</h2>
+  <div class="g3">
+    <div class="ig"><label>Bottom Bars (qty)</label>
+      <select id="n_bot"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+    <div class="ig"><label>Bottom Bar Size</label>
+      <select id="bar_bot">
+        <option value="0.20">#4 — 0.20 in²</option><option value="0.31">#5 — 0.31 in²</option>
+        <option value="0.44" selected>#6 — 0.44 in²</option><option value="0.60">#7 — 0.60 in²</option>
+        <option value="0.79">#8 — 0.79 in²</option><option value="1.00">#9 — 1.00 in²</option>
+      </select></div>
+    <div class="ig"><label>Top Bars (qty, uplift)</label>
+      <select id="n_top"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
+    <div class="ig"><label>Top Bar Size</label>
+      <select id="bar_top">
+        <option value="0.20" selected>#4 — 0.20 in²</option><option value="0.31">#5 — 0.31 in²</option>
+        <option value="0.44">#6 — 0.44 in²</option><option value="0.60">#7 — 0.60 in²</option>
+        <option value="0.79">#8 — 0.79 in²</option><option value="1.00">#9 — 1.00 in²</option>
+      </select></div>
+  </div>
+</div>
+
+<!-- ── BLOCK 7: JAMB REINFORCEMENT ───────────────────────── -->
+<div class="blk jamb-blk">
+  <h2>&#9632; 7. Jamb Vertical Reinforcement <span class="badge-purple">REK-04</span></h2>
+  <div class="callout">Vertical bars in jamb resist OOP wind bending. Bars are assumed at d = b_wall &minus; cover from the tension wall face.</div>
+  <div class="g3">
+    <div class="ig"><label>Number of Vertical Bars</label>
+      <select id="n_jamb">
+        <option value="1">1</option><option value="2">2</option>
+        <option value="3" selected>3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option>
+      </select><div class="hint">Typically 1 per 8&Prime; CMU cell across jamb width</div></div>
+    <div class="ig"><label>Jamb Bar Size</label>
+      <select id="bar_jamb">
+        <option value="0.20">#4 — 0.20 in²</option><option value="0.31">#5 — 0.31 in²</option>
+        <option value="0.44" selected>#6 — 0.44 in²</option><option value="0.60">#7 — 0.60 in²</option>
+        <option value="0.79">#8 — 0.79 in²</option><option value="1.00">#9 — 1.00 in²</option>
+      </select></div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalcs()">&#9654;&nbsp; Run All Checks</button>
+
+<!-- ═══════════ RESULTS ════════════════════════════════════ -->
+<div id="results" class="results">
+  <div id="overallBanner" class="overall-banner"></div>
+
+  <!-- PART A: LINTEL GRAVITY -->
+  <div class="part-hdr part-hdr-A">&#9646; PART A &nbsp;&mdash;&nbsp; Lintel Strong Direction (Gravity) &nbsp;&middot;&nbsp; REK-06 ASD</div>
+  <div id="sumA" class="summary"></div>
+  <div id="demA" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+  <tbody id="chkA"></tbody></table>
+
+  <!-- PART B: LINTEL OOP WIND -->
+  <div class="part-hdr part-hdr-B">&#9646; PART B &nbsp;&mdash;&nbsp; Lintel Out-of-Plane Wind &nbsp;&middot;&nbsp; C&amp;C Pressure</div>
+  <div id="sumB" class="summary"></div>
+  <div id="demB" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+  <tbody id="chkB"></tbody></table>
+
+  <!-- PART C: JAMB -->
+  <div class="part-hdr part-hdr-C">&#9646; PART C &nbsp;&mdash;&nbsp; Masonry Jamb (Reinforced) &nbsp;&middot;&nbsp; REK-04 ASD</div>
+  <div id="sumC" class="summary"></div>
+  <div id="demC" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+  <tbody id="chkC"></tbody></table>
+
+  <div class="note-box">
+    <strong>Engineering Notes:</strong>
+    <ul id="notesList"></ul>
+  </div>
+</div><!-- end results -->
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+// ─── helpers ────────────────────────────────────────────────────────────────
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function fc(v){return isFinite(v)?Math.round(v).toLocaleString():'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function toggleDet(id){
+  var el=document.getElementById(id);
+  var btn=document.getElementById('btn_'+id);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// ─── UI helpers ─────────────────────────────────────────────────────────────
+function setCMUDims(){
+  var b=parseFloat(document.getElementById('cmu_size').value);
+  document.getElementById('b_wall').value=b;
+  document.getElementById('bHint').textContent='b = '+b+'\u2033';
+}
+function autoFill(){
+  var t=parseFloat(document.getElementById('t_lin').value)||32;
+  document.getElementById('eff_d').value=(t-3.5).toFixed(1);
+  var clr=parseFloat(document.getElementById('clear_span').value)||8;
+  var brg=parseFloat(document.getElementById('bearing').value)||8;
+  document.getElementById('a_P').value=((clr+brg/12)/2).toFixed(2);
+}
+function updateOopDisplay(){
+  var wcc=parseFloat(document.getElementById('w_cc').value)||0;
+  var Hw=parseFloat(document.getElementById('H_wall').value)||0;
+  var W=wcc*Hw/2;
+  document.getElementById('W_oop_display').value=isFinite(W)?W.toFixed(1):0;
+}
+
+// ─── Check table builder ────────────────────────────────────────────────────
+var chkCounter=0;
+function buildChkRow(chk,tbodyId,detClass,btnClass){
+  var i='c'+(chkCounter++);
+  var dc=chk.dc; var stateClass=chk.pass?'pass-row':'fail-row';
+  if(chk.info) stateClass='info-row';
+  var dcTxt=(dc===null)?'<span class="na">N/A</span>':f2(dc);
+  var barFill=(dc===null)?'':('width:'+Math.min(dc*100,100)+'%;background:'+(dc<=1?'#16a34a':'#dc2626'));
+  var barHtml=(dc===null)?'':'<div class="dc-bar"><div class="dc-fill dc-f" style="'+barFill+'"></div></div>';
+  var stTxt=chk.info?'<span class="na">Info</span>':(chk.pass?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>');
+  var bCls='det-btn'+(btnClass?' '+btnClass:'');
+  var row='<tr class="'+stateClass+'"><td><strong>'+chk.n+'</strong><br><span style="font-size:.73em;color:#666">'+chk.nt+'</span></td>'+
+    '<td style="font-size:.78em;color:#555">'+chk.r+'</td><td>'+chk.d+'</td><td>'+chk.c+'</td>'+
+    '<td><div class="dc-cell">'+dcTxt+barHtml+'</div></td><td>'+stTxt+'</td>'+
+    '<td><button class="'+bCls+'" id="btn_'+i+'" onclick="toggleDet(\''+i+'\')">&#9654; Calc</button></td></tr>'+
+    '<tr class="det-row"><td colspan="7"><div class="calc-det '+detClass+'" id="'+i+'">'+chk.det+'</div></td></tr>';
+  document.getElementById(tbodyId).innerHTML+=row;
+}
+function setSummary(id,pass,maxDC,label){
+  var el=document.getElementById(id);
+  el.className='summary '+(pass?'sum-pass':'sum-fail');
+  el.innerHTML='<strong>'+(pass?'&#10003; PASS':'&#10007; FAIL')+'</strong> — '+label+' &nbsp;&middot;&nbsp; Max D/C = <strong>'+f2(maxDC)+'</strong>';
+}
+function setDemGrid(id,cards){
+  var g=document.getElementById(id); g.innerHTML='';
+  cards.forEach(function(c){
+    g.innerHTML+='<div class="dem-card '+c.cls+'"><div class="v">'+c.v+'</div><div class="l">'+c.l.replace(/\n/g,'<br>')+'</div></div>';
+  });
+}
+
+// ─── MAIN CALCULATION ───────────────────────────────────────────────────────
+function runCalcs(){
+  chkCounter=0;
+  document.getElementById('chkA').innerHTML='';
+  document.getElementById('chkB').innerHTML='';
+  document.getElementById('chkC').innerHTML='';
+
+  // ── Material inputs ──
+  var fm       = parseFloat(document.getElementById('fm').value);
+  var Fs       = parseFloat(document.getElementById('steel_grade').value);
+  var b        = parseFloat(document.getElementById('b_wall').value);   // wall thickness, in
+  var mortar   = document.getElementById('mortar_type').value;
+  var windInc  = document.getElementById('windInc').checked;
+  var k_wind   = windInc ? 4.0/3.0 : 1.0;
+
+  // Allowable stresses
+  var Fb_rein  = 0.45 * fm;   // §8.3.2.2.1 reinforced flexure
+  var Fb_unr   = 0.33 * fm;   // §8.2.3 unreinforced flexure (for OOP)
+  var Fbr      = 0.25 * fm;   // §8.1.6.1 bearing
+  // Ft for grouted masonry (lintel and jamb are fully grouted)
+  var Ft_base  = (mortar==='S') ? 40 : 30;  // psi, grouted, normal to bed joints, TMS 402-22 Table 8.2.5.2
+  var Ft_eff   = Ft_base * k_wind;
+  var Fb_oop_eff = Fb_unr * k_wind;
+
+  var Em = 900 * fm;
+  var Es = 29000000;
+  var n  = Es / Em;
+
+  // ── Geometry inputs ──
+  var clr     = parseFloat(document.getElementById('clear_span').value);
+  var brg     = parseFloat(document.getElementById('bearing').value);
+  var t_lin   = parseFloat(document.getElementById('t_lin').value);    // lintel depth, in
+  var d       = parseFloat(document.getElementById('eff_d').value);
+  var H_wall  = parseFloat(document.getElementById('H_wall').value);   // ft
+  var H_soffit= parseFloat(document.getElementById('H_soffit').value);  // ft
+  var W_jamb  = parseFloat(document.getElementById('W_jamb').value);   // in
+  var H_jamb  = parseFloat(document.getElementById('H_jamb').value);   // ft
+  var cov_j   = parseFloat(document.getElementById('cover_jamb').value); // in
+
+  var L_ft    = clr + brg / 12.0;  // effective span, ft (§5.3.1.1)
+  var L_in    = L_ft * 12.0;
+
+  // ── Gravity loads ──
+  var w_grav  = parseFloat(document.getElementById('w_load').value)||0;    // lb/ft uniform
+  var w_wall  = parseFloat(document.getElementById('w_wall_psf').value)||0; // psf wall weight
+  // Total uniform load includes wall above opening:
+  // Wall above = w_wall (psf) × wall thickness tributary...
+  // Actually the user inputs w as total including wall weight; w_wall is just informational.
+  // But per REK-06 the wall weight is often computed separately.
+  // For simplicity: total w = w_grav (user's combined DL+LL including wall above)
+  var w_total = w_grav;
+  var P_down  = parseFloat(document.getElementById('P_down').value)||0;
+  var a_ft    = parseFloat(document.getElementById('a_P').value)||L_ft/2;
+  var b_ft    = L_ft - a_ft;
+  var wu      = parseFloat(document.getElementById('wu_load').value)||0;
+  var Pu      = parseFloat(document.getElementById('P_uplift').value)||0;
+
+  // ── Wind inputs ──
+  var w_cc    = parseFloat(document.getElementById('w_cc').value)||0;  // psf
+  var W_oop   = w_cc * H_wall / 2.0;  // lb/ft — lintel OOP line load
+  document.getElementById('W_oop_display').value = W_oop.toFixed(1);
+
+  // ── Lintel reinforcement ──
+  var n_bot   = parseFloat(document.getElementById('n_bot').value);
+  var ab_bot  = parseFloat(document.getElementById('bar_bot').value);
+  var As_bot  = n_bot * ab_bot;
+  var n_top   = parseFloat(document.getElementById('n_top').value);
+  var ab_top  = parseFloat(document.getElementById('bar_top').value);
+  var As_top  = n_top * ab_top;
+
+  // ── Jamb reinforcement ──
+  var n_jamb  = parseFloat(document.getElementById('n_jamb').value);
+  var ab_jamb = parseFloat(document.getElementById('bar_jamb').value);
+  var As_jamb = n_jamb * ab_jamb;
+  var d_jamb  = b - cov_j;  // effective depth for jamb OOP bending (through wall thickness)
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ══ PART A: LINTEL GRAVITY ══════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // -- Demand --
+  // Downward: R_L, R_R, M_grav, V_grav
+  var R_L, R_R, V_grav, M_grav_inlb, x_max;
+  var a_loc = Math.min(Math.max(a_ft, 0.0001), L_ft - 0.0001);
+  var b_loc = L_ft - a_loc;
+
+  R_L = w_total * L_ft / 2 + (P_down > 0 ? P_down * b_loc / L_ft : 0);
+  R_R = w_total * L_ft / 2 + (P_down > 0 ? P_down * a_loc / L_ft : 0);
+  V_grav = Math.max(R_L, R_R);
+
+  if(P_down === 0){
+    x_max = L_ft / 2;
+    M_grav_inlb = w_total * L_ft * L_ft / 8.0 * 12.0;
+  } else if(w_total === 0){
+    x_max = a_loc;
+    M_grav_inlb = P_down * a_loc * b_loc / L_ft * 12.0;
+  } else {
+    var xs = R_L / w_total;
+    if(xs <= a_loc){
+      x_max = xs;
+      M_grav_inlb = (R_L * xs - w_total * xs * xs / 2.0) * 12.0;
+    } else {
+      x_max = a_loc;
+      M_grav_inlb = (R_L * a_loc - w_total * a_loc * a_loc / 2.0) * 12.0;
+    }
+  }
+
+  // -- Neutral axis (bottom bars) --
+  var rho_b  = As_bot / (b * d);
+  var nrho_b = n * rho_b;
+  var k_b    = Math.sqrt(nrho_b * nrho_b + 2 * nrho_b) - nrho_b;
+  var j_b    = 1.0 - k_b / 3.0;
+  var fs_bot = (As_bot > 0 && j_b * d > 0) ? M_grav_inlb / (As_bot * j_b * d) : 0;
+  var fb_bot = (k_b * d > 0 && j_b * d > 0) ? 2.0 * M_grav_inlb / (b * k_b * d * j_b * d) : 0;
+
+  // -- Shear --
+  var Anv    = b * d;
+  var fv     = V_grav / Anv;
+  var MVd    = (V_grav > 0) ? Math.min(M_grav_inlb / (V_grav * d), 1.0) : 1.0;
+  var Fvm    = 0.5 * (4.0 - 1.75 * MVd) * Math.sqrt(fm);
+  var Fv     = Math.min(Fvm, 2.0 * Math.sqrt(fm));
+
+  // -- Uplift --
+  var do_uplift = (Pu > 0 || wu > 0);
+  var M_up_inlb = 0, V_up = 0, fs_top = 0, fb_top = 0, rho_t = 0, k_t = 0, j_t = 0;
+  var R_L_up = 0, R_R_up = 0;
+  if(do_uplift){
+    R_L_up = wu * L_ft / 2 - (Pu > 0 ? Pu * b_loc / L_ft : 0);
+    R_R_up = wu * L_ft / 2 - (Pu > 0 ? Pu * a_loc / L_ft : 0);
+    V_up   = Math.max(Math.abs(R_L_up), Math.abs(R_R_up));
+    if(Pu === 0){
+      M_up_inlb = wu * L_ft * L_ft / 8.0 * 12.0;
+    } else if(wu === 0){
+      M_up_inlb = -Pu * a_loc * b_loc / L_ft * 12.0;
+    } else {
+      var xu = (R_L_up > 0) ? R_L_up / wu : a_loc;
+      if(xu > 0 && xu <= a_loc) M_up_inlb = (R_L_up * xu - wu * xu * xu / 2.0) * 12.0;
+      else M_up_inlb = (R_L_up * a_loc - wu * a_loc * a_loc / 2.0) * 12.0;
+    }
+    var need_top = (M_up_inlb < 0);
+    var M_up_abs = Math.abs(M_up_inlb);
+    if(As_top > 0 && need_top){
+      rho_t  = As_top / (b * d);
+      var nrho_t = n * rho_t;
+      k_t    = Math.sqrt(nrho_t * nrho_t + 2 * nrho_t) - nrho_t;
+      j_t    = 1.0 - k_t / 3.0;
+      fs_top = M_up_abs / (As_top * j_t * d);
+      fb_top = 2.0 * M_up_abs / (b * k_t * d * j_t * d);
+    }
+  }
+
+  // -- Checks A --
+  var chksA = [];
+  var all_pass_A = true;
+  var max_dc_A = 0;
+
+  // A1: Bottom steel stress
+  var dc_a1 = fs_bot / Fs; var pass_a1 = dc_a1 <= 1.0;
+  if(!pass_a1) all_pass_A=false; if(dc_a1>max_dc_A) max_dc_A=dc_a1;
+  var det_a1='<div class="cref-hdr">TMS 402-22 §8.3.2 — Flexure ASD (Bottom Bars, Downward)</div>';
+  det_a1+='<div class="cbox">';
+  det_a1+='<div class="mrow"><span class="ceq">M<sub>max</sub> =</span> ';
+  if(P_down===0) det_a1+=fr('w&sdot;L²','8')+' = '+fr(f1(w_total)+'&times;'+f2(L_ft)+'²','8')+' = <span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft = '+fc(Math.round(M_grav_inlb))+' lb&middot;in</span>';
+  else det_a1+='<span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft = '+fc(Math.round(M_grav_inlb))+' lb&middot;in</span> (conc. + uniform)';
+  det_a1+='</div>';
+  det_a1+='<div class="mrow"><span class="ceq">nρ =</span> '+f2(n)+'&times;'+f4(rho_b)+' = '+f4(nrho_b)+'</div>';
+  det_a1+='<div class="mrow"><span class="ceq">k =</span> '+ov('(n&rho;)²+2n&rho;')+' − n&rho; = <span class="cval">'+f3(k_b)+'</span> &nbsp;&nbsp; j = 1−k/3 = <span class="cval">'+f3(j_b)+'</span></div>';
+  det_a1+='<div class="mrow"><span class="ceq">f<sub>s</sub> =</span> '+fr('M','A<sub>s</sub>&sdot;j&sdot;d')+' = '+fr(fc(Math.round(M_grav_inlb)),f2(As_bot)+'&times;'+f3(j_b)+'&times;'+f1(d))+' = <span class="cval">'+f1(fs_bot)+' psi</span></div>';
+  det_a1+='<hr class="csep"><div class="mrow">D/C = '+fr(f1(fs_bot),f1(Fs))+' = <span class="cval">'+f2(dc_a1)+'</span></div></div>';
+  chksA.push({n:'Bottom Steel Stress f<sub>s</sub>',r:'TMS 402-22 §8.3.2',d:'f<sub>s</sub> = '+f1(fs_bot)+' psi',c:'F<sub>s</sub> = '+f1(Fs)+' psi',dc:dc_a1,nt:'n = '+f1(n)+' ; A<sub>s</sub> = '+f2(As_bot)+' in²',pass:pass_a1,info:false,det:det_a1});
+
+  function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+  function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 2px">'+x+'</span>';}
+
+  // A2: Masonry flexural compression (bottom bars)
+  var dc_a2 = fb_bot / Fb_rein; var pass_a2 = dc_a2 <= 1.0;
+  if(!pass_a2) all_pass_A=false; if(dc_a2>max_dc_A) max_dc_A=dc_a2;
+  var det_a2='<div class="cref-hdr">TMS 402-22 §8.3.2.2.1 — Masonry Compressive Stress (Flexure)</div>';
+  det_a2+='<div class="cbox"><div class="mrow"><span class="ceq">F<sub>b</sub> =</span> 0.45 f&prime;<sub>m</sub> = 0.45&times;'+f1(fm)+' = <span class="cval">'+f1(Fb_rein)+' psi</span></div>';
+  det_a2+='<div class="mrow"><span class="ceq">kd =</span> '+f3(k_b)+'&times;'+f1(d)+' = '+f1(k_b*d)+' in ; jd = '+f3(j_b)+'&times;'+f1(d)+' = '+f1(j_b*d)+' in</div>';
+  det_a2+='<div class="mrow"><span class="ceq">f<sub>b</sub> =</span> '+fr('2M','b&sdot;kd&sdot;jd')+' = '+fr('2&times;'+fc(Math.round(M_grav_inlb)),f1(b)+'&times;'+f1(k_b*d)+'&times;'+f1(j_b*d))+' = <span class="cval">'+f1(fb_bot)+' psi</span></div>';
+  det_a2+='<hr class="csep"><div class="mrow">D/C = '+fr(f1(fb_bot),f1(Fb_rein))+' = <span class="cval">'+f2(dc_a2)+'</span></div></div>';
+  chksA.push({n:'Masonry Compression f<sub>b</sub>',r:'TMS 402-22 §8.3.2.2.1',d:'f<sub>b</sub> = '+f1(fb_bot)+' psi',c:'F<sub>b</sub> = '+f1(Fb_rein)+' psi',dc:dc_a2,nt:'k = '+f3(k_b)+' ; j = '+f3(j_b),pass:pass_a2,info:false,det:det_a2});
+
+  // A3: Shear
+  var dc_a3 = fv / Fv; var pass_a3 = dc_a3 <= 1.0;
+  if(!pass_a3) all_pass_A=false; if(dc_a3>max_dc_A) max_dc_A=dc_a3;
+  var det_a3='<div class="cref-hdr">TMS 402-22 §8.3.5 — Shear (No Shear Steel)</div>';
+  det_a3+='<div class="cbox"><div class="mrow"><span class="ceq">F<sub>vm</sub> =</span> 0.5(4−1.75 M/Vd)&radic;f&prime;<sub>m</sub> = 0.5&times;(4−1.75&times;'+f2(MVd)+')&times;'+ov(f1(fm))+' = <span class="cval">'+f1(Fvm)+' psi</span></div>';
+  det_a3+='<div class="mrow"><span class="ceq">F<sub>v,ub</sub> =</span> 2&radic;f&prime;<sub>m</sub> = 2&times;'+ov(f1(fm))+' = <span class="cval">'+f1(2*Math.sqrt(fm))+' psi</span></div>';
+  det_a3+='<div class="mrow"><span class="ceq">F<sub>v</sub> =</span> min(F<sub>vm</sub>, F<sub>v,ub</sub>) = <span class="cval">'+f1(Fv)+' psi</span></div>';
+  det_a3+='<div class="mrow"><span class="ceq">f<sub>v</sub> =</span> V/(b&sdot;d) = '+fc(Math.round(V_grav))+'/('+f1(b)+'&times;'+f1(d)+') = <span class="cval">'+f1(fv)+' psi</span></div>';
+  det_a3+='<hr class="csep"><div class="mrow">D/C = '+fr(f1(fv),f1(Fv))+' = <span class="cval">'+f2(dc_a3)+'</span></div></div>';
+  chksA.push({n:'Shear f<sub>v</sub>',r:'TMS 402-22 §8.3.5',d:'f<sub>v</sub> = '+f1(fv)+' psi',c:'F<sub>v</sub> = '+f1(Fv)+' psi',dc:dc_a3,nt:'M/(V&sdot;d) = '+f2(MVd)+' ; V = '+fc(Math.round(V_grav))+' lb',pass:pass_a3,info:false,det:det_a3});
+
+  // A4: Uplift (if applicable)
+  if(do_uplift && M_up_inlb < 0){
+    var M_up_abs = Math.abs(M_up_inlb);
+    var dc_a4_s = (As_top > 0) ? fs_top / Fs : 99;
+    var dc_a4_b = (As_top > 0) ? fb_top / Fb_rein : 99;
+    var dc_a4 = Math.max(dc_a4_s, dc_a4_b);
+    var pass_a4 = dc_a4 <= 1.0;
+    if(!pass_a4) all_pass_A=false; if(dc_a4>max_dc_A) max_dc_A=dc_a4;
+    var det_a4='<div class="cref-hdr">TMS 402-22 §8.3.2 — Flexure ASD (Top Bars, Uplift)</div>';
+    det_a4+='<div class="cbox"><div class="mrow"><span class="ceq">|M<sub>up</sub>| =</span> <span class="cval">'+fc(Math.round(M_up_abs/12))+' lb&middot;ft = '+fc(Math.round(M_up_abs))+' lb&middot;in</span></div>';
+    det_a4+='<div class="mrow"><span class="ceq">f<sub>s,top</sub> =</span> <span class="cval">'+f1(fs_top)+' psi</span> &le; F<sub>s</sub> = '+f1(Fs)+' psi ; f<sub>b,top</sub> = <span class="cval">'+f1(fb_top)+' psi</span> &le; F<sub>b</sub> = '+f1(Fb_rein)+' psi</div>';
+    det_a4+='<hr class="csep"><div class="mrow">Governing D/C = <span class="cval">'+f2(dc_a4)+'</span></div></div>';
+    chksA.push({n:'Top Steel (Uplift)',r:'TMS 402-22 §8.3.2',d:'f<sub>s</sub> = '+f1(fs_top)+' psi',c:'F<sub>s</sub> = '+f1(Fs)+' psi',dc:dc_a4,nt:'Uplift combo: 0.6D+0.6W',pass:pass_a4,info:false,det:det_a4});
+  }
+
+  // Render Part A
+  setSummary('sumA', all_pass_A, max_dc_A, 'Lintel Gravity — REK-06');
+  setDemGrid('demA',[
+    {v:f1(w_total)+' lb/ft', l:'Uniform\nGravity Load w', cls:'dem-card'},
+    {v:fc(Math.round(M_grav_inlb/12))+' lb·ft', l:'Max Gravity\nMoment M', cls:'dem-card'},
+    {v:fc(Math.round(V_grav))+' lb', l:'Max Shear V\n(at support)', cls:'dem-card'},
+    {v:f1(fs_bot)+' psi', l:'Steel Stress f_s\nvs Fs='+f1(Fs), cls:fs_bot<=Fs?'dem-card ok':'dem-card bad'},
+    {v:f1(fb_bot)+' psi', l:'Masonry Stress f_b\nvs Fb='+f1(Fb_rein), cls:fb_bot<=Fb_rein?'dem-card ok':'dem-card bad'},
+    {v:fc(Math.round(R_L))+' lb', l:'Left Reaction R_L\n(→ jamb axial)', cls:'dem-card'},
+    {v:fc(Math.round(R_R))+' lb', l:'Right Reaction R_R\n(→ jamb axial)', cls:'dem-card'},
+  ]);
+  chksA.forEach(function(c){buildChkRow(c,'chkA','','');});
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ══ PART B: LINTEL OOP WIND ═════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // W_oop = w_cc × H_wall/2 (lb/ft line load on lintel)
+  // M_oop = W_oop × L_clear² / 8 × 12  (in-lb)
+  // S_oop = t_lin × b² / 6  (lintel bends about vertical axis, OOP)
+  // V_oop = W_oop × L_clear / 2  (reaction at each jamb, in-plane)
+
+  var M_oop_inlb = W_oop * clr * clr / 8.0 * 12.0;   // use clear span for OOP (conservative)
+  var S_oop      = t_lin * b * b / 6.0;               // in³  (S = t_lin × b² / 6)
+  var fb_oop     = (S_oop > 0) ? M_oop_inlb / S_oop : 0;
+  var V_oop_jamb = W_oop * clr / 2.0;                 // lb (OOP point load to each jamb)
+
+  // OOP biaxial interaction with gravity (compression face check):
+  // fb_grav_comp = masonry compression from gravity
+  // fb_oop = masonry stress from OOP wind
+  // Combined at critical compression corner: fb_grav_comp + fb_oop ≤ Fb_eff
+  var Fb_oop_eff_rein = Fb_rein * k_wind;  // for biaxial with gravity (reinforced direction)
+  var dc_B_comp = fb_bot / Fb_rein + fb_oop / Fb_oop_eff_rein;
+  var dc_B_tension = fb_oop / Ft_eff;
+
+  var all_pass_B = true;
+  var max_dc_B = 0;
+  var chksB = [];
+
+  // B1: OOP compressive stress (unreinforced, weak axis)
+  var pass_b1 = fb_oop <= Fb_oop_eff;
+  if(!pass_b1) all_pass_B=false;
+  var dc_b1 = fb_oop / Fb_oop_eff;
+  if(dc_b1>max_dc_B) max_dc_B=dc_b1;
+  var det_b1='<div class="cref-hdr w">Lintel OOP — Compressive Stress (Unreinforced, Weak Axis)</div>';
+  det_b1+='<div class="cbox w"><div class="mrow"><span class="ceq w">W<sub>oop</sub> =</span> w<sub>cc</sub>&times;H<sub>wall</sub>/2 = '+f1(w_cc)+'&times;'+f1(H_wall)+'/2 = <span class="cval">'+f1(W_oop)+' lb/ft</span></div>';
+  det_b1+='<div class="mrow"><span class="ceq w">M<sub>oop</sub> =</span> '+fr('W<sub>oop</sub>&times;L²','8')+' = '+fr(f1(W_oop)+'&times;'+f1(clr)+'²','8')+' &times; 12 = <span class="cval">'+fc(Math.round(M_oop_inlb))+' lb&middot;in</span></div>';
+  det_b1+='<div class="mrow"><span class="ceq w">S<sub>oop</sub> =</span> t<sub>lin</sub>&times;b²/6 = '+f1(t_lin)+'&times;'+f1(b)+'²/6 = <span class="cval">'+f1(S_oop)+' in³</span> &nbsp;(bending about vertical axis)</div>';
+  det_b1+='<div class="mrow"><span class="ceq w">f<sub>b,oop</sub> =</span> M<sub>oop</sub>/S<sub>oop</sub> = '+fc(Math.round(M_oop_inlb))+'/'+f1(S_oop)+' = <span class="cval">'+f1(fb_oop)+' psi</span></div>';
+  det_b1+='<div class="mrow"><span class="ceq w">F<sub>b,oop</sub> =</span> 0.33&times;f&prime;<sub>m</sub>'+(windInc?'&times;4/3':'')+' = '+f1(Fb_unr)+(windInc?'&times;'+f2(k_wind):'')+' = <span class="cval">'+f1(Fb_oop_eff)+' psi</span></div>';
+  det_b1+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fb_oop),f1(Fb_oop_eff))+' = <span class="cval">'+f2(dc_b1)+'</span></div></div>';
+  chksB.push({n:'OOP Compressive Stress f<sub>b,oop</sub>',r:'TMS 402-22 §8.2.3',d:'f<sub>b,oop</sub> = '+f1(fb_oop)+' psi',c:'F<sub>b,oop</sub> = '+f1(Fb_oop_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dc_b1,nt:'S<sub>oop</sub> = t&times;b²/6 = '+f1(S_oop)+' in³ ; unreinforced OOP',pass:pass_b1,info:false,det:det_b1});
+
+  // B2: OOP tension check
+  var pass_b2 = fb_oop <= Ft_eff;
+  if(!pass_b2) all_pass_B=false;
+  if(dc_B_tension>max_dc_B) max_dc_B=dc_B_tension;
+  var det_b2='<div class="cref-hdr w">Lintel OOP — Flexural Tension (Tension Face, Unreinforced)</div>';
+  det_b2+='<div class="cbox w"><div class="mrow"><span class="ceq w">F<sub>t</sub> =</span> '+Ft_base+' psi (grouted, Type '+mortar+', Table 8.2.5.2)'+(windInc?'&times;4/3 = <span class="cval">'+f1(Ft_eff)+' psi</span>':' = <span class="cval">'+f1(Ft_eff)+' psi</span>')+'</div>';
+  det_b2+='<div class="mrow">f<sub>b,oop</sub> = <span class="cval">'+f1(fb_oop)+' psi</span>'+(fb_oop>Ft_eff?' &gt; F<sub>t</sub> — <strong>OOP reinforcing required</strong>':' &le; F<sub>t</sub> &#10003;')+'</div>';
+  det_b2+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fb_oop),f1(Ft_eff))+' = <span class="cval">'+f2(dc_B_tension)+'</span></div></div>';
+  chksB.push({n:'OOP Flexural Tension f<sub>b,oop</sub> vs F<sub>t</sub>',r:'TMS 402-22 §8.2.5',d:'f<sub>b,oop</sub> = '+f1(fb_oop)+' psi',c:'F<sub>t</sub> = '+f1(Ft_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dc_B_tension,nt:(fb_oop>Ft_eff?'GOVERNS — OOP reinforcing needed':'No net tension with 1/3 increase'),pass:pass_b2,info:false,det:det_b2});
+
+  // B3: Biaxial interaction gravity + OOP (compression corner)
+  var pass_b3 = dc_B_comp <= 1.0;
+  if(!pass_b3) all_pass_B=false;
+  if(dc_B_comp>max_dc_B) max_dc_B=dc_B_comp;
+  var det_b3='<div class="cref-hdr w">Biaxial Bending Interaction — Compression Corner</div>';
+  det_b3+='<div class="cbox w"><div class="mrow"><span class="ceq w">Interaction:</span> f<sub>b,grav</sub>/F<sub>b</sub> + f<sub>b,oop</sub>/F<sub>b,oop</sub> &le; 1.0</div>';
+  det_b3+='<div class="mrow ind">= '+fr(f1(fb_bot),f1(Fb_rein))+' + '+fr(f1(fb_oop),f1(Fb_oop_eff_rein))+' = '+f3(fb_bot/Fb_rein)+' + '+f3(fb_oop/Fb_oop_eff_rein)+' = <span class="cval">'+f3(dc_B_comp)+'</span></div>';
+  det_b3+='<hr class="csep w"><div class="mrow">D/C = <span class="cval">'+f2(dc_B_comp)+'</span></div></div>';
+  chksB.push({n:'Biaxial Bending Interaction',r:'TMS 402-22 §8.3.2',d:'f<sub>b,grav</sub>/F<sub>b</sub>+f<sub>oop</sub>/F<sub>b,oop</sub>',c:'&le; 1.0',dc:dc_B_comp,nt:'Gravity&times;OOP combined at compression corner',pass:pass_b3,info:false,det:det_b3});
+
+  // Render Part B
+  setSummary('sumB', all_pass_B, max_dc_B, 'Lintel Out-of-Plane Wind');
+  setDemGrid('demB',[
+    {v:f1(w_cc)+' psf', l:'C&C Wind\nPressure w_cc', cls:'dem-card warn'},
+    {v:f1(W_oop)+' lb/ft', l:'OOP Line Load\nw_cc×H_wall/2', cls:'dem-card warn'},
+    {v:fc(Math.round(M_oop_inlb/12))+' lb·ft', l:'OOP Moment\nM_oop (weak axis)', cls:'dem-card warn'},
+    {v:f1(fb_oop)+' psi', l:'OOP Stress f_b,oop\nvs Fb='+f1(Fb_oop_eff), cls:fb_oop<=Fb_oop_eff?'dem-card ok':'dem-card bad'},
+    {v:f1(Ft_eff)+' psi', l:'Allow. Tension F_t\n(grouted, Type '+mortar+')', cls:'dem-card'},
+    {v:fc(Math.round(V_oop_jamb))+' lb', l:'OOP Shear to Each\nJamb V_oop', cls:'dem-card pur'},
+    {v:f2(dc_B_comp), l:'Biaxial Interaction\nD/C ratio', cls:dc_B_comp<=1?'dem-card ok':'dem-card bad'},
+  ]);
+  chksB.forEach(function(c){buildChkRow(c,'chkB','wind-det','w');});
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ══ PART C: JAMB — REK-04 ══════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────────────
+
+  var P_jamb = Math.max(R_L, R_R);  // use max reaction (conservative; use R_L for left jamb)
+  var A_jamb = W_jamb * b;           // gross area, in² (fully grouted)
+
+  // Jamb slenderness
+  var h_j_in  = H_jamb * 12.0;
+  var r_j     = b / Math.sqrt(12.0);  // t/√12 (wall thickness governs OOP bending)
+  var hr_j    = h_j_in / r_j;
+  var ht_j    = h_j_in / b;
+  var Fa_j;
+  if(hr_j <= 99) Fa_j = 0.25 * fm * (1.0 - Math.pow(h_j_in / (140.0 * r_j), 2));
+  else           Fa_j = 0.25 * fm * Math.pow(70.0 * r_j / h_j_in, 2);
+  var Fa_j_eff = Fa_j * k_wind;
+
+  // Jamb axial stress
+  var fa_j = P_jamb / A_jamb;
+
+  // Jamb OOP bending: simple beam H_jamb tall
+  // Uniform C&C on jamb: q = w_cc × W_jamb/12 (lb/ft height)
+  // OOP point load from lintel: P_oop at height h_oop = H_soffit + t_lin/(24) ft (mid-lintel)
+  var q_j       = w_cc * W_jamb / 12.0;                           // lb/ft
+  var h_oop_ft  = H_soffit + t_lin / 24.0;                        // ft from floor
+  var a_oop     = Math.min(h_oop_ft, H_jamb - 0.001);             // ft (clamped)
+  var P_oop_pt  = V_oop_jamb;                                      // lb point load
+
+  // Reactions
+  var R_bot_j = q_j * H_jamb / 2.0 + P_oop_pt * (H_jamb - a_oop) / H_jamb;
+  // var R_top_j = q_j * H_jamb / 2.0 + P_oop_pt * a_oop / H_jamb;
+
+  // Find max moment: check zero-shear locations
+  function M_jamb(x){
+    var M = R_bot_j * x - q_j * x * x / 2.0;
+    if(x > a_oop) M -= P_oop_pt * (x - a_oop);
+    return M;
+  }
+  // Zero shear: for x < a_oop: V = R_bot_j - q_j*x → x0 = R_bot_j/q_j
+  var M_max_j_ftlb = 0;
+  if(q_j > 0){
+    var x0 = R_bot_j / q_j;
+    if(x0 > 0 && x0 <= a_oop) M_max_j_ftlb = Math.max(M_max_j_ftlb, M_jamb(x0));
+    // For x > a_oop: V = R_bot_j - q_j*x - P_oop_pt → x1 = (R_bot_j - P_oop_pt)/q_j
+    var x1 = (R_bot_j - P_oop_pt) / q_j;
+    if(x1 > a_oop && x1 < H_jamb) M_max_j_ftlb = Math.max(M_max_j_ftlb, M_jamb(x1));
+  } else {
+    // No distributed load, just point load
+    M_max_j_ftlb = Math.max(M_max_j_ftlb, M_jamb(a_oop));
+  }
+  // Also check at point load location
+  M_max_j_ftlb = Math.max(M_max_j_ftlb, M_jamb(a_oop));
+  // Also midspan
+  M_max_j_ftlb = Math.max(M_max_j_ftlb, M_jamb(H_jamb / 2.0));
+  // Absolute value
+  M_max_j_ftlb = Math.abs(M_max_j_ftlb);
+  var M_max_j_inlb = M_max_j_ftlb * 12.0;
+
+  // Jamb transformed section (OOP bending through wall thickness):
+  // b_sec = W_jamb (width along wall), d_j = b (wall thickness) - cover
+  var b_j  = W_jamb;    // section width along wall face
+  // d_jamb already = b - cov_j (through wall thickness)
+  var rho_j  = As_jamb / (b_j * d_jamb);
+  var nrho_j = n * rho_j;
+  var k_j    = Math.sqrt(nrho_j * nrho_j + 2.0 * nrho_j) - nrho_j;
+  var j_j    = 1.0 - k_j / 3.0;
+  var fs_j   = (As_jamb > 0 && j_j * d_jamb > 0) ? M_max_j_inlb / (As_jamb * j_j * d_jamb) : 0;
+  var fb_j   = (k_j * d_jamb > 0 && j_j * d_jamb > 0) ? 2.0 * M_max_j_inlb / (b_j * k_j * d_jamb * j_j * d_jamb) : 0;
+  var Fb_j   = Fb_rein;  // 0.45f'm for reinforced masonry
+  var Fb_j_eff = Fb_j * k_wind;
+  var Fs_j_eff = Fs * k_wind;
+
+  // Combined: fa/Fa + fb/Fb ≤ 1.0
+  var unity_j = fa_j / Fa_j_eff + fb_j / Fb_j_eff;
+
+  var all_pass_C = true;
+  var max_dc_C = 0;
+  var chksC = [];
+
+  // C1: Bearing width check
+  var min_brg_w = brg;  // bearing length in inches
+  var pass_c1 = W_jamb >= min_brg_w;
+  if(!pass_c1) all_pass_C=false;
+  var dc_c1 = min_brg_w / W_jamb;
+  if(dc_c1>max_dc_C) max_dc_C=dc_c1;
+  var det_c1='<div class="cref-hdr j">TMS 402-22 §5.3.1.4 — Minimum Jamb Width for Bearing</div>';
+  det_c1+='<div class="cbox j"><div class="mrow"><span class="ceq j">Required:</span> W<sub>jamb</sub> &ge; bearing length = '+f1(min_brg_w)+' in.</div>';
+  det_c1+='<div class="mrow"><span class="ceq j">Provided:</span> W<sub>jamb</sub> = <span class="cval">'+f1(W_jamb)+' in.</span></div>';
+  det_c1+='<hr class="csep j"><div class="mrow">W<sub>jamb</sub>/brg = '+f2(W_jamb/min_brg_w)+' (D/C = bearing/W<sub>jamb</sub> = <span class="cval">'+f2(dc_c1)+'</span>)</div></div>';
+  chksC.push({n:'Jamb Width ≥ Bearing Length',r:'TMS 402-22 §5.3.1.4',d:'Bearing = '+f1(min_brg_w)+' in.',c:'W<sub>jamb</sub> = '+f1(W_jamb)+' in.',dc:dc_c1,nt:'Min 4&Prime; per TMS; 8&Prime; typical',pass:pass_c1,info:false,det:det_c1});
+
+  // C2: Bearing stress check
+  var A_bearing = brg * b;   // bearing length × wall thickness
+  var fb_brg = P_jamb / A_bearing;
+  var pass_c2 = fb_brg <= Fbr;
+  if(!pass_c2) all_pass_C=false;
+  var dc_c2 = fb_brg / Fbr;
+  if(dc_c2>max_dc_C) max_dc_C=dc_c2;
+  var det_c2='<div class="cref-hdr j">TMS 402-22 §8.1.6.1 — Allowable Bearing Stress</div>';
+  det_c2+='<div class="cbox j"><div class="mrow"><span class="ceq j">F<sub>br</sub> =</span> 0.25&times;f&prime;<sub>m</sub> = 0.25&times;'+f1(fm)+' = <span class="cval">'+f1(Fbr)+' psi</span></div>';
+  det_c2+='<div class="mrow"><span class="ceq j">A<sub>brg</sub> =</span> brg&times;b = '+f1(brg)+'&times;'+f1(b)+' = <span class="cval">'+f1(A_bearing)+' in²</span></div>';
+  det_c2+='<div class="mrow"><span class="ceq j">f<sub>brg</sub> =</span> R/A<sub>brg</sub> = '+fc(Math.round(P_jamb))+'/'+f1(A_bearing)+' = <span class="cval">'+f1(fb_brg)+' psi</span></div>';
+  det_c2+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fb_brg),f1(Fbr))+' = <span class="cval">'+f2(dc_c2)+'</span></div></div>';
+  chksC.push({n:'Bearing Stress f<sub>brg</sub>',r:'TMS 402-22 §8.1.6.1',d:'f<sub>brg</sub> = '+f1(fb_brg)+' psi',c:'F<sub>br</sub> = '+f1(Fbr)+' psi',dc:dc_c2,nt:'A<sub>brg</sub> = '+f1(brg)+'&Prime;&times;'+f1(b)+'&Prime; = '+f1(A_bearing)+' in²',pass:pass_c2,info:false,det:det_c2});
+
+  // C3: Axial stress
+  var pass_c3 = fa_j <= Fa_j_eff;
+  if(!pass_c3) all_pass_C=false;
+  var dc_c3 = fa_j / Fa_j_eff;
+  if(dc_c3>max_dc_C) max_dc_C=dc_c3;
+  var det_c3='<div class="cref-hdr j">TMS 402-22 §8.3.4 — Allowable Axial Stress (Jamb Column)</div>';
+  det_c3+='<div class="cbox j">';
+  if(hr_j <= 99) det_c3+='<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.25f&prime;<sub>m</sub>[1&minus;(h/140r)²] ; h/r = '+f1(hr_j)+' &le; 99</div>';
+  else           det_c3+='<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.25f&prime;<sub>m</sub>(70r/h)² ; h/r = '+f1(hr_j)+' > 99</div>';
+  det_c3+='<div class="mrow ind">r = b/&radic;12 = '+f1(b)+'/3.464 = <span class="cval">'+f2(r_j)+' in.</span></div>';
+  det_c3+='<div class="mrow ind">F<sub>a,base</sub> = <span class="cval">'+f1(Fa_j)+' psi</span>'+(windInc?' &times; 4/3 = <span class="cval">'+f1(Fa_j_eff)+' psi</span>':'')+'</div>';
+  det_c3+='<div class="mrow"><span class="ceq j">f<sub>a</sub> =</span> R/A<sub>gross</sub> = '+fc(Math.round(P_jamb))+'/('+f1(W_jamb)+'&times;'+f1(b)+') = <span class="cval">'+f1(fa_j)+' psi</span></div>';
+  det_c3+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fa_j),f1(Fa_j_eff))+' = <span class="cval">'+f2(dc_c3)+'</span></div></div>';
+  chksC.push({n:'Axial Stress f<sub>a</sub>',r:'TMS 402-22 §8.3.4',d:'f<sub>a</sub> = '+f1(fa_j)+' psi',c:'F<sub>a</sub> = '+f1(Fa_j_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dc_c3,nt:'h/r = '+f1(hr_j)+' ; r = t/&radic;12 = '+f2(r_j)+' in.',pass:pass_c3,info:false,det:det_c3});
+
+  // C4: OOP wind moment on jamb
+  var pass_c4_s = fs_j <= Fs_j_eff;
+  var pass_c4   = pass_c4_s;
+  if(!pass_c4) all_pass_C=false;
+  var dc_c4 = fs_j / Fs_j_eff;
+  if(dc_c4>max_dc_C) max_dc_C=dc_c4;
+  var det_c4='<div class="cref-hdr j">Jamb OOP Wind Bending — Steel Stress (REK-04)</div>';
+  det_c4+='<div class="cbox j"><div class="mrow"><span class="ceq j">Sources of OOP load:</span></div>';
+  det_c4+='<div class="mrow ind">1. C&amp;C wind on jamb: q = w<sub>cc</sub>&times;W<sub>j</sub>/12 = '+f1(w_cc)+'&times;'+f1(W_jamb)+'/12 = <span class="cval">'+f1(q_j)+' lb/ft</span></div>';
+  det_c4+='<div class="mrow ind">2. Lintel OOP reaction: P<sub>oop</sub> = V<sub>oop</sub> = <span class="cval">'+fc(Math.round(P_oop_pt))+' lb</span> at h = '+f2(a_oop)+' ft from floor</div>';
+  det_c4+='<div class="mrow"><span class="ceq j">R<sub>bot</sub> =</span> q&times;H/2 + P<sub>oop</sub>&times;(H&minus;a)/H = <span class="cval">'+f1(R_bot_j)+' lb</span></div>';
+  det_c4+='<div class="mrow"><span class="ceq j">M<sub>max,jamb</sub> =</span> <span class="cval">'+fc(Math.round(M_max_j_ftlb))+' ft&middot;lb = '+fc(Math.round(M_max_j_inlb))+' in&middot;lb</span></div>';
+  det_c4+='<div class="mrow"><span class="ceq j">nρ<sub>j</sub> =</span> '+f2(n)+'&times;'+f4(rho_j)+' = '+f4(nrho_j)+' ; k<sub>j</sub> = <span class="cval">'+f3(k_j)+'</span> ; j<sub>j</sub> = <span class="cval">'+f3(j_j)+'</span></div>';
+  det_c4+='<div class="mrow"><span class="ceq j">f<sub>s,j</sub> =</span> '+fr('M<sub>j</sub>','A<sub>s</sub>&sdot;j&sdot;d')+' = '+fr(fc(Math.round(M_max_j_inlb)),f2(As_jamb)+'&times;'+f3(j_j)+'&times;'+f2(d_jamb))+' = <span class="cval">'+f1(fs_j)+' psi</span></div>';
+  det_c4+='<div class="mrow"><span class="ceq j">F<sub>s,eff</sub> =</span> '+f1(Fs)+(windInc?'&times;4/3 = <span class="cval">'+f1(Fs_j_eff)+' psi</span>':' = <span class="cval">'+f1(Fs_j_eff)+' psi</span>')+'</div>';
+  det_c4+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fs_j),f1(Fs_j_eff))+' = <span class="cval">'+f2(dc_c4)+'</span></div></div>';
+  chksC.push({n:'Jamb OOP Steel Stress f<sub>s,j</sub>',r:'TMS 402-22 §8.3.2',d:'f<sub>s,j</sub> = '+f1(fs_j)+' psi',c:'F<sub>s</sub> = '+f1(Fs_j_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dc_c4,nt:'M<sub>j</sub> = '+fc(Math.round(M_max_j_ftlb))+' ft&middot;lb',pass:pass_c4,info:false,det:det_c4});
+
+  // C5: OOP masonry flexural compression (bending)
+  var pass_c5 = fb_j <= Fb_j_eff;
+  if(!pass_c5) all_pass_C=false;
+  var dc_c5 = fb_j / Fb_j_eff;
+  if(dc_c5>max_dc_C) max_dc_C=dc_c5;
+  var det_c5='<div class="cref-hdr j">Jamb OOP Masonry Stress (§8.3.2.2.1)</div>';
+  det_c5+='<div class="cbox j"><div class="mrow"><span class="ceq j">F<sub>b</sub> =</span> 0.45f&prime;<sub>m</sub>'+(windInc?'&times;4/3':'')+' = <span class="cval">'+f1(Fb_j_eff)+' psi</span></div>';
+  det_c5+='<div class="mrow"><span class="ceq j">f<sub>b,j</sub> =</span> '+fr('2M<sub>j</sub>','b<sub>j</sub>&sdot;kd&sdot;jd')+' = '+fr('2&times;'+fc(Math.round(M_max_j_inlb)),f1(b_j)+'&times;'+f1(k_j*d_jamb)+'&times;'+f1(j_j*d_jamb))+' = <span class="cval">'+f1(fb_j)+' psi</span></div>';
+  det_c5+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fb_j),f1(Fb_j_eff))+' = <span class="cval">'+f2(dc_c5)+'</span></div></div>';
+  chksC.push({n:'Jamb OOP Masonry Stress f<sub>b,j</sub>',r:'TMS 402-22 §8.3.2.2.1',d:'f<sub>b,j</sub> = '+f1(fb_j)+' psi',c:'F<sub>b</sub> = '+f1(Fb_j_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dc_c5,nt:'b<sub>j</sub> = '+f1(W_jamb)+' in ; d = '+f2(d_jamb)+' in',pass:pass_c5,info:false,det:det_c5});
+
+  // C6: Combined axial + bending unity
+  var pass_c6 = unity_j <= 1.0;
+  if(!pass_c6) all_pass_C=false;
+  var dc_c6 = unity_j;
+  if(dc_c6>max_dc_C) max_dc_C=dc_c6;
+  var det_c6='<div class="cref-hdr j">TMS 402-22 §8.3.4.2 — Combined Axial + Flexure (Unity)</div>';
+  det_c6+='<div class="cbox j"><div class="mrow"><span class="ceq j">Eq. (8-20):</span> f<sub>a</sub>/F<sub>a</sub> + f<sub>b,j</sub>/F<sub>b</sub> &le; 1.0</div>';
+  det_c6+='<div class="mrow ind">= '+fr(f1(fa_j),f1(Fa_j_eff))+' + '+fr(f1(fb_j),f1(Fb_j_eff))+' = '+f3(fa_j/Fa_j_eff)+' + '+f3(fb_j/Fb_j_eff)+' = <span class="cval">'+f3(unity_j)+'</span></div>';
+  det_c6+='<hr class="csep j"><div class="mrow">D/C (Unity) = <span class="cval">'+f2(unity_j)+'</span></div></div>';
+  chksC.push({n:'Combined Axial+Flexure Unity',r:'TMS 402-22 §8.3.4.2',d:'f<sub>a</sub>/F<sub>a</sub>+f<sub>b</sub>/F<sub>b</sub>',c:'≤ 1.0',dc:dc_c6,nt:'f<sub>a</sub>/F<sub>a</sub> = '+f3(fa_j/Fa_j_eff)+' + f<sub>b</sub>/F<sub>b</sub> = '+f3(fb_j/Fb_j_eff),pass:pass_c6,info:false,det:det_c6});
+
+  // Render Part C
+  setSummary('sumC', all_pass_C, max_dc_C, 'Masonry Jamb REK-04');
+  setDemGrid('demC',[
+    {v:fc(Math.round(P_jamb))+' lb', l:'Jamb Axial Load P\n(from lintel)', cls:'dem-card pur'},
+    {v:f1(fa_j)+' psi', l:'Axial Stress f_a\nvs Fa='+f1(Fa_j_eff), cls:fa_j<=Fa_j_eff?'dem-card ok':'dem-card bad'},
+    {v:f1(q_j)+' lb/ft', l:'C&C on Jamb\nq=w_cc×Wj/12', cls:'dem-card warn'},
+    {v:fc(Math.round(P_oop_pt))+' lb', l:'OOP Point Load\nfrom Lintel', cls:'dem-card warn'},
+    {v:fc(Math.round(M_max_j_ftlb))+' ft·lb', l:'Max Jamb Wind\nMoment M_j', cls:'dem-card warn'},
+    {v:f1(fs_j)+' psi', l:'Jamb Steel\nf_s vs Fs='+f1(Fs_j_eff), cls:fs_j<=Fs_j_eff?'dem-card ok':'dem-card bad'},
+    {v:f2(unity_j), l:'Combined Unity\nf_a/Fa+f_b/Fb', cls:unity_j<=1?'dem-card ok':'dem-card bad'},
+  ]);
+  chksC.forEach(function(c){buildChkRow(c,'chkC','jamb-det','j');});
+
+  // ─── Overall banner ─────────────────────────────────────────────────────
+  var all_pass = all_pass_A && all_pass_B && all_pass_C;
+  var max_dc_all = Math.max(max_dc_A, max_dc_B, max_dc_C);
+  var ob = document.getElementById('overallBanner');
+  ob.className = 'overall-banner '+(all_pass?'sum-pass':'sum-fail');
+  ob.innerHTML = '<strong style="font-size:1.1em">'+(all_pass?'&#10003; ALL CHECKS PASS':'&#10007; ONE OR MORE CHECKS FAIL')+
+    '</strong><br>Overall Max D/C = <strong>'+f2(max_dc_all)+'</strong> &nbsp;&middot;&nbsp; f&prime;<sub>m</sub> = '+f1(fm)+
+    ' psi &nbsp;&middot;&nbsp; L = '+f1(clr)+'ft &nbsp;&middot;&nbsp; t_lin = '+f1(t_lin)+
+    '&Prime; &nbsp;&middot;&nbsp; W<sub>jamb</sub> = '+f1(W_jamb)+'&Prime; &nbsp;&middot;&nbsp; w<sub>cc</sub> = '+f1(w_cc)+
+    ' psf &nbsp;&middot;&nbsp; H<sub>wall</sub> = '+f1(H_wall)+'ft'+(windInc?' &nbsp;&middot;&nbsp; ⅓ wind increase applied':'');
+
+  // ─── Engineering notes ───────────────────────────────────────────────────
+  var notes = [
+    'Design per TMS 402-22 ASD / MDG-2022 REK-04 (jamb) and REK-06 (lintel). Enter ASD load combinations per ASCE 7-22 §2.4.',
+    'Effective lintel span: L = clear + bearing/12 per TMS 402-22 §5.3.1.1. Minimum bearing = 4&Prime; per §5.3.1.4; 8&Prime; typical.',
+    'OOP line load on lintel: W_oop = w_cc &times; H_wall/2. This represents the half of total wall wind load resisted by the lintel (1/4 to ground, 1/4 to roof, 1/2 to lintel boundaries).',
+    'OOP check uses lintel as unreinforced masonry about weak axis: S_oop = t_lin &times; b&sup2;/6. If OOP tension exceeds F<sub>t</sub>, horizontal OOP reinforcing bars in lintel are required.',
+    'Jamb OOP moment computed from combined: (1) uniform C&C wind on jamb wall tributary w_cc&times;W_jamb, and (2) lintel OOP end reaction as a point load at mid-lintel height (H_soffit + t_lin/24 from floor). Jamb is simply supported at floor and top of wall.',
+    'Jamb reinforcing checks use transformed-section elastic analysis (same as lintel strong-direction). b_sec = W_jamb; d = b_wall &minus; cover. Steel resists tension from OOP bending; axial compression from lintel is checked separately.',
+    'Combined jamb check: f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub> &le; 1.0 per TMS 402-22 §8.3.4.2. F<sub>b</sub> = 0.45f&prime;<sub>m</sub> for reinforced masonry.',
+    windInc ? '4/3 stress increase applied to all wind allowable stresses per TMS 402-22 §8.1.4.1.' : 'No 1/3 wind stress increase applied. Check TMS 402-22 §8.1.4.1.',
+    'Gravity shear check does not apply to the OOP direction. The OOP shear at the jamb supports should be verified against jamb bond beam or diaphragm connections.',
+    'For jamb bearing: F<sub>br</sub> = 0.25f&prime;<sub>m</sub> per §8.1.6.1. Lintel must bear on full W_jamb width; the wall must extend at least one block beyond the bearing length on each side in practice.',
+    'Wall weight above opening is entered in the distributed load w. Typical fully-grouted 8&Prime; CMU: ~75&ndash;85 psf. Lintel self-weight (approx. 81 psf for 8&Prime; fully grouted) must also be included.'
+  ];
+  var nl = document.getElementById('notesList');
+  nl.innerHTML = '';
+  notes.forEach(function(n){ nl.innerHTML += '<li>'+n+'</li>'; });
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// Init
+window.onload = function(){ setCMUDims(); autoFill(); updateOopDisplay(); };
+document.addEventListener('input', updateOopDisplay);
+</script>
+</body>
+</html>

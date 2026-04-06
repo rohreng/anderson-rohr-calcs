@@ -162,6 +162,17 @@ export const CALCS: CalcMeta[] = [
     group: "CMU Walls",
     keywords: ["CMU", "masonry", "unreinforced", "bearing wall", "wind", "flexure", "axial", "ASD", "unity check", "4 inch", "6 inch", "TMS 402", "net tension", "block"],
   },
+  {
+    slug: "masonry-lintel-jamb",
+    label: "Masonry Lintel + Jamb Designer",
+    subtitle: "Lintel gravity (REK-06) · lintel OOP C&C wind · reinforced jamb (REK-04) \u00B7 ASD unity check",
+    htmlFile: "/Calcs/masonry_lintel_jamb_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 \u00A78.3 / MDG REK-04 & REK-06",
+    status: "ready",
+    group: "CMU Openings",
+    keywords: ["masonry", "CMU", "lintel", "jamb", "reinforced", "ASD", "flexure", "shear", "out-of-plane", "OOP", "wind", "C&C", "components cladding", "biaxial", "TMS 402", "MDG", "REK-04", "REK-06", "opening", "door", "window", "bearing"],
+  },
   // ── Masonry — Connections & Details ──────────────────────────
   {
     slug: "masonry-bearing-uplift",
