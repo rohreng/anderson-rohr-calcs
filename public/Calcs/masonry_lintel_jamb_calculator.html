@@ -300,17 +300,27 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <div class="blk">
   <h2>&#9632; 4. Lintel Gravity Loads <span class="badge">ASD Service Combo D+L</span></h2>
-  <div class="callout">Enter ASD combined service loads per ASCE 7-22 §2.4. Include wall self-weight above opening in <em>w</em>. Typical fully-grouted 8&Prime; CMU wall weight &asymp; 75&ndash;85 psf.</div>
+  <div class="callout">Enter <strong>floor/roof tributary load only</strong> in w<sub>trib</sub>. CMU wall self-weight above the opening is computed automatically from the unit weight and geometry (H<sub>wall</sub> &minus; H<sub>soffit</sub>). Total lintel load shown below is used in all calculations.</div>
   <div class="g3">
     <div class="ig">
-      <label>w &mdash; Uniform D+L <span class="unit">(lb/ft)</span></label>
-      <input type="number" id="w_load" value="600" step="50" min="0">
-      <div class="hint">Includes wall above + tributary floor/roof</div>
+      <label>w<sub>trib</sub> &mdash; Floor/Roof Tributary <span class="unit">(lb/ft)</span></label>
+      <input type="number" id="w_load" value="600" step="50" min="0" oninput="updateWallWeight()">
+      <div class="hint">Floor or roof tributary only &mdash; do NOT include wall weight here</div>
     </div>
     <div class="ig">
-      <label>Wall Weight Reference <span class="unit">(psf)</span></label>
-      <input type="number" id="w_wall_psf" value="75" step="5" min="0">
-      <div class="hint">Informational only &mdash; include in w above</div>
+      <label>CMU Unit Weight w<sub>wall,psf</sub> <span class="unit">(psf)</span></label>
+      <input type="number" id="w_wall_psf" value="75" step="5" min="0" oninput="updateWallWeight()">
+      <div class="hint">Wall weight/ft height incl. grout. Auto-added: w<sub>wall</sub> = w<sub>wall,psf</sub> &times; (H<sub>wall</sub>&minus;H<sub>soffit</sub>)</div>
+    </div>
+    <div class="ig">
+      <label>w<sub>wall</sub> &mdash; Auto Wall Weight <span class="unit">(lb/ft, auto)</span></label>
+      <input type="number" id="w_wall_auto" value="300" readonly>
+      <div class="hint">= w<sub>wall,psf</sub> &times; (H<sub>wall</sub> &minus; H<sub>soffit</sub>) ft</div>
+    </div>
+    <div class="ig">
+      <label>w<sub>total</sub> &mdash; Total Lintel Load <span class="unit">(lb/ft, auto)</span></label>
+      <input type="number" id="w_total_disp" value="900" readonly>
+      <div class="hint">= w<sub>trib</sub> + w<sub>wall</sub> &mdash; used in all calculations</div>
     </div>
     <div class="ig">
       <label>P<sub>conc</sub> &mdash; Concentrated Load <span class="unit">(lb)</span></label>
@@ -381,6 +391,16 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <option value="0.44">#6 &mdash; 0.44 in&sup2;</option><option value="0.60">#7 &mdash; 0.60 in&sup2;</option>
         <option value="0.79">#8 &mdash; 0.79 in&sup2;</option><option value="1.00">#9 &mdash; 1.00 in&sup2;</option>
       </select></div>
+    <div class="ig">
+      <label>Lintel OOP Cover <span class="unit">(in)</span></label>
+      <input type="number" id="cover_lin_oop" value="2.5" step="0.25" min="1">
+      <div class="hint">Cover to bar center from OOP face (b direction) &mdash; for reinforced OOP tension check when bars are present</div>
+    </div>
+    <div class="ig">
+      <label>Bearing Eccentricity e <span class="unit">(in)</span></label>
+      <input type="number" id="e_ecc" value="0" step="0.5" min="0">
+      <div class="hint">Eccentricity of lintel reaction from jamb centroid (OOP direction). Creates additional OOP bending in jamb. Use 0 if centered or unknown.</div>
+    </div>
   </div>
 </div>
 
@@ -465,11 +485,21 @@ function updateOopDisplay(){
   document.getElementById('w_cc_asd_disp').value=asd.toFixed(1);
   document.getElementById('W_oop_display').value=(asd*Hw/2).toFixed(1);
 }
+function updateWallWeight(){
+  var wt=parseFloat(document.getElementById('w_load').value)||0;
+  var wpsf=parseFloat(document.getElementById('w_wall_psf').value)||0;
+  var Hw=parseFloat(document.getElementById('H_wall').value)||0;
+  var Hs=parseFloat(document.getElementById('H_soffit').value)||0;
+  var Hab=Math.max(Hw-Hs,0);
+  var wwa=wpsf*Hab;
+  document.getElementById('w_wall_auto').value=Math.round(wwa);
+  document.getElementById('w_total_disp').value=Math.round(wt+wwa);
+}
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
 var INPUT_IDS=['fm','steel_grade','mortar_type','cmu_size','clear_span','bearing','t_lin','eff_d',
   'H_wall','H_soffit','W_jamb','H_jamb','cover_jamb','w_load','w_wall_psf','P_down',
-  'a_P','wu_load','P_uplift','w_cc','n_bot','bar_bot','n_top','bar_top','n_jamb','bar_jamb'];
+  'a_P','wu_load','P_uplift','w_cc','n_bot','bar_bot','n_top','bar_top','cover_lin_oop','e_ecc','n_jamb','bar_jamb'];
 function saveInputs(){
   var d={};
   INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
@@ -558,7 +588,13 @@ function runCalcs(){
   var cov_j  =parseFloat(document.getElementById('cover_jamb').value);
   var L_ft   =clr+brg/12.0; var L_in=L_ft*12.0;
 
-  var w_total=parseFloat(document.getElementById('w_load').value)||0;
+  var w_trib  =parseFloat(document.getElementById('w_load').value)||0;
+  var w_wall_psf_v=parseFloat(document.getElementById('w_wall_psf').value)||0;
+  var H_above =Math.max(H_wall-H_soffit,0);
+  var w_wall_v=w_wall_psf_v*H_above;
+  var w_total =w_trib+w_wall_v;
+  var cover_lin_oop=parseFloat(document.getElementById('cover_lin_oop').value)||2.5;
+  var e_ecc   =parseFloat(document.getElementById('e_ecc').value)||0;
   var P_down =parseFloat(document.getElementById('P_down').value)||0;
   var a_ft   =parseFloat(document.getElementById('a_P').value)||L_ft/2;
   var wu     =parseFloat(document.getElementById('wu_load').value)||0;
@@ -622,7 +658,8 @@ function runCalcs(){
   // A1
   var dc1=fs_bot/Fs;
   var da1='<div class="cref-hdr">TMS 402-22 §8.3.2 &mdash; Flexure ASD (Bottom Bars)</div><div class="cbox">';
-  da1+=(P_down===0)?'<div class="mrow"><span class="ceq">M =</span>'+fr('w&sdot;L&sup2;','8')+' = '+fr(f1(w_total)+'&times;'+f2(L_ft)+'&sup2;','8')+' = <span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft = '+fc(Math.round(M_grav_inlb))+' lb&middot;in</span></div>'
+  da1+='<div class="mrow"><span class="ceq">Load:</span> w<sub>trib</sub> = '+f1(w_trib)+' + w<sub>wall</sub> = '+fc(Math.round(w_wall_v))+' = w<sub>total</sub> = <span class="cval">'+f1(w_total)+' lb/ft</span> &nbsp;[w<sub>wall</sub> = '+f1(w_wall_psf_v)+' psf&times;'+f1(H_above)+' ft]</div>';
+  da1+=(P_down===0)?'<div class="mrow"><span class="ceq">M =</span>'+fr('w<sub>total</sub>&sdot;L&sup2;','8')+' = '+fr(f1(w_total)+'&times;'+f2(L_ft)+'&sup2;','8')+' = <span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft = '+fc(Math.round(M_grav_inlb))+' lb&middot;in</span></div>'
     :'<div class="mrow"><span class="ceq">M =</span><span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft</span> (combined uniform + concentrated)</div>';
   da1+='<div class="mrow"><span class="ceq">n&rho; =</span>'+f2(n)+'&times;'+f4(rho_b)+' = '+f4(nrho_b)+'</div>';
   da1+='<div class="mrow"><span class="ceq">k =</span>'+ov('(n&rho;)&sup2;+2n&rho;')+' &minus; n&rho; = <span class="cval">'+f3(k_b)+'</span> &nbsp; j = 1&minus;k/3 = <span class="cval">'+f3(j_b)+'</span></div>';
@@ -658,7 +695,9 @@ function runCalcs(){
 
   setSummary('sumA',pA,dcA,'Lintel Gravity &mdash; REK-06');
   setCards('demA',[
-    {v:f1(w_total)+' lb/ft',l:'Uniform\nGravity w',cls:'dem-card'},
+    {v:f1(w_trib)+' lb/ft',l:'Trib Load w_trib\n(floor/roof only)',cls:'dem-card'},
+    {v:fc(Math.round(w_wall_v))+' lb/ft',l:'Wall Weight w_wall\nauto ('+f1(w_wall_psf_v)+' psf\u00D7'+f1(H_above)+' ft)',cls:'dem-card'},
+    {v:f1(w_total)+' lb/ft',l:'Total w_total\n(used in all calcs)',cls:'dem-card'},
     {v:fc(Math.round(M_grav_inlb/12))+' lb\u00B7ft',l:'Max Gravity\nMoment M',cls:'dem-card'},
     {v:fc(Math.round(V_grav))+' lb',l:'Max Shear V\n(at support)',cls:'dem-card'},
     {v:f1(fs_bot)+' psi',l:'Steel Stress f_s\nvs Fs='+f1(Fs),cls:fs_bot<=Fs?'dem-card ok':'dem-card bad'},
@@ -692,13 +731,35 @@ function runCalcs(){
   db1+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fb_oop),f1(Fb_oop_eff))+' = <span class="cval">'+f3(dcb1)+'</span></div></div>';
   ckB({n:'OOP Compressive Stress f<sub>b,oop</sub>',r:'TMS 402-22 §8.2.3',d:'f<sub>b,oop</sub> = '+f1(fb_oop)+' psi',c:'F<sub>b,oop</sub> = '+f1(Fb_oop_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dcb1,nt:'0.6W = '+f1(w_cc_asd)+' psf ; S<sub>oop</sub> = '+f1(S_oop)+' in³',pass:dcb1<=1,info:false,det:db1});
 
-  // B2 — OOP tension
-  var dcb2=dc_B_ten;
-  var db2='<div class="cref-hdr w">TMS 402-22 §8.2.5 &mdash; Lintel OOP Flexural Tension (Unreinforced)</div><div class="cbox w">';
-  db2+='<div class="mrow"><span class="ceq w">F<sub>t</sub> =</span> '+Ft_base+' psi (grouted, Type '+mortar+', Table 8.2.5.2)'+(windInc?' &times; 4/3 = <span class="cval">'+f1(Ft_eff)+' psi</span>':' = <span class="cval">'+f1(Ft_eff)+' psi</span>')+'</div>';
-  db2+='<div class="mrow">f<sub>b,oop</sub> = <span class="cval">'+f1(fb_oop)+' psi</span>'+(fb_oop>Ft_eff?' > F<sub>t</sub> &mdash; <strong>OOP horizontal reinforcing required in lintel</strong>':' &le; F<sub>t</sub> &#10003;')+'</div>';
-  db2+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fb_oop),f1(Ft_eff))+' = <span class="cval">'+f3(dcb2)+'</span></div></div>';
-  ckB({n:'OOP Flexural Tension vs F<sub>t</sub>',r:'TMS 402-22 §8.2.5',d:'f<sub>b,oop</sub> = '+f1(fb_oop)+' psi',c:'F<sub>t</sub> = '+f1(Ft_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dcb2,nt:(fb_oop>Ft_eff?'GOVERNS — horizontal OOP bars required':'No net tension'),pass:dcb2<=1,info:false,det:db2});
+  // B2 — OOP tension: reinforced if As_bot > 0, else unreinforced F_t check
+  var d_oop=b-cover_lin_oop;
+  var dcb2,db2;
+  if(As_bot>0){
+    // Reinforced: use bottom bars to resist OOP weak-axis tension
+    var rho_oop=As_bot/(t_lin*d_oop);
+    var nrho_oop=n*rho_oop;
+    var k_oop=Math.sqrt(nrho_oop*nrho_oop+2*nrho_oop)-nrho_oop;
+    var j_oop=1.0-k_oop/3.0;
+    var fs_oop=(j_oop*d_oop>0)?M_oop_inlb/(As_bot*j_oop*d_oop):0;
+    var Fs_oop_eff=Fs*k_wind;
+    dcb2=fs_oop/Fs_oop_eff;
+    db2='<div class="cref-hdr w">TMS 402-22 §8.3.2 &mdash; Lintel OOP Tension (Reinforced &mdash; Bottom Bars Present)</div><div class="cbox w">';
+    db2+='<div class="mrow"><span class="ceq w">Reinforced check used:</span> A<sub>s,bot</sub> = '+f2(As_bot)+' in&sup2; resists OOP tension. Unreinforced F<sub>t</sub> limit not applicable when reinforcement is present.</div>';
+    db2+='<div class="mrow"><span class="ceq w">d<sub>oop</sub> =</span> b &minus; cover<sub>oop</sub> = '+f1(b)+'&minus;'+f1(cover_lin_oop)+' = <span class="cval">'+f1(d_oop)+' in</span> (OOP effective depth)</div>';
+    db2+='<div class="mrow"><span class="ceq w">n&rho;<sub>oop</sub> =</span>'+f2(n)+'&times;'+f4(rho_oop)+' = '+f4(nrho_oop)+' &nbsp; k<sub>oop</sub> = <span class="cval">'+f3(k_oop)+'</span> &nbsp; j<sub>oop</sub> = <span class="cval">'+f3(j_oop)+'</span></div>';
+    db2+='<div class="mrow"><span class="ceq w">f<sub>s,oop</sub> =</span>'+fr('M<sub>oop</sub>','A<sub>s</sub>&sdot;j<sub>oop</sub>&sdot;d<sub>oop</sub>')+' = '+fr(fc(Math.round(M_oop_inlb)),f2(As_bot)+'&times;'+f3(j_oop)+'&times;'+f1(d_oop))+' = <span class="cval">'+f1(fs_oop)+' psi</span></div>';
+    db2+='<div class="mrow"><span class="ceq w">F<sub>s,eff</sub> =</span> '+f1(Fs)+(windInc?'&times;4/3 = <span class="cval">'+f1(Fs_oop_eff)+' psi</span>':' = <span class="cval">'+f1(Fs_oop_eff)+' psi</span>')+'</div>';
+    db2+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fs_oop),f1(Fs_oop_eff))+' = <span class="cval">'+f3(dcb2)+'</span></div></div>';
+    ckB({n:'OOP Tension &mdash; Reinforced f<sub>s,oop</sub>',r:'TMS 402-22 §8.3.2',d:'f<sub>s,oop</sub> = '+f1(fs_oop)+' psi',c:'F<sub>s</sub> = '+f1(Fs_oop_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dcb2,nt:'Bars present; d<sub>oop</sub>='+f1(d_oop)+'&Prime; ; k='+f3(k_oop)+' ; j='+f3(j_oop),pass:dcb2<=1,info:false,det:db2});
+  }else{
+    // Unreinforced: check against F_t
+    dcb2=dc_B_ten;
+    db2='<div class="cref-hdr w">TMS 402-22 §8.2.5 &mdash; Lintel OOP Flexural Tension (Unreinforced &mdash; No Bars)</div><div class="cbox w">';
+    db2+='<div class="mrow"><span class="ceq w">F<sub>t</sub> =</span> '+Ft_base+' psi (grouted, Type '+mortar+', Table 8.2.5.2)'+(windInc?' &times; 4/3 = <span class="cval">'+f1(Ft_eff)+' psi</span>':' = <span class="cval">'+f1(Ft_eff)+' psi</span>')+'</div>';
+    db2+='<div class="mrow">f<sub>b,oop</sub> = <span class="cval">'+f1(fb_oop)+' psi</span>'+(fb_oop>Ft_eff?' > F<sub>t</sub> &mdash; <strong>OOP horizontal reinforcing required in lintel</strong>':' &le; F<sub>t</sub> &#10003;')+'</div>';
+    db2+='<hr class="csep w"><div class="mrow">D/C = '+fr(f1(fb_oop),f1(Ft_eff))+' = <span class="cval">'+f3(dcb2)+'</span></div></div>';
+    ckB({n:'OOP Flexural Tension vs F<sub>t</sub>',r:'TMS 402-22 §8.2.5',d:'f<sub>b,oop</sub> = '+f1(fb_oop)+' psi',c:'F<sub>t</sub> = '+f1(Ft_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dcb2,nt:(fb_oop>Ft_eff?'GOVERNS — add OOP bars':'No net tension'),pass:dcb2<=1,info:false,det:db2});
+  }
 
   // B3 — Biaxial
   var dcb3=dc_B_comp;
@@ -748,7 +809,11 @@ function runCalcs(){
   var k_j=Math.sqrt(nrho_j*nrho_j+2.0*nrho_j)-nrho_j,j_j=1.0-k_j/3.0;
   var fs_j=(As_jamb>0&&j_j*d_jamb>0)?Mmax_j_in/(As_jamb*j_j*d_jamb):0;
   var fb_j=(k_j*d_jamb>0)?2.0*Mmax_j_in/(W_jamb*k_j*d_jamb*j_j*d_jamb):0;
-  var unity_j=fa_j/Fa_j_eff+fb_j/Fb_j_eff;
+  // Eccentricity: lintel reaction eccentric from jamb centroid (OOP direction)
+  var M_ecc_j_in=P_jamb*e_ecc;                       // in·lb at bearing point
+  var S_j_oop=W_jamb*b*b/6.0;                         // in³, bending in OOP direction
+  var fb_j_ecc=(e_ecc>0&&S_j_oop>0)?M_ecc_j_in/S_j_oop:0;
+  var unity_j=fa_j/Fa_j_eff+(fb_j+fb_j_ecc)/Fb_j_eff;
 
   var chksC=[],pC=true,dcC=0;
   function ckC(c){chksC.push(c);if(!c.pass)pC=false;if(c.dc>dcC)dcC=c.dc;}
@@ -806,10 +871,18 @@ function runCalcs(){
   // C6 — Combined
   var dcc6=unity_j;
   var dc6c='<div class="cref-hdr j">TMS 402-22 §8.3.4.2 &mdash; Combined Axial + Flexure (Eq. 8-20)</div><div class="cbox j">';
-  dc6c+='<div class="mrow"><span class="ceq j">Eq. 8-20:</span>'+fr('f<sub>a</sub>','F<sub>a</sub>')+' + '+fr('f<sub>b,j</sub>','F<sub>b</sub>')+' &le; 1.0</div>';
-  dc6c+='<div class="mrow ind">= '+fr(f1(fa_j),f1(Fa_j_eff))+' + '+fr(f1(fb_j),f1(Fb_j_eff))+' = '+f3(fa_j/Fa_j_eff)+' + '+f3(fb_j/Fb_j_eff)+' = <span class="cval">'+f3(unity_j)+'</span></div>';
+  dc6c+='<div class="mrow"><span class="ceq j">Eq. 8-20:</span>'+fr('f<sub>a</sub>','F<sub>a</sub>')+' + '+fr('f<sub>b,total</sub>','F<sub>b</sub>')+' &le; 1.0</div>';
+  if(e_ecc>0){
+    dc6c+='<div class="mrow"><span class="ceq j">f<sub>b,wind</sub> =</span> <span class="cval">'+f1(fb_j)+' psi</span> (from OOP wind moment)</div>';
+    dc6c+='<div class="mrow"><span class="ceq j">f<sub>b,ecc</sub> =</span>'+fr('P&sdot;e','S<sub>j,oop</sub>')+' = '+fr(fc(Math.round(P_jamb))+'&times;'+f1(e_ecc),f1(S_j_oop))+' = <span class="cval">'+f1(fb_j_ecc)+' psi</span></div>';
+    dc6c+='<div class="mrow"><span class="ceq j">f<sub>b,total</sub> =</span> '+f1(fb_j)+' + '+f1(fb_j_ecc)+' = <span class="cval">'+f1(fb_j+fb_j_ecc)+' psi</span> &nbsp; [S<sub>j,oop</sub> = '+f1(S_j_oop)+' in&sup3;]</div>';
+    dc6c+='<div class="mrow ind">= '+fr(f1(fa_j),f1(Fa_j_eff))+' + '+fr(f1(fb_j+fb_j_ecc),f1(Fb_j_eff))+' = '+f3(fa_j/Fa_j_eff)+' + '+f3((fb_j+fb_j_ecc)/Fb_j_eff)+' = <span class="cval">'+f3(unity_j)+'</span></div>';
+  }else{
+    dc6c+='<div class="mrow ind">= '+fr(f1(fa_j),f1(Fa_j_eff))+' + '+fr(f1(fb_j),f1(Fb_j_eff))+' = '+f3(fa_j/Fa_j_eff)+' + '+f3(fb_j/Fb_j_eff)+' = <span class="cval">'+f3(unity_j)+'</span></div>';
+    dc6c+='<div class="mrow" style="font-size:.82em;color:#666">(e = 0; no eccentricity moment)</div>';
+  }
   dc6c+='<hr class="csep j"><div class="mrow">D/C (Unity) = <span class="cval">'+f3(dcc6)+'</span></div></div>';
-  ckC({n:'Combined Axial+Flexure Unity',r:'TMS 402-22 §8.3.4.2',d:fr('f<sub>a</sub>','F<sub>a</sub>')+'+'+fr('f<sub>b</sub>','F<sub>b</sub>'),c:'&le; 1.0',dc:dcc6,nt:'f<sub>a</sub>/F<sub>a</sub> = '+f3(fa_j/Fa_j_eff)+' ; f<sub>b</sub>/F<sub>b</sub> = '+f3(fb_j/Fb_j_eff),pass:dcc6<=1,info:false,det:dc6c});
+  ckC({n:'Combined Axial+Flexure Unity',r:'TMS 402-22 §8.3.4.2',d:fr('f<sub>a</sub>','F<sub>a</sub>')+'+'+fr('f<sub>b</sub>','F<sub>b</sub>'),c:'&le; 1.0',dc:dcc6,nt:'f<sub>a</sub>/F<sub>a</sub>='+f3(fa_j/Fa_j_eff)+' ; f<sub>b</sub>/F<sub>b</sub>='+f3((fb_j+fb_j_ecc)/Fb_j_eff)+(e_ecc>0?' ; e='+f1(e_ecc)+'&Prime;':''),pass:dcc6<=1,info:false,det:dc6c});
 
   setSummary('sumC',pC,dcC,'Masonry Jamb REK-04');
   setCards('demC',[
@@ -842,11 +915,12 @@ function runCalcs(){
     'Design per TMS 402-22 ASD / MDG-2022 REK-04 (jamb) and REK-06 (lintel). Enter gravity loads per ASCE 7-22 §2.4 ASD combinations.',
     '<strong>Wind convention:</strong> Enter the nominal ASCE 7 strength-level C&amp;C pressure from the design chart. The calculator multiplies by <strong>0.6</strong> (ASCE 7-22 §2.4.1, combo D + 0.6W) for all wind demands. The optional 1/3 allowable stress increase (TMS §8.1.4.1) then scales all wind allowables by 4/3. Both apply together &mdash; this is standard ASD wind practice.',
     'Effective lintel span: L = clear + bearing/12 per §5.3.1.1. Minimum bearing 4&Prime; per §5.3.1.4; 8&Prime; typical.',
-    'Lintel OOP line load: W<sub>oop</sub> = 0.6W &times; H<sub>wall</sub>/2. OOP section modulus S<sub>oop</sub> = t<sub>lin</sub>&times;b&sup2;/6 (unreinforced, bending about vertical axis). If f<sub>b,oop</sub> > F<sub>t</sub>, horizontal OOP reinforcing required.',
+    'Lintel OOP line load: W<sub>oop</sub> = 0.6W &times; H<sub>wall</sub>/2. OOP section modulus S<sub>oop</sub> = t<sub>lin</sub>&times;b&sup2;/6 (bending about vertical axis). <strong>When lintel bars are present</strong>, OOP tension is checked as a reinforced section (steel stress check, d<sub>oop</sub> = b &minus; OOP cover). When no bars are present, the unreinforced F<sub>t</sub> limit governs.',
     'Jamb OOP model: simply supported vertical beam with (1) uniform C&amp;C = 0.6W&times;W<sub>j</sub>/12 distributed load, and (2) lintel OOP reaction as point load at mid-lintel height. Zero-shear method locates max moment.',
     'Jamb transformed section: b<sub>sec</sub> = W<sub>jamb</sub>, d = b<sub>wall</sub> &minus; cover. Combined axial+flexure check: f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub> &le; 1.0 per §8.3.4.2 Eq. 8-20.',
     windInc?'1/3 wind stress increase (k=4/3) applied to all wind allowables per §8.1.4.1.':'No 1/3 stress increase applied. Check if applicable per §8.1.4.1.',
-    'Include wall self-weight above opening in w. Fully grouted 8&Prime; CMU &asymp; 75&ndash;85 psf including self-weight of lintel block courses.',
+    '<strong>Wall self-weight is automatically computed</strong> from w<sub>wall,psf</sub> &times; (H<sub>wall</sub> &minus; H<sub>soffit</sub>) and added to the floor/roof tributary load. Enter only the floor/roof tributary load in w<sub>trib</sub>. Total w<sub>total</sub> = w<sub>trib</sub> + w<sub>wall</sub> is used for all moment, shear, and reaction calculations.',
+    'Bearing eccentricity e (in) adds an eccentric moment M<sub>ecc</sub> = P &times; e about the OOP axis of the jamb. This is folded into the combined axial+flexure unity check (Eq. 8-20) as additional OOP bending stress. Enter 0 if the load is centered.',
     'Print button generates a clean printout/PDF of all inputs and results. Save/Load buttons store and retrieve input sets as .json files for different opening configurations.',
   ].forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});
 
@@ -854,8 +928,8 @@ function runCalcs(){
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-window.onload=function(){setCMUDims();autoFill();updateOopDisplay();};
-document.addEventListener('input',updateOopDisplay);
+window.onload=function(){setCMUDims();autoFill();updateOopDisplay();updateWallWeight();};
+document.addEventListener('input',function(){updateOopDisplay();updateWallWeight();});
 </script>
 </body>
 </html>
