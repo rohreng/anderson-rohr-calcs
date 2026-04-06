@@ -416,23 +416,69 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
     <!-- BLOCK 3: WALL GEOMETRY & AXIAL LOAD -->
     <div class="blk">
-      <h2>&#9679; Wall Geometry, Axial Load &amp; Reinforcement <span class="badge">Slenderness / Capacity</span></h2>
+      <h2>&#9679; Wall Geometry, Axial Loads &amp; Reinforcement <span class="badge">IBC ASD Combos</span></h2>
       <div class="g4">
         <div class="ig">
-          <label>Wall Height h <span class="unit">ft</span></label>
+          <label>Design Span h <span class="unit">ft</span></label>
           <input type="number" id="hWall" value="12" step="0.5" min="1">
-          <span class="hint">Unsupported height for slenderness</span>
+          <span class="hint">Unsupported height for slenderness &amp; OOP moment</span>
         </div>
-        <div class="ig">
-          <label>Axial Load P <span class="unit">lb/ft</span></label>
-          <input type="number" id="Paxial" value="0" step="100" min="0">
-          <span class="hint">Service compressive load per ft of wall</span>
+      </div>
+
+      <!-- Wall Self-Weight (e = 0, centered) -->
+      <div style="margin-top:14px;border-top:1px dashed #ccc;padding-top:12px">
+        <div style="font-weight:600;color:#1e3c72;font-size:.9em;margin-bottom:10px">Wall Self-Weight &mdash; Dead Load, e = 0 (centered on wall):</div>
+        <div class="g4">
+          <div class="ig">
+            <label>Wall Weight <span class="unit">psf</span></label>
+            <input type="number" id="wallWt" value="55" step="1" min="0" oninput="updatePwallCalc()">
+            <span class="hint">Weight per sf of wall face area</span>
+          </div>
+          <div class="ig">
+            <label>Total Wall Height <span class="unit">ft</span></label>
+            <input type="number" id="hTotal" value="12" step="0.5" min="0" oninput="updatePwallCalc()">
+            <span class="hint">Full height above design point (can exceed design span for parapet, upper floors)</span>
+          </div>
+          <div class="ig" style="background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:8px 12px">
+            <label>P<sub>wall</sub> <span class="unit">plf</span></label>
+            <span id="pWallCalc" style="font-weight:700;font-size:1.1em;color:#15803d">660</span>
+            <span class="hint">= Weight &times; Height &nbsp;|&nbsp; Applied at wall centroid, no eccentricity</span>
+          </div>
         </div>
-        <div class="ig">
-          <label>Load Eccentricity e <span class="unit">in</span></label>
-          <input type="number" id="ecc" value="0" step="0.25" min="0">
-          <span class="hint">Eccentric axial adds M<sub>e</sub> = P&times;e to OOP demand</span>
+      </div>
+
+      <!-- Applied Loads (with eccentricity) -->
+      <div style="margin-top:14px;border-top:1px dashed #ccc;padding-top:12px">
+        <div style="font-weight:600;color:#1e3c72;font-size:.9em;margin-bottom:10px">Applied Axial Loads &mdash; with eccentricity (from bearing, ledger, joist seat, etc.):</div>
+        <div class="g4" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+          <div class="ig">
+            <label>Dead P<sub>D</sub> <span class="unit">plf</span></label>
+            <input type="number" id="pDead" value="0" step="50" min="0">
+          </div>
+          <div class="ig">
+            <label>Live P<sub>L</sub> <span class="unit">plf</span></label>
+            <input type="number" id="pLive" value="0" step="50" min="0">
+          </div>
+          <div class="ig">
+            <label>Roof Live P<sub>Lr</sub> <span class="unit">plf</span></label>
+            <input type="number" id="pRoofLive" value="0" step="50" min="0">
+          </div>
+          <div class="ig">
+            <label>Snow P<sub>S</sub> <span class="unit">plf</span></label>
+            <input type="number" id="pSnow" value="0" step="50" min="0">
+          </div>
+          <div class="ig">
+            <label>Wind P<sub>W</sub> <span class="unit">plf</span></label>
+            <input type="number" id="pWindAxial" value="0" step="50">
+            <span class="hint">Vertical component (+dn / &minus;uplift)</span>
+          </div>
+          <div class="ig">
+            <label>Eccentricity e <span class="unit">in</span></label>
+            <input type="number" id="ecc" value="0" step="0.25" min="0">
+            <span class="hint">From wall CL to load line of action</span>
+          </div>
         </div>
+        <div id="govComboHint" class="callout" style="margin-top:10px;display:none"></div>
       </div>
       <div style="margin-top:16px;border-top:1px dashed #ccc;padding-top:14px">
         <div style="font-weight:600;color:#1e3c72;font-size:.9em;margin-bottom:10px">Vertical (Out-of-Plane) Reinforcement &mdash; Tension Side:</div>
@@ -890,6 +936,7 @@ function fk(v){return (v/1000).toFixed(2);}
 document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('dOOP').addEventListener('input', function() { dOOP_userEdited = true; });
   updateHints();
+  updatePwallCalc();
   updatePlanDiagram();
   // Read URL params
   var params = new URLSearchParams(window.location.search);
@@ -936,6 +983,12 @@ function updateHints() {
     document.getElementById('dOOP').value = sugD;
   }
   updatePlanDiagram();
+}
+
+function updatePwallCalc() {
+  var wt = parseFloat(document.getElementById('wallWt').value) || 0;
+  var ht = parseFloat(document.getElementById('hTotal').value) || 0;
+  document.getElementById('pWallCalc').textContent = Math.round(wt * ht);
 }
 
 function toggleDoubleReinf() {
@@ -991,7 +1044,16 @@ function runChecks() {
   var fm     = parseInt(document.getElementById('fm').value);
   var grade  = document.getElementById('grade').value;
   var h_ft   = parseFloat(document.getElementById('hWall').value);
-  var P_plf  = parseFloat(document.getElementById('Paxial').value) || 0;
+  // ── Wall self-weight (Dead load, e = 0) ──
+  var wallWt_psf = parseFloat(document.getElementById('wallWt').value) || 0;
+  var hTotal_ft  = parseFloat(document.getElementById('hTotal').value) || 0;
+  var P_wall     = wallWt_psf * hTotal_ft; // plf, centered, e = 0
+  // ── Applied loads (with eccentricity) ──
+  var Pd   = parseFloat(document.getElementById('pDead').value) || 0;
+  var Pl   = parseFloat(document.getElementById('pLive').value) || 0;
+  var Plr  = parseFloat(document.getElementById('pRoofLive').value) || 0;
+  var Ps   = parseFloat(document.getElementById('pSnow').value) || 0;
+  var Pw   = parseFloat(document.getElementById('pWindAxial').value) || 0;
   var ecc_in = parseFloat(document.getElementById('ecc').value) || 0;
   var w_psf  = parseFloat(document.getElementById('wWind').value) || 0;
   var mCalcT = document.getElementById('mCalcType').value;
@@ -1053,21 +1115,74 @@ function runChecks() {
     R_factor = Math.pow(70/h_r, 2);
   }
   var Pa_allow = (0.30*fm*An + 0.65*Ast_perft*Fs) * R_factor;
-  var fa       = P_plf / An;
   var Fa       = Pa_allow / An;
+
+  // ---- IBC ASD LOAD COMBINATIONS (§1605.3.1) ----
+  // Wall self-weight is Dead load at e=0; applied loads have eccentricity.
+  // Wind combos include OOP moment from lateral wind on wall face.
+  var Moop_wind_lbft;
+  if (mCalcT === 'simple')          Moop_wind_lbft = w_psf * h_ft * h_ft / 8;
+  else if (mCalcT === 'cantilever') Moop_wind_lbft = w_psf * h_ft * h_ft / 2;
+  else if (mCalcT === 'fixed')      Moop_wind_lbft = w_psf * h_ft * h_ft / 12;
+  else                              Moop_wind_lbft = parseFloat(document.getElementById('MoopManual').value) || 0;
+  var Voop_plf = w_psf * h_ft / 2;
+
+  var ASD_COMBOS = [
+    {name:'D',                              fD:1,   fL:0,    fLr:0,    fS:0,    fW:0,    wind:false},
+    {name:'D + L',                          fD:1,   fL:1,    fLr:0,    fS:0,    fW:0,    wind:false},
+    {name:'D + Lr',                         fD:1,   fL:0,    fLr:1,    fS:0,    fW:0,    wind:false},
+    {name:'D + S',                          fD:1,   fL:0,    fLr:0,    fS:1,    fW:0,    wind:false},
+    {name:'D + 0.75L + 0.75Lr',            fD:1,   fL:0.75, fLr:0.75, fS:0,    fW:0,    wind:false},
+    {name:'D + 0.75L + 0.75S',             fD:1,   fL:0.75, fLr:0,    fS:0.75, fW:0,    wind:false},
+    {name:'D + 0.6W',                      fD:1,   fL:0,    fLr:0,    fS:0,    fW:0.6,  wind:true},
+    {name:'D + 0.75L + 0.75(0.6W) + 0.75Lr', fD:1, fL:0.75, fLr:0.75, fS:0,   fW:0.45, wind:true},
+    {name:'D + 0.75L + 0.75(0.6W) + 0.75S',  fD:1, fL:0.75, fLr:0,   fS:0.75, fW:0.45, wind:true},
+    {name:'0.6D + 0.6W',                   fD:0.6, fL:0,    fLr:0,    fS:0,    fW:0.6,  wind:true}
+  ];
+
+  // Evaluate each combo
+  var govCombo = null, govUnity = -1;
+  var P_plf = 0, M_ecc_lbft = 0, Moop_total_lbft = 0;
+  ASD_COMBOS.forEach(function(c){
+    // Wall self-weight is dead load — gets D factor
+    var Pw_combo = c.fD * P_wall;
+    // Applied loads — each gets its own factor
+    var Pa_combo = c.fD * Pd + c.fL * Pl + c.fLr * Plr + c.fS * Ps + c.fW * Pw;
+    var Pt = Pw_combo + Pa_combo;
+    if (Pt < 0) Pt = 0; // net tension not considered for masonry ASD compression check
+    var Me = Pa_combo * ecc_in / 12; // lb·ft/ft — only applied loads have eccentricity
+    if (Me < 0) Me = 0;
+    var Mt = c.wind ? (Me + Moop_wind_lbft) : Me; // add OOP wind moment for wind combos
+    // Quick unity estimate: fa/Fa + fb/Fb (simplified, using gross section)
+    var fa_c = Pt / An;
+    var Mt_lbin = Mt * 12;
+    var Sn_c = In / (t / 2);
+    var fb_c = (Sn_c > 0) ? Mt_lbin / Sn_c : 0;
+    var unity = (Fa > 0 ? fa_c / Fa : 0) + (Fb > 0 ? fb_c / Fb : 0);
+    c._Pt = Pt; c._Me = Me; c._Mt = Mt; c._unity = unity;
+    if (unity > govUnity) { govUnity = unity; govCombo = c; }
+  });
+
+  // Use governing combo values for all downstream checks
+  P_plf = govCombo._Pt;
+  M_ecc_lbft = govCombo._Me;
+  Moop_total_lbft = govCombo._Mt;
+  var Moop_lbin = Moop_total_lbft * 12;
+  var fa = P_plf / An;
   var dc_axial = (Pa_allow > 0) ? P_plf / Pa_allow : 0;
 
-  // ---- OOP MOMENT (wind + eccentricity) ----
-  var Moop_wind_lbft;
-  if (mCalcT === 'simple')      Moop_wind_lbft = w_psf * h_ft * h_ft / 8;
-  else if (mCalcT === 'cantilever') Moop_wind_lbft = w_psf * h_ft * h_ft / 2;
-  else if (mCalcT === 'fixed')  Moop_wind_lbft = w_psf * h_ft * h_ft / 12;
-  else                          Moop_wind_lbft = parseFloat(document.getElementById('MoopManual').value) || 0;
-
-  var M_ecc_lbft  = P_plf * ecc_in / 12; // lb·ft/ft  (P [lb/ft] × e [in] / 12 in/ft)
-  var Moop_total_lbft = Moop_wind_lbft + M_ecc_lbft;
-  var Moop_lbin   = Moop_total_lbft * 12; // lb·in/ft
-  var Voop_plf    = w_psf * h_ft / 2;
+  // Show governing combo in UI
+  var comboHint = document.getElementById('govComboHint');
+  if (govCombo) {
+    comboHint.style.display = 'block';
+    comboHint.innerHTML = '&#9654; <strong>Governing IBC ASD Combo:</strong> ' + govCombo.name
+      + ' &nbsp;|&nbsp; P<sub>total</sub> = ' + Math.round(P_plf) + ' plf'
+      + (M_ecc_lbft > 0 ? ' &nbsp;|&nbsp; M<sub>ecc</sub> = ' + Math.round(M_ecc_lbft) + ' lb&middot;ft/ft' : '')
+      + (govCombo.wind ? ' &nbsp;|&nbsp; <em>includes OOP wind</em>' : '')
+      + ' &nbsp;|&nbsp; Unity &asymp; ' + (govUnity).toFixed(3);
+  } else {
+    comboHint.style.display = 'none';
+  }
 
   // ---- OOP FLEXURE ----
   var fb_oop, fs_oop, fs2_oop=0, k_oop, j_oop, kd_oop;
@@ -1182,8 +1297,9 @@ function runChecks() {
     s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.2 / MDG-2022 &sect;11.4.1 &mdash; OOP Flexure: Masonry Compression (f<sub>b</sub>)</div>';
     s += '<div class="cbox">';
     s += '<div class="mrow"><span class="ceq">Inputs:</span> b = '+b+'&Prime;, d = '+f2(dOOP)+'&Prime;, A<sub>s</sub> = '+f3(As_perft)+' in&sup2;/ft, n = '+f2(n)+'</div>';
-    s += '<div class="mrow"><span class="ceq">M<sub>wind</sub>:</span> '+f2(Moop_wind_lbft)+' lb&middot;ft/ft</div>';
-    if (ecc_in > 0) s += '<div class="mrow"><span class="ceq">M<sub>ecc</sub> = P&times;e:</span> '+fp(P_plf)+' &times; '+f2(ecc_in)+'&Prime; / 12 = '+f2(M_ecc_lbft)+' lb&middot;ft/ft</div>';
+    s += '<div class="mrow" style="color:#555;font-size:.9em"><span class="ceq">Gov. Combo:</span> '+govCombo.name+'</div>';
+    if (govCombo.wind) s += '<div class="mrow"><span class="ceq">M<sub>wind</sub>:</span> '+f2(Moop_wind_lbft)+' lb&middot;ft/ft</div>';
+    if (ecc_in > 0 && M_ecc_lbft > 0) s += '<div class="mrow"><span class="ceq">M<sub>ecc</sub> = P<sub>app</sub>&times;e:</span> '+fp(Math.round(govCombo._Pt - govCombo.fD*P_wall))+' &times; '+f2(ecc_in)+'&Prime; / 12 = '+f2(M_ecc_lbft)+' lb&middot;ft/ft</div>';
     s += '<div class="mrow"><span class="ceq">M<sub>total</sub>:</span> '+f2(Moop_total_lbft)+' lb&middot;ft/ft &rarr; <span class="cval">'+fp(Moop_lbin)+' lb&middot;in/ft</span></div>';
     s += '<hr class="csep">';
     if (rfType === 'single') {
@@ -1228,6 +1344,8 @@ function runChecks() {
     var s = '';
     s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.4.1 &mdash; Combined Axial Compression + Flexure</div>';
     s += '<div class="cbox">';
+    s += '<div class="mrow" style="color:#555;font-size:.9em"><span class="ceq">Gov. IBC ASD Combo:</span> '+govCombo.name+(govCombo.wind?' (includes OOP wind)':'')+'</div>';
+    s += '<div class="mrow"><span class="ceq">P<sub>total</sub>:</span> P<sub>wall</sub>('+Math.round(P_wall)+' &times; '+govCombo.fD+') + applied = <span class="cval">'+fp(P_plf)+' lb/ft</span></div>';
     s += '<div class="mrow"><span class="ceq">Eq. 8-14:</span> '+fr('f<sub>a</sub>','F<sub>a</sub>')+' + '+fr('f<sub>b</sub>','F<sub>b</sub>')+' &le; 1.0</div>';
     s += '<hr class="csep">';
     s += '<div class="mrow">f<sub>a</sub>/F<sub>a</sub> = '+f2(fa)+'/'+f2(Fa)+' = <span class="cval">'+f3(fa/Fa)+'</span></div>';
@@ -1314,7 +1432,7 @@ function runChecks() {
   // BUILD CHECKS ARRAY
   // ============================================================
   var chks = [];
-  chks.push({n:'Axial Compression', r:'TMS 402-22 &sect;8.3.4.2', d:'P = '+fp(P_plf)+' lb/ft', c:'P<sub>a</sub> = '+fp(Pa_allow)+' lb/ft', dc:dc_axial, nt:'h/r = '+f2(h_r)+' | R = '+f3(R_factor), det:buildAxialDet()});
+  chks.push({n:'Axial Compression', r:'TMS 402-22 &sect;8.3.4.2', d:'P = '+fp(P_plf)+' lb/ft', c:'P<sub>a</sub> = '+fp(Pa_allow)+' lb/ft', dc:dc_axial, nt:'h/r = '+f2(h_r)+' | R = '+f3(R_factor)+' | '+govCombo.name, det:buildAxialDet()});
   chks.push({n:'OOP Flexure &mdash; Masonry', r:'TMS 402-22 &sect;8.3.2', d:'f<sub>b</sub> = '+f1(fb_oop)+' psi', c:'F<sub>b</sub> = '+f1(Fb)+' psi', dc:dc_fb, nt:'k = '+f3(k_oop)+' | j = '+f4(j_oop), det:buildMasonryFlexDet()});
   chks.push({n:'OOP Flexure &mdash; Steel', r:'TMS 402-22 &sect;8.3.2', d:'f<sub>s</sub> = '+f1(fs_oop)+' psi', c:'F<sub>s</sub> = '+fp(Fs)+' psi', dc:dc_fs, nt:'A<sub>s</sub> = '+f3(As_perft)+' in&sup2;/ft | &rho; = '+f4(rho_t), det:buildSteelFlexDet()});
   chks.push({n:'Combined Axial + Flexure', r:'TMS 402-22 &sect;8.3.4.1', d:'f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub>', c:'&le; 1.0', dc:dc_comb, nt:'f<sub>a</sub>/F<sub>a</sub> = '+f3(fa/Fa)+' | f<sub>b</sub>/F<sub>b</sub> = '+f3(dc_fb), det:buildCombDet()});
@@ -1356,10 +1474,12 @@ function runChecks() {
   document.getElementById('propTbl').innerHTML = propRows.map(function(r){return '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td></tr>';}).join('');
 
   var demRows = [
-    ['Axial P', fp(P_plf)+' lb/ft'+(ecc_in>0?' (e = '+f2(ecc_in)+'&Prime;)':'')],
+    ['Gov. IBC ASD Combo', '<strong>'+govCombo.name+'</strong>'+(govCombo.wind?' (w/ wind)':'')],
+    ['P<sub>wall</sub> (self-weight)', fp(Math.round(P_wall))+' plf ('+wallWt_psf+' psf &times; '+f1(hTotal_ft)+' ft, e = 0)'],
+    ['P<sub>total</sub> (governing)', fp(P_plf)+' lb/ft'+(ecc_in>0?' (applied e = '+f2(ecc_in)+'&Prime;)':'')],
     ['OOP wind w', f1(w_psf)+' psf (service, unfactored)'],
-    ['M<sub>wind</sub>', f2(Moop_wind_lbft)+' lb&middot;ft/ft'],
-    ['M<sub>ecc</sub> = P&times;e', f2(M_ecc_lbft)+' lb&middot;ft/ft'],
+    ['M<sub>wind</sub>', f2(Moop_wind_lbft)+' lb&middot;ft/ft'+(govCombo.wind?'':' <em style="color:#9ca3af">(not in gov. combo)</em>')],
+    ['M<sub>ecc</sub> = P<sub>app</sub>&times;e', f2(M_ecc_lbft)+' lb&middot;ft/ft'],
     ['M<sub>total</sub> OOP', f2(Moop_total_lbft)+' lb&middot;ft/ft'],
     ['V<sub>oop</sub>', f1(Voop_plf)+' lb/ft'],
     ['In-plane unit shear v', fp(v_plf)+' plf'],
@@ -1369,7 +1489,7 @@ function runChecks() {
   document.getElementById('demTbl').innerHTML = demRows.map(function(r){return '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td></tr>';}).join('');
 
   var cards = [
-    {v:fp(P_plf)+' lb/ft', l:'Axial P (service)', cls:''},
+    {v:fp(P_plf)+' lb/ft', l:'Axial P<sub>total</sub><br><span style="font-size:.8em">'+govCombo.name+'</span>', cls:''},
     {v:f2(Moop_total_lbft)+'<br><span style="font-size:.75em">lb·ft/ft</span>', l:'Total OOP Moment', cls:'alt'},
     {v:f1(fb_oop)+' psi / '+f1(Fb)+' psi', l:'fb / Fb (masonry)', cls:'alt'},
     {v:f1(fs_oop)+' psi / '+fp(Fs)+' psi', l:'fs / Fs (steel)', cls:'alt'},
@@ -1509,7 +1629,8 @@ function updatePlanDiagram() {
 // SAVE / LOAD STATE
 // ============================================================
 function saveState() {
-  var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','Paxial','ecc',
+  var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','wallWt','hTotal',
+             'pDead','pLive','pRoofLive','pSnow','pWindAxial','ecc',
              'wWind','mCalcType','MoopManual','vIP','Lwall','MVdv',
              'barOOP','sOOP','dOOP','barOOP2','sOOP2','dOOP2','barIP','sIP'];
   var state = {saved: new Date().toISOString()};
@@ -1532,7 +1653,8 @@ function loadState(evt) {
   reader.onload = function(e) {
     try {
       var s = JSON.parse(e.target.result);
-      var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','Paxial','ecc',
+      var ids = ['wSize','grout','rfType','mtype','fm','grade','hWall','wallWt','hTotal',
+                 'pDead','pLive','pRoofLive','pSnow','pWindAxial','ecc',
                  'wWind','mCalcType','MoopManual','vIP','Lwall','MVdv',
                  'barOOP','sOOP','dOOP','barOOP2','sOOP2','dOOP2','barIP','sIP'];
       ids.forEach(function(id){
@@ -1543,6 +1665,7 @@ function loadState(evt) {
       toggleDoubleReinf();
       toggleManualM();
       updateHints();
+      updatePwallCalc();
     } catch(err) { alert('Could not load file: ' + err.message); }
     evt.target.value = '';
   };

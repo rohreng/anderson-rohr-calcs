@@ -1106,17 +1106,67 @@ function runCalc(){
     });
   });
 
-  // Insert parapet zones after last wall zone, before roof zones (ASCE 7-16 §30.9)
+  // Insert parapet zones — ASCE 7-16 §30.8, Figure 30.8-1
+  // Load Case A (windward): positive wall GCp + |negative roof edge GCp|
+  // Load Case B (leeward):  positive wall GCp + |negative wall GCp|
+  // Zone mapping: Zone 4 ↔ Roof Zone 2, Zone 5 ↔ Roof Zone 3
+  // Net parapet pressure = q_p × net_GCp (no GCpi — cancels on both faces)
   if(hp>0 && wallFig!=='none' && GCP[wallFig]){
     var wallZones=GCP[wallFig].zones;
     var z4src=null, z5src=null;
     wallZones.forEach(function(z){
-      if(z.name.indexOf('Zone 4')>=0||z.name.indexOf('Wall Zone 4')>=0) z4src=z;
-      if(z.name.indexOf('Zone 5')>=0||z.name.indexOf('Wall Zone 5')>=0) z5src=z;
+      if(/Zone\s*4/.test(z.name) && !z.oh) z4src=z;
+      if(/Zone\s*5/.test(z.name) && !z.oh) z5src=z;
     });
+
+    // Find worst-case roof Zone 2 and Zone 3 negative GCp for Load Case A
+    var roofZ2negArr=null, roofZ3negArr=null;
+    function findRoofEdgeZones(zones){
+      zones.forEach(function(z){
+        if(z.oh) return;
+        // Match Zone 2, Zone 2e, Zone 2r, Zone 2n, Zone 2', Roof Zone 2 (any Zone 2 variant)
+        if(/(?:^|\s)Zone\s*2/.test(z.name) && z.neg){
+          if(!roofZ2negArr){ roofZ2negArr=z.neg.slice(); }
+          else { for(var i=0;i<z.neg.length;i++) roofZ2negArr[i]=Math.min(roofZ2negArr[i],z.neg[i]); }
+        }
+        if(/(?:^|\s)Zone\s*3/.test(z.name) && z.neg){
+          if(!roofZ3negArr){ roofZ3negArr=z.neg.slice(); }
+          else { for(var i=0;i<z.neg.length;i++) roofZ3negArr[i]=Math.min(roofZ3negArr[i],z.neg[i]); }
+        }
+      });
+    }
+    // Check roof figure
+    if(roofFig!=='none' && GCP[roofFig]) findRoofEdgeZones(GCP[roofFig].zones);
+    // Also check wall figure for combined figures (30.6-1) that include Roof Zone 2/3
+    if(wallFig!=='none' && GCP[wallFig]) findRoofEdgeZones(GCP[wallFig].zones);
+
+    function buildParapetItem(wallSrc, roofNegArr, zoneNum){
+      var wallPosGCp = interpGCp(wallSrc.pos, A);
+      var wallNegGCp = interpGCp(wallSrc.neg, A);
+      // Load Case B (leeward parapet): positive wall + |negative wall|
+      var netGCp_B = wallPosGCp + Math.abs(wallNegGCp);
+      var caseB = qh_par * netGCp_B;
+      // Load Case A (windward parapet): positive wall + |negative roof edge|
+      var roofNegGCp = roofNegArr ? interpGCp(roofNegArr, A) : null;
+      var netGCp_A = roofNegGCp!==null ? wallPosGCp + Math.abs(roofNegGCp) : null;
+      var caseA = netGCp_A!==null ? qh_par * netGCp_A : null;
+      var govNet = (caseA!==null) ? Math.max(caseA, caseB) : caseB;
+      var govCase = (caseA!==null && caseA > caseB) ? 'A' : 'B';
+      return {
+        z:{name:'Zone '+zoneNum+' \u2014 Parapet',
+           desc:'Fig 30.8-1 \u2014 Gov: Load Case '+govCase+' ('+((govCase==='A')?'Windward':'Leeward')+')',
+           oh:false, isParapet:true,
+           wallPosGCp:wallPosGCp, wallNegGCp:wallNegGCp, roofNegGCp:roofNegGCp,
+           netGCp_A:netGCp_A, netGCp_B:netGCp_B,
+           caseA:caseA, caseB:caseB, govNet:govNet, govCase:govCase,
+           roofZoneNum:(zoneNum===4?2:3)},
+        figKey:'parapet', qhOverride:qh_par,
+        h_eff:h+hp, Kh_eff:Kh_par, khRow_eff:khRow_par
+      };
+    }
     var parItems=[];
-    if(z4src) parItems.push({z:{name:'Zone 4 \u2014 Parapet',desc:'Parapet Interior \u2014 q at h+h\u209a',oh:false,pos:z4src.pos,neg:z4src.neg,isParapet:true},figKey:'parapet',qhOverride:qh_par,h_eff:h+hp,Kh_eff:Kh_par,khRow_eff:khRow_par});
-    if(z5src) parItems.push({z:{name:'Zone 5 \u2014 Parapet',desc:'Parapet Corner \u2014 q at h+h\u209a',oh:false,pos:z5src.pos,neg:z5src.neg,isParapet:true},figKey:'parapet',qhOverride:qh_par,h_eff:h+hp,Kh_eff:Kh_par,khRow_eff:khRow_par});
+    if(z4src) parItems.push(buildParapetItem(z4src, roofZ2negArr, 4));
+    if(z5src) parItems.push(buildParapetItem(z5src, roofZ3negArr, 5));
     // Find insertion point: after last wall fig item
     var insertAt=0;
     allZoneItems.forEach(function(item,idx){ if(item.figKey===wallFig) insertAt=idx+1; });
@@ -1166,29 +1216,52 @@ function runCalc(){
     var hZ=item.h_eff||h;
     var KhZ=item.Kh_eff||Kh;
     var khRowZ=item.khRow_eff||khRow;
-    var gcpPos=z.pos ? interpGCp(z.pos, A) : null;
-    var gcpNeg=interpGCp(z.neg, A);
-    var pPos=(gcpPos!==null) ? qhZ*(gcpPos+GCpi) : null;
-    var pNeg=qhZ*(gcpNeg-GCpi);
-    var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
-    if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP, isParapet:!!z.isParapet});
-    var gcpPosStr=(gcpPos!==null)?f3(gcpPos):'&mdash;';
-    var pPosStr=(pPos!==null)?f1(pPos):'&mdash;';
-    var rowCls=z.oh?'class="oh-row"':z.isParapet?'class="par-row"':'';
-    var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, hZ, KhZ, khRowZ, Kzt, Kd, qhZ, GCpi, item.figKey);
     var i=rowIdx++;
-    tb.innerHTML+=
-      '<tr '+rowCls+'>'
-      +'<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':z.isParapet?' <span style="font-size:.75em;color:#92400e">§30.9</span>':'')+'</td>'
-      +'<td style="font-size:.85em;color:#555">'+z.desc+'</td>'
-      +'<td style="text-align:center">'+gcpPosStr+'</td>'
-      +'<td style="text-align:center">'+f3(gcpNeg)+'</td>'
-      +'<td style="text-align:center;color:#1e40af;font-weight:600">'+pPosStr+'</td>'
-      +'<td style="text-align:center;color:#c2410c;font-weight:600">'+f1(pNeg)+'</td>'
-      +'<td class="gov-cell" style="text-align:center">'+f1(govP)+'</td>'
-      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
-      +'</tr>'
-      +'<tr class="det-row"><td colspan="8"><div class="calc-det" id="det_'+i+'">'+detHtml+'</div></td></tr>';
+
+    if(z.isParapet){
+      // ── Parapet zone — pre-computed net pressures (no GCpi) ──
+      var govP=z.govNet;
+      _lastZonePressures.push({name:z.name, govP:govP, isParapet:true, isWall:false});
+      var caseAstr=(z.caseA!==null)?f1(z.caseA):'&mdash;';
+      var caseBstr=f1(z.caseB);
+      var detHtml=buildParapetDet(z, A, V, exp, hZ, KhZ, khRowZ, Kzt, Kd, qhZ);
+      tb.innerHTML+=
+        '<tr class="par-row">'
+        +'<td><strong>'+z.name+'</strong> <span style="font-size:.75em;color:#92400e">\u00a730.8</span></td>'
+        +'<td style="font-size:.85em;color:#555">'+z.desc+'</td>'
+        +'<td style="text-align:center;font-size:.8em;color:#555" colspan="2">Net GC<sub>p</sub>: '+f3(z.govCase==='A'?z.netGCp_A:z.netGCp_B)+'</td>'
+        +'<td style="text-align:center;font-size:.82em;color:#1e40af;font-weight:600" title="Load Case A (Windward)">A: '+caseAstr+'</td>'
+        +'<td style="text-align:center;font-size:.82em;color:#c2410c;font-weight:600" title="Load Case B (Leeward)">B: '+caseBstr+'</td>'
+        +'<td class="gov-cell" style="text-align:center">'+f1(govP)+'</td>'
+        +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+        +'</tr>'
+        +'<tr class="det-row"><td colspan="8"><div class="calc-det" id="det_'+i+'">'+detHtml+'</div></td></tr>';
+    } else {
+      // ── Normal zone (wall or roof) ──
+      var gcpPos=z.pos ? interpGCp(z.pos, A) : null;
+      var gcpNeg=interpGCp(z.neg, A);
+      var pPos=(gcpPos!==null) ? qhZ*(gcpPos+GCpi) : null;
+      var pNeg=qhZ*(gcpNeg-GCpi);
+      var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
+      var isWallZone=(/Zone\s*4/.test(z.name)||/Zone\s*5/.test(z.name)) && !z.oh;
+      if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP, isParapet:false, isWall:isWallZone});
+      var gcpPosStr=(gcpPos!==null)?f3(gcpPos):'&mdash;';
+      var pPosStr=(pPos!==null)?f1(pPos):'&mdash;';
+      var rowCls=z.oh?'class="oh-row"':'';
+      var detHtml=buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, hZ, KhZ, khRowZ, Kzt, Kd, qhZ, GCpi, item.figKey);
+      tb.innerHTML+=
+        '<tr '+rowCls+'>'
+        +'<td><strong>'+(z.oh?'<em>':'')+z.name+(z.oh?'</em>':'')+'</strong>'+(z.oh?' <span style="font-size:.75em;color:#92400e">(overhang)</span>':'')+'</td>'
+        +'<td style="font-size:.85em;color:#555">'+z.desc+'</td>'
+        +'<td style="text-align:center">'+gcpPosStr+'</td>'
+        +'<td style="text-align:center">'+f3(gcpNeg)+'</td>'
+        +'<td style="text-align:center;color:#1e40af;font-weight:600">'+pPosStr+'</td>'
+        +'<td style="text-align:center;color:#c2410c;font-weight:600">'+f1(pNeg)+'</td>'
+        +'<td class="gov-cell" style="text-align:center">'+f1(govP)+'</td>'
+        +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">\u25B6 Calc</button></td>'
+        +'</tr>'
+        +'<tr class="det-row"><td colspan="8"><div class="calc-det" id="det_'+i+'">'+detHtml+'</div></td></tr>';
+    }
   });
 
   document.getElementById('sendPanel').style.display = _lastZonePressures.length ? '' : 'none';
@@ -1196,15 +1269,19 @@ function runCalc(){
 
   // Save all zone pressures to localStorage for cross-calc import
   if (_lastZonePressures.length) {
-    var wallZones = _lastZonePressures.filter(function(z){ return !z.isParapet; });
+    // Wall zones = only Zone 4/5 (not roof zones, not parapets)
+    var wallOnlyZones = _lastZonePressures.filter(function(z){ return z.isWall && !z.isParapet; });
     var parZones  = _lastZonePressures.filter(function(z){ return  z.isParapet; });
-    var maxWall   = wallZones.length ? wallZones.reduce(function(b,z){return z.govP>b.govP?z:b;}) : null;
+    var maxWall   = wallOnlyZones.length ? wallOnlyZones.reduce(function(b,z){return z.govP>b.govP?z:b;}) : null;
     var maxPar    = parZones.length  ? parZones.reduce(function(b,z) {return z.govP>b.govP?z:b;}) : null;
     var maxZone   = _lastZonePressures.reduce(function(b,z){return z.govP>b.govP?z:b;});
+    // Find Zone 5 specifically (wall corner — used by masonry wall calc)
+    var wallZ5    = wallOnlyZones.filter(function(z){return /Zone\s*5/.test(z.name);})[0] || null;
     try {
       localStorage.setItem('ARE_cc_wind', JSON.stringify({
         govP:    maxWall ? maxWall.govP : maxZone.govP,
         zone:    maxWall ? maxWall.name : maxZone.name,
+        govP_wall5: wallZ5 ? wallZ5.govP : null,
         govP_parapet: maxPar ? maxPar.govP : null,
         zone_parapet: maxPar ? maxPar.name : null,
         allZones: _lastZonePressures,
@@ -1276,6 +1353,75 @@ function buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, h, Kh, khR
   if(z.oh){
     d+='<div class="mrow" style="color:#92400e;font-size:.9em;margin-top:4px">&#9888; Overhang pressure acts on the bottom surface and must be <em>added</em> to the top-surface zone pressure for net overhang load. Do not use as a standalone design pressure.</div>';
   }
+  d+='</div>';
+
+  return d;
+}
+
+// ─── Parapet calculation detail panel (ASCE 7-16 §30.8, Fig 30.8-1) ──────────
+function buildParapetDet(z, A, V, exp, h, Kh, khRow, Kzt, Kd, qh){
+  var d='';
+  var hh=Math.max(15,h);
+
+  // Step 1: qp at parapet height
+  d+='<div class="cref-hdr">Step 1 — Velocity Pressure at Parapet Top &nbsp;|&nbsp; ASCE 7-16 Eq. 26.10-1</div>';
+  d+='<div class="cbox">';
+  d+='<div class="mrow"><span class="ceq">h<sub>par</sub></span> = h + h<sub>p</sub> = <strong>'+f1(h)+' ft</strong></div>';
+  d+='<div class="mrow">K<sub>h</sub> at h<sub>par</sub>: Table row h = '+khRow[0]+' ft &rarr; K<sub>h</sub>(B)='+khRow[1]+', (C)='+khRow[2]+', (D)='+khRow[3]+'</div>';
+  d+='<div class="mrow ind">K<sub>h</sub> = <span class="cval">'+f3(Kh)+'</span> (Exposure '+exp+')</div>';
+  d+='<div class="mrow"><span class="ceq">q<sub>p</sub></span> = 0.00256 &times; '+f3(Kh)+' &times; '+f3(Kzt)+' &times; '+f3(Kd)+' &times; '+V+'&sup2; = <span class="cval">'+f2(qh)+' psf</span></div>';
+  d+='</div>';
+
+  // Step 2: GCp values
+  d+='<hr class="csep">';
+  d+='<div class="cref-hdr">Step 2 — External Pressure Coefficients GC<sub>p</sub> &nbsp;|&nbsp; ASCE 7-16 Fig 30.8-1</div>';
+  d+='<div class="cbox">';
+  d+='<div class="mrow">Effective wind area A = '+f1(A)+' sf</div>';
+  d+='<div class="mrow">Wall GC<sub>p</sub>(+) = <span class="cval">'+f3(z.wallPosGCp)+'</span> &nbsp; (positive wall pressure, Zone '+(z.name.indexOf('4')>=0?'4':'5')+')</div>';
+  d+='<div class="mrow">Wall GC<sub>p</sub>(&minus;) = <span class="cval-neg">'+f3(z.wallNegGCp)+'</span> &nbsp; (negative wall suction, Zone '+(z.name.indexOf('4')>=0?'4':'5')+')</div>';
+  if(z.roofNegGCp!==null){
+    d+='<div class="mrow">Roof GC<sub>p</sub>(&minus;) = <span class="cval-neg">'+f3(z.roofNegGCp)+'</span> &nbsp; (worst-case roof edge suction, Zone '+z.roofZoneNum+')</div>';
+  } else {
+    d+='<div class="mrow" style="color:#9ca3af">No roof figure selected — Load Case A not evaluated</div>';
+  }
+  d+='<div class="mrow" style="margin-top:6px;color:#78350f;font-size:.9em">&#9888; GC<sub>pi</sub> not applied to parapets — internal pressure cancels on both faces of the parapet.</div>';
+  d+='</div>';
+
+  // Step 3: Load Case A
+  d+='<hr class="csep">';
+  d+='<div class="cref-hdr">Step 3a — Load Case A: Windward Parapet &nbsp;|&nbsp; ASCE 7-16 Fig 30.8-1</div>';
+  d+='<div class="cbox">';
+  d+='<div class="mrow"><span class="ceq">Windward face:</span> p<sub>1</sub> = q<sub>p</sub> &times; GC<sub>p,wall</sub>(+) &nbsp; (positive wall pressure Zone '+(z.name.indexOf('4')>=0?'4':'5')+')</div>';
+  d+='<div class="mrow"><span class="ceq">Leeward face:</span> p<sub>2</sub> = q<sub>p</sub> &times; |GC<sub>p,roof</sub>(&minus;)| &nbsp; (roof edge suction Zone '+z.roofZoneNum+')</div>';
+  if(z.caseA!==null){
+    d+='<div class="mrow"><span class="ceq">Net:</span> p<sub>A</sub> = q<sub>p</sub> &times; (GC<sub>p,wall</sub>(+) + |GC<sub>p,roof</sub>(&minus;)|)</div>';
+    d+='<div class="mrow ind">= '+f2(qh)+' &times; ('+f3(z.wallPosGCp)+' + '+f3(Math.abs(z.roofNegGCp))+')</div>';
+    d+='<div class="mrow ind">= '+f2(qh)+' &times; '+f3(z.netGCp_A)+' = <span class="'+(z.govCase==='A'?'cval':'cval-neg')+'">'+f1(z.caseA)+' psf</span></div>';
+  } else {
+    d+='<div class="mrow" style="color:#9ca3af">Not evaluated — no roof figure selected</div>';
+  }
+  d+='</div>';
+
+  // Step 3b: Load Case B
+  d+='<hr class="csep">';
+  d+='<div class="cref-hdr">Step 3b — Load Case B: Leeward Parapet &nbsp;|&nbsp; ASCE 7-16 Fig 30.8-1</div>';
+  d+='<div class="cbox">';
+  d+='<div class="mrow"><span class="ceq">Windward face:</span> p<sub>3</sub> = q<sub>p</sub> &times; GC<sub>p,wall</sub>(+) &nbsp; (positive wall Zone '+(z.name.indexOf('4')>=0?'4':'5')+')</div>';
+  d+='<div class="mrow"><span class="ceq">Leeward face:</span> p<sub>4</sub> = q<sub>p</sub> &times; |GC<sub>p,wall</sub>(&minus;)| &nbsp; (negative wall Zone '+(z.name.indexOf('4')>=0?'4':'5')+')</div>';
+  d+='<div class="mrow"><span class="ceq">Net:</span> p<sub>B</sub> = q<sub>p</sub> &times; (GC<sub>p,wall</sub>(+) + |GC<sub>p,wall</sub>(&minus;)|)</div>';
+  d+='<div class="mrow ind">= '+f2(qh)+' &times; ('+f3(z.wallPosGCp)+' + '+f3(Math.abs(z.wallNegGCp))+')</div>';
+  d+='<div class="mrow ind">= '+f2(qh)+' &times; '+f3(z.netGCp_B)+' = <span class="'+(z.govCase==='B'?'cval':'cval-neg')+'">'+f1(z.caseB)+' psf</span></div>';
+  d+='</div>';
+
+  // Step 4: Governing
+  d+='<hr class="csep">';
+  d+='<div class="cref-hdr">Step 4 — Governing Parapet Pressure</div>';
+  d+='<div class="cbox">';
+  if(z.caseA!==null){
+    d+='<div class="mrow">Load Case A (Windward) = '+f1(z.caseA)+' psf</div>';
+  }
+  d+='<div class="mrow">Load Case B (Leeward) = '+f1(z.caseB)+' psf</div>';
+  d+='<div class="mrow"><strong>Governing</strong> = Load Case '+z.govCase+' = <span style="color:#92400e;font-weight:700">'+f1(z.govNet)+' psf</span></div>';
   d+='</div>';
 
   return d;
