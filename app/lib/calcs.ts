@@ -195,6 +195,17 @@ export const CALCS: CalcMeta[] = [
     keywords: ["masonry", "CMU", "anchor bolt", "headed bolt", "tension", "shear", "strength design", "LRFD", "TMS 402", "block shear", "interaction"],
   },
   {
+    slug: "masonry-top-wall-anchor",
+    label: "Masonry Top-of-Wall Anchor",
+    subtitle: "Headed bolt ASD — tension (masonry breakout + steel), shear (4 modes) & combined interaction",
+    htmlFile: "/Calcs/masonry_anchor_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 §6.3 & §8.1.4.3",
+    status: "ready",
+    group: "CMU Connections",
+    keywords: ["masonry", "CMU", "anchor", "anchor bolt", "headed bolt", "tension", "shear", "ASD", "allowable stress", "breakout", "interaction", "top of wall", "fastener", "TMS 402", "embedment", "projected area", "Apt", "edge distance", "IBC 1605.2"],
+  },
+  {
     slug: "masonry-lap-length",
     label: "Masonry Development & Lap Splice",
     subtitle: "Deformed bar development length & Class A lap splice per Eq. 6-2",

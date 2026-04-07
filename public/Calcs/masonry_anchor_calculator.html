@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masonry Top-of-Wall Anchor — ASD | TMS 402-22 §8.1.4.3</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1480px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.toolbar{display:flex;gap:10px;padding:12px 28px;background:#f1f5f9;border-bottom:1px solid #dde;flex-wrap:wrap}
+.tbtn{display:flex;align-items:center;gap:6px;padding:7px 15px;border:1px solid #94a3b8;border-radius:6px;background:#fff;color:#334155;font-size:.84em;font-weight:600;cursor:pointer;transition:background .15s,border-color .15s}
+.tbtn:hover{background:#e0e7ff;border-color:#6366f1}
+.tbtn.tbprint:hover{background:#dcfce7;border-color:#16a34a}
+.tbtn.tbsave:hover{background:#dbeafe;border-color:#2563eb}
+.tbtn.tbload:hover{background:#fef3c7;border-color:#d97706}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid #2a5298}
+.blk.load-blk{border-left-color:#dc2626}
+.blk.geom-blk{border-left-color:#d97706}
+.blk h2{color:#1e3c72;margin-bottom:14px;font-size:1.1em;border-bottom:2px solid #dde;padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.blk.load-blk h2{color:#991b1b}
+.blk.geom-blk h2{color:#92400e}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-red{font-size:.7em;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-amber{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#f0f0f0;color:#444}
+.unit{font-size:.77em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.73em;color:#888;margin-top:3px}
+.chk-row{display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb}
+.chk-row label{font-size:.87em;color:#333;cursor:pointer;font-weight:500;line-height:1.4}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:.81em;color:#78350f;margin-bottom:12px}
+.callout.red{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 48px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:18px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.part-hdr{margin:22px 0 12px;padding:10px 18px;border-radius:8px;font-size:1.05em;font-weight:700;display:flex;align-items:center;gap:10px}
+.part-hdr-A{background:#dcfce7;color:#166534;border-left:5px solid #16a34a}
+.part-hdr-B{background:#dbeafe;color:#1e3c72;border-left:5px solid #2a5298}
+.part-hdr-C{background:#fef3c7;color:#92400e;border-left:5px solid #d97706}
+.part-hdr-D{background:#ede9fe;color:#5b21b6;border-left:5px solid #7c3aed}
+.summary{padding:14px 18px;border-radius:10px;margin-bottom:16px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.chk-table{width:100%;border-collapse:collapse;font-size:.86em;margin-bottom:14px}
+.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left;font-size:.84em}
+.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.pass-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.fail-row td{background:#fef2f2!important;border-left:3px solid #dc2626}
+.chk-table tr.info-row td{background:#f0f9ff!important;border-left:3px solid #0369a1}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:14px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.ok{border-color:#16a34a;background:#f0fdf4}.dem-card.ok .v{color:#166534}
+.dem-card.bad{border-color:#dc2626;background:#fef2f2}.dem-card.bad .v{color:#991b1b}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}.dem-card.warn .v{color:#92400e}
+.dem-card.pur{border-color:#7c3aed;background:#faf5ff}.dem-card.pur .v{color:#5b21b6}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px;display:inline-block}
+.dc-fill{height:100%;border-radius:7px;display:block}
+.dc-cell{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:13px 15px;font-size:.81em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:15px}.note-box li{margin-bottom:4px}
+.schema-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:760px){.schema-wrap{grid-template-columns:1fr}}
+.schema-box{background:#fff;border:1px solid #dde;border-radius:8px;padding:12px}
+.schema-box h3{font-size:.85em;color:#1e3c72;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:22px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.75em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #bfdbfe;font-size:.9em}
+.ceq{font-style:italic;margin-right:4px;color:#1e3c72}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #bfdbfe;margin:6px 0}
+.cbox{background:#fff;border:1px solid #bfdbfe;border-radius:5px;padding:8px 12px;margin-top:5px;font-size:.97em}
+.overall-banner{padding:16px 20px;border-radius:10px;margin-bottom:20px;font-size:1.05em}
+@media print{
+  body{background:#fff!important;padding:0!important}
+  .container{box-shadow:none!important;border-radius:0!important}
+  .toolbar,.calc-btn,.det-btn{display:none!important}
+  .calc-det{display:block!important;background:#fff!important;border:1px solid #ccc!important}
+  .results{display:block!important}
+  .header,.part-hdr,.sum-pass,.sum-fail{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dem-card,.note-box{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Masonry Top-of-Wall Anchor &mdash; Fastener Anchorage ASD</h1>
+  <p>Headed Anchor Bolt in Masonry &nbsp;&middot;&nbsp; Tension &amp; Perpendicular Shear &nbsp;&middot;&nbsp; TMS 402-22</p>
+  <div class="ref-tags">
+    <span class="tag">TMS 402-22 §6.3 &amp; §8.1.4.3</span>
+    <span class="tag">§6.3.2 Projected Breakout Area A<sub>pt</sub></span>
+    <span class="tag">§6.3.6 Min Embedment</span>
+    <span class="tag">§8.1.4.3.1 Tension · §8.1.4.3.2 Shear</span>
+    <span class="tag">§8.1.4.3.3 Combined Interaction</span>
+    <span class="tag">IBC 1605.2 &mdash; ⅓ Allowable Increase</span>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="tbtn tbprint" onclick="window.print()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    Print / Export PDF
+  </button>
+  <button class="tbtn tbsave" onclick="saveInputs()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save Inputs (.json)
+  </button>
+  <button class="tbtn tbload" onclick="loadInputs()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Load Inputs (.json)
+  </button>
+  <span style="font-size:.78em;color:#64748b;align-self:center;margin-left:4px">Anderson Rohr Engineering &mdash; TMS 402-22 ASD</span>
+</div>
+
+<div class="content">
+
+<!-- ── SKETCHES ─────────────────────────────────────────────────────────── -->
+<div class="schema-wrap">
+  <div class="schema-box">
+    <h3>Section View &mdash; Anchor in Wall</h3>
+    <svg viewBox="0 0 360 280" style="width:100%;max-width:360px;display:block;margin:0 auto">
+      <defs>
+        <marker id="aU" markerWidth="8" markerHeight="7" refX="4" refY="3.5" orient="auto"><path d="M0,3.5L8,0L8,7z" fill="#dc2626"/></marker>
+        <marker id="aD2" markerWidth="8" markerHeight="7" refX="4" refY="3.5" orient="auto"><path d="M8,3.5L0,0L0,7z" fill="#2563eb"/></marker>
+        <marker id="aDimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0L7,6L0,3z" fill="#ca8a04"/></marker>
+        <marker id="aDimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L7,3z" fill="#ca8a04"/></marker>
+        <marker id="aGray" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L7,3z" fill="#6b7280"/></marker>
+        <marker id="aGrayL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0L7,6L0,3z" fill="#6b7280"/></marker>
+        <pattern id="cmuhatch" patternUnits="userSpaceOnUse" width="12" height="12">
+          <rect width="12" height="12" fill="#e2e8f0"/>
+          <line x1="0" y1="6" x2="12" y2="6" stroke="#94a3b8" stroke-width="0.8"/>
+          <line x1="6" y1="0" x2="6" y2="6" stroke="#94a3b8" stroke-width="0.8"/>
+        </pattern>
+      </defs>
+      <!-- Wall in section (cross-section, face view) -->
+      <rect x="70" y="70" width="220" height="170" fill="url(#cmuhatch)" stroke="#475569" stroke-width="2"/>
+      <!-- Top plate / connection element -->
+      <rect x="60" y="40" width="240" height="30" fill="#bfdbfe" stroke="#1e3c72" stroke-width="1.5" rx="2"/>
+      <text x="180" y="60" text-anchor="middle" font-size="9" fill="#1e3c72" font-weight="700">Ledger / Anchor Plate</text>
+      <!-- Anchor bolt shaft -->
+      <rect x="172" y="40" width="16" height="115" fill="#374151" rx="2"/>
+      <!-- Bolt head (hex) -->
+      <polygon points="172,155 180,165 188,155" fill="#1f2937" stroke="#111" stroke-width="1"/>
+      <rect x="166" y="150" width="28" height="8" fill="#1f2937" rx="2"/>
+      <!-- Washer/plate at top -->
+      <rect x="160" y="37" width="40" height="5" fill="#374151" rx="1"/>
+      <!-- Breakout cone lines -->
+      <line x1="166" y1="155" x2="70" y2="70" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3" opacity=".7"/>
+      <line x1="194" y1="155" x2="290" y2="70" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4,3" opacity=".7"/>
+      <!-- ba — tension (upward arrow at top) -->
+      <line x1="180" y1="10" x2="180" y2="36" stroke="#dc2626" stroke-width="2.5" marker-end="url(#aU)"/>
+      <text x="192" y="22" font-size="10" fill="#dc2626" font-weight="700">b<tspan font-size="7" dy="2">a</tspan></text>
+      <!-- bv — shear (horizontal arrow) -->
+      <line x1="310" y1="55" x2="302" y2="55" stroke="#2563eb" stroke-width="2.5" marker-end="url(#aD2)"/>
+      <text x="314" y="59" font-size="10" fill="#2563eb" font-weight="700">b<tspan font-size="7" dy="2">v</tspan></text>
+      <!-- Lb dimension (vertical, left side) -->
+      <line x1="55" y1="70" x2="55" y2="157" stroke="#ca8a04" stroke-width="1.2" marker-start="url(#aDimL)" marker-end="url(#aDimR)"/>
+      <text x="46" y="115" text-anchor="middle" font-size="9" fill="#b45309" transform="rotate(-90,46,115)">L<tspan font-size="7">b</tspan></text>
+      <!-- Lbe dimension (horizontal, right of bolt) -->
+      <line x1="191" y1="105" x2="290" y2="105" stroke="#6b7280" stroke-width="1.2" marker-start="url(#aGrayL)" marker-end="url(#aGray)"/>
+      <text x="241" y="100" text-anchor="middle" font-size="8" fill="#4b5563">L<tspan font-size="6">be</tspan></text>
+      <!-- b dimension (horizontal, bottom) -->
+      <line x1="70" y1="255" x2="290" y2="255" stroke="#ca8a04" stroke-width="1.2" marker-start="url(#aDimL)" marker-end="url(#aDimR)"/>
+      <text x="180" y="270" text-anchor="middle" font-size="9" fill="#b45309">b (wall thickness)</text>
+      <!-- wall face labels -->
+      <text x="70" y="265" text-anchor="middle" font-size="7" fill="#6b7280">Near face</text>
+      <text x="290" y="265" text-anchor="middle" font-size="7" fill="#6b7280">Far face</text>
+      <!-- SECTION label -->
+      <text x="180" y="243" text-anchor="middle" font-size="9" fill="#475569" font-weight="700">SECTION</text>
+    </svg>
+  </div>
+
+  <div class="schema-box">
+    <h3>Plan View &mdash; Breakout Cone A<sub>pt</sub></h3>
+    <svg id="planSvg" viewBox="0 0 360 280" style="width:100%;max-width:360px;display:block;margin:0 auto">
+      <!-- Static plan view — JS will dynamically update the cone radii -->
+      <defs>
+        <marker id="aDimRp" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L7,3z" fill="#ca8a04"/></marker>
+        <marker id="aDimLp" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0L7,6L0,3z" fill="#ca8a04"/></marker>
+        <pattern id="coneHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+          <rect width="8" height="8" fill="#dbeafe"/>
+          <line x1="0" y1="0" x2="0" y2="8" stroke="#93c5fd" stroke-width="1.5"/>
+        </pattern>
+        <pattern id="segHatch" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(135)">
+          <rect width="6" height="6" fill="#fee2e2"/>
+          <line x1="0" y1="0" x2="0" y2="6" stroke="#fca5a5" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+      <!-- Wall edges (top of wall in plan) -->
+      <rect x="10" y="10" width="340" height="260" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" rx="3"/>
+      <text x="180" y="270" text-anchor="middle" font-size="8" fill="#6b7280">Wall face</text>
+      <text x="180" y="23" text-anchor="middle" font-size="8" fill="#6b7280">Wall face</text>
+      <!-- Bolt 1 at left -->
+      <circle id="cone1" cx="110" cy="140" r="60" fill="url(#coneHatch)" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,3" opacity=".85"/>
+      <!-- Bolt 2 at right -->
+      <circle id="cone2" cx="250" cy="140" r="60" fill="url(#coneHatch)" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,3" opacity=".85"/>
+      <!-- Overlap seg (approximate) -->
+      <path id="segPath" d="" fill="url(#segHatch)" stroke="#dc2626" stroke-width="1" opacity=".7"/>
+      <!-- Bolt dots -->
+      <circle cx="110" cy="140" r="5" fill="#1f2937"/>
+      <circle cx="250" cy="140" r="5" fill="#1f2937"/>
+      <!-- Radius L label -->
+      <line x1="110" y1="140" x2="168" y2="140" stroke="#2563eb" stroke-width="1.2" stroke-dasharray="3,2"/>
+      <text x="139" y="133" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="600">L</text>
+      <!-- S spacing -->
+      <line x1="110" y1="250" x2="250" y2="250" stroke="#ca8a04" stroke-width="1.2" marker-start="url(#aDimLp)" marker-end="url(#aDimRp)"/>
+      <text x="180" y="264" text-anchor="middle" font-size="9" fill="#b45309">S (fastener spacing)</text>
+      <!-- Aseg label -->
+      <text id="asegLabel" x="180" y="152" text-anchor="middle" font-size="8" fill="#991b1b" font-weight="700">A<tspan font-size="6">seg</tspan></text>
+      <!-- PLAN label -->
+      <text x="180" y="36" text-anchor="middle" font-size="9" fill="#475569" font-weight="700">PLAN</text>
+      <!-- bv direction arrows -->
+      <line x1="310" y1="90" x2="310" y2="120" stroke="#2563eb" stroke-width="1.5" marker-end="url(#aDimRp)"/>
+      <text x="320" y="107" font-size="8" fill="#2563eb">b<tspan font-size="6">v</tspan></text>
+    </svg>
+  </div>
+</div>
+
+<!-- ── INPUT SECTIONS ────────────────────────────────────────────────────── -->
+<div class="blk">
+  <h2>&#9632; 1. Material Properties</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>f&prime;<sub>m</sub> &mdash; Masonry Strength <span class="unit">(ksi)</span></label>
+      <select id="fm_ksi">
+        <option value="1.5">1.5 ksi</option>
+        <option value="2.0" selected>2.0 ksi</option>
+        <option value="2.5">2.5 ksi</option>
+        <option value="3.0">3.0 ksi</option>
+        <option value="3.5">3.5 ksi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>f<sub>y</sub> &mdash; Fastener Yield Stress <span class="unit">(ksi)</span></label>
+      <select id="fy_ksi">
+        <option value="36" selected>36 ksi &mdash; F1554 Gr.36 / A36</option>
+        <option value="55">55 ksi &mdash; F1554 Gr.55</option>
+        <option value="60">60 ksi &mdash; Grade 60 Rebar</option>
+        <option value="105">105 ksi &mdash; F1554 Gr.105</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>F<sub>u</sub> &mdash; Fastener Tensile Strength <span class="unit">(ksi)</span></label>
+      <input type="number" id="Fu_ksi" value="58" step="1" min="1" oninput="autoFu()">
+      <div class="hint">Typical: 58 (F1554 Gr.36) · 75 (Gr.55) · 125 (Gr.105). Capped at min(1.9f<sub>y</sub>, 125 ksi) internally.</div>
+    </div>
+    <div class="ig">
+      <label>F<sub>u,eff</sub> &mdash; Capped Value <span class="unit">(ksi, auto)</span></label>
+      <input type="number" id="Fu_eff_disp" value="58.0" readonly>
+      <div class="hint">= min(F<sub>u,input</sub>, 1.9f<sub>y</sub>, 125 ksi)</div>
+    </div>
+  </div>
+</div>
+
+<div class="blk load-blk">
+  <h2>&#9632; 2. Service Loads (ASD &mdash; per unit length of wall)</h2>
+  <div class="callout red">Enter service loads (D, L, or D+L). For wind-governed loads, enter the ASD service-level values and use the ⅓ allowable stress increase checkbox below. Do NOT reduce wind loads by 0.6 here.</div>
+  <div class="g3">
+    <div class="ig">
+      <label>b<sub>a</sub> &mdash; Tension Load <span class="unit">(kips/ft)</span></label>
+      <input type="number" id="ba" value="1.09" step="0.01" min="0">
+      <div class="hint">Service tension per linear foot of wall (perpendicular to wall face, e.g. out-of-plane uplift or seismic)</div>
+    </div>
+    <div class="ig">
+      <label>b<sub>v</sub> &mdash; Shear Load <span class="unit">(kips/ft)</span></label>
+      <input type="number" id="bv" value="0.09" step="0.01" min="0">
+      <div class="hint">Service shear perpendicular to bolt axis (parallel to wall face, e.g. gravity reaction or in-plane shear)</div>
+    </div>
+  </div>
+</div>
+
+<div class="blk geom-blk">
+  <h2>&#9632; 3. Geometry &amp; Fastener Details <span class="badge-amber">TMS 402-22 §6.3</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>b &mdash; Wall Thickness <span class="unit">(in)</span></label>
+      <select id="b_wall" onchange="autoLbe()">
+        <option value="5.625">6&Prime; CMU &mdash; b = 5.625&Prime;</option>
+        <option value="7.625" selected>8&Prime; CMU &mdash; b = 7.625&Prime;</option>
+        <option value="9.625">10&Prime; CMU &mdash; b = 9.625&Prime;</option>
+        <option value="11.625">12&Prime; CMU &mdash; b = 11.625&Prime;</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>&#981; &mdash; Fastener Diameter <span class="unit">(in)</span></label>
+      <select id="phi_in" onchange="autoLbe()">
+        <option value="0.5">1/2&Prime; bolt &mdash; A<sub>b</sub> = 0.196 in&sup2;</option>
+        <option value="0.625">5/8&Prime; bolt &mdash; A<sub>b</sub> = 0.307 in&sup2;</option>
+        <option value="0.75" selected>3/4&Prime; bolt &mdash; A<sub>b</sub> = 0.442 in&sup2;</option>
+        <option value="0.875">7/8&Prime; bolt &mdash; A<sub>b</sub> = 0.601 in&sup2;</option>
+        <option value="1.0">1&Prime; bolt &mdash; A<sub>b</sub> = 0.785 in&sup2;</option>
+        <option value="1.25">1-1/4&Prime; bolt &mdash; A<sub>b</sub> = 1.227 in&sup2;</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>L<sub>b</sub> &mdash; Effective Embedment <span class="unit">(in)</span></label>
+      <input type="number" id="Lb" value="5" step="0.5" min="1" oninput="autoLbe()">
+      <div class="hint">Measured from the masonry surface to the bearing surface of the anchor head or nut (§6.3.1)</div>
+    </div>
+    <div class="ig">
+      <label>S &mdash; Fastener Spacing <span class="unit">(in)</span></label>
+      <input type="number" id="S_in" value="16" step="2" min="4" oninput="autoLbe()">
+      <div class="hint">Center-to-center spacing along wall length</div>
+    </div>
+    <div class="ig">
+      <label>L<sub>be</sub> &mdash; Edge Distance <span class="unit">(in, auto)</span></label>
+      <input type="number" id="Lbe_disp" value="3.44" readonly>
+      <div class="hint">= (b &minus; 1.5&#981;) / 2 &mdash; bolt centered in wall, clear to face. Override: enter below.</div>
+    </div>
+    <div class="ig">
+      <label>L<sub>be</sub> Override <span class="unit">(in)</span></label>
+      <input type="number" id="Lbe_override" value="" step="0.25" min="0" placeholder="Leave blank to use auto" oninput="autoLbe()">
+      <div class="hint">If blank, auto = (b &minus; 1.5&#981;)/2. Enter if bolt is not centered.</div>
+    </div>
+  </div>
+  <div class="chk-row">
+    <input type="checkbox" id="windInc" checked>
+    <label for="windInc">Apply &#x2153; allowable stress increase (IBC 1605.2 / TMS 402-22 §8.1.4.1) &mdash; use k = 3/4 on demand side, raises combined limit to 1.33. Apply when loads are wind- or seismic-governed.</label>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalcs()">&#9654;&nbsp; Run All Checks</button>
+
+<div id="results" class="results">
+  <div id="overallBanner" class="overall-banner"></div>
+
+  <div class="part-hdr part-hdr-A">&#9646; CHECK A &nbsp;&mdash;&nbsp; Minimum Embedment &nbsp;&middot;&nbsp; TMS 402-22 §6.3.6</div>
+  <div id="sumA" class="summary"></div>
+  <div id="demA" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:72px">Detail</th></tr></thead>
+  <tbody id="chkA"></tbody></table>
+
+  <div class="part-hdr part-hdr-B">&#9646; CHECK B &nbsp;&mdash;&nbsp; Tension Capacity &nbsp;&middot;&nbsp; TMS 402-22 §8.1.4.3.1</div>
+  <div id="sumB" class="summary"></div>
+  <div id="demB" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:72px">Detail</th></tr></thead>
+  <tbody id="chkB"></tbody></table>
+
+  <div class="part-hdr part-hdr-C">&#9646; CHECK C &nbsp;&mdash;&nbsp; Shear Capacity &nbsp;&middot;&nbsp; TMS 402-22 §8.1.4.3.2</div>
+  <div id="sumC" class="summary"></div>
+  <div id="demC" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:72px">Detail</th></tr></thead>
+  <tbody id="chkC"></tbody></table>
+
+  <div class="part-hdr part-hdr-D">&#9646; CHECK D &nbsp;&mdash;&nbsp; Combined Tension + Shear &nbsp;&middot;&nbsp; TMS 402-22 §8.1.4.3.3</div>
+  <div id="sumD" class="summary"></div>
+  <div id="demD" class="dem-grid"></div>
+  <table class="chk-table"><thead><tr><th style="width:27%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:72px">Detail</th></tr></thead>
+  <tbody id="chkD"></tbody></table>
+
+  <div class="note-box"><strong>Engineering Notes:</strong><ul id="notesList"></ul></div>
+</div>
+
+</div></div>
+<script>
+// ── Formatters ────────────────────────────────────────────────────────────────
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function f5(v){return isFinite(v)?v.toFixed(5):'N/A';}
+function fc(v){return isFinite(v)?Math.round(v).toLocaleString():'N/A';}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(id){
+  var el=document.getElementById(id);
+  var btn=document.getElementById('btn_'+id);
+  var op=el.classList.toggle('open');
+  btn.textContent=op?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// ── UI Helpers ────────────────────────────────────────────────────────────────
+function autoLbe(){
+  var b=parseFloat(document.getElementById('b_wall').value)||7.625;
+  var phi=parseFloat(document.getElementById('phi_in').value)||0.75;
+  var Lbe_auto=Math.max((b-1.5*phi)/2.0, 0);
+  document.getElementById('Lbe_disp').value=Lbe_auto.toFixed(2);
+  updatePlanSvg();
+}
+function autoFu(){
+  var fy=parseFloat(document.getElementById('fy_ksi').value)||36;
+  var Fu=parseFloat(document.getElementById('Fu_ksi').value)||58;
+  var Fu_eff=Math.min(Fu, 1.9*fy, 125);
+  document.getElementById('Fu_eff_disp').value=Fu_eff.toFixed(1);
+}
+function getLbe(){
+  var ovr=document.getElementById('Lbe_override').value;
+  if(ovr!==''&&ovr!==null&&parseFloat(ovr)>0) return parseFloat(ovr);
+  return parseFloat(document.getElementById('Lbe_disp').value)||3.44;
+}
+
+// ── Plan SVG dynamic update ───────────────────────────────────────────────────
+function updatePlanSvg(){
+  var b=parseFloat(document.getElementById('b_wall').value)||7.625;
+  var phi=parseFloat(document.getElementById('phi_in').value)||0.75;
+  var Lb=parseFloat(document.getElementById('Lb').value)||5;
+  var S=parseFloat(document.getElementById('S_in').value)||16;
+  var Lbe=getLbe();
+  var L=Math.min(Lb,Lbe);
+  var halfS=S/2;
+  // Scale: plan shows wall as 340x260, center at ~180x140
+  // Map L to svg pixels: wall thickness b maps to 260px height, so px/in = 260/b
+  var scale=Math.min(260/b, 340/(S+2*L+10));
+  scale=Math.max(scale,2); scale=Math.min(scale,18);
+  var cx1=180-halfS*scale/2, cx2=180+halfS*scale/2;
+  var cy=140, r=L*scale;
+  var c1=document.getElementById('cone1'), c2=document.getElementById('cone2');
+  if(c1){c1.setAttribute('cx',cx1);c1.setAttribute('cy',cy);c1.setAttribute('r',r);}
+  if(c2){c2.setAttribute('cx',cx2);c2.setAttribute('cy',cy);c2.setAttribute('r',r);}
+  // Aseg overlap arc path
+  var seg=document.getElementById('segPath');
+  var lbl=document.getElementById('asegLabel');
+  if(halfS<L && seg){
+    var d=halfS*scale, R=r;
+    var cosT=d/R, theta=Math.acos(Math.max(-1,Math.min(1,cosT)));
+    var y1=cy-R*Math.sin(theta), y2=cy+R*Math.sin(theta);
+    var xm=cx1+d;
+    // Left arc from cx1, right arc from cx2
+    var pa='M '+xm+' '+y1+' A '+R+' '+R+' 0 0 0 '+xm+' '+y2+' A '+R+' '+R+' 0 0 0 '+xm+' '+y1+' Z';
+    seg.setAttribute('d',pa);
+    if(lbl){lbl.setAttribute('x',xm);lbl.setAttribute('visibility','visible');}
+  }else if(seg){
+    seg.setAttribute('d','');
+    if(lbl)lbl.setAttribute('visibility','hidden');
+  }
+  // Radius label
+  var rl=document.querySelector('#planSvg text');
+}
+
+// ── Save / Load ───────────────────────────────────────────────────────────────
+var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override'];
+function saveInputs(){
+  var d={};
+  INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
+  d.windInc=document.getElementById('windInc').checked;
+  var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='masonry_anchor_inputs.json';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+function loadInputs(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=function(e){
+    var f=e.target.files[0];if(!f)return;
+    var r=new FileReader();
+    r.onload=function(ev){
+      try{
+        var d=JSON.parse(ev.target.result);
+        INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
+        if(d.windInc!==undefined)document.getElementById('windInc').checked=!!d.windInc;
+        autoLbe();autoFu();
+        alert('Inputs loaded.');
+      }catch(err){alert('Error: '+err.message);}
+    };
+    r.readAsText(f);
+  };
+  document.body.appendChild(inp);inp.click();document.body.removeChild(inp);
+}
+
+// ── Check table builder ───────────────────────────────────────────────────────
+var chkCtr=0;
+function buildRow(chk,tbodyId,detCls){
+  var i='c'+(chkCtr++);
+  var dc=chk.dc;
+  var sc=chk.info?'info-row':(chk.pass?'pass-row':'fail-row');
+  var col=(dc===null)?'#9ca3af':dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+  var dct=(dc===null)?'<span class="na">&mdash;</span>':'<span style="color:'+col+';font-weight:700">'+f3(dc)+'</span>';
+  var bar=(dc===null)?'':'<div class="dc-bar"><div class="dc-fill" style="width:'+Math.min(dc*100,150)+'%;background:'+col+'"></div></div>';
+  var st=chk.info?'<span class="na">Info</span>':(chk.pass?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>');
+  document.getElementById(tbodyId).innerHTML+=
+    '<tr class="'+sc+'"><td><strong>'+chk.n+'</strong><br><span style="font-size:.73em;color:#666">'+chk.nt+'</span></td>'
+    +'<td style="font-size:.78em"><code style="background:#eef2ff;padding:1px 5px;border-radius:3px;color:#3730a3;font-family:inherit">'+chk.r+'</code></td>'
+    +'<td>'+chk.d+'</td><td>'+chk.c+'</td>'
+    +'<td><div class="dc-cell">'+dct+bar+'</div></td>'
+    +'<td>'+st+'</td>'
+    +'<td><button class="det-btn" id="btn_'+i+'" onclick="toggleDet(\''+i+'\')">&#9654; Calc</button></td>'
+    +'</tr><tr class="det-row"><td colspan="7"><div class="calc-det '+detCls+'" id="'+i+'">'+chk.det+'</div></td></tr>';
+}
+function setSummary(id,pass,maxDC,lbl){
+  var e=document.getElementById(id);
+  e.className='summary '+(pass?'sum-pass':'sum-fail');
+  e.innerHTML='<strong>'+(pass?'&#10003; PASS':'&#10007; FAIL')+'</strong> &mdash; '+lbl+' &nbsp;&middot;&nbsp; Max D/C = <strong>'+f3(maxDC)+'</strong>';
+}
+function setCards(id,cards){
+  var g=document.getElementById(id);g.innerHTML='';
+  cards.forEach(function(c){g.innerHTML+='<div class="dem-card '+c.cls+'"><div class="v">'+c.v+'</div><div class="l">'+c.l.replace(/\n/g,'<br>')+'</div></div>';});
+}
+
+// ── MAIN CALCULATION ──────────────────────────────────────────────────────────
+function runCalcs(){
+  chkCtr=0;
+  ['chkA','chkB','chkC','chkD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+
+  // ── Inputs ──
+  var fm_psi =parseFloat(document.getElementById('fm_ksi').value)*1000; // psi
+  var fm_ksi =fm_psi/1000;
+  var fy_ksi =parseFloat(document.getElementById('fy_ksi').value);
+  var Fu_inp =parseFloat(document.getElementById('Fu_ksi').value);
+  var Fu_cap =Math.min(1.9*fy_ksi, 125);  // ksi cap
+  var Fu_ksi =Math.min(Fu_inp, Fu_cap);   // effective Fu in ksi
+  var Fu_psi =Fu_ksi*1000;
+  document.getElementById('Fu_eff_disp').value=Fu_ksi.toFixed(1);
+
+  var ba     =parseFloat(document.getElementById('ba').value)||0;   // kips/ft
+  var bv     =parseFloat(document.getElementById('bv').value)||0;   // kips/ft
+  var b      =parseFloat(document.getElementById('b_wall').value);  // in wall thickness
+  var phi    =parseFloat(document.getElementById('phi_in').value);  // in diameter
+  var Lb     =parseFloat(document.getElementById('Lb').value);      // in
+  var S_in   =parseFloat(document.getElementById('S_in').value);    // in
+  var S_ft   =S_in/12.0;                                            // ft
+  var windInc=document.getElementById('windInc').checked;
+  var k_ASD  =windInc?3.0/4.0:1.0;  // load factor (3/4 when 1/3 increase applies)
+  var combo_limit=windInc?1.33:1.0;
+
+  // ── Geometry ──
+  var Lbe_auto=Math.max((b-1.5*phi)/2.0, 0.01);
+  var Lbe_ov  =document.getElementById('Lbe_override').value;
+  var Lbe     =(Lbe_ov!==''&&parseFloat(Lbe_ov)>0)?parseFloat(Lbe_ov):Lbe_auto;
+  document.getElementById('Lbe_disp').value=Lbe_auto.toFixed(2);
+
+  var L       =Math.min(Lb, Lbe);  // governing cone radius
+  var Ab      =Math.PI*phi*phi/4.0; // in²
+
+  // Projected breakout area Apt (TMS 402-22 §6.3.2)
+  var halfS   =0.5*S_in;
+  var theta   =(halfS<=L)?Math.acos(halfS/L):0;   // rad; 0 when spacing > 2L (no overlap)
+  var Aseg    =(halfS<=L)?L*L*(theta-0.5*Math.sin(2*theta)):0; // in² per segment
+  var Apt     =Math.PI*L*L - 2.0*Aseg;            // in² (TMS §6.3.2)
+  var Apv     =Apt;                                // same, since L = min(Lb,Lbe) used
+
+  // Minimum embedment (TMS §6.3.6)
+  var Lb_min  =Math.min(4*phi, 2.0); // in
+
+  // Tension capacity (TMS §8.1.4.3.1)
+  var Ba_mas  =1.25*Apt*Math.sqrt(fm_psi)/1000.0;  // kips masonry breakout
+  var Ba_steel=0.5*Ab*Fu_psi/1000.0;               // kips steel tensile
+  var Ba      =Math.min(Ba_mas, Ba_steel);          // kips governing
+
+  // Shear capacity (TMS §8.1.4.3.2)
+  var Bv1     =1.25*Apv*Math.sqrt(fm_psi)/1000.0;                   // kips masonry breakout
+  var Bv2     =580.0*Math.pow(Ab*fm_psi, 0.25)/1000.0;              // kips pryout
+  var Bv3     =2.5*Apt*Math.sqrt(fm_psi)/1000.0;                    // kips masonry shear
+  var Bv4     =0.25*Ab*Fu_psi/1000.0;                               // kips steel shear
+  var Bv      =Math.min(Bv1, Bv2, Bv3, Bv4);
+
+  // Per-fastener loads
+  var Ta      =S_ft*ba;  // kips (total tension per fastener, unfactored for combined)
+  var Va      =S_ft*bv;  // kips (total shear per fastener, unfactored for combined)
+
+  // Combined interaction (TMS §8.1.4.3.3)
+  var combo   =Math.pow(Ta/Ba, 5.0/3.0) + Math.pow(Va/Bv, 5.0/3.0);
+  var dc_combo=combo/combo_limit;
+
+  // Update plan SVG
+  updatePlanSvg();
+
+  // ══ CHECK A — MIN EMBEDMENT ═══════════════════════════════════════════════
+  var dcA=Lb_min/Lb;
+  var chksA=[],pA=true,maxA=dcA;
+  var daA='<div class="cref-hdr">TMS 402-22 §6.3.6 &mdash; Minimum Anchor Bolt Embedment</div><div class="cbox">';
+  daA+='<div class="mrow"><span class="ceq">L<sub>b,min</sub> =</span> MIN[4&#981;, 2&Prime;] = MIN[4&times;'+f2(phi)+', 2] = <span class="cval">'+f2(Lb_min)+'&Prime;</span></div>';
+  daA+='<div class="mrow"><span class="ceq">L<sub>b,provided</sub> =</span> <span class="cval">'+f2(Lb)+'&Prime;</span>'+(Lb>=Lb_min?' &ge; L<sub>b,min</sub> &#10003;':' < L<sub>b,min</sub> &#10007;')+'</div>';
+  daA+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Lb_min),f2(Lb))+' = <span class="cval">'+f3(dcA)+'</span></div></div>';
+  chksA.push({n:'Min Embedment L<sub>b</sub>',r:'TMS 402-22 §6.3.6',d:'L<sub>b</sub> = '+f2(Lb)+'&Prime;',c:'L<sub>b,min</sub> = '+f2(Lb_min)+'&Prime;',dc:dcA,nt:'&#981; = '+f2(phi)+'&Prime;',pass:dcA<=1,info:false,det:daA});
+  if(!chksA[0].pass)pA=false;
+
+  setSummary('sumA',pA,maxA,'Minimum Embedment Check');
+  setCards('demA',[
+    {v:f2(phi)+'&Prime;',l:'Fastener\nDiameter &#981;',cls:'dem-card'},
+    {v:f2(Lb)+'&Prime;',l:'Embedment L<sub>b</sub>\nprovided',cls:'dem-card'},
+    {v:f2(Lb_min)+'&Prime;',l:'L<sub>b,min</sub> = min(4&#981;, 2&Prime;)\nrequired',cls:Lb>=Lb_min?'dem-card ok':'dem-card bad'},
+  ]);
+  chksA.forEach(function(c){buildRow(c,'chkA','');});
+
+  // ══ CHECK B — TENSION ═══════════════════════════════════════════════════════
+  var dc_Ba_mas =k_ASD*Ta/Ba_mas;
+  var dc_Ba_stl =k_ASD*Ta/Ba_steel;
+  var dc_Ba_gov =k_ASD*Ta/Ba;  // governing (uses min capacity)
+  var pB=dc_Ba_gov<=1, chksB=[], maxB=0;
+  function ckB(c){chksB.push(c);if(!c.pass)pB=false;if(c.dc>maxB)maxB=c.dc;}
+
+  // B: Lbe and L detail
+  var dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2 &mdash; Effective Embedment L and Projected Area A<sub>pt</sub></div><div class="cbox">';
+  dbLbe+='<div class="mrow"><span class="ceq">L<sub>be</sub> =</span> (b &minus; 1.5&#981;)/2 = ('+f2(b)+'&minus;1.5&times;'+f2(phi)+')/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span>'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;]':'')+'</div>';
+  dbLbe+='<div class="mrow"><span class="ceq">L =</span> MIN(L<sub>b</sub>, L<sub>be</sub>) = MIN('+f2(Lb)+', '+f2(Lbe)+') = <span class="cval">'+f2(L)+'&Prime;</span> &mdash; '+(Lb<=Lbe?'embedment governs':'edge distance governs')+'</div>';
+  dbLbe+='<div class="mrow"><span class="ceq">&#920; =</span> cos<sup>&minus;1</sup>(0.5S/L) = cos<sup>&minus;1</sup>('+f2(halfS)+'/'+f2(L)+') = <span class="cval">'+f4(theta)+' rad</span>'+(halfS>L?' &mdash; no cone overlap (S > 2L)':'')+'</div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>seg</sub> =</span> L&sup2;[&#920; &minus; 0.5 sin(2&#920;)] = '+f2(L)+'&sup2;&times;['+f4(theta)+'&minus;0.5 sin('+f3(2*theta)+')] = <span class="cval">'+f2(Aseg)+' in&sup2;</span></div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;L&sup2; &minus; 2A<sub>seg</sub> = &pi;&times;'+f2(L)+'&sup2; &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> &pi;&#981;&sup2;/4 = <span class="cval">'+f3(Ab)+' in&sup2;</span></div>';
+  dbLbe+='</div>';
+  ckB({n:'Projected Area A<sub>pt</sub>',r:'TMS 402-22 §6.3.2',d:'L = '+f2(L)+'&Prime; ; A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>seg</sub> = '+f2(Aseg)+' in&sup2;',dc:null,nt:'L = min(L<sub>b</sub>='+f2(Lb)+'&Prime;, L<sub>be</sub>='+f2(Lbe)+'&Prime;)',pass:true,info:true,det:dbLbe});
+
+  // B: Masonry breakout tension
+  var dbBmas='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 &mdash; Tension: Masonry Breakout</div><div class="cbox">';
+  dbBmas+='<div class="mrow"><span class="ceq">B<sub>a,mas</sub> =</span> 1.25 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Ba_mas)+' kips/fastener</span></div>';
+  dbBmas+='<div class="mrow"><span class="ceq">Demand =</span> k&times;S&times;b<sub>a</sub> = '+f2(k_ASD)+'&times;('+f1(S_in)+'/12)&times;'+f2(ba)+' = <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
+  dbBmas+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Ta),f3(Ba_mas))+' = <span class="cval">'+f3(dc_Ba_mas)+'</span></div></div>';
+  ckB({n:'Tension &mdash; Masonry Breakout',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,mas</sub> = '+f3(Ba_mas)+' kips',dc:dc_Ba_mas,nt:'1.25A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in&sup2;',pass:dc_Ba_mas<=1,info:false,det:dbBmas});
+
+  // B: Steel tensile
+  var dbBstl='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 &mdash; Tension: Steel Tensile Failure</div><div class="cbox">';
+  dbBstl+='<div class="mrow"><span class="ceq">F<sub>u,eff</sub> =</span> min(F<sub>u,input</sub>, 1.9f<sub>y</sub>, 125) = min('+f1(Fu_inp)+', '+f1(1.9*fy_ksi)+', 125) = <span class="cval">'+f1(Fu_ksi)+' ksi</span></div>';
+  dbBstl+='<div class="mrow"><span class="ceq">B<sub>a,steel</sub> =</span> 0.5 A<sub>b</sub> F<sub>u</sub> = 0.5&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Ba_steel)+' kips/fastener</span></div>';
+  dbBstl+='<div class="mrow"><span class="ceq">Demand =</span> <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
+  dbBstl+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Ta),f3(Ba_steel))+' = <span class="cval">'+f3(dc_Ba_stl)+'</span></div></div>';
+  ckB({n:'Tension &mdash; Steel Tensile',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,steel</sub> = '+f3(Ba_steel)+' kips',dc:dc_Ba_stl,nt:'0.5A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in&sup2;',pass:dc_Ba_stl<=1,info:false,det:dbBstl});
+
+  setSummary('sumB',pB,maxB,'Tension Capacity (governing: B<sub>a</sub> = '+f3(Ba)+' kips)');
+  setCards('demB',[
+    {v:f3(S_ft*ba)+' kips',l:'Tension per Fastener\nS\u00D7b\u2090 (unfactored)',cls:'dem-card'},
+    {v:f3(k_ASD*Ta)+' kips',l:'Factored Demand\nk\u00D7S\u00D7b\u2090'+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
+    {v:f3(Ba_mas)+' kips',l:'B\u2090 Masonry\n1.25A\u209Dt\u221Af\'m',cls:dc_Ba_mas<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Ba_steel)+' kips',l:'B\u2090 Steel\n0.5A\u1D47F\u1D64',cls:dc_Ba_stl<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Ba)+' kips',l:'B\u2090 Governing\nmin(masonry, steel)',cls:dc_Ba_gov<=1?'dem-card ok':'dem-card bad'},
+  ]);
+  chksB.forEach(function(c){buildRow(c,'chkB','');});
+
+  // ══ CHECK C — SHEAR ══════════════════════════════════════════════════════════
+  var dc_Bv1=k_ASD*Va/Bv1, dc_Bv2=k_ASD*Va/Bv2, dc_Bv3=k_ASD*Va/Bv3, dc_Bv4=k_ASD*Va/Bv4;
+  var dc_Bv_gov=k_ASD*Va/Bv;
+  var pC=dc_Bv_gov<=1, chksC=[], maxC=0;
+  function ckC(c){chksC.push(c);if(!c.pass)pC=false;if(c.dc>maxC)maxC=c.dc;}
+
+  // Bv1
+  var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Masonry Breakout (A<sub>pv</sub>)</div><div class="cbox">';
+  dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> A<sub>pt</sub> = <span class="cval">'+f2(Apv)+' in&sup2;</span> (since L = min(L<sub>b</sub>, L<sub>be</sub>) used for A<sub>pt</sub>, per §6.3.3)</div>';
+  dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apv)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
+  dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
+  ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
+
+  // Bv2
+  var dcv2='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Pryout / Masonry Crushing</div><div class="cbox">';
+  dcv2+='<div class="mrow"><span class="ceq">B<sub>v2</sub> =</span> 580 (A<sub>b</sub> f&prime;<sub>m</sub>)<sup>0.25</sup></div>';
+  dcv2+='<div class="mrow ind">= 580 &times; ('+f3(Ab)+'&times;'+f1(fm_psi)+')<sup>0.25</sup> = 580 &times; '+f3(Math.pow(Ab*fm_psi,0.25))+' = <span class="cval">'+f3(Bv2)+' kips</span></div>';
+  dcv2+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv2))+' = <span class="cval">'+f3(dc_Bv2)+'</span></div></div>';
+  ckC({n:'Shear &mdash; Pryout B<sub>v2</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v2</sub> = '+f3(Bv2)+' kips',dc:dc_Bv2,nt:'580(A\u1D47f\'m)\u00B9\u141F\u2074; Ab='+f3(Ab)+' in\u00B2',pass:dc_Bv2<=1,info:false,det:dcv2});
+
+  // Bv3
+  var dcv3='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Masonry Shear Cone (A<sub>pt</sub>)</div><div class="cbox">';
+  dcv3+='<div class="mrow"><span class="ceq">B<sub>v3</sub> =</span> 2.5 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 2.5&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv3)+' kips</span></div>';
+  dcv3+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv3))+' = <span class="cval">'+f3(dc_Bv3)+'</span></div></div>';
+  ckC({n:'Shear &mdash; Masonry Cone B<sub>v3</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
+
+  // Bv4
+  var dcv4='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Steel Shear Failure</div><div class="cbox">';
+  dcv4+='<div class="mrow"><span class="ceq">B<sub>v4</sub> =</span> 0.25 A<sub>b</sub> F<sub>u</sub> = 0.25&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Bv4)+' kips</span></div>';
+  dcv4+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv4))+' = <span class="cval">'+f3(dc_Bv4)+'</span></div></div>';
+  ckC({n:'Shear &mdash; Steel Shear B<sub>v4</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v4</sub> = '+f3(Bv4)+' kips',dc:dc_Bv4,nt:'0.25A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in\u00B2',pass:dc_Bv4<=1,info:false,det:dcv4});
+
+  setSummary('sumC',pC,maxC,'Shear Capacity (governing: B<sub>v</sub> = '+f3(Bv)+' kips)');
+  setCards('demC',[
+    {v:f3(S_ft*bv)+' kips',l:'Shear per Fastener\nS\u00D7b\u1D65 (unfactored)',cls:'dem-card'},
+    {v:f3(k_ASD*Va)+' kips',l:'Factored Demand\nk\u00D7S\u00D7b\u1D65'+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
+    {v:f3(Bv1)+' kips',l:'Bv1 Masonry\nBreakout',cls:dc_Bv1<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv2)+' kips',l:'Bv2 Pryout\n580(Abf\'m)\u00B9\u141F\u2074',cls:dc_Bv2<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv3)+' kips',l:'Bv3 Masonry\nCone',cls:dc_Bv3<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv4)+' kips',l:'Bv4 Steel\nShear',cls:dc_Bv4<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv)+' kips',l:'Bv Governing\nmin(Bv1..Bv4)',cls:dc_Bv_gov<=1?'dem-card ok':'dem-card bad'},
+  ]);
+  chksC.forEach(function(c){buildRow(c,'chkC','');});
+
+  // ══ CHECK D — COMBINED ═══════════════════════════════════════════════════════
+  var pD=dc_combo<=1, chksD=[], maxD=dc_combo;
+  var ddCom='<div class="cref-hdr">TMS 402-22 §8.1.4.3.3 &mdash; Combined Tension and Shear Interaction</div><div class="cbox">';
+  ddCom+='<div class="mrow"><span class="ceq">Interaction =</span>('+fr('S b<sub>a</sub>','B<sub>a</sub>')+')<sup>5/3</sup> + ('+fr('S b<sub>v</sub>','B<sub>v</sub>')+')<sup>5/3</sup> &le; '+f2(combo_limit)+'</div>';
+  ddCom+='<div class="mrow ind">= ('+fr(f3(Ta),f3(Ba))+')<sup>5/3</sup> + ('+fr(f3(Va),f3(Bv))+')<sup>5/3</sup></div>';
+  ddCom+='<div class="mrow ind">= '+f3(Math.pow(Ta/Ba,5.0/3.0))+' + '+f3(Math.pow(Va/Bv,5.0/3.0))+' = <span class="cval">'+f3(combo)+'</span>'+(combo<=combo_limit?' &le; '+f2(combo_limit)+' &#10003;':' > '+f2(combo_limit)+' &#10007;')+'</div>';
+  ddCom+='<div class="mrow"><span class="ceq">Limit:</span>'+(windInc?'1.33 (with &#x2153; increase per IBC 1605.2)':'1.0 (no increase applied)')+'</div>';
+  ddCom+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(combo),f2(combo_limit))+' = <span class="cval">'+f3(dc_combo)+'</span></div></div>';
+  chksD.push({n:'Combined T+V Interaction',r:'TMS 402-22 §8.1.4.3.3',d:'(S b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup>+(S b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> = '+f3(combo),c:'&le; '+f2(combo_limit),dc:dc_combo,nt:'B<sub>a</sub>='+f3(Ba)+' kips ; B<sub>v</sub>='+f3(Bv)+' kips',pass:pD,info:false,det:ddCom});
+
+  setSummary('sumD',pD,maxD,'Combined Tension + Shear');
+  setCards('demD',[
+    {v:f3(Ta)+' kips',l:'Tension/Fastener\nS\u00D7b\u2090',cls:'dem-card'},
+    {v:f3(Va)+' kips',l:'Shear/Fastener\nS\u00D7b\u1D65',cls:'dem-card'},
+    {v:f3(Ba)+' kips',l:'B\u2090 Governing\n(tension capacity)',cls:'dem-card'},
+    {v:f3(Bv)+' kips',l:'Bv Governing\n(shear capacity)',cls:'dem-card'},
+    {v:f3(combo),l:'Interaction Sum\n(demand)',cls:'dem-card warn'},
+    {v:f2(combo_limit),l:'Limit\n'+(windInc?'(with \u2153 increase)':'(no increase)'),cls:'dem-card pur'},
+    {v:f3(dc_combo),l:'D/C Combined\n(= sum / limit)',cls:dc_combo<=0.8?'dem-card ok':dc_combo<=1.0?'dem-card warn':'dem-card bad'},
+  ]);
+  chksD.forEach(function(c){buildRow(c,'chkD','');});
+
+  // ── Banner ──────────────────────────────────────────────────────────────────
+  var all_pass=pA&&pB&&pC&&pD;
+  var maxDC=Math.max(maxA,maxB,maxC,dc_combo);
+  var ob=document.getElementById('overallBanner');
+  ob.className='overall-banner '+(all_pass?'sum-pass':'sum-fail');
+  ob.innerHTML='<strong style="font-size:1.1em">'+(all_pass?'&#10003; ANCHORAGE DESIGN ADEQUATE':'&#10007; ONE OR MORE CHECKS FAIL')+'</strong>'
+    +'<br>Max D/C = <strong>'+f3(maxDC)+'</strong>'
+    +' &nbsp;&middot;&nbsp; f&prime;<sub>m</sub> = '+f1(fm_ksi)+' ksi'
+    +' &nbsp;&middot;&nbsp; &#981; = '+f2(phi)+'&Prime;'
+    +' &nbsp;&middot;&nbsp; L<sub>b</sub> = '+f2(Lb)+'&Prime;'
+    +' &nbsp;&middot;&nbsp; S = '+f1(S_in)+'&Prime;'
+    +' &nbsp;&middot;&nbsp; B<sub>a</sub> = '+f3(Ba)+' kips &nbsp; B<sub>v</sub> = '+f3(Bv)+' kips'
+    +(windInc?' &nbsp;&middot;&nbsp; &#x2153; stress increase applied':'');
+
+  // ── Notes ───────────────────────────────────────────────────────────────────
+  var nl=document.getElementById('notesList');nl.innerHTML='';
+  [
+    'Design per TMS 402-22 ASD §8.1.4.3. Applies to headed anchor bolts or bent bar anchors (standard hook) fully embedded in grouted masonry.',
+    '<strong>L<sub>be</sub> (edge distance):</strong> Auto-computed as (b &minus; 1.5&#981;)/2, assuming the bolt is centered in the wall thickness with the bolt head bearing from the inside. Override with the manual field if the bolt is positioned differently.',
+    '<strong>A<sub>pt</sub>:</strong> Projected area of the idealized failure cone (hemisphere) on the masonry surface. Reduced for cone overlap when S &lt; 2L (A<sub>seg</sub> removed for each adjacent bolt). (TMS §6.3.2)',
+    '<strong>Tension (B<sub>a</sub>):</strong> Lesser of masonry breakout (1.25A<sub>pt</sub>&radic;f&prime;<sub>m</sub>) and steel tensile (0.5A<sub>b</sub>F<sub>u</sub>). F<sub>u</sub> capped at min(1.9f<sub>y</sub>, 125 ksi).',
+    '<strong>Shear (B<sub>v</sub>):</strong> Minimum of four failure modes: masonry breakout (B<sub>v1</sub>), pryout/crushing (B<sub>v2</sub> = 580(A<sub>b</sub>f&prime;<sub>m</sub>)<sup>0.25</sup>), masonry shear cone (B<sub>v3</sub>), and steel shear (B<sub>v4</sub> = 0.25A<sub>b</sub>F<sub>u</sub>).',
+    '<strong>Combined Check:</strong> (S&middot;b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup> + (S&middot;b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> &le; 1.33 (with &#x2153; increase) or 1.0 (without). Uses unfactored per-fastener loads &mdash; the k factor is applied only to the individual tension and shear checks.',
+    windInc?'&#x2153; allowable stress increase (IBC 1605.2) applied: k = 3/4 on demand for tension and shear checks; combined interaction limit = 1.33.':'No &#x2153; stress increase: k = 1.0; combined limit = 1.0.',
+    'Minimum embedment (TMS §6.3.6): L<sub>b,min</sub> = min(4&#981;, 2&Prime;). For standard 3/4&Prime; bolts: L<sub>b,min</sub> = 2&Prime;.',
+  ].forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});
+
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+window.onload=function(){autoLbe();autoFu();};
+document.addEventListener('change',function(){autoLbe();autoFu();});
+</script>
+</body>
+</html>
