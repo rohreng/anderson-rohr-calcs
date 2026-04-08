@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSS-to-HSS Branch Connection (T/Y/X) — Axial</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.85em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.chk-table tr.na-row td{background:#f3f4f6!important;color:#9ca3af}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>HSS-to-HSS Branch Connection — T/Y/X (Axial)</h1>
+    <p>Rectangular HSS branch directly welded to rectangular HSS chord — AISC 360-22 Chapter K3 limit states</p>
+    <div class="ref-tags">
+      <span class="tag">AISC 360-22</span>
+      <span class="tag">§K3</span>
+      <span class="tag">Table K3.2</span>
+      <span class="tag">DG24</span>
+    </div>
+  </div>
+  <div class="content">
+
+    <div class="schema-wrap">
+      <svg viewBox="0 0 720 280" width="100%" style="max-height:280px">
+        <defs>
+          <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#dc2626"/></marker>
+        </defs>
+        <text x="220" y="20" font-size="13" font-weight="700" fill="#1e3c72" text-anchor="middle">Elevation — T-Connection</text>
+        <!-- Chord (horizontal) -->
+        <rect x="60" y="180" width="380" height="60" fill="#cbd5e1" stroke="#334155" stroke-width="2"/>
+        <text x="250" y="218" font-size="11" text-anchor="middle">HSS Chord (B × Hch × t)</text>
+        <!-- Branch (vertical) -->
+        <rect x="200" y="60" width="80" height="120" fill="#fde68a" stroke="#92400e" stroke-width="2"/>
+        <text x="240" y="125" font-size="11" text-anchor="middle">HSS Branch</text>
+        <text x="240" y="140" font-size="10" text-anchor="middle">(Bb × Hb × tb)</text>
+        <!-- axial force arrow -->
+        <line x1="240" y1="50" x2="240" y2="20" stroke="#dc2626" stroke-width="2.5" marker-end="url(#ar)"/>
+        <text x="248" y="35" font-size="11" fill="#dc2626">P branch (axial)</text>
+        <!-- angle theta -->
+        <text x="290" y="170" font-size="11" fill="#1e3c72">θ = 90°</text>
+        <!-- Cross section view -->
+        <text x="580" y="20" font-size="13" font-weight="700" fill="#1e3c72" text-anchor="middle">Chord Cross-Section</text>
+        <rect x="500" y="50" width="160" height="160" fill="#cbd5e1" stroke="#334155" stroke-width="3"/>
+        <rect x="540" y="50" width="80" height="160" fill="#fde68a" stroke="#92400e" stroke-width="2" opacity="0.55"/>
+        <text x="580" y="135" font-size="10" text-anchor="middle">Bb footprint</text>
+        <line x1="500" y1="232" x2="660" y2="232" stroke="#1e3c72" stroke-width="1.5"/>
+        <text x="580" y="248" font-size="10" text-anchor="middle">B (chord width)</text>
+        <line x1="540" y1="220" x2="620" y2="220" stroke="#16a34a" stroke-width="1.5"/>
+        <text x="580" y="232" font-size="10" fill="#16a34a" text-anchor="middle">Bb</text>
+      </svg>
+    </div>
+
+    <div class="blk" style="border-left-color:#16a34a">
+      <h2>AISC Shapes Database <span class="badge" id="dbBadge">Using fallback data</span></h2>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="det-btn" style="padding:6px 14px;font-size:.88em" onclick="loadDbAuto()">🔄 Auto-Load (fetch local xlsx)</button>
+        <label class="det-btn" style="padding:6px 14px;font-size:.88em;cursor:pointer">
+          📂 Upload aisc-shapes-database-v16.0.xlsx
+          <input type="file" accept=".xlsx,.xls" onchange="loadDbFile(event)" style="display:none">
+        </label>
+        <span id="dbStatus" style="font-size:.82em;color:#555"></span>
+      </div>
+    </div>
+
+    <div class="blk">
+      <h2>1. Chord (Main HSS) <span class="badge">A500 Gr.B/C</span></h2>
+      <div class="g3">
+        <div class="ig"><label>Chord Section</label><select id="ch" onchange="hint()"><option value="">— Select —</option></select></div>
+        <div class="ig"><label>F<sub>y</sub> chord <span class="unit">(ksi)</span></label><input type="number" id="Fy" value="46"></div>
+        <div class="ig"><label>Q<sub>f</sub> (chord stress factor)</label><input type="number" id="Qf" value="1.00" step="0.01"></div>
+      </div>
+      <div id="chHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+    </div>
+
+    <div class="blk">
+      <h2>2. Branch HSS</h2>
+      <div class="g3">
+        <div class="ig"><label>Branch Section</label><select id="br" onchange="hint()"><option value="">— Select —</option></select></div>
+        <div class="ig"><label>F<sub>yb</sub> branch <span class="unit">(ksi)</span></label><input type="number" id="Fyb" value="46"></div>
+        <div class="ig"><label>θ angle <span class="unit">(deg)</span></label><input type="number" id="th" value="90"></div>
+      </div>
+      <div id="brHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+    </div>
+
+    <div class="blk">
+      <h2>3. Branch Demand</h2>
+      <div class="g3">
+        <div class="ig"><label>P<sub>u</sub> branch axial <span class="unit">(kips)</span></label><input type="number" id="Pu" value="40"></div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runCalc()">▶ Run All Checks</button>
+
+    <div id="results" class="results">
+      <div id="sumBox" class="summary"></div>
+      <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+      <div class="blk"><h2>Connection Parameters</h2><div id="demOut"></div></div>
+      <div class="blk">
+        <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">— click "▸ Calc" to expand</span></h2>
+        <table class="chk-table">
+          <thead><tr><th style="width:30%">Check</th><th>Code Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+          <tbody id="chkTb"></tbody>
+        </table>
+      </div>
+      <div class="note-box">
+        <strong>Engineering Notes:</strong>
+        <ul>
+          <li>Limit states applied per AISC 360-22 §K3 Table K3.2 (rectangular HSS-to-rectangular HSS) — see also DG24 Ex 5.x.</li>
+          <li><strong>Q<sub>f</sub></strong> = chord stress interaction factor. Use 1.0 for chord in tension or no axial; for compression, compute per AISC 360-22 §K3 (Q<sub>f</sub> = 1.3 − 0.4·U/β ≤ 1.0).</li>
+          <li>"N/A" rows are limit states that do not control for the current β = B<sub>b</sub>/B value (per Table K3.2 applicability ranges).</li>
+          <li>Limits of applicability: 0.25 ≤ β ≤ 1.0; B/t ≤ 35; H<sub>b</sub>/B<sub>b</sub> ≥ 0.5; F<sub>y</sub> ≤ 52 ksi; ductility B<sub>b</sub>/t<sub>b</sub>, H<sub>b</sub>/t<sub>b</sub> ≤ 35.</li>
+          <li>Branch & weld design (effective length, throat capacity) and chord shear check are not included — perform separately.</li>
+          <li>Verified equation forms against AISC 360-22 §K3.2 and DG24 worked examples for T/Y/X axial connections.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// HSS db: [A, H, B, t_des]
+let HSS = {
+  "HSS3x3x1/4":[2.44,3.00,3.00,0.233],
+  "HSS4x4x1/4":[3.37,4.00,4.00,0.233],
+  "HSS4x4x3/8":[4.78,4.00,4.00,0.349],
+  "HSS5x5x1/4":[4.30,5.00,5.00,0.233],
+  "HSS5x5x5/16":[5.26,5.00,5.00,0.291],
+  "HSS5x5x3/8":[6.18,5.00,5.00,0.349],
+  "HSS6x6x1/4":[5.24,6.00,6.00,0.233],
+  "HSS6x6x5/16":[6.43,6.00,6.00,0.291],
+  "HSS6x6x3/8":[7.58,6.00,6.00,0.349],
+  "HSS6x6x1/2":[9.74,6.00,6.00,0.465],
+  "HSS8x8x1/4":[7.10,8.00,8.00,0.233],
+  "HSS8x8x5/16":[8.76,8.00,8.00,0.291],
+  "HSS8x8x3/8":[10.4,8.00,8.00,0.349],
+  "HSS8x8x1/2":[13.5,8.00,8.00,0.465],
+  "HSS10x10x3/8":[13.0,10.0,10.0,0.349],
+  "HSS10x10x1/2":[16.9,10.0,10.0,0.465],
+  "HSS10x10x5/8":[20.5,10.0,10.0,0.581],
+  "HSS12x12x3/8":[15.6,12.0,12.0,0.349],
+  "HSS12x12x1/2":[20.4,12.0,12.0,0.465],
+  "HSS12x12x5/8":[24.8,12.0,12.0,0.581]
+};
+
+// ============ AISC DB LOADER ============
+function processWorkbook(data){
+  var wb = XLSX.read(data,{type:'array'});
+  var sheet = wb.Sheets["Database v16.0"] || wb.Sheets[wb.SheetNames[0]];
+  var rows = XLSX.utils.sheet_to_json(sheet,{header:1});
+  var headers = rows[0];
+  function col(n){return headers.indexOf(n)}
+  var iType=col('Type'), iLbl=col('AISC_Manual_Label'),
+      iA=col('A'), iHt=col('Ht'), iB=col('B'), itdes=col('tdes');
+  if(iLbl<0) iLbl=2;
+  if(iType<0) iType=0;
+  if(iA<0) iA=5;
+  if(iHt<0) iHt=8;
+  if(iB<0) iB=13;
+  if(itdes<0) itdes=23;
+  var H={};
+  for(var r=1;r<rows.length;r++){
+    var row=rows[r]; if(!row||!row[iLbl])continue;
+    var type=String(row[iType]||'').trim();
+    if(type!=='HSS')continue;
+    var Bv=+row[iB]; if(!isFinite(Bv)||Bv<=0)continue; // skip round HSS
+    H[String(row[iLbl]).trim()]=[+row[iA],+row[iHt],Bv,+row[itdes]];
+  }
+  return H;
+}
+function applyDb(db){
+  if(Object.keys(db).length===0){document.getElementById('dbStatus').textContent='No HSS rows found';return}
+  HSS=db;
+  rebuildDropdowns();
+  document.getElementById('dbBadge').textContent='AISC v16.0 loaded';
+  document.getElementById('dbBadge').style.background='#dcfce7';
+  document.getElementById('dbBadge').style.color='#166534';
+  document.getElementById('dbStatus').textContent='Loaded '+Object.keys(db).length+' HSS shapes';
+}
+function rebuildDropdowns(){
+  var ch=document.getElementById('ch'), br=document.getElementById('br');
+  var cPrev=ch.value, bPrev=br.value;
+  ch.innerHTML='<option value="">— Select —</option>';
+  br.innerHTML='<option value="">— Select —</option>';
+  Object.keys(HSS).sort().forEach(function(k){
+    var o1=document.createElement('option');o1.value=k;o1.textContent=k;ch.appendChild(o1);
+    var o2=document.createElement('option');o2.value=k;o2.textContent=k;br.appendChild(o2);
+  });
+  ch.value = HSS[cPrev]?cPrev:(HSS["HSS10X10X1/2"]?"HSS10X10X1/2":(HSS["HSS10x10x1/2"]?"HSS10x10x1/2":Object.keys(HSS)[0]));
+  br.value = HSS[bPrev]?bPrev:(HSS["HSS6X6X3/8"]?"HSS6X6X3/8":(HSS["HSS6x6x3/8"]?"HSS6x6x3/8":Object.keys(HSS)[0]));
+  hint();
+}
+function loadDbAuto(){
+  document.getElementById('dbStatus').textContent='Fetching aisc-shapes-database-v16.0.xlsx ...';
+  fetch('aisc-shapes-database-v16.0.xlsx').then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.arrayBuffer();
+  }).then(function(buf){applyDb(processWorkbook(new Uint8Array(buf)))})
+  .catch(function(e){document.getElementById('dbStatus').textContent='Auto-load failed ('+e.message+'). Use Upload button.'});
+}
+function loadDbFile(ev){
+  var f=ev.target.files[0]; if(!f)return;
+  document.getElementById('dbStatus').textContent='Reading '+f.name+' ...';
+  var rd=new FileReader();
+  rd.onload=function(e){try{applyDb(processWorkbook(new Uint8Array(e.target.result)))}catch(err){document.getElementById('dbStatus').textContent='Parse failed: '+err.message}};
+  rd.readAsArrayBuffer(f);
+}
+window.addEventListener('load',function(){setTimeout(loadDbAuto,200)});
+// ============ END LOADER ============
+
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>'}
+function toggleDet(i){var el=document.getElementById('det_'+i);var b=document.getElementById('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▸ Calc'}
+
+(function init(){
+  var ch=document.getElementById('ch'), br=document.getElementById('br');
+  Object.keys(HSS).forEach(function(k){
+    var o1=document.createElement('option');o1.value=k;o1.textContent=k;ch.appendChild(o1);
+    var o2=document.createElement('option');o2.value=k;o2.textContent=k;br.appendChild(o2);
+  });
+  ch.value="HSS10x10x1/2";
+  br.value="HSS6x6x3/8";
+  hint();
+})();
+
+function hint(){
+  var c=document.getElementById('ch').value, b=document.getElementById('br').value;
+  if(c){var C=HSS[c];document.getElementById('chHint').innerHTML='B='+C[2]+'", H='+C[1]+'", t='+C[3]+'", B/t='+(C[2]/C[3]).toFixed(1)}
+  if(b){var B=HSS[b];document.getElementById('brHint').innerHTML='B<sub>b</sub>='+B[2]+'", H<sub>b</sub>='+B[1]+'", t<sub>b</sub>='+B[3]+'"'}
+}
+
+function runCalc(){
+  var cs=document.getElementById('ch').value, bs=document.getElementById('br').value;
+  if(!cs||!bs){alert('Select chord and branch.');return}
+  var C=HSS[cs], BR=HSS[bs];
+  var Bch=C[2], Hch=C[1], t=C[3];
+  var Bb=BR[2], Hb=BR[1], tb=BR[3];
+  var Fy=+document.getElementById('Fy').value;
+  var Fyb=+document.getElementById('Fyb').value;
+  var Qf=+document.getElementById('Qf').value;
+  var thd=+document.getElementById('th').value;
+  var Pu=+document.getElementById('Pu').value;
+  var th = thd * Math.PI/180;
+  var sinT = Math.sin(th);
+
+  var beta = Bb/Bch;
+  var eta  = Hb/Bch;
+  var gamma = Bch/(2*t);
+  var Bt = Bch/t;
+
+  // Limits of applicability (Table K3.2A)
+  var lim = {
+    beta: beta>=0.25 && beta<=1.0,
+    Bt: Bt<=35,
+    eta: (Hb/Bb)>=0.5 && (Hb/Bb)<=2.0,
+    Fy: Fy<=52,
+    bt_branch: (Bb/tb)<=35 && (Hb/tb)<=35
+  };
+  var allLim = lim.beta && lim.Bt && lim.eta && lim.Fy && lim.bt_branch;
+
+  var chks = [];
+
+  // Check 0: Limits
+  var d0='<div class="cref-hdr">AISC 360-22 §K3 Table K3.2A — Limits of Applicability</div><div class="cbox">';
+  d0+='<div class="mrow">β = B<sub>b</sub>/B = '+f3(beta)+' (0.25–1.0) → '+(lim.beta?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d0+='<div class="mrow">B/t = '+f1(Bt)+' (≤ 35) → '+(lim.Bt?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d0+='<div class="mrow">H<sub>b</sub>/B<sub>b</sub> = '+f2(Hb/Bb)+' (0.5–2.0) → '+(lim.eta?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d0+='<div class="mrow">B<sub>b</sub>/t<sub>b</sub> = '+f1(Bb/tb)+', H<sub>b</sub>/t<sub>b</sub> = '+f1(Hb/tb)+' (≤ 35) → '+(lim.bt_branch?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d0+='<div class="mrow">F<sub>y</sub> = '+Fy+' ksi (≤ 52) → '+(lim.Fy?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d0+='</div>';
+  chks.push({n:'Limits of Applicability',r:'AISC 360-22 §K3 Table K3.2A',d:'—',c:allLim?'All satisfied':'Violation',dc:allLim?0.5:1.5,det:d0});
+
+  // Check 1: Chord wall plastification (β ≤ 0.85), T/Y/X
+  var Pn1=null, phi1=1.00;
+  if(beta<=0.85){
+    var inner = (2*eta/sinT) + 4*Math.sqrt(1-beta);
+    var Pn1_sin = (Fy*t*t/(1-beta)) * inner * Qf;
+    Pn1 = Pn1_sin / sinT;
+  }
+  var d1='<div class="cref-hdr">AISC 360-22 §K3.2 — Chord Wall Plastification (T, Y, X) — Eq. K3-7</div><div class="cbox">';
+  if(Pn1!==null){
+    d1+='<div class="mrow"><span class="ceq">P<sub>n</sub>·sinθ = </span>'+fr('F<sub>y</sub> t²','1−β')+'·['+fr('2η','sinθ')+' + 4'+ov('1−β')+']·Q<sub>f</sub></div>';
+    d1+='<div class="mrow ind">= '+fr(f3(Fy*t*t),f3(1-beta))+'·['+fr(f3(2*eta),f3(sinT))+' + 4·'+ov(f3(1-beta))+']·'+f2(Qf)+'</div>';
+    d1+='<div class="mrow ind">= <span class="cval">'+f2(Pn1*sinT)+' kips</span> (·sinθ form)</div>';
+    d1+='<div class="mrow">P<sub>n</sub> = '+f2(Pn1*sinT)+'/sinθ = <span class="cval">'+f2(Pn1)+' kips</span></div>';
+    d1+='<div class="mrow">φP<sub>n</sub> = 1.00·'+f2(Pn1)+' = <span class="cval">'+f2(phi1*Pn1)+' kips</span></div>';
+    d1+='<div class="mrow">D/C = '+fr(f2(Pu),f2(phi1*Pn1))+' = <span class="cval">'+f3(Pu/(phi1*Pn1))+'</span></div>';
+  } else {
+    d1+='<div class="mrow">Not applicable: β = '+f3(beta)+' &gt; 0.85</div>';
+  }
+  d1+='</div>';
+  chks.push({n:'Chord Wall Plastification',nt:'β ≤ 0.85',r:'AISC 360-22 §K3 Eq. K3-7',d:'P<sub>u</sub> = '+f2(Pu)+' k',c:Pn1!==null?'φP<sub>n</sub> = '+f2(phi1*Pn1)+' k':'N/A',dc:Pn1!==null?Pu/(phi1*Pn1):null,det:d1});
+
+  // Check 2: Shear yielding / punching shear (0.85 < β < 1 - 1/γ); requires B/t ≥ 10
+  var Pn2=null, phi2=0.95;
+  var betaUp = 1 - 1/gamma;
+  if(beta>0.85 && beta<betaUp && Bt>=10){
+    var beop = Math.min((10/Bt)*Bb, Bb);
+    var Pn2_sin = 0.6*Fy*t*Bch * ((2*eta/sinT) + 2*beop/Bch) / sinT;
+    // Actually correct equation per AISC 360-22 §K3 (eq. K3-8 form):
+    // Pn·sinθ = 0.6 Fy t [2 Hb /sinθ + 2 beop ] (units of length × stress × thickness)
+    Pn2_sin = 0.6*Fy*t*((2*Hb/sinT) + 2*beop);
+    Pn2 = Pn2_sin/sinT;
+  }
+  var d2='<div class="cref-hdr">AISC 360-22 §K3.2 — Shear Yielding (Punching) — Eq. K3-8</div><div class="cbox">';
+  if(Pn2!==null){
+    var beop = Math.min((10/Bt)*Bb, Bb);
+    d2+='<div class="mrow"><span class="ceq">b<sub>eop</sub></span> = '+fr('10','B/t')+'·B<sub>b</sub> ≤ B<sub>b</sub> = '+fr('10',f1(Bt))+'·'+Bb+' = <span class="cval">'+f2(beop)+' in</span></div>';
+    d2+='<div class="mrow"><span class="ceq">P<sub>n</sub>·sinθ</span> = 0.6·F<sub>y</sub>·t·['+fr('2H<sub>b</sub>','sinθ')+' + 2b<sub>eop</sub>]</div>';
+    d2+='<div class="mrow ind">= 0.6·'+Fy+'·'+t+'·['+fr(f2(2*Hb),f3(sinT))+' + 2·'+f2(beop)+']</div>';
+    d2+='<div class="mrow ind">= <span class="cval">'+f2(Pn2*sinT)+' kips</span></div>';
+    d2+='<div class="mrow">P<sub>n</sub> = <span class="cval">'+f2(Pn2)+' kips</span></div>';
+    d2+='<div class="mrow">φP<sub>n</sub> = 0.95·'+f2(Pn2)+' = <span class="cval">'+f2(phi2*Pn2)+' kips</span></div>';
+    d2+='<div class="mrow">D/C = <span class="cval">'+f3(Pu/(phi2*Pn2))+'</span></div>';
+  } else {
+    d2+='<div class="mrow">Not applicable: requires 0.85 &lt; β &lt; 1 − 1/γ ('+f3(betaUp)+'), B/t ≥ 10</div>';
+  }
+  d2+='</div>';
+  chks.push({n:'Shear Yielding (Punching)',nt:'0.85 &lt; β &lt; 1 − 1/γ',r:'AISC 360-22 §K3 Eq. K3-8',d:'P<sub>u</sub> = '+f2(Pu)+' k',c:Pn2!==null?'φP<sub>n</sub> = '+f2(phi2*Pn2)+' k':'N/A',dc:Pn2!==null?Pu/(phi2*Pn2):null,det:d2});
+
+  // Check 3: Local yielding of branches due to uneven load distribution (β > 0.85)
+  var Pn3=null, phi3=0.95;
+  if(beta>0.85){
+    var beoi = Math.min((10/Bt)*(Fy*t/(Fyb*tb))*Bb, Bb);
+    Pn3 = Fyb*tb*(2*Hb - 4*tb + 2*beoi);
+  }
+  var d3='<div class="cref-hdr">AISC 360-22 §K3.2 — Local Yielding of Branch (Uneven Load Distribution) — Eq. K3-9</div><div class="cbox">';
+  if(Pn3!==null){
+    var beoi = Math.min((10/Bt)*(Fy*t/(Fyb*tb))*Bb, Bb);
+    d3+='<div class="mrow"><span class="ceq">b<sub>eoi</sub></span> = '+fr('10','B/t')+'·'+fr('F<sub>y</sub>·t','F<sub>yb</sub>·t<sub>b</sub>')+'·B<sub>b</sub> ≤ B<sub>b</sub> = <span class="cval">'+f2(beoi)+' in</span></div>';
+    d3+='<div class="mrow"><span class="ceq">P<sub>n</sub></span> = F<sub>yb</sub>·t<sub>b</sub>·(2H<sub>b</sub> − 4t<sub>b</sub> + 2b<sub>eoi</sub>)</div>';
+    d3+='<div class="mrow ind">= '+Fyb+'·'+tb+'·(2·'+Hb+' − 4·'+tb+' + 2·'+f2(beoi)+')</div>';
+    d3+='<div class="mrow ind">= <span class="cval">'+f2(Pn3)+' kips</span></div>';
+    d3+='<div class="mrow">φP<sub>n</sub> = 0.95·'+f2(Pn3)+' = <span class="cval">'+f2(phi3*Pn3)+' kips</span></div>';
+    d3+='<div class="mrow">D/C = <span class="cval">'+f3(Pu/(phi3*Pn3))+'</span></div>';
+  } else {
+    d3+='<div class="mrow">Not applicable: requires β &gt; 0.85</div>';
+  }
+  d3+='</div>';
+  chks.push({n:'Branch Local Yielding',nt:'β &gt; 0.85',r:'AISC 360-22 §K3 Eq. K3-9',d:'P<sub>u</sub> = '+f2(Pu)+' k',c:Pn3!==null?'φP<sub>n</sub> = '+f2(phi3*Pn3)+' k':'N/A',dc:Pn3!==null?Pu/(phi3*Pn3):null,det:d3});
+
+  // Check 4: Chord sidewall local yielding (β = 1.0), X-conn approx (T/Y if β=1)
+  var Pn4=null, phi4=1.00;
+  if(beta>0.99){
+    Pn4 = 2*Fy*t*((5*t + Hb)/sinT);
+  }
+  var d4='<div class="cref-hdr">AISC 360-22 §K3.2 — Chord Sidewall Local Yielding — Eq. K3-10 (β = 1.0)</div><div class="cbox">';
+  if(Pn4!==null){
+    d4+='<div class="mrow"><span class="ceq">P<sub>n</sub></span> = 2·F<sub>y</sub>·t·'+fr('5t + H<sub>b</sub>','sinθ')+'</div>';
+    d4+='<div class="mrow ind">= 2·'+Fy+'·'+t+'·'+fr(f2(5*t+Hb),f3(sinT))+'</div>';
+    d4+='<div class="mrow ind">= <span class="cval">'+f2(Pn4)+' kips</span></div>';
+    d4+='<div class="mrow">φP<sub>n</sub> = 1.00·'+f2(Pn4)+' = <span class="cval">'+f2(phi4*Pn4)+' kips</span></div>';
+    d4+='<div class="mrow">D/C = <span class="cval">'+f3(Pu/(phi4*Pn4))+'</span></div>';
+  } else {
+    d4+='<div class="mrow">Not applicable: requires β ≈ 1.0</div>';
+  }
+  d4+='</div>';
+  chks.push({n:'Chord Sidewall Local Yielding',nt:'β ≈ 1.0',r:'AISC 360-22 §K3 Eq. K3-10',d:'P<sub>u</sub> = '+f2(Pu)+' k',c:Pn4!==null?'φP<sub>n</sub> = '+f2(phi4*Pn4)+' k':'N/A',dc:Pn4!==null?Pu/(phi4*Pn4):null,det:d4});
+
+  // Render
+  var dcs = chks.map(function(c){return c.dc}).filter(function(v){return v!==null && isFinite(v)});
+  var maxDC = dcs.length?Math.max.apply(null,dcs):0;
+  var pass = maxDC<=1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML='<h3>'+(pass?'✔ All Applicable Checks Pass':'✘ One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; Branch '+bs+' on Chord '+cs+', P<sub>u</sub>='+f2(Pu)+' k, β='+f3(beta)+'</p>';
+
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><tr><th>Property</th><th>Chord '+cs+'</th><th>Branch '+bs+'</th></tr>'
+    +'<tr><td>A (in²)</td><td>'+C[0]+'</td><td>'+BR[0]+'</td></tr>'
+    +'<tr><td>B / B<sub>b</sub> (in)</td><td>'+Bch+'</td><td>'+Bb+'</td></tr>'
+    +'<tr><td>H / H<sub>b</sub> (in)</td><td>'+Hch+'</td><td>'+Hb+'</td></tr>'
+    +'<tr><td>t<sub>des</sub> (in)</td><td>'+t+'</td><td>'+tb+'</td></tr>'
+    +'<tr><td>F<sub>y</sub> (ksi)</td><td>'+Fy+'</td><td>'+Fyb+'</td></tr></table>';
+
+  document.getElementById('demOut').innerHTML =
+    '<div class="dem-grid">'
+    +'<div class="dem-card"><div class="v">'+f3(beta)+'</div><div class="l">β = B<sub>b</sub>/B</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(eta)+'</div><div class="l">η = H<sub>b</sub>/B</div></div>'
+    +'<div class="dem-card"><div class="v">'+f1(gamma)+'</div><div class="l">γ = B/(2t)</div></div>'
+    +'<div class="dem-card"><div class="v">'+f1(Bt)+'</div><div class="l">B/t</div></div>'
+    +'<div class="dem-card"><div class="v">'+thd+'°</div><div class="l">θ angle</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(Qf)+'</div><div class="l">Q<sub>f</sub></div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(Pu)+'</div><div class="l">P<sub>u</sub> branch (k)</div></div>'
+    +'</div>';
+
+  var tb_el=document.getElementById('chkTb');
+  tb_el.innerHTML='';
+  chks.forEach(function(c,i){
+    var dc=c.dc;
+    var dtxt, col, pct, stxt, rowCls='';
+    if(dc===null){
+      dtxt='—'; col='#9ca3af'; pct=0;
+      stxt='<span class="na">N/A</span>'; rowCls='class="na-row"';
+    } else {
+      col = dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+      pct = Math.min(dc*100,150);
+      stxt = dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+      dtxt = f3(dc);
+    }
+    tb_el.innerHTML+='<tr '+rowCls+'><td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td><td>'+c.d+'</td><td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td><td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">▸ Calc</button></td></tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+</body>
+</html>

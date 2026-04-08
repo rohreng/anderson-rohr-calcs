@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W-Beam Directly Welded to HSS Column — DG24 Ex 4.3</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>W-Beam Directly Welded to HSS Column</h1>
+    <p>Moment-transfer connection — flange force / chord wall local yielding (DG24 Ex 4.3)</p>
+    <div class="ref-tags">
+      <span class="tag">AISC 360-22</span>
+      <span class="tag">§K1.3</span>
+      <span class="tag">Eq. K1-7</span>
+      <span class="tag">DG24 Ex 4.3</span>
+    </div>
+  </div>
+  <div class="content">
+
+    <div class="schema-wrap">
+      <svg viewBox="0 0 720 260" width="100%" style="max-height:280px">
+        <defs>
+          <marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#dc2626"/></marker>
+        </defs>
+        <!-- Elevation -->
+        <text x="170" y="20" font-size="13" font-weight="700" fill="#1e3c72" text-anchor="middle">Elevation</text>
+        <rect x="150" y="40" width="40" height="200" fill="#cbd5e1" stroke="#334155" stroke-width="2"/>
+        <text x="170" y="255" font-size="10" text-anchor="middle">HSS Column</text>
+        <rect x="190" y="120" width="160" height="40" fill="#fde68a" stroke="#92400e" stroke-width="2"/>
+        <line x1="190" y1="120" x2="350" y2="120" stroke="#92400e" stroke-width="3"/>
+        <line x1="190" y1="160" x2="350" y2="160" stroke="#92400e" stroke-width="3"/>
+        <text x="280" y="145" font-size="10" text-anchor="middle">W-Beam</text>
+        <line x1="190" y1="115" x2="190" y2="80" stroke="#dc2626" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="200" y="90" font-size="10" fill="#dc2626">P_uf (compression flange force)</text>
+        <line x1="190" y1="165" x2="190" y2="200" stroke="#dc2626" stroke-width="2" marker-end="url(#ar)"/>
+        <text x="200" y="200" font-size="10" fill="#dc2626">P_uf (tension flange force)</text>
+        <text x="270" y="105" font-size="10" fill="#1e3c72">M_u → couple</text>
+        <!-- Cross-section -->
+        <text x="540" y="20" font-size="13" font-weight="700" fill="#1e3c72" text-anchor="middle">HSS Cross Section</text>
+        <rect x="460" y="50" width="160" height="160" fill="#cbd5e1" stroke="#334155" stroke-width="3"/>
+        <rect x="475" y="65" width="130" height="130" fill="#fff" stroke="#334155" stroke-width="1" stroke-dasharray="3,3"/>
+        <line x1="540" y1="40" x2="540" y2="55" stroke="#dc2626" stroke-width="2" marker-end="url(#ar)"/>
+        <line x1="490" y1="120" x2="490" y2="140" stroke="#16a34a" stroke-width="2"/>
+        <line x1="590" y1="120" x2="590" y2="140" stroke="#16a34a" stroke-width="2"/>
+        <line x1="490" y1="130" x2="590" y2="130" stroke="#16a34a" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="540" y="128" font-size="10" fill="#16a34a" text-anchor="middle">b_p = b_f</text>
+        <text x="630" y="135" font-size="10">B</text>
+        <text x="540" y="225" font-size="10" text-anchor="middle">flat = B − 3t</text>
+      </svg>
+    </div>
+
+    <div class="blk" style="border-left-color:#16a34a">
+      <h2>AISC Shapes Database <span class="badge" id="dbBadge">Using fallback data</span></h2>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <button class="det-btn" style="padding:6px 14px;font-size:.88em" onclick="loadDbAuto()">🔄 Auto-Load (fetch local xlsx)</button>
+        <label class="det-btn" style="padding:6px 14px;font-size:.88em;cursor:pointer">
+          📂 Upload aisc-shapes-database-v16.0.xlsx
+          <input type="file" accept=".xlsx,.xls" onchange="loadDbFile(event)" style="display:none">
+        </label>
+        <span id="dbStatus" style="font-size:.82em;color:#555"></span>
+      </div>
+    </div>
+
+    <div class="blk">
+      <h2>1. Beam (W-Shape) <span class="badge">A992</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>W-Section</label>
+          <select id="wsec" onchange="hint()">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div class="ig"><label>F<sub>yp</sub> beam <span class="unit">(ksi)</span></label><input type="number" id="Fyb" value="50"></div>
+      </div>
+      <div id="wHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+    </div>
+
+    <div class="blk">
+      <h2>2. HSS Column <span class="badge">A500 Gr.B/C</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>HSS Section</label>
+          <select id="hsec" onchange="hint()">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div class="ig"><label>F<sub>y</sub> HSS <span class="unit">(ksi)</span></label><input type="number" id="Fy" value="46"></div>
+      </div>
+      <div id="hHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+    </div>
+
+    <div class="blk">
+      <h2>3. Applied Demands</h2>
+      <div class="g3">
+        <div class="ig"><label>M<sub>u</sub> applied moment <span class="unit">(kip-ft)</span></label><input type="number" id="Mu" value="60"></div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runCalc()">▶ Run All Checks</button>
+
+    <div id="results" class="results">
+      <div id="sumBox" class="summary"></div>
+      <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+      <div class="blk"><h2>Design Demands</h2><div id="demOut"></div></div>
+      <div class="blk">
+        <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">— click "▸ Calc" to expand</span></h2>
+        <table class="chk-table">
+          <thead><tr><th style="width:30%">Check</th><th>Code Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+          <tbody id="chkTb"></tbody>
+        </table>
+      </div>
+      <div class="note-box">
+        <strong>Engineering Notes:</strong>
+        <ul>
+          <li>Calculator transfers M<sub>u</sub> to a flange-force couple P<sub>uf</sub> = M<sub>u</sub>/(d − t<sub>f</sub>) and checks the chord-wall local yielding limit state (AISC 360-22 Eq. K1-7), which governs DG24 Example 4.3.</li>
+          <li>Limits of applicability per §K1.3 (Table K1.3A) must be satisfied: 0.25 ≤ b<sub>p</sub>/B ≤ 1.0, B/t ≤ 35, F<sub>y</sub> ≤ 52 ksi.</li>
+          <li>Beam flange must fit on the flat of the HSS wall: b<sub>f</sub> ≤ B − 3t.</li>
+          <li>Web local yielding/crippling, weld design, beam shear connection, and HSS column compression checks are NOT included — perform separately.</li>
+          <li>Verified against DG24 Example 4.3: W16×57 on HSS10×10×1/2 → φM<sub>n</sub> ≈ 88 kip-ft.</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let W_DB = {
+  "W8x18":[5.26,8.14,5.250,0.330,0.230],
+  "W8x24":[7.08,7.93,6.500,0.400,0.245],
+  "W8x31":[9.12,8.00,8.000,0.435,0.285],
+  "W10x22":[6.49,10.2,5.750,0.360,0.240],
+  "W10x33":[9.71,9.73,7.960,0.435,0.290],
+  "W10x45":[13.3,10.1,8.020,0.620,0.350],
+  "W12x16":[4.71,11.99,3.990,0.265,0.220],
+  "W12x26":[7.65,12.22,6.490,0.380,0.230],
+  "W12x35":[10.3,12.50,6.560,0.520,0.300],
+  "W12x50":[14.6,12.19,8.080,0.640,0.370],
+  "W14x22":[6.49,13.74,5.000,0.335,0.230],
+  "W14x38":[11.2,14.10,6.770,0.515,0.310],
+  "W14x48":[14.1,13.79,8.031,0.595,0.340],
+  "W16x26":[7.68,15.69,5.500,0.345,0.250],
+  "W16x40":[11.8,16.01,7.000,0.505,0.305],
+  "W16x57":[16.8,16.43,7.120,0.715,0.430],
+  "W18x35":[10.3,17.70,6.000,0.425,0.300],
+  "W18x50":[14.7,17.99,7.495,0.570,0.355],
+  "W21x44":[13.0,20.66,6.500,0.530,0.350]
+};
+let H_DB = {
+  "HSS6x6x1/4":  [5.24,6.00,6.00,0.233],
+  "HSS6x6x5/16":[6.43,6.00,6.00,0.291],
+  "HSS6x6x3/8": [7.58,6.00,6.00,0.349],
+  "HSS8x8x1/4": [7.10,8.00,8.00,0.233],
+  "HSS8x8x5/16":[8.76,8.00,8.00,0.291],
+  "HSS8x8x3/8": [10.4,8.00,8.00,0.349],
+  "HSS8x8x1/2": [13.5,8.00,8.00,0.465],
+  "HSS10x10x3/8":[13.0,10.0,10.0,0.349],
+  "HSS10x10x1/2":[16.9,10.0,10.0,0.465],
+  "HSS12x12x3/8":[15.6,12.0,12.0,0.349],
+  "HSS12x12x1/2":[20.4,12.0,12.0,0.465]
+};
+
+// ============ AISC DB LOADER ============
+function processWorkbook(data){
+  var wb = XLSX.read(data,{type:'array'});
+  var sheet = wb.Sheets["Database v16.0"] || wb.Sheets[wb.SheetNames[0]];
+  var rows = XLSX.utils.sheet_to_json(sheet,{header:1});
+  var headers = rows[0];
+  // Find column indices by header name (robust to column shifts)
+  function col(name){return headers.indexOf(name)}
+  var iType=col('Type'), iLbl=col('AISC_Manual_Label'), iA=col('A'),
+      id=col('d'), ibf=col('bf'), itf=col('tf'), itw=col('tw'),
+      iHt=col('Ht'), iB=col('B'), itdes=col('tdes');
+  // Fallbacks by fixed index if header lookup fails
+  if(iLbl<0) iLbl=2;
+  if(iType<0) iType=0;
+  if(iA<0) iA=5;
+  if(id<0) id=6;
+  if(iHt<0) iHt=8;
+  if(ibf<0) ibf=11;
+  if(iB<0) iB=13;
+  if(itw<0) itw=16;
+  if(itf<0) itf=19;
+  if(itdes<0) itdes=23;
+  var W={}, H={};
+  for(var r=1;r<rows.length;r++){
+    var row=rows[r]; if(!row||!row[iLbl])continue;
+    var type=String(row[iType]||'').trim();
+    var lbl=String(row[iLbl]).trim();
+    if(type==='W'){
+      W[lbl]=[+row[iA],+row[id],+row[ibf],+row[itf],+row[itw]];
+    } else if(type==='HSS'){
+      // Only square/rectangular HSS (skip round — no B column)
+      var Bv=+row[iB]; if(!isFinite(Bv)||Bv<=0)continue;
+      H[lbl]=[+row[iA],+row[iHt],Bv,+row[itdes]];
+    }
+  }
+  return {W:W,H:H};
+}
+function applyDb(db){
+  if(Object.keys(db.W).length) W_DB=db.W;
+  if(Object.keys(db.H).length) H_DB=db.H;
+  rebuildDropdowns();
+  document.getElementById('dbBadge').textContent='AISC v16.0 loaded';
+  document.getElementById('dbBadge').style.background='#dcfce7';
+  document.getElementById('dbBadge').style.color='#166534';
+  document.getElementById('dbStatus').textContent='Loaded '+Object.keys(db.W).length+' W-shapes, '+Object.keys(db.H).length+' HSS shapes';
+}
+function rebuildDropdowns(){
+  var wSel=document.getElementById('wsec'), hSel=document.getElementById('hsec');
+  var wPrev=wSel.value, hPrev=hSel.value;
+  wSel.innerHTML='<option value="">— Select —</option>';
+  Object.keys(W_DB).sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;wSel.appendChild(o)});
+  hSel.innerHTML='<option value="">— Select —</option>';
+  Object.keys(H_DB).sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;hSel.appendChild(o)});
+  wSel.value = W_DB[wPrev]?wPrev:(W_DB["W16X57"]?"W16X57":(W_DB["W16x57"]?"W16x57":Object.keys(W_DB)[0]));
+  hSel.value = H_DB[hPrev]?hPrev:(H_DB["HSS10X10X1/2"]?"HSS10X10X1/2":(H_DB["HSS10x10x1/2"]?"HSS10x10x1/2":Object.keys(H_DB)[0]));
+  hint();
+}
+function loadDbAuto(){
+  document.getElementById('dbStatus').textContent='Fetching aisc-shapes-database-v16.0.xlsx ...';
+  fetch('aisc-shapes-database-v16.0.xlsx').then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.arrayBuffer();
+  }).then(function(buf){
+    applyDb(processWorkbook(new Uint8Array(buf)));
+  }).catch(function(e){
+    document.getElementById('dbStatus').textContent='Auto-load failed ('+e.message+'). Use Upload button.';
+  });
+}
+function loadDbFile(ev){
+  var f=ev.target.files[0]; if(!f)return;
+  document.getElementById('dbStatus').textContent='Reading '+f.name+' ...';
+  var rd=new FileReader();
+  rd.onload=function(e){
+    try{applyDb(processWorkbook(new Uint8Array(e.target.result)))}
+    catch(err){document.getElementById('dbStatus').textContent='Parse failed: '+err.message}
+  };
+  rd.readAsArrayBuffer(f);
+}
+// Auto-attempt fetch on load (silent fail)
+window.addEventListener('load',function(){setTimeout(loadDbAuto,200)});
+// ============ END LOADER ============
+
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'}
+function toggleDet(i){var el=document.getElementById('det_'+i);var b=document.getElementById('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▸ Calc'}
+
+(function init(){
+  var w=document.getElementById('wsec');
+  Object.keys(W_DB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;w.appendChild(o)});
+  w.value="W16x57";
+  var h=document.getElementById('hsec');
+  Object.keys(H_DB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;h.appendChild(o)});
+  h.value="HSS10x10x1/2";
+  hint();
+})();
+
+function hint(){
+  var ws=document.getElementById('wsec').value;
+  if(ws){var W=W_DB[ws];document.getElementById('wHint').innerHTML='d='+W[1]+'", b<sub>f</sub>='+W[2]+'", t<sub>f</sub>='+W[3]+'"'}
+  var hs=document.getElementById('hsec').value;
+  if(hs){var H=H_DB[hs];document.getElementById('hHint').innerHTML='B='+H[2]+'", t<sub>des</sub>='+H[3]+'", flat = B−3t = '+(H[2]-3*H[3]).toFixed(2)+'"'}
+}
+
+function runCalc(){
+  var ws=document.getElementById('wsec').value, hs=document.getElementById('hsec').value;
+  if(!ws||!hs){alert('Select beam and column.');return}
+  var W=W_DB[ws], H=H_DB[hs];
+  var d=W[1], bf=W[2], tf=W[3], tw=W[4];
+  var A=H[0], Bcol=H[2], t=H[3];
+  var Fyb=+document.getElementById('Fyb').value;
+  var Fy=+document.getElementById('Fy').value;
+  var Mu=+document.getElementById('Mu').value;
+  var phi=0.95;
+
+  // Demands
+  var lever = d - tf;
+  var Puf = (Mu*12) / lever; // kips, flange force couple
+
+  // Limits of applicability §K1.3
+  var Bt = Bcol/t;
+  var bpB = bf/Bcol;
+  var lim_Bt = Bt <= 35;
+  var lim_ratio = (bpB >= 0.25 && bpB <= 1.0);
+  var flat = Bcol - 3*t;
+  var lim_fit = bf <= flat;
+  var lim_Fy = Fy <= 52;
+
+  // Local yielding of HSS chord wall — Eq. K1-7
+  var beoi = (10/Bt) * bf; // effective width factor × bf (no Fyp/Fyb correction since same eq form)
+  var Rn_K1 = (10/Bt) * Fy * t * bf;
+  var Rn_upper = Fyb * tf * bf;
+  var Rn = Math.min(Rn_K1, Rn_upper);
+  var phiRn = phi * Rn;
+  var phiMn = phiRn * lever / 12; // kip-ft
+
+  // Build checks
+  var chks = [];
+
+  // Check 1: Geometric fit
+  var d1 = '';
+  d1 += '<div class="cref-hdr">Geometric Fit on Flat of HSS Wall</div><div class="cbox">';
+  d1 += '<div class="mrow"><span class="ceq">flat width</span> = B − 3t = '+Bcol+' − 3('+t+') = <span class="cval">'+f2(flat)+' in</span></div>';
+  d1 += '<div class="mrow">b<sub>f</sub> = '+bf+' in '+(lim_fit?'≤':'>')+' '+f2(flat)+' in → '+(lim_fit?'OK':'NG')+'</div></div>';
+  chks.push({n:'Beam Flange Fit',r:'AISC DG24 §4.4',d:'b<sub>f</sub> = '+bf+'"',c:'B−3t = '+f2(flat)+'"',dc:bf/flat,det:d1});
+
+  // Check 2: Limits of applicability
+  var d2 = '';
+  d2 += '<div class="cref-hdr">AISC 360-22 §K1.3 / Table K1.3A — Limits of Applicability</div><div class="cbox">';
+  d2 += '<div class="mrow">B/t = '+f1(Bt)+' ≤ 35 → '+(lim_Bt?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d2 += '<div class="mrow">b<sub>p</sub>/B = '+f3(bpB)+' (limit 0.25 to 1.0) → '+(lim_ratio?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d2 += '<div class="mrow">F<sub>y</sub> = '+Fy+' ksi ≤ 52 ksi → '+(lim_Fy?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
+  d2 += '</div>';
+  var allLim = lim_Bt && lim_ratio && lim_Fy;
+  chks.push({n:'Limits of Applicability',r:'AISC 360-22 §K1.3',d:'—',c:allLim?'All satisfied':'Violation',dc:allLim?0.5:1.5,det:d2});
+
+  // Check 3: Local yielding of HSS wall (K1-7)
+  var d3 = '';
+  d3 += '<div class="cref-hdr">AISC 360-22 §K1.3 — Eq. K1-7 — Local Yielding of HSS Connecting Wall</div><div class="cbox">';
+  d3 += '<div class="mrow"><span class="ceq">Eq. K1-7:</span> R<sub>n</sub> = '+fr('10','B/t')+' · F<sub>y</sub> · t · b<sub>p</sub> &nbsp;≤&nbsp; F<sub>yp</sub> · t<sub>p</sub> · b<sub>p</sub></div>';
+  d3 += '<div class="mrow ind">= '+fr('10',f1(Bt))+' · '+Fy+' · '+t+' · '+bf+'</div>';
+  d3 += '<div class="mrow ind">= <span class="cval">'+f2(Rn_K1)+' kips</span></div>';
+  d3 += '<div class="mrow">Upper bound: F<sub>yp</sub>·t<sub>p</sub>·b<sub>p</sub> = '+Fyb+' · '+tf+' · '+bf+' = <span class="cval">'+f2(Rn_upper)+' kips</span></div>';
+  d3 += '<div class="mrow">Governing R<sub>n</sub> = min = <span class="cval">'+f2(Rn)+' kips</span></div>';
+  d3 += '<hr class="csep">';
+  d3 += '<div class="mrow">φR<sub>n</sub> = 0.95 · '+f2(Rn)+' = <span class="cval">'+f2(phiRn)+' kips</span></div>';
+  d3 += '<div class="mrow">Lever arm: d − t<sub>f</sub> = '+d+' − '+tf+' = <span class="cval">'+f2(lever)+' in</span></div>';
+  d3 += '<div class="mrow">φM<sub>n</sub> = φR<sub>n</sub> · (d−t<sub>f</sub>) / 12 = <span class="cval">'+f2(phiMn)+' kip-ft</span></div>';
+  d3 += '<hr class="csep">';
+  d3 += '<div class="mrow">P<sub>uf</sub> = M<sub>u</sub>/(d−t<sub>f</sub>) = '+(Mu*12).toFixed(0)+'/'+f2(lever)+' = '+f2(Puf)+' kips</div>';
+  d3 += '<div class="mrow">D/C = '+fr(f2(Puf),f2(phiRn))+' = <span class="cval">'+f3(Puf/phiRn)+'</span></div>';
+  d3 += '</div>';
+  chks.push({n:'HSS Wall Local Yielding',r:'AISC 360-22 §K1.3 Eq. K1-7',d:'P<sub>uf</sub> = '+f2(Puf)+' k',c:'φR<sub>n</sub> = '+f2(phiRn)+' k',dc:Puf/phiRn,det:d3});
+
+  // Render
+  var maxDC = 0;
+  chks.forEach(function(c){if(isFinite(c.dc)&&c.dc>maxDC)maxDC=c.dc});
+  var pass = maxDC <= 1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'✔ All Checks Pass':'✘ One or More Checks Fail')+'</h3><p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+ws+' on '+hs+', M<sub>u</sub>='+Mu+' k-ft, φM<sub>n</sub>='+f2(phiMn)+' k-ft</p>';
+
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><tr><th>Property</th><th>Beam '+ws+'</th><th>Column '+hs+'</th></tr>'
+    +'<tr><td>Area (in²)</td><td>'+W[0]+'</td><td>'+A+'</td></tr>'
+    +'<tr><td>Depth d / B (in)</td><td>'+d+'</td><td>'+Bcol+'</td></tr>'
+    +'<tr><td>b<sub>f</sub> / t<sub>des</sub> (in)</td><td>'+bf+'</td><td>'+t+'</td></tr>'
+    +'<tr><td>t<sub>f</sub> (in)</td><td>'+tf+'</td><td>—</td></tr>'
+    +'<tr><td>F<sub>y</sub> (ksi)</td><td>'+Fyb+'</td><td>'+Fy+'</td></tr></table>';
+
+  document.getElementById('demOut').innerHTML =
+    '<div class="dem-grid">'
+    +'<div class="dem-card"><div class="v">'+f2(Mu)+'</div><div class="l">M<sub>u</sub> (kip-ft)</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(Puf)+'</div><div class="l">P<sub>uf</sub> = M<sub>u</sub>/(d−t<sub>f</sub>) (kips)</div></div>'
+    +'<div class="dem-card"><div class="v">'+f1(Bt)+'</div><div class="l">B/t</div></div>'
+    +'<div class="dem-card"><div class="v">'+f3(bpB)+'</div><div class="l">b<sub>p</sub>/B</div></div>'
+    +'<div class="dem-card"><div class="v">'+f2(phiMn)+'</div><div class="l">φM<sub>n</sub> (kip-ft)</div></div>'
+    +'</div>';
+
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c,i){
+    var dc=c.dc;
+    var col = dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+    var pct = Math.min(dc*100,150);
+    var stxt = dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    tb.innerHTML += '<tr><td><strong>'+c.n+'</strong></td><td><code>'+c.r+'</code></td><td>'+c.d+'</td><td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div></td>'
+      +'<td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">▸ Calc</button></td></tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+</script>
+</body>
+</html>
