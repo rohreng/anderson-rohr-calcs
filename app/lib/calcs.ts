@@ -300,6 +300,17 @@ export const CALCS: CalcMeta[] = [
     keywords: ["cold-formed", "CFS", "stud", "SSMA", "axial", "compression", "bending", "combined", "H1.2", "LTB", "lateral torsional buckling", "distortional", "local buckling", "flexural-torsional", "AISI S100", "light gauge", "framing"],
   },
   {
+    slug: "cfs-wall-opening",
+    label: "CFS Wall Opening — Header / Sill / Jamb",
+    subtitle: "Exterior wall opening: header tracks (lateral wind) + vertical studs (gravity) · sill · jamb combined bending+axial with explicit jamb length · full SSMA dropdowns",
+    htmlFile: "/Calcs/CFS_Wall_Opening_Header_Sill_Jamb_calculator.html",
+    category: "CFS",
+    spec: "AISI S100-16 §B1.2 / C3.1.1 / C3.2 / C3.3 / E2-E3 / C5.2",
+    status: "ready",
+    group: "CFS Members",
+    keywords: ["cold-formed", "CFS", "wall", "opening", "header", "sill", "jamb", "track", "stud", "SSMA", "lateral", "wind", "gravity", "combined", "bending", "axial", "compression", "C5.2", "effective width", "AISI S100", "light gauge", "framing", "window", "door", "lintel", "box header"],
+  },
+  {
     slug: "cfs-weld",
     label: "CFS Weld Connection Designer",
     subtitle: "All 8 weld types — fillet, arc spot, arc seam, flare bevel, flare V-groove, groove butt · ASD + LRFD",
