@@ -365,10 +365,10 @@ function runCalc(){
   chks.push({n:'Chord Wall Plastification',nt:'β ≤ 0.85',r:'§K3 Eq. K3-7',d:'P<sub>u</sub>='+f2(Pu)+' k',c:Pn1!==null?'φP<sub>n</sub>='+f2(Pn1)+' k':'N/A',dc:Pn1!==null?Pu/Pn1:null,det:d1});
 
   var Pn10=null;
-  if(beta>0.85){ Pn10=2*Fy*t*(5*t+Hb)/sinT; }
+  if(beta>0.85){ Pn10=2*Fy*t*(5*1.5*t+Hb)/sinT; }
   var d10='<div class="cref-hdr">§K3 Eq. K3-10 — Chord Sidewall Local Yielding (β &gt; 0.85)</div><div class="cbox">';
   if(Pn10!==null){
-    d10+='<div class="mrow">P<sub>n</sub> = 2·F<sub>y</sub>·t·'+fr('5t+H<sub>b</sub>','sinθ')+' = 2·'+Fy+'·'+f3(t)+'·'+fr(f2(5*t+Hb),f3(sinT))+'</div>';
+    d10+='<div class="mrow">P<sub>n</sub> = 2·F<sub>y</sub>·t·'+fr('5k+H<sub>b</sub>','sinθ')+', k=1.5t = 2·'+Fy+'·'+f3(t)+'·'+fr(f2(5*1.5*t+Hb),f3(sinT))+'</div>';
     d10+='<div class="mrow ind">= <span class="cval">'+f2(Pn10)+' k</span>; φP<sub>n</sub> = 1.00·'+f2(Pn10)+' = <span class="cval">'+f2(Pn10)+' k</span></div>';
   } else { d10+='<div class="mrow">Not applicable: requires β &gt; 0.85</div>'; }
   d10+='</div>';
@@ -386,15 +386,15 @@ function runCalc(){
   chks.push({n:'Chord Sidewall Local Crippling',nt:'β &gt; 0.85',r:'Eq. J10-4',d:'P<sub>u</sub>='+f2(Pu)+' k',c:Pn4c!==null?'φR<sub>n</sub>='+f2(phi4*Pn4c)+' k':'N/A',dc:Pn4c!==null?Pu/(phi4*Pn4c):null,det:d4});
 
   var Pn8=null, phi8=0.90;
-  if(beta>0.85){ var h_=Hch-3*t; Pn8=2*(24*Math.pow(t,3)*Math.sqrt(EMOD*Fy)/h_)*Qf; }
+  if(beta>0.85 && ctype==='X'){ var h_=Hch-3*t; Pn8=2*(24*Math.pow(t,3)*Math.sqrt(EMOD*Fy)/h_)*Qf; }
   var d8='<div class="cref-hdr">Eq. J10-8 — Chord Sidewall Local Buckling (β &gt; 0.85, compression)</div><div class="cbox">';
   if(Pn8!==null){
     var h_=Hch-3*t;
     d8+='<div class="mrow">R<sub>n</sub> = 2·'+fr('24·t³'+ov('E·F<sub>y</sub>'),'h')+'·Q<sub>f</sub>, h=H−3t='+f2(h_)+'</div>';
     d8+='<div class="mrow ind">R<sub>n</sub> = '+f2(Pn8)+' k; φR<sub>n</sub> = 0.90·'+f2(Pn8)+' = <span class="cval">'+f2(phi8*Pn8)+' k</span></div>';
-  } else { d8+='<div class="mrow">Not applicable: requires β &gt; 0.85</div>'; }
+  } else { d8+='<div class="mrow">Not applicable: matched-width cross (X) connections only (β≈1.0, moment balanced by branches on both sides).</div>'; }
   d8+='</div>';
-  chks.push({n:'Chord Sidewall Local Buckling',nt:'β &gt; 0.85',r:'Eq. J10-8',d:'P<sub>u</sub>='+f2(Pu)+' k',c:Pn8!==null?'φR<sub>n</sub>='+f2(phi8*Pn8)+' k':'N/A',dc:Pn8!==null?Pu/(phi8*Pn8):null,det:d8});
+  chks.push({n:'Chord Sidewall Local Buckling',nt:'cross (X), β≈1.0',r:'Eq. J10-8',d:'P<sub>u</sub>='+f2(Pu)+' k',c:Pn8!==null?'φR<sub>n</sub>='+f2(phi8*Pn8)+' k':'N/A',dc:Pn8!==null?Pu/(phi8*Pn8):null,det:d8});
 
   var Pn9=null, phi9=0.95;
   if(beta>0.85){ Pn9=Fyb*tb*(2*Hb-4*tb+2*beoi); }
@@ -445,11 +445,11 @@ function runCalc(){
   chks.push({n:'Chord Sidewall Yielding (ip)',nt:'β &gt; 0.85',r:'§K4 Eq. K4-2',d:'M<sub>u</sub>='+f1(Muip)+' k-in',c:Mip2!==null?'φM<sub>n</sub>='+f1(Mip2)+' k-in':'N/A',dc:Mip2!==null?Muip/Mip2:null,det:m2});
 
   var Mip3=null, phiM3=0.95;
-  if(beta>0.85 && isFinite(Zip)){ Mip3=Fyb*(Zip-(1-beoi/Bb)*Bb*(Hb-tb)*tb); }
+  if(beta>0.85 && isFinite(Zip)){ Mip3=Fyb*(Zip-(1-beoi/Bb)*Bb*Hb*tb); }
   var m3='<div class="cref-hdr">§K4 Eq. K4-3 — Branch Local Yielding, Uneven Load, in-plane (β &gt; 0.85)</div><div class="cbox">';
   if(Mip3!==null){
-    m3+='<div class="mrow">M<sub>n</sub> = F<sub>yb</sub>[Z<sub>b</sub> − (1−b<sub>eoi</sub>/B<sub>b</sub>)·B<sub>b</sub>·(H<sub>b</sub>−t<sub>b</sub>)·t<sub>b</sub>], Z<sub>b</sub>=Z<sub>ip</sub>='+f1(Zip)+' in³</div>';
-    m3+='<div class="mrow ind">= '+Fyb+'·['+f1(Zip)+'−(1−'+f2(beoi/Bb)+')·'+f2(Bb)+'·'+f2(Hb-tb)+'·'+f3(tb)+'] = '+f1(Mip3)+' k-in; φM<sub>n</sub> = 0.95·'+f1(Mip3)+' = <span class="cval">'+f1(phiM3*Mip3)+' k-in</span></div>';
+    m3+='<div class="mrow">M<sub>n</sub> = F<sub>yb</sub>[Z<sub>b</sub> − (1−b<sub>eoi</sub>/B<sub>b</sub>)·B<sub>b</sub>·H<sub>b</sub>·t<sub>b</sub>], Z<sub>b</sub>=Z<sub>ip</sub>='+f1(Zip)+' in³</div>';
+    m3+='<div class="mrow ind">= '+Fyb+'·['+f1(Zip)+'−(1−'+f2(beoi/Bb)+')·'+f2(Bb)+'·'+f2(Hb)+'·'+f3(tb)+'] = '+f1(Mip3)+' k-in; φM<sub>n</sub> = 0.95·'+f1(Mip3)+' = <span class="cval">'+f1(phiM3*Mip3)+' k-in</span></div>';
   } else if(beta>0.85 && !isFinite(Zip)){ m3+='<div class="mrow">Load AISC DB for branch Z<sub>b</sub>.</div>'; }
   else { m3+='<div class="mrow">Not applicable: requires β &gt; 0.85</div>'; }
   m3+='</div>';
@@ -473,11 +473,11 @@ function runCalc(){
   chks.push({n:'Chord Wall Plastification (op)',nt:'β ≤ 0.85',r:'§K4 Eq. K4-4',d:'M<sub>u</sub>='+f1(Muop)+' k-in',c:Mop4!==null?'φM<sub>n</sub>='+f1(Mop4)+' k-in':'N/A',dc:Mop4!==null?Muop/Mop4:null,det:o4});
 
   var Mop5=null;
-  if(beta>0.85){ Mop5=FyStar*t*(Bb-t)*(Hb+5*t); }
+  if(beta>0.85){ Mop5=FyStar*t*(Bch-t)*(Hb+5*t); }
   var o5='<div class="cref-hdr">§K4 Eq. K4-5 — Chord Sidewall Local Yielding, out-of-plane (β &gt; 0.85)</div><div class="cbox">';
   if(Mop5!==null){
-    o5+='<div class="mrow">M<sub>n</sub> = F<sub>y</sub>*·t·(B<sub>b</sub>−t)·(H<sub>b</sub>+5t), F<sub>y</sub>*='+f1(FyStar)+' ksi</div>';
-    o5+='<div class="mrow ind">= '+f1(FyStar)+'·'+f3(t)+'·'+f2(Bb-t)+'·'+f2(Hb+5*t)+' = <span class="cval">'+f1(Mop5)+' k-in</span>; φM<sub>n</sub> = <span class="cval">'+f1(Mop5)+' k-in</span></div>';
+    o5+='<div class="mrow">M<sub>n</sub> = F<sub>y</sub>*·t·(B−t)·(H<sub>b</sub>+5t), B=chord width, F<sub>y</sub>*='+f1(FyStar)+' ksi</div>';
+    o5+='<div class="mrow ind">= '+f1(FyStar)+'·'+f3(t)+'·'+f2(Bch-t)+'·'+f2(Hb+5*t)+' = <span class="cval">'+f1(Mop5)+' k-in</span>; φM<sub>n</sub> = <span class="cval">'+f1(Mop5)+' k-in</span></div>';
   } else { o5+='<div class="mrow">Not applicable: requires β &gt; 0.85</div>'; }
   o5+='</div>';
   chks.push({n:'Chord Sidewall Yielding (op)',nt:'β &gt; 0.85',r:'§K4 Eq. K4-5',d:'M<sub>u</sub>='+f1(Muop)+' k-in',c:Mop5!==null?'φM<sub>n</sub>='+f1(Mop5)+' k-in':'N/A',dc:Mop5!==null?Muop/Mop5:null,det:o5});
@@ -494,10 +494,10 @@ function runCalc(){
   chks.push({n:'Branch Local Yielding (op)',nt:'β &gt; 0.85',r:'§K4 Eq. K4-6',d:'M<sub>u</sub>='+f1(Muop)+' k-in',c:Mop6!==null?'φM<sub>n</sub>='+f1(phiM6*Mop6)+' k-in':'N/A',dc:Mop6!==null?Muop/(phiM6*Mop6):null,det:o6});
 
   var Mop7=null;
-  if(ctype!=='X'){ Mop7=2*Fy*t*(Hb*t+Math.sqrt(Bb*Hb*t*(Bb+Hb))); }
+  if(ctype!=='X'){ Mop7=2*Fy*t*(Hb*t+Math.sqrt(Bch*Hch*t*(Bch+Hch))); }
   var o7='<div class="cref-hdr">§K4 Eq. K4-7 — Chord Distortional Failure, out-of-plane (T/Y connections)</div><div class="cbox">';
   if(Mop7!==null){
-    o7+='<div class="mrow">M<sub>n</sub> = 2·F<sub>y</sub>·t·[H<sub>b</sub>·t + '+ov('B<sub>b</sub>·H<sub>b</sub>·t·(B<sub>b</sub>+H<sub>b</sub>)')+']</div>';
+    o7+='<div class="mrow">M<sub>n</sub> = 2·F<sub>y</sub>·t·[H<sub>b</sub>·t + '+ov('B·H·t·(B+H)')+'] (B,H = chord)</div>';
     o7+='<div class="mrow ind">= '+f1(Mop7)+' k-in; φM<sub>n</sub> = 1.00·'+f1(Mop7)+' = <span class="cval">'+f1(Mop7)+' k-in</span></div>';
     o7+='<div class="mrow" style="font-size:.9em;color:#92400e">Omit if chord is restrained against distortion (diaphragm/stiffener).</div>';
   } else { o7+='<div class="mrow">Not applicable for cross (X) connections.</div>'; }
