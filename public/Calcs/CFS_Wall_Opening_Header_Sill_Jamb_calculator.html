@@ -96,7 +96,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <svg width="100%" viewBox="0 0 340 300" style="max-height:300px">
         <defs>
           <marker id="aR" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#dc2626"/></marker>
-          <marker id="aD" markerWidth="8" markerHeight="8" refX="3" refY="6" orient="auto"><path d="M0,0 L6,0 L3,7z" fill="#374151"/></marker>
+          <marker id="aD" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#374151"/></marker>
         </defs>
         <rect x="60" y="30" width="14" height="240" fill="#fde7c9" stroke="#b45309" stroke-width="1.5"/>
         <rect x="266" y="30" width="14" height="240" fill="#fde7c9" stroke="#b45309" stroke-width="1.5"/>
@@ -460,6 +460,45 @@ function combChk(p,P,M,Pn,Pn0,Mn,PEx,E){
   return {dc:dc,nt:'&alpha;<sub>x</sub>='+f3(ax)+', P<sub>no</sub>='+f2(Pn0)+' k',det:d};
 }
 
+function fcrdSimpl(ho,bo,D,t,th,mode){
+  var s=Math.sin(th*Math.PI/180), x=bo*D*s/(ho*t);
+  var kd=(mode==='flex')?Math.min(Math.max(0.6*Math.pow(x,0.7),0.5),8.0):Math.min(Math.max(0.1*Math.pow(x,1.4),0.05),8.0);
+  var Fcrd=kd*(Math.PI*Math.PI*29500/(12*(1-0.09)))*Math.pow(t/bo,2);
+  var Lcr=Math.min(1.2*ho*Math.pow(x,0.6),10*ho);
+  return {Fcrd:Fcrd,kd:kd,Lcr:Lcr};
+}
+function mndFlex(p){
+  if(p.kind!=='S')return null;
+  var d=fcrdSimpl(p.H,p.B,p.D,p.t,90,'flex');
+  var Sf=p.Sx,My=Sf*p.Fy,Mcrd=Sf*d.Fcrd,lam=Math.sqrt(My/Mcrd);
+  var Mnd=lam<=0.673?My:(1-0.22*Math.pow(Mcrd/My,0.5))*Math.pow(Mcrd/My,0.5)*My;
+  return {Mnd:Mnd,Fcrd:d.Fcrd,kd:d.kd,Mcrd:Mcrd,My:My,lam:lam,Lcr:d.Lcr};
+}
+function pndComp(p){
+  if(p.kind!=='S')return null;
+  var d=fcrdSimpl(p.H,p.B,p.D,p.t,90,'comp');
+  var Ag=p.A,Py=Ag*p.Fy,Pcrd=Ag*d.Fcrd,lam=Math.sqrt(Py/Pcrd);
+  var Pnd=lam<=0.561?Py:(1-0.25*Math.pow(Pcrd/Py,0.6))*Math.pow(Pcrd/Py,0.6)*Py;
+  return {Pnd:Pnd,Fcrd:d.Fcrd,kd:d.kd,Pcrd:Pcrd,Py:Py,lam:lam,Lcr:d.Lcr};
+}
+function dbFlexChk(p,m,M){
+  var det='<div class="cref-hdr">AISI S100-16 &sect;F4 &mdash; Distortional Buckling (simplified, Commentary C-2.3.3.3(c))</div><div class="cbox">'
+   +'<div class="mrow">k<sub>d</sub>=0.6(b<sub>o</sub>D&middot;sin&theta;/h<sub>o</sub>t)<sup>0.7</sup>='+f2(m.kd)+', &nbsp;F<sub>crd</sub>=k<sub>d</sub>&middot;&pi;&sup2;E/[12(1-&mu;&sup2;)]&middot;(t/b<sub>o</sub>)&sup2;='+f1(m.Fcrd)+' ksi</div>'
+   +'<div class="mrow">M<sub>y</sub>=S<sub>f</sub>F<sub>y</sub>='+f1(m.My)+', M<sub>crd</sub>=S<sub>f</sub>F<sub>crd</sub>='+f1(m.Mcrd)+', &lambda;<sub>d</sub>='+f2(m.lam)+'</div>'
+   +'<div class="mrow">M<sub>nd</sub>='+f1(m.Mnd)+' k-in &rarr; M<sub>a</sub>=M<sub>nd</sub>/1.67=<span class="cval">'+f2(m.Mnd/Ob)+' k-in</span></div>'
+   +'<div class="mrow" style="font-size:.9em">L<sub>cr</sub>='+f1(m.Lcr)+'". Conservative simplified method (ignores sheathing). If the flange is braced against distortion at &le; L<sub>cr</sub>, this limit state need not control.</div>'
+   +'<hr class="csep"><div class="mrow">D/C='+fr(f2(M),f2(m.Mnd/Ob))+'='+f3(M/(m.Mnd/Ob))+'</div></div>';
+  return {n:'Distortional buckling (flexure)',r:'AISI S100-16 F4',d:'M = '+f2(M)+' k-in',c:'M<sub>nd</sub>/&Omega;<sub>b</sub> = '+f2(m.Mnd/Ob)+' k-in',dc:M/(m.Mnd/Ob),nt:'simplified/conservative; L<sub>cr</sub>='+f1(m.Lcr)+'"',det:det};
+}
+function dbCompChk(p,m,P){
+  var det='<div class="cref-hdr">AISI S100-16 &sect;E4 &mdash; Distortional Buckling (simplified, Commentary C-2.3.1.3(c))</div><div class="cbox">'
+   +'<div class="mrow">k<sub>d</sub>=0.1(b<sub>o</sub>D&middot;sin&theta;/h<sub>o</sub>t)<sup>1.4</sup>='+f2(m.kd)+', &nbsp;F<sub>crd</sub>='+f1(m.Fcrd)+' ksi</div>'
+   +'<div class="mrow">P<sub>y</sub>=A<sub>g</sub>F<sub>y</sub>='+f2(m.Py)+', P<sub>crd</sub>=A<sub>g</sub>F<sub>crd</sub>='+f2(m.Pcrd)+', &lambda;<sub>d</sub>='+f2(m.lam)+'</div>'
+   +'<div class="mrow">P<sub>nd</sub>='+f2(m.Pnd)+' k &rarr; P<sub>a</sub>=P<sub>nd</sub>/1.80=<span class="cval">'+f2(m.Pnd/Oc)+' k</span></div>'
+   +'<div class="mrow" style="font-size:.9em">L<sub>cr</sub>='+f1(m.Lcr)+'". Simplified method ignores sheathing restraint; a rational elastic analysis (Appendix 2.2 / CUFSM) gives higher capacity. If braced against distortion at &le; L<sub>cr</sub>, need not control.</div>'
+   +'<hr class="csep"><div class="mrow">D/C='+fr(f2(P),f2(m.Pnd/Oc))+'='+f3(P/(m.Pnd/Oc))+'</div></div>';
+  return {n:'Distortional buckling (compression)',r:'AISI S100-16 E4',d:'P = '+f2(P)+' k',c:'P<sub>nd</sub>/&Omega;<sub>c</sub> = '+f2(m.Pnd/Oc)+' k',dc:P/(m.Pnd/Oc),nt:'simplified/conservative; L<sub>cr</sub>='+f1(m.Lcr)+'"',det:det};
+}
 function buildMemberTable(title,props,chks,demLine,extraProp){
   var html='<div class="mem-head">'+title+'</div>';
   if(demLine)html+='<div class="dem-line">'+demLine+'</div>';
@@ -551,7 +590,10 @@ function runCalc(){
     chks.push({n:'Flexure (gravity)',r:'AISI S100-16 C3.1.1',d:'M = '+f2(M)+' k-in',c:'M<sub>a</sub> = '+f2(fl.Mn/Ob)+' k-in',dc:M/(fl.Mn/Ob),nt:'per stud of '+nS,det:detFlex(p,fl.Mn,M,fl,dH)});
     chks.push({n:'Shear',r:'AISI S100-16 C3.2',d:'V = '+f2(V)+' k',c:'V<sub>a</sub> = '+f2(sh.Vn/Ov)+' k',dc:V/(sh.Vn/Ov),nt:'F<sub>cr</sub>='+f1(sh.Fcr)+' ksi'});
     chks.push({n:'Compression',r:'AISI S100-16 E2/E3',d:'P = '+f2(P)+' k',c:'P<sub>a</sub> = '+f2(Pn/Oc)+' k',dc:(Pn/Oc>0?P/(Pn/Oc):0),nt:'F<sub>n</sub>='+f1(pc.Fn)+' ksi, A<sub>e</sub>='+f3(pc.Ae)+' in&sup2;',det:detComp(p,pc,P,Pn)});
-    var cc=combChk(p,P,M,Pn,Pn0,fl.Mn,1e12,E);
+    var mdf=mndFlex(p),pdc=pndComp(p),Mngov=fl.Mn,Pngov=Pn;
+    if(mdf){Mngov=Math.min(Mngov,mdf.Mnd);chks.push(dbFlexChk(p,mdf,M));}
+    if(pdc){Pngov=Math.min(Pngov,pdc.Pnd);chks.push(dbCompChk(p,pdc,P));}
+    var cc=combChk(p,P,M,Pngov,Pn0,Mngov,1e12,E);
     chks.push({n:'Combined bending + compression',r:'AISI S100-16 C5.2.1/.2',d:'interaction',c:'&le; 1.0',dc:cc.dc,nt:cc.nt,det:cc.det});
     var Itot=nS*p.Ix, defl=5*whG*Math.pow(L,4)/(384*E*Itot), dlim=L/defL;
     chks.push({n:'Vertical (gravity) deflection',r:'serviceability',d:'&delta; = '+f3(defl)+'"',c:'L/'+defL+' = '+f3(dlim)+'"',dc:defl/dlim,nt:'I<sub>tot</sub>='+f2(Itot)+' in&#8308; ('+nS+' studs)',
@@ -572,6 +614,7 @@ function runCalc(){
     var ht=p.w_web/p.t;
     chks.push({n:'Web slenderness h/t',r:'AISI S100-16 B1.2',d:'h/t = '+f1(ht),c:'limit 200',dc:ht/200});
     chks.push({n:'Flexure (lateral)',r:'AISI S100-16 C3.1.1',d:'M = '+f2(M)+' k-in',c:'M<sub>a</sub> = '+f2(fl.Mn/Ob)+' k-in',dc:M/(fl.Mn/Ob),nt:'per member of '+nS,det:detFlex(p,fl.Mn,M,fl,dH)});
+    var mdfS=mndFlex(p); if(mdfS)chks.push(dbFlexChk(p,mdfS,M));
     chks.push({n:'Shear',r:'AISI S100-16 C3.2',d:'V = '+f2(V)+' k',c:'V<sub>a</sub> = '+f2(sh.Vn/Ov)+' k',dc:V/(sh.Vn/Ov)});
     var ub=M/(fl.Mn/Ob), uv=V/(sh.Vn/Ov), uc=Math.sqrt(ub*ub+uv*uv);
     chks.push({n:'Combined bending + shear',r:'AISI S100-16 C3.3.2',d:'interaction',c:'&le; 1.0',dc:uc});
@@ -599,7 +642,10 @@ function runCalc(){
     chks.push({n:'Shear',r:'AISI S100-16 C3.2',d:'V = '+f2(V)+' k',c:'V<sub>a</sub> = '+f2(sh.Vn/Ov)+' k',dc:V/(sh.Vn/Ov)});
     chks.push({n:'Axial compression',r:'AISI S100-16 E2/E3',d:'P = '+f2(P)+' k',c:'P<sub>a</sub> = '+f2(Pn/Oc)+' k',dc:P/(Pn/Oc),
       nt:'F<sub>e</sub>=min(F<sub>ey</sub>='+f1(pc.Fey)+', F<sub>tf</sub>='+f1(pc.Ftf)+')='+f1(pc.Fe)+'; F<sub>n</sub>='+f1(pc.Fn)+' ksi',det:detComp(p,pc,P,Pn)});
-    var cc=combChk(p,P,M,Pn,Pn0,fl.Mn,PEx,E);
+    var mdf=mndFlex(p),pdc=pndComp(p),Mngov=fl.Mn,Pngov=Pn;
+    if(mdf){Mngov=Math.min(Mngov,mdf.Mnd);chks.push(dbFlexChk(p,mdf,M));}
+    if(pdc){Pngov=Math.min(Pngov,pdc.Pnd);chks.push(dbCompChk(p,pdc,P));}
+    var cc=combChk(p,P,M,Pngov,Pn0,Mngov,PEx,E);
     chks.push({n:'Combined bending + axial',r:'AISI S100-16 C5.2.1/.2',d:'interaction',c:'&le; 1.0',dc:cc.dc,nt:cc.nt,det:cc.det});
     var defl=5*wjL*Math.pow(Lj,4)/(384*E*(nJ*p.Ix)), dlim=Lj/defL;
     chks.push({n:'Lateral deflection',r:'serviceability',d:'&delta; = '+f3(defl)+'"',c:'L&#x2C7C;/'+defL+' = '+f3(dlim)+'"',dc:defl/dlim,nt:'over jamb length '+f1(Lj)+'"'});
