@@ -349,7 +349,6 @@ function runCalc(){
   var lim_Fy = Fy <= 52;
 
   // Local yielding of HSS chord wall — Eq. K1-7
-  var beoi = (10/Bt) * bf; // effective width factor × bf (no Fyp/Fyb correction since same eq form)
   var Rn_K1 = (10/Bt) * Fy * t * bf;
   var Rn_upper = Fyb * tf * bf;
   var Rn = Math.min(Rn_K1, Rn_upper);
@@ -374,7 +373,8 @@ function runCalc(){
   d2 += '<div class="mrow">F<sub>y</sub> = '+Fy+' ksi ≤ 52 ksi → '+(lim_Fy?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
   d2 += '</div>';
   var allLim = lim_Bt && lim_ratio && lim_Fy;
-  chks.push({n:'Limits of Applicability',r:'AISC 360-22 §K1.3',d:'—',c:allLim?'All satisfied':'Violation',dc:allLim?0.5:1.5,det:d2});
+  // Requirement check — no numeric D/C; must not pollute Max D/C
+  chks.push({n:'Limits of Applicability',r:'AISC 360-22 §K1.3',d:'—',c:allLim?'All satisfied':'Violation',dc:null,ok:allLim,exclFromMax:true,det:d2});
 
   // Check 3: Local yielding of HSS wall (K1-7)
   var d3 = '';
@@ -395,9 +395,12 @@ function runCalc(){
   chks.push({n:'HSS Wall Local Yielding',r:'AISC 360-22 §K1.3 Eq. K1-7',d:'P<sub>uf</sub> = '+f2(Puf)+' k',c:'φR<sub>n</sub> = '+f2(phiRn)+' k',dc:Puf/phiRn,det:d3});
 
   // Render
-  var maxDC = 0;
-  chks.forEach(function(c){if(isFinite(c.dc)&&c.dc>maxDC)maxDC=c.dc});
-  var pass = maxDC <= 1.0;
+  var maxDC = 0, reqFail = false;
+  chks.forEach(function(c){
+    if(!c.exclFromMax && isFinite(c.dc) && c.dc>maxDC) maxDC=c.dc;
+    if(c.exclFromMax && c.ok===false) reqFail=true;
+  });
+  var pass = maxDC <= 1.0 && !reqFail;
   var sb = document.getElementById('sumBox');
   sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
   sb.innerHTML = '<h3>'+(pass?'✔ All Checks Pass':'✘ One or More Checks Fail')+'</h3><p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+ws+' on '+hs+', M<sub>u</sub>='+Mu+' k-ft, φM<sub>n</sub>='+f2(phiMn)+' k-ft</p>';
@@ -422,19 +425,16 @@ function runCalc(){
   var tb = document.getElementById('chkTb');
   tb.innerHTML = '';
   chks.forEach(function(c,i){
-    var dc=c.dc;
-    var col = dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
-    var pct = Math.min(dc*100,150);
-    var stxt = dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dc=c.dc, dcCell, stxt;
+    if(dc===null || !isFinite(dc)){
+      dcCell = '<span class="na">—</span>';
+      stxt = c.ok!==false?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    } else {
+      var col = dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+      var pct = Math.min(dc*100,150);
+      dcCell = '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
+      stxt = dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    }
     tb.innerHTML += '<tr><td><strong>'+c.n+'</strong></td><td><code>'+c.r+'</code></td><td>'+c.d+'</td><td>'+c.c+'</td>'
-      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div></td>'
-      +'<td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">▸ Calc</button></td></tr>'
-      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
-  });
-
-  document.getElementById('results').className='results show';
-  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-}
-</script>
-</body>
-</html>
+      +'<td>'+dcCell+'</td>'
+      +'<td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet

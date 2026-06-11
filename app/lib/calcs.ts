@@ -1,4 +1,5 @@
 // Plain data file — no "use client", safe to import from server and client components alike
+// (registry updated 2026-06-11: steel connection calcs from audit)
 
 export type CalcMeta = {
   slug: string;
@@ -117,6 +118,46 @@ export const CALCS: CalcMeta[] = [
     status: "ready",
     keywords: ["W-shape", "HSS", "column", "moment", "directly welded", "flange", "local yielding", "K1", "DG24", "Example 4.3", "AISC 360"],
   },
+  {
+    slug: "through-plate",
+    label: "Through-Plate Moment Connection (DG24 Ex 4.2)",
+    subtitle: "Through-plate FR moment connection to HSS column — plate yield/rupture, bolt shear, bearing/tearout",
+    htmlFile: "/Calcs/through_plate_calculator.html",
+    category: "Connections",
+    spec: "AISC 360-22 / DG24",
+    status: "ready",
+    keywords: ["through plate", "HSS", "moment connection", "FR", "bolted", "splice plate", "tensile rupture", "bearing", "tearout", "DG24", "Example 4.2", "J4", "J3"],
+  },
+  {
+    slug: "directly-welded-hss",
+    label: "Directly Welded W to HSS (React)",
+    subtitle: "Moment-transfer flange checks incl. punching shear — DG24 Ex 4.3 methodology",
+    htmlFile: "/Calcs/directly_welded_HSS_connection_calculator.html",
+    category: "Connections",
+    spec: "AISC 360-22 / DG24",
+    status: "ready",
+    keywords: ["directly welded", "HSS", "W-beam", "moment", "K1-7", "punching shear", "local yielding", "DG24", "Example 4.3"],
+  },
+  {
+    slug: "hss-connection-complete",
+    label: "HSS Connection — Complete Checks (React)",
+    subtitle: "Full limit-state suite for W-to-HSS welded connection per DG24",
+    htmlFile: "/Calcs/hss_connection_complete_calculator.html",
+    category: "Connections",
+    spec: "AISC 360-22 / DG24",
+    status: "ready",
+    keywords: ["HSS", "connection", "limit states", "local yielding", "punching", "sidewall", "DG24", "K1", "complete"],
+  },
+  {
+    slug: "large-moment-base-plate",
+    label: "Large Moment Base Plate (DG1 Ex 4.6/4.7)",
+    subtitle: "Small & large moment base plates — bearing, e/ecrit, anchor tension, plate thickness, LRFD+ASD",
+    htmlFile: "/Calcs/large_moment_base_plate.html",
+    category: "Connections",
+    spec: "AISC DG1 2nd Ed",
+    status: "ready",
+    keywords: ["base plate", "large moment", "anchor rod", "bearing", "ecrit", "DG1", "Example 4.7", "column base", "concrete", "grout"],
+  },
   // ── Members ──────────────────────────────────────────────────
   {
     slug: "joist-bearing",
@@ -174,10 +215,10 @@ export const CALCS: CalcMeta[] = [
   {
     slug: "unreinforced-cmu-wall",
     label: "Unreinforced CMU Bearing Wall",
-    subtitle: "4\u2033 & 6\u2033 CMU \u2014 combined axial + wind flexure, net tension \u00B7 ASD unity check",
+    subtitle: "4″ & 6″ CMU — combined axial + wind flexure, net tension · ASD unity check",
     htmlFile: "/Calcs/unreinforced_cmu_wall_asd_calculator.html",
     category: "Masonry",
-    spec: "TMS 402-22 \u00A78.2 / MDG-2022",
+    spec: "TMS 402-22 §8.2 / MDG-2022",
     status: "ready",
     group: "CMU Walls",
     keywords: ["CMU", "masonry", "unreinforced", "bearing wall", "wind", "flexure", "axial", "ASD", "unity check", "4 inch", "6 inch", "TMS 402", "net tension", "block"],
@@ -185,10 +226,10 @@ export const CALCS: CalcMeta[] = [
   {
     slug: "masonry-lintel-jamb",
     label: "Masonry Lintel + Jamb Designer",
-    subtitle: "Lintel gravity (REK-06) · lintel OOP C&C wind · reinforced jamb (REK-04) \u00B7 ASD unity check",
+    subtitle: "Lintel gravity (REK-06) · lintel OOP C&C wind · reinforced jamb (REK-04) · ASD unity check",
     htmlFile: "/Calcs/masonry_lintel_jamb_calculator.html",
     category: "Masonry",
-    spec: "TMS 402-22 \u00A78.3 / MDG REK-04 & REK-06",
+    spec: "TMS 402-22 §8.3 / MDG REK-04 & REK-06",
     status: "ready",
     group: "CMU Openings",
     keywords: ["masonry", "CMU", "lintel", "jamb", "reinforced", "ASD", "flexure", "shear", "out-of-plane", "OOP", "wind", "C&C", "components cladding", "biaxial", "TMS 402", "MDG", "REK-04", "REK-06", "opening", "door", "window", "bearing"],

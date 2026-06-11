@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Through-Plate Connection Calculator - AISC Database Integration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        .database-status {
+            background: #e8f5e8;
+            border: 1px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #2e7d32;
+        }
+        .database-status.loading {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+        .database-status.error {
+            background: #fdf2f2;
+            border-color: #e74c3c;
+            color: #c0392b;
+        }
+        .input-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #3498db;
+        }
+        .input-section h3 {
+            color: #2c3e50;
+            margin-top: 0;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 5px;
+        }
+        select, input {
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .load-database-btn {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            margin-bottom: 20px;
+        }
+        .file-upload {
+            background: #e8f5e8;
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .debug-toggle {
+            background: none;
+            border: 1px solid #6c757d;
+            color: #6c757d;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .results {
+            background: #2c3e50;
+            color: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+        .results h3 {
+            color: #3498db;
+            border-bottom: 2px solid #34495e;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .calc-step {
+            background: #34495e;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #e74c3c;
+        }
+        .calc-step.ok {
+            border-left-color: #27ae60;
+        }
+        .formula {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .value {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .note {
+            background: #fffbf0;
+            border: 1px solid #f39c12;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #8b4513;
+        }
+        .section-header {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; }
+            .database-status, .debug-toggle, .debug-panel, .file-upload, #calculateBtn { display: none !important; }
+            .results { background: #fff; color: #000; border: 1px solid #ccc; }
+            .results h3 { color: #1e3c72; }
+            .calc-step { background: #f5f7ff; color: #000; page-break-inside: avoid; }
+            .formula { color: #7a4b00; }
+            .value { color: #166534; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Through-Plate Connection Design Calculator</h1>
+        <p class="subtitle">Complete Analysis per AISC Design Guide 24, Example 4.2 - With AISC Shapes Database v16.0</p>
+        
+        <div class="database-status loading" id="databaseStatus">
+            <strong>Database Status:</strong> Initializing...
+            <div class="loading-spinner"></div>
+        </div>
+        
+        <button class="debug-toggle" onclick="toggleDebug()" id="debugToggle">Show Debug Info</button>
+        <div class="debug-panel" id="debugPanel" style="display: none;"></div>
+        
+        <div class="file-upload" id="fileUpload" style="display: none;">
+            <h4>Upload AISC Database File</h4>
+            <p>Auto-load failed. Please select your AISC database file:</p>
+            <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(event)" style="margin: 10px 0;">
+        </div>
+        
+        <div class="input-section blk">
+            <h3>Beam Properties</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="beamSize">W-Beam Size:</label>
+                    <select id="beamSize" onchange="updateBeamProperties()">
+                        <option value="">Loading shapes...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="beamMaterial">Beam Material:</label>
+                    <select id="beamMaterial">
+                        <option value="A992">ASTM A992 (Fy = 50 ksi, Fu = 65 ksi)</option>
+                        <option value="A36">ASTM A36 (Fy = 36 ksi, Fu = 58 ksi)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Database Properties (Read-only):</label>
+                    <input type="text" id="beamProps" readonly placeholder="Load database to see properties">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>HSS Column Properties</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="hssSize">HSS Size:</label>
+                    <select id="hssSize" onchange="updateHSSProperties()">
+                        <option value="">Loading shapes...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="hssMaterial">HSS Material:</label>
+                    <select id="hssMaterial">
+                        <option value="A500B">ASTM A500 Grade B (Fy = 46 ksi, Fu = 58 ksi)</option>
+                        <option value="A500C">ASTM A500 Grade C (Fy = 50 ksi, Fu = 62 ksi)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Database Properties (Read-only):</label>
+                    <input type="text" id="hssProps" readonly placeholder="Load database to see properties">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>Through Plate Properties</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="plateWidth">Plate Width (in):</label>
+                    <input type="number" id="plateWidth" value="14.0" step="0.1" min="4" max="24">
+                </div>
+                <div class="input-group">
+                    <label for="plateThickness">Trial Plate Thickness (in):</label>
+                    <input type="number" id="plateThickness" value="0.75" step="0.125" min="0.25" max="2">
+                </div>
+                <div class="input-group">
+                    <label for="plateMaterial">Plate Material:</label>
+                    <select id="plateMaterial">
+                        <option value="A36">ASTM A36 (Fy = 36 ksi, Fu = 58 ksi)</option>
+                        <option value="A572">ASTM A572 Gr 50 (Fy = 50 ksi, Fu = 65 ksi)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>Bolt Properties</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="boltDiameter">Bolt Diameter (in):</label>
+                    <select id="boltDiameter">
+                        <option value="0.75">3/4"</option>
+                        <option value="0.875">7/8"</option>
+                        <option value="1.0">1" (Example 4.2 Default)</option>
+                        <option value="1.125">1-1/8"</option>
+                        <option value="1.25">1-1/4"</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="boltGrade">Bolt Grade:</label>
+                    <select id="boltGrade">
+                        <option value="A325N">A325-N (Ft = 90 ksi)</option>
+                        <option value="A490N">A490-N (Ft = 113 ksi)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="numRows">Bolt Lines Across Plate Width (gage lines):</label>
+                    <select id="numRows">
+                        <option value="2" selected>2 lines (Example 4.2)</option>
+                        <option value="3">3 lines</option>
+                        <option value="4">4 lines</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="boltsPerLine">Bolts per Line (along beam, each side):</label>
+                    <input type="number" id="boltsPerLine" value="5" step="1" min="2" max="12">
+                </div>
+                <div class="input-group">
+                    <label for="boltSpacing">Bolt Spacing s (in):</label>
+                    <input type="number" id="boltSpacing" value="3" step="0.25" min="2">
+                </div>
+                <div class="input-group">
+                    <label for="edgeDist">End Edge Distance L_e (in):</label>
+                    <input type="number" id="edgeDist" value="1.25" step="0.125" min="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>Applied Loads - Left Side Beam</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="shearDeadLeft">Shear V_D,left (kips):</label>
+                    <input type="number" id="shearDeadLeft" value="8" step="0.1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="shearLiveLeft">Shear V_L,left (kips):</label>
+                    <input type="number" id="shearLiveLeft" value="0" step="0.1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="momentDeadLeft">Moment M_D,left (kip-ft):</label>
+                    <input type="number" id="momentDeadLeft" value="60" step="1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="momentLiveLeft">Moment M_L,left (kip-ft):</label>
+                    <input type="number" id="momentLiveLeft" value="0" step="1" min="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>Applied Loads - Right Side Beam</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="shearDeadRight">Shear V_D,right (kips):</label>
+                    <input type="number" id="shearDeadRight" value="8" step="0.1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="shearLiveRight">Shear V_L,right (kips):</label>
+                    <input type="number" id="shearLiveRight" value="24" step="0.1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="momentDeadRight">Moment M_D,right (kip-ft):</label>
+                    <input type="number" id="momentDeadRight" value="60" step="1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="momentLiveRight">Moment M_L,right (kip-ft):</label>
+                    <input type="number" id="momentLiveRight" value="180" step="1" min="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk">
+            <h3>Applied Loads - Top Axial Load</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="deadLoad">Dead Load P_D,top (kips):</label>
+                    <input type="number" id="deadLoad" value="48" step="1" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="liveLoad">Live Load P_L,top (kips):</label>
+                    <input type="number" id="liveLoad" value="144" step="1" min="0">
+                </div>
+            </div>
+        </div>
+
+        <button onclick="calculate()" id="calculateBtn" disabled>Calculate Complete Through-Plate Connection</button>
+
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Enhanced Steel Database Class (copied from working HSS calculator)
+        class SteelShapesDB {
+            constructor() {
+                this.database = null;
+                this.isLoaded = false;
+                this.debugInfo = [];
+            }
+
+            // Method 1: Try window.fs.readFile (Claude environment)
+            async tryWindowFS(filePath) {
+                try {
+                    this.debugInfo.push(`Trying window.fs.readFile for: ${filePath}`);
+                    
+                    if (typeof window.fs === 'undefined' || typeof window.fs.readFile !== 'function') {
+                        throw new Error('window.fs.readFile not available');
+                    }
+                    
+                    const response = await window.fs.readFile(filePath);
+                    this.debugInfo.push(`window.fs.readFile successful, data length: ${response.length}`);
+                    return response;
+                } catch (error) {
+                    this.debugInfo.push(`window.fs.readFile failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Method 2: Try fetch API (for web servers)
+            async tryFetch(filePath) {
+                try {
+                    this.debugInfo.push(`Trying fetch for: ${filePath}`);
+                    const response = await fetch(filePath);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    this.debugInfo.push(`Fetch successful, data length: ${arrayBuffer.byteLength}`);
+                    return new Uint8Array(arrayBuffer);
+                } catch (error) {
+                    this.debugInfo.push(`Fetch failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Method 3: Load from file input
+            async loadFromFile(file) {
+                try {
+                    this.debugInfo.push(`Loading from uploaded file: ${file.name} (${file.size} bytes)`);
+                    
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            resolve(new Uint8Array(e.target.result));
+                        };
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsArrayBuffer(file);
+                    });
+                } catch (error) {
+                    this.debugInfo.push(`File upload failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Process the loaded data
+            processData(data) {
+                try {
+                    this.debugInfo.push('Processing Excel data...');
+                    
+                    const workbook = XLSX.read(data, {
+                        cellStyles: true,
+                        cellFormulas: true,
+                        cellDates: true,
+                        cellNF: true,
+                        sheetStubs: true
+                    });
+
+                    this.debugInfo.push(`Workbook sheets: ${workbook.SheetNames.join(', ')}`);
+
+                    if (!workbook.Sheets["Database v16.0"]) {
+                        throw new Error('Sheet "Database v16.0" not found');
+                    }
+
+                    const sheet = workbook.Sheets["Database v16.0"];
+                    const data_array = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                    
+                    this.database = {
+                        headers: data_array[0],
+                        shapes: data_array.slice(1),
+                        shapeTypes: [...new Set(data_array.slice(1).map(row => row[0]).filter(Boolean))].sort()
+                    };
+                    
+                    this.isLoaded = true;
+                    this.debugInfo.push(`Database loaded: ${this.database.shapes.length} shapes, ${this.database.shapeTypes.length} types`);
+                    return true;
+                } catch (error) {
+                    this.debugInfo.push(`Data processing failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Main loading method - tries multiple approaches
+            async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+                this.debugInfo = [`Starting database load for: ${filePath}`];
+                
+                // Try different loading methods in order
+                const methods = [
+                    () => this.tryWindowFS(filePath),
+                    () => this.tryFetch(filePath),
+                    () => this.tryFetch('./' + filePath)
+                ];
+
+                for (const method of methods) {
+                    try {
+                        const data = await method();
+                        return this.processData(data);
+                    } catch (error) {
+                        // Continue to next method
+                        continue;
+                    }
+                }
+
+                // All methods failed
+                this.debugInfo.push('All loading methods failed');
+                return false;
+            }
+
+            getShapesByType(shapeType) {
+                if (!this.isLoaded) return [];
+                
+                return this.database.shapes
+                    .filter(row => row[0] === shapeType)
+                    .map((row) => {
+                        return {
+                            label: row[2],               // AISC_Manual_Label
+                            designation: row[2],         // AISC_Manual_Label
+                            weight: row[4],              // W
+                            area: row[5],                // A
+                            // W-shape properties (direct column extraction)
+                            d: row[6],                   // d (depth)
+                            bf: row[11],                 // bf (flange width)
+                            tf: row[19],                 // tf (flange thickness)
+                            tw: row[16],                 // tw (web thickness)
+                            // HSS properties (direct column extraction)
+                            H: this.parseHSSHeight(row[2]) || row[8], // Parse from name or Ht column
+                            B: row[13],                  // B (HSS width)
+                            t: row[21],                  // t (HSS thickness)
+                            tdes: row[23],               // tdes (HSS design thickness)
+                            tnom: row[22],               // tnom (HSS nominal thickness)
+                        };
+                    })
+                    .filter(shape => shape.label) // Remove empty entries
+                    .sort((a, b) => a.designation.localeCompare(b.designation));
+            }
+
+            parseHSSHeight(shapeName) {
+                // Parse HSS name like "HSS20X12X1/2" to get height (20)
+                if (!shapeName) return null;
+                const match = shapeName.match(/HSS(\d+(?:\.\d+)?)X/);
+                return match ? parseFloat(match[1]) : null;
+            }
+
+            getShapeProperties(designation) {
+                if (!this.isLoaded) return null;
+                
+                const shapeRow = this.database.shapes.find(row => row[2] === designation);
+                if (!shapeRow) return null;
+
+                return {
+                    label: shapeRow[2],               // AISC_Manual_Label
+                    designation: shapeRow[2],         // AISC_Manual_Label
+                    type: shapeRow[0],                // Type
+                    weight: shapeRow[4],              // W
+                    area: shapeRow[5],                // A
+                    // W-shape properties
+                    d: shapeRow[6],                   // d (depth)
+                    bf: shapeRow[11],                 // bf (flange width)
+                    tf: shapeRow[19],                 // tf (flange thickness)
+                    tw: shapeRow[16],                 // tw (web thickness)
+                    // HSS properties
+                    H: this.parseHSSHeight(shapeRow[2]) || shapeRow[8], // Parse from name or Ht column
+                    B: shapeRow[13],                  // B (HSS width)
+                    t: shapeRow[21],                  // t (HSS thickness)
+                    tdes: shapeRow[23],               // tdes (HSS design thickness)
+                    tnom: shapeRow[22],               // tnom (HSS nominal thickness)
+                };
+            }
+
+            getDebugInfo() {
+                return this.debugInfo;
+            }
+        }
+
+        // Global variables
+        let steelDB = null;
+        let isLoaded = false;
+        let debugVisible = false;
+
+        // Material properties database
+        const materials = {
+            A992: { Fy: 50, Fu: 65 },
+            A36: { Fy: 36, Fu: 58 },
+            A500B: { Fy: 46, Fu: 58 },
+            A500C: { Fy: 50, Fu: 62 },
+            A572: { Fy: 50, Fu: 65 }
+        };
+
+        // Fallback data
+        const fallbackBeams = {
+            "W16X57": { d: 16.4, bf: 7.12, tf: 0.715, tw: 0.430, label: "W16X57" },
+            "W18X35": { d: 17.7, bf: 6.00, tf: 0.425, tw: 0.300, label: "W18X35" },
+            "W18X40": { d: 17.9, bf: 6.02, tf: 0.525, tw: 0.315, label: "W18X40" },
+            "W21X44": { d: 20.7, bf: 6.50, tf: 0.450, tw: 0.350, label: "W21X44" },
+            "W24X55": { d: 23.6, bf: 7.01, tf: 0.505, tw: 0.395, label: "W24X55" },
+            "W14X43": { d: 13.7, bf: 8.00, tf: 0.530, tw: 0.308, label: "W14X43" },
+            "W12X40": { d: 11.9, bf: 8.01, tf: 0.515, tw: 0.295, label: "W12X40" }
+        };
+
+        const fallbackHSS = {
+            "HSS20X12X1/2": { H: 20.0, B: 12.0, t: 0.465, label: "HSS20X12X1/2" },
+            "HSS16X8X1/2": { H: 16.0, B: 8.0, t: 0.465, label: "HSS16X8X1/2" },
+            "HSS12X8X3/8": { H: 12.0, B: 8.0, t: 0.349, label: "HSS12X8X3/8" },
+            "HSS14X10X1/2": { H: 14.0, B: 10.0, t: 0.465, label: "HSS14X10X1/2" },
+            "HSS18X12X5/8": { H: 18.0, B: 12.0, t: 0.581, label: "HSS18X12X5/8" }
+        };
+
+        function updateStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('databaseStatus');
+            statusDiv.className = `database-status ${type}`;
+            statusDiv.innerHTML = message;
+            if (type === 'loading') {
+                statusDiv.innerHTML += '<div class="loading-spinner"></div>';
+            }
+        }
+
+        function updateDebugInfo() {
+            const debugPanel = document.getElementById('debugPanel');
+            if (steelDB) {
+                const info = steelDB.getDebugInfo();
+                debugPanel.innerHTML = info.map(line => `• ${line}`).join('<br>');
+            } else {
+                debugPanel.innerHTML = '• No database loaded - using fallback data';
+            }
+        }
+
+        function toggleDebug() {
+            debugVisible = !debugVisible;
+            const panel = document.getElementById('debugPanel');
+            const toggle = document.getElementById('debugToggle');
+            
+            if (debugVisible) {
+                panel.style.display = 'block';
+                toggle.textContent = 'Hide Debug Info';
+                updateDebugInfo();
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = 'Show Debug Info';
+            }
+        }
+
+        function populateDropdowns() {
+            const beamSelect = document.getElementById('beamSize');
+            const hssSelect = document.getElementById('hssSize');
+            
+            beamSelect.innerHTML = '<option value="">Select W-Shape...</option>';
+            hssSelect.innerHTML = '<option value="">Select HSS...</option>';
+
+            if (steelDB && isLoaded) {
+                // Use database
+                const wShapes = steelDB.getShapesByType('W');
+                const hssShapes = steelDB.getShapesByType('HSS');
+                
+                wShapes.forEach(shape => {
+                    const option = document.createElement('option');
+                    option.value = shape.designation;
+                    option.textContent = `${shape.label} (d=${shape.d}", bf=${shape.bf}", tf=${shape.tf}")`;
+                    beamSelect.appendChild(option);
+                });
+
+                hssShapes.forEach(shape => {
+                    const option = document.createElement('option');
+                    option.value = shape.designation;
+                    option.textContent = `${shape.label} (H=${shape.H}", B=${shape.B}", t=${shape.t}")`;
+                    hssSelect.appendChild(option);
+                });
+
+                // Set defaults
+                beamSelect.value = 'W16X57';
+                hssSelect.value = 'HSS20X12X1/2';
+            } else {
+                // Use fallback
+                Object.values(fallbackBeams).forEach(beam => {
+                    const option = document.createElement('option');
+                    option.value = beam.label;
+                    option.textContent = `${beam.label} (d=${beam.d}", bf=${beam.bf}", tf=${beam.tf}")`;
+                    beamSelect.appendChild(option);
+                });
+
+                Object.values(fallbackHSS).forEach(hss => {
+                    const option = document.createElement('option');
+                    option.value = hss.label;
+                    option.textContent = `${hss.label} (H=${hss.H}", B=${hss.B}", t=${hss.t}")`;
+                    hssSelect.appendChild(option);
+                });
+
+                // Set defaults
+                beamSelect.value = 'W16X57';
+                hssSelect.value = 'HSS20X12X1/2';
+            }
+
+            updateBeamProperties();
+            updateHSSProperties();
+        }
+
+        function updateBeamProperties() {
+            const beamSize = document.getElementById('beamSize').value;
+            const propsInput = document.getElementById('beamProps');
+            
+            if (!beamSize) {
+                propsInput.value = '';
+                return;
+            }
+
+            let beam;
+            if (steelDB && isLoaded) {
+                beam = steelDB.getShapeProperties(beamSize);
+                if (beam) {
+                    propsInput.value = `d=${beam.d}", bf=${beam.bf}", tf=${beam.tf}", tw=${beam.tw}", A=${beam.area} in² [Database]`;
+                }
+            } else {
+                beam = fallbackBeams[beamSize];
+                if (beam) {
+                    propsInput.value = `d=${beam.d}", bf=${beam.bf}", tf=${beam.tf}", tw=${beam.tw}" [Fallback]`;
+                }
+            }
+
+            if (!beam) {
+                propsInput.value = "Properties not available";
+            }
+        }
+
+        function updateHSSProperties() {
+            const hssSize = document.getElementById('hssSize').value;
+            const propsInput = document.getElementById('hssProps');
+            
+            if (!hssSize) {
+                propsInput.value = '';
+                return;
+            }
+
+            let hss;
+            if (steelDB && isLoaded) {
+                hss = steelDB.getShapeProperties(hssSize);
+                if (hss) {
+                    propsInput.value = `H=${hss.H}", B=${hss.B}", t=${hss.t}", A=${hss.area} in² [Database]`;
+                }
+            } else {
+                hss = fallbackHSS[hssSize];
+                if (hss) {
+                    propsInput.value = `H=${hss.H}", B=${hss.B}", t=${hss.t}" [Fallback]`;
+                }
+            }
+
+            if (!hss) {
+                propsInput.value = "Properties not available";
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            updateStatus('Loading from uploaded file...', 'loading');
+            
+            try {
+                const db = new SteelShapesDB();
+                const data = await db.loadFromFile(file);
+                const success = db.processData(data);
+                
+                if (success) {
+                    steelDB = db;
+                    isLoaded = true;
+                    
+                    const wShapes = db.getShapesByType('W');
+                    const hssShapes = db.getShapesByType('HSS');
+                    
+                    updateStatus(`<strong>Database Loaded Successfully!</strong> ${wShapes.length} W-shapes, ${hssShapes.length} HSS shapes from uploaded file`, 'success');
+                    document.getElementById('fileUpload').style.display = 'none';
+                    populateDropdowns();
+                    document.getElementById('calculateBtn').disabled = false;
+                } else {
+                    throw new Error('Failed to process uploaded file');
+                }
+                
+                updateDebugInfo();
+            } catch (error) {
+                updateStatus(`<strong>File upload failed:</strong> ${error.message}. Using fallback data.`, 'error');
+                populateDropdowns();
+                document.getElementById('calculateBtn').disabled = false;
+            }
+        }
+
+        async function initializeDatabase() {
+            updateStatus('Attempting to load AISC database...', 'loading');
+            
+            const db = new SteelShapesDB();
+            const loaded = await db.loadDatabase();
+            
+            if (loaded) {
+                steelDB = db;
+                isLoaded = true;
+                
+                const wShapes = db.getShapesByType('W');
+                const hssShapes = db.getShapesByType('HSS');
+                
+                updateStatus(`<strong>Database Loaded Successfully!</strong> ${wShapes.length} W-shapes, ${hssShapes.length} HSS shapes`, 'success');
+                populateDropdowns();
+                document.getElementById('calculateBtn').disabled = false;
+            } else {
+                updateStatus('<strong>Auto-load failed.</strong> Using fallback data. Click "Show Debug Info" for details.', 'error');
+                document.getElementById('fileUpload').style.display = 'block';
+                populateDropdowns();
+                document.getElementById('calculateBtn').disabled = false;
+            }
+            
+            updateDebugInfo();
+        }
+
+        function getShapeProperties(shapeType, shapeName) {
+            if (shapeType === 'beam') {
+                if (steelDB && isLoaded) {
+                    return steelDB.getShapeProperties(shapeName);
+                } else {
+                    return fallbackBeams[shapeName];
+                }
+            } else if (shapeType === 'hss') {
+                if (steelDB && isLoaded) {
+                    return steelDB.getShapeProperties(shapeName);
+                } else {
+                    return fallbackHSS[shapeName];
+                }
+            }
+            return null;
+        }
+
+        function calculate() {
+            try {
+                // Get input values
+                const beamSize = document.getElementById('beamSize').value;
+                const beamMaterial = document.getElementById('beamMaterial').value;
+                const hssSize = document.getElementById('hssSize').value;
+                const hssMaterial = document.getElementById('hssMaterial').value;
+                const plateWidth = parseFloat(document.getElementById('plateWidth').value);
+                const plateThickness = parseFloat(document.getElementById('plateThickness').value);
+                const plateMaterial = document.getElementById('plateMaterial').value;
+                const boltDiameter = parseFloat(document.getElementById('boltDiameter').value);
+                const boltGrade = document.getElementById('boltGrade').value;
+                const numRows = parseInt(document.getElementById('numRows').value);          // gage lines across plate width
+                const boltsPerLine = parseInt(document.getElementById('boltsPerLine').value); // bolts per line, each side of HSS
+                const numBolts = numRows * boltsPerLine;                                      // total bolts each side
+                const boltSpacing = parseFloat(document.getElementById('boltSpacing').value);
+                const edgeDist = parseFloat(document.getElementById('edgeDist').value);
+                
+                // Load inputs
+                const VD_left = parseFloat(document.getElementById('shearDeadLeft').value);
+                const VL_left = parseFloat(document.getElementById('shearLiveLeft').value);
+                const MD_left = parseFloat(document.getElementById('momentDeadLeft').value);
+                const ML_left = parseFloat(document.getElementById('momentLiveLeft').value);
+                const VD_right = parseFloat(document.getElementById('shearDeadRight').value);
+                const VL_right = parseFloat(document.getElementById('shearLiveRight').value);
+                const MD_right = parseFloat(document.getElementById('momentDeadRight').value);
+                const ML_right = parseFloat(document.getElementById('momentLiveRight').value);
+                const PD_top = parseFloat(document.getElementById('deadLoad').value);
+                const PL_top = parseFloat(document.getElementById('liveLoad').value);
+
+                // Get material properties
+                const beamMat = materials[beamMaterial];
+                const hssMat = materials[hssMaterial];
+                const plateMat = materials[plateMaterial];
+                
+                // Get shape properties
+                const beam = getShapeProperties('beam', beamSize);
+                const hss = getShapeProperties('hss', hssSize);
+
+                if (!beam || !hss) {
+                    throw new Error('Shape properties not found. Please select both beam and HSS shapes.');
+                }
+
+                // Bolt properties (AISC Table J3.2: nominal shear stress, threads included)
+                const boltFnv = boltGrade === 'A325N' ? 54 : 68; // ksi, A325-N / A490-N
+                const boltArea = Math.PI * Math.pow(boltDiameter, 2) / 4;
+
+                // Calculate factored loads (LRFD)
+                const Pu_top = 1.2 * PD_top + 1.6 * PL_top;
+                const Vu_left = 1.2 * VD_left + 1.6 * VL_left;
+                const Vu_right = 1.2 * VD_right + 1.6 * VL_right;
+                const Mu_left = 1.2 * MD_left + 1.6 * ML_left;
+                const Mu_right = 1.2 * MD_right + 1.6 * ML_right;
+
+                // Calculate ASD loads
+                const Pa_top = PD_top + PL_top;
+                const Va_left = VD_left + VL_left;
+                const Va_right = VD_right + VL_right;
+                const Ma_left = MD_left + ML_left;
+                const Ma_right = MD_right + ML_right;
+
+                // Step 2: Connection Equilibrium Analysis
+                const Pu_conn = Vu_left + Vu_right + Pu_top;
+                const Pa_conn = Va_left + Va_right + Pa_top;
+                
+                // Moment equilibrium with eccentricity
+                const Mu_conn = Mu_right - Mu_left + (hss.H/2) * (Vu_right - Vu_left) / 12;
+                const Ma_conn = Ma_right - Ma_left + (hss.H/2) * (Va_right - Va_left) / 12;
+
+                // Step 3: Maximum force in through plate
+                const M_max_LRFD = Math.max(Math.abs(Mu_right), Math.abs(Mu_left), Math.abs(Mu_conn));
+                const M_max_ASD = Math.max(Math.abs(Ma_right), Math.abs(Ma_left), Math.abs(Ma_conn));
+                
+                // Lever arm = distance between plate centroids = d + tp (plates bear on outside of flanges)
+                const lever = beam.d + plateThickness;
+                const Ru_LRFD = (M_max_LRFD * 12) / lever;
+                const Ra_ASD = (M_max_ASD * 12) / lever;
+
+                // Step 4: Through plate tensile yielding per J4.1(a)
+                const Ag = plateThickness * plateWidth;
+                const Rn_yield = plateMat.Fy * Ag;
+                const phi_t = 0.90;
+                const omega_t = 1.67;
+                
+                const Pu_yield = phi_t * Rn_yield;
+                const Pa_yield = Rn_yield / omega_t;
+
+                const tp_req_LRFD = Ru_LRFD / (phi_t * plateMat.Fy * plateWidth);
+                const tp_req_ASD = Ra_ASD * omega_t / (plateMat.Fy * plateWidth);
+
+                const yieldOK_LRFD = Ru_LRFD <= Pu_yield;
+                const yieldOK_ASD = Ra_ASD <= Pa_yield;
+
+                // Step 5: Through plate tensile rupture per J4.1(b)
+                // Std hole per AISC 360-22 Table J3.3 (d+1/16 for d<1", d+1/8 for d>=1"), +1/16 for net area (B4.3b)
+                const stdHole = boltDiameter + (boltDiameter >= 1.0 ? 0.125 : 0.0625);
+                const holeSize = stdHole + 0.0625;
+                const Ag_plate = plateThickness * plateWidth;
+                // Net section: deduct one hole per gage LINE across the width (not total bolts)
+                let An = plateThickness * (plateWidth - numRows * holeSize);
+                const An_cap = 0.85 * Ag_plate; // bolted splice plate cap, AISC J4.1(b)
+                const AnCapped = An > An_cap;
+                if (AnCapped) An = An_cap;
+                const Rn_rupture = plateMat.Fu * An;
+                const phi_rup = 0.75;
+                const omega_rup = 2.00;
+
+                const Pu_rupture = phi_rup * Rn_rupture;
+                const Pa_rupture = Rn_rupture / omega_rup;
+
+                const ruptureOK_LRFD = Ru_LRFD <= Pu_rupture;
+                const ruptureOK_ASD = Ra_ASD <= Pa_rupture;
+
+                // Step 6: Bolt group shear (single shear, plate-to-flange)
+                const phi_bolt = 0.75;
+                const omega_bolt = 2.00;
+                const Rn_bolts = boltFnv * boltArea * numBolts;
+                const Pu_bolts = phi_bolt * Rn_bolts;
+                const Pa_bolts = Rn_bolts / omega_bolt;
+                const boltsOK_LRFD = Ru_LRFD <= Pu_bolts;
+                const boltsOK_ASD = Ra_ASD <= Pa_bolts;
+
+                // Step 7: Bolt bearing/tearout per AISC J3.10(a)(i) — Eq. J3-6a (deformation considered)
+                // On the through-plate and on the beam flange; end bolts = one per gage line, rest interior
+                function bearingRn(tEl, FuEl){
+                    const Lc_end = edgeDist - stdHole/2;
+                    const Lc_int = boltSpacing - stdHole;
+                    const rEnd = Math.min(1.2*Lc_end*tEl*FuEl, 2.4*boltDiameter*tEl*FuEl);
+                    const rInt = Math.min(1.2*Lc_int*tEl*FuEl, 2.4*boltDiameter*tEl*FuEl);
+                    return numRows*rEnd + (numBolts - numRows)*rInt;
+                }
+                const Rn_brgPlate = bearingRn(plateThickness, plateMat.Fu);
+                const Rn_brgFlange = bearingRn(beam.tf, beamMat.Fu);
+                const Rn_brg = Math.min(Rn_brgPlate, Rn_brgFlange);
+                const Pu_brg = 0.75 * Rn_brg;
+                const Pa_brg = Rn_brg / 2.00;
+                const brgOK_LRFD = Ru_LRFD <= Pu_brg;
+                const brgOK_ASD = Ra_ASD <= Pa_brg;
+
+                // Generate results
+                generateResults({
+                    beam, hss, beamMat, hssMat, plateMat,
+                    beamSize, hssSize, plateThickness, plateWidth, plateMaterial,
+                    numBolts, numRows, boltsPerLine, boltSpacing, edgeDist, stdHole, boltDiameter, boltGrade,
+                    lever, Rn_brgPlate, Rn_brgFlange, Rn_brg, Pu_brg, Pa_brg, brgOK_LRFD, brgOK_ASD,
+                    VD_left, VL_left, MD_left, ML_left,
+                    VD_right, VL_right, MD_right, ML_right,
+                    PD_top, PL_top,
+                    Vu_left, Vu_right, Mu_left, Mu_right, Pu_top,
+                    Va_left, Va_right, Ma_left, Ma_right, Pa_top,
+                    Pu_conn, Pa_conn, Mu_conn, Ma_conn,
+                    M_max_LRFD, M_max_ASD, Ru_LRFD, Ra_ASD,
+                    tp_req_LRFD, tp_req_ASD, yieldOK_LRFD, yieldOK_ASD,
+                    holeSize, An, AnCapped, Rn_rupture, Pu_rupture, Pa_rupture,
+                    ruptureOK_LRFD, ruptureOK_ASD,
+                    boltFnv, boltArea, Rn_bolts, Pu_bolts, Pa_bolts, boltsOK_LRFD, boltsOK_ASD,
+                    isLoaded
+                });
+
+            } catch (error) {
+                document.getElementById('results').innerHTML = `
+                    <div class="calc-step" style="border-left-color: #e74c3c;">
+                        <strong>Calculation Error:</strong><br>${error.message}
+                    </div>
+                `;
+                document.getElementById('results').style.display = 'block';
+            }
+        }
+
+        function generateResults(data) {
+            const dataSource = data.isLoaded ? "AISC Shapes Database v16.0" : "Built-in Properties";
+            
+            let results = `
+                <h3>Complete Through-Plate Connection Analysis - Example 4.2 Methodology</h3>
+                <div class="note">
+                    <strong>Reference:</strong> AISC Design Guide 24, Example 4.2<br>
+                    <strong>Connection Type:</strong> Through-plate fully-restrained (FR) moment connection<br>
+                    <strong>Data Source:</strong> ${dataSource}<br>
+                    <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), bolt group shear (J3.7), bolt bearing/tearout (J3.10). Weld design and block shear must be checked separately.
+                </div>
+
+                <div class="calc-step">
+                    <strong>Given Data Summary:</strong><br>
+                    Beam: ${data.beamSize} ${data.beamMaterial ? 'ASTM ' + data.beamMaterial : ''} (d=${data.beam.d}", bf=${data.beam.bf}", tf=${data.beam.tf}")<br>
+                    HSS: ${data.hssSize} ${data.hssMaterial ? 'ASTM ' + data.hssMaterial : ''} (H=${data.hss.H}", B=${data.hss.B}", t=${data.hss.t}")<br>
+                    Plate: ${data.plateThickness}" × ${data.plateWidth}" ASTM ${data.plateMaterial}<br>
+                    Bolts: ${data.numRows} lines × ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>
+                    <em>Properties from: ${dataSource}</em>
+                </div>
+
+                <div class="section-header">STEP 1: LOAD ANALYSIS</div>
+                <div class="calc-step">
+                    <strong>Factored Loads (LRFD):</strong><br>
+                    Left: V_u = 1.2(${data.VD_left}) + 1.6(${data.VL_left}) = <span class="value">${data.Vu_left.toFixed(1)} kips</span><br>
+                    Left: M_u = 1.2(${data.MD_left}) + 1.6(${data.ML_left}) = <span class="value">${data.Mu_left.toFixed(1)} kip-ft</span><br>
+                    Right: V_u = 1.2(${data.VD_right}) + 1.6(${data.VL_right}) = <span class="value">${data.Vu_right.toFixed(1)} kips</span><br>
+                    Right: M_u = 1.2(${data.MD_right}) + 1.6(${data.ML_right}) = <span class="value">${data.Mu_right.toFixed(1)} kip-ft</span><br>
+                    Top: P_u = 1.2(${data.PD_top}) + 1.6(${data.PL_top}) = <span class="value">${data.Pu_top.toFixed(1)} kips</span><br><br>
+                    
+                    <strong>ASD Loads:</strong><br>
+                    Left: V_a = ${data.Va_left.toFixed(1)} kips, M_a = ${data.Ma_left.toFixed(1)} kip-ft<br>
+                    Right: V_a = ${data.Va_right.toFixed(1)} kips, M_a = ${data.Ma_right.toFixed(1)} kip-ft<br>
+                    Top: P_a = ${data.Pa_top.toFixed(1)} kips
+                </div>
+
+                <div class="section-header">STEP 2: CONNECTION EQUILIBRIUM</div>
+                <div class="calc-step">
+                    <strong>Force Equilibrium:</strong><br>
+                    <span class="formula">ΣF_v = V_left + V_right + P_top = P_conn</span><br>
+                    LRFD: P_u,conn = ${data.Vu_left.toFixed(1)} + ${data.Vu_right.toFixed(1)} + ${data.Pu_top.toFixed(1)} = <span class="value">${data.Pu_conn.toFixed(1)} kips</span><br>
+                    ASD: P_a,conn = ${data.Va_left.toFixed(1)} + ${data.Va_right.toFixed(1)} + ${data.Pa_top.toFixed(1)} = <span class="value">${data.Pa_conn.toFixed(1)} kips</span><br><br>
+                    
+                    <strong>Moment Equilibrium with Eccentricity:</strong><br>
+                    <span class="formula">ΣM_A = M_right - M_left + (H/2)(V_right - V_left) = M_conn</span><br>
+                    LRFD: M_u,conn = ${data.Mu_right.toFixed(1)} - ${data.Mu_left.toFixed(1)} + (${data.hss.H}/2)(${data.Vu_right.toFixed(1)} - ${data.Vu_left.toFixed(1)})/12<br>
+                    M_u,conn = <span class="value">${data.Mu_conn.toFixed(1)} kip-ft</span><br>
+                    ASD: M_a,conn = <span class="value">${data.Ma_conn.toFixed(1)} kip-ft</span>
+                </div>
+
+                <div class="section-header">STEP 3: THROUGH PLATE FORCE ANALYSIS</div>
+                <div class="calc-step">
+                    <strong>Maximum Moment Determination:</strong><br>
+                    Moments to check: M_right = ${Math.abs(data.Mu_right).toFixed(1)}, M_left = ${Math.abs(data.Mu_left).toFixed(1)}, M_conn = ${Math.abs(data.Mu_conn).toFixed(1)}<br>
+                    M_u,max = <span class="value">${data.M_max_LRFD.toFixed(1)} kip-ft</span> (LRFD)<br>
+                    M_a,max = <span class="value">${data.M_max_ASD.toFixed(1)} kip-ft</span> (ASD)<br><br>
+                    
+                    <strong>Through Plate Force (per Example 4.2):</strong><br>
+                    <span class="formula">R = M_max / (d + t_p)</span> (plate centroid to plate centroid)<br>
+                    LRFD: R_u = ${data.M_max_LRFD.toFixed(1)} × 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="value">${data.Ru_LRFD.toFixed(1)} kips</span><br>
+                    ASD: R_a = ${data.M_max_ASD.toFixed(1)} × 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="value">${data.Ra_ASD.toFixed(1)} kips</span>
+                </div>
+
+                <div class="section-header">STEP 4: TENSILE YIELDING CHECK (AISC J4.1a)</div>
+                <div class="calc-step ${data.yieldOK_LRFD && data.yieldOK_ASD ? 'ok' : ''}">
+                    <strong>Required Plate Thickness:</strong><br>
+                    <span class="formula">LRFD: t_p,req = R_u / (φF_y × w)</span><br>
+                    t_p,req = ${data.Ru_LRFD.toFixed(1)} / (0.90 × ${data.plateMat.Fy} × ${data.plateWidth}) = <span class="value">${data.tp_req_LRFD.toFixed(3)} in</span><br>
+                    <span class="formula">ASD: t_p,req = R_a × Ω / (F_y × w)</span><br>
+                    t_p,req = ${data.Ra_ASD.toFixed(1)} × 1.67 / (${data.plateMat.Fy} × ${data.plateWidth}) = <span class="value">${data.tp_req_ASD.toFixed(3)} in</span><br><br>
+                    
+                    <strong>Status:</strong> ${data.yieldOK_LRFD && data.yieldOK_ASD ? '<span class="value">ADEQUATE</span>' : '<span style="color: #e74c3c;">REQUIRES THICKER PLATE</span>'}
+                </div>
+
+                <div class="section-header">STEP 5: TENSILE RUPTURE CHECK (AISC J4.1b)</div>
+                <div class="calc-step ${data.ruptureOK_LRFD && data.ruptureOK_ASD ? 'ok' : ''}">
+                    <strong>Net Area:</strong><br>
+                    <span class="formula">A_n = t_p × (w − n_lines × d_hole)</span>, d_hole = ${data.stdHole.toFixed(4)}" + 1/16" = ${data.holeSize.toFixed(4)}"<br>
+                    A_n = ${data.plateThickness} × (${data.plateWidth} − ${data.numRows} × ${data.holeSize.toFixed(3)}) ${data.AnCapped ? '→ capped at 0.85·A_g (bolted splice plate)' : ''} = <span class="value">${data.An.toFixed(2)} in²</span><br><br>
+                    <strong>Rupture Strength:</strong><br>
+                    <span class="formula">R_n = F_u × A_n</span> = ${data.plateMat.Fu} × ${data.An.toFixed(2)} = <span class="value">${data.Rn_rupture.toFixed(1)} kips</span><br>
+                    LRFD: φR_n = 0.75 × ${data.Rn_rupture.toFixed(1)} = <span class="value">${data.Pu_rupture.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.ruptureOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
+                    ASD: R_n/Ω = ${data.Rn_rupture.toFixed(1)}/2.00 = <span class="value">${data.Pa_rupture.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.ruptureOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}
+                </div>
+
+                <div class="section-header">STEP 6: BOLT GROUP SHEAR (AISC J3.7)</div>
+                <div class="calc-step ${data.boltsOK_LRFD && data.boltsOK_ASD ? 'ok' : ''}">
+                    <span class="formula">R_n = F_nv × A_b × n</span> (single shear, threads incl.)<br>
+                    R_n = ${data.boltFnv} × ${data.boltArea.toFixed(3)} × ${data.numBolts} = <span class="value">${data.Rn_bolts.toFixed(1)} kips</span><br>
+                    LRFD: φR_n = 0.75 × ${data.Rn_bolts.toFixed(1)} = <span class="value">${data.Pu_bolts.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.boltsOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
+                    ASD: R_n/Ω = <span class="value">${data.Pa_bolts.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.boltsOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
+                </div>
+
+                <div class="section-header">STEP 7: BOLT BEARING / TEAROUT (AISC J3.10, Eq. J3-6a)</div>
+                <div class="calc-step ${data.brgOK_LRFD && data.brgOK_ASD ? 'ok' : ''}">
+                    <span class="formula">r_n = 1.2·L_c·t·F_u ≤ 2.4·d·t·F_u</span> (deformation a design consideration)<br>
+                    L_c,end = ${data.edgeDist} − ${data.stdHole.toFixed(4)}/2; L_c,int = ${data.boltSpacing} − ${data.stdHole.toFixed(4)}<br>
+                    On plate (t=${data.plateThickness}"): R_n = <span class="value">${data.Rn_brgPlate.toFixed(1)} kips</span><br>
+                    On beam flange (t_f=${data.beam.tf}"): R_n = <span class="value">${data.Rn_brgFlange.toFixed(1)} kips</span><br>
+                    Governing R_n = ${data.Rn_brg.toFixed(1)} kips<br>
+                    LRFD: φR_n = 0.75 × ${data.Rn_brg.toFixed(1)} = <span class="value">${data.Pu_brg.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.brgOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
+                    ASD: R_n/Ω = <span class="value">${data.Pa_brg.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.brgOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}
+                </div>
+
+                <div class="section-header">DESIGN SUMMARY</div>
+                <div class="calc-step ${data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD ? 'ok' : ''}">
+                    <strong>Connection Status: <span class="value">${data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD ? 'PRELIMINARY CHECKS OK' : 'REQUIRES REVISION'}</span></strong><br><br>
+                    <strong>Design Requirements:</strong><br>
+                    • Minimum plate thickness: <span class="value">${Math.max(data.tp_req_LRFD, data.tp_req_ASD).toFixed(3)} in</span><br>
+                    • Provided plate thickness: <span class="value">${data.plateThickness} in</span><br>
+                    • Database Integration: <span class="value">${data.isLoaded ? 'Active (AISC v16.0)' : 'Fallback Mode'}</span><br><br>
+                    
+                    <em>Note: This is a preliminary analysis. Complete design requires additional limit state checks including block shear, HSS wall plastification (Chapter K limits of applicability), and weld design.</em>
+                </div>
+
+                <div class="note">
+                    <strong>Key Design Features (per Example 4.2):</strong><br>
+                    • Through-plate extends completely through HSS depth<br>
+                    • Provides 2× capacity compared to branch-plate connections<br>
+                    • Requires HSS to be cut and spliced at connection<br>
+                    • Field shimming required between plate and beam flanges<br>
+                    • Complete force transfer through plate eliminates HSS moment<br>
+                    • All limit states must be checked per AISC Specification Chapters J & K
+                </div>
+            `;
+
+            document.getElementById('results').innerHTML = results;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDatabase();
+        });
+    </script>
+    <script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ─────────────────────

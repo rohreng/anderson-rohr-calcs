@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DG24 HSS Welded Connection Calculator</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        @media print {
+            body[data-pm="s"] .calc-steps { display: none !important; }
+            .db-status { display: none !important; }
+            .calc-steps > div { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Icons
+        const Calculator = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="16" y2="18"/></svg>;
+        const Upload = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+        const AlertTriangle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+        const CheckCircle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>;
+        const Database = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>;
+        const Info = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+
+        // ENHANCED Steel Database Class with multiple loading methods
+        class SteelShapesDB {
+          constructor() {
+            this.database = null;
+            this.isLoaded = false;
+            this.debugInfo = [];
+          }
+
+          // Method 1: Try window.fs.readFile (Claude environment)
+          async tryWindowFS(filePath) {
+            try {
+              this.debugInfo.push(`Trying window.fs.readFile for: ${filePath}`);
+              
+              if (typeof window.fs === 'undefined' || typeof window.fs.readFile !== 'function') {
+                throw new Error('window.fs.readFile not available');
+              }
+              
+              const response = await window.fs.readFile(filePath);
+              this.debugInfo.push(`window.fs.readFile successful, data length: ${response.length}`);
+              return response;
+            } catch (error) {
+              this.debugInfo.push(`window.fs.readFile failed: ${error.message}`);
+              throw error;
+            }
+          }
+
+          // Method 2: Try fetch API (for web servers)
+          async tryFetch(filePath) {
+            try {
+              this.debugInfo.push(`Trying fetch for: ${filePath}`);
+              const response = await fetch(filePath);
+              
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+              }
+              
+              const arrayBuffer = await response.arrayBuffer();
+              this.debugInfo.push(`Fetch successful, data length: ${arrayBuffer.byteLength}`);
+              return new Uint8Array(arrayBuffer);
+            } catch (error) {
+              this.debugInfo.push(`Fetch failed: ${error.message}`);
+              throw error;
+            }
+          }
+
+          // Method 3: Load from file input
+          async loadFromFile(file) {
+            try {
+              this.debugInfo.push(`Loading from uploaded file: ${file.name} (${file.size} bytes)`);
+              
+              return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  resolve(new Uint8Array(e.target.result));
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsArrayBuffer(file);
+              });
+            } catch (error) {
+              this.debugInfo.push(`File upload failed: ${error.message}`);
+              throw error;
+            }
+          }
+
+          // Process the loaded data
+          processData(data) {
+            try {
+              this.debugInfo.push('Processing Excel data...');
+              
+              const workbook = XLSX.read(data, {
+                cellStyles: true,
+                cellFormulas: true,
+                cellDates: true,
+                cellNF: true,
+                sheetStubs: true
+              });
+
+              this.debugInfo.push(`Workbook sheets: ${workbook.SheetNames.join(', ')}`);
+
+              if (!workbook.Sheets["Database v16.0"]) {
+                throw new Error('Sheet "Database v16.0" not found');
+              }
+
+              const sheet = workbook.Sheets["Database v16.0"];
+              const data_array = XLSX.utils.sheet_to_json(sheet, {header: 1});
+              
+              this.database = {
+                headers: data_array[0],
+                shapes: data_array.slice(1),
+                shapeTypes: [...new Set(data_array.slice(1).map(row => row[0]).filter(Boolean))].sort()
+              };
+              
+              this.isLoaded = true;
+              this.debugInfo.push(`Database loaded: ${this.database.shapes.length} shapes, ${this.database.shapeTypes.length} types`);
+              return true;
+            } catch (error) {
+              this.debugInfo.push(`Data processing failed: ${error.message}`);
+              throw error;
+            }
+          }
+
+          // Main loading method - tries multiple approaches
+          async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+            this.debugInfo = [`Starting database load for: ${filePath}`];
+            
+            // Try different loading methods in order
+            const methods = [
+              () => this.tryWindowFS(filePath),
+              () => this.tryFetch(filePath),
+              () => this.tryFetch('./' + filePath)
+            ];
+
+            for (const method of methods) {
+              try {
+                const data = await method();
+                return this.processData(data);
+              } catch (error) {
+                // Continue to next method
+                continue;
+              }
+            }
+
+            // All methods failed
+            this.debugInfo.push('All loading methods failed');
+            return false;
+          }
+
+          getShapesByType(shapeType) {
+            if (!this.isLoaded) return [];
+            
+            return this.database.shapes
+              .filter(row => row[0] === shapeType)
+              .map((row, index) => {
+                const properties = {};
+                this.database.headers.forEach((header, colIndex) => {
+                  if (header && row[colIndex] !== undefined && row[colIndex] !== '') {
+                    properties[header] = row[colIndex];
+                  }
+                });
+
+                // Special debug for W21X50 or first few shapes
+                const isW21X50 = row[2] && row[2].toString().includes('W21X50');
+                if (isW21X50 || index < 3) {
+                  console.log(`\n=== DEBUG SHAPE: ${row[2]} ===`);
+                  console.log('Shape type:', shapeType);
+                  console.log('Row index:', index);
+                  console.log('Raw row (first 30 cols):', row.slice(0, 30));
+                  console.log('Key extractions:');
+                  console.log('  Type (col 0):', row[0]);
+                  console.log('  Label (col 2):', row[2]);
+                  console.log('  Weight (col 4):', row[4]);
+                  console.log('  Area (col 5):', row[5]);
+                  console.log('  d (col 6):', row[6], '← Should be ~20.8 for W21X50');
+                  console.log('  bf (col 11):', row[11]);
+                  console.log('  tw (col 16):', row[16]);
+                  console.log('  tf (col 19):', row[19]);
+                  console.log('  B (col 13):', row[13]);
+                  console.log('  t (col 21):', row[21]);
+                  console.log('  tdes (col 23):', row[23]);
+                  console.log('Properties object created:', {
+                    d: properties.d,
+                    bf: properties.bf,
+                    tf: properties.tf,
+                    tw: properties.tw,
+                    B: properties.B,
+                    t: properties.t,
+                    tdes: properties.tdes
+                  });
+                }
+
+                return {
+                  label: row[2],
+                  designation: row[2],
+                  weight: row[4],
+                  area: row[5],
+                  d: properties.d,
+                  bf: properties.bf,
+                  tf: properties.tf,
+                  tw: properties.tw,
+                  A: properties.A,
+                  H: properties.H,
+                  B: properties.B,
+                  t: properties.t,
+                  tdes: properties.tdes,
+                  tnom: properties.tnom,
+                  allProperties: properties,
+                  // Add debug info
+                  _debugRawRow: isW21X50 ? row.slice(0, 30) : null
+                };
+              })
+              .sort((a, b) => {
+                const aMatch = a.designation.match(/(\d+(?:\.\d+)?)/);
+                const bMatch = b.designation.match(/(\d+(?:\.\d+)?)/);
+                if (aMatch && bMatch) {
+                  return parseFloat(aMatch[1]) - parseFloat(bMatch[1]);
+                }
+                return a.designation.localeCompare(b.designation);
+              });
+          }
+
+          getShapeProperties(designation) {
+            if (!this.isLoaded) return null;
+            
+            const shapeRow = this.database.shapes.find(row => row[2] === designation);
+            if (!shapeRow) return null;
+
+            // FIXED: Use direct column indices to avoid duplicate header issues
+            const shape = {
+              label: shapeRow[2],               // AISC_Manual_Label
+              designation: shapeRow[2],         // AISC_Manual_Label
+              type: shapeRow[0],                // Type
+              weight: shapeRow[4],              // W
+              area: shapeRow[5],                // A
+              // W-shape properties (direct column extraction)
+              d: shapeRow[6],                   // d (depth)
+              bf: shapeRow[11],                 // bf (flange width)
+              tf: shapeRow[19],                 // tf (flange thickness)
+              tw: shapeRow[16],                 // tw (web thickness)
+              A: shapeRow[5],                   // A (area)
+              // HSS properties (direct column extraction)
+              H: shapeRow[8],                   // Ht (HSS height)
+              B: shapeRow[13],                  // B (HSS width)
+              t: shapeRow[21],                  // t (HSS thickness)
+              tdes: shapeRow[23],               // tdes (HSS design thickness)
+              tnom: shapeRow[22],               // tnom (HSS nominal thickness)
+            };
+
+            // Create complete properties object (avoiding duplicates)
+            const allProperties = {};
+            this.database.headers.forEach((header, index) => {
+              if (header && shapeRow[index] !== undefined && shapeRow[index] !== '') {
+                // Only keep first occurrence of duplicate headers
+                if (!allProperties.hasOwnProperty(header)) {
+                  allProperties[header] = shapeRow[index];
+                }
+              }
+            });
+
+            shape.allProperties = allProperties;
+
+            // Debug specific shapes
+            if (designation === 'W21X50') {
+              console.log(`\n=== FIXED getShapeProperties: ${designation} ===`);
+              console.log('Direct extraction results:', {
+                d: shape.d,
+                bf: shape.bf,
+                tf: shape.tf,
+                tw: shape.tw,
+                B: shape.B,
+                tdes: shape.tdes
+              });
+            }
+
+            return shape;
+          }
+
+          getDebugInfo() {
+            return this.debugInfo;
+          }
+        }
+
+        const HSSWeldedConnectionCalculator = () => {
+          const [steelDB, setSteelDB] = useState(null);
+          const [dbLoaded, setDbLoaded] = useState(false);
+          const [loadingMessage, setLoadingMessage] = useState('Initializing...');
+          const [showDebug, setShowDebug] = useState(false);
+          const [debugInfo, setDebugInfo] = useState([]);
+          const [showFileUpload, setShowFileUpload] = useState(false);
+          const [showDataDebug, setShowDataDebug] = useState(false);
+          const [dataDebugInfo, setDataDebugInfo] = useState(null);
+          
+          const [shapesData, setShapesData] = useState({ hssShapes: [], wShapes: [] });
+          const [selectedBeam, setSelectedBeam] = useState('');
+          const [selectedColumn, setSelectedColumn] = useState('');
+          const [beamProps, setBeamProps] = useState(null);
+          const [columnProps, setColumnProps] = useState(null);
+          const [results, setResults] = useState(null);
+          const [calculationSteps, setCalculationSteps] = useState([]);
+
+          // Fallback data (your original shapes)
+          const fallbackData = {
+            wShapes: [
+              { label: 'W4X13', d: 4.16, bf: 4.06, tf: 0.345, tw: 0.28, A: 3.83 },
+              { label: 'W16X57', d: 16.4, bf: 7.12, tf: 0.715, tw: 0.43, A: 16.8 },
+              { label: 'W12X26', d: 12.22, bf: 6.49, tf: 0.38, tw: 0.23, A: 7.65 },
+              // Add more fallback shapes as needed
+            ],
+            hssShapes: [
+              { label: 'HSS10X10X1/2', H: 10, B: 10, tdes: 0.465, tnom: 0.5, A: 17.2 },
+              { label: 'HSS8X8X3/8', H: 8, B: 8, tdes: 0.349, tnom: 0.375, A: 10.4 },
+              // Add more fallback shapes as needed
+            ]
+          };
+
+          // Handle file upload
+          const handleFileUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            setLoadingMessage('Loading from uploaded file...');
+            const db = new SteelShapesDB();
+            
+            try {
+              const data = await db.loadFromFile(file);
+              const success = db.processData(data);
+              
+              if (success) {
+                setSteelDB(db);
+                setDbLoaded(true);
+                
+                const wShapes = db.getShapesByType('W');
+                const hssShapes = db.getShapesByType('HSS');
+                setShapesData({ wShapes, hssShapes });
+                
+                // Capture debug info about data structure
+                const debugSample = {
+                  headers: db.database.headers.slice(0, 30),
+                  sampleWShape: wShapes.find(s => s.designation === 'W21X50') || wShapes[0],
+                  sampleHSSShape: hssShapes[0],
+                  headerMapping: {
+                    'Type (col 0)': db.database.headers[0],
+                    'Label (col 2)': db.database.headers[2], 
+                    'Weight (col 4)': db.database.headers[4],
+                    'd (col 6)': db.database.headers[6],
+                    'bf (col 11)': db.database.headers[11],
+                    'tf (col 19)': db.database.headers[19],
+                    'tw (col 16)': db.database.headers[16],
+                    'B (col 13)': db.database.headers[13],
+                    'H (col 8)': db.database.headers[8],
+                    't (col 21)': db.database.headers[21],
+                    'tdes (col 23)': db.database.headers[23]
+                  }
+                };
+                setDataDebugInfo(debugSample);
+                
+                setLoadingMessage(`Database loaded: ${wShapes.length} W-shapes, ${hssShapes.length} HSS shapes`);
+                setShowFileUpload(false);
+              }
+            } catch (error) {
+              setLoadingMessage('File upload failed. Using fallback data.');
+              setShapesData(fallbackData);
+              setDbLoaded(true);
+            }
+            
+            setDebugInfo(db.getDebugInfo());
+          };
+
+          // Initialize database
+          useEffect(() => {
+            const initializeDatabase = async () => {
+              setLoadingMessage('Attempting to load AISC database...');
+              const db = new SteelShapesDB();
+              const loaded = await db.loadDatabase();
+              
+              setDebugInfo(db.getDebugInfo());
+              
+              if (loaded) {
+                setSteelDB(db);
+                setDbLoaded(true);
+                
+                const wShapes = db.getShapesByType('W');
+                const hssShapes = db.getShapesByType('HSS');
+                setShapesData({ wShapes, hssShapes });
+                
+                if (wShapes.length > 0) {
+                  const defaultBeam = wShapes.find(s => s.designation === 'W16X57') || wShapes[0];
+                  setSelectedBeam(defaultBeam.designation);
+                }
+                if (hssShapes.length > 0) {
+                  const defaultHSS = hssShapes.find(s => s.designation === 'HSS10X10X1/2') || hssShapes[0];
+                  setSelectedColumn(defaultHSS.designation);
+                }
+                
+                setLoadingMessage(`Database loaded: ${wShapes.length} W-shapes, ${hssShapes.length} HSS shapes`);
+              } else {
+                setLoadingMessage('Auto-load failed. Using fallback data.');
+                setShapesData(fallbackData);
+                setSelectedBeam('W16X57');
+                setSelectedColumn('HSS10X10X1/2');
+                setDbLoaded(true);
+                setShowFileUpload(true);
+                
+                // Set debug info for fallback
+                setDataDebugInfo({
+                  headers: ['Using fallback data - no database loaded'],
+                  sampleWShape: fallbackData.wShapes.find(s => s.label === 'W16X57'),
+                  sampleHSSShape: fallbackData.hssShapes[0],
+                  headerMapping: { 'Status': 'Using hardcoded fallback data - no database file loaded' }
+                });
+              }
+            };
+            
+            initializeDatabase();
+          }, []);
+
+          // Update properties when selections change
+          useEffect(() => {
+            if (selectedBeam) {
+              if (steelDB && dbLoaded) {
+                const props = steelDB.getShapeProperties(selectedBeam);
+                setBeamProps(props);
+              } else {
+                const beam = shapesData.wShapes.find(s => s.label === selectedBeam);
+                setBeamProps(beam);
+              }
+            }
+          }, [selectedBeam, steelDB, dbLoaded, shapesData.wShapes]);
+
+          useEffect(() => {
+            if (selectedColumn) {
+              if (steelDB && dbLoaded) {
+                const props = steelDB.getShapeProperties(selectedColumn);
+                setColumnProps(props);
+              } else {
+                const column = shapesData.hssShapes.find(s => s.label === selectedColumn);
+                setColumnProps(column);
+              }
+            }
+          }, [selectedColumn, steelDB, dbLoaded, shapesData.hssShapes]);
+
+          // RESTORED: Your original detailed calculation method
+          const calculateConnection = () => {
+            if (!beamProps || !columnProps) return;
+
+            const beam = beamProps;
+            const column = columnProps;
+            const steps = [];
+            
+            const FyHSS = 46; // ksi, ASTM A500 Grade B
+            const FuHSS = 58; // ksi, ASTM A500 Grade B
+            const FyBeam = 50; // ksi, ASTM A992
+            const phi = 0.95; // LRFD resistance factor (AISC 360 Table K1.2, local yielding of plate & punching)
+            const omega = 1.58; // ASD safety factor
+            
+            steps.push({
+              title: "Material Properties",
+              content: `HSS: ASTM A500 Grade B, Fy = ${FyHSS} ksi\nBeam: ASTM A992, Fy = ${FyBeam} ksi\nResistance factors: φ = ${phi} (LRFD), Ω = ${omega} (ASD)`,
+              status: 'info'
+            });
+
+            // Step 1: Check fit on the flat of HSS wall
+            const flatWidth = column.B - 3 * column.tdes;
+            const fitCheck = beam.bf <= flatWidth;
+            
+            steps.push({
+              title: "1. Fit on Flat of HSS Wall",
+              content: `Per DG24 Section 4.4:\nFlat width = B - 3t = ${column.B}" - 3(${column.tdes}") = ${flatWidth.toFixed(2)}"\nBeam flange width = ${beam.bf}"\nCheck: ${beam.bf}" ${fitCheck ? '≤' : '>'} ${flatWidth.toFixed(2)}" → ${fitCheck ? 'OK' : 'Does not fit'}`,
+              status: fitCheck ? 'ok' : 'error'
+            });
+            
+            // Step 2: Check limits of applicability (AISC 360 Section K1 / DG24)
+            const limits = {
+              bfToB: beam.bf / column.B,
+              BToTdes: column.B / column.tdes,
+              FyFu: FyHSS / FuHSS,
+              checkAngle: true,
+              checkBfToB: beam.bf / column.B >= 0.25 && beam.bf / column.B <= 1.0,
+              checkBToTdes: column.B / column.tdes <= 35,
+              checkFy: FyHSS <= 52,
+              checkFyFu: FyHSS / FuHSS <= 0.8
+            };
+
+            const allLimitsOK = limits.checkAngle && limits.checkBfToB && limits.checkBToTdes && limits.checkFy && limits.checkFyFu;
+
+            steps.push({
+              title: "2. Limits of Applicability (AISC Spec Section K1)",
+              content: `θ = 90° (30° ≤ θ ≤ 90°) → OK\nbf/B = ${beam.bf}/${column.B} = ${limits.bfToB.toFixed(3)} (0.25 ≤ bf/B ≤ 1.0) → ${limits.checkBfToB ? 'OK' : 'NOT OK'}\nB/t = ${column.B}/${column.tdes} = ${limits.BToTdes.toFixed(1)} (B/t ≤ 35) → ${limits.checkBToTdes ? 'OK' : 'NOT OK'}\nHSS Fy = ${FyHSS} ksi (Fy ≤ 52 ksi) → ${limits.checkFy ? 'OK' : 'NOT OK'}\nHSS Fy/Fu = ${FyHSS}/${FuHSS} = ${limits.FyFu.toFixed(3)} (Fy/Fu ≤ 0.8) → ${limits.checkFyFu ? 'OK' : 'NOT OK'}`,
+              status: allLimitsOK ? 'ok' : 'warning'
+            });
+            
+            // Step 3: CORRECTED Local yielding calculation using AISC Spec K1-2
+            const BOverT = column.B / column.tdes;
+            const factor = 10 / BOverT;  // CORRECTED: NO SQUARE ROOT!
+            const plateCapacity = FyBeam * beam.tf * beam.bf;
+            
+            const Rn_K1_2 = factor * FyHSS * column.tdes * beam.bf;
+            const Rn_local = Math.min(Rn_K1_2, plateCapacity);
+            
+            steps.push({
+              title: "3. Local Yielding of Beam Flange (AISC Spec Equation K1-2)",
+              content: `AISC Specification Section K1(c)(i) - Local yielding due to uneven load distribution\n\nCORRECTED EQUATION:\nRn = (10/(B/t)) × Fy × t × bp ≤ Fyp × tp × bp\n\nCalculation:\nB/t = ${column.B}/${column.tdes} = ${BOverT.toFixed(1)}\nFactor = 10/(B/t) = 10/${BOverT.toFixed(1)} = ${factor.toFixed(3)}\n\nK1-2 calculation:\nRn = ${factor.toFixed(3)} × ${FyHSS} × ${column.tdes} × ${beam.bf} = ${Rn_K1_2.toFixed(1)} kips\n\nUpper bound:\nFyp × tp × bp = ${FyBeam} × ${beam.tf} × ${beam.bf} = ${plateCapacity.toFixed(1)} kips\n\nGoverning: Rn = min(${Rn_K1_2.toFixed(1)}, ${plateCapacity.toFixed(1)}) = ${Rn_local.toFixed(1)} kips`,
+              status: 'ok'
+            });
+            
+            // Step 4: Shear yielding (punching) — applies when 0.85B ≤ bp ≤ B − 2t
+            const punchLower = 0.85 * column.B;
+            const punchUpper = column.B - 2 * column.tdes;
+            const punchingRequired = beam.bf >= punchLower && beam.bf <= punchUpper;
+            const sidewallRequired = beam.bf / column.B >= 1.0;
+
+            let Rn_punch = null;
+            let punchText;
+            if (punchingRequired) {
+              const bep = Math.min((10 / BOverT) * beam.bf, beam.bf);
+              Rn_punch = 0.6 * FyHSS * column.tdes * (2 * beam.tf + 2 * bep);
+              punchText = `Punching applies: 0.85B = ${punchLower.toFixed(2)}" ≤ bp = ${beam.bf}" ≤ B − 2t = ${punchUpper.toFixed(2)}"\nbep = 10·bp/(B/t) = 10(${beam.bf})/${BOverT.toFixed(1)} = ${bep.toFixed(2)}" ≤ bp\nRn = 0.6·Fy·t·(2tp + 2bep) = 0.6(${FyHSS})(${column.tdes})(2(${beam.tf}) + 2(${bep.toFixed(2)})) = ${Rn_punch.toFixed(1)} kips (φ = 0.95)`;
+            } else {
+              punchText = `Punching not applicable: bp = ${beam.bf}" is outside 0.85B = ${punchLower.toFixed(2)}" to B − 2t = ${punchUpper.toFixed(2)}"`;
+            }
+            punchText += `\n\nSidewall local yielding/crippling (β = 1.0 only): ${sidewallRequired ? 'REQUIRED — not computed by this tool, check separately!' : 'Not required (β < 1.0)'}`;
+
+            steps.push({
+              title: "4. HSS Shear Yielding (Punching) & Sidewall Checks",
+              content: punchText,
+              status: sidewallRequired ? 'warning' : (punchingRequired ? 'ok' : 'info')
+            });
+
+            // Governing nominal strength
+            const Rn_gov = punchingRequired ? Math.min(Rn_local, Rn_punch) : Rn_local;
+
+            // Step 5: Available strengths
+            const Rn_available_LRFD = phi * Rn_gov;
+            const Rn_available_ASD = Rn_gov / omega;
+            
+            steps.push({
+              title: "5. Available Strength per AISC",
+              content: `Governing Rn = ${punchingRequired ? `min(local yield ${Rn_local.toFixed(1)}, punching ${Rn_punch.toFixed(1)}) = ` : ''}${Rn_gov.toFixed(1)} kips\nLRFD: φRn = ${phi} × ${Rn_gov.toFixed(1)} kips = ${Rn_available_LRFD.toFixed(1)} kips\nASD: Rn/Ω = ${Rn_gov.toFixed(1)} kips ÷ ${omega} = ${Rn_available_ASD.toFixed(1)} kips`,
+              status: 'ok'
+            });
+            
+            // Step 6: Moment transfer capacity
+            const leverArm = beam.d - beam.tf;
+            const Mn_LRFD = (Rn_available_LRFD * leverArm) / 12;
+            const Mn_ASD = (Rn_available_ASD * leverArm) / 12;
+            
+            steps.push({
+              title: "6. Available Moment Transfer",
+              content: `Lever arm = d - tf = ${beam.d}" - ${beam.tf}" = ${leverArm.toFixed(2)}"\n\nLRFD: Mn = ${Mn_LRFD.toFixed(1)} kip-ft\nASD: Mn = ${Mn_ASD.toFixed(1)} kip-ft`,
+              status: 'ok'
+            });
+
+            setCalculationSteps(steps);
+            setResults({
+              fitCheck, flatWidth, limits, Rn_local, Rn_punch, Rn_gov, Rn_available_LRFD, Rn_available_ASD,
+              Mn_LRFD, Mn_ASD, leverArm, punchingRequired, sidewallRequired, allLimitsOK
+            });
+          };
+
+          useEffect(() => {
+            if (beamProps && columnProps) {
+              calculateConnection();
+            }
+          }, [beamProps, columnProps]);
+
+          // Loading screen with debug info
+          if (!dbLoaded) {
+            return (
+              <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="text-center max-w-2xl">
+                  <div className="text-2xl font-bold mb-4">DG24 HSS Connection Calculator</div>
+                  <div className="text-gray-600 mb-4">{loadingMessage}</div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  
+                  <div className="text-left bg-white p-4 rounded-lg shadow">
+                    <button 
+                      onClick={() => setShowDebug(!showDebug)}
+                      className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-2"
+                    >
+                      <Info />
+                      {showDebug ? 'Hide' : 'Show'} Debug Info
+                    </button>
+                    
+                    {showDebug && (
+                      <div className="text-xs text-gray-600 space-y-1 max-h-40 overflow-y-auto">
+                        {debugInfo.map((info, idx) => (
+                          <div key={idx}>• {info}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {showFileUpload && (
+                    <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h3 className="font-semibold mb-2">Upload Database File</h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Auto-load failed. Please select your AISC database file:
+                      </p>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={handleFileUpload}
+                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
+              <div className="bg-white rounded-lg shadow-lg p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Calculator className="text-blue-600" />
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-800">
+                        DG24 Example 4.3 - Directly Welded HSS Connection Calculator
+                      </h1>
+                      <p className="text-gray-600">
+                        {steelDB ? `AISC Database v16.0 • ${shapesData.wShapes.length} W-shapes • ${shapesData.hssShapes.length} HSS shapes` 
+                                 : `Fallback data • ${shapesData.wShapes.length} W-shapes • ${shapesData.hssShapes.length} HSS shapes`}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {!steelDB && (
+                    <div className="text-right">
+                      <label className="flex items-center gap-2 text-sm text-blue-600 cursor-pointer hover:text-blue-800">
+                        <Upload />
+                        Upload Database
+                        <input
+                          type="file"
+                          accept=".xlsx,.xls"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  {steelDB && (
+                    <div className="text-right">
+                      <button 
+                        onClick={() => setShowDataDebug(!showDataDebug)}
+                        className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        <Info />
+                        {showDataDebug ? 'Hide' : 'Show'} Data Debug
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Debug Panel */}
+                {showDataDebug && dataDebugInfo && (
+                  <div className="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-800 mb-4">Database Data Debug</h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">Column Headers (first 30):</h4>
+                        <div className="text-xs bg-white p-3 rounded border max-h-32 overflow-y-auto">
+                          {dataDebugInfo.headers.map((header, idx) => (
+                            <div key={idx} className="flex">
+                              <span className="w-8 text-gray-500">{idx}:</span>
+                              <span>{header || '<empty>'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-medium text-gray-700 mb-2">Expected Column Mapping:</h4>
+                        <div className="text-xs bg-white p-3 rounded border">
+                          {Object.entries(dataDebugInfo.headerMapping).map(([desc, header]) => (
+                            <div key={desc} className="flex">
+                              <span className="w-32 text-gray-600">{desc}:</span>
+                              <span className={header ? 'text-green-600' : 'text-red-600'}>
+                                {header || '<MISSING>'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {dataDebugInfo.sampleWShape && (
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-2">
+                            Sample W-Shape: {dataDebugInfo.sampleWShape.designation}
+                          </h4>
+                          <div className="text-xs bg-white p-3 rounded border">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>d = {dataDebugInfo.sampleWShape.d} {dataDebugInfo.sampleWShape.d > 100 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>bf = {dataDebugInfo.sampleWShape.bf} {dataDebugInfo.sampleWShape.bf > 50 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>tf = {dataDebugInfo.sampleWShape.tf} {dataDebugInfo.sampleWShape.tf > 10 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>tw = {dataDebugInfo.sampleWShape.tw} {dataDebugInfo.sampleWShape.tw > 10 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>weight = {dataDebugInfo.sampleWShape.weight}</div>
+                              <div>area = {dataDebugInfo.sampleWShape.area}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {dataDebugInfo.sampleHSSShape && (
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-2">
+                            Sample HSS: {dataDebugInfo.sampleHSSShape.designation}
+                          </h4>
+                          <div className="text-xs bg-white p-3 rounded border">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>H = {dataDebugInfo.sampleHSSShape.H} {dataDebugInfo.sampleHSSShape.H > 100 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>B = {dataDebugInfo.sampleHSSShape.B} {dataDebugInfo.sampleHSSShape.B > 100 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>t = {dataDebugInfo.sampleHSSShape.t}</div>
+                              <div>tdes = {dataDebugInfo.sampleHSSShape.tdes} {dataDebugInfo.sampleHSSShape.tdes > 10 ? '⚠️ WRONG!' : '✓'}</div>
+                              <div>weight = {dataDebugInfo.sampleHSSShape.weight}</div>
+                              <div>area = {dataDebugInfo.sampleHSSShape.area}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                  {/* Input Section */}
+                  <div className="space-y-6">
+                    <div className="bg-blue-50 p-4 rounded-lg blk">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Database className="text-blue-600" />
+                        <h2 className="text-lg font-semibold text-gray-800">Member Selection</h2>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            W-Shape Beam ({shapesData.wShapes.length} available)
+                          </label>
+                          <select
+                            id="beamSelect"
+                            value={selectedBeam}
+                            onChange={(e) => setSelectedBeam(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          >
+                            <option value="">Select W-Shape...</option>
+                            {shapesData.wShapes.map(shape => (
+                              <option key={shape.label} value={shape.designation || shape.label}>
+                                {shape.label} (d={shape.d}", bf={shape.bf}", tf={shape.tf}")
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            HSS Column ({shapesData.hssShapes.length} available)
+                          </label>
+                          <select
+                            id="columnSelect"
+                            value={selectedColumn}
+                            onChange={(e) => setSelectedColumn(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          >
+                            <option value="">Select HSS...</option>
+                            {shapesData.hssShapes.map(shape => (
+                              <option key={shape.label} value={shape.designation || shape.label}>
+                                {shape.label} (H={shape.H}", B={shape.B}", t={shape.tdes}")
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Properties and Results sections remain the same */}
+                    {(beamProps || columnProps) && (
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Selected Member Properties</h3>
+                        
+                        {beamProps && (
+                          <div className="mb-4">
+                            <h4 className="font-medium text-gray-700 mb-2">Beam: {beamProps.label}</h4>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div>d = {beamProps.d}"</div>
+                              <div>A = {beamProps.A} in²</div>
+                              <div>bf = {beamProps.bf}"</div>
+                              <div>tw = {beamProps.tw}"</div>
+                              <div>tf = {beamProps.tf}"</div>
+                              <div>Fy = 50 ksi</div>
+                            </div>
+                          </div>
+                        )}
+
+                        {columnProps && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 mb-2">Column: {columnProps.label}</h4>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                              <div>H = {columnProps.H}"</div>
+                              <div>A = {columnProps.A} in²</div>
+                              <div>B = {columnProps.B}"</div>
+                              <div>tnom = {columnProps.tnom}"</div>
+                              <div>tdes = {columnProps.tdes}"</div>
+                              <div>Fy = 46 ksi</div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {results && (
+                      <div className="bg-gray-50 p-4 rounded-lg border summary">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3">Connection Capacity Summary</h3>
+                        <div className="space-y-2">
+                          <div className={`flex items-center gap-2 ${results.fitCheck ? 'text-green-600' : 'text-red-600'}`}>
+                            {results.fitCheck ? <CheckCircle /> : <AlertTriangle />}
+                            <span className="text-sm">Geometry: {results.fitCheck ? 'Fits on HSS face' : 'Does not fit'}</span>
+                          </div>
+                          <div className={`flex items-center gap-2 ${results.allLimitsOK ? 'text-green-600' : 'text-yellow-600'}`}>
+                            {results.allLimitsOK ? <CheckCircle /> : <AlertTriangle />}
+                            <span className="text-sm">AISC Limits: {results.allLimitsOK ? 'All satisfied' : 'Check required'}</span>
+                          </div>
+                          <div className="pt-2 border-t">
+                            <div className="text-sm text-gray-600">Rn = {results.Rn_gov.toFixed(1)} kips{results.punchingRequired ? ' (punching/local yield governing)' : ''}</div>
+                            <div className="font-semibold text-blue-600 text-sm">LRFD: Mn = {results.Mn_LRFD.toFixed(1)} kip-ft</div>
+                            <div className="font-semibold text-green-600 text-sm">ASD: Mn = {results.Mn_ASD.toFixed(1)} kip-ft</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Calculation Steps */}
+                  <div className="xl:col-span-2 space-y-4 calc-steps">
+                    <h2 className="text-lg font-semibold text-gray-800">AISC Design Calculations</h2>
+                    
+                    {calculationSteps.map((step, index) => (
+                      <div key={index} className="bg-white border rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`mt-1 ${
+                            step.status === 'ok' ? 'text-green-500' : 
+                            step.status === 'warning' ? 'text-yellow-500' : 
+                            step.status === 'error' ? 'text-red-500' : 'text-blue-500'
+                          }`}>
+                            {step.status === 'ok' ? <CheckCircle /> : 
+                             step.status === 'warning' || step.status === 'error' ? <AlertTriangle /> : 
+                             <Info />}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-800 mb-2">{step.title}</h3>
+                            <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded overflow-x-auto">
+                              {step.content}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className={`p-4 rounded-lg border db-status ${steelDB ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+                      <div className="flex items-start gap-2">
+                        {steelDB ? <CheckCircle className="text-green-600 mt-1" /> : <AlertTriangle className="text-yellow-600 mt-1" />}
+                        <div>
+                          <h3 className="font-medium text-gray-700 mb-2">Database Status</h3>
+                          <div className="text-sm space-y-1 text-gray-600">
+                            <p>• <strong>Mode:</strong> {steelDB ? 'Full AISC Database v16.0' : 'Fallback mode (limited shapes)'}</p>
+                            <p>• <strong>W-Shapes:</strong> {shapesData.wShapes.length} available</p>
+                            <p>• <strong>HSS Shapes:</strong> {shapesData.hssShapes.length} available</p>
+                            {!steelDB && <p>• <strong>Tip:</strong> Use the upload button to load the full database</p>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<HSSWeldedConnectionCalculator />, document.getElementById('root'));
+    </script>
+    <script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+    </script>
+    <script>
+    // React interop: restored <select> values must go through the native value
+    // setter so React's onChange fires and state/recalc update on areLoad().
+    (function () {
+      'use strict';
+      var baseLoad = window.areLoad;
+      window.areLoad = function () {
+        var key = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+        var raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            var data = JSON.parse(raw);
+            Object.keys(data._inputs || {}).forEach(function (id) {
+              var el = document.getElementById(id);
+              if (!el || el.tagName !== 'SELECT') return;
+              var desc = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
+              if (desc && desc.set) desc.set.call(el, data._inputs[id]);
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+          } catch (e) { /* ignore */ }
+        }
+        baseLoad();
+      };
+    })();
+    </script>
+
+<script>
+// ── ARE React compatibility patch: override Save/Load for React-controlled inputs ──
+(function(){
+  var KEY='are_v1_react_'+(window.location.pathname.split('/').pop()||'calc');
+  function fields(){
+    return Array.prototype.filter.call(document.querySelectorAll('input,select,textarea'),function(el){
+      return el.id!=='areJob' && el.type!=='file' && el.type!=='button';
+    });
+  }
+  window.areSave=function(){
+    var job=(document.getElementById('areJob')||{}).value||'';
+    var vals=fields().map(function(el){return el.type==='checkbox'?{c:el.checked}:{v:el.value};});
+    try{ localStorage.setItem(KEY,JSON.stringify({_job:job,_ts:Date.now(),vals:vals}));
+      if(window.areToastMsg)areToastMsg(); var t=document.getElementById('areToast');
+      if(t){t.textContent='\u2713 Saved'+(job?' \u2014 '+job:'');t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600);}
+    }catch(e){alert('Save failed');}
+  };
+  window.areLoad=function(){
+    var raw=localStorage.getItem(KEY); var t=document.getElementById('areToast');
+    function toast(m){if(t){t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},3000);}}
+    if(!raw){toast('No saved inputs found for this calculator.');return;}
+    var d; try{d=JSON.parse(raw);}catch(e){toast('\u26a0 Could not read saved data.');return;}
+    if(d._job){var j=document.getElementById('areJob'); if(j)j.value=d._job;}
+    var iSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+    var sSet=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set;
+    var tSet=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;
+    var ckSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'checked').set;
+    // restore in passes: conditional fields may appear after earlier ones update
+    var pass=0;
+    (function apply(){
+      var els=fields();
+      (d.vals||[]).forEach(function(s,i){
+        var el=els[i]; if(!el)return;
+        if(s.c!==undefined && el.type==='checkbox'){ ckSet.call(el,s.c); el.dispatchEvent(new Event('click',{bubbles:true})); }
+        else if(s.v!==undefined){
+          var st=el.tagName==='SELECT'?sSet:(el.tagName==='TEXTAREA'?tSet:iSet);
+          if(el.value!==s.v){ st.call(el,s.v); el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true})); }
+        }
+      });
+      if(++pass<3)setTimeout(apply,120);
+      else toast('\u2713 Loaded'+(d._job?' \u2014 '+d._job:'')+'  (saved '+new Date(d._ts).toLocaleString()+')');
+    })();
+  };
+})();
+</script>
+</body>
+</html>

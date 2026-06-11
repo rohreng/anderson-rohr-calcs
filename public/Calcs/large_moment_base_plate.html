@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AISC DG 01 4.6/4.7 Base Plate Design</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .database-status {
+            background: #e8f5e8;
+            border: 1px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #2e7d32;
+        }
+
+        .database-status.loading {
+            background: #fff3cd;
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .database-status.error {
+            background: #fdf2f2;
+            border-color: #e74c3c;
+            color: #c0392b;
+        }
+
+        .debug-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .debug-toggle {
+            background: none;
+            border: 1px solid #6c757d;
+            color: #6c757d;
+            padding: 5px 10px;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+
+        .file-upload {
+            background: #e8f5e8;
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        .input-panel, .results-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+
+        .results {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .result-item {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .result-value {
+            font-weight: 700;
+            color: #27ae60;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #856404;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #721c24;
+        }
+
+        .large-moment {
+            background: #ffe6e6;
+            border: 2px solid #ff6b6b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #c92a2a;
+            font-weight: bold;
+        }
+
+        .small-moment {
+            background: #e6f7ff;
+            border: 2px solid #40a9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            color: #1e88e5;
+            font-weight: bold;
+        }
+
+        .steps {
+            background: #e8f4f8;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .step {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .step-number {
+            font-weight: bold;
+            color: #3498db;
+            font-size: 1.1em;
+        }
+
+        .calculation {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            border-left: 3px solid #e74c3c;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media print {
+            body { background: #fff; }
+            .main-content { display: block; }
+            .input-panel, .results-panel { box-shadow: none; border: 1px solid #ccc; margin-bottom: 12px; }
+            .database-status, .debug-toggle, .debug-panel, .file-upload, .button { display: none !important; }
+            .step { page-break-inside: avoid; }
+            body[data-pm="s"] #stepsSection { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AISC DG 01 Base Plate Design</h1>
+            <p>Examples 4.6 (Small Moment) & 4.7 (Large Moment) - AISC Design Guide 1, 2nd Edition</p>
+        </div>
+
+        <div class="database-status loading" id="databaseStatus">
+            <strong>Database Status:</strong> Initializing...
+            <div class="loading-spinner"></div>
+        </div>
+        
+        <button class="debug-toggle" onclick="toggleDebug()" id="debugToggle">Show Debug Info</button>
+        <div class="debug-panel" id="debugPanel" style="display: none;"></div>
+        
+        <div class="file-upload" id="fileUpload" style="display: none;">
+            <h4>Upload AISC Database File</h4>
+            <p>Auto-load failed. Please select your AISC database file:</p>
+            <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(event)" style="margin: 10px 0;">
+        </div>
+
+        <div class="main-content">
+            <div class="input-panel blk">
+                <div class="section">
+                    <h3>📐 Column Properties</h3>
+                    <div class="input-group">
+                        <label for="columnSize">Column Size:</label>
+                        <select id="columnSize">
+                            <option value="W12X96">W12×96 (d=12.7", bf=12.2") - Example 4.7</option>
+                            <option value="W12X96_small">W12×96 (d=12.7", bf=12.2") - Example 4.6</option>
+                            <option value="custom">Custom...</option>
+                        </select>
+                    </div>
+                    <div class="input-group" id="customColumn" style="display: none;">
+                        <label for="columnD">Column Depth (d, in):</label>
+                        <input type="number" id="columnD" value="12.7" step="0.1">
+                    </div>
+                    <div class="input-group" id="customColumnBf" style="display: none;">
+                        <label for="columnBf">Flange Width (bf, in):</label>
+                        <input type="number" id="columnBf" value="12.2" step="0.1">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>🏗️ Design Loads</h3>
+                    <div class="input-group">
+                        <label for="deadLoad">Dead Load (kips):</label>
+                        <input type="number" id="deadLoad" value="100" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label for="liveLoad">Live Load (kips):</label>
+                        <input type="number" id="liveLoad" value="160" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label for="deadMoment">Dead Moment (kip-in):</label>
+                        <input type="number" id="deadMoment" value="1000" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label for="liveMoment">Live Moment (kip-in):</label>
+                        <input type="number" id="liveMoment" value="1500" step="1">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>🔧 Material Properties</h3>
+                    <div class="input-group">
+                        <label for="fy">Base Plate Fy (ksi):</label>
+                        <input type="number" id="fy" value="36" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label for="fc">Concrete f'c (ksi):</label>
+                        <input type="number" id="fc" value="4" step="0.5">
+                    </div>
+                    <div class="input-group">
+                        <label for="concreteRatio">A2/A1 Ratio:</label>
+                        <input type="number" id="concreteRatio" value="1.0" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label for="rodDia">Anchor Rod Diameter (in):</label>
+                        <input type="number" id="rodDia" value="0.75" step="0.125">
+                    </div>
+                    <div class="input-group">
+                        <label for="rodFu">Anchor Rod Fu (ksi — F1554 Gr 36 = 58):</label>
+                        <input type="number" id="rodFu" value="58" step="1">
+                    </div>
+                    <div class="input-group">
+                        <label for="nRodsT">Anchor Rods at Tension Face:</label>
+                        <input type="number" id="nRodsT" value="2" step="1">
+                    </div>
+                </div>
+
+                <button class="button" onclick="calculateBasePlate()">🧮 Calculate Base Plate Design</button>
+            </div>
+
+            <div class="results-panel">
+                <div class="section summary" id="sumBox">
+                    <h3>📊 Design Results</h3>
+                    <div id="results">
+                        <p style="text-align: center; color: #7f8c8d; font-style: italic;">
+                            Click "Calculate Base Plate Design" to see results
+                        </p>
+                    </div>
+                </div>
+
+                <div class="section calc-det" id="stepsSection">
+                    <h3>📋 Design Steps</h3>
+                    <div id="designSteps">
+                        <p style="text-align: center; color: #7f8c8d; font-style: italic;">
+                            Design steps will appear here after calculation
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced Steel Database Class
+        class SteelShapesDB {
+            constructor() {
+                this.database = null;
+                this.isLoaded = false;
+                this.debugInfo = [];
+            }
+
+            // Method 1: Try window.fs.readFile (Claude environment)
+            async tryWindowFS(filePath) {
+                try {
+                    this.debugInfo.push(`Trying window.fs.readFile for: ${filePath}`);
+                    
+                    if (typeof window.fs === 'undefined' || typeof window.fs.readFile !== 'function') {
+                        throw new Error('window.fs.readFile not available');
+                    }
+                    
+                    const response = await window.fs.readFile(filePath);
+                    this.debugInfo.push(`window.fs.readFile successful, data length: ${response.length}`);
+                    return response;
+                } catch (error) {
+                    this.debugInfo.push(`window.fs.readFile failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Method 2: Try fetch API (for web servers)
+            async tryFetch(filePath) {
+                try {
+                    this.debugInfo.push(`Trying fetch for: ${filePath}`);
+                    const response = await fetch(filePath);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    this.debugInfo.push(`Fetch successful, data length: ${arrayBuffer.byteLength}`);
+                    return new Uint8Array(arrayBuffer);
+                } catch (error) {
+                    this.debugInfo.push(`Fetch failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Method 3: Load from file input
+            async loadFromFile(file) {
+                try {
+                    this.debugInfo.push(`Loading from uploaded file: ${file.name} (${file.size} bytes)`);
+                    
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            resolve(new Uint8Array(e.target.result));
+                        };
+                        reader.onerror = (error) => reject(error);
+                        reader.readAsArrayBuffer(file);
+                    });
+                } catch (error) {
+                    this.debugInfo.push(`File upload failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Process the loaded data
+            processData(data) {
+                try {
+                    this.debugInfo.push('Processing Excel data...');
+                    
+                    const workbook = XLSX.read(data, {
+                        cellStyles: true,
+                        cellFormulas: true,
+                        cellDates: true,
+                        cellNF: true,
+                        sheetStubs: true
+                    });
+
+                    this.debugInfo.push(`Workbook sheets: ${workbook.SheetNames.join(', ')}`);
+
+                    if (!workbook.Sheets["Database v16.0"]) {
+                        throw new Error('Sheet "Database v16.0" not found');
+                    }
+
+                    const sheet = workbook.Sheets["Database v16.0"];
+                    const data_array = XLSX.utils.sheet_to_json(sheet, {header: 1});
+                    
+                    this.database = {
+                        headers: data_array[0],
+                        shapes: data_array.slice(1),
+                        shapeTypes: [...new Set(data_array.slice(1).map(row => row[0]).filter(Boolean))].sort()
+                    };
+                    
+                    this.isLoaded = true;
+                    this.debugInfo.push(`Database loaded: ${this.database.shapes.length} shapes, ${this.database.shapeTypes.length} types`);
+                    return true;
+                } catch (error) {
+                    this.debugInfo.push(`Data processing failed: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Main loading method - tries multiple approaches
+            async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+                this.debugInfo = [`Starting database load for: ${filePath}`];
+                
+                // Try different loading methods in order
+                const methods = [
+                    () => this.tryWindowFS(filePath),
+                    () => this.tryFetch(filePath),
+                    () => this.tryFetch('./' + filePath)
+                ];
+
+                for (const method of methods) {
+                    try {
+                        const data = await method();
+                        return this.processData(data);
+                    } catch (error) {
+                        // Continue to next method
+                        continue;
+                    }
+                }
+
+                // All methods failed
+                this.debugInfo.push('All loading methods failed');
+                return false;
+            }
+
+            getShapesByType(shapeType) {
+                if (!this.isLoaded) return [];
+                
+                return this.database.shapes
+                    .filter(row => row[0] === shapeType)
+                    .map((row) => {
+                        return {
+                            label: row[2],               // AISC_Manual_Label
+                            designation: row[2],         // AISC_Manual_Label
+                            weight: row[4],              // W
+                            area: row[5],                // A
+                            d: row[6],                   // d (depth)
+                            bf: row[11],                 // bf (flange width)
+                            tf: row[19],                 // tf (flange thickness)
+                            tw: row[16],                 // tw (web thickness)
+                        };
+                    })
+                    .filter(shape => shape.label) // Remove empty entries
+                    .sort((a, b) => a.designation.localeCompare(b.designation));
+            }
+
+            getShapeProperties(designation) {
+                if (!this.isLoaded) return null;
+                
+                const shapeRow = this.database.shapes.find(row => row[2] === designation);
+                if (!shapeRow) return null;
+
+                return {
+                    label: shapeRow[2],               // AISC_Manual_Label
+                    designation: shapeRow[2],         // AISC_Manual_Label
+                    type: shapeRow[0],                // Type
+                    weight: shapeRow[4],              // W
+                    area: shapeRow[5],                // A
+                    d: shapeRow[6],                   // d (depth)
+                    bf: shapeRow[11],                 // bf (flange width)
+                    tf: shapeRow[19],                 // tf (flange thickness)
+                    tw: shapeRow[16],                 // tw (web thickness)
+                };
+            }
+
+            getDebugInfo() {
+                return this.debugInfo;
+            }
+        }
+
+        // Global variables
+        let steelDB = null;
+        let isLoaded = false;
+        let debugVisible = false;
+
+        // Fallback column database
+        const fallbackColumns = {
+            'W12X96': { d: 12.7, bf: 12.2, tf: 0.9, label: "W12×96" },
+            'W12X87': { d: 12.5, bf: 12.1, tf: 0.81, label: "W12×87" },
+            'W12X79': { d: 12.4, bf: 12.1, tf: 0.735, label: "W12×79" },
+            'W12X72': { d: 12.2, bf: 12.0, tf: 0.67, label: "W12×72" },
+            'W12X65': { d: 12.1, bf: 12.0, tf: 0.61, label: "W12×65" },
+            'W12X58': { d: 12.2, bf: 10.0, tf: 0.64, label: "W12×58" },
+            'W12X53': { d: 12.1, bf: 10.0, tf: 0.58, label: "W12×53" },
+            'W14X90': { d: 14.0, bf: 14.5, tf: 0.71, label: "W14×90" },
+            'W14X82': { d: 14.3, bf: 10.1, tf: 0.86, label: "W14×82" },
+            'W16X77': { d: 16.5, bf: 10.3, tf: 0.76, label: "W16×77" }
+        };
+
+        // Status and debug functions
+        function updateStatus(message, type = 'loading') {
+            const statusDiv = document.getElementById('databaseStatus');
+            statusDiv.className = `database-status ${type}`;
+            statusDiv.innerHTML = message;
+            if (type === 'loading') {
+                statusDiv.innerHTML += '<div class="loading-spinner"></div>';
+            }
+        }
+
+        function updateDebugInfo() {
+            const debugPanel = document.getElementById('debugPanel');
+            if (steelDB) {
+                const info = steelDB.getDebugInfo();
+                debugPanel.innerHTML = info.map(line => `• ${line}`).join('<br>');
+            } else {
+                debugPanel.innerHTML = '• No database loaded - using fallback data';
+            }
+        }
+
+        function toggleDebug() {
+            debugVisible = !debugVisible;
+            const panel = document.getElementById('debugPanel');
+            const toggle = document.getElementById('debugToggle');
+            
+            if (debugVisible) {
+                panel.style.display = 'block';
+                toggle.textContent = 'Hide Debug Info';
+                updateDebugInfo();
+            } else {
+                panel.style.display = 'none';
+                toggle.textContent = 'Show Debug Info';
+            }
+        }
+
+        function populateColumnDropdown() {
+            const columnSelect = document.getElementById('columnSize');
+            columnSelect.innerHTML = '<option value="">Select Column...</option>';
+
+            if (steelDB && isLoaded) {
+                // Use database
+                const wShapes = steelDB.getShapesByType('W');
+                
+                wShapes.forEach(shape => {
+                    const option = document.createElement('option');
+                    option.value = shape.designation;
+                    option.textContent = `${shape.label} (d=${shape.d}", bf=${shape.bf}", tf=${shape.tf}")`;
+                    columnSelect.appendChild(option);
+                });
+
+                // Set defaults with example load presets
+                const w12x96Option = document.createElement('option');
+                w12x96Option.value = 'W12X96_small';
+                w12x96Option.textContent = 'W12×96 - Example 4.6 Loads (Small Moment)';
+                columnSelect.appendChild(w12x96Option);
+
+                const w12x96LargeOption = document.createElement('option');
+                w12x96LargeOption.value = 'W12X96_large';
+                w12x96LargeOption.textContent = 'W12×96 - Example 4.7 Loads (Large Moment)';
+                columnSelect.appendChild(w12x96LargeOption);
+
+                // Set default
+                columnSelect.value = 'W12X96_large';
+            } else {
+                // Use fallback
+                Object.values(fallbackColumns).forEach(column => {
+                    const option = document.createElement('option');
+                    option.value = column.label.replace('×', 'X');
+                    option.textContent = `${column.label} (d=${column.d}", bf=${column.bf}", tf=${column.tf}")`;
+                    columnSelect.appendChild(option);
+                });
+
+                // Add example presets
+                const smallOption = document.createElement('option');
+                smallOption.value = 'W12X96_small';
+                smallOption.textContent = 'W12×96 - Example 4.6 Loads (Small Moment)';
+                columnSelect.appendChild(smallOption);
+
+                const largeOption = document.createElement('option');
+                largeOption.value = 'W12X96_large';
+                largeOption.textContent = 'W12×96 - Example 4.7 Loads (Large Moment)';
+                columnSelect.appendChild(largeOption);
+
+                // Set default
+                columnSelect.value = 'W12X96_large';
+            }
+
+            updateColumnProperties();
+            
+            // Run initial calculation
+            setTimeout(calculateBasePlate, 100);
+        }
+
+        function updateColumnProperties() {
+            const columnSize = document.getElementById('columnSize').value;
+            // 'columnProps' display element may not exist — use a null-safe proxy
+            const propsInput = document.getElementById('columnProps') || { value: '' };
+            const dInput = document.getElementById('columnD');
+            const bfInput = document.getElementById('columnBf');
+
+            // Show/hide custom dimension inputs
+            const isCustom = columnSize === 'custom';
+            document.getElementById('customColumn').style.display = isCustom ? 'block' : 'none';
+            document.getElementById('customColumnBf').style.display = isCustom ? 'block' : 'none';
+            if (isCustom) { propsInput.value = 'Custom dimensions'; return; }
+
+            if (!columnSize) {
+                propsInput.value = '';
+                return;
+            }
+
+            // Handle example presets
+            if (columnSize === 'W12X96_small' || columnSize === 'W12X96_large') {
+                const baseShape = 'W12X96';
+                let column;
+                
+                if (steelDB && isLoaded) {
+                    column = steelDB.getShapeProperties(baseShape);
+                } else {
+                    column = fallbackColumns[baseShape];
+                }
+                
+                if (column) {
+                    dInput.value = column.d;
+                    bfInput.value = column.bf;
+                    propsInput.value = baseShape + ': d=' + column.d + '", bf=' + column.bf + '", tf=' + column.tf + '" [' + (isLoaded ? 'Database' : 'Fallback') + ']';
+
+                    // Set example loads (DG1 Ex 4.6 / 4.7 presets)
+                    if (columnSize === 'W12X96_small') {
+                        document.getElementById('deadLoad').value = 100;
+                        document.getElementById('liveLoad').value = 160;
+                        document.getElementById('deadMoment').value = 250;
+                        document.getElementById('liveMoment').value = 400;
+                    } else {
+                        document.getElementById('deadLoad').value = 100;
+                        document.getElementById('liveLoad').value = 160;
+                        document.getElementById('deadMoment').value = 1000;
+                        document.getElementById('liveMoment').value = 1500;
+                    }
+                }
+                return;
+            }
+
+            // Handle regular shapes
+            let column;
+            if (steelDB && isLoaded) {
+                column = steelDB.getShapeProperties(columnSize);
+                if (column) {
+                    dInput.value = column.d;
+                    bfInput.value = column.bf;
+                    propsInput.value = `d=${column.d}", bf=${column.bf}", tf=${column.tf}", tw=${column.tw}", A=${column.area} in² [Database]`;
+                }
+            } else {
+                column = fallbackColumns[columnSize];
+                if (column) {
+                    dInput.value = column.d;
+                    bfInput.value = column.bf;
+                    propsInput.value = `d=${column.d}", bf=${column.bf}", tf=${column.tf}" [Fallback]`;
+                }
+            }
+
+            if (!column) {
+                propsInput.value = "Properties not available";
+            }
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            updateStatus('Loading from uploaded file...', 'loading');
+            
+            try {
+                const db = new SteelShapesDB();
+                const data = await db.loadFromFile(file);
+                const success = db.processData(data);
+                
+                if (success) {
+                    steelDB = db;
+                    isLoaded = true;
+                    
+                    const wShapes = db.getShapesByType('W');
+                    
+                    updateStatus(`<strong>Database Loaded Successfully!</strong> ${wShapes.length} W-shapes from uploaded file`, 'success');
+                    document.getElementById('fileUpload').style.display = 'none';
+                    populateColumnDropdown();
+                    
+                    // Run initial calculation
+                    setTimeout(calculateBasePlate, 100);
+                } else {
+                    throw new Error('Failed to process uploaded file');
+                }
+                
+                updateDebugInfo();
+            } catch (error) {
+                updateStatus(`<strong>File upload failed:</strong> ${error.message}. Using fallback data.`, 'error');
+                populateColumnDropdown();
+                
+                // Run initial calculation with fallback data
+                setTimeout(calculateBasePlate, 100);
+            }
+        }
+
+        async function initializeDatabase() {
+            updateStatus('Attempting to load AISC database...', 'loading');
+            
+            const db = new SteelShapesDB();
+            const loaded = await db.loadDatabase();
+            
+            if (loaded) {
+                steelDB = db;
+                isLoaded = true;
+                
+                const wShapes = db.getShapesByType('W');
+                
+                updateStatus(`<strong>Database Loaded Successfully!</strong> ${wShapes.length} W-shapes from AISC v16.0`, 'success');
+                populateColumnDropdown();
+            } else {
+                updateStatus('<strong>Auto-load failed.</strong> Using fallback data. Click "Show Debug Info" for details.', 'error');
+                document.getElementById('fileUpload').style.display = 'block';
+                populateColumnDropdown();
+                
+                // Run initial calculation with fallback data
+                setTimeout(calculateBasePlate, 100);
+            }
+            
+            updateDebugInfo();
+        }
+
+        function getColumnProperties(columnName) {
+            if (steelDB && isLoaded) {
+                return steelDB.getShapeProperties(columnName);
+            } else {
+                return fallbackColumns[columnName];
+            }
+        }
+
+        // Column database (keeping for compatibility with existing code)
+        const columnDatabase = {
+            'W12X96': { d: 12.7, bf: 12.2, A: 28.2, tf: 0.9 },
+            'W12X96_small': { d: 12.7, bf: 12.2, A: 28.2, tf: 0.9 },
+            'W12X96_large': { d: 12.7, bf: 12.2, A: 28.2, tf: 0.9 },
+            'W12X87': { d: 12.5, bf: 12.1, A: 25.6, tf: 0.81 },
+            'W12X79': { d: 12.4, bf: 12.1, A: 23.2, tf: 0.735 }
+        };
+
+        // Handle column selection
+        document.getElementById('columnSize').addEventListener('change', updateColumnProperties);
+
+        function calculateBasePlate() {
+            // Get input values
+            const DL = parseFloat(document.getElementById('deadLoad').value);
+            const LL = parseFloat(document.getElementById('liveLoad').value);
+            const MDL = parseFloat(document.getElementById('deadMoment').value);
+            const MLL = parseFloat(document.getElementById('liveMoment').value);
+            const d = parseFloat(document.getElementById('columnD').value);
+            const bf = parseFloat(document.getElementById('columnBf').value);
+            const Fy = parseFloat(document.getElementById('fy').value);
+            const fc = parseFloat(document.getElementById('fc').value);
+            const A2A1 = parseFloat(document.getElementById('concreteRatio').value);
+            
+            // Get column flange thickness from database or fallback
+            const selectedColumn = document.getElementById('columnSize').value;
+            let tf = 0.9; // Default for W12×96
+            let columnData = null;
+            
+            if (selectedColumn === 'W12X96_small' || selectedColumn === 'W12X96_large') {
+                // Handle example presets
+                columnData = getColumnProperties('W12X96') || columnDatabase['W12X96'];
+            } else if (selectedColumn) {
+                columnData = getColumnProperties(selectedColumn) || columnDatabase[selectedColumn];
+            }
+            
+            if (columnData && columnData.tf) {
+                tf = columnData.tf;
+            }
+
+            // Step 1: Compute required strength
+            const Pu = 1.2 * DL + 1.6 * LL; // LRFD
+            const Pa = DL + LL; // ASD
+            const Mu = 1.2 * MDL + 1.6 * MLL; // LRFD
+            const Ma = MDL + MLL; // ASD
+
+            let steps = [];
+            steps.push(`<div class="step"><span class="step-number">Step 1:</span> Compute required strength:<br>
+                       <div class="calculation">
+                       Column: ${selectedColumn} (d=${d}", bf=${bf}", tf=${tf}")<br>
+                       <em>Properties from: ${isLoaded ? 'AISC Shapes Database v16.0' : 'Fallback Data'}</em><br><br>
+                       LRFD: Pu = 1.2(${DL}) + 1.6(${LL}) = ${Pu.toFixed(1)} kips<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Mu = 1.2(${MDL}) + 1.6(${MLL}) = ${Mu.toFixed(0)} kip-in<br>
+                       ASD:  Pa = ${DL} + ${LL} = ${Pa.toFixed(1)} kips<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ma = ${MDL} + ${MLL} = ${Ma.toFixed(0)} kip-in
+                       </div></div>`);
+
+            // Step 2: Choose trial base plate size
+            const N_min = d + 2 * 3.0; // cantilever allowance (DG1 trial sizing)
+            const B_min = bf + 2 * 3.0;
+
+            let N = Math.ceil(N_min); // trial size from actual column dimensions
+            let B = Math.ceil(B_min); // (= 19 x 19 for W12x96, matching DG1 examples)
+            
+            steps.push(`<div class="step"><span class="step-number">Step 2:</span> Choose trial base plate size:<br>
+                       <div class="calculation">
+                       N > d + 2(3.0 in.) = ${d} + 6.0 = ${N_min.toFixed(1)} in<br>
+                       B > bf + 2(3.0 in.) = ${bf} + 6.0 = ${B_min.toFixed(1)} in<br>
+                       Try N = ${N} in. and B = ${B} in.
+                       </div></div>`);
+
+            // Step 3: Calculate concrete bearing strength (from Example 4.6)
+            const phi_c = 0.65;
+            const Omega_c = 2.50;
+            const A1 = N * B;
+            const A2 = A1 * A2A1;
+            
+            // AISC J8 / DG1: 0.85·f'c·√(A2/A1) ≤ 1.7·f'c, i.e. √(A2/A1) capped at 2.0
+            const confinement_factor = Math.min(Math.sqrt(A2/A1), 2.0);
+            const fp_avail_lrfd = phi_c * 0.85 * fc * confinement_factor;
+            const fp_avail_asd = (0.85 * fc * confinement_factor) / Omega_c;
+            
+            let qmax_lrfd = fp_avail_lrfd * B;
+            let qmax_asd = fp_avail_asd * B;
+
+            steps.push(`<div class="step"><span class="step-number">Step 3:</span> Determine concrete bearing strength:<br>
+                       <div class="calculation">
+                       A1 = N × B = ${N} × ${B} = ${A1} in²<br>
+                       A2/A1 = ${A2A1}, so √(A2/A1) = ${confinement_factor.toFixed(3)} ≤ 2.0<br>
+                       LRFD: fp,avail = φc × 0.85 × f'c × √(A2/A1)<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${phi_c} × 0.85 × ${fc} × ${confinement_factor.toFixed(3)} = ${fp_avail_lrfd.toFixed(2)} ksi<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;qmax = ${fp_avail_lrfd.toFixed(2)} × ${B} = ${qmax_lrfd.toFixed(1)} kips/in.<br>
+                       ASD:  fp,avail = (0.85 × f'c × √(A2/A1))/Ωc<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = (0.85 × ${fc} × ${confinement_factor.toFixed(3)})/${Omega_c} = ${fp_avail_asd.toFixed(2)} ksi<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;qmax = ${fp_avail_asd.toFixed(2)} × ${B} = ${qmax_asd.toFixed(1)} kips/in.
+                       </div></div>`);
+
+            // Step 4: Determine e and ecrit; check if large or small moment
+            const e_lrfd = Mu / Pu;
+            const e_asd = Ma / Pa;
+            const ecrit_lrfd = N/2 - Pu / (2 * qmax_lrfd);
+            const ecrit_asd = N/2 - Pa / (2 * qmax_asd);
+
+            const isLargeMoment_lrfd = e_lrfd > ecrit_lrfd;
+            const isLargeMoment_asd = e_asd > ecrit_asd;
+            const isLargeMoment = isLargeMoment_lrfd || isLargeMoment_asd;
+
+            steps.push(`<div class="step"><span class="step-number">Step 4:</span> Determine e and ecrit; check magnitude:<br>
+                       <div class="calculation">
+                       LRFD: e = Mu/Pu = ${Mu}/${Pu.toFixed(1)} = ${e_lrfd.toFixed(2)} in.<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ecrit = N/2 - Pu/(2×qmax) = ${N}/2 - ${Pu.toFixed(1)}/(2×${qmax_lrfd.toFixed(1)}) = ${ecrit_lrfd.toFixed(2)} in.<br>
+                       ASD:  e = Ma/Pa = ${Ma}/${Pa.toFixed(1)} = ${e_asd.toFixed(2)} in.<br>
+                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;ecrit = N/2 - Pa/(2×qmax) = ${N}/2 - ${Pa.toFixed(1)}/(2×${qmax_asd.toFixed(1)}) = ${ecrit_asd.toFixed(2)} in.
+                       </div>
+                       <strong>Since e ${isLargeMoment ? '>' : '≤'} ecrit, this is a ${isLargeMoment ? 'LARGE' : 'SMALL'} moment base plate.</strong></div>`);
+
+            let designType, Y_lrfd = 0, Y_asd = 0, Tu = 0, Ta = 0;
+            let plateThickness, anchorRods;
+
+            if (isLargeMoment) {
+                // Large Moment Base Plate Design (Example 4.7) - Iterate to find adequate size
+                designType = "large";
+                
+                let iteration = 0;
+                let equation344_satisfied = false;
+                let trial_N = N;
+                let trial_B = B;
+                let iterationSteps = [];
+                
+                // Iterate until Equation 3.4.4 is satisfied
+                while (!equation344_satisfied && iteration < 20) {
+                    iteration++;
+                    
+                    // Recalculate concrete bearing strength for current trial size
+                    const trial_A1 = trial_N * trial_B;
+                    const trial_A2 = trial_A1 * A2A1;
+                    const trial_confinement_factor = Math.min(Math.sqrt(trial_A2/trial_A1), 2.0); // cap = 2.0 per AISC J8 (1.7f'c / 0.85f'c)
+                    const trial_fp_avail_lrfd = phi_c * 0.85 * fc * trial_confinement_factor;
+                    const trial_fp_avail_asd = (0.85 * fc * trial_confinement_factor) / Omega_c;
+                    const trial_qmax_lrfd = trial_fp_avail_lrfd * trial_B;
+                    const trial_qmax_asd = trial_fp_avail_asd * trial_B;
+                    
+                    // Recalculate ecrit for current trial size
+                    const trial_ecrit_lrfd = trial_N/2 - Pu / (2 * trial_qmax_lrfd);
+                    const trial_ecrit_asd = trial_N/2 - Pa / (2 * trial_qmax_asd);
+                    
+                    // Check if still large moment for this size
+                    const trial_isLargeMoment_lrfd = e_lrfd > trial_ecrit_lrfd;
+                    const trial_isLargeMoment_asd = e_asd > trial_ecrit_asd;
+                    
+                    if (trial_isLargeMoment_lrfd || trial_isLargeMoment_asd) {
+                        // Check Equation 3.4.4: 2P(e + f)/qmax ≤ (f + N/2)²
+                        const f = trial_N/2 - 1.5; // Assuming 1.5 in. edge distance
+                        const inequality_lhs_lrfd = 2 * Pu * (e_lrfd + f) / trial_qmax_lrfd;
+                        const inequality_lhs_asd = 2 * Pa * (e_asd + f) / trial_qmax_asd;
+                        const inequality_rhs = Math.pow(f + trial_N/2, 2);
+                        
+                        const lrfd_satisfied = inequality_lhs_lrfd <= inequality_rhs;
+                        const asd_satisfied = inequality_lhs_asd <= inequality_rhs;
+                        
+                        iterationSteps.push(`Iteration ${iteration}: N=${trial_N}", B=${trial_B}"<br>
+                                           f = ${f.toFixed(1)}", qmax,LRFD = ${trial_qmax_lrfd.toFixed(1)}, qmax,ASD = ${trial_qmax_asd.toFixed(1)}<br>
+                                           LRFD: ${inequality_lhs_lrfd.toFixed(0)} ${lrfd_satisfied ? '≤' : '>'} ${inequality_rhs.toFixed(0)} ${lrfd_satisfied ? '✓' : '✗'}<br>
+                                           ASD: ${inequality_lhs_asd.toFixed(0)} ${asd_satisfied ? '≤' : '>'} ${inequality_rhs.toFixed(0)} ${asd_satisfied ? '✓' : '✗'}`);
+                        
+                        if (lrfd_satisfied && asd_satisfied) {
+                            equation344_satisfied = true;
+                            N = trial_N;
+                            B = trial_B;
+                            qmax_lrfd = trial_qmax_lrfd;
+                            qmax_asd = trial_qmax_asd;
+                        } else {
+                            // Increase plate size by 1" and try again
+                            trial_N += 1;
+                            trial_B += 1;
+                        }
+                    } else {
+                        // No longer a large moment case with this size
+                        equation344_satisfied = true;
+                        N = trial_N;
+                        B = trial_B;
+                        qmax_lrfd = trial_qmax_lrfd;
+                        qmax_asd = trial_qmax_asd;
+                        iterationSteps.push(`Iteration ${iteration}: N=${trial_N}", B=${trial_B}" - No longer large moment case!`);
+                    }
+                }
+
+                steps.push(`<div class="step"><span class="step-number">Step 5:</span> Iterate to satisfy Equation 3.4.4:<br>
+                           <div class="calculation">
+                           Starting with N=${Math.ceil(N_min)}", B=${Math.ceil(B_min)}" (minimum size)<br>
+                           Check: 2P(e + f)/qmax ≤ (f + N/2)² (Equation 3.4.4)<br><br>
+                           ${iterationSteps.join('<br><br>')}<br><br>
+                           <strong>Final adequate size: N = ${N}", B = ${B}" (after ${iteration} iteration${iteration > 1 ? 's' : ''})</strong>
+                           </div></div>`);
+
+                // Now solve Equation 3.4.3 for bearing length Y
+                // Y = (f + N/2) ± √[(f + N/2)² - 2P(e + f)/qmax]
+                const f_final = N/2 - 1.5; // Distance from centerline to anchor rod edge
+                const term1 = f_final + N/2; // (f + N/2)
+                
+                // Calculate discriminant: (f + N/2)² - 2P(e + f)/qmax
+                const discriminant_lrfd = Math.pow(term1, 2) - (2 * Pu * (e_lrfd + f_final)) / qmax_lrfd;
+                const discriminant_asd = Math.pow(term1, 2) - (2 * Pa * (e_asd + f_final)) / qmax_asd;
+                
+                // Take the smaller positive root: Y = (f + N/2) - √[discriminant]
+                if (discriminant_lrfd >= 0 && discriminant_asd >= 0) {
+                    Y_lrfd = term1 - Math.sqrt(discriminant_lrfd);
+                    Y_asd = term1 - Math.sqrt(discriminant_asd);
+                } else {
+                    // If discriminant is negative, the plate size is inadequate
+                    Y_lrfd = 0;
+                    Y_asd = 0;
+                }
+                
+                // Ensure Y is positive and reasonable
+                if (Y_lrfd <= 0 || Y_asd <= 0) {
+                    steps.push(`<div class="step"><span class="step-number">Error:</span> Negative discriminant or Y ≤ 0. Plate size inadequate for large moment design!</div>`);
+                    document.getElementById('results').innerHTML = '<div class="error">Plate size inadequate - discriminant is negative. Need larger base plate dimensions.</div>';
+                    return;
+                }
+
+                steps.push(`<div class="step"><span class="step-number">Step 6:</span> Solve Equation 3.4.3 for bearing length Y:<br>
+                           <div class="calculation">
+                           Using: Y = (f + N/2) ± √[(f + N/2)² - 2P(e + f)/qmax]<br>
+                           f = N/2 - 1.5 = ${N}/2 - 1.5 = ${f_final.toFixed(1)} in.<br>
+                           (f + N/2) = ${f_final.toFixed(1)} + ${N}/2 = ${term1.toFixed(1)} in.<br><br>
+                           LRFD: Discriminant = (f + N/2)² - 2P(e + f)/qmax<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = (${term1.toFixed(1)})² - [2(${Pu.toFixed(1)})(${e_lrfd.toFixed(2)} + ${f_final.toFixed(1)})]/${qmax_lrfd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${Math.pow(term1, 2).toFixed(1)} - [${(2 * Pu * (e_lrfd + f_final)).toFixed(0)}]/${qmax_lrfd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${Math.pow(term1, 2).toFixed(1)} - ${((2 * Pu * (e_lrfd + f_final)) / qmax_lrfd).toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${discriminant_lrfd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Y = ${term1.toFixed(1)} - √(${discriminant_lrfd.toFixed(1)}) = ${term1.toFixed(1)} - ${Math.sqrt(discriminant_lrfd).toFixed(2)} = ${Y_lrfd.toFixed(2)} in.<br><br>
+                           ASD:  Discriminant = (f + N/2)² - 2P(e + f)/qmax<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = (${term1.toFixed(1)})² - [2(${Pa.toFixed(1)})(${e_asd.toFixed(2)} + ${f_final.toFixed(1)})]/${qmax_asd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${Math.pow(term1, 2).toFixed(1)} - [${(2 * Pa * (e_asd + f_final)).toFixed(0)}]/${qmax_asd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${Math.pow(term1, 2).toFixed(1)} - ${((2 * Pa * (e_asd + f_final)) / qmax_asd).toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = ${discriminant_asd.toFixed(1)}<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Y = ${term1.toFixed(1)} - √(${discriminant_asd.toFixed(1)}) = ${term1.toFixed(1)} - ${Math.sqrt(discriminant_asd).toFixed(2)} = ${Y_asd.toFixed(2)} in.
+                           </div></div>`);
+
+                // Calculate anchor rod tension forces using Equation 3.4.2: T = qmax×Y - P
+                Tu = qmax_lrfd * Y_lrfd - Pu;
+                Ta = qmax_asd * Y_asd - Pa;
+                
+                if (Tu < 0) Tu = 0;
+                if (Ta < 0) Ta = 0;
+
+                steps.push(`<div class="step"><span class="step-number">Step 6a:</span> Calculate anchor rod tension forces (Equation 3.4.2):<br>
+                           <div class="calculation">
+                           T = qmax × Y - P<br>
+                           LRFD: Tu = ${qmax_lrfd.toFixed(1)} × ${Y_lrfd.toFixed(2)} - ${Pu.toFixed(1)} = ${(qmax_lrfd * Y_lrfd).toFixed(1)} - ${Pu.toFixed(1)} = ${Tu.toFixed(1)} kips<br>
+                           ASD:  Ta = ${qmax_asd.toFixed(1)} × ${Y_asd.toFixed(2)} - ${Pa.toFixed(1)} = ${(qmax_asd * Y_asd).toFixed(1)} - ${Pa.toFixed(1)} = ${Ta.toFixed(1)} kips
+                           </div></div>`);
+
+                // Calculate required plate thickness for large moment
+                const m = (N - 0.95 * d) / 2;
+                const n = (B - 0.8 * bf) / 2;
+                
+                // At bearing interface - use actual bearing pressure
+                const fp_actual_lrfd = qmax_lrfd / B; // Since qmax = fp × B
+                const fp_actual_asd = qmax_asd / B;
+                
+                const t_bearing_lrfd = 1.49 * Math.max(m, n) * Math.sqrt(fp_actual_lrfd / Fy);
+                const t_bearing_asd = 1.83 * Math.max(m, n) * Math.sqrt(fp_actual_asd / Fy);
+                
+                // At tension interface (if anchor rods are in tension)
+                // Using Equation 3.4.6: x = f - d/2 + tf/2
+                const x = f_final - d/2 + tf/2; // Distance from rod centerline to center of column flange
+                let t_tension_lrfd = 0;
+                let t_tension_asd = 0;
+                
+                if (Tu > 0 || Ta > 0) {
+                    t_tension_lrfd = 2.11 * Math.sqrt((Tu * x) / (B * Fy));
+                    t_tension_asd = 2.58 * Math.sqrt((Ta * x) / (B * Fy));
+                }
+                
+                const t_req_lrfd = Math.max(t_bearing_lrfd, t_tension_lrfd);
+                const t_req_asd = Math.max(t_bearing_asd, t_tension_asd);
+                plateThickness = Math.ceil(Math.max(t_req_lrfd, t_req_asd) * 4) / 4;
+
+                // Anchor rod tension check (AISC J3.2: Fnt = 0.75·Fu, φ = 0.75, Ω = 2.00)
+                const rodDia = parseFloat(document.getElementById('rodDia').value) || 0.75;
+                const rodFu = parseFloat(document.getElementById('rodFu').value) || 58;
+                const nRodsT = parseFloat(document.getElementById('nRodsT').value) || 2;
+                const Ab = Math.PI * Math.pow(rodDia, 2) / 4;
+                const Fnt = 0.75 * rodFu;
+                const phiTn = 0.75 * Fnt * Ab * nRodsT;        // LRFD group capacity
+                const Tn_omega = (Fnt * Ab / 2.00) * nRodsT;   // ASD group capacity
+                const rodOK_lrfd = Tu <= phiTn + 1e-9;
+                const rodOK_asd = Ta <= Tn_omega + 1e-9;
+                const rodsOK = rodOK_lrfd && rodOK_asd;
+
+                anchorRods = Tu > 0 || Ta > 0 ?
+                    `(${nRodsT}) ${rodDia}" dia. rods at tension face — φTn=${phiTn.toFixed(1)} k vs Tu=${Tu.toFixed(1)} k ${rodsOK ? '✓' : '✗ NG'}` :
+                    `${rodDia}" dia. rods, (4) minimum per OSHA — no computed tension`;
+
+                steps.push(`<div class="step"><span class="step-number">Step 7:</span> Check anchor rod tension (AISC J3.2):<br>
+                           <div class="calculation">
+                           Ab = π×${rodDia}²/4 = ${Ab.toFixed(3)} in² per rod; Fnt = 0.75×Fu = 0.75×${rodFu} = ${Fnt.toFixed(1)} ksi<br>
+                           LRFD: φTn = 0.75 × ${Fnt.toFixed(1)} × ${Ab.toFixed(3)} × ${nRodsT} rods = ${phiTn.toFixed(1)} kips ${rodOK_lrfd ? '≥' : '<'} Tu = ${Tu.toFixed(1)} kips ${rodOK_lrfd ? '✓' : '✗ NG — larger/more rods required'}<br>
+                           ASD:  Tn/Ω = ${Fnt.toFixed(1)} × ${Ab.toFixed(3)} / 2.00 × ${nRodsT} rods = ${Tn_omega.toFixed(1)} kips ${rodOK_asd ? '≥' : '<'} Ta = ${Ta.toFixed(1)} kips ${rodOK_asd ? '✓' : '✗ NG'}<br>
+                           <em>Note: concrete anchorage (breakout, pullout per ACI 318 Ch. 17) must be checked separately.</em>
+                           </div></div>`);
+
+                steps.push(`<div class="step"><span class="step-number">Step 8:</span> Determine minimum plate thickness:<br>
+                           <div class="calculation">
+                           m = (N - 0.95d)/2 = (${N} - 0.95×${d})/2 = ${m.toFixed(2)} in.<br>
+                           n = (B - 0.8bf)/2 = (${B} - 0.8×${bf})/2 = ${n.toFixed(2)} in.<br><br>
+                           At bearing interface (fp = qmax/B):<br>
+                           LRFD: fp = ${qmax_lrfd.toFixed(1)}/${B} = ${fp_actual_lrfd.toFixed(2)} ksi<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;t = 1.49 × ${Math.max(m,n).toFixed(2)} × √(${fp_actual_lrfd.toFixed(2)}/${Fy}) = ${t_bearing_lrfd.toFixed(2)} in.<br>
+                           ASD:  fp = ${qmax_asd.toFixed(1)}/${B} = ${fp_actual_asd.toFixed(2)} ksi<br>
+                           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;t = 1.83 × ${Math.max(m,n).toFixed(2)} × √(${fp_actual_asd.toFixed(2)}/${Fy}) = ${t_bearing_asd.toFixed(2)} in.<br><br>
+                           ${(Tu > 0 || Ta > 0) ? 
+                             `At tension interface (Equation 3.4.6: x = f - d/2 + tf/2):<br>
+                              x = ${f_final.toFixed(1)} - ${d}/2 + ${tf}/2 = ${f_final.toFixed(1)} - ${(d/2).toFixed(1)} + ${(tf/2).toFixed(2)} = ${x.toFixed(2)} in.<br>
+                              LRFD: t = 2.11 × √((${Tu.toFixed(1)} × ${x.toFixed(2)})/(${B} × ${Fy})) = ${t_tension_lrfd.toFixed(2)} in.<br>
+                              ASD:  t = 2.58 × √((${Ta.toFixed(1)} × ${x.toFixed(2)})/(${B} × ${Fy})) = ${t_tension_asd.toFixed(2)} in.<br><br>` : 
+                             'No tension in anchor rods.<br><br>'}
+                           Controlling thickness: ${Math.max(t_req_lrfd, t_req_asd).toFixed(2)} in.<br>
+                           Use t = ${plateThickness} in.
+                           </div></div>`);
+
+            } else {
+                // Small Moment Base Plate Design (Example 4.6)
+                designType = "small";
+
+                // DG1 Eq. 3.3.6: bearing length Y = N − 2e (small moment, e ≤ ecrit)
+                Y_lrfd = N - 2 * e_lrfd;
+                Y_asd = N - 2 * e_asd;
+
+                steps.push(`<div class="step"><span class="step-number">Step 5:</span> Determine bearing length Y (DG1 Eq. 3.3.6):<br>
+                           <div class="calculation">
+                           For small moment base plate: Y = N − 2e<br>
+                           LRFD: Y = ${N} − 2(${e_lrfd.toFixed(2)}) = ${Y_lrfd.toFixed(2)} in.<br>
+                           ASD:  Y = ${N} − 2(${e_asd.toFixed(2)}) = ${Y_asd.toFixed(2)} in.
+                           </div></div>`);
+
+                // Verify bearing pressure for small moment (DG1 Eq. 3.3.7)
+                const fp_actual_lrfd = Pu / (B * Y_lrfd);
+                const fp_actual_asd = Pa / (B * Y_asd);
+                const brgOK_lrfd = fp_actual_lrfd <= fp_avail_lrfd + 1e-9;
+                const brgOK_asd = fp_actual_asd <= fp_avail_asd + 1e-9;
+
+                steps.push(`<div class="step"><span class="step-number">Step 6:</span> Verify bearing pressure:<br>
+                           <div class="calculation">
+                           LRFD: fp = Pu/(B×Y) = ${Pu.toFixed(1)}/(${B}×${Y_lrfd.toFixed(2)}) = ${fp_actual_lrfd.toFixed(2)} ksi ${brgOK_lrfd ? '≤' : '>'} ${fp_avail_lrfd.toFixed(2)} ksi ${brgOK_lrfd ? '✓' : '✗ NG — increase plate size'}<br>
+                           ASD:  fp = Pa/(B×Y) = ${Pa.toFixed(1)}/(${B}×${Y_asd.toFixed(2)}) = ${fp_actual_asd.toFixed(2)} ksi ${brgOK_asd ? '≤' : '>'} ${fp_avail_asd.toFixed(2)} ksi ${brgOK_asd ? '✓' : '✗ NG — increase plate size'}
+                           </div></div>`);
+
+                // Calculate required plate thickness for small moment
+                const m = (N - 0.95 * d) / 2;
+                const n = (B - 0.8 * bf) / 2;
+                const lcrit = Math.max(m, n);
+
+                // DG1: if Y ≥ m, Mpl = fp·m²/2; if Y < m, Mpl = fp·Y·(m − Y/2)
+                function MplSmall(fp, Y, l) {
+                    return (Y >= l) ? fp * Math.pow(l, 2) / 2 : fp * Y * (l - Y / 2);
+                }
+                const Mpl_m_lrfd = MplSmall(fp_actual_lrfd, Y_lrfd, m);
+                const Mpl_n_lrfd = MplSmall(fp_actual_lrfd, Y_lrfd, n);
+                const Mpl_m_asd = MplSmall(fp_actual_asd, Y_asd, m);
+                const Mpl_n_asd = MplSmall(fp_actual_asd, Y_asd, n);
+
+                const Mpl_crit_lrfd = Math.max(Mpl_m_lrfd, Mpl_n_lrfd);
+                const Mpl_crit_asd = Math.max(Mpl_m_asd, Mpl_n_asd);
+
+                const t_req_lrfd = Math.sqrt(4 * Mpl_crit_lrfd / (0.90 * Fy));
+                const t_req_asd = Math.sqrt(4 * Mpl_crit_asd * 1.67 / Fy);
+
+                plateThickness = Math.ceil(Math.max(t_req_lrfd, t_req_asd) * 4) / 4;
+                anchorRods = "(4) 3/4-in. diameter rods (minimum per OSHA 1926.755)";
+
+                steps.push(`<div class="step"><span class="step-number">Step 7:</span> Determine required plate thickness:<br>
+                           <div class="calculation">
+                           m = (N - 0.95d)/2 = (${N} - 0.95×${d})/2 = ${m.toFixed(2)} in.<br>
+                           n = (B - 0.8bf)/2 = (${B} - 0.8×${bf})/2 = ${n.toFixed(2)} in.<br>
+                           ${Y_lrfd < lcrit ? 'Y &lt; cantilever length → Mpl = fp×Y×(l − Y/2)<br>' : 'Y ≥ cantilever length → Mpl = fp×l²/2<br>'}
+                           Mpl(m) = ${Mpl_m_lrfd.toFixed(2)} kip-in./in., Mpl(n) = ${Mpl_n_lrfd.toFixed(2)} kip-in./in. (LRFD)<br>
+                           Mpl,crit = ${Mpl_crit_lrfd.toFixed(2)} kip-in./in. (critical)<br>
+                           LRFD: t = √(4×Mpl,crit/(φb×Fy)) = √(4×${Mpl_crit_lrfd.toFixed(2)}/(0.90×${Fy})) = ${t_req_lrfd.toFixed(2)} in.<br>
+                           ASD:  t = √(4×Mpl,crit×Ωb/Fy) = √(4×${Mpl_crit_asd.toFixed(2)}×1.67/${Fy}) = ${t_req_asd.toFixed(2)} in.<br>
+                           Use t = ${plateThickness} in.
+                           </div></div>`);
+            }
+
+            // Display results
+            const momentTypeClass = isLargeMoment ? 'large-moment' : 'small-moment';
+            const momentTypeText = isLargeMoment ? 'LARGE MOMENT BASE PLATE' : 'SMALL MOMENT BASE PLATE';
+            
+            const resultsHTML = `
+                <div class="${momentTypeClass}">
+                    <div style="text-align: center; font-size: 1.2em; margin-bottom: 15px;">
+                        ${momentTypeText}
+                    </div>
+                </div>
+                <div class="results">
+                    <div class="result-item">
+                        <span class="result-label">Design Type:</span>
+                        <span class="result-value">${isLargeMoment ? 'Large Moment (e > ecrit)' : 'Small Moment (e ≤ ecrit)'}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Base Plate Size:</span>
+                        <span class="result-value">${N}" × ${B}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Plate Thickness:</span>
+                        <span class="result-value">${plateThickness}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Bearing Length Y (LRFD):</span>
+                        <span class="result-value">${Y_lrfd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Bearing Length Y (ASD):</span>
+                        <span class="result-value">${Y_asd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Eccentricity e (LRFD):</span>
+                        <span class="result-value">${e_lrfd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Critical Eccentricity ecrit (LRFD):</span>
+                        <span class="result-value">${ecrit_lrfd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Eccentricity e (ASD):</span>
+                        <span class="result-value">${e_asd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Critical Eccentricity ecrit (ASD):</span>
+                        <span class="result-value">${ecrit_asd.toFixed(2)}"</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Anchor Rods:</span>
+                        <span class="result-value">${anchorRods}</span>
+                    </div>
+                    ${(Tu > 0 || Ta > 0) ? `
+                    <div class="result-item">
+                        <span class="result-label">Anchor Rod Tension (LRFD):</span>
+                        <span class="result-value">${Tu.toFixed(1)} kips</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Anchor Rod Tension (ASD):</span>
+                        <span class="result-value">${Ta.toFixed(1)} kips</span>
+                    </div>` : ''}
+                    <div class="result-item">
+                        <span class="result-label">Concrete Bearing (LRFD):</span>
+                        <span class="result-value">${fp_avail_lrfd.toFixed(2)} ksi</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Concrete Bearing (ASD):</span>
+                        <span class="result-value">${fp_avail_asd.toFixed(2)} ksi</span>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('results').innerHTML = resultsHTML;
+            document.getElementById('designSteps').innerHTML = `<div class="steps">${steps.join('')}</div>`;
+        }
+
+        // are-utils auto-run alias
+        function runCalcs() { calculateBasePlate(); }
+
+        // Initialize database on page load (single init)
+        window.addEventListener('load', function() {
+            initializeDatabase();
+        });
+    </script>
+    <script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init

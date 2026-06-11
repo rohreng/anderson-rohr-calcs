@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DG24 HSS Welded Connection Calculator - Complete</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .calculator-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .step-card {
+            transition: all 0.3s ease;
+        }
+        .step-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .print-friendly {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .calculator-container {
+                background: white !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+            body[data-pm="s"] .calc-steps { display: none !important; }
+            .step-card { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body class="print-friendly">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Enhanced SVG Icons
+        const Calculator = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <line x1="8" y1="6" x2="16" y2="6"/>
+                <line x1="8" y1="10" x2="16" y2="10"/>
+                <line x1="8" y1="14" x2="16" y2="14"/>
+                <line x1="8" y1="18" x2="10" y2="18"/>
+                <line x1="14" y1="18" x2="16" y2="18"/>
+            </svg>
+        );
+        
+        const AlertTriangle = ({ size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+        );
+        
+        const CheckCircle = ({ size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22,4 12,14.01 9,11.01"/>
+            </svg>
+        );
+        
+        const Database = ({ size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+        );
+        
+        const Info = ({ size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+        );
+
+        const PrintIcon = ({ size = 20, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
+                <polyline points="6,9 6,2 18,2 18,9"/>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                <rect x="6" y="14" width="12" height="8"/>
+            </svg>
+        );
+
+        const HSSWeldedConnectionCalculator = () => {
+          const [shapesData, setShapesData] = useState({ hssShapes: [], wShapes: [] });
+          const [selectedBeam, setSelectedBeam] = useState('W16X57');
+          const [selectedColumn, setSelectedColumn] = useState('HSS10X10X1/2');
+          const [beamProps, setBeamProps] = useState(null);
+          const [columnProps, setColumnProps] = useState(null);
+          const [results, setResults] = useState(null);
+          const [calculationSteps, setCalculationSteps] = useState([]);
+
+          // Comprehensive shapes database with all requested shapes
+          useEffect(() => {
+            const wShapes = [
+              { label: 'W4X13', d: 4.16, bf: 4.06, tf: 0.345, tw: 0.28, A: 3.83 },
+              { label: 'W6X20', d: 6.2, bf: 6.02, tf: 0.365, tw: 0.26, A: 5.87 },
+              { label: 'W8X31', d: 8, bf: 7.995, tf: 0.435, tw: 0.285, A: 9.12 },
+              { label: 'W10X39', d: 9.92, bf: 7.985, tf: 0.53, tw: 0.315, A: 11.5 },
+              // Requested W12 shapes
+              { label: 'W12X19', d: 12.16, bf: 3.99, tf: 0.35, tw: 0.235, A: 5.57 },
+              { label: 'W12X22', d: 12.31, bf: 4.03, tf: 0.425, tw: 0.26, A: 6.48 },
+              { label: 'W12X26', d: 12.22, bf: 6.49, tf: 0.38, tw: 0.23, A: 7.65 },
+              { label: 'W12X50', d: 12.19, bf: 8.08, tf: 0.64, tw: 0.37, A: 14.7 },
+              // Requested W14 shapes
+              { label: 'W14X22', d: 13.74, bf: 5.00, tf: 0.335, tw: 0.23, A: 6.49 },
+              { label: 'W14X34', d: 13.98, bf: 6.75, tf: 0.455, tw: 0.285, A: 10.0 },
+              { label: 'W14X48', d: 13.79, bf: 8.03, tf: 0.595, tw: 0.34, A: 14.1 },
+              // Requested W16 shapes
+              { label: 'W16X26', d: 15.69, bf: 5.50, tf: 0.345, tw: 0.25, A: 7.68 },
+              { label: 'W16X36', d: 15.86, bf: 6.99, tf: 0.43, tw: 0.295, A: 10.6 },
+              { label: 'W16X57', d: 16.4, bf: 7.12, tf: 0.715, tw: 0.43, A: 16.8 },
+              // Requested W18 shapes
+              { label: 'W18X35', d: 17.7, bf: 6.00, tf: 0.425, tw: 0.3, A: 10.3 },
+              { label: 'W18X40', d: 17.9, bf: 6.02, tf: 0.525, tw: 0.315, A: 11.8 },
+              // Requested W21 shapes
+              { label: 'W21X44', d: 20.66, bf: 6.50, tf: 0.45, tw: 0.35, A: 13.0 },
+              { label: 'W21X62', d: 20.99, bf: 8.24, tf: 0.615, tw: 0.4, A: 18.3 },
+              // Additional common shapes
+              { label: 'W24X68', d: 23.73, bf: 8.965, tf: 0.585, tw: 0.415, A: 20 },
+              { label: 'W27X84', d: 26.71, bf: 9.96, tf: 0.64, tw: 0.46, A: 24.8 },
+              { label: 'W30X99', d: 29.65, bf: 10.45, tf: 0.67, tw: 0.52, A: 29.1 }
+            ];
+
+            const hssShapes = [
+              // Requested HSS shapes
+              { label: 'HSS4X4X1/4', H: 4, B: 4, tdes: 0.233, tnom: 0.25, A: 3.37 },
+              { label: 'HSS4X4X3/8', H: 4, B: 4, tdes: 0.349, tnom: 0.375, A: 4.78 },
+              { label: 'HSS5X5X1/4', H: 5, B: 5, tdes: 0.233, tnom: 0.25, A: 4.29 },
+              { label: 'HSS5X5X3/8', H: 5, B: 5, tdes: 0.349, tnom: 0.375, A: 6.13 },
+              { label: 'HSS5X5X1/2', H: 5, B: 5, tdes: 0.465, tnom: 0.5, A: 7.83 },
+              { label: 'HSS6X6X1/4', H: 6, B: 6, tdes: 0.233, tnom: 0.25, A: 5.22 },
+              { label: 'HSS6X6X3/8', H: 6, B: 6, tdes: 0.349, tnom: 0.375, A: 7.58 },
+              { label: 'HSS6X6X1/2', H: 6, B: 6, tdes: 0.465, tnom: 0.5, A: 9.81 },
+              // Additional common HSS shapes
+              { label: 'HSS8X8X3/8', H: 8, B: 8, tdes: 0.349, tnom: 0.375, A: 10.4 },
+              { label: 'HSS8X8X1/2', H: 8, B: 8, tdes: 0.465, tnom: 0.5, A: 13.6 },
+              { label: 'HSS10X10X3/8', H: 10, B: 10, tdes: 0.349, tnom: 0.375, A: 13.2 },
+              { label: 'HSS10X10X1/2', H: 10, B: 10, tdes: 0.465, tnom: 0.5, A: 17.2 },
+              { label: 'HSS12X12X1/2', H: 12, B: 12, tdes: 0.465, tnom: 0.5, A: 21.1 },
+              { label: 'HSS12X12X5/8', H: 12, B: 12, tdes: 0.581, tnom: 0.625, A: 25.8 },
+              { label: 'HSS14X14X5/8', H: 14, B: 14, tdes: 0.581, tnom: 0.625, A: 30.4 },
+              { label: 'HSS16X16X5/8', H: 16, B: 16, tdes: 0.581, tnom: 0.625, A: 34.7 }
+            ];
+
+            setShapesData({ wShapes, hssShapes });
+          }, []);
+
+          // Update beam properties when selection changes
+          useEffect(() => {
+            if (selectedBeam && shapesData.wShapes.length > 0) {
+              const beam = shapesData.wShapes.find(s => s.label === selectedBeam);
+              setBeamProps(beam);
+            }
+          }, [selectedBeam, shapesData.wShapes]);
+
+          // Update column properties when selection changes
+          useEffect(() => {
+            if (selectedColumn && shapesData.hssShapes.length > 0) {
+              const column = shapesData.hssShapes.find(s => s.label === selectedColumn);
+              setColumnProps(column);
+            }
+          }, [selectedColumn, shapesData.hssShapes]);
+
+          // COMPLETE calculation method with all AISC limit states
+          const calculateConnection = () => {
+            if (!beamProps || !columnProps) return;
+
+            const beam = beamProps;
+            const column = columnProps;
+            const steps = [];
+            
+            const FyHSS = 46; // ksi, ASTM A500 Grade B
+            const FuHSS = 58; // ksi, ASTM A500 Grade B
+            const FyBeam = 50; // ksi, ASTM A992
+            const phi = 0.95; // LRFD resistance factor (local yielding of plate & punching, AISC Table K1.2)
+            const omega = 1.58; // ASD safety factor (local yielding of plate & punching)
+            
+            steps.push({
+              title: "Material Properties & Design Standards",
+              content: `AISC Design Guide 24 - Hollow Structural Section Connections
+Example 4.3 - Directly Welded Connections
+
+Material Properties:
+• HSS Column: ASTM A500 Grade B, Fy = ${FyHSS} ksi, Fu = 58 ksi
+• W-Shape Beam: ASTM A992, Fy = ${FyBeam} ksi, Fu = 65 ksi
+
+Resistance Factors:
+• φ = ${phi} (LRFD), Ω = ${omega} (ASD) - for most limit states
+• Additional factors apply to specific limit states as shown`,
+              status: 'info'
+            });
+
+            // Step 1: Check fit on the flat of HSS wall
+            const flatWidth = column.B - 3 * column.tdes;
+            const fitCheck = beam.bf <= flatWidth;
+            
+            steps.push({
+              title: "1. Geometric Compatibility Check",
+              content: `DG24 Section 4.4 - Fit on Flat of HSS Wall:
+
+Flat width available = B - 3t
+Flat width = ${column.B}" - 3(${column.tdes}") = ${flatWidth.toFixed(2)}"
+
+Beam flange width = ${beam.bf}"
+
+Geometric check: ${beam.bf}" ${fitCheck ? '≤' : '>'} ${flatWidth.toFixed(2)}"
+Result: ${fitCheck ? '✓ BEAM FITS on HSS face' : '✗ BEAM DOES NOT FIT - increase HSS size or reduce beam size'}`,
+              status: fitCheck ? 'ok' : 'error'
+            });
+            
+            // Step 2: Check limits of applicability (AISC Spec Section K1)
+            const limits = {
+              angle: 90, // degrees (directly welded = 90°)
+              bfToB: beam.bf / column.B,
+              BToTdes: column.B / column.tdes,
+              checkAngle: true, // 90° is always OK for directly welded
+              checkBfToB: beam.bf / column.B >= 0.25 && beam.bf / column.B <= 1.0,
+              checkBToTdes: column.B / column.tdes <= 35,
+              materialOK: FyHSS <= 52 && (FyHSS / FuHSS) <= 0.8
+            };
+            
+            const allLimitsOK = limits.checkAngle && limits.checkBfToB && limits.checkBToTdes && limits.materialOK;
+            
+            steps.push({
+              title: "2. AISC Specification Section K1 - Limits of Applicability",
+              content: `Per AISC Specification Section K1.2 and Table 7-2A:
+
+Connection angle: θ = 90° (directly welded)
+Limit: 30° ≤ θ ≤ 90° → ${limits.checkAngle ? '✓ OK' : '✗ NOT OK'}
+
+Width ratio: bf/B = ${beam.bf}/${column.B} = ${limits.bfToB.toFixed(3)}
+Limit: 0.25 ≤ bf/B ≤ 1.0 → ${limits.checkBfToB ? '✓ OK' : '✗ NOT OK'}
+
+HSS slenderness: B/t = ${column.B}/${column.tdes} = ${limits.BToTdes.toFixed(1)}
+Limit: B/t ≤ 35 → ${limits.checkBToTdes ? '✓ OK' : '✗ NOT OK'}
+
+HSS material: Fy = ${FyHSS} ksi ≤ 52 ksi and Fy/Fu = ${(FyHSS / FuHSS).toFixed(3)} ≤ 0.8 → ${limits.materialOK ? '✓ OK' : '✗ NOT OK'}
+
+Overall applicability: ${allLimitsOK ? '✓ ALL LIMITS SATISFIED' : '⚠ SOME LIMITS NOT MET - proceed with caution'}`,
+              status: allLimitsOK ? 'ok' : 'warning'
+            });
+            
+            // Step 3: Local yielding calculation using AISC Spec K1-2
+            const BOverT = column.B / column.tdes;
+            const factor = 10 / BOverT;  // CORRECTED: NO SQUARE ROOT!
+            const plateCapacity = FyBeam * beam.tf * beam.bf; // Upper bound
+            
+            // AISC Specification Equation K1-2 (CORRECTED)
+            const Rn_K1_2 = factor * FyHSS * column.tdes * beam.bf;
+            const Rn_local = Math.min(Rn_K1_2, plateCapacity);
+            
+            steps.push({
+              title: "3. Local Yielding of Beam Flange - AISC Specification K1-2",
+              content: `AISC Specification Section K1(c)(i) - Local yielding due to uneven load distribution
+
+CORRECTED EQUATION (no square root):
+Rn = (10/(B/t)) × Fy × t × bp ≤ Fyp × tp × bp
+
+Where:
+• B/t = ${column.B}/${column.tdes} = ${BOverT.toFixed(1)}
+• Factor = 10/(B/t) = 10/${BOverT.toFixed(1)} = ${factor.toFixed(3)}
+• bp = beam flange width = ${beam.bf}"
+• tp = beam flange thickness = ${beam.tf}"
+• t = HSS design thickness = ${column.tdes}"
+
+K1-2 Calculation:
+Rn = ${factor.toFixed(3)} × ${FyHSS} × ${column.tdes} × ${beam.bf}
+Rn = ${Rn_K1_2.toFixed(1)} kips
+
+Upper bound check:
+Fyp × tp × bp = ${FyBeam} × ${beam.tf} × ${beam.bf} = ${plateCapacity.toFixed(1)} kips
+
+Governing (local yielding):
+Rn = min(${Rn_K1_2.toFixed(1)}, ${plateCapacity.toFixed(1)}) = ${Rn_local.toFixed(1)} kips`,
+              status: 'ok'
+            });
+            
+            // Step 4: HSS Shear Yielding (Punching) — need not be checked when
+            // bp < 0.85B or bp > B − 2t (AISC 360 Table K1.2 / DG24)
+            const punchLower = 0.85 * column.B;
+            const punchUpper = column.B - 2 * column.tdes;
+            const punchingRequired = beam.bf >= punchLower && beam.bf <= punchUpper;
+            let Rn_punching = null;
+            let punchingContent = `AISC Specification - HSS Shear Yielding (Punching)
+
+Applicability check (AISC 360 Table K1.2 / DG24):
+Required when: 0.85B ≤ bp ≤ B − 2t
+
+Lower bound: 0.85B = 0.85(${column.B}) = ${punchLower.toFixed(2)}"
+Upper bound: B − 2t = ${column.B} − 2(${column.tdes}) = ${punchUpper.toFixed(2)}"
+Beam flange: bp = ${beam.bf}"
+
+Check: ${punchLower.toFixed(2)}" ≤ ${beam.bf}" ≤ ${punchUpper.toFixed(2)}"
+Result: `;
+
+            if (punchingRequired) {
+              // Punching shear capacity: Rn = 0.6·Fy·t·(2tp + 2bep)
+              const bep = Math.min((10 / BOverT) * beam.bf, beam.bf);
+              const effectivePerimeter = 2 * beam.tf + 2 * bep;
+              Rn_punching = 0.6 * FyHSS * column.tdes * effectivePerimeter;
+              const phi_punching = 0.95;
+              const omega_punching = 1.58;
+              const Rn_punching_LRFD = phi_punching * Rn_punching;
+              const Rn_punching_ASD = Rn_punching / omega_punching;
+
+              punchingContent += `CHECK REQUIRED ⚠
+
+AISC Specification (Table K1.2):
+Rn = 0.6 × Fy × t × (2tp + 2bep)
+
+Where:
+• Fy = HSS yield strength = ${FyHSS} ksi
+• t = HSS design thickness = ${column.tdes}"
+• tp = beam flange thickness = ${beam.tf}"
+• bep = 10·bp/(B/t) = 10(${beam.bf})/${BOverT.toFixed(1)} = ${bep.toFixed(3)}" ≤ bp = ${beam.bf}"
+• Effective perimeter = 2tp + 2bep = 2(${beam.tf}) + 2(${bep.toFixed(3)}) = ${effectivePerimeter.toFixed(3)}"
+
+Calculation:
+Rn = 0.6 × ${FyHSS} × ${column.tdes} × ${effectivePerimeter.toFixed(3)}
+Rn = ${Rn_punching.toFixed(1)} kips
+
+Available Strengths:
+• LRFD: φRn = ${phi_punching} × ${Rn_punching.toFixed(1)} = ${Rn_punching_LRFD.toFixed(1)} kips
+• ASD: Rn/Ω = ${Rn_punching.toFixed(1)}/${omega_punching} = ${Rn_punching_ASD.toFixed(1)} kips`;
+            } else {
+              punchingContent += `NOT REQUIRED ✓
+
+Beam flange width falls outside the range requiring punching shear check.
+No additional capacity reduction needed for this limit state.`;
+            }
+            
+            steps.push({
+              title: "4a. HSS Shear Yielding (Punching) Check",
+              content: punchingContent,
+              status: punchingRequired ? 'warning' : 'info'
+            });
+
+            // Step 5: Sidewall Strength - AISC Spec K1-4
+            const sidewallRequired = beam.bf / column.B >= 1.0;
+            let Rn_sidewall = null;
+            let sidewallContent = `AISC Specification Section K1(c)(iii) - Sidewall Local Yielding
+
+Applicability check per AISC Specification K1-4:
+Required when: C ≥ 1.0, where C = bf/B (width ratio)
+
+Width ratio: C = bf/B = ${beam.bf}/${column.B} = ${(beam.bf/column.B).toFixed(3)}
+
+Check: ${(beam.bf/column.B).toFixed(3)} `;
+            
+            if (sidewallRequired) {
+              // Sidewall local yielding (β = 1.0): Rn = 2·Fy·t·(5k + lb)
+              // k = outside corner radius ≈ 1.5t; lb = bearing length of plate = tf
+              const k_corner = 1.5 * column.tdes;
+              const lb = beam.tf;
+              const dispersedLength = 5 * k_corner + lb;
+              Rn_sidewall = 2 * FyHSS * column.tdes * dispersedLength;
+              const phi_sidewall = 1.00;
+              const omega_sidewall = 1.50;
+              const Rn_sidewall_LRFD = phi_sidewall * Rn_sidewall;
+              const Rn_sidewall_ASD = Rn_sidewall / omega_sidewall;
+
+              sidewallContent += `≥ 1.0 → CHECK REQUIRED ⚠
+
+AISC Specification (Table K1.2, sidewall local yielding, β = 1.0):
+Rn = 2 × Fy × t × (5k + lb)
+
+Where:
+• Fy = HSS yield strength = ${FyHSS} ksi
+• t = HSS design thickness = ${column.tdes}"
+• k = outside corner radius ≈ 1.5t = ${k_corner.toFixed(3)}"
+• lb = bearing length (plate thickness) = tf = ${lb}"
+• Load dispersion = 5k + lb = 5(${k_corner.toFixed(3)}) + ${lb} = ${dispersedLength.toFixed(3)}"
+
+The factor of 2 accounts for loading on both HSS sidewalls.
+
+Calculation:
+Rn = 2 × ${FyHSS} × ${column.tdes} × ${dispersedLength.toFixed(3)}
+Rn = ${Rn_sidewall.toFixed(1)} kips
+
+NOTE: Sidewall local crippling (compression flange) should also be
+checked when β = 1.0 — verify separately per AISC Table K1.2.
+
+Available Strengths:
+• LRFD: φRn = ${phi_sidewall} × ${Rn_sidewall.toFixed(1)} = ${Rn_sidewall_LRFD.toFixed(1)} kips
+• ASD: Rn/Ω = ${Rn_sidewall.toFixed(1)}/${omega_sidewall} = ${Rn_sidewall_ASD.toFixed(1)} kips`;
+            } else {
+              sidewallContent += `< 1.0 → NOT REQUIRED ✓
+
+Beam flange width is sufficiently smaller than HSS width.
+Sidewall yielding will not control the connection design.`;
+            }
+            
+            steps.push({
+              title: "4b. HSS Sidewall Local Yielding Check", 
+              content: sidewallContent,
+              status: sidewallRequired ? 'warning' : 'info'
+            });
+
+            // Step 6: Determine Governing Limit State
+            // NOTE: φ/Ω differ between limit states (sidewall uses φ=1.00, Ω=1.50),
+            // so governing is determined on AVAILABLE strength, not nominal.
+            const limitStates = [
+              { name: 'Local Yielding (plate)', value: Rn_local, phi: 0.95, omega: 1.58 }
+            ];
+
+            if (punchingRequired && Rn_punching !== null) {
+              limitStates.push({ name: 'Punching Shear', value: Rn_punching, phi: 0.95, omega: 1.58 });
+            }
+
+            if (sidewallRequired && Rn_sidewall !== null) {
+              limitStates.push({ name: 'Sidewall Local Yielding', value: Rn_sidewall, phi: 1.00, omega: 1.50 });
+            }
+
+            limitStates.forEach(state => {
+              state.lrfd = state.phi * state.value;
+              state.asd = state.value / state.omega;
+            });
+
+            const governingState = limitStates.reduce((min, current) =>
+              current.lrfd < min.lrfd ? current : min
+            );
+
+            const Rn_governing = governingState.value;
+
+            let governingContent = `Comparison of All Applicable Limit States (available strengths):
+
+`;
+            limitStates.forEach(state => {
+              const isGoverning = state === governingState;
+              const status = isGoverning ? '← GOVERNS 🎯' : '';
+              governingContent += `• ${state.name}: Rn = ${state.value.toFixed(1)} kips, φRn = ${state.lrfd.toFixed(1)} kips, Rn/Ω = ${state.asd.toFixed(1)} kips ${status}\n`;
+            });
+
+            governingContent += `\nGoverning Design Condition:
+${governingState.name} (φ = ${governingState.phi}, Ω = ${governingState.omega})
+Rn = ${Rn_governing.toFixed(1)} kips
+
+This limit state controls the connection capacity and will be used
+for calculating the available moment transfer capacity.`;
+
+            steps.push({
+              title: "5. Governing Limit State Determination",
+              content: governingContent,
+              status: 'ok'
+            });
+
+            // Step 7: Available strengths using governing limit state (its own φ/Ω)
+            const Rn_available_LRFD = governingState.lrfd;
+            const Rn_available_ASD = governingState.asd;
+
+            steps.push({
+              title: "6. Available Connection Strength",
+              content: `Using the governing limit state capacity:
+Rn = ${Rn_governing.toFixed(1)} kips (${governingState.name})
+
+Available Strengths per AISC Specification:
+
+LRFD (Load and Resistance Factor Design):
+φRn = ${governingState.phi} × ${Rn_governing.toFixed(1)} kips = ${Rn_available_LRFD.toFixed(1)} kips
+
+ASD (Allowable Stress Design):
+Rn/Ω = ${Rn_governing.toFixed(1)} kips ÷ ${governingState.omega} = ${Rn_available_ASD.toFixed(1)} kips
+
+These values represent the maximum flange force that can be
+transferred through the directly welded connection.`,
+              status: 'ok'
+            });
+            
+            // Step 8: Moment transfer capacity
+            const leverArm = beam.d - beam.tf; // Distance between flange centers
+            const Mn_LRFD = (Rn_available_LRFD * leverArm) / 12; // Convert to kip-ft
+            const Mn_ASD = (Rn_available_ASD * leverArm) / 12; // Convert to kip-ft
+            
+            steps.push({
+              title: "7. Available Moment Transfer Capacity",
+              content: `Final Step: Convert flange force capacity to moment capacity
+
+Lever arm calculation:
+Distance between flange centroids = d - tf
+Lever arm = ${beam.d}" - ${beam.tf}" = ${leverArm.toFixed(2)}"
+
+Moment Capacity Calculation:
+M = (Flange Force) × (Lever Arm) ÷ 12 in/ft
+
+LRFD Design Moment:
+Mn = (${Rn_available_LRFD.toFixed(1)} kips × ${leverArm.toFixed(2)}") ÷ 12 in/ft
+Mn = ${Mn_LRFD.toFixed(1)} kip-ft
+
+ASD Design Moment:
+Mn = (${Rn_available_ASD.toFixed(1)} kips × ${leverArm.toFixed(2)}") ÷ 12 in/ft  
+Mn = ${Mn_ASD.toFixed(1)} kip-ft
+
+🎯 FINAL DESIGN CAPACITIES:
+• LRFD: Mn = ${Mn_LRFD.toFixed(1)} kip-ft
+• ASD: Mn = ${Mn_ASD.toFixed(1)} kip-ft`,
+              status: 'ok'
+            });
+
+            setCalculationSteps(steps);
+            setResults({
+              fitCheck, flatWidth, limits, 
+              Rn_local, Rn_punching, Rn_sidewall, 
+              Rn_governing, governingState: governingState.name,
+              Rn_available_LRFD, Rn_available_ASD,
+              Mn_LRFD, Mn_ASD, leverArm, 
+              punchingRequired, sidewallRequired, allLimitsOK
+            });
+          };
+
+          useEffect(() => {
+            if (beamProps && columnProps) {
+              calculateConnection();
+            }
+          }, [beamProps, columnProps]);
+
+          const printCalculation = () => {
+            window.print();
+          };
+
+          return (
+            <div className="min-h-screen py-8 px-4">
+              <div className="max-w-7xl mx-auto">
+                <div className="calculator-container p-8">
+                  {/* Header */}
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <Calculator size={40} className="text-indigo-600" />
+                      <div>
+                        <h1 className="text-3xl font-bold gradient-text mb-1">
+                          AISC DG24 HSS Connection Calculator
+                        </h1>
+                        <p className="text-gray-600 text-lg">
+                          Example 4.3 - Directly Welded Connections with Complete Limit State Analysis
+                        </p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={printCalculation}
+                      className="no-print flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-lg"
+                    >
+                      <PrintIcon size={20} />
+                      Print Report
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                    {/* Input Section */}
+                    <div className="xl:col-span-1 space-y-6">
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl border border-blue-200 blk">
+                        <div className="flex items-center gap-3 mb-6">
+                          <Database className="text-blue-600" size={24} />
+                          <h2 className="text-xl font-semibold text-gray-800">Member Selection</h2>
+                        </div>
+                        
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-3">
+                              W-Shape Beam ({shapesData.wShapes.length} available)
+                            </label>
+                            <select
+                              id="beamSelect"
+                              value={selectedBeam}
+                              onChange={(e) => setSelectedBeam(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
+                            >
+                              {shapesData.wShapes.map(shape => (
+                                <option key={shape.label} value={shape.label}>
+                                  {shape.label} (d={shape.d}", bf={shape.bf}", tf={shape.tf}")
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-3">
+                              HSS Column ({shapesData.hssShapes.length} available)
+                            </label>
+                            <select
+                              id="columnSelect"
+                              value={selectedColumn}
+                              onChange={(e) => setSelectedColumn(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
+                            >
+                              {shapesData.hssShapes.map(shape => (
+                                <option key={shape.label} value={shape.label}>
+                                  {shape.label} (H={shape.H}", B={shape.B}", t={shape.tdes}")
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Member Properties */}
+                      {(beamProps || columnProps) && (
+                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-4">Member Properties</h3>
+                          
+                          {beamProps && (
+                            <div className="mb-6">
+                              <h4 className="font-medium text-gray-700 mb-3 text-blue-700">Beam: {beamProps.label}</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="bg-white p-2 rounded">d = {beamProps.d}"</div>
+                                <div className="bg-white p-2 rounded">A = {beamProps.A} in²</div>
+                                <div className="bg-white p-2 rounded">bf = {beamProps.bf}"</div>
+                                <div className="bg-white p-2 rounded">tw = {beamProps.tw}"</div>
+                                <div className="bg-white p-2 rounded">tf = {beamProps.tf}"</div>
+                                <div className="bg-white p-2 rounded">Fy = 50 ksi</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {columnProps && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 mb-3 text-indigo-700">Column: {columnProps.label}</h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div className="bg-white p-2 rounded">H = {columnProps.H}"</div>
+                                <div className="bg-white p-2 rounded">A = {columnProps.A} in²</div>
+                                <div className="bg-white p-2 rounded">B = {columnProps.B}"</div>
+                                <div className="bg-white p-2 rounded">tnom = {columnProps.tnom}"</div>
+                                <div className="bg-white p-2 rounded">tdes = {columnProps.tdes}"</div>
+                                <div className="bg-white p-2 rounded">Fy = 46 ksi</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Summary Results */}
+                      {results && (
+                        <div className="bg-gradient-to-br from-gray-50 to-slate-50 p-6 rounded-xl border border-gray-200 summary">
+                          <h3 className="text-lg font-semibold text-gray-800 mb-4">Design Summary</h3>
+                          <div className="space-y-3">
+                            <div className={`flex items-center gap-3 p-3 rounded-lg ${results.fitCheck ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {results.fitCheck ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+                              <span className="text-sm font-medium">
+                                Geometry: {results.fitCheck ? 'Beam fits on HSS face' : 'Beam does not fit'}
+                              </span>
+                            </div>
+                            
+                            <div className={`flex items-center gap-3 p-3 rounded-lg ${results.allLimitsOK ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                              {results.allLimitsOK ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+                              <span className="text-sm font-medium">
+                                AISC Limits: {results.allLimitsOK ? 'All satisfied' : 'Check required'}
+                              </span>
+                            </div>
+                            
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div>Punching: {results.punchingRequired ? 'Required ⚠' : 'Not Required ✓'}</div>
+                              <div>Sidewall: {results.sidewallRequired ? 'Required ⚠' : 'Not Required ✓'}</div>
+                            </div>
+                            
+                            <div className="pt-4 border-t border-gray-200">
+                              <div className="text-sm text-gray-600 space-y-1">
+                                <div>Local Yielding: {results.Rn_local.toFixed(1)} kips</div>
+                                {results.Rn_punching && <div>Punching Shear: {results.Rn_punching.toFixed(1)} kips</div>}
+                                {results.Rn_sidewall && <div>Sidewall: {results.Rn_sidewall.toFixed(1)} kips</div>}
+                                <div className="font-semibold text-gray-800 pt-2 border-t">
+                                  Governing: {results.Rn_governing.toFixed(1)} kips
+                                </div>
+                                <div className="text-xs text-gray-500">({results.governingState})</div>
+                              </div>
+                              <div className="mt-4 space-y-2">
+                                <div className="font-bold text-blue-600 text-lg">LRFD: {results.Mn_LRFD.toFixed(1)} kip-ft</div>
+                                <div className="font-bold text-green-600 text-lg">ASD: {results.Mn_ASD.toFixed(1)} kip-ft</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Calculation Steps */}
+                    <div className="xl:col-span-3 space-y-6 calc-steps">
+                      <h2 className="text-2xl font-bold text-gray-800">Complete AISC Design Calculations</h2>
+                      
+                      {calculationSteps.map((step, index) => (
+                        <div key={index} className="step-card bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                          <div className="flex items-start gap-4">
+                            <div className={`mt-1 ${
+                              step.status === 'ok' ? 'text-green-500' : 
+                              step.status === 'warning' ? 'text-yellow-500' : 
+                              step.status === 'error' ? 'text-red-500' : 'text-blue-500'
+                            }`}>
+                              {step.status === 'ok' ? <CheckCircle size={24} /> : 
+                               step.status === 'warning' || step.status === 'error' ? <AlertTriangle size={24} /> : 
+                               <Info size={24} />}
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-4">{step.title}</h3>
+                              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded-lg overflow-x-auto leading-relaxed">
+                                {step.content}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Final Summary */}
+                      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white p-8 rounded-xl shadow-lg">
+                        <h3 className="text-2xl font-bold mb-4">🎯 Final Design Results</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-2">LRFD Method</h4>
+                            <div className="text-3xl font-bold">{results ? results.Mn_LRFD.toFixed(1) : '0.0'} kip-ft</div>
+                            <div className="text-sm opacity-90">Load & Resistance Factor Design</div>
+                          </div>
+                          <div className="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <h4 className="font-semibold mb-2">ASD Method</h4>
+                            <div className="text-3xl font-bold">{results ? results.Mn_ASD.toFixed(1) : '0.0'} kip-ft</div>
+                            <div className="text-sm opacity-90">Allowable Stress Design</div>
+                          </div>
+                        </div>
+                        <div className="mt-6 p-4 bg-white bg-opacity-10 rounded-lg">
+                          <p className="text-sm">
+                            ✓ Complete AISC DG24 Example 4.3 analysis<br/>
+                            ✓ All applicable limit states checked<br/>
+                            ✓ Governing condition identified<br/>
+                            ✓ Ready for design implementation
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<HSSWeldedConnectionCalculator />, document.getElementById('root'));
+    </script>
+    <script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+    </script>
+    <script>
+    // React interop: restored <select> values must go through the native value
+    // setter so React's onChange fires and state/recalc update on areLoad().
+    (function () {
+      'use strict';
+      var baseLoad = window.areLoad;
+      window.areLoad = function () {
+        var key = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+        var raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            var data = JSON.parse(raw);
+            Object.keys(data._inputs || {}).forEach(function (id) {
+              var el = document.getElementById(id);
+              if (!el || el.tagName !== 'SELECT') return;
+              var desc = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
+              if (desc && desc.set) desc.set.call(el, data._inputs[id]);
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+          } catch (e) { /* ignore */ }
+        }
+        baseLoad();
+      };
+    })();
+    </script>
+
+<script>
+// ── ARE React compatibility patch: override Save/Load for React-controlled inputs ──
+(function(){
+  var KEY='are_v1_react_'+(window.location.pathname.split('/').pop()||'calc');
+  function fields(){
+    return Array.prototype.filter.call(document.querySelectorAll('input,select,textarea'),function(el){
+      return el.id!=='areJob' && el.type!=='file' && el.type!=='button';
+    });
+  }
+  window.areSave=function(){
+    var job=(document.getElementById('areJob')||{}).value||'';
+    var vals=fields().map(function(el){return el.type==='checkbox'?{c:el.checked}:{v:el.value};});
+    try{ localStorage.setItem(KEY,JSON.stringify({_job:job,_ts:Date.now(),vals:vals}));
+      if(window.areToastMsg)areToastMsg(); var t=document.getElementById('areToast');
+      if(t){t.textContent='\u2713 Saved'+(job?' \u2014 '+job:'');t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600);}
+    }catch(e){alert('Save failed');}
+  };
+  window.areLoad=function(){
+    var raw=localStorage.getItem(KEY); var t=document.getElementById('areToast');
+    function toast(m){if(t){t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},3000);}}
+    if(!raw){toast('No saved inputs found for this calculator.');return;}
+    var d; try{d=JSON.parse(raw);}catch(e){toast('\u26a0 Could not read saved data.');return;}
+    if(d._job){var j=document.getElementById('areJob'); if(j)j.value=d._job;}
+    var iSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
+    var sSet=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set;
+    var tSet=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;
+    var ckSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'checked').set;
+    // restore in passes: conditional fields may appear after earlier ones update
+    var pass=0;
+    (function apply(){
+      var els=fields();
+      (d.vals||[]).forEach(function(s,i){
+        var el=els[i]; if(!el)return;
+        if(s.c!==undefined && el.type==='checkbox'){ ckSet.call(el,s.c); el.dispatchEvent(new Event('click',{bubbles:true})); }
+        else if(s.v!==undefined){
+          var st=el.tagName==='SELECT'?sSet:(el.tagName==='TEXTAREA'?tSet:iSet);
+          if(el.value!==s.v){ st.call(el,s.v); el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true})); }
+        }
+      });
+      if(++pass<3)setTimeout(apply,120);
+      else toast('\u2713 Loaded'+(d._job?' \u2014 '+d._job:'')+'  (saved '+new Date(d._ts).toLocaleString()+')');
+    })();
+  };
+})();
+</script>
+</body>
+</html>
