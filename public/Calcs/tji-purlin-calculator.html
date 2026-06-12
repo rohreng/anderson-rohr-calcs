@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TJI Out of Plumb Design Check — NW-N127</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ef;
+  --card: #ffffff;
+  --border: #d4cfc6;
+  --accent: #2d6a4f;
+  --accent-light: #e8f0ec;
+  --accent-dark: #1b4332;
+  --text: #2c2c2c;
+  --text-muted: #6b6b6b;
+  --warn: #b44;
+  --ok: #2d6a4f;
+  --eq-bg: #faf8f5;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+header {
+  border-bottom: 3px solid var(--accent-dark);
+  padding-bottom: 16px;
+  margin-bottom: 32px;
+}
+header h1 {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: var(--accent-dark);
+  letter-spacing: -0.02em;
+}
+header .subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.phase-indicator {
+  display: flex;
+  gap: 0;
+  margin-bottom: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid var(--accent);
+}
+.phase-tab {
+  flex: 1;
+  text-align: center;
+  padding: 10px 16px;
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--card);
+  color: var(--text-muted);
+  cursor: default;
+  transition: all 0.3s;
+}
+.phase-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+.phase-tab.completed {
+  background: var(--accent-light);
+  color: var(--accent-dark);
+}
+
+/* Input groups */
+.step-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.step-card h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-dark);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.step-card h2 .step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px; height: 26px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.step-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.input-group { display: flex; flex-direction: column; gap: 4px; }
+.input-group label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.input-group input, .input-group select {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 5px;
+  background: var(--eq-bg);
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+.input-group input:focus, .input-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(45,106,79,0.12);
+}
+.input-group .unit {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+/* Equation display */
+.calc-block {
+  background: var(--eq-bg);
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  margin: 14px 0;
+  border-radius: 0 6px 6px 0;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  overflow-x: auto;
+}
+.calc-block .eq-label {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.calc-block .eq-result {
+  font-weight: 600;
+  color: var(--accent-dark);
+}
+.calc-block .eq-line {
+  white-space: nowrap;
+}
+
+/* Results */
+.result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-family: var(--mono);
+}
+.result-badge.ok { background: #e6f4ea; color: var(--ok); border: 1.5px solid var(--ok); }
+.result-badge.ng { background: #fde8e8; color: var(--warn); border: 1.5px solid var(--warn); }
+
+/* Buttons */
+.btn {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+.btn-secondary:hover { background: var(--accent-light); }
+.btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.hidden { display: none !important; }
+
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin: 12px 0;
+}
+.summary-table th, .summary-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.summary-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.summary-table td.val {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+.dl-note {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 8px 0;
+  font-style: italic;
+}
+
+.joist-select-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.joist-opt {
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  background: var(--card);
+}
+.joist-opt:hover { border-color: var(--accent); background: var(--accent-light); }
+.joist-opt.selected { border-color: var(--accent); background: var(--accent); color: #fff; }
+.joist-opt .joist-name { font-weight: 700; font-size: 0.9rem; }
+.joist-opt .joist-detail { font-size: 0.72rem; opacity: 0.8; margin-top: 2px; }
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 16px 0;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>TJI® Joist Out of Plumb Design Check</h1>
+    <div class="subtitle">Per Weyerhaeuser NW-N127 — Bi-Axial Bending Analysis</div>
+  </header>
+
+  <div class="phase-indicator">
+    <div class="phase-tab active" id="phaseTab1">Phase 1: Normal Loads & Bracing Inputs</div>
+    <div class="phase-tab" id="phaseTab2">Phase 2: Bi-Axial Bending Check</div>
+  </div>
+
+  <!-- ===================== PHASE 1 ===================== -->
+  <div id="phase1">
+
+    <!-- Joist Selection -->
+    <div class="step-card">
+      <h2>Joist Selection</h2>
+      <p class="step-desc">Select TJI joist series and depth. Flange dimensions are auto-populated.</p>
+      <div class="input-grid" style="margin-bottom: 14px;">
+        <div class="input-group">
+          <label>Joist Series</label>
+          <select id="joistSeries" onchange="updateJoistOptions()">
+            <option value="110">TJI 110</option>
+            <option value="210">TJI 210</option>
+            <option value="230">TJI 230</option>
+            <option value="360">TJI 360</option>
+            <option value="560">TJI 560</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Joist Depth</label>
+          <select id="joistDepth" onchange="updateFlangeProps()">
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Flange Width (b)</label>
+          <input type="text" id="flangeWidth" readonly>
+          <span class="unit">inches</span>
+        </div>
+        <div class="input-group">
+          <label>Flange Depth (d)</label>
+          <input type="text" id="flangeDepth" value="1.25" readonly>
+          <span class="unit">inches (all series)</span>
+        </div>
+        <div class="input-group">
+          <label>Joist Weight</label>
+          <input type="text" id="joistWeight" readonly>
+          <span class="unit">plf</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Geometry & Loading -->
+    <div class="step-card">
+      <h2><span class="step-num">1</span> Roof Geometry & Loading</h2>
+      <p class="step-desc">Enter roof pitch, span, spacing, and applied loads.</p>
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Roof Pitch Rise</label>
+          <input type="number" id="pitchRise" value="6" step="0.5" min="0">
+          <span class="unit">/ 12</span>
+        </div>
+        <div class="input-group">
+          <label>Joist Span</label>
+          <input type="number" id="span" value="15" step="0.5" min="1">
+          <span class="unit">feet</span>
+        </div>
+        <div class="input-group">
+          <label>Joist Spacing (o.c.)</label>
+          <input type="number" id="spacing" value="24" step="1" min="12">
+          <span class="unit">inches</span>
+        </div>
+        <div class="input-group">
+          <label>Live Load (Snow/Roof)</label>
+          <input type="number" id="liveLoad" value="25" step="0.5" min="0">
+          <span class="unit">psf</span>
+        </div>
+        <div class="input-group">
+          <label>Dead Load (Total)</label>
+          <input type="number" id="deadLoad" value="16" step="0.5" min="0">
+          <span class="unit">psf</span>
+        </div>
+        <div class="input-group">
+          <label>Live Load Duration Factor</label>
+          <input type="number" id="ldfLive" value="1.15" step="0.05" min="0.5" max="2.0">
+          <span class="unit">C<sub>D</sub></span>
+        </div>
+        <div class="input-group">
+          <label>Dead Load Duration Factor</label>
+          <input type="number" id="ldfDead" value="0.90" step="0.05" min="0.5" max="2.0">
+          <span class="unit">C<sub>D</sub></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ceiling / Bottom Chord Loads -->
+    <div class="step-card">
+      <h2>Bottom Flange / Ceiling Loads</h2>
+      <p class="step-desc">Enter dead loads suspended from (or attached to) the bottom flange. These contribute to the lateral load on the bottom chord.</p>
+      <div class="input-grid">
+        <div class="input-group">
+          <label>Ceiling Dead Load</label>
+          <input type="number" id="ceilingDL" value="8.8" step="0.1" min="0">
+          <span class="unit">psf (gypsum, mech, insulation, etc.)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- LVL Properties -->
+    <div class="step-card">
+      <h2>Flange Material Properties</h2>
+      <p class="step-desc">Microllam LVL properties per ESR-1387. Defaults to lowest published values.</p>
+      <div class="input-grid">
+        <div class="input-group">
+          <label>MOE (E)</label>
+          <input type="number" id="moe" value="1600000" step="100000" min="100000">
+          <span class="unit">psi</span>
+        </div>
+        <div class="input-group">
+          <label>f<sub>bYY</sub> (Flat Bending)</label>
+          <input type="number" id="fbYY" value="2140" step="10" min="100">
+          <span class="unit">psi</span>
+        </div>
+        <div class="input-group">
+          <label>C<sub>V</sub> (Volume Factor)</label>
+          <input type="number" id="cv" value="1.18" step="0.01" min="0.5" max="2.0">
+          <span class="unit">per ESR-1387</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="calcPhase1()">Calculate Phase 1</button>
+    </div>
+
+    <!-- Phase 1 Results -->
+    <div id="phase1Results" class="hidden">
+      <div class="step-card" style="margin-top: 24px; border-color: var(--accent);">
+        <h2><span class="step-num">1</span> Normal & Tangential Load Components</h2>
+        <div id="step1Calc"></div>
+      </div>
+
+      <div class="step-card">
+        <h2>Step 2 — ForteWEB Input Summary</h2>
+        <p class="step-desc">Use these normal-component loads in ForteWEB (set member pitch to 0/12). Provide the resulting Mxx, Mx All, and Vxx below in Phase 2.</p>
+        <div id="step2Summary"></div>
+      </div>
+
+      <div class="step-card">
+        <h2><span class="step-num">3</span> Tangential Forces on Sheathing</h2>
+        <div id="step3Calc"></div>
+      </div>
+
+      <div class="step-card">
+        <h2><span class="step-num">4</span> Bottom Flange Lateral Load (W<sub>BL</sub>)</h2>
+        <div id="step4Calc"></div>
+      </div>
+
+      <div class="step-card">
+        <h2><span class="step-num">5</span> Allowable Lateral Deflection (Δ<sub>Horz</sub>)</h2>
+        <div id="step5Calc"></div>
+      </div>
+
+      <div class="step-card">
+        <h2><span class="step-num">6</span> Unbraced Length & Blocking Spacing (l<sub>u</sub>)</h2>
+        <div id="step6Calc"></div>
+      </div>
+
+      <div class="step-card">
+        <h2><span class="step-num">7</span> Deflection Criteria Check (l<sub>u</sub>/Δ ≥ 180)</h2>
+        <div id="step7Calc"></div>
+      </div>
+
+      <div class="step-card" style="border-color: var(--accent); border-width: 2px;">
+        <h2>Proceed to Phase 2</h2>
+        <p class="step-desc">Enter the ForteWEB results for the normal-component design, then run the bi-axial interaction check.</p>
+        <div class="input-grid">
+          <div class="input-group">
+            <label>M<sub>XX</sub> (Design Moment)</label>
+            <input type="number" id="mxx" value="" placeholder="e.g. 1951" step="1" min="0">
+            <span class="unit">ft-lbs</span>
+          </div>
+          <div class="input-group">
+            <label>M<sub>X All</sub> (Allowable Moment)</label>
+            <input type="number" id="mxAll" value="" placeholder="e.g. 4301" step="1" min="0">
+            <span class="unit">ft-lbs</span>
+          </div>
+          <div class="input-group">
+            <label>V<sub>XX</sub> (Shear)</label>
+            <input type="number" id="vxx" value="" placeholder="e.g. 523" step="1" min="0">
+            <span class="unit">lbs (for reference)</span>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="calcPhase2()">Calculate Phase 2 — Interaction Check</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== PHASE 2 ===================== -->
+  <div id="phase2" class="hidden">
+    <div class="step-card" style="border-color: var(--accent);">
+      <h2><span class="step-num">8</span> Bi-Axial Bending Interaction Check</h2>
+      <div id="step8Calc"></div>
+    </div>
+
+    <div class="step-card" id="summaryCard" style="border-width: 2px;">
+      <h2>Design Summary</h2>
+      <div id="designSummary"></div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="backToPhase1()">← Back to Phase 1</button>
+      <button class="btn btn-secondary" onclick="window.print()">Print Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Joist Database ───
+const joistDB = {
+  '110': {
+    depths: [9.5, 11.875, 14, 16],
+    flangeWidth: 1.75,
+    weights: { 9.5: 2.5, 11.875: 2.6, 14: 2.8, 16: 3.0 }
+  },
+  '210': {
+    depths: [9.5, 11.875, 14, 16],
+    flangeWidth: 2.06,
+    weights: { 9.5: 2.9, 11.875: 3.1, 14: 3.3, 16: 3.5 }
+  },
+  '230': {
+    depths: [9.5, 11.875, 14, 16],
+    flangeWidth: 2.06,
+    weights: { 9.5: 3.0, 11.875: 3.2, 14: 3.4, 16: 3.6 }
+  },
+  '360': {
+    depths: [9.5, 11.875, 14, 16],
+    flangeWidth: 2.32,
+    weights: { 9.5: 3.3, 11.875: 3.5, 14: 3.7, 16: 3.9 }
+  },
+  '560': {
+    depths: [9.5, 11.875, 14, 16],
+    flangeWidth: 2.32,
+    weights: { 9.5: 3.6, 11.875: 3.8, 14: 4.0, 16: 4.3 }
+  }
+};
+
+// Stored calc results
+let P1 = {};
+
+function updateJoistOptions() {
+  const series = document.getElementById('joistSeries').value;
+  const sel = document.getElementById('joistDepth');
+  const data = joistDB[series];
+  sel.innerHTML = '';
+  data.depths.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d + '"';
+    if (d === 14) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  updateFlangeProps();
+}
+
+function updateFlangeProps() {
+  const series = document.getElementById('joistSeries').value;
+  const depth = parseFloat(document.getElementById('joistDepth').value);
+  const data = joistDB[series];
+  document.getElementById('flangeWidth').value = data.flangeWidth;
+  document.getElementById('joistWeight').value = data.weights[depth] || '—';
+}
+
+function fmt(n, dec=2) {
+  return Number(n).toFixed(dec);
+}
+
+function calcPhase1() {
+  // Read inputs
+  const pitchRise = parseFloat(document.getElementById('pitchRise').value);
+  const span = parseFloat(document.getElementById('span').value);
+  const spacingIn = parseFloat(document.getElementById('spacing').value);
+  const spacingFt = spacingIn / 12;
+  const WLL = parseFloat(document.getElementById('liveLoad').value);
+  const WDL = parseFloat(document.getElementById('deadLoad').value);
+  const WCL = parseFloat(document.getElementById('ceilingDL').value);
+  const WJL = parseFloat(document.getElementById('joistWeight').value);
+  const E = parseFloat(document.getElementById('moe').value);
+  const fbYY = parseFloat(document.getElementById('fbYY').value);
+  const Cv = parseFloat(document.getElementById('cv').value);
+  const flangeW = parseFloat(document.getElementById('flangeWidth').value);
+  const flangeD = parseFloat(document.getElementById('flangeDepth').value);
+  const joistDepth = parseFloat(document.getElementById('joistDepth').value);
+  const ldfLive = parseFloat(document.getElementById('ldfLive').value);
+  const ldfDead = parseFloat(document.getElementById('ldfDead').value);
+  const series = document.getElementById('joistSeries').value;
+
+  const theta = Math.atan(pitchRise / 12);
+  const thetaDeg = theta * 180 / Math.PI;
+
+  // Step 1 - Normal loads
+  const YLL = WLL * Math.cos(theta);
+  const YDL = WDL * Math.cos(theta);
+
+  document.getElementById('step1Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Roof Angle</div>
+      <div class="eq-line">θ = arctan(${pitchRise}/12) = <span class="eq-result">${fmt(thetaDeg)}°</span></div>
+    </div>
+    <div class="calc-block">
+      <div class="eq-label">Normal Live Load (Y-component)</div>
+      <div class="eq-line">Y<sub>LL</sub> = W<sub>LL</sub> × cos(θ) = ${WLL} × cos(${fmt(thetaDeg)}°) = <span class="eq-result">${fmt(YLL)} psf</span></div>
+    </div>
+    <div class="calc-block">
+      <div class="eq-label">Normal Dead Load (Y-component)</div>
+      <div class="eq-line">Y<sub>DL</sub> = W<sub>DL</sub> × cos(θ) = ${WDL} × cos(${fmt(thetaDeg)}°) = <span class="eq-result">${fmt(YDL)} psf</span></div>
+    </div>
+  `;
+
+  // Step 2 summary
+  document.getElementById('step2Summary').innerHTML = `
+    <table class="summary-table">
+      <tr><th>Parameter</th><th>Value</th><th>Notes</th></tr>
+      <tr><td>Joist</td><td class="val">${joistDepth}" TJI ${series} @ ${spacingIn}" o.c.</td><td></td></tr>
+      <tr><td>Span</td><td class="val">${span} ft</td><td></td></tr>
+      <tr><td>Member Pitch</td><td class="val">0/12</td><td>Normal component — flat</td></tr>
+      <tr><td>Dead Load (normal)</td><td class="val">${fmt(YDL)} psf</td><td>Y<sub>DL</sub></td></tr>
+      <tr><td>Live Load (normal)</td><td class="val">${fmt(YLL)} psf</td><td>Y<sub>LL</sub></td></tr>
+      <tr><td>LDF (Snow)</td><td class="val">${ldfLive}</td><td></td></tr>
+      <tr><td>LDF (Dead)</td><td class="val">${ldfDead}</td><td></td></tr>
+    </table>
+    <p class="dl-note">Run ForteWEB with these values, then enter M<sub>XX</sub>, M<sub>X All</sub>, and V<sub>XX</sub> below.</p>
+  `;
+
+  // Step 3 - Tangential
+  const XLL = WLL * Math.sin(theta);
+  const XDL = WDL * Math.sin(theta);
+
+  document.getElementById('step3Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Tangential Live Load (X-component on sheathing)</div>
+      <div class="eq-line">X<sub>LL</sub> = W<sub>LL</sub> × sin(θ) = ${WLL} × sin(${fmt(thetaDeg)}°) = <span class="eq-result">${fmt(XLL)} psf</span></div>
+    </div>
+    <div class="calc-block">
+      <div class="eq-label">Tangential Dead Load (X-component on sheathing)</div>
+      <div class="eq-line">X<sub>DL</sub> = W<sub>DL</sub> × sin(θ) = ${WDL} × sin(${fmt(thetaDeg)}°) = <span class="eq-result">${fmt(XDL)} psf</span></div>
+    </div>
+    <p class="dl-note">Designer of Record to confirm adequacy of roof diaphragm for these tangential loads in addition to lateral loads.</p>
+  `;
+
+  // Step 4 - Bottom flange load
+  const WBL = (WCL * spacingFt + WJL / 2) * Math.sin(theta);
+
+  document.getElementById('step4Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Weight on Bottom Chord</div>
+      <div class="eq-line">W<sub>BL</sub> = (W<sub>CL</sub> × o.c. spacing + W<sub>JL</sub>/2) × sin(θ)</div>
+      <div class="eq-line">W<sub>BL</sub> = (${WCL} psf × ${fmt(spacingFt)} ft + ${WJL}/2 plf) × sin(${fmt(thetaDeg)}°)</div>
+      <div class="eq-line">W<sub>BL</sub> = (${fmt(WCL * spacingFt)} + ${fmt(WJL/2)}) × ${fmt(Math.sin(theta), 4)}</div>
+      <div class="eq-line">W<sub>BL</sub> = <span class="eq-result">${fmt(WBL)} plf</span></div>
+    </div>
+  `;
+
+  // Step 5 - Allowable lateral deflection
+  const deltaHorz = joistDepth * (1/12) * (0.25);
+
+  document.getElementById('step5Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Allowable Lateral Deflection (¼" per foot of joist depth)</div>
+      <div class="eq-line">Δ<sub>Horz</sub> = d × (1 ft / 12 in) × (0.25 in / 1 ft depth)</div>
+      <div class="eq-line">Δ<sub>Horz</sub> = ${joistDepth} in × (1/12) × 0.25</div>
+      <div class="eq-line">Δ<sub>Horz</sub> = <span class="eq-result">${fmt(deltaHorz)} in</span></div>
+    </div>
+  `;
+
+  // Step 6 - Unbraced length
+  const IYY = (flangeD * Math.pow(flangeW, 3)) / 12;
+  const lu_num = 384 * E * IYY * deltaHorz;
+  const lu_den = 5 * WBL * (1/12);
+  const lu = Math.pow(lu_num / lu_den, 0.25);
+  const luFt = lu / 12;
+
+  const numSections = Math.ceil(span / luFt);
+  const blockingRows = numSections - 1;
+  const blockedSpacing = span / numSections;
+  const lBlocked = blockedSpacing;
+
+  document.getElementById('step6Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Flange Moment of Inertia (Y-Y Axis)</div>
+      <div class="eq-line">I<sub>YY</sub> = d × b³ / 12 = ${flangeD} × ${flangeW}³ / 12 = <span class="eq-result">${fmt(IYY, 4)} in⁴</span></div>
+    </div>
+    <div class="calc-block">
+      <div class="eq-label">Maximum Unbraced Length</div>
+      <div class="eq-line">l<sub>u</sub> = [ 384 × E × I<sub>YY</sub> × Δ<sub>Horz</sub> / (5 × W<sub>BL</sub> × (1ft/12in)) ]<sup>1/4</sup></div>
+      <div class="eq-line">l<sub>u</sub> = [ 384 × ${(E/1e6).toFixed(1)}×10⁶ × ${fmt(IYY,4)} × ${fmt(deltaHorz)} / (5 × ${fmt(WBL)} × 0.0833) ]<sup>1/4</sup></div>
+      <div class="eq-line">l<sub>u</sub> = [ ${fmt(lu_num,0)} / ${fmt(lu_den,4)} ]<sup>1/4</sup></div>
+      <div class="eq-line">l<sub>u</sub> = <span class="eq-result">${fmt(lu, 1)} in = ${fmt(luFt, 1)} ft</span></div>
+    </div>
+    <div class="calc-block">
+      <div class="eq-label">Required Blocking</div>
+      <div class="eq-line">L / l<sub>u</sub> = ${span} ft / ${fmt(luFt,1)} ft = ${fmt(span/luFt)} → round up to <span class="eq-result">${numSections} blocked sections</span></div>
+      <div class="eq-line">Required rows of blocking = ${numSections} - 1 = <span class="eq-result">${blockingRows} rows</span></div>
+      <div class="eq-line">Blocked spacing = ${span} / ${numSections} = <span class="eq-result">${fmt(lBlocked, 2)} ft o.c.</span></div>
+    </div>
+  `;
+
+  // Step 7 - Deflection criteria
+  const lBlockedIn = lBlocked * 12;
+  const deflCriteria = lBlockedIn / deltaHorz;
+  const deflOK = deflCriteria >= 180;
+
+  document.getElementById('step7Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Deflection Criteria (must be ≥ 180)</div>
+      <div class="eq-line">l<sub>u Δcriteria</sub> = l<sub>blocked</sub>(in) / Δ<sub>Horz</sub>(in)</div>
+      <div class="eq-line">l<sub>u Δcriteria</sub> = ${fmt(lBlockedIn,1)} in / ${fmt(deltaHorz)} in = <span class="eq-result">${fmt(deflCriteria, 1)}</span></div>
+    </div>
+    <div style="margin-top: 10px;">
+      <span class="result-badge ${deflOK ? 'ok' : 'ng'}">${deflOK ? '✓ OK' : '✗ NG'} — ${fmt(deflCriteria,1)} ${deflOK ? '≥' : '<'} 180</span>
+    </div>
+    ${!deflOK ? '<p style="color:var(--warn); margin-top:8px; font-size:0.85rem;">Deflection criteria not met. Increase blocking frequency or consider a deeper/stiffer joist.</p>' : ''}
+  `;
+
+  // Store for Phase 2
+  P1 = { theta, thetaDeg, WBL, deltaHorz, IYY, lu, luFt, numSections, blockingRows, lBlocked, deflCriteria, deflOK, flangeW, flangeD, fbYY, Cv, ldfDead, ldfLive, span, joistDepth, series, spacingIn, WLL, WDL, WCL, WJL, E, YLL, YDL, XLL, XDL };
+
+  document.getElementById('phase1Results').classList.remove('hidden');
+  document.getElementById('phase1Results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function calcPhase2() {
+  const Mxx = parseFloat(document.getElementById('mxx').value);
+  const MxAll = parseFloat(document.getElementById('mxAll').value);
+  const Vxx = parseFloat(document.getElementById('vxx').value) || 0;
+
+  if (isNaN(Mxx) || isNaN(MxAll) || MxAll === 0) {
+    alert('Please enter valid Mxx and Mx All values from ForteWEB.');
+    return;
+  }
+
+  const { WBL, lBlocked, numSections, blockingRows, flangeW, flangeD, fbYY, Cv, ldfDead, span } = P1;
+
+  // Moment coefficient
+  let phi;
+  if (blockingRows === 1) phi = 0.125;
+  else if (blockingRows === 2) phi = 0.100;
+  else phi = 0.107;
+
+  const spanLabel = blockingRows === 1 ? '2 spans' : blockingRows === 2 ? '3 spans' : `${blockingRows+1} spans`;
+
+  // Use dead-load-only CD for bottom chord (conservative — ceiling is dead load)
+  const CdBtm = ldfDead;
+
+  // W_BL for moment calc: use dead load only version
+  // Per the example, they use 7.42 plf for Myy calc (which is WBL with dead-only CD logic)
+  // Actually they just use WBL directly. The CD is applied to allowable stress.
+  const lBlockedFt = lBlocked;
+  const MYY_Blked = phi * WBL * Math.pow(lBlockedFt, 2) * 12; // in-lbs (L in ft, convert to in at end)
+  // Actually per example: M = phi * WBL * (L/n)^2 where L/n is in ft, then multiply by 12 to get in-lbs
+  // Let me recheck: M = phi * W(plf) * L(ft)^2 → ft-lbs... then ×12 → in-lbs
+
+  // F'bYY
+  const FbYY_prime = fbYY * CdBtm * Cv;
+
+  // Section modulus about YY
+  const S_YY = flangeD * Math.pow(flangeW, 2) / 6;
+
+  // MYY Allowable (in-lbs)
+  const MYY_All = FbYY_prime * S_YY;
+
+  // Interaction
+  const Mxx_inlbs = Mxx * 12; // convert ft-lbs to in-lbs
+  const MxAll_inlbs = MxAll * 12;
+  const ratio = (Mxx / MxAll) + (MYY_Blked / MYY_All);
+  const interOK = ratio <= 1.0;
+
+  document.getElementById('step8Calc').innerHTML = `
+    <div class="calc-block">
+      <div class="eq-label">Lateral Moment on Bottom Flange (M<sub>YY Blked</sub>)</div>
+      <div class="eq-line">φ = ${phi} (${blockingRows} bracing row${blockingRows !== 1 ? 's' : ''} → ${spanLabel})</div>
+      <div class="eq-line">M<sub>YY Blked</sub> = φ × W<sub>BL</sub> × (L/n)² × 12 in/ft</div>
+      <div class="eq-line">M<sub>YY Blked</sub> = ${phi} × ${fmt(WBL)} plf × (${fmt(lBlockedFt,2)} ft)² × 12</div>
+      <div class="eq-line">M<sub>YY Blked</sub> = <span class="eq-result">${fmt(MYY_Blked, 1)} in-lbs</span></div>
+    </div>
+
+    <div class="calc-block">
+      <div class="eq-label">Allowable Bending Stress (F'<sub>bYY</sub>)</div>
+      <div class="eq-line">F'<sub>bYY</sub> = f<sub>bYY</sub> × C<sub>D</sub> × C<sub>V</sub></div>
+      <div class="eq-line">F'<sub>bYY</sub> = ${fbYY} × ${CdBtm} × ${Cv} = <span class="eq-result">${fmt(FbYY_prime, 0)} psi</span></div>
+    </div>
+
+    <div class="calc-block">
+      <div class="eq-label">Section Modulus (S<sub>YY</sub>) — Bottom Flange</div>
+      <div class="eq-line">S<sub>YY</sub> = d × b² / 6 = ${flangeD} × ${flangeW}² / 6 = <span class="eq-result">${fmt(S_YY, 4)} in³</span></div>
+    </div>
+
+    <div class="calc-block">
+      <div class="eq-label">Allowable Lateral Moment (M<sub>YY All</sub>)</div>
+      <div class="eq-line">M<sub>YY All</sub> = F'<sub>bYY</sub> × S<sub>YY</sub> = ${fmt(FbYY_prime,0)} × ${fmt(S_YY,4)} = <span class="eq-result">${fmt(MYY_All, 1)} in-lbs</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="calc-block" style="border-left-color: ${interOK ? 'var(--ok)' : 'var(--warn)'};">
+      <div class="eq-label">Bi-Axial Bending Interaction Equation</div>
+      <div class="eq-line">(M<sub>XX</sub> / M<sub>X All</sub>) + (M<sub>YY</sub> / M<sub>YY All</sub>) ≤ 1.0</div>
+      <div class="eq-line">(${Mxx} ft-lbs / ${MxAll} ft-lbs) + (${fmt(MYY_Blked,1)} in-lbs / ${fmt(MYY_All,1)} in-lbs)</div>
+      <div class="eq-line">${fmt(Mxx/MxAll, 3)} + ${fmt(MYY_Blked/MYY_All, 3)} = <span class="eq-result">${fmt(ratio, 3)}</span></div>
+    </div>
+    <div style="margin-top: 12px;">
+      <span class="result-badge ${interOK ? 'ok' : 'ng'}">${interOK ? '✓ OK' : '✗ NG'} — ${fmt(ratio,3)} ${interOK ? '≤' : '>'} 1.0</span>
+    </div>
+    ${!interOK ? '<p style="color:var(--warn); margin-top:8px; font-size:0.85rem;">Interaction ratio exceeds 1.0. Consider adding more blocking, upgrading joist series, or reducing loads.</p>' : ''}
+  `;
+
+  // Summary
+  document.getElementById('designSummary').innerHTML = `
+    <table class="summary-table">
+      <tr><th>Item</th><th>Value</th><th>Status</th></tr>
+      <tr><td>Joist</td><td class="val">${P1.joistDepth}" TJI ${P1.series} @ ${P1.spacingIn}" o.c.</td><td></td></tr>
+      <tr><td>Span</td><td class="val">${P1.span} ft</td><td></td></tr>
+      <tr><td>Roof Pitch</td><td class="val">${document.getElementById('pitchRise').value}/12 (${fmt(P1.thetaDeg)}°)</td><td></td></tr>
+      <tr><td>Normal LL / DL</td><td class="val">${fmt(P1.YLL)} / ${fmt(P1.YDL)} psf</td><td></td></tr>
+      <tr><td>Tangential LL / DL</td><td class="val">${fmt(P1.XLL)} / ${fmt(P1.XDL)} psf</td><td>DOR to verify diaphragm</td></tr>
+      <tr><td>W<sub>BL</sub></td><td class="val">${fmt(P1.WBL)} plf</td><td></td></tr>
+      <tr><td>Δ<sub>Horz</sub></td><td class="val">${fmt(P1.deltaHorz)} in</td><td></td></tr>
+      <tr><td>l<sub>u</sub> (max unbraced)</td><td class="val">${fmt(P1.lu,1)} in (${fmt(P1.luFt,1)} ft)</td><td></td></tr>
+      <tr><td>Blocking</td><td class="val">${P1.blockingRows} rows @ ${fmt(P1.lBlocked,2)} ft o.c.</td><td></td></tr>
+      <tr><td>l/Δ Criteria</td><td class="val">${fmt(P1.deflCriteria,1)}</td><td><span class="result-badge ${P1.deflOK ? 'ok' : 'ng'}" style="padding:2px 8px;font-size:0.75rem;">${P1.deflOK ? 'OK ≥ 180' : 'NG < 180'}</span></td></tr>
+      <tr><td>M<sub>XX</sub> / M<sub>X All</sub></td><td class="val">${Mxx} / ${MxAll} ft-lbs</td><td>${fmt(Mxx/MxAll,3)}</td></tr>
+      <tr><td>M<sub>YY</sub> / M<sub>YY All</sub></td><td class="val">${fmt(MYY_Blked,1)} / ${fmt(MYY_All,1)} in-lbs</td><td>${fmt(MYY_Blked/MYY_All,3)}</td></tr>
+      <tr><td>Interaction Ratio</td><td class="val" style="font-weight:700;">${fmt(ratio,3)}</td><td><span class="result-badge ${interOK ? 'ok' : 'ng'}" style="padding:2px 8px;font-size:0.75rem;">${interOK ? 'OK ≤ 1.0' : 'NG > 1.0'}</span></td></tr>
+    </table>
+    <p class="dl-note">Reminder: TJI joists rotated out of plumb must be restrained at ends with full-depth blocking. If flush bearing, consult hanger manufacturer for capacity reductions.</p>
+  `;
+
+  // Show phase 2
+  document.getElementById('phase1').classList.add('hidden');
+  document.getElementById('phase2').classList.remove('hidden');
+  document.getElementById('phaseTab1').classList.remove('active');
+  document.getElementById('phaseTab1').classList.add('completed');
+  document.getElementById('phaseTab2').classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function backToPhase1() {
+  document.getElementById('phase1').classList.remove('hidden');
+  document.getElementById('phase2').classList.add('hidden');
+  document.getElementById('phaseTab1').classList.add('active');
+  document.getElementById('phaseTab1').classList.remove('completed');
+  document.getElementById('phaseTab2').classList.remove('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Init
+updateJoistOptions();
+</script>
+
+<script>
+function runCalcs(){ try{ calcPhase1(); calcPhase2(); }catch(e){} }
+</script>
+<style>
+@media print{ body{background:#fff!important;padding:0!important} .container{box-shadow:none!important} }
+</style>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+
+</script>
+</body>
+</html>

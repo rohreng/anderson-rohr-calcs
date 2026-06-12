@@ -281,22 +281,31 @@ function calc(){
 
   /* ================================================================
      J4.3.1 — Tilting / Bearing
-     Eq. J4.3.1-1: Pnv = 4.2√(t2³·d)·Fu2   (t2/t1 < 1.0, tilting)
-     Eq. J4.3.1-2: Pnv = 2.7·t2·Fu2·d        (bearing on t2)
-     Eq. J4.3.1-3: Pnv = 2.7·t1·Fu1·d        (bearing on t1)
-     When t2/t1 ≥ 2.5: Eq.-3 governs (tilting not critical)
+     t2/t1 ≤ 1.0:  Pnv = min of:
+       Eq. J4.3.1-1: 4.2√(t2³·d)·Fu2   (tilting)
+       Eq. J4.3.1-2: 2.7·t1·d·Fu1      (bearing on t1)
+       Eq. J4.3.1-3: 2.7·t2·d·Fu2      (bearing on t2)
+     t2/t1 ≥ 2.5:  Pnv = min of:
+       Eq. J4.3.1-4: 2.7·t1·d·Fu1
+       Eq. J4.3.1-5: 2.7·t2·d·Fu2
+     1.0 < t2/t1 < 2.5: linear interpolation between the two cases
   ================================================================ */
   var Pnv_tilt = 4.2*Math.sqrt(Math.pow(t2,3)*d)*Fu2;  /* Eq. J4.3.1-1 */
-  var Pnv_b2   = 2.7*t2*Fu2*d;                          /* Eq. J4.3.1-2 */
-  var Pnv_b1   = 2.7*t1*Fu1*d;                          /* Eq. J4.3.1-3 */
+  var Pnv_b1   = 2.7*t1*d*Fu1;                          /* Eq. J4.3.1-2 / -4 */
+  var Pnv_b2   = 2.7*t2*d*Fu2;                          /* Eq. J4.3.1-3 / -5 */
+  var Pnv_lo   = Math.min(Pnv_tilt,Pnv_b1,Pnv_b2);      /* case t2/t1 ≤ 1.0 */
+  var Pnv_hi   = Math.min(Pnv_b1,Pnv_b2);               /* case t2/t1 ≥ 2.5 */
   var Pnv1;
   var J431_case;
   if(ratio>=2.5){
-    Pnv1=Pnv_b1;
-    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' &ge; 2.5 &rarr; Eq. J4.3.1-3 governs';
+    Pnv1=Pnv_hi;
+    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' &ge; 2.5 &rarr; min(Eq. J4.3.1-4, -5)';
+  } else if(ratio<=1.0){
+    Pnv1=Pnv_lo;
+    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' &le; 1.0 &rarr; min(Eq. J4.3.1-1, -2, -3)';
   } else {
-    Pnv1=Math.min(Pnv_tilt,Pnv_b2,Pnv_b1);
-    J431_case='t&#x2082;/t&#x2081; = '+f2(ratio)+' < 2.5 &rarr; min(Eq.-1, -2, -3)';
+    Pnv1=Pnv_lo+(Pnv_hi-Pnv_lo)*(ratio-1.0)/1.5;
+    J431_case='1.0 < t&#x2082;/t&#x2081; = '+f2(ratio)+' < 2.5 &rarr; linear interpolation between cases';
   }
   var Om1=3.00, ph1=0.50;
   var Pa1=Pnv1/Om1, phPn1=ph1*Pnv1;
@@ -366,15 +375,21 @@ function calc(){
      J4.5.1 — Combined Shear + Pull-Over (Eq. J4.5.1-1)
      IC = V/Pnv + 0.71·(T/Pnov) ≤ 1.10/Ω (ASD),  ≤ 1.10φ (LRFD)
      Ω=2.35, φ=0.65
-     Applicability: t1 ≤ 0.0445", #12 or #14, Fu1 ≤ 70, t2/t1 ≥ 2.5
+     Per spec: Pnv = 2.7·t1·d·Fu1 (Eq. J4.5.1-2 — NOT the governing
+     J4.3.1 value) and Pnov = 1.5·t1·dw·Fu1 (Eq. J4.5.1-3, dw = larger
+     of head or washer diameter)
+     Applicability: 0.0285" ≤ t1 ≤ 0.0445", #12 or #14, dw ≤ 0.75",
+                    Fu1 ≤ 70 ksi, t2/t1 ≥ 2.5
   ================================================================ */
   var Om_J451=2.35, ph_J451=0.65;
   var lim_a_J451=1.10/Om_J451, lim_l_J451=1.10*ph_J451;
-  var ic_a_J451=Va/Pnv1 + 0.71*(Ta/Pnov);
-  var ic_l_J451=Vu/Pnv1 + 0.71*(Tu/Pnov);
+  var Pnv_J451=2.7*t1*d*Fu1;        /* Eq. J4.5.1-2 */
+  var Pnov_J451=1.5*t1*dh*Fu1;      /* Eq. J4.5.1-3, dw = dh */
+  var ic_a_J451=Va/Pnv_J451 + 0.71*(Ta/Pnov_J451);
+  var ic_l_J451=Vu/Pnv_J451 + 0.71*(Tu/Pnov_J451);
   var dc_a_J451=ic_a_J451/lim_a_J451;
   var dc_l_J451=ic_l_J451/lim_l_J451;
-  var app_J451=(t1<=0.0445 && (sz===12||sz===14) && Fu1<=70 && ratio>=2.5);
+  var app_J451=(t1>=0.0285 && t1<=0.0445 && (sz===12||sz===14) && dh<=0.75 && Fu1<=70 && ratio>=2.5);
 
   /* ================================================================
      J4.5.2 — Combined Shear + Pull-Out (Eq. J4.5.2-1)
@@ -437,12 +452,18 @@ function calc(){
     +'<div>'
     +'<div class="sub-head">Nominal Strength</div>'
     +(ratio>=2.5
-      ?('<div class="mrow">P<sub>nv</sub> = 2.7 t&#x2081; F<sub>u1</sub> d</div>'
-        +'<div class="mrow ind">= 2.7 &times; '+t1+' &times; '+Fu1+' &times; '+d+' = <span class="cval">'+f3(Pnv1)+' kips</span></div>')
-      :('<div class="mrow">Eq.-1 (Tilt): 4.2&radic;(t&#x2082;&sup3;&sdot;d)&sdot;F<sub>u2</sub> = <span class="cval">'+f3(Pnv_tilt)+'</span> k</div>'
-        +'<div class="mrow">Eq.-2 (Brg t&#x2082;): 2.7 t&#x2082; F<sub>u2</sub> d = <span class="cval">'+f3(Pnv_b2)+'</span> k</div>'
-        +'<div class="mrow">Eq.-3 (Brg t&#x2081;): 2.7 t&#x2081; F<sub>u1</sub> d = <span class="cval">'+f3(Pnv_b1)+'</span> k</div>'
-        +'<div class="mrow"><strong>P<sub>nv</sub> = '+f3(Pnv1)+' kips</strong> (governs)</div>'))
+      ?('<div class="mrow">Eq.-4 (Brg t&#x2081;): 2.7 t&#x2081; d F<sub>u1</sub> = <span class="cval">'+f3(Pnv_b1)+'</span> k</div>'
+        +'<div class="mrow">Eq.-5 (Brg t&#x2082;): 2.7 t&#x2082; d F<sub>u2</sub> = <span class="cval">'+f3(Pnv_b2)+'</span> k</div>'
+        +'<div class="mrow"><strong>P<sub>nv</sub> = min = '+f3(Pnv1)+' kips</strong></div>')
+      :ratio<=1.0
+      ?('<div class="mrow">Eq.-1 (Tilt): 4.2&radic;(t&#x2082;&sup3;&sdot;d)&sdot;F<sub>u2</sub> = <span class="cval">'+f3(Pnv_tilt)+'</span> k</div>'
+        +'<div class="mrow">Eq.-2 (Brg t&#x2081;): 2.7 t&#x2081; d F<sub>u1</sub> = <span class="cval">'+f3(Pnv_b1)+'</span> k</div>'
+        +'<div class="mrow">Eq.-3 (Brg t&#x2082;): 2.7 t&#x2082; d F<sub>u2</sub> = <span class="cval">'+f3(Pnv_b2)+'</span> k</div>'
+        +'<div class="mrow"><strong>P<sub>nv</sub> = min = '+f3(Pnv1)+' kips</strong></div>')
+      :('<div class="mrow">@ t&#x2082;/t&#x2081; = 1.0: min(Eq.-1,-2,-3) = min('+f3(Pnv_tilt)+', '+f3(Pnv_b1)+', '+f3(Pnv_b2)+') = <span class="cval">'+f3(Pnv_lo)+'</span> k</div>'
+        +'<div class="mrow">@ t&#x2082;/t&#x2081; = 2.5: min(Eq.-4,-5) = min('+f3(Pnv_b1)+', '+f3(Pnv_b2)+') = <span class="cval">'+f3(Pnv_hi)+'</span> k</div>'
+        +'<div class="mrow">Interpolated: P<sub>nv</sub> = '+f3(Pnv_lo)+' + ('+f3(Pnv_hi)+'&minus;'+f3(Pnv_lo)+')&times;('+f2(ratio)+'&minus;1.0)/1.5</div>'
+        +'<div class="mrow ind"><strong>P<sub>nv</sub> = '+f3(Pnv1)+' kips</strong></div>'))
     +'</div>'
     +'<div>'
     +'<div class="sub-head">ASD (&#937; = '+Om1+')</div>'
@@ -526,7 +547,9 @@ function calc(){
     +'<div class="mrow">t<sub>c</sub> = t&#x2082; = '+t2+' in (thin sheet, internal threads)</div>'
     +'<div class="mrow">P<sub>not</sub> = 0.85 t<sub>c</sub> d F<sub>u2</sub></div>'
     +'<div class="mrow ind">= 0.85 &times; '+t2+' &times; '+d+' &times; '+Fu2+' = <span class="cval">'+f3(Pnot)+' kips</span></div>'
-    +'<div class="mrow" style="color:#d97706;font-style:italic;font-size:.9em">&#8594; Governs tension capacity (lowest P<sub>a</sub>)</div>'
+    +(Pnot<=Pnov && Pnot<=Pnts_mfr
+      ?'<div class="mrow" style="color:#d97706;font-style:italic;font-size:.9em">&#8594; Governs tension capacity (lowest P<sub>n</sub>)</div>':'')
+    +'<div class="mrow" style="font-size:.85em;color:#888">t<sub>c</sub> = lesser of penetration depth and t&#x2082; (full penetration assumed)</div>'
     +'</div>'
     +'<div>'
     +'<div class="sub-head">ASD (&#937; = '+Om_J441+')</div>'
@@ -584,20 +607,22 @@ function calc(){
     :'<span class="app-no">&#9888; Check applicability limits (see Notes)</span>');
   var det8='<div class="cref-hdr">J4.5.1 — Combined Shear + Pull-Over (Eq. J4.5.1-1)</div>'
     +'<div class="callout">Applicability: '+app1_html
-    +' &nbsp;| t&#x2081; &le; 0.0445" ('+t1+') &nbsp;| No.12 or No.14 &nbsp;| F<sub>u1</sub> &le; 70 ksi ('+Fu1+') &nbsp;| t&#x2082;/t&#x2081; &ge; 2.5 ('+f2(ratio)+')</div>'
+    +' &nbsp;| 0.0285" &le; t&#x2081; &le; 0.0445" ('+t1+') &nbsp;| No.12 or No.14 &nbsp;| d<sub>w</sub> &le; 0.75" ('+dh+') &nbsp;| F<sub>u1</sub> &le; 70 ksi ('+Fu1+') &nbsp;| t&#x2082;/t&#x2081; &ge; 2.5 ('+f2(ratio)+')</div>'
+    +'<div class="mrow">P<sub>nv</sub> = 2.7 t&#x2081; d F<sub>u1</sub> (Eq. J4.5.1-2) = 2.7 &times; '+t1+' &times; '+d+' &times; '+Fu1+' = <span class="cval">'+f3(Pnv_J451)+' kips</span></div>'
+    +'<div class="mrow">P<sub>nov</sub> = 1.5 t&#x2081; d<sub>w</sub> F<sub>u1</sub> (Eq. J4.5.1-3, d<sub>w</sub> = head/washer dia.) = 1.5 &times; '+t1+' &times; '+dh+' &times; '+Fu1+' = <span class="cval">'+f3(Pnov_J451)+' kips</span></div>'
     +'<div class="mrow"><em>Interaction Equation:</em>&nbsp; IC = '+fr('V','P<sub>nv</sub>')+' + 0.71 &times; '+fr('T','P<sub>nov</sub>')+' &le; '+fr('1.10','&#937;')+' (ASD)&nbsp; or &nbsp;1.10&phi; (LRFD)</div>'
     +'<div class="two-col-det">'
     +'<div>'
-    +'<div class="sub-head">ASD — P<sub>nv</sub> = '+f3(Pnv1)+' k, P<sub>nov</sub> = '+f3(Pnov)+' k</div>'
-    +'<div class="mrow">IC = '+f3(Va)+'/'+f3(Pnv1)+' + 0.71 &times; ('+f3(Ta)+'/'+f3(Pnov)+')</div>'
-    +'<div class="mrow ind">= '+f3(Va/Pnv1)+' + '+f3(0.71*Ta/Pnov)+' = <span class="cval">'+f3(ic_a_J451)+'</span></div>'
+    +'<div class="sub-head">ASD — P<sub>nv</sub> = '+f3(Pnv_J451)+' k, P<sub>nov</sub> = '+f3(Pnov_J451)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Va)+'/'+f3(Pnv_J451)+' + 0.71 &times; ('+f3(Ta)+'/'+f3(Pnov_J451)+')</div>'
+    +'<div class="mrow ind">= '+f3(Va/Pnv_J451)+' + '+f3(0.71*Ta/Pnov_J451)+' = <span class="cval">'+f3(ic_a_J451)+'</span></div>'
     +'<div class="mrow">Limit = 1.10/&#937; = 1.10/'+Om_J451+' = <span class="cval">'+f3(lim_a_J451)+'</span></div>'
     +'<div class="mrow">D/C = '+f3(ic_a_J451)+'/'+f3(lim_a_J451)+' = '+f3(dc_a_J451)+'</div>'
     +'</div>'
     +'<div>'
-    +'<div class="sub-head">LRFD — P<sub>nv</sub> = '+f3(Pnv1)+' k, P<sub>nov</sub> = '+f3(Pnov)+' k</div>'
-    +'<div class="mrow">IC = '+f3(Vu)+'/'+f3(Pnv1)+' + 0.71 &times; ('+f3(Tu)+'/'+f3(Pnov)+')</div>'
-    +'<div class="mrow ind">= '+f3(Vu/Pnv1)+' + '+f3(0.71*Tu/Pnov)+' = <span class="cval">'+f3(ic_l_J451)+'</span></div>'
+    +'<div class="sub-head">LRFD — P<sub>nv</sub> = '+f3(Pnv_J451)+' k, P<sub>nov</sub> = '+f3(Pnov_J451)+' k</div>'
+    +'<div class="mrow">IC = '+f3(Vu)+'/'+f3(Pnv_J451)+' + 0.71 &times; ('+f3(Tu)+'/'+f3(Pnov_J451)+')</div>'
+    +'<div class="mrow ind">= '+f3(Vu/Pnv_J451)+' + '+f3(0.71*Tu/Pnov_J451)+' = <span class="cval">'+f3(ic_l_J451)+'</span></div>'
     +'<div class="mrow">Limit = 1.10&phi; = 1.10 &times; '+ph_J451+' = <span class="cval">'+f3(lim_l_J451)+'</span></div>'
     +'<div class="mrow">D/C = '+f3(ic_l_J451)+'/'+f3(lim_l_J451)+' = '+f3(dc_l_J451)+'</div>'
     +'</div>'
@@ -746,8 +771,9 @@ function calc(){
   /* ---- applicability notes ---- */
   var notes='<strong>Applicability Notes — J4.5 Combined Interaction Equations:</strong>'
     +'<ul>'
-    +'<li><strong>J4.5.1:</strong> Applies when t&#x2081; &le; 0.0445" ('+t1+'&Prime; '+(t1<=0.0445?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +'<li><strong>J4.5.1:</strong> Applies when 0.0285" &le; t&#x2081; &le; 0.0445" ('+t1+'&Prime; '+(t1>=0.0285&&t1<=0.0445?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
     +', Screw No. 12 or 14 ('+(sz===12||sz===14?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
+    +', d<sub>w</sub> &le; 0.75" ('+dh+' '+(dh<=0.75?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
     +', F<sub>u1</sub> &le; 70 ksi ('+Fu1+' '+(Fu1<=70?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+')'
     +', t&#x2082;/t&#x2081; &ge; 2.5 ('+f2(ratio)+' '+(ratio>=2.5?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+'). '
     +(app_J451?'<strong><span class="app-ok">All conditions met.</span></strong>':'<strong><span class="app-no">Not all conditions met — check does not apply.</span></strong>')+'</li>'
@@ -760,6 +786,9 @@ function calc(){
     +'<li><strong>J4.5.3:</strong> Always applies — uses manufacturer screw capacities directly.</li>'
     +'<li><strong>J6.1 shear rupture:</strong> Uses 2 shear planes (one per side of screw), with A<sub>nv</sub> = 2&times;e<sub>clear</sub>&times;t&#x2081; per screw.</li>'
     +'<li><strong>J6.2 tension rupture:</strong> Based on tributary width s (net area = (s&minus;d)&times;t&#x2081;). Verify U<sub>sl</sub>=1.0 is appropriate for your loading geometry.</li>'
+    +'<li><strong>J4.1 / J4.2 requirements:</strong> Min spacing 3d = '+f3(3*d)+'" (s = '+s+'&Prime; '+(s>=3*d?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+'); '
+    +'min edge/end distance 1.5d = '+f3(1.5*d)+'" (e<sub>clear</sub>+d/2 = '+f3(e_clr+d/2)+'&Prime; '+((e_clr+d/2)>=1.5*d?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+'). Screw diameter limits: 0.08" &le; d &le; 0.25" ('+(d>=0.08&&d<=0.25?'<span class="app-ok">&#10003;</span>':'<span class="app-no">&#9888;</span>')+').</li>'
+    +'<li><strong>J4.4.2 pull-over:</strong> d<sub>w</sub> = min(d<sub>h</sub>, &#190;") applies to heads/hex-washer heads without independent washer (J4.4.2(b)). For an independent solid steel washer use d&prime;<sub>w</sub> = d<sub>h</sub>+2t<sub>w</sub>+t&#x2081; &le; d<sub>w</sub> (J4.4.2(a)); for domed washers d&prime;<sub>w</sub> &le; &#8541;" (J4.4.2(c)) — enter the applicable d&prime;<sub>w</sub> as the head/washer diameter.</li>'
     +'<li>Pre-filled values match AISI D100-17E Design Manual Vol.1 Example IV-11.</li>'
     +'</ul>';
   document.getElementById('noteBox').innerHTML=notes;
@@ -769,6 +798,293 @@ function calc(){
 
 /* run on load with defaults */
 window.onload=function(){calc();};
+
+/* alias for are-utils auto-run after Load */
+function runCalcs(){ calc(); }
+</script>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
 </script>
 </body>
 </html>

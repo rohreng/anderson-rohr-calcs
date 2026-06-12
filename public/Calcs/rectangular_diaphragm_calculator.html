@@ -66,6 +66,10 @@ svg.diagram{max-width:100%;border-radius:8px}
   .blk{break-inside:avoid;page-break-inside:avoid}
   #results{display:block!important}
   #printBtn{display:none!important}
+  #sendToMasonryWallBtn,.save-load-bar,.import-banner{display:none!important}
+  /* ARE print modes: summary hides input .blk blocks but keeps result blocks */
+  body[data-pm="s"] #results .blk{display:block!important}
+  body[data-pm="s"] #results .blk-body{display:block!important}
 }
 </style>
 </head>
@@ -158,22 +162,23 @@ svg.diagram{max-width:100%;border-radius:8px}
   <div class="blk-body">
     <h3 class="sec" style="margin-top:0">EW Shearwalls — resist Wind-X (V<sub>x</sub>)</h3>
     <p class="ref" style="margin-bottom:8px">Walls running EW, resisting EW (X-direction) wind. Typically the North and South walls. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
+    <input type="hidden" id="swJSON">
     <div id="swX">
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" id="swX_label_0" value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swX_len_0" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
-          <input type="number" class="sw-loc" value="120" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" id="swX_loc_0" class="sw-loc" value="120" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">North wall → enter D (building depth)</span>
         </div>
       </div>
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" id="swX_label_1" value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swX_len_1" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
-          <input type="number" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" id="swX_loc_1" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">South wall → enter 0</span>
         </div>
       </div>
@@ -184,20 +189,20 @@ svg.diagram{max-width:100%;border-radius:8px}
     <p class="ref" style="margin-bottom:8px">Walls running NS, resisting NS (Y-direction) wind. Typically the East and West walls. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
     <div id="swY">
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" id="swY_label_0" value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swY_len_0" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
-          <input type="number" class="sw-loc" value="60" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" id="swY_loc_0" class="sw-loc" value="60" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">East wall → enter B (building width)</span>
         </div>
       </div>
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" id="swY_label_1" value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swY_len_1" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
-          <input type="number" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" id="swY_loc_1" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">West wall → enter 0</span>
         </div>
       </div>
@@ -275,6 +280,16 @@ function togBlk(hd){
 }
 
 // ─── SHEARWALL ROWS ──────────────────────────────────────────────────────────
+var swIdCounter={X:2,Y:2}; // static HTML rows use indices 0 and 1
+
+function swRowHTML(dir, idx, label, len, loc){
+  var locHint=dir==='X'?'Location — dist. from S (ft)':'Location — dist. from W (ft)';
+  return '<div class="ig"><label>Line Label</label><input type="text" id="sw'+dir+'_label_'+idx+'" value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" id="sw'+dir+'_len_'+idx+'" class="sw-len" value="'+len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>'+locHint+'</label><input type="number" id="sw'+dir+'_loc_'+idx+'" class="sw-loc" value="'+loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
+    +'<button class="btn-rm-sw" onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
+}
+
 function addSW(dir){
   var container=document.getElementById('sw'+dir);
   var n=container.children.length+1;
@@ -284,15 +299,32 @@ function addSW(dir){
   var D=parseFloat(document.getElementById('D').value)||120;
   var defLen=dir==='X'?B:D;
   var defLoc=dir==='X'?(D/2).toFixed(0):(B/2).toFixed(0);
-  var locHint=dir==='X'?'Dist. from South wall (ft)':'Dist. from West wall (ft)';
   var div=document.createElement('div');
   div.className='sw-row'; div.dataset.dir=dir;
-  div.innerHTML='<div class="ig"><label>Line Label</label><input type="text" value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" class="sw-len" value="'+defLen+'" min="1" step="1" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>'+locHint+'</label><input type="number" class="sw-loc" value="'+defLoc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
-    +'<button onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
+  div.innerHTML=swRowHTML(dir, swIdCounter[dir]++, label, defLen, defLoc);
   container.appendChild(div);
   updateDiagram();
+}
+
+// Rebuild all rows of one direction from an array of {label,len,loc}
+function rebuildSWRows(dir, rows){
+  var container=document.getElementById('sw'+dir);
+  container.innerHTML='';
+  rows.forEach(function(sw,i){
+    var div=document.createElement('div');
+    div.className='sw-row'; div.dataset.dir=dir;
+    div.innerHTML=swRowHTML(dir, i, sw.label, sw.len, sw.loc);
+    container.appendChild(div);
+  });
+  swIdCounter[dir]=rows.length;
+}
+
+// Mirror the shearwall row state into a hidden input so the ARE Save/Load
+// toolbar can persist a variable number of rows.
+function syncSwJSON(){
+  var el=document.getElementById('swJSON');
+  if(!el) return;
+  el.value=JSON.stringify({X:getSWRowsForDiagram('X'), Y:getSWRowsForDiagram('Y')});
 }
 
 // ─── PLAN DIAGRAM ────────────────────────────────────────────────────────────
@@ -438,6 +470,7 @@ function updateDiagram(){
 
   svg+='</svg>';
   document.getElementById('diagWrap').innerHTML=svg;
+  syncSwJSON();
 }
 
 // ─── DIRECTION CALCULATION ───────────────────────────────────────────────────
@@ -483,36 +516,53 @@ function calcDir(V, L_along, B_perp, swRows, dirLabel){
   // Unit shear at each SW line [kip/ft] = reaction / shearwall length
   var unitShears = sws.map(function(sw,i){ return reactions[i]/sw.len; });
 
-  // Diaphragm chord moment (simple beam analogy, UDL, two end supports)
-  // For non-symmetric, compute max moment between supports
-  var a2=sws[0].loc, b3=sws[sws.length-1].loc;
-  var span2=b3-a2;
-  var R_left, R_right;
-  if(sws.length>=2){
-    var dist_centroid_from_left = L_along/2 - a2;
-    R_right = w*L_along*dist_centroid_from_left/span2;
-    R_left  = V - R_right;
+  // ── Diaphragm chord moment & max diaphragm shear (beam analogy, UDL w over 0..L_along) ──
+  var M_design, M_note, Vmax_beam;
+  if(sws.length===1){
+    // Single wall line — no simple-beam span; report w·L²/8 as a reference value only
+    M_design = V*L_along/8;
+    M_note = 'single wall line — M shown as w·L²/8 reference value; verify load path';
+    Vmax_beam = V;
+  } else if(sws.length===2){
+    var aL=sws[0].loc, bL=sws[1].loc;
+    var spanL=bL-aL;
+    var R_l=reactions[0], R_r=reactions[1];
+    // Positive moment: x from left support where shear = 0
+    var x0 = R_l/w - aL;
+    x0 = Math.max(0, Math.min(spanL, x0));
+    var M_pos = R_l*x0 - w*(aL+x0)*(aL+x0)/2;
+    // Negative (cantilever) moments at supports from diaphragm overhangs
+    var M_negL = w*aL*aL/2;
+    var M_negR = w*(L_along-bL)*(L_along-bL)/2;
+    M_design = Math.max(Math.abs(M_pos), M_negL, M_negR);
+    M_note = (aL<=0.001 && Math.abs(bL-L_along)<=0.001)
+      ? 'M = w·L²/8 (supports at diaphragm ends)'
+      : 'asymmetric wall locations — M from beam analysis incl. overhang moments';
+    // Max beam shear occurs at a support face (incl. overhang shear)
+    Vmax_beam = Math.max(
+      Math.abs(w*aL),                      // overhang, left of support 1
+      Math.abs(R_l - w*aL),                // just right of support 1
+      Math.abs(R_r - w*(L_along-bL)),      // just left of support 2
+      Math.abs(w*(L_along-bL))             // overhang, right of support 2
+    );
   } else {
-    R_left=V; R_right=0; span2=L_along;
+    // 3+ lines, tributary distribution: per-segment shear & per-span w·s²/8 + overhangs
+    var aM=sws[0].loc, bM=sws[sws.length-1].loc;
+    M_design = Math.max(w*aM*aM/2, w*(L_along-bM)*(L_along-bM)/2);
+    Vmax_beam = 0;
+    for(var k=0;k<sws.length;k++){
+      var pm = k===0?0:((sws[k].loc+sws[k-1].loc)/2);
+      var nm = k===sws.length-1?L_along:((sws[k].loc+sws[k+1].loc)/2);
+      Vmax_beam = Math.max(Vmax_beam, w*(sws[k].loc-pm), w*(nm-sws[k].loc));
+      if(k>0){
+        var sp = sws[k].loc - sws[k-1].loc;
+        M_design = Math.max(M_design, w*sp*sp/8);
+      }
+    }
+    M_note = 'multi-line (tributary) — M = max of w·s²/8 per span + overhangs (simplified; verify with continuous-beam analysis if critical)';
   }
-  // Max moment between supports: x where shear=0
-  // Shear at x from left support = R_left - w*(x+a2)  (measuring x from left support)
-  // = 0 → x = R_left/w - a2
-  var x_max = R_left/w - a2;
-  x_max = Math.max(0, Math.min(span2, x_max));
-  // M at x_max from left support:
-  var M_max = R_left*x_max - w*(a2+x_max)*(a2+x_max)/2 + w*a2*a2/2;
-  // Simpler: M = R_left*(x_max) - w*(x_max^2)/2
-  M_max = R_left*x_max - w*x_max*x_max/2;
-
-  // For standard 2-end-support symmetric case:
-  // M_max = w*L²/8 = V*L_along/8
-  // Use this for display clarity; flag if asymmetric
-  var M_sym = V*L_along/8;
-  var chord_T = M_sym / B_perp; // kips — using symmetric formula
-
-  // Unit diaphragm shear at max reaction location
-  var v_max_dia = Math.max.apply(null, reactions) / B_perp; // kip/ft — max shear transferred per ft of chord
+  var chord_T = M_design / B_perp; // kips
+  var v_dia = Vmax_beam / B_perp;  // kip/ft — max diaphragm unit shear
 
   return {
     label: dirLabel,
@@ -523,9 +573,11 @@ function calcDir(V, L_along, B_perp, swRows, dirLabel){
     sws: sws,
     reactions: reactions,
     unitShears: unitShears,
-    M_max: M_sym,
+    M_max: M_design,
+    M_note: M_note,
+    Vmax_beam: Vmax_beam,
     chord_T: chord_T,
-    v_dia: V/(2*B_perp)  // unit diaphragm shear (symmetric, 2-line)
+    v_dia: v_dia
   };
 }
 
@@ -546,7 +598,7 @@ function renderDir(res, container){
     +'<div class="metric"><div class="label">Max Reaction (each SW line)</div><div class="val">'+f2(Math.max.apply(null,res.reactions))+' kips</div></div>'
     +'<div class="metric"><div class="label">Unit Diaphragm Shear v</div><div class="val warn-val">'+f2(res.v_dia*1000)+' plf</div></div>'
     +'</div>';
-  html+='<div class="ref" style="margin-bottom:10px">v = V/(2·B_perp) = '+f2(res.V)+'/(2×'+f1(res.B_perp)+') = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf | Shearwall must have unit shear capacity ≥ v</div>';
+  html+='<div class="ref" style="margin-bottom:10px">v = V_max,beam/B_perp = '+f2(res.Vmax_beam)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf | V_max,beam = max diaphragm (beam-analogy) shear from actual wall layout | Diaphragm must have unit shear capacity ≥ v</div>';
 
   // Shearwall reactions table
   html+='<h3 class="sec">Shearwall Line Reactions</h3>';
@@ -570,10 +622,10 @@ function renderDir(res, container){
   // Chord forces
   html+='<h3 class="sec">Chord Forces (Tension / Compression)</h3>';
   html+='<div class="metric-grid">'
-    +'<div class="metric"><div class="label">Chord Moment M = V·L/8</div><div class="val">'+f1(res.M_max)+' kip·ft</div></div>'
+    +'<div class="metric"><div class="label">Chord Design Moment M</div><div class="val">'+f1(res.M_max)+' kip·ft</div></div>'
     +'<div class="metric"><div class="label">Chord Force T = C = M/B_perp</div><div class="val warn-val">'+f2(res.chord_T)+' kips</div></div>'
     +'</div>';
-  html+='<div class="ref">M = w·L²/8 = V·L_along/8 = '+f2(res.V)+'×'+f1(res.L_along)+'/8 = '+f1(res.M_max)+' kip·ft | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
+  html+='<div class="ref">'+res.M_note+' → M = '+f1(res.M_max)+' kip·ft | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
   // Wind-X = EW wind: diaphragm spans EW, chord members at N & S edges (running EW)
   // Wind-Y = NS wind: diaphragm spans NS, chord members at E & W edges (running NS)
   var chordEdge=res.label.indexOf('X')>=0
@@ -581,13 +633,15 @@ function renderDir(res, container){
     :'NS chord members (top plates, bond beams) at E and W edges';
   html+='<div class="ref" style="margin-top:4px">'+chordEdge+'</div>';
 
-  // Calc detail
-  html+='<div style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.8em;color:#374151;line-height:1.7">'
+  // Calc detail — uses actual computed reactions (not the symmetric V/2 assumption)
+  var rList = res.sws.map(function(sw,i){ return sw.label+': R = '+f2(res.reactions[i])+' kips'; }).join('  |  ');
+  html+='<div class="calc-det" style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.8em;color:#374151;line-height:1.7">'
     +'<strong>Calculation Detail</strong><br>'
-    +'Distributed wind load:  w = V / L = '+f2(res.V)+' / '+f1(res.L_along)+' = '+f3(res.w)+' k/ft = '+f2(res.w*1000)+' plf<br>'
-    +'Shearwall reactions:  R = V/2 = '+f2(res.V)+'/2 = '+f2(res.V/2)+' kips each (symmetric 2-line)<br>'
-    +'Unit diaphragm shear:  v = R/B_perp = '+f2(res.V/2)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf<br>'
-    +'Chord moment:  M = V·L/8 = '+f2(res.V)+'×'+f1(res.L_along)+'/8 = '+f1(res.M_max)+' kip·ft<br>'
+    +'Distributed lateral load:  w = V / L = '+f2(res.V)+' / '+f1(res.L_along)+' = '+f3(res.w)+' k/ft = '+f2(res.w*1000)+' plf<br>'
+    +'Shearwall reactions (moment equilibrium / tributary):  '+rList+'<br>'
+    +'Max beam-analogy shear:  V_max = '+f2(res.Vmax_beam)+' kips<br>'
+    +'Unit diaphragm shear:  v = V_max/B_perp = '+f2(res.Vmax_beam)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf<br>'
+    +'Chord design moment ('+res.M_note+'):  M = '+f1(res.M_max)+' kip·ft<br>'
     +'Chord tension/compression:  T = M/B_perp = '+f1(res.M_max)+'/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips<br>'
     +'Ref: SDPWS 2021 §4.2 | Diaphragm beam analogy, simply-supported with UDL'
     +'</div>';
@@ -674,8 +728,8 @@ function calculate(){
 
   if(Vx_s>0||Vy_s>0){
     var sBody='';
-    if(sx){ sBody+='<h3 class="sec">Seismic-X (NS)</h3>'; var tmp=document.createElement('div'); renderDir(sx,tmp); sBody+=tmp.innerHTML; }
-    if(sy){ sBody+='<h3 class="sec">Seismic-Y (EW)</h3>'; var tmp2=document.createElement('div'); renderDir(sy,tmp2); sBody+=tmp2.innerHTML; }
+    if(sx){ sBody+='<h3 class="sec">Seismic-X (EW)</h3>'; var tmp=document.createElement('div'); renderDir(sx,tmp); sBody+=tmp.innerHTML; }
+    if(sy){ sBody+='<h3 class="sec">Seismic-Y (NS)</h3>'; var tmp2=document.createElement('div'); renderDir(sy,tmp2); sBody+=tmp2.innerHTML; }
     document.getElementById('seismicBody').innerHTML=sBody;
   }
 
@@ -884,8 +938,304 @@ document.addEventListener('DOMContentLoaded',function(){
   document.querySelectorAll('.blk-hd').forEach(function(hd){
     hd.nextElementSibling.style.display=hd.classList.contains('open')?'':'none';
   });
+  // Restore shearwall row structure when the ARE Load toolbar fires a change on swJSON
+  document.getElementById('swJSON').addEventListener('change',function(){
+    try{
+      var s=JSON.parse(this.value);
+      if(s && Array.isArray(s.X) && Array.isArray(s.Y)){
+        rebuildSWRows('X',s.X);
+        rebuildSWRows('Y',s.Y);
+        updateDiagram();
+      }
+    }catch(e){/* ignore malformed data */}
+  });
   updateDiagram();
 });
+</script>
+<script>
+/* ===== ARE shared utilities (inlined; Save/Load/Print) ===== */
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
 </script>
 </body>
 </html>

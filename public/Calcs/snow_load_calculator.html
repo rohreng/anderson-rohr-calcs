@@ -1,0 +1,1623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snow Load Calculator - ASCE 7-10</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f9fafb;
+            color: #111827;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+            background-color: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .icon-box {
+            padding: 8px;
+            background-color: #dbeafe;
+            border-radius: 8px;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            color: #2563eb;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            color: #111827;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .badge {
+            font-size: 0.875rem;
+            background-color: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+        }
+
+        .grid {
+            display: grid;
+            gap: 32px;
+            margin-bottom: 32px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .card {
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .card-blue {
+            background-color: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        .card-green {
+            background-color: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        .card-yellow {
+            background-color: #fefce8;
+            border-color: #fde047;
+        }
+
+        .card-purple {
+            background-color: #faf5ff;
+            border-color: #d8b4fe;
+        }
+
+        .card-orange {
+            background-color: #fff7ed;
+            border-color: #fed7aa;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .card-title-blue {
+            color: #1e3a8a;
+        }
+
+        .card-title-green {
+            color: #14532d;
+        }
+
+        .card-title-yellow {
+            color: #92400e;
+        }
+
+        .card-title-purple {
+            color: #581c87;
+        }
+
+        .card-title-orange {
+            color: #9a3412;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            gap: 16px;
+        }
+
+        .form-row-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .form-row-3 {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .form-row-4 {
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .input-group {
+            display: flex;
+        }
+
+        input, select {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background-color: white;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .input-group input {
+            flex: 1;
+            border-radius: 6px 0 0 6px;
+        }
+
+        .input-addon {
+            padding: 8px 12px;
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-left: 0;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .calculation-item {
+            margin-bottom: 16px;
+        }
+
+        .calculation-label {
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .calculation-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #059669;
+        }
+
+        .calculation-value-purple {
+            color: #7c3aed;
+        }
+
+        .calculation-value-orange {
+            color: #ea580c;
+        }
+
+        .calculation-formula {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #111827;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: #dc2626;
+            border: none;
+            padding: 4px 8px;
+        }
+
+        .btn-danger:hover {
+            color: #991b1b;
+        }
+
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background-color: #f9fafb;
+        }
+
+        .input-small {
+            width: 80px;
+            padding: 4px 8px;
+            font-size: 0.875rem;
+        }
+
+        .input-medium {
+            width: 120px;
+            padding: 4px 8px;
+            font-size: 0.875rem;
+        }
+
+        .input-full {
+            width: 100%;
+            padding: 4px 8px;
+            font-size: 0.875rem;
+        }
+
+        .text-blue {
+            color: #2563eb;
+            font-weight: 500;
+        }
+
+        .text-red {
+            color: #dc2626;
+            font-weight: bold;
+        }
+
+        .text-purple {
+            color: #7c3aed;
+            font-weight: 500;
+        }
+
+        .text-orange {
+            color: #ea580c;
+            font-weight: 500;
+        }
+
+        .explanation-grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .explanation-section h4 {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .explanation-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .explanation-list li {
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background-color: #f3f4f6;
+        }
+
+        .tab.active {
+            border-bottom-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-separator {
+            height: 2px;
+            background: linear-gradient(to right, #3b82f6, #8b5cf6, #f59e0b);
+            margin: 48px 0;
+            border-radius: 1px;
+        }
+
+        sub {
+            font-size: 0.75em;
+            vertical-align: sub;
+        }
+
+        sup {
+            font-size: 0.75em;
+            vertical-align: super;
+        }
+
+        @media (min-width: 768px) {
+            .explanation-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .highlight-result {
+            background-color: #fef3c7;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        @media print {
+            .tabs, .btn, .btn-primary, .btn-danger { display: none !important; }
+            .tab-content { display: block !important; }
+            /* ARE Summary print mode: results/tables only */
+            body[data-pm="s"] .card-blue { display: none !important; }
+            body[data-pm="s"] .card-yellow { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="icon-box">
+                    <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <h1>Snow Load Calculator</h1>
+                <span class="badge">ASCE 7-10 / 7-16</span>
+            </div>
+            <p class="subtitle">Calculate snow drift loads for parapets, leeward, and windward conditions with joist analysis</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('drift')">Snow Drift Analysis</div>
+            <div class="tab" onclick="switchTab('joist-perp')">Joist Perpendicular</div>
+            <div class="tab" onclick="switchTab('joist-parallel')">Joist Parallel</div>
+        </div>
+
+        <!-- Snow Drift Analysis Tab -->
+        <div id="drift-content" class="tab-content active">
+            <!-- Input and Basic Calculations -->
+            <div class="grid grid-2">
+                <!-- Input Parameters -->
+                <div class="card card-blue">
+                    <h2 class="card-title card-title-blue">Input Parameters</h2>
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Ground Snow Load (p<sub>g</sub>)</label>
+                                <div class="input-group">
+                                    <input type="number" id="pg" value="42.9" step="0.1">
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Flat-Roof Factor (0.7 per Eq. 7.3-1)</label>
+                                <input type="number" id="factor" value="0.7" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-row form-row-3">
+                            <div>
+                                <label>C<sub>e</sub> (Exposure) — Table 7-2</label>
+                                <select id="ce">
+                                    <option value="0.7">0.7 — Windswept above tree line / AK no trees, fully exposed</option>
+                                    <option value="0.8">0.8 — Terrain D fully exposed; windswept partially exposed</option>
+                                    <option value="0.9">0.9 — Terrain B/C fully exposed; Terrain D partially exposed</option>
+                                    <option value="1.0" selected>1.0 — Terrain B/C partially exposed; Terrain D sheltered</option>
+                                    <option value="1.1">1.1 — Terrain C sheltered</option>
+                                    <option value="1.2">1.2 — Terrain B sheltered</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>C<sub>t</sub> (Thermal) — Table 7-3</label>
+                                <select id="ct">
+                                    <option value="0.85">0.85 — Continuously heated greenhouse</option>
+                                    <option value="1.0" selected>1.0 — All structures except as noted</option>
+                                    <option value="1.1">1.1 — Kept just above freezing / cold ventilated roof R&ge;25</option>
+                                    <option value="1.2">1.2 — Unheated / open-air structure</option>
+                                    <option value="1.3">1.3 — Intentionally kept below freezing</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>I<sub>s</sub> (Importance) — Table 1.5-2</label>
+                                <select id="is">
+                                    <option value="0.8">0.8 — Risk Category I</option>
+                                    <option value="1.0" selected>1.0 — Risk Category II</option>
+                                    <option value="1.1">1.1 — Risk Category III</option>
+                                    <option value="1.2">1.2 — Risk Category IV</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Calculations -->
+                <div class="card card-green">
+                    <h2 class="card-title card-title-green">Basic Calculations</h2>
+                    <div class="calculation-item">
+                        <div class="calculation-label">Roof Snow Load (p<sub>f</sub>)</div>
+                        <div class="calculation-value" id="pf-value">30.0 psf</div>
+                        <div class="calculation-formula">p<sub>f</sub> = Factor × C<sub>e</sub> × C<sub>t</sub> × I<sub>s</sub> × p<sub>g</sub></div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Snow Density (γ)</div>
+                        <div class="calculation-value" id="gamma-value">19.6 pcf</div>
+                        <div class="calculation-formula">γ = MIN((0.13 × p<sub>g</sub> + 14), 30)</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Balanced Snow Height (h<sub>b</sub>)</div>
+                        <div class="calculation-value" id="hb-value">1.53 ft</div>
+                        <div class="calculation-formula">h<sub>b</sub> = p<sub>f</sub> / γ</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Management -->
+            <div class="section-header">
+                <h2 class="section-title">Drift Configurations</h2>
+                <button class="btn btn-primary" onclick="addConfiguration()">Add Configuration</button>
+                <input type="hidden" id="configData">
+            </div>
+
+            <!-- Drift Calculations Table -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Configuration</th>
+                            <th>Type</th>
+                            <th>h<sub>r</sub> (ft)</th>
+                            <th>l<sub>u</sub> (ft)</th>
+                            <th>h<sub>c</sub> (ft)</th>
+                            <th>h<sub>c</sub>/h<sub>b</sub></th>
+                            <th>Drift Height (ft)</th>
+                            <th>W (ft)</th>
+                            <th>p<sub>d</sub> (psf)</th>
+                            <th>Total (psf)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="configurations-table">
+                        <!-- Rows will be generated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Joist Perpendicular Tab -->
+        <div id="joist-perp-content" class="tab-content">
+            <div class="grid grid-2">
+                <div class="card card-purple">
+                    <h2 class="card-title card-title-purple">Joist Perpendicular to Wall</h2>
+                    <p class="subtitle" style="margin-bottom: 16px;">Combined uniform balanced load + triangular drift load analysis</p>
+                    
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Drift Source</label>
+                                <select id="perp-drift-source" onchange="updatePerpendicular()">
+                                    <option value="">Select Drift Configuration</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Drift Load (P<sub>d</sub>)</label>
+                                <div class="input-group">
+                                    <input type="number" id="perp-drift-load" value="0" step="0.1" readonly>
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-row form-row-3">
+                            <div>
+                                <label>Balanced Load (P<sub>f</sub>)</label>
+                                <div class="input-group">
+                                    <input type="number" id="perp-balanced-load" value="0" step="0.1" readonly>
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Drift Width (W)</label>
+                                <div class="input-group">
+                                    <input type="number" id="perp-drift-width" value="0" step="0.1" readonly>
+                                    <span class="input-addon">ft</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Joist Spacing</label>
+                                <div class="input-group">
+                                    <input type="number" id="perp-spacing" value="24" step="1" onchange="updatePerpendicular()">
+                                    <span class="input-addon">in</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Joist Length</label>
+                                <div class="input-group">
+                                    <input type="number" id="perp-length" value="20" step="0.5" onchange="updatePerpendicular()">
+                                    <span class="input-addon">ft</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Triangle Peak Location</label>
+                                <select id="perp-peak-location" onchange="updatePerpendicular()">
+                                    <option value="right">Right End</option>
+                                    <option value="left">Left End</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-purple">
+                    <h2 class="card-title card-title-purple">Load Analysis</h2>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Uniform Load</div>
+                        <div class="calculation-value calculation-value-purple" id="perp-uniform-load">0.0 plf</div>
+                        <div class="calculation-formula">w<sub>uniform</sub> = P<sub>f</sub> × Spacing</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Triangular Load (Peak)</div>
+                        <div class="calculation-value calculation-value-purple" id="perp-triangular-peak">0.0 plf</div>
+                        <div class="calculation-formula">w<sub>peak</sub> = P<sub>d</sub> × Spacing</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Left Reaction</div>
+                        <div class="calculation-value calculation-value-purple" id="perp-left-reaction">0.0 lbs</div>
+                        <div class="calculation-formula">R<sub>L</sub> = Uniform + Triangle contrib.</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Right Reaction</div>
+                        <div class="calculation-value calculation-value-purple" id="perp-right-reaction">0.0 lbs</div>
+                        <div class="calculation-formula">R<sub>R</sub> = Uniform + Triangle contrib.</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Maximum Moment</div>
+                        <div class="calculation-value calculation-value-purple" id="perp-moment">0.0 ft-lbs</div>
+                        <div class="calculation-formula">Max M of combined load diagram (numerical integration)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Joist Parallel Tab -->
+        <div id="joist-parallel-content" class="tab-content">
+            <div class="grid grid-3">
+                <div class="card card-orange">
+                    <h2 class="card-title card-title-orange">Parallel Configuration</h2>
+                    
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Drift Source</label>
+                                <select id="parallel-drift-source" onchange="updateParallel()">
+                                    <option value="">Select Drift Configuration</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Max Drift Load (P<sub>d</sub>+P<sub>f</sub>)</label>
+                                <div class="input-group">
+                                    <input type="number" id="parallel-max-load" value="0" step="0.1" readonly>
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Distance from Wall</label>
+                                <div class="input-group">
+                                    <input type="number" id="parallel-distance" value="0.5" step="0.1" onchange="updateParallel()">
+                                    <span class="input-addon">ft</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Joist Spacing</label>
+                                <div class="input-group">
+                                    <input type="number" id="parallel-spacing" value="6" step="0.5" onchange="updateParallel()">
+                                    <span class="input-addon">ft</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-row form-row-2">
+                            <div>
+                                <label>Dead Load</label>
+                                <div class="input-group">
+                                    <input type="number" id="parallel-dead-load" value="19" step="1" onchange="updateParallel()">
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label>Roof Snow Load (P<sub>f</sub>)</label>
+                                <div class="input-group">
+                                    <input type="number" id="parallel-roof-snow" value="0" step="1" readonly>
+                                    <span class="input-addon">psf</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-orange">
+                    <h2 class="card-title card-title-orange">Analysis Parameters</h2>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Drift Width (W)</div>
+                        <div class="calculation-value calculation-value-orange" id="parallel-drift-width">0.0 ft</div>
+                        <div class="calculation-formula">From selected drift configuration</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Number of Joists</div>
+                        <div class="calculation-value calculation-value-orange" id="parallel-num-joists">0</div>
+                        <div class="calculation-formula">Within drift zone</div>
+                    </div>
+                    
+                    <div class="highlight-result">
+                        <div class="calculation-label">Maximum Joist Load</div>
+                        <div class="calculation-value calculation-value-orange" id="parallel-max-joist-load">0.0 plf</div>
+                        <div class="calculation-formula">Critical joist loading</div>
+                    </div>
+                </div>
+
+                <div class="card card-orange">
+                    <h2 class="card-title card-title-orange">Loading Summary</h2>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Total DL + LL</div>
+                        <div class="calculation-value calculation-value-orange" id="parallel-total-dl-ll">0.0 plf</div>
+                    </div>
+                    
+                    <div class="calculation-item">
+                        <div class="calculation-label">Total LL Only</div>
+                        <div class="calculation-value calculation-value-orange" id="parallel-total-ll">0.0 plf</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Joist Analysis Table -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Joist #</th>
+                            <th>Distance (ft)</th>
+                            <th>Snow Load (psf)</th>
+                            <th>Drift Force (plf)</th>
+                            <th>Total DL+LL (plf)</th>
+                            <th>Total LL (plf)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="parallel-joists-table">
+                        <!-- Rows will be generated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section-separator"></div>
+
+        <!-- Calculation Explanations -->
+        <div class="card card-yellow">
+            <h3 class="card-title card-title-yellow">
+                <svg style="display: inline; width: 20px; height: 20px; margin-right: 8px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0H5m14 0v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5m14 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v12"/>
+                </svg>
+                Calculation Explanations
+            </h3>
+            <div class="explanation-grid">
+                <div class="explanation-section">
+                    <h4>Snow Drift Formulas:</h4>
+                    <ul class="explanation-list">
+                        <li>• p<sub>f</sub> = Factor × C<sub>e</sub> × C<sub>t</sub> × I<sub>s</sub> × p<sub>g</sub></li>
+                        <li>• γ = MIN((0.13 × p<sub>g</sub> + 14), 30)</li>
+                        <li>• h<sub>b</sub> = p<sub>f</sub> / γ</li>
+                        <li>• h<sub>c</sub> = MAX((h<sub>r</sub> - h<sub>b</sub>), 0)</li>
+                        <li>• h<sub>d</sub> = 0.43 × l<sub>u</sub><sup>1/3</sup> × (p<sub>g</sub> + 10)<sup>1/4</sup> - 1.5</li>
+                        <li>• l<sub>u</sub> taken &ge; 25 ft in the h<sub>d</sub> equation (ASCE 7 Fig. 7-9)</li>
+                    </ul>
+                </div>
+                <div class="explanation-section">
+                    <h4>Joist Calculations:</h4>
+                    <ul class="explanation-list">
+                        <li>• <strong>Perpendicular:</strong> Combined uniform + triangular loading</li>
+                        <li>• Uniform Load = P<sub>f</sub> × Spacing (balanced snow)</li>
+                        <li>• Triangular Load = P<sub>d</sub> × Spacing (drift, peak at wall)</li>
+                        <li>• Reactions account for triangle centroid at W/3 from peak</li>
+                        <li>• <strong>Parallel:</strong> Complex trapezoidal loading</li>
+                        <li>• Snow varies linearly from wall to drift width</li>
+                        <li>• P<sub>f</sub> and P<sub>d</sub>+P<sub>f</sub> automatically pulled from drift analysis</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let configurations = [
+            { name: 'Front Wall', type: 'parapet', hr: 3.5, lu: 15.25 },
+            { name: 'Rear Wall', type: 'parapet', hr: 10.0, lu: 15.25 },
+            { name: 'Side Wall 1', type: 'parapet', hr: 3.5, lu: 28.0 },
+            { name: 'Side Wall 2', type: 'parapet', hr: 10.0, lu: 28.0 },
+            { name: 'Leeward Drift', type: 'leeward', hr: 10.0, lu: 82.0 },
+            { name: 'Windward Drift', type: 'windward', hr: 10.0, lu: 15.25 }
+        ];
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-content').classList.add('active');
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+            
+            // Update dropdown options
+            updateDropdowns();
+        }
+
+        // Get input values
+        function getInputs() {
+            return {
+                pg: parseFloat(document.getElementById('pg').value) || 0,
+                factor: parseFloat(document.getElementById('factor').value) || 0,
+                ce: parseFloat(document.getElementById('ce').value) || 0,
+                ct: parseFloat(document.getElementById('ct').value) || 0,
+                is: parseFloat(document.getElementById('is').value) || 0
+            };
+        }
+
+        // Calculate basic values
+        function calculateBasics() {
+            const inputs = getInputs();
+            
+            // pf = factor * Ce * Ct * Is * pg
+            const pf = inputs.factor * inputs.ce * inputs.ct * inputs.is * inputs.pg;
+            
+            // γ = MIN((0.13 * pg + 14), 30)
+            const gamma = Math.min(0.13 * inputs.pg + 14, 30);
+            
+            // hb = pf / γ
+            const hb = pf / gamma;
+            
+            return { pf, gamma, hb };
+        }
+
+        // Calculate drift parameters for a configuration
+        function calculateDrift(config, basics) {
+            const { hr, lu, type } = config;
+            const { pf, gamma, hb } = basics;
+            const inputs = getInputs();
+            
+            // hc = MAX((hr - hb), 0)
+            const hc = Math.max(hr - hb, 0);
+            
+            // hc/hb ratio
+            const hcHbRatio = hb > 0 ? hc / hb : 0;
+            
+            // Calculate drift height based on type
+            let driftHeight = 0;
+            if (hcHbRatio >= 0.2) {
+                // hd = 0.43 * lu^(1/3) * (pg + 10)^(1/4) - 1.5  (ASCE 7 Fig. 7-9; lu taken >= 25 ft)
+                const luEff = Math.max(lu, 25);
+                const hd = 0.43 * Math.pow(luEff, 1/3) * Math.pow(inputs.pg + 10, 1/4) - 1.5;
+                
+                if (type === 'parapet' || type === 'windward') {
+                    driftHeight = 0.75 * hd; // 0.75hd for parapet and windward
+                } else {
+                    driftHeight = hd; // hd for leeward
+                }
+                
+                driftHeight = Math.max(driftHeight, 0);
+            }
+            
+            // Calculate width W
+            let W = 0;
+            if (driftHeight > 0) {
+                if (driftHeight <= hc) {
+                    W = 4 * driftHeight;
+                } else {
+                    W = 4 * Math.pow(driftHeight, 2) / hc;
+                }
+                W = Math.min(W, 8 * hc);
+            }
+            
+            // Calculate drift pressure pd
+            let pd = 0;
+            if (driftHeight > 0) {
+                if (driftHeight < hc) {
+                    pd = gamma * driftHeight;
+                } else {
+                    pd = gamma * hc;
+                }
+            }
+            
+            // Total pressure
+            const totalPressure = pd + pf;
+            
+            return {
+                hc: hc,
+                hcHbRatio: hcHbRatio,
+                driftHeight: driftHeight,
+                W: W,
+                pd: pd,
+                totalPressure: totalPressure
+            };
+        }
+
+        // Update display values
+        function updateDisplay() {
+            const basics = calculateBasics();
+            
+            // Update basic calculations display
+            document.getElementById('pf-value').textContent = basics.pf.toFixed(1) + ' psf';
+            document.getElementById('gamma-value').textContent = basics.gamma.toFixed(1) + ' pcf';
+            document.getElementById('hb-value').textContent = basics.hb.toFixed(2) + ' ft';
+            
+            // Update configurations table
+            updateConfigurationsTable(basics);
+            syncConfigData();
+            
+            // Update joist calculations
+            updatePerpendicular();
+            updateParallel();
+        }
+
+        // Update configurations table
+        function updateConfigurationsTable(basics) {
+            const tbody = document.getElementById('configurations-table');
+            tbody.innerHTML = '';
+            
+            configurations.forEach((config, index) => {
+                const results = calculateDrift(config, basics);
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="text" class="input-full" id="cfgName_${index}" value="${config.name}" 
+                               onchange="updateConfigName(${index}, this.value)">
+                    </td>
+                    <td>
+                        <select class="input-full" id="cfgType_${index}" onchange="updateConfigType(${index}, this.value)">
+                            <option value="parapet" ${config.type === 'parapet' ? 'selected' : ''}>Parapet</option>
+                            <option value="leeward" ${config.type === 'leeward' ? 'selected' : ''}>Leeward</option>
+                            <option value="windward" ${config.type === 'windward' ? 'selected' : ''}>Windward</option>
+                        </select>
+                    </td>
+                    <td>
+                        <input type="number" class="input-small" id="cfgHr_${index}" value="${config.hr}" step="0.1"
+                               onchange="updateConfigValue(${index}, 'hr', this.value)">
+                    </td>
+                    <td>
+                        <input type="number" class="input-small" id="cfgLu_${index}" value="${config.lu}" step="0.1"
+                               onchange="updateConfigValue(${index}, 'lu', this.value)">
+                    </td>
+                    <td>${results.hc.toFixed(2)}</td>
+                    <td>${results.hcHbRatio.toFixed(2)}</td>
+                    <td>${results.driftHeight.toFixed(2)}</td>
+                    <td>${results.W.toFixed(2)}</td>
+                    <td class="text-blue">${results.pd.toFixed(1)}</td>
+                    <td class="text-red">${results.totalPressure.toFixed(1)}</td>
+                    <td>
+                        <button class="btn-danger" onclick="removeConfiguration(${index})">Remove</button>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            updateDropdowns();
+        }
+
+        // Update dropdowns for joist calculations
+        function updateDropdowns() {
+            const basics = calculateBasics();
+            const perpSelect = document.getElementById('perp-drift-source');
+            const parallelSelect = document.getElementById('parallel-drift-source');
+            
+            // Clear existing options (except first)
+            perpSelect.innerHTML = '<option value="">Select Drift Configuration</option>';
+            parallelSelect.innerHTML = '<option value="">Select Drift Configuration</option>';
+            
+            configurations.forEach((config, index) => {
+                const results = calculateDrift(config, basics);
+                const option1 = document.createElement('option');
+                const option2 = document.createElement('option');
+                
+                option1.value = index;
+                option1.textContent = `${config.name} (${results.totalPressure.toFixed(1)} psf)`;
+                option2.value = index;
+                option2.textContent = `${config.name} (${results.totalPressure.toFixed(1)} psf)`;
+                
+                perpSelect.appendChild(option1);
+                parallelSelect.appendChild(option2);
+            });
+        }
+
+        // Joist perpendicular calculations
+        function updatePerpendicular() {
+            const sourceIndex = document.getElementById('perp-drift-source').value;
+            const spacing = parseFloat(document.getElementById('perp-spacing').value) || 0; // inches
+            const length = parseFloat(document.getElementById('perp-length').value) || 0; // feet
+            const peakLocation = document.getElementById('perp-peak-location').value;
+            
+            if (sourceIndex === '') {
+                document.getElementById('perp-drift-load').value = '0';
+                document.getElementById('perp-balanced-load').value = '0';
+                document.getElementById('perp-drift-width').value = '0';
+                document.getElementById('perp-uniform-load').textContent = '0.0 plf';
+                document.getElementById('perp-triangular-peak').textContent = '0.0 plf';
+                document.getElementById('perp-left-reaction').textContent = '0.0 lbs';
+                document.getElementById('perp-right-reaction').textContent = '0.0 lbs';
+                document.getElementById('perp-moment').textContent = '0.0 ft-lbs';
+                return;
+            }
+            
+            const basics = calculateBasics();
+            const config = configurations[sourceIndex];
+            const results = calculateDrift(config, basics);
+            
+            // Update load displays
+            document.getElementById('perp-drift-load').value = results.pd.toFixed(1);
+            document.getElementById('perp-balanced-load').value = basics.pf.toFixed(1);
+            document.getElementById('perp-drift-width').value = results.W.toFixed(1);
+            
+            // Convert spacing to feet
+            const spacingFt = spacing / 12;
+            
+            // Calculate uniform load from balanced snow (Pf)
+            const uniformLoad = basics.pf * spacingFt;
+            
+            // Calculate triangular load peak from drift (Pd)
+            const triangularPeak = results.pd * spacingFt;
+            
+            // Update load displays
+            document.getElementById('perp-uniform-load').textContent = uniformLoad.toFixed(1) + ' plf';
+            document.getElementById('perp-triangular-peak').textContent = triangularPeak.toFixed(1) + ' plf';
+            
+            // Limit drift width to joist length if necessary
+            const effectiveDriftWidth = Math.min(results.W, length);
+            
+            // Calculate reactions
+            // Uniform load reaction at each end
+            const uniformReaction = (uniformLoad * length) / 2;
+            
+            // Triangular load total = (1/2) * peak * width
+            const triangularTotal = (triangularPeak * effectiveDriftWidth) / 2;
+            
+            // Triangular load centroid distance from peak = W/3
+            const centroidFromPeak = effectiveDriftWidth / 3;
+            
+            let leftReaction, rightReaction;
+            
+            if (peakLocation === 'right') {
+                // Peak at right end, centroid at (L - W/3) from left end
+                const centroidFromLeft = length - centroidFromPeak;
+                
+                // Using moment equilibrium about left end
+                rightReaction = uniformReaction + (triangularTotal * centroidFromLeft) / length;
+                leftReaction = uniformReaction + triangularTotal - rightReaction;
+            } else {
+                // Peak at left end, centroid at W/3 from left end
+                const centroidFromLeft = centroidFromPeak;
+                
+                // Using moment equilibrium about left end
+                rightReaction = uniformReaction + (triangularTotal * centroidFromLeft) / length;
+                leftReaction = uniformReaction + triangularTotal - rightReaction;
+            }
+            
+            // Maximum moment — combined uniform + triangular drift, found by
+            // numerical integration of the shear/moment diagrams (exact within dx).
+            const w0 = uniformLoad, qp = triangularPeak, L = length, Wd = effectiveDriftWidth;
+            function qDrift(x) {
+                if (Wd <= 0) return 0;
+                if (peakLocation === 'right') {
+                    const s = x - (L - Wd);
+                    return s > 0 ? qp * (s / Wd) : 0;
+                }
+                return x < Wd ? qp * ((Wd - x) / Wd) : 0;
+            }
+            const nSeg = 400;
+            const dx = L / nSeg;
+            let Vx = leftReaction, Mx = 0, totalMoment = 0;
+            for (let k = 0; k < nSeg; k++) {
+                const xm = (k + 0.5) * dx;
+                const q = w0 + qDrift(xm);
+                Mx += Vx * dx - q * dx * dx / 2;
+                Vx -= q * dx;
+                if (Mx > totalMoment) totalMoment = Mx;
+            }
+
+            // Update display
+            document.getElementById('perp-left-reaction').textContent = leftReaction.toFixed(0) + ' lbs';
+            document.getElementById('perp-right-reaction').textContent = rightReaction.toFixed(0) + ' lbs';
+            document.getElementById('perp-moment').textContent = totalMoment.toFixed(0) + ' ft-lbs';
+        }
+
+        // Joist parallel calculations
+        function updateParallel() {
+            const sourceIndex = document.getElementById('parallel-drift-source').value;
+            const distanceFromWall = parseFloat(document.getElementById('parallel-distance').value) || 0;
+            const joistSpacing = parseFloat(document.getElementById('parallel-spacing').value) || 0;
+            const deadLoad = parseFloat(document.getElementById('parallel-dead-load').value) || 0;
+            
+            if (sourceIndex === '') {
+                document.getElementById('parallel-max-load').value = '0';
+                document.getElementById('parallel-roof-snow').value = '0';
+                document.getElementById('parallel-drift-width').textContent = '0.0 ft';
+                document.getElementById('parallel-num-joists').textContent = '0';
+                document.getElementById('parallel-max-joist-load').textContent = '0.0 plf';
+                document.getElementById('parallel-total-dl-ll').textContent = '0.0 plf';
+                document.getElementById('parallel-total-ll').textContent = '0.0 plf';
+                document.getElementById('parallel-joists-table').innerHTML = '';
+                return;
+            }
+            
+            const basics = calculateBasics();
+            const config = configurations[sourceIndex];
+            const results = calculateDrift(config, basics);
+            
+            // Automatically pull values from drift analysis
+            const maxDriftLoad = results.pd + basics.pf; // Pd + Pf (total pressure)
+            const roofSnowLoad = basics.pf; // Pf from drift analysis
+            
+            // Update displays with automatically pulled values
+            document.getElementById('parallel-max-load').value = maxDriftLoad.toFixed(1);
+            document.getElementById('parallel-roof-snow').value = roofSnowLoad.toFixed(1);
+            document.getElementById('parallel-drift-width').textContent = results.W.toFixed(1) + ' ft';
+            
+            // Calculate number of joists within drift zone
+            const numJoists = Math.ceil((results.W + joistSpacing) / joistSpacing);
+            document.getElementById('parallel-num-joists').textContent = numJoists;
+            
+            // Generate joist analysis table
+            const tbody = document.getElementById('parallel-joists-table');
+            tbody.innerHTML = '';
+            
+            let maxJoistLoad = 0;
+            let maxTotalDLLL = 0;
+            let maxTotalLL = 0;
+
+            // Joist locations and drift surcharge intensity at each joist
+            const xJ = [], qJ = [];
+            for (let i = 1; i <= numJoists; i++) {
+                const x = distanceFromWall + (i - 1) * joistSpacing;
+                xJ.push(x);
+                qJ.push(x < results.W ? results.pd * ((results.W - x) / results.W) : 0);
+            }
+
+            // Distribute the triangular drift surcharge to the joists using
+            // simple-beam (deck) reactions on each span between adjacent joists,
+            // so each joist receives its share from BOTH adjacent spans.
+            // The strip between the wall and joist 1 is assigned entirely to
+            // joist 1 (conservative — assumes the wall does not support deck).
+            const driftForces = new Array(numJoists).fill(0);
+            driftForces[0] += 0.5 * xJ[0] * (results.pd - qJ[0]) + qJ[0] * xJ[0];
+            for (let i = 0; i < numJoists - 1; i++) {
+                const d = xJ[i + 1] - xJ[i];
+                if (d <= 0 || qJ[i] <= 0) continue;
+                if (qJ[i + 1] > 0) {
+                    // Trapezoid q_i -> q_{i+1}: R_near = d(2q_i+q_{i+1})/6, R_far = d(q_i+2q_{i+1})/6
+                    driftForces[i]     += d * (2 * qJ[i] + qJ[i + 1]) / 6;
+                    driftForces[i + 1] += d * (qJ[i] + 2 * qJ[i + 1]) / 6;
+                } else {
+                    // Drift ends inside this span: triangle q_i -> 0 over a = W - x_i
+                    const a = results.W - xJ[i];
+                    const A = 0.5 * qJ[i] * a;   // resultant of remaining triangle
+                    const Rfar = A * (a / 3) / d; // share carried to far joist
+                    driftForces[i + 1] += Rfar;
+                    driftForces[i]     += A - Rfar;
+                }
+            }
+
+            for (let i = 1; i <= numJoists; i++) {
+                const distance = xJ[i - 1];
+                const snowLoad = qJ[i - 1];
+                const driftForce = driftForces[i - 1];
+
+                // Calculate total loads using automatically pulled roof snow load
+                const totalDLLL = joistSpacing * (deadLoad + roofSnowLoad) + driftForce;
+                const totalLL = joistSpacing * roofSnowLoad + driftForce;
+
+                // Track maximums
+                maxJoistLoad = Math.max(maxJoistLoad, driftForce);
+                maxTotalDLLL = Math.max(maxTotalDLLL, totalDLLL);
+                maxTotalLL = Math.max(maxTotalLL, totalLL);
+
+                // Add row to table
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${i}</td>
+                    <td>${distance.toFixed(2)}</td>
+                    <td>${snowLoad.toFixed(2)}</td>
+                    <td class="text-orange">${driftForce.toFixed(1)}</td>
+                    <td class="text-orange">${totalDLLL.toFixed(1)}</td>
+                    <td class="text-orange">${totalLL.toFixed(1)}</td>
+                `;
+                tbody.appendChild(row);
+            }
+
+            // Update summary displays
+            document.getElementById('parallel-max-joist-load').textContent = maxJoistLoad.toFixed(1) + ' plf';
+            document.getElementById('parallel-total-dl-ll').textContent = maxTotalDLLL.toFixed(1) + ' plf';
+            document.getElementById('parallel-total-ll').textContent = maxTotalLL.toFixed(1) + ' plf';
+        }
+
+        // Mirror configurations into a hidden input so the ARE Save/Load
+        // toolbar can persist a variable number of drift configurations.
+        function syncConfigData() {
+            const el = document.getElementById('configData');
+            if (el) el.value = JSON.stringify(configurations);
+        }
+
+        // Alias so the ARE toolbar auto-runs after Load
+        function runCalcs() { updateDisplay(); }
+
+        // Configuration management functions
+        function addConfiguration() {
+            configurations.push({
+                name: `Config ${configurations.length + 1}`,
+                type: 'parapet',
+                hr: 5.0,
+                lu: 20.0
+            });
+            updateDisplay();
+        }
+
+        function removeConfiguration(index) {
+            configurations.splice(index, 1);
+            updateDisplay();
+        }
+
+        function updateConfigName(index, value) {
+            configurations[index].name = value;
+            updateDropdowns();
+        }
+
+        function updateConfigType(index, value) {
+            configurations[index].type = value;
+            updateDisplay();
+        }
+
+        function updateConfigValue(index, field, value) {
+            configurations[index][field] = parseFloat(value) || 0;
+            updateDisplay();
+        }
+
+        // Event listeners for input changes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners to all input fields
+            ['pg', 'factor', 'ce', 'ct', 'is'].forEach(id => {
+                const el = document.getElementById(id);
+                el.addEventListener('input', updateDisplay);
+                el.addEventListener('change', updateDisplay);
+            });
+
+            // Restore drift configurations when ARE Load fires a change on configData
+            document.getElementById('configData').addEventListener('change', function() {
+                try {
+                    const parsed = JSON.parse(this.value);
+                    if (Array.isArray(parsed) && parsed.length) {
+                        configurations = parsed;
+                        updateDisplay();
+                    }
+                } catch (e) { /* ignore */ }
+            });
+            
+            // Initial display update
+            updateDisplay();
+        });
+    </script>
+<script>
+/* ===== ARE shared utilities (inlined; Save/Load/Print) ===== */
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Counterfort Retaining Wall - Bay Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#1a1a2e;--surface:#16213e;--accent:#e94560;--accent2:#f5a623;
+    --text:#e0e0e0;--dim:#8a8fa8;--pass:#4ecdc4;--fail:#e94560;
+    --border:#2a2d4a;--inbg:#0d1b36;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:20px;}
+  .container{max-width:900px;margin:0 auto;}
+  header{margin-bottom:28px;border-bottom:2px solid var(--accent);padding-bottom:14px;}
+  header h1{font-family:'IBM Plex Mono',monospace;font-size:1.3rem;font-weight:600;color:var(--accent);}
+  header p{font-size:0.83rem;color:var(--dim);margin-top:4px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;margin-bottom:16px;}
+  .ptitle{font-family:'IBM Plex Mono',monospace;font-size:0.78rem;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent2);margin-bottom:14px;}
+  .inputs-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;}
+  @media(max-width:700px){.inputs-grid{grid-template-columns:1fr;}}
+  .ig{margin-bottom:9px;display:grid;grid-template-columns:1fr 75px 46px;align-items:center;gap:5px;}
+  .ig label{font-size:0.76rem;color:var(--dim);}
+  .ig input{font-family:'IBM Plex Mono',monospace;font-size:0.82rem;background:var(--inbg);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;text-align:right;width:100%;}
+  .ig input:focus{outline:none;border-color:var(--accent);}
+  .ig .u{font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--dim);}
+  hr.sep{border:none;border-top:1px solid var(--border);margin:10px 0;grid-column:1/-1;}
+  .btn{width:100%;padding:10px;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;margin-top:8px;grid-column:1/-1;}
+  .btn:hover{background:#d13550;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:14px;}
+  .card h3{font-family:'IBM Plex Mono',monospace;font-size:0.73rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent2);margin-bottom:10px;}
+  .eq{font-family:'IBM Plex Mono',monospace;font-size:0.77rem;line-height:1.85;color:var(--dim);margin-left:8px;white-space:pre-wrap;}
+  .v{color:#e0e0e0;font-weight:500;} .hi{color:#f5a623;font-weight:600;}
+  .ehead{font-family:'IBM Plex Mono',monospace;font-size:0.79rem;color:var(--text);font-weight:600;border-bottom:1px dashed var(--border);display:inline-block;margin-top:8px;margin-bottom:2px;}
+  table.st{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:0.77rem;margin-top:8px;}
+  table.st th{text-align:left;color:var(--dim);font-weight:500;padding:4px 8px;border-bottom:1px solid var(--border);}
+  table.st td{padding:4px 8px;color:var(--text);}
+  table.st .tot td{border-top:2px solid var(--accent2);font-weight:600;color:var(--accent2);}
+  .status{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:0.79rem;font-weight:600;padding:3px 10px;border-radius:4px;margin-top:6px;}
+  .status.pass{background:rgba(78,205,196,0.15);color:var(--pass);border:1px solid var(--pass);}
+  .status.fail{background:rgba(233,69,96,0.15);color:var(--fail);border:1px solid var(--fail);}
+  .note{background:rgba(233,69,96,0.08);border:1px solid rgba(233,69,96,0.3);border-radius:6px;padding:10px 14px;font-size:0.8rem;line-height:1.5;color:var(--dim);margin-top:10px;}
+  .note b{color:var(--accent);}
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:700px){.cmp{grid-template-columns:1fr;}}
+  .cbox{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--surface);}
+  .cbox h4{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:6px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Counterfort Retaining Wall - Full Bay Analysis</h1>
+    <p>One counterfort bay with actual footing geometry &middot; 2024 IBC / ACI 318-25</p>
+  </header>
+  <div class="panel">
+    <div class="inputs-grid">
+      <div class="ptitle" style="grid-column:1/-1">Material &amp; Soil</div>
+      <div class="ig"><label>Conc unit wt, gc</label><input type="number" id="gc" value="150" step="5"><span class="u">pcf</span></div>
+      <div class="ig"><label>Equiv fluid, Pa</label><input type="number" id="Pa" value="50" step="5"><span class="u">pcf</span></div>
+      <div class="ig"><label>Passive, Pp</label><input type="number" id="Pp" value="350" step="25"><span class="u">psf/ft</span></div>
+      <div class="ig"><label>Seismic, PE</label><input type="number" id="PE" value="0" step="5"><span class="u">psf/ft</span></div>
+      <div class="ig"><label>Backfill, gb</label><input type="number" id="gb" value="110" step="5"><span class="u">pcf</span></div>
+      <div class="ig"><label>Surcharge, ws</label><input type="number" id="ws" value="5" step="5"><span class="u">psf</span></div>
+      <div class="ig"><label>Friction, mu</label><input type="number" id="mu" value="0.4" step="0.05"><span class="u">-</span></div>
+      <div class="ig"><label>Allow bearing, Qa</label><input type="number" id="Qa" value="3.0" step="0.25"><span class="u">ksf</span></div>
+      <hr class="sep">
+      <div class="ptitle" style="grid-column:1/-1">Wall &amp; Footing Geometry</div>
+      <div class="ig"><label>Wall height, H</label><input type="number" id="H" value="11.67" step="0.25"><span class="u">ft</span></div>
+      <div class="ig"><label>Wall thick, tw</label><input type="number" id="tw" value="10" step="1"><span class="u">in</span></div>
+      <div class="ig"><label>Ftg thick, hf</label><input type="number" id="hf" value="12" step="1"><span class="u">in</span></div>
+      <div class="ig"><label>Key depth, hk</label><input type="number" id="hk" value="0" step="3"><span class="u">in</span></div>
+      <div class="ig"><label>Toe width, LT</label><input type="number" id="LT" value="1" step="0.5"><span class="u">ft</span></div>
+      <div class="ig"><label>Soil over toe, hp</label><input type="number" id="hp" value="24" step="3"><span class="u">in</span></div>
+      <hr class="sep">
+      <div class="ptitle" style="grid-column:1/-1">Counterfort &amp; Heel</div>
+      <div class="ig"><label>C/F spacing, Sc</label><input type="number" id="Sc" value="10" step="0.5"><span class="u">ft</span></div>
+      <div class="ig"><label>C/F web thick, tc</label><input type="number" id="tc" value="10" step="1"><span class="u">in</span></div>
+      <div class="ig"><label>C/F ftg pad width, Wpad</label><input type="number" id="Wpad" value="3" step="0.5"><span class="u">ft</span></div>
+      <div class="ig"><label>Heel @ C/F, LH_cf</label><input type="number" id="LH_cf" value="4" step="0.5"><span class="u">ft</span></div>
+      <div class="ig"><label>Heel betw C/F, LH_bw</label><input type="number" id="LH_bw" value="1" step="0.5"><span class="u">ft</span></div>
+      <button class="btn" onclick="calculate()">CALCULATE BAY</button>
+    </div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+function gv(id){return parseFloat(document.getElementById(id).value);}
+function R(n,d){return d===undefined?n.toFixed(3):n.toFixed(d);}
+
+// =================== SVG DIAGRAMS ===================
+
+function drawCrossSection(LT,tw,LH_cf,LH_bw,H,hf,hk,hp,Ht,Lcf,Lbw,Pa,Pp,ws,gb){
+  var W=700,HT=520;
+  var mx=90,my=50,mr=60,mb=80;
+  var dw=W-mx-mr, dh=HT-my-mb;
+  var totalVert=Ht+hp+hk;
+  var sx=dw/(Lcf*1.15), sy=dh/(totalVert*1.05);
+  var sc=Math.min(sx,sy);
+  var topY=my+20;
+  var ftgTopY=topY+H*sc;
+  var ftgBotY=ftgTopY+hf*sc;
+  var keyBotY=ftgBotY+hk*sc;
+  var toeGrY=ftgTopY-hp*sc;
+  var ox=mx+10;
+  var toeX=ox, wallFX=ox+LT*sc, wallBX=wallFX+tw*sc;
+  var heelEndCf=wallBX+LH_cf*sc;
+  var heelEndBw=wallBX+LH_bw*sc;
+  var fnt='font-family:IBM Plex Mono,monospace;font-size:11px;';
+  var dC='#8a8fa8',lC='#f5a623',aC='#e94560',rC='#4ecdc4';
+
+  var s='<div class="card"><h3>Cross Section at Counterfort</h3>';
+  s+='<svg width="'+W+'" height="'+HT+'" viewBox="0 0 '+W+' '+HT+'" style="background:var(--inbg);border-radius:6px;display:block;margin:0 auto;">';
+  s+='<defs><marker id="aR" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="'+aC+'"/></marker>';
+  s+='<marker id="aG" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 0L5 10z" fill="'+rC+'"/></marker></defs>';
+
+  // Soil retained side
+  s+='<rect x="'+wallBX+'" y="'+topY+'" width="'+(heelEndCf-wallBX+20)+'" height="'+(ftgTopY-topY)+'" fill="#3d3522" opacity="0.4"/>';
+  // Soil toe side
+  s+='<rect x="'+toeX+'" y="'+toeGrY+'" width="'+(wallFX-toeX)+'" height="'+(ftgTopY-toeGrY)+'" fill="#3d3522" opacity="0.25"/>';
+  // Footing (at counterfort = full Lcf)
+  s+='<rect x="'+toeX+'" y="'+ftgTopY+'" width="'+(heelEndCf-toeX)+'" height="'+(hf*sc)+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';
+  // Dashed line showing reduced footing between counterforts
+  s+='<line x1="'+heelEndBw+'" y1="'+ftgTopY+'" x2="'+heelEndBw+'" y2="'+ftgBotY+'" stroke="#e94560" stroke-width="1.5" stroke-dasharray="5,3"/>';
+  s+='<text x="'+(heelEndBw+4)+'" y="'+((ftgTopY+ftgBotY)/2+4)+'" fill="'+aC+'" style="'+fnt+'font-size:9px;">heel end</text>';
+  s+='<text x="'+(heelEndBw+4)+'" y="'+((ftgTopY+ftgBotY)/2+15)+'" fill="'+aC+'" style="'+fnt+'font-size:9px;">betw c/f</text>';
+  // Wall
+  s+='<rect x="'+wallFX+'" y="'+topY+'" width="'+(tw*sc)+'" height="'+(H*sc)+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';
+  // Key
+  if(hk>0){s+='<rect x="'+wallFX+'" y="'+ftgBotY+'" width="'+(tw*sc)+'" height="'+(hk*sc)+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';}
+  // Grade lines
+  s+='<line x1="'+wallBX+'" y1="'+topY+'" x2="'+(heelEndCf+25)+'" y2="'+topY+'" stroke="#8aaa5a" stroke-width="2" stroke-dasharray="6,3"/>';
+  s+='<line x1="'+(toeX-15)+'" y1="'+toeGrY+'" x2="'+wallFX+'" y2="'+toeGrY+'" stroke="#8aaa5a" stroke-width="2" stroke-dasharray="6,3"/>';
+
+  // --- DIMENSIONS ---
+  // H
+  var dxH=toeX-35;
+  s+='<line x1="'+dxH+'" y1="'+topY+'" x2="'+dxH+'" y2="'+ftgTopY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxH-5)+'" y1="'+topY+'" x2="'+(dxH+5)+'" y2="'+topY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxH-5)+'" y1="'+ftgTopY+'" x2="'+(dxH+5)+'" y2="'+ftgTopY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxH-4)+'" y="'+((topY+ftgTopY)/2)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="end">H</text>';
+  // hf
+  var dxhf=toeX-20;
+  s+='<line x1="'+dxhf+'" y1="'+ftgTopY+'" x2="'+dxhf+'" y2="'+ftgBotY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxhf-4)+'" y1="'+ftgTopY+'" x2="'+(dxhf+4)+'" y2="'+ftgTopY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxhf-4)+'" y1="'+ftgBotY+'" x2="'+(dxhf+4)+'" y2="'+ftgBotY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxhf-4)+'" y="'+((ftgTopY+ftgBotY)/2+4)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="end">hf</text>';
+  // hp
+  if(hp>0){var dxhp=toeX-50;
+  s+='<line x1="'+dxhp+'" y1="'+toeGrY+'" x2="'+dxhp+'" y2="'+ftgTopY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxhp-4)+'" y1="'+toeGrY+'" x2="'+(dxhp+4)+'" y2="'+toeGrY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxhp-4)+'" y1="'+ftgTopY+'" x2="'+(dxhp+4)+'" y2="'+ftgTopY+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxhp-4)+'" y="'+((toeGrY+ftgTopY)/2+4)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="end">hp</text>';}
+  // Bottom dims: LT, tw, LH_cf
+  var dy1=ftgBotY+18;
+  s+='<line x1="'+toeX+'" y1="'+dy1+'" x2="'+wallFX+'" y2="'+dy1+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+toeX+'" y1="'+(dy1-4)+'" x2="'+toeX+'" y2="'+(dy1+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+wallFX+'" y1="'+(dy1-4)+'" x2="'+wallFX+'" y2="'+(dy1+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((toeX+wallFX)/2)+'" y="'+(dy1+14)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">LT</text>';
+  s+='<line x1="'+wallFX+'" y1="'+dy1+'" x2="'+wallBX+'" y2="'+dy1+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+wallBX+'" y1="'+(dy1-4)+'" x2="'+wallBX+'" y2="'+(dy1+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((wallFX+wallBX)/2)+'" y="'+(dy1+14)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">tw</text>';
+  s+='<line x1="'+wallBX+'" y1="'+dy1+'" x2="'+heelEndCf+'" y2="'+dy1+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+heelEndCf+'" y1="'+(dy1-4)+'" x2="'+heelEndCf+'" y2="'+(dy1+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((wallBX+heelEndCf)/2)+'" y="'+(dy1+14)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">LH_cf</text>';
+  // LH_bw dimension
+  s+='<line x1="'+wallBX+'" y1="'+(dy1+24)+'" x2="'+heelEndBw+'" y2="'+(dy1+24)+'" stroke="'+aC+'" stroke-width="1"/>';
+  s+='<line x1="'+heelEndBw+'" y1="'+(dy1+20)+'" x2="'+heelEndBw+'" y2="'+(dy1+28)+'" stroke="'+aC+'" stroke-width="1"/>';
+  s+='<text x="'+((wallBX+heelEndBw)/2)+'" y="'+(dy1+38)+'" fill="'+aC+'" style="'+fnt+'" text-anchor="middle">LH_bw</text>';
+  // Total L
+  var dy2=dy1+50;
+  s+='<line x1="'+toeX+'" y1="'+dy2+'" x2="'+heelEndCf+'" y2="'+dy2+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+toeX+'" y1="'+(dy2-4)+'" x2="'+toeX+'" y2="'+(dy2+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+heelEndCf+'" y1="'+(dy2-4)+'" x2="'+heelEndCf+'" y2="'+(dy2+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((toeX+heelEndCf)/2)+'" y="'+(dy2+14)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">Lcf = '+R(Lcf,2)+'\'</text>';
+
+  // --- FORCE ARROWS ---
+  // Hb triangular
+  var triX=wallBX+5, triW=60;
+  s+='<polygon points="'+triX+','+topY+' '+(triX+triW)+','+ftgTopY+' '+triX+','+ftgTopY+'" fill="'+aC+'" opacity="0.2" stroke="'+aC+'" stroke-width="1"/>';
+  var hbY=ftgTopY-(Ht/3)*sc;
+  s+='<line x1="'+(triX+triW*2/3)+'" y1="'+hbY+'" x2="'+wallBX+'" y2="'+hbY+'" stroke="'+aC+'" stroke-width="2" marker-end="url(#aR)"/>';
+  s+='<text x="'+(triX+triW*2/3+5)+'" y="'+(hbY-6)+'" fill="'+aC+'" style="'+fnt+'font-weight:600;">Hb</text>';
+  // ws surcharge
+  s+='<rect x="'+wallBX+'" y="'+(topY-12)+'" width="'+(heelEndCf-wallBX+20)+'" height="10" fill="'+aC+'" opacity="0.15" stroke="'+aC+'" stroke-width="0.8"/>';
+  s+='<text x="'+((wallBX+heelEndCf)/2+10)+'" y="'+(topY-15)+'" fill="'+aC+'" style="'+fnt+'font-weight:600;" text-anchor="middle">ws</text>';
+  // Hs uniform lateral
+  s+='<rect x="'+(wallBX+5)+'" y="'+topY+'" width="25" height="'+(ftgTopY-topY)+'" fill="'+aC+'" opacity="0.1" stroke="'+aC+'" stroke-width="0.8" stroke-dasharray="3,2"/>';
+  s+='<text x="'+(wallBX+33)+'" y="'+((topY+ftgTopY)/2)+'" fill="'+aC+'" style="'+fnt+'font-size:10px;">Hs</text>';
+  // Hp passive
+  if(hp>0||hf>0){var pT=toeGrY,pB=ftgBotY,pW=35;
+  s+='<polygon points="'+wallFX+','+pT+' '+(wallFX-pW)+','+pB+' '+wallFX+','+pB+'" fill="'+rC+'" opacity="0.2" stroke="'+rC+'" stroke-width="1"/>';
+  s+='<text x="'+(wallFX-pW-5)+'" y="'+((pT+pB)/2)+'" fill="'+rC+'" style="'+fnt+'font-weight:600;" text-anchor="end">Hp</text>';}
+  // Wb
+  var wbX=(wallBX+heelEndCf)/2;
+  s+='<line x1="'+wbX+'" y1="'+(topY+30)+'" x2="'+wbX+'" y2="'+(ftgTopY-10)+'" stroke="'+rC+'" stroke-width="2" marker-end="url(#aG)"/>';
+  s+='<text x="'+(wbX+8)+'" y="'+((topY+30+ftgTopY-10)/2)+'" fill="'+rC+'" style="'+fnt+'font-weight:600;">Wb</text>';
+  // Ww
+  var wwX=(wallFX+wallBX)/2;
+  s+='<line x1="'+wwX+'" y1="'+(topY+15)+'" x2="'+wwX+'" y2="'+(ftgTopY-15)+'" stroke="'+rC+'" stroke-width="1.5" marker-end="url(#aG)"/>';
+  s+='<text x="'+(wwX-18)+'" y="'+((topY+15+ftgTopY-15)/2)+'" fill="'+rC+'" style="'+fnt+'font-size:10px;" text-anchor="end">Ww</text>';
+  // Wf
+  s+='<line x1="'+((toeX+heelEndCf)/2)+'" y1="'+(ftgTopY+3)+'" x2="'+((toeX+heelEndCf)/2)+'" y2="'+(ftgBotY-3)+'" stroke="'+rC+'" stroke-width="1.5" marker-end="url(#aG)"/>';
+  s+='<text x="'+((toeX+heelEndCf)/2+8)+'" y="'+((ftgTopY+ftgBotY)/2+4)+'" fill="'+rC+'" style="'+fnt+'font-size:10px;">Wf</text>';
+  // Legend
+  s+='<rect x="'+(W-170)+'" y="12" width="158" height="52" rx="4" fill="var(--surface)" stroke="var(--border)"/>';
+  s+='<circle cx="'+(W-155)+'" cy="27" r="5" fill="'+aC+'"/><text x="'+(W-145)+'" y="31" fill="'+dC+'" style="'+fnt+'font-size:10px;">Driving forces</text>';
+  s+='<circle cx="'+(W-155)+'" cy="47" r="5" fill="'+rC+'"/><text x="'+(W-145)+'" y="51" fill="'+dC+'" style="'+fnt+'font-size:10px;">Resisting forces</text>';
+  s+='<text x="'+mx+'" y="16" fill="var(--text)" style="'+fnt+'font-weight:600;font-size:12px;">CROSS SECTION AT COUNTERFORT</text>';
+  s+='<text x="'+((wallBX+heelEndCf)/2)+'" y="'+(topY+(ftgTopY-topY)*0.75)+'" fill="#8a8fa8" style="'+fnt+'font-size:10px;" text-anchor="middle" opacity="0.6">backfill gb='+gb+' pcf</text>';
+  s+='</svg></div>';
+  return s;
+}
+
+function drawPlanView(LT,tw,LH_cf,LH_bw,tc,Wpad,Sc,clr,Lcf,Lbw){
+  var W=700,HT=340;
+  var mx=70,my=50,mr=50,mb=60;
+  var dw=W-mx-mr, dh=HT-my-mb;
+  var sx=dw/(Lcf*1.1), sy=dh/(Sc*1.05);
+  var sc=Math.min(sx,sy);
+  var ox=mx,oy=my;
+  var fnt='font-family:IBM Plex Mono,monospace;font-size:11px;';
+  var dC='#8a8fa8',lC='#f5a623',aC='#e94560';
+
+  var s='<div class="card"><h3>Plan View - One Bay (Footing)</h3>';
+  s+='<svg width="'+W+'" height="'+HT+'" viewBox="0 0 '+W+' '+HT+'" style="background:var(--inbg);border-radius:6px;display:block;margin:0 auto;">';
+
+  // Counterfort pad footing (Wpad wide, Lcf long)
+  var padH=Wpad*sc;
+  var padW=Lcf*sc;
+  s+='<rect x="'+ox+'" y="'+oy+'" width="'+padW+'" height="'+padH+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';
+
+  // Counterfort web (tc wide, centered in pad, on the heel)
+  var cfStartX=ox+(LT+tw)*sc;
+  var webOffY=oy+(Wpad-tc)/2*sc; // centered
+  var webH=tc*sc;
+  s+='<rect x="'+cfStartX+'" y="'+webOffY+'" width="'+(LH_cf*sc)+'" height="'+webH+'" fill="#8a8aaa" stroke="#c0c0d0" stroke-width="1" stroke-dasharray="4,2"/>';
+  // Label: tc inside web
+  s+='<text x="'+(cfStartX+LH_cf*sc/2)+'" y="'+(webOffY+webH/2+3)+'" fill="var(--text)" style="'+fnt+'font-size:9px;" text-anchor="middle">web tc</text>';
+
+  // Footing between counterforts (reduced heel, clr wide)
+  var bwY=oy+padH;
+  var bwH=clr*sc;
+  var bwW=Lbw*sc;
+  s+='<rect x="'+ox+'" y="'+bwY+'" width="'+bwW+'" height="'+bwH+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';
+
+  // Second counterfort pad at bottom
+  var cf2Y=bwY+bwH;
+  s+='<rect x="'+ox+'" y="'+cf2Y+'" width="'+padW+'" height="'+padH+'" fill="#6a6a7a" stroke="#e0e0e0" stroke-width="1.5"/>';
+  s+='<rect x="'+cfStartX+'" y="'+(cf2Y+(Wpad-tc)/2*sc)+'" width="'+(LH_cf*sc)+'" height="'+webH+'" fill="#8a8aaa" stroke="#c0c0d0" stroke-width="1" stroke-dasharray="4,2"/>';
+
+  // Wall (continuous, red outline)
+  var wX1=ox+LT*sc, wX2=wX1+tw*sc;
+  s+='<rect x="'+wX1+'" y="'+oy+'" width="'+(tw*sc)+'" height="'+(padH+bwH+padH)+'" fill="none" stroke="#e94560" stroke-width="2"/>';
+
+  // Labels
+  s+='<text x="'+(ox+padW/2)+'" y="'+(oy+padH/2-4)+'" fill="var(--text)" style="'+fnt+'font-size:10px;" text-anchor="middle">counterfort pad</text>';
+  s+='<text x="'+(ox+padW/2)+'" y="'+(oy+padH/2+9)+'" fill="var(--dim)" style="'+fnt+'font-size:9px;" text-anchor="middle">'+R(Lcf,2)+'\' x '+R(Wpad,1)+'\'</text>';
+  var midBw=bwY+bwH/2;
+  s+='<text x="'+(ox+bwW/2)+'" y="'+(midBw-5)+'" fill="var(--text)" style="'+fnt+'font-size:10px;" text-anchor="middle">ftg between c/f</text>';
+  s+='<text x="'+(ox+bwW/2)+'" y="'+(midBw+8)+'" fill="var(--dim)" style="'+fnt+'font-size:9px;" text-anchor="middle">'+R(Lbw,2)+'\' x '+R(clr,2)+'\'</text>';
+
+  // Dim: Sc
+  var dxR=ox+padW+20;
+  s+='<line x1="'+dxR+'" y1="'+oy+'" x2="'+dxR+'" y2="'+cf2Y+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR-4)+'" y1="'+oy+'" x2="'+(dxR+4)+'" y2="'+oy+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR-4)+'" y1="'+cf2Y+'" x2="'+(dxR+4)+'" y2="'+cf2Y+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxR+6)+'" y="'+((oy+cf2Y)/2+4)+'" fill="'+lC+'" style="'+fnt+'">Sc</text>';
+  // Dim: Wpad
+  var dxR2=dxR+30;
+  s+='<line x1="'+dxR2+'" y1="'+oy+'" x2="'+dxR2+'" y2="'+(oy+padH)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR2-4)+'" y1="'+oy+'" x2="'+(dxR2+4)+'" y2="'+oy+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR2-4)+'" y1="'+(oy+padH)+'" x2="'+(dxR2+4)+'" y2="'+(oy+padH)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxR2+6)+'" y="'+(oy+padH/2+4)+'" fill="'+lC+'" style="'+fnt+'font-size:10px;">Wpad</text>';
+  // Dim: clr
+  var dxR3=dxR+30;
+  s+='<line x1="'+dxR3+'" y1="'+(oy+padH)+'" x2="'+dxR3+'" y2="'+cf2Y+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR3-4)+'" y1="'+(oy+padH)+'" x2="'+(dxR3+4)+'" y2="'+(oy+padH)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(dxR3-4)+'" y1="'+cf2Y+'" x2="'+(dxR3+4)+'" y2="'+cf2Y+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+(dxR3+6)+'" y="'+((oy+padH+cf2Y)/2+4)+'" fill="'+lC+'" style="'+fnt+'font-size:10px;">clr</text>';
+
+  // Bottom dims: LT, tw, LH_cf, LH_bw
+  var dyB=cf2Y+padH+15;
+  s+='<line x1="'+ox+'" y1="'+dyB+'" x2="'+wX1+'" y2="'+dyB+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+ox+'" y1="'+(dyB-4)+'" x2="'+ox+'" y2="'+(dyB+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+wX1+'" y1="'+(dyB-4)+'" x2="'+wX1+'" y2="'+(dyB+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((ox+wX1)/2)+'" y="'+(dyB+13)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">LT</text>';
+  s+='<line x1="'+wX1+'" y1="'+dyB+'" x2="'+wX2+'" y2="'+dyB+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+wX2+'" y1="'+(dyB-4)+'" x2="'+wX2+'" y2="'+(dyB+4)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((wX1+wX2)/2)+'" y="'+(dyB+13)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">tw</text>';
+  // LH_cf top
+  s+='<line x1="'+cfStartX+'" y1="'+(oy-12)+'" x2="'+(cfStartX+LH_cf*sc)+'" y2="'+(oy-12)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+cfStartX+'" y1="'+(oy-16)+'" x2="'+cfStartX+'" y2="'+(oy-8)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+(cfStartX+LH_cf*sc)+'" y1="'+(oy-16)+'" x2="'+(cfStartX+LH_cf*sc)+'" y2="'+(oy-8)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((cfStartX+cfStartX+LH_cf*sc)/2)+'" y="'+(oy-18)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">LH_cf</text>';
+  // LH_bw
+  var lbwEnd=ox+Lbw*sc;
+  s+='<line x1="'+wX2+'" y1="'+(midBw+22)+'" x2="'+lbwEnd+'" y2="'+(midBw+22)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+wX2+'" y1="'+(midBw+18)+'" x2="'+wX2+'" y2="'+(midBw+26)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<line x1="'+lbwEnd+'" y1="'+(midBw+18)+'" x2="'+lbwEnd+'" y2="'+(midBw+26)+'" stroke="'+dC+'" stroke-width="1"/>';
+  s+='<text x="'+((wX2+lbwEnd)/2)+'" y="'+(midBw+36)+'" fill="'+lC+'" style="'+fnt+'" text-anchor="middle">LH_bw</text>';
+
+  s+='<text x="'+mx+'" y="16" fill="var(--text)" style="'+fnt+'font-weight:600;font-size:12px;">PLAN VIEW - ONE BAY</text>';
+  s+='</svg></div>';
+  return s;
+}
+
+// =================== MAIN CALCULATION ===================
+
+function calculate(){
+  try{
+  var gc=gv('gc'),Pa=gv('Pa'),Pp=gv('Pp'),PE=gv('PE'),gb=gv('gb'),ws=gv('ws'),mu=gv('mu'),Qa=gv('Qa');
+  var H=gv('H'),tw_in=gv('tw'),hf_in=gv('hf'),hk_in=gv('hk'),hp_in=gv('hp'),tc_in=gv('tc');
+  var LT=gv('LT'),Sc=gv('Sc'),LH_cf=gv('LH_cf'),LH_bw=gv('LH_bw'),Wpad=gv('Wpad');
+
+  var tw=tw_in/12, hf=hf_in/12, hk=hk_in/12, hp=hp_in/12, tc=tc_in/12;
+  var Ht=H+hf;
+  // KEY GEOMETRY CHANGE:
+  // Wpad = counterfort footing pad width (e.g. 3 ft), centered on tc web
+  // clr = clear between pads = Sc - Wpad
+  var clr=Sc-Wpad;
+  var Lcf=LT+tw+LH_cf;  // footing length at counterfort
+  var Lbw=LT+tw+LH_bw;  // footing length between counterforts
+  var Aftg=Lcf*Wpad + Lbw*clr;  // total footing plan area per bay
+  var Lavg=Aftg/Sc;
+  var Aheel=LH_cf*Wpad + LH_bw*clr;
+
+  var o='';
+
+  // 1. GEOMETRY
+  o+='<div class="card"><h3>1. Bay Geometry</h3><div class="eq">';
+  o+='<span class="ehead">Unit Conversions</span>\n';
+  o+='tw = '+tw_in+'"/12 = <span class="v">'+R(tw)+' ft</span>\n';
+  o+='hf = '+hf_in+'"/12 = <span class="v">'+R(hf)+' ft</span>\n';
+  o+='hk = '+hk_in+'"/12 = <span class="v">'+R(hk)+' ft</span>\n';
+  o+='hp = '+hp_in+'"/12 = <span class="v">'+R(hp)+' ft</span>\n';
+  o+='tc = '+tc_in+'"/12 = <span class="v">'+R(tc)+' ft</span> (web thickness)\n\n';
+  o+='<span class="ehead">Bay Dimensions</span>\n';
+  o+='H_total = H+hf = '+R(H,2)+'+'+R(hf)+' = <span class="v">'+R(Ht)+' ft</span>\n';
+  o+='C/F pad width (Wpad) = <span class="v">'+R(Wpad,1)+' ft</span> (centered on '+R(tc)+' ft web)\n';
+  o+='Clear between pads = Sc-Wpad = '+R(Sc,1)+'-'+R(Wpad,1)+' = <span class="v">'+R(clr)+' ft</span>\n';
+  o+='Ftg L @ c/f (Lcf) = LT+tw+LH_cf = '+R(LT,1)+'+'+R(tw)+'+'+R(LH_cf,1)+' = <span class="v">'+R(Lcf)+' ft</span>\n';
+  o+='Ftg L betw (Lbw) = LT+tw+LH_bw = '+R(LT,1)+'+'+R(tw)+'+'+R(LH_bw,1)+' = <span class="v">'+R(Lbw)+' ft</span>\n\n';
+  o+='<span class="ehead">Plan Areas (per bay)</span>\n';
+  o+='Ftg area = Lcf*Wpad + Lbw*clr\n';
+  o+='         = '+R(Lcf)+'*'+R(Wpad,1)+' + '+R(Lbw)+'*'+R(clr)+'\n';
+  o+='         = '+R(Lcf*Wpad)+' + '+R(Lbw*clr)+' = <span class="v">'+R(Aftg)+' sf</span>\n';
+  o+='Heel area = LH_cf*Wpad + LH_bw*clr\n';
+  o+='          = '+R(LH_cf,1)+'*'+R(Wpad,1)+' + '+R(LH_bw,1)+'*'+R(clr)+'\n';
+  o+='          = '+R(LH_cf*Wpad)+' + '+R(LH_bw*clr)+' = <span class="v">'+R(Aheel)+' sf</span>\n';
+  o+='Avg ftg L = Aftg/Sc = '+R(Aftg)+'/'+R(Sc,1)+' = <span class="v">'+R(Lavg)+' ft</span>';
+  o+='</div></div>';
+
+  // DIAGRAMS
+  o+=drawCrossSection(LT,tw,LH_cf,LH_bw,H,hf,hk,hp,Ht,Lcf,Lbw,Pa,Pp,ws,gb);
+  o+=drawPlanView(LT,tw,LH_cf,LH_bw,tc,Wpad,Sc,clr,Lcf,Lbw);
+
+  // 2. DRIVING FORCES
+  var Hb=0.5*Pa*Ht*Ht*Sc/1000, yHb=Ht/3;
+  var Hs=ws*(Pa/gb)*Ht*Sc/1000, yHs=Ht/2;
+  var HE=0.5*PE*Ht*Ht*Sc/1000, yHE=2*Ht/3;
+  var sumH=Hb+Hs+HE;
+  var Mot=Hb*yHb+Hs*yHs+HE*yHE;
+
+  o+='<div class="card"><h3>2. Driving Forces (per bay = '+R(Sc,1)+' ft)</h3><div class="eq">';
+  o+='All lateral loads act on full bay width Sc = '+R(Sc,1)+' ft.\n\n';
+  o+='<span class="ehead">Hb - Active Soil (triangular)</span>\n';
+  o+='Hb = 0.5*Pa*Ht^2*Sc = 0.5*'+Pa+'*'+R(Ht)+'^2*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Hb)+' kips</span>\n';
+  o+='y_Hb = Ht/3 = <span class="v">'+R(yHb)+' ft</span>,  M_Hb = '+R(Hb)+'*'+R(yHb)+' = <span class="v">'+R(Hb*yHb)+' ft-k</span>\n\n';
+  o+='<span class="ehead">Hs - Surcharge Lateral (uniform)</span>\n';
+  o+='Hs = ws*(Pa/gb)*Ht*Sc = '+ws+'*('+Pa+'/'+gb+')*'+R(Ht)+'*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Hs)+' kips</span>\n';
+  o+='y_Hs = Ht/2 = <span class="v">'+R(yHs)+' ft</span>,  M_Hs = <span class="v">'+R(Hs*yHs)+' ft-k</span>\n\n';
+  o+='<span class="ehead">HE - Seismic</span>\n';
+  o+='HE = 0.5*PE*Ht^2*Sc = 0.5*'+PE+'*'+R(Ht*Ht)+'*'+R(Sc,1)+'/1000 = <span class="hi">'+R(HE)+' kips</span>\n\n';
+  o+='<span class="ehead">Totals</span>\n';
+  o+='Sum(H) = <span class="hi">'+R(sumH)+' kips</span>\n';
+  o+='M_OT = '+R(Hb*yHb)+'+'+R(Hs*yHs)+'+'+R(HE*yHE)+' = <span class="hi">'+R(Mot)+' ft-k</span>';
+  o+='</div></div>';
+
+  // 3. PASSIVE
+  var dpas=hp+hf+hk;
+  var Hpas=0.5*Pp*dpas*dpas*Sc/1000, yHp=dpas/3;
+  var MHp=Hpas*yHp;
+
+  o+='<div class="card"><h3>3. Passive Resistance (per bay)</h3><div class="eq">';
+  o+='Hp = 0.5*Pp*(hp+hf+hk)^2*Sc = 0.5*'+Pp+'*'+R(dpas)+'^2*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Hpas)+' kips</span>\n';
+  o+='y_Hp = '+R(dpas)+'/3 = <span class="v">'+R(yHp)+' ft</span>,  M_Hp = <span class="hi">'+R(MHp)+' ft-k</span>';
+  o+='</div></div>';
+
+  // 4. RESISTING WEIGHTS
+  // At counterfort pad (Wpad wide), between pads (clr wide)
+
+  // Ws - surcharge on heel
+  var Wscf=ws*LH_cf*Wpad/1000, Wsbw=ws*LH_bw*clr/1000, Wstot=Wscf+Wsbw;
+  var xWscf=LT+tw+LH_cf/2, xWsbw=LT+tw+LH_bw/2;
+  var MWs=Wscf*xWscf+Wsbw*xWsbw;
+
+  // Wb - backfill on heel
+  var Wbcf=gb*H*LH_cf*Wpad/1000, Wbbw=gb*H*LH_bw*clr/1000, Wbtot=Wbcf+Wbbw;
+  var xWbcf=LT+tw+LH_cf/2, xWbbw=LT+tw+LH_bw/2;
+  var MWb=Wbcf*xWbcf+Wbbw*xWbbw;
+
+  // Wf - footing self weight
+  var Wfcf=gc*hf*Lcf*Wpad/1000, Wfbw=gc*hf*Lbw*clr/1000, Wftot=Wfcf+Wfbw;
+  var xWfcf=Lcf/2, xWfbw=Lbw/2;
+  var MWf=Wfcf*xWfcf+Wfbw*xWfbw;
+
+  // Ww - wall (continuous across Sc)
+  var Ww=gc*tw*H*Sc/1000, xWw=LT+tw/2, MWw=Ww*xWw;
+
+  // Wc - counterfort net (gc-gb), triangular: 0.5*H*LH_cf*tc*(gc-gb)
+  // Note: uses tc (web thickness), not Wpad, because only the web displaces soil
+  var Wc=0.5*H*LH_cf*tc*(gc-gb)/1000, xWc=LT+tw+(2/3)*LH_cf, MWc=Wc*xWc;
+
+  // Wk - key
+  var Wk=gc*hk*tw*Sc/1000, xWk=LT+tw/2, MWk=Wk*xWk;
+
+  // Wt - soil over toe (continuous)
+  var Wt=gb*hp*LT*Sc/1000, xWt=LT/2, MWt=Wt*xWt;
+
+  var SW=Wstot+Wbtot+Wftot+Ww+Wc+Wk+Wt;
+  var MR=MWs+MWb+MWf+MWw+MWc+MWk+MWt;
+
+  o+='<div class="card"><h3>4. Resisting Weights &amp; Moments (per bay) - Detailed</h3><div class="eq">';
+  o+='Reference: x=0 at toe. Moments about toe.\n';
+  o+='C/F pad: '+R(Wpad,1)+' ft wide, '+R(LH_cf,1)+' ft heel\n';
+  o+='Between: '+R(clr)+' ft wide, '+R(LH_bw,1)+' ft heel\n\n';
+
+  o+='<span class="ehead">Ws - Surcharge on Heel</span>\n';
+  o+='At pad: Ws,cf = ws*LH_cf*Wpad = '+ws+'*'+R(LH_cf,1)+'*'+R(Wpad,1)+'/1000 = <span class="v">'+R(Wscf)+' k</span>\n';
+  o+='  arm = LT+tw+LH_cf/2 = <span class="v">'+R(xWscf)+' ft</span>\n';
+  o+='Between: Ws,bw = ws*LH_bw*clr = '+ws+'*'+R(LH_bw,1)+'*'+R(clr)+'/1000 = <span class="v">'+R(Wsbw)+' k</span>\n';
+  o+='  arm = LT+tw+LH_bw/2 = <span class="v">'+R(xWsbw)+' ft</span>\n';
+  o+='Ws = <span class="hi">'+R(Wstot)+' k</span>, M_Ws = <span class="hi">'+R(MWs)+' ft-k</span>\n\n';
+
+  o+='<span class="ehead">Wb - Backfill on Heel</span>\n';
+  o+='At pad: Wb,cf = gb*H*LH_cf*Wpad = '+gb+'*'+R(H,2)+'*'+R(LH_cf,1)+'*'+R(Wpad,1)+'/1000 = <span class="v">'+R(Wbcf)+' k</span>\n';
+  o+='  arm = <span class="v">'+R(xWbcf)+' ft</span>\n';
+  o+='Between: Wb,bw = gb*H*LH_bw*clr = '+gb+'*'+R(H,2)+'*'+R(LH_bw,1)+'*'+R(clr)+'/1000 = <span class="v">'+R(Wbbw)+' k</span>\n';
+  o+='  arm = <span class="v">'+R(xWbbw)+' ft</span>\n';
+  o+='Wb = '+R(Wbcf)+'+'+R(Wbbw)+' = <span class="hi">'+R(Wbtot)+' k</span>\n';
+  o+='M_Wb = '+R(Wbcf)+'*'+R(xWbcf)+'+'+R(Wbbw)+'*'+R(xWbbw)+' = '+R(Wbcf*xWbcf)+'+'+R(Wbbw*xWbbw)+' = <span class="hi">'+R(MWb)+' ft-k</span>\n\n';
+
+  o+='<span class="ehead">Wf - Footing Self-Weight</span>\n';
+  o+='At pad: Wf,cf = gc*hf*Lcf*Wpad = '+gc+'*'+R(hf)+'*'+R(Lcf)+'*'+R(Wpad,1)+'/1000 = <span class="v">'+R(Wfcf)+' k</span>\n';
+  o+='  arm = Lcf/2 = <span class="v">'+R(xWfcf)+' ft</span>\n';
+  o+='Between: Wf,bw = gc*hf*Lbw*clr = '+gc+'*'+R(hf)+'*'+R(Lbw)+'*'+R(clr)+'/1000 = <span class="v">'+R(Wfbw)+' k</span>\n';
+  o+='  arm = Lbw/2 = <span class="v">'+R(xWfbw)+' ft</span>\n';
+  o+='Wf = <span class="hi">'+R(Wftot)+' k</span>, M_Wf = <span class="hi">'+R(MWf)+' ft-k</span>\n\n';
+
+  o+='<span class="ehead">Ww - Wall (continuous, Sc wide)</span>\n';
+  o+='Ww = gc*tw*H*Sc = '+gc+'*'+R(tw)+'*'+R(H,2)+'*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Ww)+' k</span>\n';
+  o+='arm = '+R(xWw)+' ft, M_Ww = <span class="hi">'+R(MWw)+' ft-k</span>\n\n';
+
+  o+='<span class="ehead">Wc - Counterfort Net (gc-gb, triangular, web only)</span>\n';
+  o+='Wc = 0.5*H*LH_cf*tc*(gc-gb) = 0.5*'+R(H,2)+'*'+R(LH_cf,1)+'*'+R(tc)+'*('+gc+'-'+gb+')/1000 = <span class="hi">'+R(Wc)+' k</span>\n';
+  o+='arm = '+R(xWc)+' ft, M_Wc = <span class="hi">'+R(MWc)+' ft-k</span>\n\n';
+
+  o+='<span class="ehead">Wk - Key</span>\n';
+  o+='Wk = gc*hk*tw*Sc = '+gc+'*'+R(hk)+'*'+R(tw)+'*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Wk)+' k</span>\n\n';
+
+  o+='<span class="ehead">Wt - Soil Over Toe (continuous)</span>\n';
+  o+='Wt = gb*hp*LT*Sc = '+gb+'*'+R(hp)+'*'+R(LT,1)+'*'+R(Sc,1)+'/1000 = <span class="hi">'+R(Wt)+' k</span>\n';
+  o+='arm = LT/2 = <span class="v">'+R(xWt)+' ft</span>, M_Wt = <span class="hi">'+R(MWt)+' ft-k</span>';
+  o+='</div>';
+
+  o+='<br><table class="st">';
+  o+='<tr><th>Component</th><th>W (kips)</th><th>M (ft-k)</th></tr>';
+  o+='<tr><td>Ws (surcharge)</td><td>'+R(Wstot)+'</td><td>'+R(MWs)+'</td></tr>';
+  o+='<tr><td>Wb (soil/heel)</td><td>'+R(Wbtot)+'</td><td>'+R(MWb)+'</td></tr>';
+  o+='<tr><td>Wf (footing)</td><td>'+R(Wftot)+'</td><td>'+R(MWf)+'</td></tr>';
+  o+='<tr><td>Ww (wall)</td><td>'+R(Ww)+'</td><td>'+R(MWw)+'</td></tr>';
+  o+='<tr><td>Wc (counterfort)</td><td>'+R(Wc)+'</td><td>'+R(MWc)+'</td></tr>';
+  o+='<tr><td>Wk (key)</td><td>'+R(Wk)+'</td><td>'+R(MWk)+'</td></tr>';
+  o+='<tr><td>Wt (soil/toe)</td><td>'+R(Wt)+'</td><td>'+R(MWt)+'</td></tr>';
+  o+='<tr class="tot"><td>TOTAL</td><td>'+R(SW)+'</td><td>'+R(MR)+'</td></tr>';
+  o+='</table></div>';
+
+  // 5. OVERTURNING
+  var SFot=(MR+MHp)/Mot;
+  o+='<div class="card"><h3>5. Overturning (IBC 1807.2.3)</h3><div class="eq">';
+  o+='M_resist = '+R(MR)+' + '+R(MHp)+' = <span class="hi">'+R(MR+MHp)+' ft-k</span>\n';
+  o+='M_OT = <span class="v">'+R(Mot)+' ft-k</span>\n';
+  o+='SF = '+R(MR+MHp)+'/'+R(Mot)+' = <span class="hi">'+R(SFot)+'</span> (req >= 1.5)';
+  o+='</div><br><span class="status '+(SFot>=1.5?'pass':'fail')+'">'+(SFot>=1.5?'SATISFACTORY':'UNSATISFACTORY')+' - SF = '+R(SFot)+'</span></div>';
+
+  // 6. SLIDING
+  var Fric=mu*SW, Rsl=Hpas+Fric, SFsl=Rsl/sumH;
+  o+='<div class="card"><h3>6. Sliding (IBC 1807.2.3)</h3><div class="eq">';
+  o+='Demand = <span class="v">'+R(sumH)+' kips</span>\n';
+  o+='Passive Hp = <span class="v">'+R(Hpas)+' k</span>\n';
+  o+='Friction = mu*Sum(W) = '+mu+'*'+R(SW)+' = <span class="v">'+R(Fric)+' k</span>\n';
+  o+='Resistance = '+R(Hpas)+'+'+R(Fric)+' = <span class="hi">'+R(Rsl)+' k</span>\n';
+  o+='SF = '+R(Rsl)+'/'+R(sumH)+' = <span class="hi">'+R(SFsl)+'</span> (req >= 1.5)';
+  o+='</div><br><span class="status '+(SFsl>=1.5?'pass':'fail')+'">'+(SFsl>=1.5?'SATISFACTORY':'UNSATISFACTORY')+' - SF = '+R(SFsl)+'</span></div>';
+
+  // 7. BEARING
+  var Mnet=MR+MHp-Mot, xbar=Mnet/SW, ev=Lavg/2-xbar;
+  var qmax,qmin,bn;
+  if(ev<=Lavg/6){qmax=(SW/Aftg)*(1+6*ev/Lavg);qmin=(SW/Aftg)*(1-6*ev/Lavg);bn='Within middle third - trapezoidal';}
+  else if(xbar>0){var Be=3*xbar;qmax=2*SW/(Be*Sc);qmin=0;bn='Outside middle third - triangular, B_eff='+R(Be)+' ft';}
+  else{qmax=999;qmin=0;bn='Resultant outside footing - UNSTABLE';}
+
+  o+='<div class="card"><h3>7. Bearing Pressure</h3><div class="eq">';
+  o+='(Approx using weighted-avg ftg length Lavg = '+R(Lavg)+' ft)\n\n';
+  o+='M_net = '+R(MR)+'+'+R(MHp)+'-'+R(Mot)+' = <span class="v">'+R(Mnet)+' ft-k</span>\n';
+  o+='xbar = M_net/Sum(W) = '+R(Mnet)+'/'+R(SW)+' = <span class="v">'+R(xbar)+' ft</span> from toe\n';
+  o+='e = Lavg/2-xbar = '+R(Lavg/2)+'-'+R(xbar)+' = <span class="v">'+R(ev)+' ft</span>  (Lavg/6='+R(Lavg/6)+')\n';
+  o+=bn+'\n\n';
+  o+='q_max = <span class="hi">'+(qmax>900?'UNSTABLE':R(qmax))+' ksf</span> (allow='+R(Qa,2)+' ksf)\n';
+  o+='q_min = <span class="v">'+R(qmin)+' ksf</span>';
+  o+='</div><br><span class="status '+(qmax<=Qa?'pass':'fail')+'">'+(qmax<=Qa?'SATISFACTORY':'UNSATISFACTORY')+'</span></div>';
+
+  // 8. COMPARISON
+  var SWss=(gb*H*LH_cf+gc*hf*Lcf+gc*tw*H+ws*LH_cf+0.5*H*LH_cf*(gc-gb)*tc/Sc+gc*hk*tw)/1000;
+  var Hbss=0.5*Pa*Ht*Ht/1000,Hsss=ws*(Pa/gb)*Ht/1000,HEss=0.5*PE*Ht*Ht/1000;
+  var Hpss=0.5*Pp*dpas*dpas/1000;
+  var MRss=(gb*H*LH_cf*(LT+tw+LH_cf/2)+gc*hf*Lcf*(Lcf/2)+gc*tw*H*(LT+tw/2)+ws*LH_cf*(LT+tw+LH_cf/2)+0.5*H*LH_cf*(gc-gb)*tc/Sc*(LT+tw+(2/3)*LH_cf)+gc*hk*tw*xWk)/1000;
+  var MHpss=Hpss*yHp;
+  var Motss=Hbss*(Ht/3)+Hsss*(Ht/2)+HEss*(2*Ht/3);
+  var SFotss=(MRss+MHpss)/Motss;
+  var SFslss=(Hpss+mu*SWss)/(Hbss+Hsss+HEss);
+
+  o+='<div class="card"><h3>8. Comparison: Bay vs Spreadsheet</h3>';
+  o+='<div class="cmp">';
+  o+='<div class="cbox"><h4>Spreadsheet (continuous '+R(LH_cf,1)+'\' heel, per ft)</h4><div class="eq">';
+  o+='Sum(W) = <span class="v">'+R(SWss)+' k/ft</span>\n';
+  o+='M_resist = <span class="v">'+R(MRss+MHpss)+' ft-k/ft</span>\n';
+  o+='OT SF = <span class="v">'+R(SFotss)+'</span>\n';
+  o+='Slide SF = <span class="v">'+R(SFslss)+'</span>';
+  o+='</div></div>';
+  o+='<div class="cbox"><h4>Bay analysis (actual geometry, per ft equiv)</h4><div class="eq">';
+  o+='Sum(W) = <span class="v">'+R(SW/Sc)+' k/ft</span>\n';
+  o+='M_resist = <span class="v">'+R((MR+MHp)/Sc)+' ft-k/ft</span>\n';
+  o+='OT SF = <span class="v">'+R(SFot)+'</span>\n';
+  o+='Slide SF = <span class="v">'+R(SFsl)+'</span>';
+  o+='</div></div></div>';
+
+  var avgH=(LH_cf*Wpad+LH_bw*clr)/Sc;
+  var pct=(1-(SW/Sc)/SWss)*100;
+  o+='<div class="note"><b>Impact:</b> Resisting weight drops <b>'+R(pct,1)+'%</b>. ';
+  o+='Eff avg heel = <b>'+R(avgH)+' ft</b> vs '+R(LH_cf,1)+'\' assumed. ';
+  o+='C/F pad width = '+R(Wpad,1)+'\' vs spreadsheet treating full bay at '+R(LH_cf,1)+'\' heel.</div>';
+  o+='</div>';
+
+  document.getElementById('out').innerHTML=o;
+  }catch(err){document.getElementById('out').innerHTML='<div class="card" style="color:#e94560">Error: '+err.message+'</div>';}
+}
+
+calculate();
+</script>
+
+<style>
+@media print{ body{background:#fff!important;padding:0!important} .container{box-shadow:none!important} }
+</style>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+
+</script>
+</body>
+</html>

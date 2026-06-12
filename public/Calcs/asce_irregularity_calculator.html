@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCE 7-16 Vertical Structural Irregularity Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f9fafb;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            background: white;
+        }
+
+        .header {
+            margin-bottom: 32px;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 30px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .icon {
+            width: 32px;
+            height: 32px;
+            color: #2563eb;
+        }
+
+        .description {
+            color: #6b7280;
+            font-size: 16px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .input-section {
+            background-color: #f9fafb;
+            border-radius: 8px;
+            padding: 24px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .story-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .story-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .story-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .story-name {
+            font-weight: 600;
+            font-size: 18px;
+            background: transparent;
+            border: none;
+            outline: none;
+        }
+
+        .remove-btn {
+            color: #ef4444;
+            background: none;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover {
+            color: #dc2626;
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group.full-width {
+            grid-column: span 2;
+        }
+
+        .input-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            ring: 2px;
+            ring-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .calc-display {
+            grid-column: span 2;
+            margin-top: 8px;
+            padding: 8px;
+            background-color: #dbeafe;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e40af;
+        }
+
+        .add-story-btn {
+            margin-top: 16px;
+            width: 100%;
+            padding: 8px 16px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-story-btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        .results-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            padding: 24px;
+        }
+
+        .calc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .print-btn {
+            padding: 8px 16px;
+            background-color: #4b5563;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .print-btn:hover {
+            background-color: #374151;
+        }
+
+        .result-item {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid;
+            margin-bottom: 12px;
+        }
+
+        .result-regular {
+            color: #065f46;
+            background-color: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+
+        .result-irregular {
+            color: #92400e;
+            background-color: #fffbeb;
+            border-color: #fcd34d;
+        }
+
+        .result-extreme {
+            color: #991b1b;
+            background-color: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .result-details {
+            font-size: 14px;
+            margin-left: 28px;
+        }
+
+        .calc-section {
+            margin-bottom: 16px;
+        }
+
+        .calc-subsection {
+            margin-bottom: 16px;
+        }
+
+        .calc-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        .calc-item {
+            background-color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .calc-item-blue { background-color: #eff6ff; }
+        .calc-item-green { background-color: #ecfdf5; }
+        .calc-item-yellow { background-color: #fffbeb; }
+
+        .notes-section {
+            margin-top: 32px;
+            padding: 24px;
+            background-color: #eff6ff;
+            border-radius: 8px;
+        }
+
+        .notes-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1e3a8a;
+            margin-bottom: 12px;
+        }
+
+        .notes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .notes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .notes-content {
+            font-size: 14px;
+            color: #1e40af;
+        }
+
+        .notes-list {
+            list-style: none;
+            margin-left: 16px;
+        }
+
+        .notes-list li {
+            margin-bottom: 4px;
+        }
+
+        @media print {
+            .print\\:hidden {
+                display: none !important;
+            }
+
+            .print\\:break-inside-avoid {
+                break-inside: avoid;
+            }
+
+            /* Summary print mode: results/checks only */
+            body[data-pm="s"] #detailedCalcCard { display: none !important; }
+            body[data-pm="s"] .notes-section { display: none !important; }
+            body[data-pm="s"] .input-section { display: none !important; }
+            /* Full print mode: everything incl. detailed calcs */
+            body[data-pm="f"] #detailedCalcCard { display: block !important; }
+            .main-grid { grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0h3m-3 0h-5m2 0h3m5-16v6m0 0V9a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <h1>ASCE 7-16 Vertical Structural Irregularity Calculator</h1>
+            </div>
+            <p class="description">
+                Check your building for vertical structural irregularities according to ASCE 7-16 Table 12.3-2. 
+                Enter the applied force and resulting deflection for each story (stiffness will be calculated as K = F/δ), 
+                along with other structural properties to identify potential irregularities.
+            </p>
+        </div>
+
+        <div class="main-grid">
+            <!-- Input Section -->
+            <div class="input-section blk">
+                <div class="section-title">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                    Story Properties
+                </div>
+                
+                <div class="story-container" id="storyContainer">
+                    <!-- Stories will be populated by JavaScript -->
+                </div>
+                <input type="hidden" id="storyData">
+
+                <button class="add-story-btn" onclick="addStory()">Add Story</button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <!-- Detailed Calculations -->
+                <div class="result-card calc-det" id="detailedCalcCard">
+                    <div class="calc-header">
+                        <h3 class="section-title">Detailed Calculations (For Documentation)</h3>
+                        <button class="print-btn print:hidden" onclick="window.print()">Print Calculations</button>
+                    </div>
+                    
+                    <div id="detailedCalculations">
+                        <!-- Calculations will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Stiffness Results -->
+                <div class="result-card">
+                    <h3 class="section-title">Type 1: Stiffness Irregularity (Soft Story)</h3>
+                    <div id="stiffnessResults">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Mass Results -->
+                <div class="result-card">
+                    <h3 class="section-title">Type 2: Mass Irregularity (Seismic Weight)</h3>
+                    <div id="massResults">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Geometric Results -->
+                <div class="result-card">
+                    <h3 class="section-title">Type 3: Geometric Irregularity</h3>
+                    <div id="geometricResults">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Strength Results -->
+                <div class="result-card">
+                    <h3 class="section-title">Type 5: Strength Irregularity (Lateral Capacity)</h3>
+                    <div id="strengthResults">
+                        <!-- Results will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes Section -->
+        <div class="notes-section">
+            <h3 class="notes-title">Notes and References</h3>
+            <div class="notes-grid">
+                <div class="notes-content">
+                    <p><strong>Irregularity Types per ASCE 7-16:</strong></p>
+                    <ul class="notes-list">
+                        <li>• Type 1a: Soft Story (stiffness < 70% above or < 80% avg of 3 above)</li>
+                        <li>• Type 1b: Extreme Soft Story (stiffness < 60% above or < 70% avg of 3 above)</li>
+                        <li>• Type 2: Mass > 150% of adjacent story</li>
+                        <li>• Type 3: Dimension > 130% of adjacent story</li>
+                        <li>• Type 4: In-plane discontinuity (manual check required)</li>
+                    </ul>
+                </div>
+                <div class="notes-content">
+                    <p><strong>Calculation Notes:</strong></p>
+                    <ul class="notes-list">
+                        <li>• Stiffness calculated as K = F/δ (Force/Deflection)</li>
+                        <li>• Seismic Weight = Dead Load + applicable Live Load portion (see ASCE 7-16 §12.7.2)</li>
+                        <li>• Lateral Strength = Total capacity of all SFRS elements at that level:</li>
+                        <li class="ml-4">- Moment Frames: ΣMp (plastic moment capacities)</li>
+                        <li class="ml-4">- Braced Frames: ΣPn (axial capacities of braces)</li>
+                        <li class="ml-4">- Shear Walls: ΣVn (shear capacities)</li>
+                        <li>• Type 5a: Weak Story (strength < 80% of story above)</li>
+                        <li>• Type 5b: Extreme Weak Story (strength < 65% of story above)</li>
+                        <li>• Type 4 irregularity requires manual evaluation of in-plane offsets</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stories = [
+            { level: 'Roof', force: '', deflection: '', mass: '', dimension: '', strength: '' },
+            { level: 'Story 3', force: '', deflection: '', mass: '', dimension: '', strength: '' },
+            { level: 'Story 2', force: '', deflection: '', mass: '', dimension: '', strength: '' },
+            { level: 'Story 1', force: '', deflection: '', mass: '', dimension: '', strength: '' }
+        ];
+
+        function renderStories() {
+            const container = document.getElementById('storyContainer');
+            container.innerHTML = '';
+
+            stories.forEach((story, index) => {
+                const storyCard = document.createElement('div');
+                storyCard.className = 'story-card';
+                
+                const force = parseFloat(story.force) || 0;
+                const deflection = parseFloat(story.deflection) || 0;
+                const stiffness = deflection > 0 ? force / deflection : 0;
+                
+                storyCard.innerHTML = `
+                    <div class="story-header">
+                        <input type="text" class="story-name" id="storyLevel_${index}" value="${story.level}"
+                               onchange="updateStory(${index}, 'level', this.value)">
+                        ${stories.length > 2 ? `<button class="remove-btn" onclick="removeStory(${index})">Remove</button>` : ''}
+                    </div>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <label class="input-label">Applied Force (kips or kN)</label>
+                            <input type="number" class="input-field" id="storyForce_${index}" value="${story.force}"
+                                   placeholder="Enter force"
+                                   onchange="updateStory(${index}, 'force', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Deflection (in or mm)</label>
+                            <input type="number" class="input-field" id="storyDefl_${index}" value="${story.deflection}"
+                                   placeholder="Enter deflection"
+                                   onchange="updateStory(${index}, 'deflection', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Seismic Weight (kips or kN)</label>
+                            <input type="number" class="input-field" id="storyMass_${index}" value="${story.mass}"
+                                   placeholder="Enter seismic weight"
+                                   title="Effective seismic weight at diaphragm level (DL + applicable LL + equipment, etc.)"
+                                   onchange="updateStory(${index}, 'mass', this.value)">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Dimension (ft or m)</label>
+                            <input type="number" class="input-field" id="storyDim_${index}" value="${story.dimension}"
+                                   placeholder="Enter dimension"
+                                   onchange="updateStory(${index}, 'dimension', this.value)">
+                        </div>
+                        <div class="input-group full-width">
+                            <label class="input-label">Lateral Strength Capacity (kips or kN)</label>
+                            <input type="number" class="input-field" id="storyStr_${index}" value="${story.strength}"
+                                   placeholder="Enter total lateral strength capacity"
+                                   title="Total lateral strength of all seismic-resisting elements at this level (Mp for frames, Vn for walls, etc.)"
+                                   onchange="updateStory(${index}, 'strength', this.value)">
+                        </div>
+                        ${force && deflection ? `
+                            <div class="calc-display">
+                                Calculated Stiffness: ${stiffness.toFixed(2)} k/in (or kN/mm)
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                container.appendChild(storyCard);
+            });
+
+            syncStoryData();
+        }
+
+        // Keep a JSON copy of the story array in a hidden input so Save/Load
+        // (are-utils) can persist a variable number of stories.
+        function syncStoryData() {
+            const el = document.getElementById('storyData');
+            if (el) el.value = JSON.stringify(stories);
+        }
+
+        function addStory() {
+            const newStory = {
+                level: `Story ${stories.length}`,
+                force: '',
+                deflection: '',
+                mass: '',
+                dimension: '',
+                strength: ''
+            };
+            stories.push(newStory);
+            renderStories();
+            calculateIrregularities();
+        }
+
+        function removeStory(index) {
+            if (stories.length > 2) {
+                stories.splice(index, 1);
+                renderStories();
+                calculateIrregularities();
+            }
+        }
+
+        function updateStory(index, field, value) {
+            stories[index][field] = value;
+            renderStories();
+            calculateIrregularities();
+        }
+
+        function calculateIrregularities() {
+            // Calculate stiffness for each story as K = F/δ
+            const stiffnessValues = stories.map(s => {
+                const force = parseFloat(s.force) || 0;
+                const deflection = parseFloat(s.deflection) || 0;
+                return deflection > 0 ? force / deflection : 0;
+            });
+            
+            const massValues = stories.map(s => parseFloat(s.mass) || 0);
+            const dimensionValues = stories.map(s => parseFloat(s.dimension) || 0);
+            const strengthValues = stories.map(s => parseFloat(s.strength) || 0);
+
+            // Calculate all irregularities
+            const stiffnessResults = checkStiffnessIrregularity(stiffnessValues);
+            const massResults = checkMassIrregularity(massValues);
+            const geometricResults = checkGeometricIrregularity(dimensionValues);
+            const strengthResults = checkStrengthIrregularity(strengthValues);
+
+            // Render results
+            renderResults('stiffnessResults', stiffnessResults);
+            renderResults('massResults', massResults);
+            renderResults('geometricResults', geometricResults);
+            renderResults('strengthResults', strengthResults);
+            renderDetailedCalculations();
+        }
+
+        function checkStiffnessIrregularity(values) {
+            const irregularities = [];
+            
+            for (let i = 0; i < values.length; i++) {
+                if (values[i] === 0) continue;
+                
+                let result = { story: stories[i].level, type: 'Regular', details: [] };
+                
+                // Check against story above
+                if (i > 0 && values[i - 1] !== 0) {
+                    const ratio = values[i] / values[i - 1];
+                    if (ratio < 0.6) {
+                        result.type = 'Extreme Soft Story (1b)';
+                        result.details.push(`Stiffness is ${(ratio * 100).toFixed(1)}% of story above (< 60%)`);
+                    } else if (ratio < 0.7) {
+                        result.type = 'Soft Story (1a)';
+                        result.details.push(`Stiffness is ${(ratio * 100).toFixed(1)}% of story above (< 70%)`);
+                    }
+                }
+                
+                // Check against average of 3 stories above
+                if (i >= 3) {
+                    const avgAbove = (values[i-1] + values[i-2] + values[i-3]) / 3;
+                    const ratio = values[i] / avgAbove;
+                    if (ratio < 0.7) {
+                        result.type = result.type.includes('Extreme') ? result.type : 'Extreme Soft Story (1b)';
+                        result.details.push(`Stiffness is ${(ratio * 100).toFixed(1)}% of avg. of 3 stories above (< 70%)`);
+                    } else if (ratio < 0.8 && result.type === 'Regular') {
+                        result.type = 'Soft Story (1a)';
+                        result.details.push(`Stiffness is ${(ratio * 100).toFixed(1)}% of avg. of 3 stories above (< 80%)`);
+                    }
+                }
+                
+                irregularities.push(result);
+            }
+            
+            return irregularities;
+        }
+
+        function checkMassIrregularity(values) {
+            const irregularities = [];
+            
+            for (let i = 1; i < values.length; i++) { // Skip roof (index 0)
+                if (values[i] === 0) continue;
+                
+                let result = { story: stories[i].level, type: 'Regular', details: [] };
+                
+                // Check against adjacent stories
+                const adjacentStories = [];
+                if (i > 0 && values[i - 1] !== 0) adjacentStories.push(i - 1);
+                if (i < values.length - 1 && values[i + 1] !== 0) adjacentStories.push(i + 1);
+                
+                for (const adj of adjacentStories) {
+                    // ASCE 7-16 Table 12.3-2, Type 2 exception:
+                    // "A roof that is lighter than the floor below need not be considered."
+                    if (adj === 0 && values[0] < values[i]) {
+                        result.details.push(`Comparison to ${stories[0].level} excluded — roof is lighter than the floor below (ASCE 7-16 Table 12.3-2 exception)`);
+                        continue;
+                    }
+                    const ratio = values[i] / values[adj];
+                    if (ratio > 1.5) {
+                        result.type = 'Mass Irregularity (Type 2)';
+                        result.details.push(`Mass is ${(ratio * 100).toFixed(1)}% of ${stories[adj].level} (> 150%)`);
+                    }
+                }
+
+                irregularities.push(result);
+            }
+
+            return irregularities;
+        }
+
+        function checkGeometricIrregularity(values) {
+            const irregularities = [];
+            
+            for (let i = 0; i < values.length; i++) {
+                if (values[i] === 0) continue;
+                
+                let result = { story: stories[i].level, type: 'Regular', details: [] };
+                
+                // Check against adjacent stories
+                const adjacentStories = [];
+                if (i > 0 && values[i - 1] !== 0) adjacentStories.push(i - 1);
+                if (i < values.length - 1 && values[i + 1] !== 0) adjacentStories.push(i + 1);
+                
+                for (const adj of adjacentStories) {
+                    const ratio = values[i] / values[adj];
+                    if (ratio > 1.3) {
+                        result.type = 'Geometric Irregularity (Type 3)';
+                        result.details.push(`Dimension is ${(ratio * 100).toFixed(1)}% of ${stories[adj].level} (> 130%)`);
+                    }
+                }
+                
+                irregularities.push(result);
+            }
+            
+            return irregularities;
+        }
+
+        function checkStrengthIrregularity(values) {
+            const irregularities = [];
+            
+            for (let i = 0; i < values.length; i++) {
+                if (values[i] === 0) continue;
+                
+                let result = { story: stories[i].level, type: 'Regular', details: [] };
+                
+                // Check against story above
+                if (i > 0 && values[i - 1] !== 0) {
+                    const ratio = values[i] / values[i - 1];
+                    if (ratio < 0.65) {
+                        result.type = 'Extreme Weak Story (5b)';
+                        result.details.push(`Strength is ${(ratio * 100).toFixed(1)}% of story above (< 65%)`);
+                    } else if (ratio < 0.8) {
+                        result.type = 'Weak Story (5a)';
+                        result.details.push(`Strength is ${(ratio * 100).toFixed(1)}% of story above (< 80%)`);
+                    }
+                }
+                
+                irregularities.push(result);
+            }
+            
+            return irregularities;
+        }
+
+        function renderResults(containerId, results) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                const className = result.type === 'Regular' ? 'result-regular' : 
+                                result.type.includes('Extreme') ? 'result-extreme' : 'result-irregular';
+                resultDiv.className = `result-item ${className}`;
+
+                const icon = result.type === 'Regular' ? '✓' : 
+                           result.type.includes('Extreme') ? '✗' : '⚠';
+
+                resultDiv.innerHTML = `
+                    <div class="result-header">
+                        <span>${icon}</span>
+                        <span><strong>${result.story}</strong> - ${result.type}</span>
+                    </div>
+                    ${result.details.map(detail => `<div class="result-details">${detail}</div>`).join('')}
+                `;
+
+                container.appendChild(resultDiv);
+            });
+        }
+
+        function renderDetailedCalculations() {
+            const container = document.getElementById('detailedCalculations');
+            
+            let html = '<div class="calc-section">';
+            
+            // Stiffness Calculations
+            html += '<div class="calc-subsection">';
+            html += '<h4 class="calc-title">Stiffness Calculations (K = F/δ)</h4>';
+            html += '<div class="calc-grid">';
+            
+            stories.forEach((story, index) => {
+                const force = parseFloat(story.force) || 0;
+                const deflection = parseFloat(story.deflection) || 0;
+                const stiffness = deflection > 0 ? force / deflection : 0;
+                
+                html += `
+                    <div class="calc-item calc-item-blue">
+                        <div style="font-weight: 600;">${story.level}</div>
+                        <div>Force: ${force} kips, Deflection: ${deflection} in</div>
+                        <div>K = ${force}/${deflection} = ${stiffness.toFixed(2)} k/in</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div></div>';
+
+            // Irregularity Ratio Calculations
+            html += '<div class="calc-subsection">';
+            html += '<h4 class="calc-title">Irregularity Ratio Checks</h4>';
+            
+            // Stiffness Ratios
+            html += '<div style="margin-bottom: 16px;">';
+            html += '<h5 style="font-weight: 500; color: #374151; margin-bottom: 8px;">Type 1: Stiffness Irregularity Ratios</h5>';
+            
+            stories.forEach((story, index) => {
+                const force = parseFloat(story.force) || 0;
+                const deflection = parseFloat(story.deflection) || 0;
+                const stiffness = deflection > 0 ? force / deflection : 0;
+                
+                if (stiffness === 0) return;
+                
+                html += `<div class="calc-item calc-item-blue" style="margin-bottom: 8px;">`;
+                html += `<div style="font-weight: 600;">${story.level} (K = ${stiffness.toFixed(2)} k/in)</div>`;
+                
+                // Ratio to story above
+                if (index > 0) {
+                    const forceAbove = parseFloat(stories[index-1].force) || 0;
+                    const deflectionAbove = parseFloat(stories[index-1].deflection) || 0;
+                    const stiffnessAbove = deflectionAbove > 0 ? forceAbove / deflectionAbove : 0;
+                    if (stiffnessAbove > 0) {
+                        const ratio = stiffness / stiffnessAbove;
+                        const status = ratio < 0.6 ? ' (< 0.60 - Extreme Soft Story)' : 
+                                     ratio < 0.7 ? ' (< 0.70 - Soft Story)' : ' (OK)';
+                        html += `<div style="margin-left: 16px;">• Ratio to ${stories[index-1].level}: ${stiffness.toFixed(2)}/${stiffnessAbove.toFixed(2)} = ${ratio.toFixed(3)}${status}</div>`;
+                    }
+                }
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+            html += '</div>';
+            html += '</div>';
+            
+            container.innerHTML = html;
+        }
+
+        // Restore stories from the hidden JSON field when are-utils Load fires
+        document.getElementById('storyData').addEventListener('change', function () {
+            try {
+                const parsed = JSON.parse(this.value);
+                if (Array.isArray(parsed) && parsed.length >= 2) {
+                    stories = parsed;
+                    renderStories();
+                    calculateIrregularities();
+                }
+            } catch (e) { /* ignore malformed data */ }
+        });
+
+        // Alias for are-utils auto-run after Load
+        function runCalcs() { calculateIrregularities(); }
+
+        // Initialize the calculator
+        renderStories();
+        calculateIrregularities();
+    </script>
+<script>
+/* ===== ARE shared utilities (inlined; Save/Load/Print) ===== */
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
