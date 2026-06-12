@@ -449,8 +449,9 @@ function calcSteel(M, bw, d, fy, fc, barSizeStr){
 }
 
 function calcWRI(span, width, lc, w, bw, fy, fc, cover, maxSpacing, topBar, botBar, userDepth){
-  // Number of beams
-  var numBeamsCalc = span / maxSpacing + 1;
+  // Number of beams running in this direction = spaced across the PERPENDICULAR dimension
+  // (TF700-R-07 App. B: N_L = W_short/S + 1, N_S = L_long/S + 1)
+  var numBeamsCalc = width / maxSpacing + 1;
   var N = Math.ceil(numBeamsCalc);
   // Total beam width (in)
   var B = N * bw;
@@ -489,8 +490,8 @@ function makeDets(dir, fc, fy, cover, r){
   var det0='';
   det0+='<div class="cref-hdr">WRI Design Guide \u2014 '+dir+' Direction: Beam Count &amp; WRI Depth Formula</div>';
   det0+='<div class="cbox">';
-  det0+='<div class="mrow"><span class="ceq">Step 1 \u2014 Number of Beams N = span/S + 1:</span></div>';
-  det0+='<div class="mrow ind">N = '+fr(f1(r.span)+"'", f1(r.maxSpacing)+"'")+' + 1 = '+f2(r.numBeamsCalc)+' \u2192 <span class="cval">Use N = '+r.N+' beams</span></div>';
+  det0+='<div class="mrow"><span class="ceq">Step 1 \u2014 Number of Beams N = W<sub>perp</sub>/S + 1 (perpendicular dimension):</span></div>';
+  det0+='<div class="mrow ind">N = '+fr(f1(r.width)+"'", f1(r.maxSpacing)+"'")+' + 1 = '+f2(r.numBeamsCalc)+' \u2192 <span class="cval">Use N = '+r.N+' beams</span></div>';
   det0+='<div class="mrow">Total beam width B = N \u00d7 b<sub>w</sub> = '+r.N+' \u00d7 '+f1(r.bw)+'" = <span class="cval">'+f1(r.B)+'"</span></div>';
   det0+='<hr class="csep">';
   det0+='<div class="mrow"><span class="ceq">Step 2 \u2014 Design Moment M = w l<sub>c</sub><sup>2</sup> L\u2019/2000:</span></div>';
@@ -735,11 +736,4 @@ function runCalcs(){
     +"<p>Max D/C = <strong>"+f3(maxDC)+"</strong> &nbsp;|&nbsp; Foundation "+f1(L)+"' \u00d7 "+f1(Lp)+"'"
     +", f\u2019c = "+f1(fc/1000)+" ksi, fy = "+f1(fy/1000)+" ksi</p>";
 
-  document.getElementById('results').classList.add('show');
-}
-
-window.addEventListener('DOMContentLoaded', function(){drawPlan(60,40,null,null);});
-</script>
-<script src="/are-utils.js"></script>
-</body>
-</html>
+  document.getElementById('results')
