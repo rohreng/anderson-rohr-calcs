@@ -572,6 +572,26 @@ function calculate(){
   renderRoof([roofX,roofY], document.getElementById('roofBody'));
   renderSend(wx,wy, document.getElementById('sendBody'));
 
+  // v3: results-bus publish (design pressures + base shears)
+  if (typeof AREv2!=='undefined') {
+    var _pubWWmax=-1e9, _pubLWmin=1e9;
+    [wx,wy].forEach(function(d){ d.rows.forEach(function(r){ _pubWWmax=Math.max(_pubWWmax,r.pWW_B); _pubLWmin=Math.min(_pubLWmin,r.pLW_A); }); });
+    var _pubRoofMin=1e9;
+    [roofX,roofY].forEach(function(r){
+      if(r.type==='flat'){ r.zones.forEach(function(z){ _pubRoofMin=Math.min(_pubRoofMin,z.pA,z.pB); }); }
+      else { _pubRoofMin=Math.min(_pubRoofMin,r.p_WW_A_low,r.p_WW_A_high,r.p_LW_A); }
+    });
+    AREv2.publish([
+      {symbol:'qh', label:'Velocity pressure at h', value:qh_val, unit:'psf', kind:'pressure'},
+      {symbol:'pWW', label:'Max windward wall pressure', value:_pubWWmax, unit:'psf', kind:'pressure'},
+      {symbol:'pLW', label:'Max leeward suction', value:_pubLWmin, unit:'psf', kind:'pressure'},
+      {symbol:'pRoof', label:'Max roof uplift', value:_pubRoofMin, unit:'psf', kind:'pressure'},
+      {symbol:'VbX', label:'Base shear, Wind-X', value:wx.rows[wx.rows.length-1].V_cum/1000, unit:'kips', kind:'shear'},
+      {symbol:'VbY', label:'Base shear, Wind-Y', value:wy.rows[wy.rows.length-1].V_cum/1000, unit:'kips', kind:'shear'}
+    ]);
+  }
+  drawMWFRSDiagram();
+
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
@@ -902,77 +922,77 @@ function drawMWFRSDiagram(){
   var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H
     +'" style="display:block;margin:0 auto;max-width:100%;background:#fff;border-radius:8px">'
     +'<defs>'
-    +ar('arWX','#cc0044')+ar('arWY','#1e3c72')
-    +ar('arDim','#555')+arR('arDimS','#555')
+    +ar('arWX','#c42b2b')+ar('arWY','#c42b2b')
+    +ar('arDim','#1a7a4a')+arR('arDimS','#1a7a4a')
     +'</defs>'
 
     // Building fill + border
-    +'<rect x="'+bx+'" y="'+by+'" width="'+bW+'" height="'+bH+'" fill="#dde8f7" stroke="#1e3c72" stroke-width="2"/>'
+    +'<rect x="'+bx+'" y="'+by+'" width="'+bW+'" height="'+bH+'" fill="#fde68a" stroke="#1a2b5f" stroke-width="2"/>'
 
     // ── Wall labels ──────────────────────────────────────────────────
     // NORTH WALL — centered horizontally, in top margin
     +'<text x="'+bcx+'" y="'+(by-8)+'" text-anchor="middle" dominant-baseline="alphabetic"'
-    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8">NORTH WALL</text>'
+    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8">NORTH WALL</text>'
 
     // SOUTH WALL — in bottom margin, below B dim text
     +'<text x="'+bcx+'" y="'+southY+'" text-anchor="middle" dominant-baseline="hanging"'
-    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8">SOUTH WALL</text>'
+    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8">SOUTH WALL</text>'
 
     // WEST WALL — rotated -90°, centred vertically, in left margin
     +'<text x="'+(bx-14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8"'
+    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8"'
     +' transform="rotate(-90,'+(bx-14)+','+bcy+')">WEST WALL</text>'
 
     // EAST WALL — rotated -90°, centred vertically, in right margin
     +'<text x="'+(bx2+14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" font-weight="700" fill="#1e3c72" letter-spacing="0.8"'
+    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8"'
     +' transform="rotate(-90,'+(bx2+14)+','+bcy+')">EAST WALL</text>'
 
     // ── Wind-X arrow (→, EW) inside building ─────────────────────────
     +'<line x1="'+wxArX1+'" y1="'+wxArY+'" x2="'+wxArX2+'" y2="'+wxArY
-    +'" stroke="#cc0044" stroke-width="2.5" marker-end="url(#arWX)"/>'
+    +'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#arWX)"/>'
     +'<text x="'+(wxArX1+(wxArX2-wxArX1)/2)+'" y="'+(wxArY-7)+'" text-anchor="middle"'
-    +' font-size="11" fill="#cc0044" font-weight="700">Wind-X (EW)</text>'
+    +' font-size="11" fill="#c42b2b" font-weight="700">Wind-X (EW)</text>'
 
     // ── Wind-Y arrow (↑, NS) inside building ─────────────────────────
     // Line from y2 (base/south) up to y1 (arrowhead/north)
     +'<line x1="'+wyArX+'" y1="'+wyArY2+'" x2="'+wyArX+'" y2="'+wyArY1
-    +'" stroke="#1e3c72" stroke-width="2.5" marker-end="url(#arWY)"/>'
+    +'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#arWY)"/>'
     +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2-6)+'" text-anchor="start"'
-    +' dominant-baseline="middle" font-size="11" fill="#1e3c72" font-weight="700">Wind-Y</text>'
+    +' dominant-baseline="middle" font-size="11" fill="#c42b2b" font-weight="700">Wind-Y</text>'
     +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2+8)+'" text-anchor="start"'
-    +' dominant-baseline="middle" font-size="11" fill="#1e3c72" font-weight="700">(NS)</text>'
+    +' dominant-baseline="middle" font-size="11" fill="#c42b2b" font-weight="700">(NS)</text>'
 
     // ── B dimension string (below building) ──────────────────────────
     // Extension ticks
-    +'<line x1="'+bx+'" y1="'+(by2+4)+'" x2="'+bx+'" y2="'+(by2+26)+'" stroke="#555" stroke-width="1"/>'
-    +'<line x1="'+bx2+'" y1="'+(by2+4)+'" x2="'+bx2+'" y2="'+(by2+26)+'" stroke="#555" stroke-width="1"/>'
+    +'<line x1="'+bx+'" y1="'+(by2+4)+'" x2="'+bx+'" y2="'+(by2+26)+'" stroke="#1a7a4a" stroke-width="1"/>'
+    +'<line x1="'+bx2+'" y1="'+(by2+4)+'" x2="'+bx2+'" y2="'+(by2+26)+'" stroke="#1a7a4a" stroke-width="1"/>'
     // Dimension line with inward-pointing arrows
     +'<line x1="'+bx+'" y1="'+dimBY+'" x2="'+bx2+'" y2="'+dimBY
-    +'" stroke="#555" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
+    +'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
     // Text
     +'<rect x="'+(bcx-30)+'" y="'+(dimBY-7)+'" width="60" height="14" fill="#fff"/>'
     +'<text x="'+bcx+'" y="'+dimBY+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11.5" fill="#374151" font-weight="600">'+f1(B)+' ft</text>'
+    +' font-size="11.5" fill="#1a7a4a" font-weight="600">'+f1(B)+' ft</text>'
     // Label below line
     +'<text x="'+bcx+'" y="'+dimBTextY+'" text-anchor="middle" dominant-baseline="hanging"'
-    +' font-size="11" fill="#374151">B (EW width)</text>'
+    +' font-size="11" fill="#1a7a4a">B (EW width)</text>'
 
     // ── D dimension string (right of building) ────────────────────────
     // Extension ticks (start after EAST WALL label)
-    +'<line x1="'+(bx2+28)+'" y1="'+by+'" x2="'+(bx2+50)+'" y2="'+by+'" stroke="#555" stroke-width="1"/>'
-    +'<line x1="'+(bx2+28)+'" y1="'+by2+'" x2="'+(bx2+50)+'" y2="'+by2+'" stroke="#555" stroke-width="1"/>'
+    +'<line x1="'+(bx2+28)+'" y1="'+by+'" x2="'+(bx2+50)+'" y2="'+by+'" stroke="#1a7a4a" stroke-width="1"/>'
+    +'<line x1="'+(bx2+28)+'" y1="'+by2+'" x2="'+(bx2+50)+'" y2="'+by2+'" stroke="#1a7a4a" stroke-width="1"/>'
     // Dimension line with outward-pointing arrows (vertical, from by to by2)
     +'<line x1="'+dimDX+'" y1="'+by+'" x2="'+dimDX+'" y2="'+by2
-    +'" stroke="#555" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
+    +'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
     // Text (background rect for clarity, then text)
     +'<rect x="'+(dimDX-7)+'" y="'+(bcy-30)+'" width="14" height="60" fill="#fff"/>'
     +'<text x="'+dimDX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11.5" fill="#374151" font-weight="600"'
+    +' font-size="11.5" fill="#1a7a4a" font-weight="600"'
     +' transform="rotate(-90,'+dimDX+','+bcy+')">'+f1(Ddim)+' ft</text>'
     // Label (further right, also rotated)
     +'<text x="'+dimDTextX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" fill="#374151" transform="rotate(-90,'+dimDTextX+','+bcy+')">D (NS depth)</text>'
+    +' font-size="11" fill="#1a7a4a" transform="rotate(-90,'+dimDTextX+','+bcy+')">D (NS depth)</text>'
 
     // ── X-Y axis (bottom-left) ────────────────────────────────────────
     +'<line x1="'+axX0+'" y1="'+axY0+'" x2="'+(axX0+28)+'" y2="'+axY0
@@ -985,9 +1005,9 @@ function drawMWFRSDiagram(){
     +' font-size="10" fill="#555" font-weight="700">Y (N)</text>'
 
     // ── North arrow (top-left, compact compass) ───────────────────────
-    +'<line x1="55" y1="42" x2="55" y2="18" stroke="#cc0044" stroke-width="2" marker-end="url(#arWX)"/>'
+    +'<line x1="55" y1="42" x2="55" y2="18" stroke="#c42b2b" stroke-width="2" marker-end="url(#arWX)"/>'
     +'<text x="55" y="14" text-anchor="middle" dominant-baseline="alphabetic"'
-    +' font-size="12" fill="#cc0044" font-weight="900">N</text>'
+    +' font-size="12" fill="#c42b2b" font-weight="900">N</text>'
 
     +'</svg>';
 

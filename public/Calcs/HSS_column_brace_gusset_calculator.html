@@ -276,61 +276,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="blk">
   <h2>Connection Schematic</h2>
   <div class="schematic-wrap">
-    <svg width="320" height="280" viewBox="0 0 320 280">
-      <!-- HSS column -->
-      <rect x="120" y="30" width="80" height="220" fill="#c8d8f0" stroke="#1e3c72" stroke-width="2"/>
-      <rect x="124" y="34" width="72" height="212" fill="#e8f0fb" stroke="none"/>
-      <!-- Column label -->
-      <text x="160" y="148" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="bold">HSS Col.</text>
-      <!-- Gusset plate (thin edge on column face, projects left) -->
-      <rect x="60" y="120" width="60" height="40" fill="#fde68a" stroke="#b45309" stroke-width="2"/>
-      <text x="90" y="138" text-anchor="middle" font-size="10" fill="#78350f" font-weight="bold">Gusset</text>
-      <text x="90" y="151" text-anchor="middle" font-size="9" fill="#78350f">t_g × d_g</text>
-      <!-- tg edge label -->
-      <line x1="120" y1="120" x2="120" y2="160" stroke="#b45309" stroke-width="3"/>
-      <text x="115" y="113" text-anchor="middle" font-size="9" fill="#b45309">t_g edge</text>
-      <!-- dg arrow -->
-      <line x1="60" y1="170" x2="120" y2="170" stroke="#b45309" stroke-width="1" stroke-dasharray="3,2"/>
-      <text x="90" y="183" text-anchor="middle" font-size="9" fill="#b45309">d_g →</text>
-      <!-- Weld symbol -->
-      <line x1="120" y1="120" x2="120" y2="160" stroke="#dc2626" stroke-width="3"/>
-      <text x="127" y="117" font-size="9" fill="#dc2626">weld</text>
-      <!-- Brace line -->
-      <line x1="60" y1="160" x2="10" y2="240" stroke="#1e3c72" stroke-width="2.5" stroke-dasharray="6,3"/>
-      <text x="15" y="255" font-size="10" fill="#1e3c72">Brace</text>
-      <text x="15" y="267" font-size="9" fill="#1e3c72">P_u @ θ</text>
-      <!-- N arrow (vertical height) -->
-      <line x1="108" y1="120" x2="108" y2="160" stroke="#555" stroke-width="1"/>
-      <line x1="104" y1="120" x2="112" y2="120" stroke="#555" stroke-width="1"/>
-      <line x1="104" y1="160" x2="112" y2="160" stroke="#555" stroke-width="1"/>
-      <text x="103" y="143" text-anchor="middle" font-size="9" fill="#333">N</text>
-      <!-- Column loads -->
-      <text x="215" y="45" font-size="9" fill="#555">P_u,col↓</text>
-      <text x="215" y="57" font-size="9" fill="#555">M_ux, M_uy</text>
-      <text x="215" y="69" font-size="9" fill="#555">from RISA</text>
-    </svg>
-    <svg width="280" height="280" viewBox="0 0 280 280">
-      <!-- Plan view of HSS face -->
-      <rect x="80" y="30" width="120" height="220" fill="#c8d8f0" stroke="#1e3c72" stroke-width="2"/>
-      <rect x="84" y="34" width="112" height="212" fill="#e8f0fb" stroke="none"/>
-      <text x="140" y="155" text-anchor="middle" font-size="11" fill="#1e3c72" font-weight="bold">HSS</text>
-      <text x="140" y="168" text-anchor="middle" font-size="10" fill="#1e3c72">Face (B wide)</text>
-      <!-- Gusset edge (tg wide, N tall) centred -->
-      <rect x="134" y="110" width="12" height="60" fill="#fde68a" stroke="#b45309" stroke-width="2"/>
-      <text x="140" y="106" text-anchor="middle" font-size="9" fill="#b45309">t_g</text>
-      <!-- Weld lines (sides + top + bottom) -->
-      <line x1="134" y1="110" x2="134" y2="170" stroke="#dc2626" stroke-width="3"/>
-      <line x1="146" y1="110" x2="146" y2="170" stroke="#dc2626" stroke-width="3"/>
-      <line x1="134" y1="110" x2="146" y2="110" stroke="#dc2626" stroke-width="3"/>
-      <line x1="134" y1="170" x2="146" y2="170" stroke="#dc2626" stroke-width="3"/>
-      <!-- N label -->
-      <line x1="152" y1="110" x2="152" y2="170" stroke="#555" stroke-width="1"/>
-      <text x="157" y="143" font-size="9" fill="#333">N</text>
-      <!-- B label -->
-      <line x1="80" y1="255" x2="200" y2="255" stroke="#555" stroke-width="1"/>
-      <text x="140" y="270" text-anchor="middle" font-size="9" fill="#333">B (column width)</text>
-      <text x="50" y="145" text-anchor="middle" font-size="9" fill="#888">Plan View</text>
-    </svg>
+    <svg id="gx_elev" width="320" height="280" viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="gx_plan" width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 </div>
 
@@ -445,6 +392,91 @@ function fillHSS(){
 }
 
 // ── Main Calculation ──────────────────────────────────────────────────────────
+
+// ============ LIVE SCHEMATIC ============
+function areDrawSchematic(){
+  var e1=document.getElementById('gx_elev'), e2=document.getElementById('gx_plan');
+  if(!e1||!e2) return;
+  var Hc=ov('Hc')||8, Bc=ov('Bc')||8, tg=ov('tg')||0.5, dg=ov('dg')||8, N=ov('N_gp')||10;
+  var th=ov('theta_deg')||45, Pu=ov('Pu_b'), ws=parseInt(document.getElementById('weld_sides').value)||2;
+  var defs='<defs><marker id="gxaR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
+    +'<marker id="gxaG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker></defs>';
+  // ---- elevation ----
+  var sc=Math.min(90/Math.max(Hc,1),9); sc=Math.max(sc,4);
+  var cw=Math.max(Hc*sc,30), cx0=210-cw/2;
+  var s=defs;
+  s+='<rect x="'+cx0+'" y="30" width="'+cw+'" height="220" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
+  s+='<text x="'+(cx0+cw/2)+'" y="145" text-anchor="middle" font-size="11" fill="#1a2b5f" font-weight="bold" font-family="sans-serif">HSS '+Hc+'x'+Bc+'</text>';
+  // gusset: rectangle projecting left, height = N*scg, length = dg*scg
+  var scg=Math.min(110/Math.max(dg,1), 90/Math.max(N,1), sc); scg=Math.max(scg,3);
+  var gh=Math.max(N*scg,18), gl=Math.max(dg*scg,26);
+  var gy=140-gh/2, gx=cx0-gl;
+  s+='<rect x="'+gx+'" y="'+gy+'" width="'+gl+'" height="'+gh+'" fill="#fde68a" stroke="#b45309" stroke-width="2"/>';
+  s+='<text x="'+(gx+gl/2)+'" y="'+(140+4)+'" text-anchor="middle" font-size="10" fill="#78350f" font-weight="bold" font-family="sans-serif">Gusset</text>';
+  // weld line at column face
+  s+='<line x1="'+cx0+'" y1="'+gy+'" x2="'+cx0+'" y2="'+(gy+gh)+'" stroke="#c42b2b" stroke-width="3.5"/>';
+  s+='<text x="'+(cx0+4)+'" y="'+(gy-6)+'" font-size="9" fill="#c42b2b" font-family="sans-serif">weld</text>';
+  // N dim (green, left of column face)
+  var ndx=cx0-10;
+  s+='<line x1="'+ndx+'" y1="'+gy+'" x2="'+ndx+'" y2="'+(gy+gh)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxaG)" marker-end="url(#gxaG)"/>';
+  s+='<text x="'+(ndx-4)+'" y="'+(140+3)+'" text-anchor="end" font-size="10" fill="#1a7a4a" font-family="sans-serif">N='+N+'"</text>';
+  // dg dim below gusset
+  s+='<line x1="'+gx+'" y1="'+(gy+gh+12)+'" x2="'+cx0+'" y2="'+(gy+gh+12)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxaG)" marker-end="url(#gxaG)"/>';
+  s+='<text x="'+(gx+gl/2)+'" y="'+(gy+gh+26)+'" text-anchor="middle" font-size="10" fill="#1a7a4a" font-family="sans-serif">d_g='+dg+'"</text>';
+  // brace along theta from gusset corner, arrow toward gusset (tension positive away)
+  var r=th*Math.PI/180, bl=85;
+  var bx0=gx+6, by0=gy+gh;
+  var bx1=bx0-Math.cos(r)*bl, by1=by0+Math.sin(r)*bl;
+  s+='<line x1="'+bx1+'" y1="'+by1+'" x2="'+bx0+'" y2="'+by0+'" stroke="#1a2b5f" stroke-width="2.5" stroke-dasharray="6,3"/>';
+  var am=(Pu>=0)?-1:1; // tension: arrow pointing away from gusset along brace
+  var ax1=bx0-Math.cos(r)*20, ay1=by0+Math.sin(r)*20;
+  var ax2=bx0-Math.cos(r)*62, ay2=by0+Math.sin(r)*62;
+  if(Pu>=0) s+='<line x1="'+ax1+'" y1="'+ay1+'" x2="'+ax2+'" y2="'+ay2+'" stroke="#c42b2b" stroke-width="2.4" marker-end="url(#gxaR)"/>';
+  else s+='<line x1="'+ax2+'" y1="'+ay2+'" x2="'+ax1+'" y2="'+ay1+'" stroke="#c42b2b" stroke-width="2.4" marker-end="url(#gxaR)"/>';
+  s+='<text x="'+(bx1+4)+'" y="'+(by1+14)+'" font-size="10" fill="#c42b2b" font-family="sans-serif">P_u='+Pu+' k ('+(Pu>=0?'T':'C')+')</text>';
+  s+='<text x="'+(bx0-46)+'" y="'+(by0-8)+'" font-size="10" fill="#1a2b5f" font-family="sans-serif">&#952;='+th+'&#176;</text>';
+  // column loads note
+  s+='<line x1="'+(cx0+cw/2)+'" y1="6" x2="'+(cx0+cw/2)+'" y2="26" stroke="#c42b2b" stroke-width="2" marker-end="url(#gxaR)"/>';
+  s+='<text x="'+(cx0+cw/2+6)+'" y="18" font-size="9" fill="#c42b2b" font-family="sans-serif">P_u,col + M_ux/M_uy</text>';
+  e1.innerHTML=s;
+  // ---- plan ----
+  var sc2=Math.min(150/Math.max(Bc,1),16); sc2=Math.max(sc2,6);
+  var pw=Math.max(Bc*sc2,40), px=140-pw/2;
+  var tgw=Math.max(tg*sc2,5);
+  var s2=defs.replace(/gxa/g,'gxb');
+  s2+='<rect x="'+px+'" y="30" width="'+pw+'" height="220" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
+  s2+='<text x="140" y="62" text-anchor="middle" font-size="11" fill="#1a2b5f" font-weight="bold" font-family="sans-serif">HSS face (B='+Bc+'")</text>';
+  var gh2=Math.max(Math.min(N*sc2,180),24), gy2=140-gh2/2;
+  s2+='<rect x="'+(140-tgw/2)+'" y="'+gy2+'" width="'+tgw+'" height="'+gh2+'" fill="#fde68a" stroke="#b45309" stroke-width="2"/>';
+  s2+='<text x="140" y="'+(gy2-8)+'" text-anchor="middle" font-size="10" fill="#b45309" font-family="sans-serif">t_g='+tg+'"</text>';
+  // weld lines: sides always; top/bottom if 4-sided
+  s2+='<line x1="'+(140-tgw/2)+'" y1="'+gy2+'" x2="'+(140-tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
+  s2+='<line x1="'+(140+tgw/2)+'" y1="'+gy2+'" x2="'+(140+tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
+  if(ws===4){
+    s2+='<line x1="'+(140-tgw/2)+'" y1="'+gy2+'" x2="'+(140+tgw/2)+'" y2="'+gy2+'" stroke="#c42b2b" stroke-width="3.5"/>';
+    s2+='<line x1="'+(140-tgw/2)+'" y1="'+(gy2+gh2)+'" x2="'+(140+tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
+  }
+  s2+='<text x="'+(140+tgw/2+6)+'" y="'+(gy2+10)+'" font-size="9" fill="#c42b2b" font-family="sans-serif">'+(ws===4?'4-sided weld':'2-sided weld')+'</text>';
+  var ndx2=140+tgw/2+16;
+  s2+='<line x1="'+ndx2+'" y1="'+gy2+'" x2="'+ndx2+'" y2="'+(gy2+gh2)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxbG)" marker-end="url(#gxbG)"/>';
+  s2+='<text x="'+(ndx2+5)+'" y="'+(140+3)+'" font-size="10" fill="#1a7a4a" font-family="sans-serif">N='+N+'"</text>';
+  s2+='<line x1="'+px+'" y1="262" x2="'+(px+pw)+'" y2="262" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxbG)" marker-end="url(#gxbG)"/>';
+  s2+='<text x="140" y="276" text-anchor="middle" font-size="10" fill="#1a7a4a" font-family="sans-serif">B='+Bc+'"</text>';
+  s2+='<text x="42" y="145" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="sans-serif">Plan View</text>';
+  e2.innerHTML=s2;
+}
+(function(){
+  function bind(){
+    ['Pu_b','theta_deg','Hc','Bc','t_col','tg','dg','N_gp','Lg','weld_w','weld_sides'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
+    });
+    areDrawSchematic();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+})();
+// ============ END LIVE SCHEMATIC ============
+
 function calculate(){
   // --- Inputs ---
   var Pu_b    = ov('Pu_b');       // brace force (+ tension)
@@ -912,6 +944,25 @@ function calculate(){
         '<td colspan="7"><div class="det-inner">'+c.det.filter(function(d){return d;}).map(function(d){return '<code>'+d+'</code>';}).join('<br>')+'</div></td>'+
       '</tr>';
   });
+
+  areDrawSchematic();
+
+  if (typeof AREv2 !== 'undefined') {
+    var gov=null;
+    checks.forEach(function(c){
+      if(!c.na && c.demand!=null && c.cap>0){
+        var r=c.demand/c.cap;
+        if(!gov || r>gov.r) gov={r:r, c:c};
+      }
+    });
+    var pub=[
+      {symbol:'Pu_brace', label:'Brace Force Pu', value:Pu_b, unit:'kips', kind:'axial'},
+      {symbol:'Pv', label:'Vertical Component Pv', value:Pv, unit:'kips', kind:'shear'},
+      {symbol:'Ph', label:'Horizontal Component Ph', value:Ph, unit:'kips', kind:'axial'}
+    ];
+    if(gov) pub.push({symbol:'phiRn_gov', label:'Governing: '+gov.c.name, value:gov.c.cap, unit:gov.c.unit||'kips', kind:'capacity'});
+    AREv2.publish(pub);
+  }
 }
 
 // helper for f0

@@ -355,6 +355,7 @@
             <div class="beam-diagram" id="beamDiagram">
                 Select a beam configuration to see the diagram and input parameters
             </div>
+            <div id="beamSchematic" style="margin:10px 0 0 0;"></div>
 
             <div class="inputs-grid" id="inputsContainer">
                 <!-- Dynamic inputs will be generated here -->
@@ -842,6 +843,7 @@
             if (!beamType || !beamConfigurations[beamType]) {
                 beamDiagram.textContent = 'Select a beam configuration to see the diagram and input parameters';
                 calculateBtn.style.display = 'none';
+                const sk = document.getElementById('beamSchematic'); if (sk) sk.innerHTML = '';
                 return;
             }
             
@@ -947,6 +949,12 @@
             });
             
             calculateBtn.style.display = 'block';
+
+            // v3: live schematic — redraw whenever a geometry/load input changes
+            inputsContainer.querySelectorAll('input').forEach(inp => {
+                ['input', 'change'].forEach(ev => inp.addEventListener(ev, areDrawSchematic));
+            });
+            areDrawSchematic();
         }
 
         function getUnitText(type) {
@@ -1101,7 +1109,176 @@
             resultsContent.innerHTML = resultsHTML;
             if (typeof AREv2!=='undefined') AREv2.publish(_arePub.slice(0,6));
             resultsContainer.classList.remove('hidden');
+            areDrawSchematic();
         }
+
+
+        // ===== v3: live beam schematic (redraws from current inputs) =====
+        function areDrawSchematic() {
+            const host = document.getElementById('beamSchematic');
+            if (!host) return;
+            const type = document.getElementById('beamType').value;
+            if (!type || !beamConfigurations[type]) { host.innerHTML = ''; return; }
+
+            const lu = document.getElementById('lengthUnit').value;
+            const fu = document.getElementById('forceUnit').value;
+            const wu = fu + '/' + lu, mu = fu + '-' + lu;
+            const num = id => { const el = document.getElementById(id); if (!el) return NaN; const v = parseFloat(el.value); return isFinite(v) ? v : NaN; };
+            const fmt = v => Math.abs(v) >= 1000 ? v.toFixed(0) : parseFloat(v.toPrecision(4)).toString();
+            const lab = (sym, v, unit) => isFinite(v) ? sym + ' = ' + fmt(v) + ' ' + unit : sym;
+
+            let l = num('l'); const lGiven = l > 0; if (!lGiven) l = 10;
+            const aIn = num('a'), bIn = num('b');
+            const fam = type[0];
+
+            // Overhang length (family 2). 2A.1 has no overhang input -> nominal.
+            let ov = 0;
+            if (fam === '2') {
+                ov = (type === '2A.1') ? 0.30 * l : (aIn > 0 ? aIn : 0.30 * l);
+                ov = Math.min(Math.max(ov, 0.08 * l), 1.5 * l);
+            }
+            const T = (fam === '6') ? 2 * l : l + ov;
+
+            const X0 = 60, X1 = 640, BY = 118;
+            const sc = (X1 - X0) / T;
+            const X = u => X0 + Math.min(Math.max(u, 0), T) * sc;
+            const clampU = (u, lo, hi) => Math.min(Math.max(u, lo), hi);
+            const P = [];
+            P.push('<defs>'
+                + '<marker id="bmArrR" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#c42b2b"/></marker>'
+                + '<marker id="bmArrG" markerWidth="8" markerHeight="8" refX="5" refY="2.5" orient="auto-start-reverse"><path d="M0,0 L6,2.5 L0,5 Z" fill="#1a7a4a"/></marker>'
+                + '</defs>');
+            const txt = (x, y, s, fill, size, anchor) => P.push('<text x="' + x + '" y="' + y + '" fill="' + (fill || '#1a2b5f') + '" font-family="Arial,Helvetica,sans-serif" font-size="' + (size || 11) + '" text-anchor="' + (anchor || 'middle') + '">' + s + '</text>');
+
+            // ---- supports ----
+            const ground = (x, gy) => {
+                P.push('<line x1="' + (x - 16) + '" y1="' + gy + '" x2="' + (x + 16) + '" y2="' + gy + '" stroke="#94a3b8" stroke-width="2"/>');
+                for (let i = -12; i <= 12; i += 6) P.push('<line x1="' + (x + i) + '" y1="' + gy + '" x2="' + (x + i - 5) + '" y2="' + (gy + 6) + '" stroke="#94a3b8" stroke-width="1.2"/>');
+            };
+            const pin = u => { const x = X(u); P.push('<path d="M' + x + ',' + (BY + 9) + ' L' + (x - 11) + ',' + (BY + 29) + ' L' + (x + 11) + ',' + (BY + 29) + ' Z" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>'); ground(x, BY + 29); };
+            const roller = u => {
+                const x = X(u);
+                P.push('<path d="M' + x + ',' + (BY + 9) + ' L' + (x - 11) + ',' + (BY + 25) + ' L' + (x + 11) + ',' + (BY + 25) + ' Z" fill="#ffffff" stroke="#94a3b8" stroke-width="2"/>');
+                P.push('<circle cx="' + (x - 5.5) + '" cy="' + (BY + 29.5) + '" r="3.5" fill="none" stroke="#94a3b8" stroke-width="1.5"/><circle cx="' + (x + 5.5) + '" cy="' + (BY + 29.5) + '" r="3.5" fill="none" stroke="#94a3b8" stroke-width="1.5"/>');
+                ground(x, BY + 34);
+            };
+            const fixed = (u, side) => {
+                const x = X(u), s = (side === 'L') ? -1 : 1;
+                P.push('<line x1="' + x + '" y1="' + (BY - 36) + '" x2="' + x + '" y2="' + (BY + 36) + '" stroke="#94a3b8" stroke-width="3"/>');
+                for (let y = BY - 34; y <= BY + 30; y += 8) P.push('<line x1="' + x + '" y1="' + y + '" x2="' + (x + 8 * s) + '" y2="' + (y + 7) + '" stroke="#94a3b8" stroke-width="1.2"/>');
+            };
+
+            // ---- loads ----
+            const pload = (u, t) => { const x = X(u); P.push('<line x1="' + x + '" y1="' + (BY - 54) + '" x2="' + x + '" y2="' + (BY - 11) + '" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#bmArrR)"/>'); txt(x, BY - 60, t, '#c42b2b', 12); };
+            const udl = (u1, u2, t) => {
+                const xa = X(u1), xb = X(u2), ty = BY - 38;
+                P.push('<line x1="' + xa + '" y1="' + ty + '" x2="' + xb + '" y2="' + ty + '" stroke="#c42b2b" stroke-width="2"/>');
+                const n = Math.max(2, Math.round((xb - xa) / 34));
+                for (let i = 0; i <= n; i++) { const x = xa + (xb - xa) * i / n; P.push('<line x1="' + x + '" y1="' + ty + '" x2="' + x + '" y2="' + (BY - 11) + '" stroke="#c42b2b" stroke-width="1.6" marker-end="url(#bmArrR)"/>'); }
+                txt((xa + xb) / 2, ty - 7, t, '#c42b2b', 12);
+            };
+            const tri = (u1, u2, zeroAt, t) => {
+                const xa = X(u1), xb = X(u2), hMax = 36, hMin = 3;
+                const yA = BY - 9 - (zeroAt === 'left' ? hMin : hMax), yB = BY - 9 - (zeroAt === 'left' ? hMax : hMin);
+                P.push('<line x1="' + xa + '" y1="' + yA + '" x2="' + xb + '" y2="' + yB + '" stroke="#c42b2b" stroke-width="2"/>');
+                const n = Math.max(3, Math.round((xb - xa) / 32));
+                for (let i = 0; i <= n; i++) {
+                    const f = i / n, x = xa + (xb - xa) * f, yt = yA + (yB - yA) * f;
+                    if (BY - 11 - yt > 6) P.push('<line x1="' + x + '" y1="' + yt + '" x2="' + x + '" y2="' + (BY - 11) + '" stroke="#c42b2b" stroke-width="1.6" marker-end="url(#bmArrR)"/>');
+                }
+                if (t) txt((xa + xb) / 2, BY - 54, t, '#c42b2b', 12);
+            };
+            const marc = (u, t) => {
+                const x = X(u);
+                P.push('<path d="M ' + (x - 14) + ' ' + (BY - 14) + ' A 16 16 0 1 1 ' + (x + 14) + ' ' + (BY - 14) + '" fill="none" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#bmArrR)"/>');
+                txt(x, BY - 44, t, '#c42b2b', 12);
+            };
+            const settle = u => { const x = X(u); P.push('<line x1="' + x + '" y1="' + (BY - 44) + '" x2="' + x + '" y2="' + (BY - 14) + '" stroke="#c42b2b" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#bmArrR)"/>'); };
+            const dim = (u1, u2, t, y) => {
+                const xa = X(u1), xb = X(u2);
+                P.push('<line x1="' + xa + '" y1="' + (y - 6) + '" x2="' + xa + '" y2="' + (y + 6) + '" stroke="#1a7a4a" stroke-width="1.3"/>');
+                P.push('<line x1="' + xb + '" y1="' + (y - 6) + '" x2="' + xb + '" y2="' + (y + 6) + '" stroke="#1a7a4a" stroke-width="1.3"/>');
+                P.push('<line x1="' + xa + '" y1="' + y + '" x2="' + xb + '" y2="' + y + '" stroke="#1a7a4a" stroke-width="1.3" marker-start="url(#bmArrG)" marker-end="url(#bmArrG)"/>');
+                txt((xa + xb) / 2, y - 5, t, '#1a7a4a', 11);
+            };
+
+            // ---- beam (designed element, highlighted) ----
+            P.push('<rect x="' + X(0) + '" y="' + (BY - 9) + '" width="' + (X(T) - X(0)) + '" height="18" fill="#fde68a" stroke="#1a2b5f" stroke-width="2"/>');
+
+            const Pv = num('P'), P1v = num('P1'), P2v = num('P2'), wv = num('w'), Wv = num('W'), Mov = num('Mo'), M1v = num('M1'), M2v = num('M2');
+            const dY1 = BY + 52, dY2 = BY + 72;
+            const aD = (aIn > 0 && aIn < l) ? aIn : l / 3;
+            const bD = (bIn > 0 && bIn < l) ? bIn : l - aD;
+
+            if (fam === '1') {
+                pin(0); roller(l);
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '1A.1') pload(l / 2, lab('P', Pv, fu));
+                else if (type === '1A.2') { pload(aD, lab('P', Pv, fu)); dim(0, aD, lab('a', aIn, lu), dY1); dim(aD, l, lab('b', bIn, lu), dY1); }
+                else if (type === '1A.3') { const ad = clampU(aD, 0.05 * l, 0.45 * l); pload(ad, lab('P', Pv, fu)); pload(l - ad, lab('P', Pv, fu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(l - ad, l, lab('a', aIn, lu), dY1); }
+                else if (type === '1A.4') { const ad = clampU(aD, 0.05 * l, 0.9 * l); const bd = clampU(bD, 0.05 * l, l - ad); pload(ad, lab('P1', P1v, fu)); pload(l - bd, lab('P2', P2v, fu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(l - bd, l, lab('b', bIn, lu), dY1); }
+                else if (type === '1B.1') udl(0, l, lab('w', wv, wu));
+                else if (type === '1B.2') { udl(0, l, lab('w', wv, wu)); marc(0, lab('M1', M1v, mu)); marc(l, lab('M2', M2v, mu)); }
+                else if (type === '1C.1') { const ad = clampU(aD, 0, 0.9 * l); const bd = clampU(bD, 0.05 * l, l - ad); udl(ad, ad + bd, lab('w', wv, wu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(ad, ad + bd, lab('b', bIn, lu), dY1); }
+                else if (type === '1D.1') tri(0, l, 'left', lab('W', Wv, fu) + ' (total)');
+                else if (type === '1D.2') { tri(0, l / 2, 'left', ''); tri(l / 2, l, 'right', ''); txt(X(l / 2), BY - 60, lab('W', Wv, fu) + ' (total)', '#c42b2b', 12); }
+                else if (type === '1E.1') marc(0, lab('Mo', Mov, mu));
+                else if (type === '1E.2') { marc(aD, lab('Mo', Mov, mu)); dim(0, aD, lab('a', aIn, lu), dY1); dim(aD, l, lab('b', bIn, lu), dY1); }
+                else if (type === '1E.3') { marc(0, lab('M1', M1v, mu)); marc(l, lab('M2', M2v, mu)); }
+            } else if (fam === '2') {
+                pin(0); roller(l);
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '2A.1') { const ad = clampU(aD, 0.04 * l, 0.96 * l); pload(ad, lab('P', Pv, fu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(ad, l, lab('b', bIn, lu), dY1); }
+                else if (type === '2A.2') { pload(T, lab('P', Pv, fu)); dim(l, T, lab('a', aIn, lu), dY2); }
+                else if (type === '2B.1') { udl(0, T, lab('w', wv, wu)); dim(l, T, lab('a', aIn, lu), dY2); }
+                else if (type === '2C.1') { udl(0, l, lab('w', wv, wu)); dim(l, T, lab('a', aIn, lu), dY2); }
+                else if (type === '2C.2') { udl(l, T, lab('w', wv, wu)); dim(l, T, lab('a', aIn, lu), dY2); }
+            } else if (fam === '3') {
+                const fixedRight = (type === '3A.1' || type === '3A.2' || type === '3B.1' || type === '3C.1');
+                if (fixedRight) { pin(0); fixed(l, 'R'); } else { fixed(0, 'L'); pin(l); }
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '3A.1') pload(l / 2, lab('P', Pv, fu));
+                else if (type === '3A.2') { pload(aD, lab('P', Pv, fu)); dim(0, aD, lab('a', aIn, lu), dY1); dim(aD, l, lab('b', bIn, lu), dY1); }
+                else if (type === '3B.1') udl(0, l, lab('w', wv, wu));
+                else if (type === '3C.1') { const ad = clampU(aD, 0, 0.9 * l); const bd = clampU(bD, 0.05 * l, l - ad); udl(ad, ad + bd, lab('w', wv, wu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(ad, ad + bd, lab('b', bIn, lu), dY1); }
+                else if (type === '3E.1') marc(l, lab('Mo', Mov, mu));
+                else if (type === '3F.1') { settle(0); settle(l); txt(X(0) + 18, BY - 48, lab('Δ1', num('Δ1'), lu), '#c42b2b', 12, 'start'); txt(X(l) - 18, BY - 48, lab('Δ2', num('Δ2'), lu), '#c42b2b', 12, 'end'); }
+                else if (type === '3F.2') marc(l, lab('φ1', num('φ1'), 'rad'));
+            } else if (fam === '4') {
+                fixed(0, 'L'); fixed(l, 'R');
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '4A.1') pload(l / 2, lab('P', Pv, fu));
+                else if (type === '4A.2') { pload(aD, lab('P', Pv, fu)); dim(0, aD, lab('a', aIn, lu), dY1); dim(aD, l, lab('b', bIn, lu), dY1); }
+                else if (type === '4B.1') udl(0, l, lab('w', wv, wu));
+                else if (type === '4C.1') { const ad = clampU(aD, 0, 0.9 * l); const bd = clampU(bD, 0.05 * l, l - ad); udl(ad, ad + bd, lab('w', wv, wu)); dim(0, ad, lab('a', aIn, lu), dY1); dim(ad, ad + bd, lab('b', bIn, lu), dY1); }
+                else if (type === '4E.1') { marc(aD, lab('Mo', Mov, mu)); dim(0, aD, lab('a', aIn, lu), dY1); dim(aD, l, lab('b', bIn, lu), dY1); }
+                else if (type === '4F.1') { settle(0); settle(l); txt(X(0) + 18, BY - 48, lab('Δ1', num('Δ1'), lu), '#c42b2b', 12, 'start'); txt(X(l) - 18, BY - 48, lab('Δ2', num('Δ2'), lu), '#c42b2b', 12, 'end'); }
+                else if (type === '4F.2') marc(l, lab('φ2', num('φ2'), 'rad'));
+            } else if (fam === '5') {
+                fixed(0, 'L');
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '5A.1') pload(l, lab('P', Pv, fu));
+                else if (type === '5A.2') { const bd = clampU((bIn > 0 && bIn < l) ? bIn : 0.6 * l, 0.04 * l, 0.96 * l); pload(bd, lab('P', Pv, fu)); dim(0, bd, lab('b', bIn, lu), dY1); dim(bd, l, lab('a', aIn, lu), dY1); }
+                else if (type === '5B.1') udl(0, l, lab('w', wv, wu));
+                else if (type === '5C.1') { const bd = clampU((bIn > 0 && bIn <= l) ? bIn : 0.5 * l, 0.05 * l, l); udl(l - bd, l, lab('w', wv, wu)); dim(l - bd, l, lab('b', bIn, lu), dY1); }
+                else if (type === '5D.1') tri(0, l, 'right', lab('W', Wv, fu) + ' (total)');
+                else if (type === '5D.2') tri(0, l, 'left', lab('W', Wv, fu) + ' (total)');
+                else if (type === '5E.1') marc(l, lab('Mo', Mov, mu));
+            } else if (fam === '6') {
+                pin(0); roller(l); roller(2 * l);
+                dim(0, l, lab('l', lGiven ? l : NaN, lu), dY2); dim(l, 2 * l, lab('l', lGiven ? l : NaN, lu), dY2);
+                if (type === '6A.1') pload(l / 2, lab('P', Pv, fu));
+                else if (type === '6A.2') { const ad = clampU(aD, 0.04 * l, 0.96 * l); pload(ad, lab('P', Pv, fu)); dim(0, ad, lab('a', aIn, lu), dY1); }
+                else if (type === '6B.1') udl(0, l, lab('w', wv, wu));
+            }
+
+            host.innerHTML = '<svg viewBox="0 0 700 205" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;max-width:760px;margin:0 auto;background:#ffffff;border:1px solid #e1e8ed;border-radius:8px;">' + P.join('') + '</svg>';
+        }
+
+        ['lengthUnit', 'forceUnit'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', areDrawSchematic);
+        });
 
         function convertLengthToInches(value, fromUnit) {
             switch(fromUnit) {
