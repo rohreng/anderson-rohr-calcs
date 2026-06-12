@@ -432,9 +432,14 @@ function runCalc(){
   var stiff_req = h_tw > stiff_limit;
 
   // ─── Local Web Yielding (J10.2) ──────────────────────────────────────
-  var hasPu = Pu > 0;
+  // Check whenever a concentrated load OR a bearing length is provided.
+  // If Pu = 0, fall back to Vu (the shear reaction) as the applied demand.
+  var hasPu   = Pu > 0;
+  var doLWY   = hasPu || lb > 0;
+  var P_lwy   = hasPu ? Pu : Vu;
+  var lwy_src = hasPu ? 'P<sub>u</sub>' : 'V<sub>u</sub> (reaction)';
   var Rn_lwy, phiRn_lwy, lwy_factor, lwy_label;
-  if(hasPu){
+  if(doLWY){
     lwy_factor = loadEnd ? 2.5 : 5.0;
     lwy_label  = loadEnd ? '(End: 2.5k + l<sub>b</sub>)' : '(Interior: 5k + l<sub>b</sub>)';
     Rn_lwy    = Fy * tw * (lwy_factor * kdes + lb);
@@ -454,7 +459,7 @@ function runCalc(){
   det_prop += '<div class="mrow"><span class="ceq">Condition (a): 0.1 ≤ I<sub>yc</sub>/I<sub>y</sub> ≤ 0.9</span></div>';
   det_prop += '<div class="mrow ind">I<sub>yc</sub> = '+fr('1','12')+' t<sub>f</sub> b<sub>f</sub>³ = '+fr('1','12')+' × '+f3(tf)+' × '+f2(bf)+'³ = <span class="cval">'+f2(Iyc)+' in⁴</span></div>';
   det_prop += '<div class="mrow ind">I<sub>y</sub> = <span class="cval">'+f2(Iy)+' in⁴</span> (from AISC database)</div>';
-  det_prop += '<div class="mrow ind">I<sub>yc</sub>/I<sub>y</sub> = '+f2(Iyc)+'/'+f2(Iy)+' = <span class="cval">'+f3(IycRatio)+'</span> '+(propA_ok?'<span class="pass">✓ 0.1 ≤ 0.50 ≤ 0.90</span>':'<span class="fail">✗ Outside limits</span>')+'</div>';
+  det_prop += '<div class="mrow ind">I<sub>yc</sub>/I<sub>y</sub> = '+f2(Iyc)+'/'+f2(Iy)+' = <span class="cval">'+f3(IycRatio)+'</span> '+(propA_ok?'<span class="pass">✓ 0.1 ≤ '+f3(IycRatio)+' ≤ 0.90</span>':'<span class="fail">✗ '+f3(IycRatio)+' outside 0.1–0.9</span>')+'</div>';
   det_prop += '<hr class="csep">';
   det_prop += '<div class="mrow"><span class="ceq">Condition (b): A<sub>w</sub>/A<sub>fc</sub> ≤ 10</span></div>';
   det_prop += '<div class="mrow ind">A<sub>w</sub> = d × t<sub>w</sub> = '+f2(d)+' × '+f3(tw)+' = <span class="cval">'+f3(Aw)+' in²</span></div>';
@@ -549,30 +554,36 @@ function runCalc(){
     r: 'AISC 360-22 §G2.3',
     d: 'h/t<sub>w</sub> = '+f2(h_tw),
     c: 'Limit = '+f2(stiff_limit),
+    // This is a yes/no requirement check, NOT a strength utilization —
+    // keep ratio for the D/C column display but exclude from Max D/C.
     dc: h_tw / stiff_limit,
+    exclFromMax: true,
     nt: stiff_req ? '⚠ Stiffeners required — see detail' : '✓ Stiffeners not required',
     stiff: !stiff_req,
     det: det_stiff
   });
 
   // ── Check E: Local Web Yielding (J10.2) ──────────────────────────────
-  if(hasPu){
-    var dc_lwy = Pu / phiRn_lwy;
+  if(doLWY){
+    var dc_lwy = P_lwy / phiRn_lwy;
     var det_lwy = '';
     det_lwy += '<div class="cbox">';
     det_lwy += '<div class="cref-hdr">AISC 360-22 §J10.2 — Local Web Yielding, '+( loadEnd ? 'End Reaction' : 'Interior Concentrated Load')+'</div>';
+    if(!hasPu){
+      det_lwy += '<div class="mrow"><em>No concentrated load P<sub>u</sub> entered — using V<sub>u</sub> as the bearing reaction demand.</em></div>';
+    }
     det_lwy += '<div class="mrow"><span class="ceq">k = k<sub>des</sub> = '+f3(kdes)+' in</span> (from AISC database; for plate girders use k = t<sub>f</sub> + weld leg)</div>';
     det_lwy += '<div class="mrow"><span class="ceq">Eq. '+( loadEnd ? 'J10-3: R<sub>n</sub> = F<sub>y</sub>t<sub>w</sub>(2.5k + l<sub>b</sub>)' : 'J10-2: R<sub>n</sub> = F<sub>y</sub>t<sub>w</sub>(5k + l<sub>b</sub>)'  )+'</span></div>';
     det_lwy += '<div class="mrow ind">= '+Fy+' × '+f3(tw)+' × ('+lwy_factor+'×'+f3(kdes)+' + '+f2(lb)+')</div>';
     det_lwy += '<div class="mrow ind">= '+Fy+' × '+f3(tw)+' × '+f3(lwy_factor*kdes+lb)+' = <span class="cval">'+f1(Rn_lwy)+' kips</span></div>';
     det_lwy += '<div class="mrow"><span class="ceq">φR<sub>n</sub> = 1.0 × R<sub>n</sub> = <span class="cval">'+f1(phiRn_lwy)+' kips</span></span></div>';
     det_lwy += '<hr class="csep">';
-    det_lwy += '<div class="mrow">D/C = '+fr(f1(Pu)+' kips',f1(phiRn_lwy)+' kips')+' = <span class="cval">'+f3(dc_lwy)+'</span></div>';
+    det_lwy += '<div class="mrow">D/C = '+fr(f1(P_lwy)+' kips',f1(phiRn_lwy)+' kips')+' = <span class="cval">'+f3(dc_lwy)+'</span></div>';
     det_lwy += '</div>';
     chks.push({
       n: 'Local Web Yielding',
       r: 'AISC 360-22 §J10.2',
-      d: 'P<sub>u</sub> = '+f1(Pu)+' kips',
+      d: lwy_src+' = '+f1(P_lwy)+' kips',
       c: 'φR<sub>n</sub> = '+f1(phiRn_lwy)+' kips',
       dc: dc_lwy,
       nt: (loadEnd ? 'End: 2.5k' : 'Interior: 5k') + ' + l<sub>b</sub> formula',
@@ -584,7 +595,9 @@ function runCalc(){
   // ─── Render Results ───────────────────────────────────────────────────
 
   // Summary banner
-  var dcs  = chks.map(function(c){ return c.dc; }).filter(function(v){ return isFinite(v)&&v!==null&&v>=0; });
+  var dcs  = chks.filter(function(c){ return !c.exclFromMax; })
+                 .map(function(c){ return c.dc; })
+                 .filter(function(v){ return isFinite(v)&&v!==null&&v>=0; });
   var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
   var pass  = maxDC <= 1.0;
   var sb    = document.getElementById('sumBox');
@@ -623,6 +636,8 @@ function runCalc(){
   cardHtml += '<div class="dem-card"><div class="v">'+f2(kv)+'</div><div class="l">Shear Buckl. Coeff. k<sub>v</sub></div></div>';
   if(hasPu){
     cardHtml += '<div class="dem-card"><div class="v">'+f1(Pu)+' k</div><div class="l">Concentrated Load P<sub>u</sub></div></div>';
+  }
+  if(doLWY){
     cardHtml += '<div class="dem-card"><div class="v">'+f1(phiRn_lwy)+' k</div><div class="l">φR<sub>n</sub> Web Yielding</div></div>';
   }
   cardHtml += '<div class="dem-card '+(stiff_req?'':'alt')+'"><div class="v">'+f2(h_tw)+'</div><div class="l">h/t<sub>w</sub>'+(stiff_req?' <span style="color:#dc2626">⚠</span>':' <span style="color:#16a34a">✓</span>')+'</div></div>';
@@ -659,5 +674,7 @@ function runCalc(){
   document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
 }
 </script>
+<script src="/are-utils-v2.js"></script>
+<script>(function(){function reg(){if(window.AREv2){AREv2.acceptImports({shear:{field:'Vu',unit:'kips'}});}else setTimeout(reg,150);}reg();})();</script>
 </body>
 </html>
