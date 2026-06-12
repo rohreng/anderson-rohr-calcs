@@ -37,6 +37,22 @@
     ]
   };
 
+  // ── HSS connection family (chooser banner) ────────────────────────────────
+  var HSS_FAMILY = [
+    'HSS_to_HSS_branch_connection_calculator.html',
+    'W_beam_to_HSS_column_calculator.html',
+    'through_plate_calculator.html',
+    'directly_welded_HSS_connection_calculator.html',
+    'hss_connection_complete_calculator.html'
+  ];
+  var CALC_SLUG_MAP = {
+    'HSS_to_HSS_branch_connection_calculator.html':   'hss-to-hss-branch',
+    'W_beam_to_HSS_column_calculator.html':           'w-to-hss-column',
+    'through_plate_calculator.html':                  'through-plate',
+    'directly_welded_HSS_connection_calculator.html': 'directly-welded-hss',
+    'hss_connection_complete_calculator.html':        'hss-connection-complete'
+  };
+
   // ── Theme injection ────────────────────────────────────────────────────────
   function injectTheme() {
     if (document.getElementById('are-theme-v2')) return;
@@ -63,7 +79,9 @@
       '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
       '<div class="are-spacer"></div>' +
       '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
-      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>' +
+      '<button class="are-btn" onclick="AREv2.expandAll()" title="Expand all calc details">&#8862; Expand All</button>' +
+      '<button class="are-btn" onclick="AREv2.collapseAll()" title="Collapse all calc details">&#8861; Collapse</button>';
     document.body.insertBefore(bar, document.body.firstChild);
     var ph = document.createElement('div');
     ph.className = 'are-ph'; ph.id = 'arePH';
@@ -344,13 +362,139 @@
   AREv2.sendToTarget = sendTo;     // for custom per-calc send buttons
   AREv2.targets = TARGETS;
 
+  // ── UX unification API (v2.1) ──────────────────────────────────────────────
+  // Default toggleDet so every calc gets expandable rows for free
+  if (typeof window.toggleDet !== 'function') {
+    window.toggleDet = function (i) {
+      var el = document.getElementById('det_' + i);
+      var b = document.getElementById('dbtn_' + i);
+      if (!el) return;
+      var open = el.classList.toggle('open');
+      if (b) b.textContent = open ? '▾ Calc' : '▸ Calc';
+    };
+  }
+  AREv2.expandAll = function () {
+    document.querySelectorAll('.calc-det').forEach(function (el) { el.classList.add('open'); });
+    document.querySelectorAll('.det-row').forEach(function (el) { el.style.setProperty('display','table-row','important'); });
+    document.querySelectorAll('.det-btn').forEach(function (b) { b.textContent = '▾ Calc'; });
+    document.querySelectorAll('.step-card').forEach(function (c) { c.classList.add('open'); });
+  };
+  AREv2.collapseAll = function () {
+    document.querySelectorAll('.calc-det').forEach(function (el) { el.classList.remove('open'); });
+    document.querySelectorAll('.det-row').forEach(function (el) { el.style.removeProperty('display'); });
+    document.querySelectorAll('.det-btn').forEach(function (b) { b.textContent = '▸ Calc'; });
+    document.querySelectorAll('.step-card').forEach(function (c) { c.classList.remove('open'); });
+  };
+
+  // Member-select normalization: short designation in the box, full props in
+  // option.title + live .member-hint line below (fixes clipped text)
+  AREv2.normalizeSelects = function (selEl) {
+    if (!selEl) { document.querySelectorAll('select.member-select').forEach(function(s){ AREv2.normalizeSelects(s); }); return; }
+    Array.prototype.forEach.call(selEl.options, function (opt) {
+      if (!opt.title) opt.title = opt.textContent;
+      var m = opt.textContent.match(/^([A-Za-z0-9X×\/\-\.]+)/);
+      if (m && m[1].length < opt.textContent.length) opt.textContent = m[1];
+    });
+    if (!selEl._areHintWired) {
+      selEl._areHintWired = true;
+      selEl.addEventListener('change', function () {
+        var wrap = selEl.closest('.ig') || selEl.parentElement;
+        var hint = wrap ? wrap.querySelector('.member-hint') : null;
+        if (!hint && wrap) { hint = document.createElement('span'); hint.className='member-hint'; selEl.insertAdjacentElement('afterend', hint); }
+        var o = selEl.options[selEl.selectedIndex];
+        if (hint) hint.textContent = o ? (o.title || '') : '';
+      });
+    }
+    selEl.dispatchEvent(new Event('change'));
+  };
+
+  // Canonical SVG building blocks (arrow conventions: red=applied INTO member,
+  // navy=reaction AWAY, green=dimension both-ends, red arc=moment +CW)
+  AREv2.svgDefs = function (prefix) {
+    prefix = prefix || '';
+    return '<defs>'
+      + '<marker id="'+prefix+'aLoad" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
+      + '<marker id="'+prefix+'aReact" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#2e4a8a"/></marker>'
+      + '<marker id="'+prefix+'aDim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker>'
+      + '<marker id="'+prefix+'aMom" markerWidth="9" markerHeight="9" refX="4" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
+      + '<pattern id="'+prefix+'gndHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'
+      +   '<line x1="0" y1="0" x2="0" y2="8" stroke="#0f1a3a" stroke-width="1.2" opacity="0.5"/>'
+      + '</pattern>'
+      + '</defs>';
+  };
+  AREv2.svgGround = function (x, y, width, prefix) {
+    prefix = prefix || '';
+    return '<line x1="'+(x-width/2)+'" y1="'+y+'" x2="'+(x+width/2)+'" y2="'+y+'" stroke="#0f1a3a" stroke-width="2.5"/>'
+         + '<rect x="'+(x-width/2)+'" y="'+y+'" width="'+width+'" height="12" fill="url(#'+prefix+'gndHatch)"/>';
+  };
+  AREv2.svgWSection = function (cx, cy, d, bf, tf, tw, sc) {
+    var D=d*sc, B=bf*sc, T=Math.max(tf*sc,2), W=Math.max(tw*sc,2);
+    var x=cx-B/2, y=cy-D/2;
+    return '<path d="M'+x+','+y+' h'+B+' v'+T+' h-'+((B-W)/2)+' v'+(D-2*T)+' h'+((B-W)/2)+' v'+T+' h-'+B+' v-'+T+' h'+((B-W)/2)+' v-'+(D-2*T)+' h-'+((B-W)/2)+' z" fill="#fde68a" stroke="#92400e" stroke-width="1.5"/>';
+  };
+  AREv2.svgWeld = function (x1,y1,x2,y2) {
+    var dx=x2-x1, dy=y2-y1, L=Math.sqrt(dx*dx+dy*dy)||1, n=Math.max(2,Math.floor(L/5)), s='';
+    for (var i=0;i<=n;i++){ var t=i/n, px=x1+dx*t, py=y1+dy*t;
+      s+='<line x1="'+(px-2.5)+'" y1="'+(py+2.5)+'" x2="'+(px+2.5)+'" y2="'+(py-2.5)+'" stroke="#92400e" stroke-width="1.3"/>'; }
+    return s;
+  };
+  AREv2.svgBolt = function (cx,cy,r) {
+    return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="#6b7a96" stroke="#374151" stroke-width="1"/>'
+         + '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r*0.4)+'" fill="#374151"/>';
+  };
+
+  // ── HSS connection chooser banner ─────────────────────────────────────────
+  AREv2._hssToggle = function () {
+    var body = document.getElementById('ahcBody');
+    var btn = document.getElementById('ahcToggle');
+    if (!body) return;
+    var open = body.style.display === 'none';
+    body.style.display = open ? 'block' : 'none';
+    if (btn) btn.classList.toggle('open', open);
+  };
+  function injectHSSChooser () {
+    if (HSS_FAMILY.indexOf(FILE) === -1) return;
+    if (document.getElementById('areHSSChooser')) return;
+    var html = ''
+      + '<button class="ahc-toggle" id="ahcToggle" onclick="AREv2._hssToggle()">'
+      + 'ⓘ HSS Connection Guide — not sure which calc to use? <span class="ahc-arrow">▸</span></button>'
+      + '<div class="ahc-body" id="ahcBody" style="display:none">'
+      + '<div class="ahc-q">What are you designing?</div>'
+      + '<div class="ahc-branch"><div class="ahc-label">Truss / bracing — branch loaded axially, no moment transfer (AISC Ch. K, DG24 Ch. 8–9)</div>'
+      + '<a class="ahc-link" href="/calcs/hss-to-hss-branch" target="_top">HSS-to-HSS Branch (T/Y/X)</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">W-beam moment connection, flanges welded directly to the HSS column face — want the COMPLETE limit-state suite (local yielding + punching + sidewall)</div>'
+      + '<a class="ahc-link" href="/calcs/hss-connection-complete" target="_top">HSS Connection — Complete Checks</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">Same directly-welded connection — quick chord-wall local yielding check only (DG24 Ex 4.3, Eq. K1-7)</div>'
+      + '<a class="ahc-link" href="/calcs/w-to-hss-column" target="_top">W-Beam to HSS Column</a> &nbsp;·&nbsp; '
+      + '<a class="ahc-link" href="/calcs/directly-welded-hss" target="_top">Directly Welded W to HSS (React)</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">Bolted FR moment connection — plates pass THROUGH the HSS column (DG24 Ex 4.2)</div>'
+      + '<a class="ahc-link" href="/calcs/through-plate" target="_top">Through-Plate Moment Connection</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">HSS column base on concrete — not an HSS-to-HSS connection</div>'
+      + '<a class="ahc-link" href="/calcs/base-plate-v1" target="_top">Single Base Plate</a> &nbsp;·&nbsp; '
+      + '<a class="ahc-link" href="/calcs/large-moment-base-plate" target="_top">Large Moment Base Plate</a></div>'
+      + '</div>';
+    var div = document.createElement('div');
+    div.className = 'are-hss-chooser'; div.id = 'areHSSChooser';
+    div.innerHTML = html;
+    var slug = CALC_SLUG_MAP[FILE];
+    if (slug) {
+      var cur = div.querySelector('a[href="/calcs/'+slug+'"]');
+      if (cur) { cur.className += ' ahc-current'; cur.innerHTML += ' ← you are here'; }
+    }
+    var bar = document.getElementById('areBar');
+    if (bar) bar.insertAdjacentElement('afterend', div);
+    else document.body.insertBefore(div, document.body.firstChild);
+  }
+
   // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
     injectTheme();
     injectPrintRules();
     injectToolbar();
+    injectHSSChooser();
     injectHub();
     applyTransferIfAny();
+    setTimeout(function(){ AREv2.normalizeSelects(); }, 600);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
