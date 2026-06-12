@@ -12,29 +12,33 @@
         body { 
             margin: 0; 
             padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--v2-bg, #f7f6f3);
             min-height: 100vh;
         }
         .calculator-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            background: #ffffff;
+            border: 1px solid rgba(26,43,95,.12);
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(15,26,58,.06);
         }
         .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            background: none;
+            -webkit-text-fill-color: #1a2b5f;
+            color: #1a2b5f;
         }
-        .step-card {
-            transition: all 0.3s ease;
-        }
-        .step-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        }
+        /* ARE navy overrides of Tailwind purple/indigo accents */
+        .bg-indigo-600 { background-color: #1a2b5f !important; }
+        .hover\:bg-indigo-700:hover { background-color: #0f1a3a !important; }
+        .text-indigo-600, .text-indigo-700, .text-blue-600, .text-blue-700 { color: #1a2b5f !important; }
+        .from-indigo-500.to-purple-600 { background-image: linear-gradient(135deg, #1a2b5f 0%, #2e4a8a 100%) !important; }
+        .from-blue-50.to-indigo-50, .from-green-50.to-emerald-50, .from-gray-50.to-slate-50 { background-image: none !important; background-color: #f6f8fd !important; }
+        .border-blue-200, .border-green-200 { border-color: rgba(26,43,95,.18) !important; }
+        /* Collapsible step cards (bridge classes live in are-theme-v2.css) */
+        .step-card { transition: box-shadow 0.2s ease; overflow: hidden; }
+        .step-card .step-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; cursor: pointer; user-select: none; }
+        .step-card .step-header:hover { background: #f6f8fd; }
+        .step-toggle { font-size: 12px; font-weight: 600; color: #2e4a8a; white-space: nowrap; }
         .print-friendly {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
@@ -49,6 +53,8 @@
             }
             body[data-pm="s"] .calc-steps { display: none !important; }
             .step-card { page-break-inside: avoid; }
+            .step-card .step-body { display: block !important; }
+            .step-toggle { display: none !important; }
         }
     </style>
 </head>
@@ -117,6 +123,15 @@
           const [columnProps, setColumnProps] = useState(null);
           const [results, setResults] = useState(null);
           const [calculationSteps, setCalculationSteps] = useState([]);
+          const [openSteps, setOpenSteps] = useState({});
+          const toggleStep = (i) => setOpenSteps(prev => ({ ...prev, [i]: !prev[i] }));
+
+          // Normalize member selects (short labels + full-property hint) via shared ARE utils
+          useEffect(() => {
+            if (shapesData.wShapes.length && window.AREv2 && window.AREv2.normalizeSelects) {
+              document.querySelectorAll('select.member-select').forEach(sel => window.AREv2.normalizeSelects(sel));
+            }
+          }, [shapesData]);
 
           // Comprehensive shapes database with all requested shapes
           useEffect(() => {
@@ -590,7 +605,7 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                               id="beamSelect"
                               value={selectedBeam}
                               onChange={(e) => setSelectedBeam(e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
+                              className="member-select w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
                             >
                               {shapesData.wShapes.map(shape => (
                                 <option key={shape.label} value={shape.label}>
@@ -598,6 +613,7 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                                 </option>
                               ))}
                             </select>
+                            <span className="member-hint"></span>
                           </div>
 
                           <div>
@@ -608,7 +624,7 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                               id="columnSelect"
                               value={selectedColumn}
                               onChange={(e) => setSelectedColumn(e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
+                              className="member-select w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white shadow-sm"
                             >
                               {shapesData.hssShapes.map(shape => (
                                 <option key={shape.label} value={shape.label}>
@@ -616,6 +632,7 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                                 </option>
                               ))}
                             </select>
+                            <span className="member-hint"></span>
                           </div>
                         </div>
                       </div>
@@ -704,23 +721,26 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                       <h2 className="text-2xl font-bold text-gray-800">Complete AISC Design Calculations</h2>
                       
                       {calculationSteps.map((step, index) => (
-                        <div key={index} className="step-card bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                          <div className="flex items-start gap-4">
-                            <div className={`mt-1 ${
-                              step.status === 'ok' ? 'text-green-500' : 
-                              step.status === 'warning' ? 'text-yellow-500' : 
-                              step.status === 'error' ? 'text-red-500' : 'text-blue-500'
-                            }`}>
-                              {step.status === 'ok' ? <CheckCircle size={24} /> : 
-                               step.status === 'warning' || step.status === 'error' ? <AlertTriangle size={24} /> : 
-                               <Info size={24} />}
+                        <div key={index} className={"step-card bg-white" + (openSteps[index] ? " open" : "")}>
+                          <div className="step-header" onClick={() => toggleStep(index)}>
+                            <div className="flex items-center gap-3">
+                              <span className={
+                                step.status === 'ok' ? 'text-green-600' :
+                                step.status === 'warning' ? 'text-yellow-600' :
+                                step.status === 'error' ? 'text-red-600' : 'text-indigo-600'
+                              }>
+                                {step.status === 'ok' ? <CheckCircle size={20} /> :
+                                 step.status === 'warning' || step.status === 'error' ? <AlertTriangle size={20} /> :
+                                 <Info size={20} />}
+                              </span>
+                              <h3 className="text-base font-semibold text-gray-800 m-0">{step.title}</h3>
                             </div>
-                            <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-800 mb-4">{step.title}</h3>
-                              <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono bg-gray-50 p-4 rounded-lg overflow-x-auto leading-relaxed">
-                                {step.content}
-                              </pre>
-                            </div>
+                            <span className="step-toggle no-print">{openSteps[index] ? '\u25be Hide' : '\u25b8 Calc'}</span>
+                          </div>
+                          <div className="step-body">
+                            <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono overflow-x-auto leading-relaxed m-0" style={{background:'transparent'}}>
+                              {step.content}
+                            </pre>
                           </div>
                         </div>
                       ))}

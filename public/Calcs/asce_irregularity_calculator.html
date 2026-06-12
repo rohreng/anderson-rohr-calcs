@@ -586,6 +586,7 @@
             const strengthResults = checkStrengthIrregularity(strengthValues);
 
             // Render results
+            __irrDetIdx = 0;
             renderResults('stiffnessResults', stiffnessResults);
             renderResults('massResults', massResults);
             renderResults('geometricResults', geometricResults);
@@ -718,29 +719,36 @@
             return irregularities;
         }
 
+        var __irrDetIdx = 0;
         function renderResults(containerId, results) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
+            if (!results || !results.length) { container.innerHTML = '<p style="color:#6b7a96;font-style:italic">No data — enter story values and Calculate.</p>'; return; }
+
+            let h = '<table class="chk-table"><thead><tr>'
+                + '<th style="width:24%">Story</th><th>Classification</th><th>Result</th>'
+                + '<th style="width:60px">Status</th><th style="width:70px">Detail</th>'
+                + '</tr></thead><tbody>';
 
             results.forEach(result => {
-                const resultDiv = document.createElement('div');
-                const className = result.type === 'Regular' ? 'result-regular' : 
-                                result.type.includes('Extreme') ? 'result-extreme' : 'result-irregular';
-                resultDiv.className = `result-item ${className}`;
-
-                const icon = result.type === 'Regular' ? '✓' : 
-                           result.type.includes('Extreme') ? '✗' : '⚠';
-
-                resultDiv.innerHTML = `
-                    <div class="result-header">
-                        <span>${icon}</span>
-                        <span><strong>${result.story}</strong> - ${result.type}</span>
-                    </div>
-                    ${result.details.map(detail => `<div class="result-details">${detail}</div>`).join('')}
-                `;
-
-                container.appendChild(resultDiv);
+                const isReg = result.type === 'Regular';
+                const isExt = result.type.includes('Extreme');
+                const statusTxt = isReg ? 'REGULAR' : isExt ? 'EXTREME' : 'IRREGULAR';
+                const statusCls = isReg ? 'pass' : 'fail';
+                const idx = __irrDetIdx++;
+                const detLines = (result.details && result.details.length)
+                    ? result.details.map(d => '<div>' + d + '</div>').join('')
+                    : '<div>No governing comparison.</div>';
+                const detBtn = '<button class="det-btn" id="dbtn_' + idx + '" onclick="toggleDet(' + idx + ')">\u25B8 Calc</button>';
+                h += '<tr class="chk-row"><td><strong>' + result.story + '</strong></td>'
+                    + '<td>' + result.type + '</td>'
+                    + '<td>' + (isReg ? 'No irregularity' : 'Irregularity present') + '</td>'
+                    + '<td><span class="' + statusCls + '">' + statusTxt + '</span></td>'
+                    + '<td>' + detBtn + '</td></tr>';
+                h += '<tr class="det-row"><td colspan="5"><div class="calc-det" id="det_' + idx + '"><div class="cbox mrow">' + detLines + '</div></div></td></tr>';
             });
+
+            container.innerHTML = h + '</tbody></table>';
         }
 
         function renderDetailedCalculations() {

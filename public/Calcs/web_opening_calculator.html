@@ -214,7 +214,7 @@ details.defl-block>summary .defl-sum-status{margin-left:auto;font-size:.85em;pad
   <div class="g3">
     <div class="ig">
       <label>W-Shape Section</label>
-      <select id="sec" onchange="fillSectionHint()">
+      <select id="sec" class="member-select" onchange="fillSectionHint()">
         <option value="">&#8212; Select Section &#8212;</option>
         <optgroup label="W4"><option value="W4x13">W4&times;13</option></optgroup>
         <optgroup label="W5"><option value="W5x16">W5&times;16</option><option value="W5x19">W5&times;19</option></optgroup>
@@ -234,7 +234,7 @@ details.defl-block>summary .defl-sum-status{margin-left:auto;font-size:.85em;pad
         <optgroup label="W40"><option value="W40x149">W40&times;149</option><option value="W40x167">W40&times;167</option><option value="W40x183">W40&times;183</option><option value="W40x211">W40&times;211</option><option value="W40x264">W40&times;264</option></optgroup>
         <optgroup label="W44"><option value="W44x230">W44&times;230</option><option value="W44x262">W44&times;262</option><option value="W44x290">W44&times;290</option></optgroup>
       </select>
-      <div id="secHint" class="hint"></div>
+      <div id="secHint" class="hint member-hint"></div>
     </div>
     <div class="ig">
       <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
@@ -1822,24 +1822,45 @@ function runCalc(){
   bcH+='<div class="dem-card'+(bc.dc_V>1?' warn':'')+'"><div class="v" style="color:'+colV+'">'+f2(bc.Vu_max)+' k</div><div class="l">Max '+(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+' (factored)<br><small>x='+f2(bc.x_Vu)+' ft</small></div></div>';
   bcH+='</div>';
   function bcBar(dc){var c=dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';var pct=Math.min(dc*100,100).toFixed(0);return '<div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+pct+'%;background:'+c+'"></div></div><span style="color:'+c+';font-weight:700;min-width:38px;font-size:.85em">'+f3(dc)+'</span></div>';}
-  bcH+='<table class="chk-table"><thead><tr><th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th style="width:130px">D/C</th><th>Status</th></tr></thead><tbody>';
+  bcH+='<table class="chk-table"><thead><tr><th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th style="width:130px">D/C</th><th>Status</th><th style="width:68px">Detail</th></tr></thead><tbody>';
+  // Expandable detail text (display only — values from computeBeamChecks)
+  var detY='<div class="cref-hdr">AISC 360-22 \u00a7F2.1 \u2014 Flexural Yielding</div>'
+    +'<div>M<sub>p</sub> = F<sub>y</sub>Z<sub>x</sub> = '+f2(Fy)+' \u00d7 '+f2(Zx)+' = '+f2(Mp_kft)+' k-ft</div>'
+    +'<div>'+(isLRFD?'&phi;<sub>b</sub>M<sub>p</sub> = 0.90 \u00d7 '+f2(Mp_kft):'M<sub>p</sub>/&Omega;<sub>b</sub> = '+f2(Mp_kft)+' / 1.67')+' = <strong>'+f2(cap_Mp_kft)+' k-ft</strong>'
+    +' &nbsp;vs&nbsp; '+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+' = '+f2(Mu_kft)+' k-ft @ x = '+f2(bc.x_Mu)+' ft &nbsp;&rarr;&nbsp; D/C = '+f3(bc.dc_yield)+' '+(bc.dc_yield<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</div>';
+  var detLTB='<div class="cref-hdr">AISC 360-22 \u00a7F2.2/F2.3 \u2014 Lateral-Torsional Buckling ('+bc.ltb_case+')</div>'
+    +'<div>L<sub>b</sub> = '+f2(bc.Lb/12)+' ft &nbsp;|&nbsp; L<sub>p</sub> = 1.76 r<sub>y</sub>&radic;(E/F<sub>y</sub>) = '+f2(bc.Lp/12)+' ft &nbsp;|&nbsp; L<sub>r</sub> = '+f2(bc.Lr/12)+' ft &nbsp;|&nbsp; C<sub>b</sub> = '+f2(bc.Cb_use)+(bc.inCant?' (cantilever/hogging zone)':'')+'</div>'
+    +'<div>M<sub>n</sub> = '+f2(Mn_kft)+' k-ft &nbsp;(&le; M<sub>p</sub> = '+f2(Mp_kft)+' k-ft)</div>'
+    +'<div>'+(isLRFD?'&phi;<sub>b</sub>M<sub>n</sub> = 0.90 \u00d7 '+f2(Mn_kft):'M<sub>n</sub>/&Omega;<sub>b</sub> = '+f2(Mn_kft)+' / 1.67')+' = <strong>'+f2(cap_Mn_kft)+' k-ft</strong>'
+    +' &nbsp;vs&nbsp; '+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+' = '+f2(Mu_kft)+' k-ft &nbsp;&rarr;&nbsp; D/C = '+f3(bc.dc_M)+' '+(bc.dc_M<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</div>';
+  var detV='<div class="cref-hdr">AISC 360-22 \u00a7G2.1 \u2014 Shear, Gross Web</div>'
+    +'<div>A<sub>w</sub> = d\u00b7t<sub>w</sub> = '+f2(d)+' \u00d7 '+f3(tw)+' = '+f3(bc.Aw)+' in\u00b2 &nbsp;|&nbsp; C<sub>v1</sub> = '+f3(bc.Cv1)+'</div>'
+    +'<div>V<sub>n</sub> = 0.6 F<sub>y</sub> A<sub>w</sub> C<sub>v1</sub> = 0.6 \u00d7 '+f2(Fy)+' \u00d7 '+f3(bc.Aw)+' \u00d7 '+f3(bc.Cv1)+' = '+f2(bc.Vn)+' k</div>'
+    +'<div>'+(isLRFD?'&phi;<sub>v</sub>V<sub>n</sub> = 1.00 \u00d7 '+f2(bc.Vn):'V<sub>n</sub>/&Omega;<sub>v</sub> = '+f2(bc.Vn)+' / 1.50')+' = <strong>'+f2(bc.cap_Vn)+' k</strong>'
+    +' &nbsp;vs&nbsp; '+(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+' = '+f2(bc.Vu_max)+' k @ x = '+f2(bc.x_Vu)+' ft &nbsp;&rarr;&nbsp; D/C = '+f3(bc.dc_V)+' '+(bc.dc_V<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</div>';
   // §F2.1 Yielding row
   bcH+='<tr><td><strong>Flexure &mdash; Yielding</strong><br><small>M<sub>p</sub>=F<sub>y</sub>Z<sub>x</sub>='+f2(Mp_kft)+' k-ft</small></td>';
   bcH+='<td><code>AISC 360-22 §F2.1</code></td>';
   bcH+='<td>'+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f2(Mu_kft)+' k-ft</td>';
   bcH+='<td>'+bc.capLbl+'M<sub>p</sub>='+f2(cap_Mp_kft)+' k-ft</td>';
-  bcH+='<td>'+bcBar(bc.dc_yield)+'</td><td>'+(bc.dc_yield<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  bcH+='<td>'+bcBar(bc.dc_yield)+'</td><td>'+(bc.dc_yield<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td>';
+  bcH+='<td><button class="det-btn" id="dbtn_bm_y" onclick="toggleDet(\'bm_y\')">&#9654; Calc</button></td></tr>';
+  bcH+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_bm_y">'+detY+'</div></td></tr>';
   // §F2.2/F2.3 LTB row
   bcH+='<tr class="ltb-primary"><td><strong>Flexure &mdash; LTB</strong><br><small>'+bc.compFl+'='+f2(bc.Lb/12)+' ft | C<sub>b</sub>='+f2(bc.Cb_use)+' | '+bc.ltb_case+(bc.inCant?' | Cant., C<sub>b</sub>=1.0':'')+'</small></td>';
   bcH+='<td><code>AISC 360-22 §F2.2/F2.3</code></td>';
   bcH+='<td>'+(isLRFD?'M<sub>u</sub>':'M<sub>a</sub>')+'='+f2(Mu_kft)+' k-ft</td>';
   bcH+='<td>'+bc.capLbl+'M<sub>n</sub>='+f2(cap_Mn_kft)+' k-ft<br><small>M<sub>n</sub>='+f2(Mn_kft)+' | M<sub>p</sub>='+f2(Mp_kft)+' k-ft</small></td>';
-  bcH+='<td>'+bcBar(bc.dc_M)+'</td><td>'+(bc.dc_M<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  bcH+='<td>'+bcBar(bc.dc_M)+'</td><td>'+(bc.dc_M<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td>';
+  bcH+='<td><button class="det-btn" id="dbtn_bm_ltb" onclick="toggleDet(\'bm_ltb\')">&#9654; Calc</button></td></tr>';
+  bcH+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_bm_ltb">'+detLTB+'</div></td></tr>';
   // §G2.1 Shear row
   bcH+='<tr><td><strong>Shear &mdash; Gross Section</strong><br><small>A<sub>w</sub>='+f3(bc.Aw)+' in\u00b2 | C<sub>v1</sub>='+f3(bc.Cv1)+'</small></td>';
   bcH+='<td><code>AISC 360-22 §G2.1</code></td><td>'+(isLRFD?'V<sub>u</sub>':'V<sub>a</sub>')+'='+f2(bc.Vu_max)+' k</td>';
   bcH+='<td>'+bc.capLbl+'V<sub>n</sub>='+f2(bc.cap_Vn)+' k<br><small>V<sub>n</sub>=0.6F<sub>y</sub>A<sub>w</sub>C<sub>v1</sub>='+f2(bc.Vn)+' k</small></td>';
-  bcH+='<td>'+bcBar(bc.dc_V)+'</td><td>'+(bc.dc_V<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td></tr>';
+  bcH+='<td>'+bcBar(bc.dc_V)+'</td><td>'+(bc.dc_V<=1?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')+'</td>';
+  bcH+='<td><button class="det-btn" id="dbtn_bm_v" onclick="toggleDet(\'bm_v\')">&#9654; Calc</button></td></tr>';
+  bcH+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_bm_v">'+detV+'</div></td></tr>';
   bcH+='</tbody></table>';
   bcH+='<div class="callout-blue" style="margin-top:10px;font-size:.81em"><strong>Note:</strong> Beam-level checks use the gross (unperforated) section. §F2.1 Yielding governs when L<sub>b</sub>&le;L<sub>p</sub>; LTB governs for longer unbraced lengths. Web opening capacities M<sub>m</sub> and V<sub>m</sub> govern locally at each hole.</div>';
   document.getElementById('beamChkContent').innerHTML=bcH;
@@ -1930,6 +1951,17 @@ function runCalc(){
 
 // Init
 window.addEventListener('DOMContentLoaded',function(){
+  // member-select: full-property option titles for the AREv2.normalizeSelects hint line
+  (function(){
+    var sel=document.getElementById('sec');
+    if(sel){
+      Array.prototype.forEach.call(sel.options,function(o){
+        var D=DB[o.value];
+        o.title=D?(o.textContent+'  d='+D[1].toFixed(2)+'"  bf='+D[2].toFixed(3)+'"  tf='+D[3].toFixed(3)+'"  tw='+D[4].toFixed(3)+'"  Zx='+D[7].toFixed(1)+' in\u00b3  A='+D[0].toFixed(2)+' in\u00b2'):' ';
+      });
+      if(window.AREv2&&AREv2.normalizeSelects)AREv2.normalizeSelects(sel);
+    }
+  })();
   fillSectionHint();
   toggleMethod();
   updateSVGPreview(); // draw supports at default positions

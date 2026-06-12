@@ -415,10 +415,10 @@ function drawSchematic(){
   var lw=L*scale, bh=B*scale;
   var ox=(pw-lw)/2, oy=ph-pad-bh;
 
-  var svg='<defs>'
-    +'<marker id="aL" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3z" fill="#c42b2b"/></marker>'
-    +'<marker id="aDim" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto"><path d="M6,0 L6,6 L0,3z" fill="#1a7a4a"/></marker>'
-    +'<marker id="aDimR" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L6,3z" fill="#1a7a4a"/></marker>'
+  var svg=(typeof AREv2!=='undefined'&&AREv2.svgDefs)?AREv2.svgDefs('wd'):'<defs>'
+    +'<marker id="wdaLoad" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
+    +'<marker id="wdaReact" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#2e4a8a"/></marker>'
+    +'<marker id="wdaDim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker>'
     +'</defs>';
 
   // Diaphragm fill + hatch
@@ -432,8 +432,15 @@ function drawSchematic(){
   if(arrowLen>5){
     for(var yi=0;yi<3;yi++){
       var yy=oy+bh*(0.25+yi*0.25);
-      svg+='<line x1="'+(ox-arrowLen)+'" y1="'+yy+'" x2="'+(ox-2)+'" y2="'+yy+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#aL)"/>';
+      svg+='<line x1="'+(ox-arrowLen)+'" y1="'+yy+'" x2="'+(ox-2)+'" y2="'+yy+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#wdaLoad)"/>';
     }
+  }
+  // Reaction arrows at end shearwalls (navy, pointing AWAY from diaphragm)
+  if(arrowLen>5){
+    var ry=oy+bh*0.5;
+    svg+='<line x1="'+ox+'" y1="'+ry+'" x2="'+(ox-arrowLen)+'" y2="'+ry+'" stroke="#2e4a8a" stroke-width="2.4" marker-end="url(#wdaReact)"/>';
+    svg+='<line x1="'+(ox+lw)+'" y1="'+ry+'" x2="'+(ox+lw+arrowLen)+'" y2="'+ry+'" stroke="#2e4a8a" stroke-width="2.4" marker-end="url(#wdaReact)"/>';
+    svg+='<text x="'+(ox+lw+arrowLen)+'" y="'+(ry-4)+'" text-anchor="end" font-size="9" fill="#2e4a8a" font-weight="700">R</text>';
   }
   // Labels
   svg+='<text x="'+(ox+lw/2)+'" y="'+(oy-8)+'" text-anchor="middle" font-size="11" fill="#1a7a4a" font-weight="700">L = '+L+' ft</text>';

@@ -531,22 +531,11 @@
                 <!-- Basic Calculations -->
                 <div class="card card-green">
                     <h2 class="card-title card-title-green">Basic Calculations</h2>
-                    <div class="calculation-item">
-                        <div class="calculation-label">Roof Snow Load (p<sub>f</sub>)</div>
-                        <div class="calculation-value" id="pf-value">30.0 psf</div>
-                        <div class="calculation-formula">p<sub>f</sub> = Factor × C<sub>e</sub> × C<sub>t</sub> × I<sub>s</sub> × p<sub>g</sub></div>
-                    </div>
-                    
-                    <div class="calculation-item">
-                        <div class="calculation-label">Snow Density (γ)</div>
-                        <div class="calculation-value" id="gamma-value">19.6 pcf</div>
-                        <div class="calculation-formula">γ = MIN((0.13 × p<sub>g</sub> + 14), 30)</div>
-                    </div>
-                    
-                    <div class="calculation-item">
-                        <div class="calculation-label">Balanced Snow Height (h<sub>b</sub>)</div>
-                        <div class="calculation-value" id="hb-value">1.53 ft</div>
-                        <div class="calculation-formula">h<sub>b</sub> = p<sub>f</sub> / γ</div>
+                    <div id="basicCalcsTable">
+                        <!-- canonical chk-table built by updateDisplay() -->
+                        <span id="pf-value" style="display:none">30.0 psf</span>
+                        <span id="gamma-value" style="display:none">19.6 pcf</span>
+                        <span id="hb-value" style="display:none">1.53 ft</span>
                     </div>
                 </div>
             </div>
@@ -971,6 +960,48 @@
         }
 
         // Update display values
+        // Canonical chk-table for the Basic Calculations block (value + expandable formula/substitution)
+        function renderBasicCalcsTable(basics) {
+            const host = document.getElementById('basicCalcsTable');
+            if (!host) return;
+            const inp = getInputs();
+            const f1 = v => (isFinite(v) ? v.toFixed(1) : '—');
+            const f2 = v => (isFinite(v) ? v.toFixed(2) : '—');
+            const rows = [
+                {
+                    name: 'Roof Snow Load (p<sub>f</sub>)', ref: 'ASCE 7-16 Eq. 7.3-1',
+                    value: f1(basics.pf) + ' psf',
+                    det: 'p<sub>f</sub> = Factor &times; C<sub>e</sub> &times; C<sub>t</sub> &times; I<sub>s</sub> &times; p<sub>g</sub> = '
+                        + inp.factor + ' &times; ' + inp.ce + ' &times; ' + inp.ct + ' &times; ' + inp.is + ' &times; ' + inp.pg
+                        + ' = <span class="cval">' + f1(basics.pf) + ' psf</span>'
+                },
+                {
+                    name: 'Snow Density (&gamma;)', ref: 'ASCE 7-16 Eq. 7.7-1',
+                    value: f1(basics.gamma) + ' pcf',
+                    det: '&gamma; = MIN(0.13&middot;p<sub>g</sub> + 14, 30) = MIN(0.13&middot;' + inp.pg + ' + 14, 30) = '
+                        + 'MIN(' + (0.13 * inp.pg + 14).toFixed(2) + ', 30) = <span class="cval">' + f1(basics.gamma) + ' pcf</span>'
+                },
+                {
+                    name: 'Balanced Snow Height (h<sub>b</sub>)', ref: 'ASCE 7-16 &sect;7.7.1',
+                    value: f2(basics.hb) + ' ft',
+                    det: 'h<sub>b</sub> = p<sub>f</sub> / &gamma; = ' + f1(basics.pf) + ' / ' + f1(basics.gamma)
+                        + ' = <span class="cval">' + f2(basics.hb) + ' ft</span>'
+                }
+            ];
+            let h = '<table class="chk-table"><thead><tr><th style="width:46%">Quantity</th><th>Reference</th><th>Value</th><th style="width:80px">Detail</th></tr></thead><tbody>';
+            rows.forEach((r, i) => {
+                const id = 'bc' + i;
+                h += '<tr class="chk-row"><td><strong>' + r.name + '</strong></td><td>' + r.ref + '</td><td class="cval">' + r.value + '</td>'
+                    + '<td><button class="det-btn" id="dbtn_' + id + '" onclick="toggleDet(\'' + id + '\')">\u25B8 Calc</button></td></tr>'
+                    + '<tr class="det-row"><td colspan="4"><div class="calc-det" id="det_' + id + '"><div class="cbox mrow">' + r.det + '</div></div></td></tr>';
+            });
+            // keep the hidden compatibility spans alive (existing textContent writers target them)
+            host.innerHTML = h + '</tbody></table>'
+                + '<span id="pf-value" style="display:none"></span>'
+                + '<span id="gamma-value" style="display:none"></span>'
+                + '<span id="hb-value" style="display:none"></span>';
+        }
+
         function updateDisplay() {
             const basics = calculateBasics();
             
@@ -978,6 +1009,7 @@
             document.getElementById('pf-value').textContent = basics.pf.toFixed(1) + ' psf';
             document.getElementById('gamma-value').textContent = basics.gamma.toFixed(1) + ' pcf';
             document.getElementById('hb-value').textContent = basics.hb.toFixed(2) + ' ft';
+            renderBasicCalcsTable(basics);
             
             // Update configurations table
             updateConfigurationsTable(basics);

@@ -94,8 +94,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     </div>
     <div class="blk"><h2>Chord (column) &amp; Branch (beam) <span class="badge">A500</span></h2>
       <div class="g3">
-        <div class="ig"><label>Chord section</label><select id="rm_ch" onchange="rmHint()"></select></div>
-        <div class="ig"><label>Branch section</label><select id="rm_br" onchange="rmHint()"></select></div>
+        <div class="ig"><label>Chord section</label><select id="rm_ch" class="member-select" onchange="rmHint()"></select></div>
+        <div class="ig"><label>Branch section</label><select id="rm_br" class="member-select" onchange="rmHint()"></select></div>
         <div class="ig"><label>Connection type</label><select id="rm_ctype"><option value="T">T / Y (single branch)</option><option value="X">Cross / X</option></select></div>
         <div class="ig"><label>Branch orientation (in-plane depth)</label><select id="rm_orient" onchange="rmHint()"><option value="H">H-dim (strong axis)</option><option value="B">B-dim (weak axis)</option></select></div>
         <div class="ig"><label>F<sub>y</sub> chord<span class="unit">ksi</span></label><input type="number" id="rm_Fy" value="46"></div>
@@ -129,8 +129,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     </div>
     <div class="blk"><h2>Round Chord &amp; Branch <span class="badge">A500</span></h2>
       <div class="g3">
-        <div class="ig"><label>Chord (round HSS)</label><select id="rd_ch" onchange="rdHint()"></select></div>
-        <div class="ig"><label>Branch (round HSS)</label><select id="rd_br" onchange="rdHint()"></select></div>
+        <div class="ig"><label>Chord (round HSS)</label><select id="rd_ch" class="member-select" onchange="rdHint()"></select></div>
+        <div class="ig"><label>Branch (round HSS)</label><select id="rd_br" class="member-select" onchange="rdHint()"></select></div>
         <div class="ig"><label>Connection type</label><select id="rd_ctype"><option value="TY">T / Y</option><option value="X">Cross / X</option></select></div>
         <div class="ig"><label>F<sub>y</sub> chord<span class="unit">ksi</span></label><input type="number" id="rd_Fy" value="42"></div>
         <div class="ig"><label>F<sub>yb</sub> branch<span class="unit">ksi</span></label><input type="number" id="rd_Fyb" value="42"></div>
@@ -166,10 +166,10 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <div class="ig"><label>Connection type</label><select id="tr_conn" onchange="trConn()">
           <option value="TY">T / Y (single branch)</option><option value="X">Cross / X (single branch)</option>
           <option value="KG">K - Gapped</option><option value="KO">K - Overlapped</option></select></div>
-        <div class="ig"><label>Chord section</label><select id="tr_ch" onchange="trHint()"></select></div>
-        <div class="ig" id="tr_wrap_b1"><label id="tr_lab_b1">Branch section</label><select id="tr_b1" onchange="trHint()"></select></div>
+        <div class="ig"><label>Chord section</label><select id="tr_ch" class="member-select" onchange="trHint()"></select></div>
+        <div class="ig" id="tr_wrap_b1"><label id="tr_lab_b1">Branch section</label><select id="tr_b1" class="member-select" onchange="trHint()"></select></div>
         <div class="ig" id="tr_wrap_a1"><label id="tr_lab_a1">&theta;<span class="unit">deg</span></label><input type="number" id="tr_a1" value="90"></div>
-        <div class="ig hide" id="tr_wrap_b2"><label id="tr_lab_b2">Tension branch</label><select id="tr_b2" onchange="trHint()"></select></div>
+        <div class="ig hide" id="tr_wrap_b2"><label id="tr_lab_b2">Tension branch</label><select id="tr_b2" class="member-select" onchange="trHint()"></select></div>
         <div class="ig hide" id="tr_wrap_a2"><label>&theta;<sub>2</sub><span class="unit">deg</span></label><input type="number" id="tr_a2" value="45"></div>
         <div class="ig hide" id="tr_wrap_gap"><label>gap g <span class="unit">in (&minus; = overlap)</span></label><input type="number" id="tr_gap" value="2.0"></div>
         <div class="ig hide" id="tr_wrap_ov"><label>Overlap O<sub>v</sub><span class="unit">%</span></label><input type="number" id="tr_ov" value="53"></div>
@@ -271,13 +271,19 @@ function render(prefix,o){
   var maxDC=dcs.length?Math.max.apply(null,dcs):0, pass=maxDC<=1.0;
   var h='<div class="summary '+(pass?'sum-pass':'sum-fail')+'"><h3>'+(pass?'✔ All applicable checks pass':'✘ One or more checks fail')+'</h3><p>'+o.summary+' &nbsp;|&nbsp; Max D/C = <strong>'+f3(maxDC)+'</strong></p>'+(o.warn?'<div class="warnbox">'+o.warn+'</div>':'')+'</div>';
   if(o.params) h+='<div class="blk"><h2>Parameters</h2><div class="dem-grid">'+o.params+'</div></div>';
-  h+='<div class="blk"><h2>Limit-State Checks</h2><table class="chk-table"><thead><tr><th style="width:30%">Check</th><th>Ref</th><th>Demand</th><th>&phi;R<sub>n</sub></th><th>D/C</th><th>Status</th></tr></thead><tbody>';
+  h+='<div class="blk"><h2>Limit-State Checks</h2><table class="chk-table"><thead><tr><th style="width:28%">Check</th><th>Ref</th><th>Demand</th><th>&phi;R<sub>n</sub></th><th style="width:70px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th></tr></thead><tbody>';
+  var __di=0;
   rows.forEach(function(c){
-    if(c.grp){h+='<tr class="grp-row"><td colspan="6">'+c.grp+'</td></tr>';return;}
+    if(c.grp){h+='<tr class="grp-row"><td colspan="7">'+c.grp+'</td></tr>';return;}
     var dc=c.dc,col,pct,st,cls='';
     if(dc==null||!isFinite(dc)){col='#9ca3af';pct=0;st=c.stat?c.stat:'<span class="na">N/A</span>';cls=c.stat?'':'class="na-row"';}
     else{col=dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';pct=Math.min(dc*100,150);st=dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';}
-    h+='<tr '+cls+'><td><strong>'+c.n+'</strong>'+(c.det?'<div class="cnote">'+c.det+'</div>':'')+'</td><td><code>'+(c.r||'')+'</code></td><td>'+(c.dem||'')+'</td><td>'+(c.cap||'')+'</td><td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+((dc==null||!isFinite(dc))?'—':f3(dc))+'</span>'+((dc!=null&&isFinite(dc))?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')+'</div></td><td>'+st+'</td></tr>';
+    var __i=__di++;
+    var dcCell='<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+((dc==null||!isFinite(dc))?'—':f3(dc))+'</span>'+((dc!=null&&isFinite(dc))?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')+'</div>';
+    var detId=prefix+'_'+__i;
+    var detBtn=c.det?'<button class="det-btn" id="dbtn_'+detId+'" onclick="toggleDet(\''+detId+'\')">&#9656; Calc</button>':'';
+    h+='<tr '+cls+'><td><strong>'+c.n+'</strong></td><td><code>'+(c.r||'')+'</code></td><td>'+(c.dem||'')+'</td><td>'+(c.cap||'')+'</td><td>'+dcCell+'</td><td>'+st+'</td><td>'+detBtn+'</td></tr>';
+    if(c.det){ h+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+detId+'"><div class="cbox mrow">'+c.det+'</div></div></td></tr>'; }
   });
   h+='</tbody></table></div>';
   var el=document.getElementById(prefix+'_out'); el.innerHTML=h; el.className='results show'; el.scrollIntoView({behavior:'smooth',block:'start'});
@@ -371,7 +377,7 @@ function drawTR(){
   s+='<text x="360" y="16" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">'+(rnd?'Round':'Rectangular')+' HSS truss connection — '+(k==='TY'?'T/Y':k==='X'?'Cross':k==='KG'?'gapped K':'overlapped K')+'</text>';
   s+='<rect x="70" y="'+topY+'" width="580" height="'+ch+'" '+(rnd?('rx="'+ch/2+'"'):'')+' fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
   s+='<text x="360" y="'+(topY+ch/2+4)+'" font-size="10" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">Chord '+document.getElementById('tr_ch').value+'</text>';
-  function branch(xb,ang,w,col,fill,lbl,Pv){
+  function branch(xb,ang,w,col,fill,lbl,Pv,isTension){
     var r=ang*Math.PI/180, L=110;
     var dx=Math.cos(r)*L, dy=Math.sin(r)*L;
     var hw=w/2/Math.sin(Math.max(r,0.3));
@@ -380,7 +386,10 @@ function drawTR(){
     var pts=p.map(function(q){return q[0].toFixed(1)+','+q[1].toFixed(1)}).join(' ');
     var out='<polygon points="'+pts+'" fill="'+fill+'" stroke="'+col+'" stroke-width="2"/>';
     var mx=(x1+x2)/2-dx, my=topY-dy;
-    out+='<line x1="'+(mx-Math.cos(r)*38)+'" y1="'+(my-Math.sin(r)*38)+'" x2="'+(mx-Math.cos(r)*4)+'" y2="'+(my-Math.sin(r)*4)+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#traR)"/>';
+    // C4 fix: compression branch arrow points INTO chord; tension branch arrow points AWAY from chord
+    var aFar={x:mx-Math.cos(r)*38, y:my-Math.sin(r)*38}, aNear={x:mx-Math.cos(r)*4, y:my-Math.sin(r)*4};
+    if(isTension){ out+='<line x1="'+aNear.x+'" y1="'+aNear.y+'" x2="'+aFar.x+'" y2="'+aFar.y+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#traR)"/>'; }
+    else { out+='<line x1="'+aFar.x+'" y1="'+aFar.y+'" x2="'+aNear.x+'" y2="'+aNear.y+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#traR)"/>'; }
     out+='<text x="'+(mx-Math.cos(r)*44)+'" y="'+(my-Math.sin(r)*44-4)+'" font-size="11" fill="#c42b2b" text-anchor="middle" font-family="sans-serif">'+Pv+' k</text>';
     out+='<text x="'+((x1+x2)/2-dx/2+14)+'" y="'+(topY-dy/2)+'" font-size="10" fill="'+col+'" font-family="sans-serif">'+lbl+'</text>';
     return out;
@@ -394,8 +403,8 @@ function drawTR(){
   } else {
     var gpx=k==='KG'?Math.max(Math.min(Math.abs(gap)*sc,90),10):0;
     var xc=330-gpx/2-20, xt=330+gpx/2+20;
-    s+=branch(xc,a1,w1,'#92400e','#fde68a','comp &#952;1='+a1+'&#176;',P1);
-    s+=branch(xt,180-a2,w2,'#1e40af','#bfdbfe','tens &#952;2='+a2+'&#176;',P2);
+    s+=branch(xc,a1,w1,'#92400e','#fde68a','comp &#952;1='+a1+'&#176;',P1,false);
+    s+=branch(xt,180-a2,w2,'#1e40af','#bfdbfe','tens &#952;2='+a2+'&#176;',P2,true);
     if(k==='KG'){
       s+='<line x1="'+(xc+w1/2/Math.sin(Math.max(a1*Math.PI/180,.3)))+'" y1="'+(topY-8)+'" x2="'+(xt-w2/2/Math.sin(Math.max(a2*Math.PI/180,.3)))+'" y2="'+(topY-8)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#traG)" marker-end="url(#traG)"/>';
       s+='<text x="330" y="'+(topY-14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">g = '+gap+'"</text>';

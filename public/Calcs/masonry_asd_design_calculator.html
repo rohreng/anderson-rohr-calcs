@@ -554,7 +554,7 @@
             });
             
             displayFlexuralResults({
-                AsREQ, p: p * 1000, n, k, j, fb, fs, fbmax, flexuralPass, As
+                AsREQ, p: p * 1000, n, k, j, fb, fs, fbmax, flexuralPass, As, Fs
             });
 
             // Publish key results to ARE Results Hub
@@ -571,92 +571,58 @@
             areDrawSection();
         }
 
+        // Canonical check-row builder: rows=[{name,ref,demand,cap,dc,pass,det}]
+        function buildChkTable(rows, startIdx) {
+            let h = '<table class="chk-table"><thead><tr>'
+                + '<th style="width:26%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th>'
+                + '<th style="width:70px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th>'
+                + '</tr></thead><tbody>';
+            rows.forEach(function(r, n) {
+                const i = startIdx + n;
+                const dc = (r.dc != null && isFinite(r.dc)) ? r.dc : null;
+                const col = dc == null ? '#6b7a96' : (dc <= 0.8 ? '#1a7a4a' : dc <= 1.0 ? '#c47d0e' : '#c42b2b');
+                const pct = dc == null ? 0 : Math.min(dc * 100, 150);
+                const st = r.pass ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+                const dcCell = '<div class="dc-cell"><div class="dc-bar" style="width:60px"><div class="dc-fill" style="width:'
+                    + pct + '%;background:' + col + '"></div></div><span>' + (dc == null ? '—' : dc.toFixed(2)) + '</span></div>';
+                const detBtn = r.det ? '<button class="det-btn" id="dbtn_' + i + '" onclick="toggleDet(' + i + ')">\u25B8 Calc</button>' : '';
+                h += '<tr class="chk-row"><td><strong>' + r.name + '</strong></td><td>' + (r.ref || '') + '</td><td>'
+                    + (r.demand || '') + '</td><td>' + (r.cap || '') + '</td><td>' + dcCell + '</td><td>' + st + '</td><td>' + detBtn + '</td></tr>';
+                if (r.det) h += '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + i + '"><div class="cbox mrow">' + r.det + '</div></div></td></tr>';
+            });
+            return h + '</tbody></table>';
+        }
+
         function displayShearResults(results) {
-            const html = `
-                <div class="result-item">
-                    <span class="result-label">Net Shear Area (Anv):</span>
-                    <span class="result-value">${results.Anv.toFixed(2)} in²</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Actual Shear Stress (fv):</span>
-                    <span class="result-value">${results.fv.toFixed(3)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">M/(V·d) Ratio:</span>
-                    <span class="result-value">${results.MVd_ratio.toFixed(3)}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Allowable Masonry Shear (Fvm):</span>
-                    <span class="result-value">${results.Fvm.toFixed(3)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Allowable Steel Shear (Fvs):</span>
-                    <span class="result-value">${results.Fvs.toFixed(3)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Maximum Allowable (Fvmmax):</span>
-                    <span class="result-value">${results.Fvmmax.toFixed(3)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Total Allowable (Fv):</span>
-                    <span class="result-value">${results.Fv.toFixed(3)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Status:</span>
-                    <span class="status-badge ${results.shearPass ? 'status-pass' : 'status-fail'}">
-                        ${results.shearPass ? 'PASS' : 'FAIL'}
-                    </span>
-                </div>
-            `;
-            document.getElementById('shearResults').innerHTML = html;
+            const dc = results.Fv > 0 ? results.fv / results.Fv : null;
+            const det = 'A<sub>nv</sub> = ' + results.Anv.toFixed(2) + ' in&sup2; &nbsp;|&nbsp; f<sub>v</sub> = V/A<sub>nv</sub> = <span class="cval">' + results.fv.toFixed(3) + ' psi</span><br>'
+                + 'M/(V&middot;d) = ' + results.MVd_ratio.toFixed(3) + ' &nbsp;|&nbsp; F<sub>vm</sub> = ' + results.Fvm.toFixed(3) + ' psi &nbsp;|&nbsp; F<sub>vs</sub> = ' + results.Fvs.toFixed(3) + ' psi<br>'
+                + 'F<sub>vm,max</sub> = ' + results.Fvmmax.toFixed(3) + ' psi &nbsp;|&nbsp; F<sub>v</sub> = F<sub>vm</sub>+F<sub>vs</sub> &le; F<sub>vm,max</sub> = <span class="cval">' + results.Fv.toFixed(3) + ' psi</span>';
+            const rows = [{
+                name: 'Masonry Shear', ref: 'TMS 402 &sect;8.3',
+                demand: 'f<sub>v</sub> = ' + results.fv.toFixed(2) + ' psi',
+                cap: 'F<sub>v</sub> = ' + results.Fv.toFixed(2) + ' psi',
+                dc: dc, pass: results.shearPass, det: det
+            }];
+            document.getElementById('shearResults').innerHTML = buildChkTable(rows, 0);
         }
 
         function displayFlexuralResults(results) {
-            const html = `
-                <div class="result-item">
-                    <span class="result-label">Required Steel Area (AsREQ):</span>
-                    <span class="result-value">${results.AsREQ.toFixed(3)} in²</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Provided Steel Area (As):</span>
-                    <span class="result-value">${results.As.toFixed(3)} in²</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Reinforcement Ratio (ρ):</span>
-                    <span class="result-value">${results.p.toFixed(3)} × 10⁻³</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Modular Ratio (n):</span>
-                    <span class="result-value">${results.n.toFixed(1)}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Neutral Axis Factor (k):</span>
-                    <span class="result-value">${results.k.toFixed(3)}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Lever Arm Factor (j):</span>
-                    <span class="result-value">${results.j.toFixed(3)}</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Actual Masonry Stress (fb):</span>
-                    <span class="result-value">${results.fb.toFixed(1)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Allowable Masonry Stress (fbmax):</span>
-                    <span class="result-value">${results.fbmax.toFixed(1)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Actual Steel Stress (fs):</span>
-                    <span class="result-value">${results.fs.toFixed(0)} psi</span>
-                </div>
-                <div class="result-item">
-                    <span class="result-label">Status:</span>
-                    <span class="status-badge ${results.flexuralPass ? 'status-pass' : 'status-fail'}">
-                        ${results.flexuralPass ? 'PASS' : 'FAIL'}
-                    </span>
-                </div>
-            `;
-            document.getElementById('flexuralResults').innerHTML = html;
+            const dcB = results.fbmax > 0 ? results.fb / results.fbmax : null;
+            const dcS = (typeof results.Fs !== 'undefined' && results.Fs > 0) ? results.fs / (results.Fs) : null;
+            // governing flexural D/C across masonry & steel stress (math unchanged — pass flag from caller)
+            const dcGov = Math.max(dcB || 0, dcS || 0);
+            const det = '&rho; = ' + results.p.toFixed(3) + ' &times;10&#8315;&sup3; &nbsp;|&nbsp; n = ' + results.n.toFixed(1) + ' &nbsp;|&nbsp; k = ' + results.k.toFixed(3) + ' &nbsp;|&nbsp; j = ' + results.j.toFixed(3) + '<br>'
+                + 'A<sub>s,req</sub> = M/(F<sub>s</sub>&middot;j&middot;d) = <span class="cval">' + results.AsREQ.toFixed(3) + ' in&sup2;</span> &nbsp;|&nbsp; A<sub>s,prov</sub> = ' + results.As.toFixed(3) + ' in&sup2;<br>'
+                + 'Masonry: f<sub>b</sub> = ' + results.fb.toFixed(1) + ' psi &le; F<sub>b</sub> = 0.45f&#8242;<sub>m</sub> = ' + results.fbmax.toFixed(1) + ' psi (D/C = ' + (dcB!=null?dcB.toFixed(2):'—') + ')<br>'
+                + 'Steel: f<sub>s</sub> = ' + results.fs.toFixed(0) + ' psi' + (dcS!=null ? ' &le; F<sub>s</sub> (D/C = ' + dcS.toFixed(2) + ')' : '');
+            const rows = [{
+                name: 'Flexural Stress', ref: 'TMS 402 &sect;8.2',
+                demand: 'f<sub>b</sub> = ' + results.fb.toFixed(1) + ' psi',
+                cap: 'F<sub>b</sub> = ' + results.fbmax.toFixed(1) + ' psi',
+                dc: dcGov, pass: results.flexuralPass, det: det
+            }];
+            document.getElementById('flexuralResults').innerHTML = buildChkTable(rows, 1);
         }
 
         function clearInputs() {

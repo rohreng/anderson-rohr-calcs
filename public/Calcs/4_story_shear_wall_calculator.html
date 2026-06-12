@@ -24,6 +24,25 @@
   input, select { width: 100%; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 8px; }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 9999px; background: #eef2ff; color: #3730a3; }
   .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+  /* ── canonical check-table + expandable calc detail ── */
+  .chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+  .chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left;border:none}
+  .chk-table td{padding:7px 10px;border:none;border-bottom:1px solid #eee}
+  .chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+  .pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+  .dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+  .dc-fill{height:100%;border-radius:7px}
+  .dc-cell{display:flex;align-items:center;gap:7px}
+  .calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.92em;color:#1a1a1a}
+  .calc-det.open{display:block}
+  .det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.8em;white-space:nowrap;transition:background .15s;width:auto}
+  .det-btn:hover{background:#dbeafe}
+  .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+  .cval{color:#15803d;font-weight:700}
+  .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+  .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px}
+  .mrow{margin:3px 0;line-height:1.7}
+  @media print { .calc-det{display:block!important} .det-btn{display:none!important} }
 </style>
 </head>
 <body>
@@ -67,22 +86,23 @@
   </div>
 
   <div class="card">
-    <h2>Results</h2>
-    <table>
+    <h2>Results <span class="sm muted" style="font-weight:400">— click "▸ Calc" for the per-story overturning calculation</span></h2>
+    <table class="chk-table">
       <thead>
         <tr>
-          <th>Story</th>
-          <th class="right">Cumulative M<sub>i</sub> = Σ(V·h) above and at level (lb·ft)</th>
-          <th class="right">Chord / Holdown T<sub>i</sub> = M<sub>i</sub> / L<sub>i</sub> (lb)</th>
-          <th class="right">Connector Tall (lb)</th>
-          <th class="right">D/C</th>
-          <th>Status</th>
+          <th style="width:24%">Check</th>
+          <th>Reference</th>
+          <th>Demand</th>
+          <th>Capacity</th>
+          <th style="width:120px">D/C</th>
+          <th style="width:70px">Status</th>
+          <th style="width:70px">Detail</th>
         </tr>
       </thead>
       <tbody id="resultRows"></tbody>
       <tfoot>
         <tr>
-          <td class="row-head" colspan="6">
+          <td class="row-head" colspan="7">
             <span class="muted">Assumption:</span> For each level i, overturning <span class="code">M_i = Σ<sub>k≥i</sub>( V_k · h_k )</span> and chord/holdown demand <span class="code">T_i = M_i / L_i</span>. This mirrors a typical stacked full-height wall where the couple arm is the story wall length at that level.
           </td>
         </tr>
@@ -168,31 +188,60 @@ function recalc() {
     running += (isFinite(r.V) ? r.V : 0) * (isFinite(r.h) ? r.h : 0);
     cumFromTop.push(running);
   }
-  // Render
+  // Render — canonical chk-row + det-row pairs
   const out = document.getElementById('resultRows');
-  out.innerHTML = '';
+  const openDets = Array.from(out.querySelectorAll('.calc-det.open')).map(el => el.id); // preserve expanded state
+  let html = '';
   for (let j=0; j<rows.length; j++) {
     const r = rows[j];
     const Mi = cumFromTop[j]; // lb-ft
     const Ti = isFinite(r.L) && r.L>0 ? Mi / r.L : NaN; // lb
     const Tall = r.conn?.Tall_lb ?? NaN;
     const DC = isFinite(Ti) && isFinite(Tall) && Tall>0 ? Ti / Tall : NaN;
-    let status = '';
-    if (!isFinite(DC)) status = '<span class="muted">—</span>';
-    else if (DC <= 0.9) status = '<span class="ok">OK</span>';
-    else if (DC <= 1.0) status = '<span class="warn">WATCH</span>';
-    else status = '<span class="bad">OVER</span>';
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><b>${r.story}</b></td>
-      <td class="right">${fmt(Mi,2)}</td>
-      <td class="right">${fmt(Ti,0)}</td>
-      <td class="right">${fmt(Tall,0)}</td>
-      <td class="right">${isFinite(DC)? DC.toFixed(2): '—'}</td>
+    let status, dcCell;
+    if (!isFinite(DC)) {
+      status = '<span class="na">—</span>';
+      dcCell = '<span class="na">—</span>';
+    } else {
+      status = DC <= 0.9 ? '<span class="ok">OK</span>' : DC <= 1.0 ? '<span class="warn">WATCH</span>' : '<span class="bad">OVER</span>';
+      const col = DC <= 0.9 ? '#16a34a' : DC <= 1.0 ? '#d97706' : '#dc2626';
+      const pct = Math.min(DC*100, 150);
+      dcCell = '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+DC.toFixed(2)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
+    }
+    // det panel: substituted per-story overturning math
+    const terms = rows.slice(0, j+1).map(rk => fmt(rk.V,0)+' lb × '+fmt(rk.h,2)+' ft').join(' + ');
+    const termVals = rows.slice(0, j+1).map(rk => fmt((isFinite(rk.V)?rk.V:0)*(isFinite(rk.h)?rk.h:0),0)).join(' + ');
+    const id = 'sw' + r.story;
+    const det = `
+      <div class="cref-hdr">Story ${r.story} — Cumulative Overturning &amp; Holdown Demand</div>
+      <div class="cbox">
+        <div class="mrow"><span class="code">M<sub>${r.story}</sub> = Σ<sub>k≥${r.story}</sub>( V<sub>k</sub> · h<sub>k</sub> )</span> (story shears at and above this level)</div>
+        <div class="mrow">M<sub>${r.story}</sub> = ${terms}</div>
+        <div class="mrow">M<sub>${r.story}</sub> = ${termVals} = <span class="cval">${fmt(Mi,2)} lb·ft</span></div>
+        <hr class="csep">
+        <div class="mrow"><span class="code">T<sub>${r.story}</sub> = M<sub>${r.story}</sub> / L<sub>${r.story}</sub></span> = ${fmt(Mi,2)} / ${fmt(r.L,2)} ft = <span class="cval">${fmt(Ti,0)} lb</span></div>
+        <hr class="csep">
+        <div class="mrow">Connector: <b>${r.conn ? r.conn.name : '—'}</b>, T<sub>allow</sub> = <span class="cval">${fmt(Tall,0)} lb</span></div>
+        <div class="mrow">D/C = ${fmt(Ti,0)} / ${fmt(Tall,0)} = <span class="cval">${isFinite(DC)? DC.toFixed(2): '—'}</span> ${status}</div>
+      </div>`;
+    html += `<tr>
+      <td><b>Story ${r.story}</b> holdown — ${r.conn ? r.conn.name : '—'}</td>
+      <td><span class="code">T = ΣM/L</span></td>
+      <td>T<sub>${r.story}</sub> = ${fmt(Ti,0)} lb</td>
+      <td>T<sub>allow</sub> = ${fmt(Tall,0)} lb</td>
+      <td>${dcCell}</td>
       <td>${status}</td>
-    `;
-    out.appendChild(tr);
+      <td><button class="det-btn" id="dbtn_${id}" onclick="toggleDet('${id}')">▸ Calc</button></td>
+    </tr>
+    <tr class="det-row"><td colspan="7"><div class="calc-det" id="det_${id}">${det}</div></td></tr>`;
   }
+  out.innerHTML = html;
+  // restore expanded state
+  openDets.forEach(did => {
+    const el = document.getElementById(did);
+    const b = document.getElementById(did.replace('det_','dbtn_'));
+    if (el) { el.classList.add('open'); if (b) b.textContent = '▾ Calc'; }
+  });
 }
 
 buildInputs();

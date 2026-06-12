@@ -63,6 +63,16 @@
         .joist-tag.lh{background:#dcfce7;color:#166534}
         .uplift-neg{color:#dc2626;font-weight:600}
         .uplift-ok{color:#16a34a}
+        /* expandable calc detail rows */
+        .res-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important;text-align:left}
+        .calc-det{display:none;background:#f4f7ff;padding:13px 18px 11px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a;text-align:left;line-height:1.65}
+        .calc-det.open{display:block}
+        .det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap}
+        .det-btn:hover{background:#dbeafe}
+        .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:5px}
+        .cval{font-weight:700;color:#166534}
+        .csep{border:none;border-top:1px dashed #cbd5e1;margin:8px 0}
+        @media print{.calc-det{display:block!important}.det-btn{display:none!important}}
     </style>
 </head>
 <body>
@@ -151,6 +161,7 @@
                                 <th colspan="3">Joist Selections</th>
                                 <th rowspan="2">Max Gravity<br>Rxn (lbs)</th>
                                 <th rowspan="2">Net Uplift<br>Rxn (lbs)</th>
+                                <th rowspan="2">Detail</th>
                             </tr>
                             <tr>
                                 <th>Recommended</th>
@@ -428,6 +439,24 @@
                     upliftReactionVal = isNetUplift ? w_uplift_base * span / 2 : 0;
                 }
 
+                // Expandable calculation detail (display only)
+                let det = '<div class="cref-hdr">ASD Load Combinations \u2014 w = (combo, psf) \u00d7 spacing ' + spacing.toFixed(1) + ' ft</div>';
+                combos.forEach(c => {
+                    det += '<div>' + c.label + ' &rarr; ' + c.load.toFixed(1) + ' plf' + (c === govCombo ? ' <span class="cval">&#9664; GOVERNS</span>' : '') + '</div>';
+                });
+                det += '<hr class="csep">';
+                det += '<div>Deflection live load: w<sub>LL</sub> = max(L, L<sub>r</sub>, S) \u00d7 s = max(' + L + ', ' + Lr + ', ' + S + ') \u00d7 ' + spacing.toFixed(1) + ' = <span class="cval">' + w_LL_required.toFixed(1) + ' plf</span></div>';
+                if (recJoist) {
+                    const dem = w_TL_required + recJoist.weight;
+                    det += '<hr class="csep"><div class="cref-hdr">Recommended: ' + recJoist.type + ' ' + recJoist.designation + ' (d = ' + recJoist.depth + '", ' + recJoist.weight + ' plf self-weight)</div>';
+                    det += '<div>Total-load demand incl. self-weight = ' + w_TL_required.toFixed(1) + ' + ' + recJoist.weight + ' = ' + dem.toFixed(1) + ' plf &le; allowable ' + Math.round(recJoist.totalCap) + ' plf &nbsp;(' + (dem / recJoist.totalCap * 100).toFixed(0) + '%)</div>';
+                    det += '<div>Live-load (L/360): ' + w_LL_required.toFixed(1) + ' plf &le; allowable ' + Math.round(recJoist.liveCap) + ' plf &nbsp;(' + (recJoist.liveCap > 0 ? (w_LL_required / recJoist.liveCap * 100).toFixed(0) + '%' : '\u2014') + ')</div>';
+                    det += '<div>Max gravity reaction: R = (w<sub>TL</sub> + w<sub>j</sub>)\u00b7span/2 = ' + dem.toFixed(1) + ' \u00d7 ' + span + ' / 2 = <span class="cval">' + maxGravityReaction.toFixed(0) + ' lbs</span></div>';
+                    det += '<div>Net uplift: w = 0.6D\u00b7s \u2212 0.6W\u00b7s + 0.6w<sub>j</sub> = ' + (0.6 * D * spacing).toFixed(1) + ' \u2212 ' + (0.6 * W * spacing).toFixed(1) + ' + ' + (0.6 * recJoist.weight).toFixed(1) + ' = ' + (w_uplift_base + 0.6 * recJoist.weight).toFixed(1) + ' plf ' + (isNetUplift ? '&rarr; net uplift reaction = <span style="color:#dc2626;font-weight:700">' + upliftReactionVal.toFixed(0) + ' lbs</span>' : '&ge; 0 &rarr; no net uplift') + '</div>';
+                } else {
+                    det += '<hr class="csep"><div>No qualifying joist found in SJI K / KCS / LH tables for this span and loading' + (isNetUplift ? ' &mdash; net uplift w = ' + w_uplift_base.toFixed(1) + ' plf &rarr; reaction = ' + upliftReactionVal.toFixed(0) + ' lbs (excl. self-weight)' : '') + '.</div>';
+                }
+
                 results.push({
                     name,
                     span,
@@ -439,7 +468,8 @@
                     w_LL_num: w_LL_required,
                     selected,
                     maxGravity: maxGravityReaction.toFixed(0),
-                    upliftReaction: isNetUplift ? upliftReactionVal.toFixed(0) : 'None'
+                    upliftReaction: isNetUplift ? upliftReactionVal.toFixed(0) : 'None',
+                    det
                 });
             });
 
@@ -459,7 +489,7 @@
             summaryBanner.className = passCount === results.length ? 'summary sum-pass' : 'summary sum-fail';
             summaryBanner.innerHTML = `<h3>${passCount}/${results.length} joists successfully selected</h3>`;
 
-            results.forEach(r => {
+            results.forEach((r, idx) => {
                 const row = resultsTable.insertRow();
                 row.innerHTML = `
                     <td>${r.name}</td>
@@ -473,7 +503,11 @@
                     <td class="alt2">${formatJoistCell(r.selected[2], r.w_TL_num, r.w_LL_num)}</td>
                     <td>${r.maxGravity}</td>
                     <td class="${r.upliftReaction === 'None' ? 'uplift-ok' : 'uplift-neg'}">${r.upliftReaction === 'None' ? 'None' : r.upliftReaction}</td>
+                    <td><button class="det-btn" id="dbtn_j${idx}" onclick="toggleDet('j${idx}')">&#9656; Calc</button></td>
                 `;
+                const drow = resultsTable.insertRow();
+                drow.className = 'det-row';
+                drow.innerHTML = `<td colspan="12"><div class="calc-det" id="det_j${idx}">${r.det}</div></td>`;
             });
 
             document.getElementById('resultsSection').classList.add('show');

@@ -277,6 +277,26 @@ header .subtitle {
   background: var(--border);
   margin: 16px 0;
 }
+/* ── canonical check-table + expandable calc detail ── */
+.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px;overflow:hidden}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.88em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.78em;white-space:nowrap;transition:background .15s;font-family:var(--sans)}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px}
+.mrow{margin:3px 0;line-height:1.7}
+@media print { .calc-det{display:block!important} .det-btn{display:none!important} }
 </style>
 </head>
 <body>
@@ -453,6 +473,14 @@ header .subtitle {
         <div id="step7Calc"></div>
       </div>
 
+      <div class="step-card">
+        <h2>Phase 1 Check Results <span style="font-size:.75em;font-weight:400;color:var(--text-muted)">— click "▸ Calc" to expand</span></h2>
+        <table class="chk-table">
+          <thead><tr><th style="width:26%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th style="width:120px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th></tr></thead>
+          <tbody id="chkTb1"></tbody>
+        </table>
+      </div>
+
       <div class="step-card" style="border-color: var(--accent); border-width: 2px;">
         <h2>Proceed to Phase 2</h2>
         <p class="step-desc">Enter the ForteWEB results for the normal-component design, then run the bi-axial interaction check.</p>
@@ -485,6 +513,14 @@ header .subtitle {
     <div class="step-card" style="border-color: var(--accent);">
       <h2><span class="step-num">8</span> Bi-Axial Bending Interaction Check</h2>
       <div id="step8Calc"></div>
+    </div>
+
+    <div class="step-card">
+      <h2>Check Results <span style="font-size:.75em;font-weight:400;color:var(--text-muted)">— click "▸ Calc" to expand</span></h2>
+      <table class="chk-table">
+        <thead><tr><th style="width:26%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th style="width:120px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th></tr></thead>
+        <tbody id="chkTb2"></tbody>
+      </table>
     </div>
 
     <div class="step-card" id="summaryCard" style="border-width: 2px;">
@@ -557,6 +593,19 @@ function updateFlangeProps() {
 
 function fmt(n, dec=2) {
   return Number(n).toFixed(dec);
+}
+
+// canonical 7-col chk-row + det-row pair (display only)
+function tjChkRow(id, name, ref, dem, cap, dc, ok, det) {
+  let dcCell;
+  if (isFinite(dc)) {
+    const col = dc <= 0.8 ? '#16a34a' : dc <= 1.0 ? '#d97706' : '#dc2626';
+    dcCell = '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+fmt(dc,3)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+Math.min(dc*100,150)+'%;background:'+col+'"></div></div></div>';
+  } else { dcCell = '<span class="na">—</span>'; }
+  const stxt = ok ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+  return '<tr><td><strong>'+name+'</strong></td><td><code>'+ref+'</code></td><td>'+dem+'</td><td>'+cap+'</td><td>'+dcCell+'</td><td>'+stxt+'</td>'
+    + '<td><button class="det-btn" id="dbtn_'+id+'" onclick="toggleDet(\''+id+'\')">▸ Calc</button></td></tr>'
+    + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+id+'">'+det+'</div></td></tr>';
 }
 
 function calcPhase1() {
@@ -709,6 +758,24 @@ function calcPhase1() {
   // Store for Phase 2
   P1 = { theta, thetaDeg, WBL, deltaHorz, IYY, lu, luFt, numSections, blockingRows, lBlocked, deflCriteria, deflOK, flangeW, flangeD, fbYY, Cv, ldfDead, ldfLive, span, joistDepth, series, spacingIn, WLL, WDL, WCL, WJL, E, YLL, YDL, XLL, XDL };
 
+  // Canonical check table — lateral deflection criteria (full substituted math in det)
+  const detDefl = `
+    <div class="cref-hdr">Bottom-Flange Lateral Bracing — Deflection Criteria (NW-N127)</div>
+    <div class="cbox">
+      <div class="mrow">W<sub>BL</sub> = (W<sub>CL</sub>·s + W<sub>JL</sub>/2)·sin θ = (${WCL}·${fmt(spacingFt)} + ${WJL}/2)·sin(${fmt(thetaDeg)}°) = <span class="cval">${fmt(WBL)} plf</span></div>
+      <div class="mrow">Δ<sub>Horz</sub> = d·(1/12)·0.25 = ${joistDepth}·(1/12)·0.25 = <span class="cval">${fmt(deltaHorz)} in</span></div>
+      <div class="mrow">I<sub>YY</sub> = d·b³/12 = ${flangeD} × ${flangeW}³/12 = <span class="cval">${fmt(IYY,4)} in⁴</span></div>
+      <hr class="csep">
+      <div class="mrow">l<sub>u</sub> = [384·E·I<sub>YY</sub>·Δ<sub>Horz</sub> / (5·W<sub>BL</sub>/12)]<sup>1/4</sup> = <span class="cval">${fmt(lu,1)} in = ${fmt(luFt,1)} ft</span></div>
+      <div class="mrow">Blocking: ${numSections} sections → <span class="cval">${blockingRows} rows @ ${fmt(lBlocked,2)} ft o.c.</span></div>
+      <hr class="csep">
+      <div class="mrow">l/Δ = ${fmt(lBlocked*12,1)} / ${fmt(deltaHorz)} = <span class="cval">${fmt(deflCriteria,1)}</span> ≥ 180 → ${deflOK ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'}</div>
+    </div>`;
+  document.getElementById('chkTb1').innerHTML = tjChkRow('tj1',
+    'Lateral Deflection Criteria, l/Δ', 'NW-N127 (¼"/ft depth)',
+    '180 (min ratio)', 'l/Δ = ' + fmt(deflCriteria,1),
+    180 / deflCriteria, deflOK, detDefl);
+
   document.getElementById('phase1Results').classList.remove('hidden');
   document.getElementById('phase1Results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -797,6 +864,33 @@ function calcPhase2() {
     </div>
     ${!interOK ? '<p style="color:var(--warn); margin-top:8px; font-size:0.85rem;">Interaction ratio exceeds 1.0. Consider adding more blocking, upgrading joist series, or reducing loads.</p>' : ''}
   `;
+
+  // Canonical check table — interaction + carried-over deflection check
+  const detInter = `
+    <div class="cref-hdr">Bi-Axial Bending Interaction — NW-N127 / NDS 3.9</div>
+    <div class="cbox">
+      <div class="mrow">φ = ${phi} (${blockingRows} row${blockingRows!==1?'s':''} → ${spanLabel})</div>
+      <div class="mrow">M<sub>YY Blked</sub> = φ·W<sub>BL</sub>·(L/n)²·12 = ${phi} × ${fmt(WBL)} × (${fmt(lBlockedFt,2)})² × 12 = <span class="cval">${fmt(MYY_Blked,1)} in-lbs</span></div>
+      <div class="mrow">F'<sub>bYY</sub> = f<sub>bYY</sub>·C<sub>D</sub>·C<sub>V</sub> = ${fbYY} × ${CdBtm} × ${Cv} = <span class="cval">${fmt(FbYY_prime,0)} psi</span></div>
+      <div class="mrow">S<sub>YY</sub> = d·b²/6 = ${flangeD} × ${flangeW}²/6 = <span class="cval">${fmt(S_YY,4)} in³</span></div>
+      <div class="mrow">M<sub>YY All</sub> = F'<sub>bYY</sub>·S<sub>YY</sub> = <span class="cval">${fmt(MYY_All,1)} in-lbs</span></div>
+      <hr class="csep">
+      <div class="mrow">(M<sub>XX</sub>/M<sub>X All</sub>) + (M<sub>YY</sub>/M<sub>YY All</sub>) = (${Mxx}/${MxAll}) + (${fmt(MYY_Blked,1)}/${fmt(MYY_All,1)})</div>
+      <div class="mrow">= ${fmt(Mxx/MxAll,3)} + ${fmt(MYY_Blked/MYY_All,3)} = <span class="cval">${fmt(ratio,3)}</span> ≤ 1.0 → ${interOK ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'}</div>
+    </div>`;
+  const detDefl2 = `
+    <div class="cref-hdr">Lateral Deflection Criteria (from Phase 1)</div>
+    <div class="cbox">
+      <div class="mrow">l/Δ = ${fmt(P1.lBlocked*12,1)} / ${fmt(P1.deltaHorz)} = <span class="cval">${fmt(P1.deflCriteria,1)}</span> ≥ 180 → ${P1.deflOK ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'}</div>
+    </div>`;
+  document.getElementById('chkTb2').innerHTML =
+    tjChkRow('tj20', 'Bi-Axial Bending Interaction', 'NW-N127 / NDS 3.9',
+      'M<sub>XX</sub>=' + Mxx + ' ft-lb; M<sub>YY</sub>=' + fmt(MYY_Blked,0) + ' in-lb',
+      'M<sub>X All</sub>=' + MxAll + ' ft-lb; M<sub>YY All</sub>=' + fmt(MYY_All,0) + ' in-lb',
+      ratio, interOK, detInter)
+    + tjChkRow('tj21', 'Lateral Deflection Criteria, l/Δ', 'NW-N127 (¼"/ft depth)',
+      '180 (min ratio)', 'l/Δ = ' + fmt(P1.deflCriteria,1),
+      180 / P1.deflCriteria, P1.deflOK, detDefl2);
 
   // Summary
   document.getElementById('designSummary').innerHTML = `

@@ -144,22 +144,22 @@
             margin: 10px 0;
         }
         .results {
-            background: #2c3e50;
-            color: white;
+            background: #ffffff;
+            color: #2b2b2b;
+            border: 1px solid #dde;
             border-radius: 10px;
             padding: 25px;
             margin-top: 30px;
-            font-family: 'Courier New', monospace;
             line-height: 1.6;
         }
         .results h3 {
-            color: #3498db;
-            border-bottom: 2px solid #34495e;
+            color: #1e3c72;
+            border-bottom: 2px solid #e3e8f3;
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
         .calc-step {
-            background: #34495e;
+            background: #f5f7ff;
             padding: 15px;
             margin: 10px 0;
             border-radius: 5px;
@@ -169,11 +169,11 @@
             border-left-color: #27ae60;
         }
         .formula {
-            color: #f39c12;
+            color: #7a4b00;
             font-weight: bold;
         }
         .value {
-            color: #2ecc71;
+            color: #15803d;
             font-weight: bold;
         }
         .note {
@@ -205,6 +205,25 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        /* ── canonical check-table + expandable calc detail ── */
+        .chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+        .chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+        .chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+        .chk-table tr:nth-child(even) td{background:#f5f7ff}
+        .chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+        .pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+        .dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+        .dc-fill{height:100%;border-radius:7px}
+        .dc-cell{display:flex;align-items:center;gap:7px}
+        .calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+        .calc-det.open{display:block}
+        .det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s;display:inline-block;margin:0}
+        .det-btn:hover{background:#dbeafe;transform:none;box-shadow:none}
+        .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+        .cval{color:#15803d;font-weight:700}
+        .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+        .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+        .mrow{margin:3px 0;line-height:1.7}
         @media print {
             body { background: #fff; padding: 0; }
             .container { box-shadow: none; }
@@ -212,6 +231,9 @@
             .results { background: #fff; color: #000; border: 1px solid #ccc; }
             .results h3 { color: #1e3c72; }
             .calc-step { background: #f5f7ff; color: #000; page-break-inside: avoid; }
+            .calc-det { display: block !important; }
+            .det-btn { display: none !important; }
+            .chk-table tr.det-row td { padding: 0 !important; }
             .formula { color: #7a4b00; }
             .value { color: #166534; }
         }
@@ -245,9 +267,10 @@
             <div class="input-row">
                 <div class="input-group">
                     <label for="beamSize">W-Beam Size:</label>
-                    <select id="beamSize" onchange="updateBeamProperties()">
+                    <select id="beamSize" class="member-select" onchange="updateBeamProperties()">
                         <option value="">Loading shapes...</option>
                     </select>
+                    <span class="member-hint"></span>
                 </div>
                 <div class="input-group">
                     <label for="beamMaterial">Beam Material:</label>
@@ -270,9 +293,10 @@
             <div class="input-row">
                 <div class="input-group">
                     <label for="hssSize">HSS Size:</label>
-                    <select id="hssSize" onchange="updateHSSProperties()">
+                    <select id="hssSize" class="member-select" onchange="updateHSSProperties()">
                         <option value="">Loading shapes...</option>
                     </select>
+                    <span class="member-hint"></span>
                 </div>
                 <div class="input-group">
                     <label for="hssMaterial">HSS Material:</label>
@@ -730,6 +754,11 @@
 
             updateBeamProperties();
             updateHSSProperties();
+
+            if (window.AREv2 && AREv2.normalizeSelects) {
+                AREv2.normalizeSelects(beamSelect);
+                AREv2.normalizeSelects(hssSelect);
+            }
         }
 
         function updateBeamProperties() {
@@ -1092,6 +1121,7 @@
                     beamSize, hssSize, plateThickness, plateWidth, plateMaterial,
                     numBolts, numRows, boltsPerLine, boltSpacing, edgeDist, stdHole, boltDiameter, boltGrade,
                     lever, Rn_brgPlate, Rn_brgFlange, Rn_brg, Pu_brg, Pa_brg, brgOK_LRFD, brgOK_ASD,
+                    Ag, Rn_yield, Pu_yield, Pa_yield,
                     VD_left, VL_left, MD_left, ML_left,
                     VD_right, VL_right, MD_right, ML_right,
                     PD_top, PL_top,
@@ -1128,10 +1158,138 @@
             }
         }
 
+        // ── canonical 7-column check rows (chk-row + det-row pairs) ──
+        function areChkRowsHTML(chks, idp) {
+            let s = '';
+            chks.forEach(function (c, i) {
+                const id = idp + i;
+                if (c.grp) {
+                    s += '<tr><td colspan="6" style="background:#eef2fa;font-weight:700;color:#1e3c72">' + c.n + '</td>'
+                       + '<td style="background:#eef2fa">' + (c.det ? '<button class="det-btn" id="dbtn_' + id + '" onclick="toggleDet(\'' + id + '\')">▸ Calc</button>' : '') + '</td></tr>';
+                    if (c.det) s += '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + id + '">' + c.det + '</div></td></tr>';
+                    return;
+                }
+                let dcCell, stxt;
+                if (c.dc === null || c.dc === undefined || !isFinite(c.dc)) {
+                    dcCell = '<span class="na">—</span>';
+                    stxt = c.ok === false ? '<span class="fail">FAIL</span>' : '<span class="pass">PASS</span>';
+                } else {
+                    const col = c.dc <= 0.8 ? '#16a34a' : c.dc <= 1.0 ? '#d97706' : '#dc2626';
+                    const pct = Math.min(c.dc * 100, 150);
+                    dcCell = '<div class="dc-cell"><span style="color:' + col + ';font-weight:700">' + c.dc.toFixed(2) + '</span><div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%;background:' + col + '"></div></div></div>';
+                    stxt = (c.ok !== undefined ? c.ok : c.dc <= 1.0) ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+                }
+                s += '<tr><td><strong>' + c.n + '</strong></td><td><code>' + c.r + '</code></td><td>' + c.d + '</td><td>' + c.c + '</td><td>' + dcCell + '</td><td>' + stxt + '</td>'
+                   + '<td><button class="det-btn" id="dbtn_' + id + '" onclick="toggleDet(\'' + id + '\')">▸ Calc</button></td></tr>'
+                   + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + id + '">' + c.det + '</div></td></tr>';
+            });
+            return s;
+        }
+
+        function areChkTableHTML(chks, idp) {
+            return '<table class="chk-table"><thead><tr>'
+                 + '<th style="width:26%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th>'
+                 + '<th style="width:120px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th>'
+                 + '</tr></thead><tbody>' + areChkRowsHTML(chks, idp) + '</tbody></table>';
+        }
+
         function generateResults(data) {
             const dataSource = data.isLoaded ? "AISC Shapes Database v16.0" : "Built-in Properties";
-            
-            let results = `
+            const allOK = data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD
+                && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD;
+            const Lc_end = data.edgeDist - data.stdHole / 2;
+            const Lc_int = data.boltSpacing - data.stdHole;
+            const okNg = function (ok) { return ok ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'; };
+
+            // ── Det panel: Steps 1–3 — load analysis, equilibrium, plate force ──
+            const detLoads = `
+                <div class="cref-hdr">Step 1 — Load Analysis (LRFD: 1.2D + 1.6L &nbsp;|&nbsp; ASD: D + L)</div>
+                <div class="cbox">
+                    <div class="mrow">Left: V<sub>u</sub> = 1.2(${data.VD_left}) + 1.6(${data.VL_left}) = <span class="cval">${data.Vu_left.toFixed(1)} kips</span>; &nbsp;M<sub>u</sub> = 1.2(${data.MD_left}) + 1.6(${data.ML_left}) = <span class="cval">${data.Mu_left.toFixed(1)} kip-ft</span></div>
+                    <div class="mrow">Right: V<sub>u</sub> = 1.2(${data.VD_right}) + 1.6(${data.VL_right}) = <span class="cval">${data.Vu_right.toFixed(1)} kips</span>; &nbsp;M<sub>u</sub> = 1.2(${data.MD_right}) + 1.6(${data.ML_right}) = <span class="cval">${data.Mu_right.toFixed(1)} kip-ft</span></div>
+                    <div class="mrow">Top: P<sub>u</sub> = 1.2(${data.PD_top}) + 1.6(${data.PL_top}) = <span class="cval">${data.Pu_top.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">ASD &mdash; Left: V<sub>a</sub> = ${data.Va_left.toFixed(1)} kips, M<sub>a</sub> = ${data.Ma_left.toFixed(1)} kip-ft; &nbsp;Right: V<sub>a</sub> = ${data.Va_right.toFixed(1)} kips, M<sub>a</sub> = ${data.Ma_right.toFixed(1)} kip-ft; &nbsp;Top: P<sub>a</sub> = ${data.Pa_top.toFixed(1)} kips</div>
+                </div>
+                <div class="cref-hdr" style="margin-top:12px">Step 2 — Connection Equilibrium</div>
+                <div class="cbox">
+                    <div class="mrow"><span class="formula">&Sigma;F<sub>v</sub>: P<sub>conn</sub> = V<sub>left</sub> + V<sub>right</sub> + P<sub>top</sub></span></div>
+                    <div class="mrow">LRFD: P<sub>u,conn</sub> = ${data.Vu_left.toFixed(1)} + ${data.Vu_right.toFixed(1)} + ${data.Pu_top.toFixed(1)} = <span class="cval">${data.Pu_conn.toFixed(1)} kips</span></div>
+                    <div class="mrow">ASD: P<sub>a,conn</sub> = ${data.Va_left.toFixed(1)} + ${data.Va_right.toFixed(1)} + ${data.Pa_top.toFixed(1)} = <span class="cval">${data.Pa_conn.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow"><span class="formula">&Sigma;M<sub>A</sub>: M<sub>conn</sub> = M<sub>right</sub> &minus; M<sub>left</sub> + (H/2)(V<sub>right</sub> &minus; V<sub>left</sub>)/12</span></div>
+                    <div class="mrow">LRFD: M<sub>u,conn</sub> = ${data.Mu_right.toFixed(1)} &minus; ${data.Mu_left.toFixed(1)} + (${data.hss.H}/2)(${data.Vu_right.toFixed(1)} &minus; ${data.Vu_left.toFixed(1)})/12 = <span class="cval">${data.Mu_conn.toFixed(1)} kip-ft</span></div>
+                    <div class="mrow">ASD: M<sub>a,conn</sub> = <span class="cval">${data.Ma_conn.toFixed(1)} kip-ft</span></div>
+                </div>
+                <div class="cref-hdr" style="margin-top:12px">Step 3 — Through-Plate Force (DG24 Example 4.2)</div>
+                <div class="cbox">
+                    <div class="mrow">M<sub>u,max</sub> = max(${Math.abs(data.Mu_right).toFixed(1)}, ${Math.abs(data.Mu_left).toFixed(1)}, ${Math.abs(data.Mu_conn).toFixed(1)}) = <span class="cval">${data.M_max_LRFD.toFixed(1)} kip-ft</span>; &nbsp;M<sub>a,max</sub> = <span class="cval">${data.M_max_ASD.toFixed(1)} kip-ft</span></div>
+                    <hr class="csep">
+                    <div class="mrow"><span class="formula">R = M<sub>max</sub> / (d + t<sub>p</sub>)</span> &nbsp;(plate centroid to plate centroid)</div>
+                    <div class="mrow">LRFD: R<sub>u</sub> = ${data.M_max_LRFD.toFixed(1)} &times; 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="cval">${data.Ru_LRFD.toFixed(1)} kips</span></div>
+                    <div class="mrow">ASD: R<sub>a</sub> = ${data.M_max_ASD.toFixed(1)} &times; 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="cval">${data.Ra_ASD.toFixed(1)} kips</span></div>
+                </div>`;
+
+            // ── Det panel: Step 4 — tensile yielding J4.1(a) ──
+            const detYield = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.1(a) — Tensile Yielding of Through-Plate</div>
+                <div class="cbox">
+                    <div class="mrow">A<sub>g</sub> = t<sub>p</sub> &times; w = ${data.plateThickness} &times; ${data.plateWidth} = <span class="cval">${data.Ag.toFixed(2)} in&sup2;</span></div>
+                    <div class="mrow"><span class="formula">R<sub>n</sub> = F<sub>y</sub>&middot;A<sub>g</sub></span> = ${data.plateMat.Fy} &times; ${data.Ag.toFixed(2)} = <span class="cval">${data.Rn_yield.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.90 &times; ${data.Rn_yield.toFixed(1)} = <span class="cval">${data.Pu_yield.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.yieldOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${data.Rn_yield.toFixed(1)} / 1.67 = <span class="cval">${data.Pa_yield.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.yieldOK_ASD)}</div>
+                    <hr class="csep">
+                    <div class="mrow">Req'd thickness &mdash; LRFD: t<sub>p,req</sub> = R<sub>u</sub>/(&phi;F<sub>y</sub>w) = ${data.Ru_LRFD.toFixed(1)} / (0.90 &times; ${data.plateMat.Fy} &times; ${data.plateWidth}) = <span class="cval">${data.tp_req_LRFD.toFixed(3)} in</span></div>
+                    <div class="mrow">Req'd thickness &mdash; ASD: t<sub>p,req</sub> = R<sub>a</sub>&Omega;/(F<sub>y</sub>w) = ${data.Ra_ASD.toFixed(1)} &times; 1.67 / (${data.plateMat.Fy} &times; ${data.plateWidth}) = <span class="cval">${data.tp_req_ASD.toFixed(3)} in</span> &nbsp;(provided t<sub>p</sub> = ${data.plateThickness} in)</div>
+                </div>`;
+
+            // ── Det panel: Step 5 — tensile rupture J4.1(b) ──
+            const detRupture = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.1(b) — Tensile Rupture of Through-Plate</div>
+                <div class="cbox">
+                    <div class="mrow">d<sub>hole</sub> = ${data.stdHole.toFixed(4)}" + 1/16" = <span class="cval">${data.holeSize.toFixed(4)} in</span> &nbsp;(Table J3.3 std hole + B4.3b net-area allowance)</div>
+                    <div class="mrow"><span class="formula">A<sub>n</sub> = t<sub>p</sub>(w &minus; n<sub>lines</sub>&middot;d<sub>hole</sub>)</span> = ${data.plateThickness} &times; (${data.plateWidth} &minus; ${data.numRows} &times; ${data.holeSize.toFixed(3)})${data.AnCapped ? ' &rarr; capped at 0.85&middot;A<sub>g</sub> (bolted splice plate)' : ''} = <span class="cval">${data.An.toFixed(2)} in&sup2;</span></div>
+                    <div class="mrow"><span class="formula">R<sub>n</sub> = F<sub>u</sub>&middot;A<sub>n</sub></span> = ${data.plateMat.Fu} &times; ${data.An.toFixed(2)} = <span class="cval">${data.Rn_rupture.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${data.Rn_rupture.toFixed(1)} = <span class="cval">${data.Pu_rupture.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.ruptureOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${data.Rn_rupture.toFixed(1)} / 2.00 = <span class="cval">${data.Pa_rupture.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.ruptureOK_ASD)}</div>
+                </div>`;
+
+            // ── Det panel: Step 6 — bolt group shear J3.7 ──
+            const detBolts = `
+                <div class="cref-hdr">AISC 360-22 &sect;J3.7 / Table J3.2 — Bolt Group Shear (single shear, threads incl.)</div>
+                <div class="cbox">
+                    <div class="mrow">A<sub>b</sub> = &pi;d&sup2;/4 = &pi;(${data.boltDiameter})&sup2;/4 = <span class="cval">${data.boltArea.toFixed(3)} in&sup2;</span>; &nbsp;F<sub>nv</sub> = ${data.boltFnv} ksi (${data.boltGrade})</div>
+                    <div class="mrow"><span class="formula">R<sub>n</sub> = F<sub>nv</sub>&middot;A<sub>b</sub>&middot;n</span> = ${data.boltFnv} &times; ${data.boltArea.toFixed(3)} &times; ${data.numBolts} = <span class="cval">${data.Rn_bolts.toFixed(1)} kips</span> &nbsp;(${data.numRows} lines &times; ${data.boltsPerLine} bolts = ${data.numBolts} bolts/side)</div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${data.Rn_bolts.toFixed(1)} = <span class="cval">${data.Pu_bolts.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.boltsOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${data.Rn_bolts.toFixed(1)} / 2.00 = <span class="cval">${data.Pa_bolts.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.boltsOK_ASD)}</div>
+                </div>`;
+
+            // ── Det panel: Step 7 — bolt bearing / tearout J3.10 ──
+            const detBrg = `
+                <div class="cref-hdr">AISC 360-22 &sect;J3.10(a)(i), Eq. J3-6a — Bolt Bearing / Tearout</div>
+                <div class="cbox">
+                    <div class="mrow"><span class="formula">r<sub>n</sub> = 1.2&middot;L<sub>c</sub>&middot;t&middot;F<sub>u</sub> &le; 2.4&middot;d&middot;t&middot;F<sub>u</sub></span> &nbsp;(deformation a design consideration)</div>
+                    <div class="mrow">L<sub>c,end</sub> = ${data.edgeDist} &minus; ${data.stdHole.toFixed(4)}/2 = <span class="cval">${Lc_end.toFixed(3)} in</span>; &nbsp;L<sub>c,int</sub> = ${data.boltSpacing} &minus; ${data.stdHole.toFixed(4)} = <span class="cval">${Lc_int.toFixed(3)} in</span></div>
+                    <div class="mrow">On plate (t = ${data.plateThickness}", F<sub>u</sub> = ${data.plateMat.Fu} ksi): R<sub>n</sub> = <span class="cval">${data.Rn_brgPlate.toFixed(1)} kips</span></div>
+                    <div class="mrow">On beam flange (t<sub>f</sub> = ${data.beam.tf}", F<sub>u</sub> = ${data.beamMat.Fu} ksi): R<sub>n</sub> = <span class="cval">${data.Rn_brgFlange.toFixed(1)} kips</span></div>
+                    <div class="mrow">Governing R<sub>n</sub> = min = <span class="cval">${data.Rn_brg.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${data.Rn_brg.toFixed(1)} = <span class="cval">${data.Pu_brg.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.brgOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${data.Rn_brg.toFixed(1)} / 2.00 = <span class="cval">${data.Pa_brg.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.brgOK_ASD)}</div>
+                </div>`;
+
+            const chks = [
+                { grp: true, n: 'Load Analysis &amp; Equilibrium (Steps 1&ndash;3) &mdash; R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips, R<sub>a</sub> = ' + data.Ra_ASD.toFixed(1) + ' kips', det: detLoads },
+                { n: 'Plate Tensile Yielding', r: 'AISC J4.1(a)', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_yield.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_yield, ok: data.yieldOK_LRFD && data.yieldOK_ASD, det: detYield },
+                { n: 'Plate Tensile Rupture', r: 'AISC J4.1(b)', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_rupture.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_rupture, ok: data.ruptureOK_LRFD && data.ruptureOK_ASD, det: detRupture },
+                { n: 'Bolt Group Shear', r: 'AISC J3.7', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_bolts.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_bolts, ok: data.boltsOK_LRFD && data.boltsOK_ASD, det: detBolts },
+                { n: 'Bolt Bearing / Tearout', r: 'AISC J3.10, Eq. J3-6a', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_brg.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_brg, ok: data.brgOK_LRFD && data.brgOK_ASD, det: detBrg }
+            ];
+
+            const results = `
                 <h3>Complete Through-Plate Connection Analysis - Example 4.2 Methodology</h3>
                 <div class="note">
                     <strong>Reference:</strong> AISC Design Guide 24, Example 4.2<br>
@@ -1140,117 +1298,36 @@
                     <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), bolt group shear (J3.7), bolt bearing/tearout (J3.10). Weld design and block shear must be checked separately.
                 </div>
 
-                <div class="calc-step">
+                <div class="calc-step ok">
                     <strong>Given Data Summary:</strong><br>
-                    Beam: ${data.beamSize} ${data.beamMaterial ? 'ASTM ' + data.beamMaterial : ''} (d=${data.beam.d}", bf=${data.beam.bf}", tf=${data.beam.tf}")<br>
-                    HSS: ${data.hssSize} ${data.hssMaterial ? 'ASTM ' + data.hssMaterial : ''} (H=${data.hss.H}", B=${data.hss.B}", t=${data.hss.t}")<br>
-                    Plate: ${data.plateThickness}" × ${data.plateWidth}" ASTM ${data.plateMaterial}<br>
-                    Bolts: ${data.numRows} lines × ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>
+                    Beam: ${data.beamSize} (d=${data.beam.d}", bf=${data.beam.bf}", tf=${data.beam.tf}")<br>
+                    HSS: ${data.hssSize} (H=${data.hss.H}", B=${data.hss.B}", t=${data.hss.t}")<br>
+                    Plate: ${data.plateThickness}" &times; ${data.plateWidth}" ASTM ${data.plateMaterial}<br>
+                    Bolts: ${data.numRows} lines &times; ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>
                     <em>Properties from: ${dataSource}</em>
                 </div>
 
-                <div class="section-header">STEP 1: LOAD ANALYSIS</div>
-                <div class="calc-step">
-                    <strong>Factored Loads (LRFD):</strong><br>
-                    Left: V_u = 1.2(${data.VD_left}) + 1.6(${data.VL_left}) = <span class="value">${data.Vu_left.toFixed(1)} kips</span><br>
-                    Left: M_u = 1.2(${data.MD_left}) + 1.6(${data.ML_left}) = <span class="value">${data.Mu_left.toFixed(1)} kip-ft</span><br>
-                    Right: V_u = 1.2(${data.VD_right}) + 1.6(${data.VL_right}) = <span class="value">${data.Vu_right.toFixed(1)} kips</span><br>
-                    Right: M_u = 1.2(${data.MD_right}) + 1.6(${data.ML_right}) = <span class="value">${data.Mu_right.toFixed(1)} kip-ft</span><br>
-                    Top: P_u = 1.2(${data.PD_top}) + 1.6(${data.PL_top}) = <span class="value">${data.Pu_top.toFixed(1)} kips</span><br><br>
-                    
-                    <strong>ASD Loads:</strong><br>
-                    Left: V_a = ${data.Va_left.toFixed(1)} kips, M_a = ${data.Ma_left.toFixed(1)} kip-ft<br>
-                    Right: V_a = ${data.Va_right.toFixed(1)} kips, M_a = ${data.Ma_right.toFixed(1)} kip-ft<br>
-                    Top: P_a = ${data.Pa_top.toFixed(1)} kips
-                </div>
-
-                <div class="section-header">STEP 2: CONNECTION EQUILIBRIUM</div>
-                <div class="calc-step">
-                    <strong>Force Equilibrium:</strong><br>
-                    <span class="formula">ΣF_v = V_left + V_right + P_top = P_conn</span><br>
-                    LRFD: P_u,conn = ${data.Vu_left.toFixed(1)} + ${data.Vu_right.toFixed(1)} + ${data.Pu_top.toFixed(1)} = <span class="value">${data.Pu_conn.toFixed(1)} kips</span><br>
-                    ASD: P_a,conn = ${data.Va_left.toFixed(1)} + ${data.Va_right.toFixed(1)} + ${data.Pa_top.toFixed(1)} = <span class="value">${data.Pa_conn.toFixed(1)} kips</span><br><br>
-                    
-                    <strong>Moment Equilibrium with Eccentricity:</strong><br>
-                    <span class="formula">ΣM_A = M_right - M_left + (H/2)(V_right - V_left) = M_conn</span><br>
-                    LRFD: M_u,conn = ${data.Mu_right.toFixed(1)} - ${data.Mu_left.toFixed(1)} + (${data.hss.H}/2)(${data.Vu_right.toFixed(1)} - ${data.Vu_left.toFixed(1)})/12<br>
-                    M_u,conn = <span class="value">${data.Mu_conn.toFixed(1)} kip-ft</span><br>
-                    ASD: M_a,conn = <span class="value">${data.Ma_conn.toFixed(1)} kip-ft</span>
-                </div>
-
-                <div class="section-header">STEP 3: THROUGH PLATE FORCE ANALYSIS</div>
-                <div class="calc-step">
-                    <strong>Maximum Moment Determination:</strong><br>
-                    Moments to check: M_right = ${Math.abs(data.Mu_right).toFixed(1)}, M_left = ${Math.abs(data.Mu_left).toFixed(1)}, M_conn = ${Math.abs(data.Mu_conn).toFixed(1)}<br>
-                    M_u,max = <span class="value">${data.M_max_LRFD.toFixed(1)} kip-ft</span> (LRFD)<br>
-                    M_a,max = <span class="value">${data.M_max_ASD.toFixed(1)} kip-ft</span> (ASD)<br><br>
-                    
-                    <strong>Through Plate Force (per Example 4.2):</strong><br>
-                    <span class="formula">R = M_max / (d + t_p)</span> (plate centroid to plate centroid)<br>
-                    LRFD: R_u = ${data.M_max_LRFD.toFixed(1)} × 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="value">${data.Ru_LRFD.toFixed(1)} kips</span><br>
-                    ASD: R_a = ${data.M_max_ASD.toFixed(1)} × 12 / (${data.beam.d} + ${data.plateThickness}) = <span class="value">${data.Ra_ASD.toFixed(1)} kips</span>
-                </div>
-
-                <div class="section-header">STEP 4: TENSILE YIELDING CHECK (AISC J4.1a)</div>
-                <div class="calc-step ${data.yieldOK_LRFD && data.yieldOK_ASD ? 'ok' : ''}">
-                    <strong>Required Plate Thickness:</strong><br>
-                    <span class="formula">LRFD: t_p,req = R_u / (φF_y × w)</span><br>
-                    t_p,req = ${data.Ru_LRFD.toFixed(1)} / (0.90 × ${data.plateMat.Fy} × ${data.plateWidth}) = <span class="value">${data.tp_req_LRFD.toFixed(3)} in</span><br>
-                    <span class="formula">ASD: t_p,req = R_a × Ω / (F_y × w)</span><br>
-                    t_p,req = ${data.Ra_ASD.toFixed(1)} × 1.67 / (${data.plateMat.Fy} × ${data.plateWidth}) = <span class="value">${data.tp_req_ASD.toFixed(3)} in</span><br><br>
-                    
-                    <strong>Status:</strong> ${data.yieldOK_LRFD && data.yieldOK_ASD ? '<span class="value">ADEQUATE</span>' : '<span style="color: #e74c3c;">REQUIRES THICKER PLATE</span>'}
-                </div>
-
-                <div class="section-header">STEP 5: TENSILE RUPTURE CHECK (AISC J4.1b)</div>
-                <div class="calc-step ${data.ruptureOK_LRFD && data.ruptureOK_ASD ? 'ok' : ''}">
-                    <strong>Net Area:</strong><br>
-                    <span class="formula">A_n = t_p × (w − n_lines × d_hole)</span>, d_hole = ${data.stdHole.toFixed(4)}" + 1/16" = ${data.holeSize.toFixed(4)}"<br>
-                    A_n = ${data.plateThickness} × (${data.plateWidth} − ${data.numRows} × ${data.holeSize.toFixed(3)}) ${data.AnCapped ? '→ capped at 0.85·A_g (bolted splice plate)' : ''} = <span class="value">${data.An.toFixed(2)} in²</span><br><br>
-                    <strong>Rupture Strength:</strong><br>
-                    <span class="formula">R_n = F_u × A_n</span> = ${data.plateMat.Fu} × ${data.An.toFixed(2)} = <span class="value">${data.Rn_rupture.toFixed(1)} kips</span><br>
-                    LRFD: φR_n = 0.75 × ${data.Rn_rupture.toFixed(1)} = <span class="value">${data.Pu_rupture.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.ruptureOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
-                    ASD: R_n/Ω = ${data.Rn_rupture.toFixed(1)}/2.00 = <span class="value">${data.Pa_rupture.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.ruptureOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}
-                </div>
-
-                <div class="section-header">STEP 6: BOLT GROUP SHEAR (AISC J3.7)</div>
-                <div class="calc-step ${data.boltsOK_LRFD && data.boltsOK_ASD ? 'ok' : ''}">
-                    <span class="formula">R_n = F_nv × A_b × n</span> (single shear, threads incl.)<br>
-                    R_n = ${data.boltFnv} × ${data.boltArea.toFixed(3)} × ${data.numBolts} = <span class="value">${data.Rn_bolts.toFixed(1)} kips</span><br>
-                    LRFD: φR_n = 0.75 × ${data.Rn_bolts.toFixed(1)} = <span class="value">${data.Pu_bolts.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.boltsOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
-                    ASD: R_n/Ω = <span class="value">${data.Pa_bolts.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.boltsOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
-                </div>
-
-                <div class="section-header">STEP 7: BOLT BEARING / TEAROUT (AISC J3.10, Eq. J3-6a)</div>
-                <div class="calc-step ${data.brgOK_LRFD && data.brgOK_ASD ? 'ok' : ''}">
-                    <span class="formula">r_n = 1.2·L_c·t·F_u ≤ 2.4·d·t·F_u</span> (deformation a design consideration)<br>
-                    L_c,end = ${data.edgeDist} − ${data.stdHole.toFixed(4)}/2; L_c,int = ${data.boltSpacing} − ${data.stdHole.toFixed(4)}<br>
-                    On plate (t=${data.plateThickness}"): R_n = <span class="value">${data.Rn_brgPlate.toFixed(1)} kips</span><br>
-                    On beam flange (t_f=${data.beam.tf}"): R_n = <span class="value">${data.Rn_brgFlange.toFixed(1)} kips</span><br>
-                    Governing R_n = ${data.Rn_brg.toFixed(1)} kips<br>
-                    LRFD: φR_n = 0.75 × ${data.Rn_brg.toFixed(1)} = <span class="value">${data.Pu_brg.toFixed(1)} kips</span> vs R_u = ${data.Ru_LRFD.toFixed(1)} kips → ${data.brgOK_LRFD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}<br>
-                    ASD: R_n/Ω = <span class="value">${data.Pa_brg.toFixed(1)} kips</span> vs R_a = ${data.Ra_ASD.toFixed(1)} kips → ${data.brgOK_ASD ? '<span class="value">OK</span>' : '<span style="color:#e74c3c">NG</span>'}
-                </div>
+                <h3 style="margin-top:24px">Check Results <span style="font-size:.7em;font-weight:400;color:#666">&mdash; click "&#9656; Calc" to expand the full substituted calculation</span></h3>
+                ${areChkTableHTML(chks, 'tp')}
 
                 <div class="section-header">DESIGN SUMMARY</div>
-                <div class="calc-step ${data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD ? 'ok' : ''}">
-                    <strong>Connection Status: <span class="value">${data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD ? 'PRELIMINARY CHECKS OK' : 'REQUIRES REVISION'}</span></strong><br><br>
+                <div class="calc-step ${allOK ? 'ok' : ''}">
+                    <strong>Connection Status: <span class="${allOK ? 'pass' : 'fail'}">${allOK ? 'PRELIMINARY CHECKS OK' : 'REQUIRES REVISION'}</span></strong><br><br>
                     <strong>Design Requirements:</strong><br>
-                    • Minimum plate thickness: <span class="value">${Math.max(data.tp_req_LRFD, data.tp_req_ASD).toFixed(3)} in</span><br>
-                    • Provided plate thickness: <span class="value">${data.plateThickness} in</span><br>
-                    • Database Integration: <span class="value">${data.isLoaded ? 'Active (AISC v16.0)' : 'Fallback Mode'}</span><br><br>
-                    
+                    &bull; Minimum plate thickness: <span class="value">${Math.max(data.tp_req_LRFD, data.tp_req_ASD).toFixed(3)} in</span><br>
+                    &bull; Provided plate thickness: <span class="value">${data.plateThickness} in</span><br>
+                    &bull; Database Integration: <span class="value">${data.isLoaded ? 'Active (AISC v16.0)' : 'Fallback Mode'}</span><br><br>
                     <em>Note: This is a preliminary analysis. Complete design requires additional limit state checks including block shear, HSS wall plastification (Chapter K limits of applicability), and weld design.</em>
                 </div>
 
                 <div class="note">
                     <strong>Key Design Features (per Example 4.2):</strong><br>
-                    • Through-plate extends completely through HSS depth<br>
-                    • Provides 2× capacity compared to branch-plate connections<br>
-                    • Requires HSS to be cut and spliced at connection<br>
-                    • Field shimming required between plate and beam flanges<br>
-                    • Complete force transfer through plate eliminates HSS moment<br>
-                    • All limit states must be checked per AISC Specification Chapters J & K
+                    &bull; Through-plate extends completely through HSS depth<br>
+                    &bull; Provides 2&times; capacity compared to branch-plate connections<br>
+                    &bull; Requires HSS to be cut and spliced at connection<br>
+                    &bull; Field shimming required between plate and beam flanges<br>
+                    &bull; Complete force transfer through plate eliminates HSS moment<br>
+                    &bull; All limit states must be checked per AISC Specification Chapters J &amp; K
                 </div>
             `;
 

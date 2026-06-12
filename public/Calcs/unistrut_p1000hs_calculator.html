@@ -323,6 +323,26 @@
             }
         }
     
+        /* ── canonical check-table + expandable calc detail ── */
+        .chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+        .chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+        .chk-table td{padding:7px 10px;border-bottom:1px solid #eee;background:#fff}
+        .chk-table tr:nth-child(even) td{background:#f5f7ff}
+        .chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+        .pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+        .dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px;overflow:hidden}
+        .dc-fill{height:100%;border-radius:7px}
+        .dc-cell{display:flex;align-items:center;gap:7px}
+        .calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.9em;color:#1a1a1a}
+        .calc-det.open{display:block}
+        .det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.78em;white-space:nowrap;transition:background .15s}
+        .det-btn:hover{background:#dbeafe}
+        .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+        .cval{color:#15803d;font-weight:700}
+        .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+        .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px}
+        .mrow{margin:3px 0;line-height:1.7}
+
 /* ── Print / PDF — letter portrait, fills 8.5×11 ───────────────────────── */
 @page {
   size: letter portrait;
@@ -594,8 +614,6 @@
                 return;
             }
             
-            let stepsHTML = '<h3>4-Step Calculation Process</h3>';
-            
             // Step 1: Determine Maximum Allowable Uniform Load
             let step1Load;
             let deflectionType;
@@ -619,98 +637,102 @@
                 return;
             }
             
-            stepsHTML += `
-                <div class="step">
-                    <div class="step-header">Step 1: Determine Maximum Allowable Uniform Load from Load Table</div>
-                    <p>Span: ${span} inches (${(span/12).toFixed(2)} feet)</p>
-                    <p>Deflection Limit: ${deflectionType}</p>
-                    <p><em>Note: Load table values already account for round holes in P1000HS channel</em></p>
-                    <div class="step-formula">W₁ = ${step1Load} lbs</div>
-                    <div class="step-result">Result: ${step1Load} lbs</div>
-                </div>
-            `;
-            
+            // canonical 7-col chk-row + det-row pair (display only)
+            function usChkRow(id, name, ref, dem, cap, dc, ok, det) {
+                let dcCell, stxt;
+                if (dc !== null && isFinite(dc)) {
+                    const col = dc <= 0.8 ? '#16a34a' : dc <= 1.0 ? '#d97706' : '#dc2626';
+                    dcCell = '<div class="dc-cell"><span style="color:' + col + ';font-weight:700">' + dc.toFixed(3) + '</span><div class="dc-bar"><div class="dc-fill" style="width:' + Math.min(dc * 100, 150) + '%;background:' + col + '"></div></div></div>';
+                    stxt = dc <= 1.0 ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+                } else {
+                    dcCell = '<span class="na">&mdash;</span>';
+                    stxt = ok === null ? '<span class="na">&mdash;</span>' : ok ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+                }
+                return '<tr><td><strong>' + name + '</strong></td><td><code>' + ref + '</code></td><td>' + dem + '</td><td>' + cap + '</td><td>' + dcCell + '</td><td>' + stxt + '</td>'
+                    + '<td><button class="det-btn" id="dbtn_' + id + '" onclick="toggleDet(\'' + id + '\')">&#9656; Calc</button></td></tr>'
+                    + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + id + '">' + det + '</div></td></tr>';
+            }
+
             // Step 2: Multiply by Unbraced Length Factor
             const unbracedFactor = getUnbracedLengthFactor(unbracedLength, span);
             const step2Load = step1Load * unbracedFactor;
-            stepsHTML += `
-                <div class="step">
-                    <div class="step-header">Step 2: Multiply by Unbraced Length Factor</div>
-                    <p>Unbraced Length: ${unbracedLength} inches</p>
-                    <p>Span: ${span} inches</p>
-                    <p>Lateral Bracing Factor from table: ${spanData.bracingFactor.toFixed(2)}</p>
-                    <p>Applied Factor: ${unbracedFactor.toFixed(3)}</p>
-                    <div class="step-formula">W₂ = W₁ × Unbraced Length Factor<br>W₂ = ${step1Load} × ${unbracedFactor.toFixed(3)}</div>
-                    <div class="step-result">Result: ${step2Load.toFixed(2)} lbs</div>
-                </div>
-            `;
-            
+
             // Step 3: Subtract Channel Weight
             const channelLength = span / 12; // feet
             const channelWeight = CHANNEL_WEIGHT_PER_FOOT * channelLength;
             const step3Load = step2Load - channelWeight;
-            stepsHTML += `
-                <div class="step">
-                    <div class="step-header">Step 3: Subtract Channel Weight</div>
-                    <p>Channel Weight: ${CHANNEL_WEIGHT_PER_FOOT.toFixed(3)} lbs/ft</p>
-                    <p>Channel Length: ${channelLength.toFixed(2)} feet</p>
-                    <p>Total Channel Weight: ${CHANNEL_WEIGHT_PER_FOOT.toFixed(3)} × ${channelLength.toFixed(2)} = ${channelWeight.toFixed(2)} lbs</p>
-                    <div class="step-formula">W₃ = W₂ - Channel Weight<br>W₃ = ${step2Load.toFixed(2)} - ${channelWeight.toFixed(2)}</div>
-                    <div class="step-result">Result: ${step3Load.toFixed(2)} lbs (Net Allowable Uniform Load)</div>
-                </div>
-            `;
-            
+
             // Step 4: Midspan loading (if applicable)
             let step4Load = null;
             if (midspanLoading) {
                 step4Load = step3Load * 0.5;
-                stepsHTML += `
-                    <div class="step">
-                        <div class="step-header">Step 4: Multiply by 50% for Midspan Point Load</div>
-                        <p>For concentrated load at center of span, multiply by 0.5</p>
-                        <div class="step-formula">P = W₃ × 0.5<br>P = ${step3Load.toFixed(2)} × 0.5</div>
-                        <div class="step-result">Result: ${step4Load.toFixed(2)} lbs (Allowable Midspan Point Load)</div>
-                    </div>
-                `;
-            } else {
-                stepsHTML += `
-                    <div class="step">
-                        <div class="step-header">Step 4: Midspan Point Load</div>
-                        <p>Not applicable - uniform loading selected</p>
-                        <div class="step-result">No adjustment needed</div>
-                    </div>
-                `;
             }
-            
+
             // Additional Calculations
-            stepsHTML += '<h3 style="margin-top: 30px;">Additional Calculations</h3>';
-            
-            // Uniform load per foot
             const uniformLoadPerFoot = step3Load / channelLength;
-            stepsHTML += `
-                <div class="step">
-                    <div class="step-header">Uniform Load per Foot (PLF)</div>
-                    <p>Divide total allowable uniform load by span length in feet</p>
-                    <div class="step-formula">w = W / L<br>w = ${step3Load.toFixed(2)} lbs ÷ ${channelLength.toFixed(2)} ft</div>
-                    <div class="step-result">Result: ${uniformLoadPerFoot.toFixed(2)} lbs/ft (PLF)</div>
-                </div>
-            `;
-            
-            // Calculate expected deflection (proportional to actual load vs table load)
             const loadRatio = step3Load / step1Load;
             const expectedDeflection = spanData.deflection * loadRatio;
-            stepsHTML += `
-                <div class="step">
-                    <div class="step-header">Expected Deflection</div>
-                    <p>Deflection at table load: ${spanData.deflection.toFixed(2)} inches</p>
-                    <p>Load ratio: ${step3Load.toFixed(2)} / ${step1Load} = ${loadRatio.toFixed(4)}</p>
-                    <div class="step-formula">δ = δ_table × (W_actual / W_table)<br>δ = ${spanData.deflection.toFixed(2)} × ${loadRatio.toFixed(4)}</div>
-                    <div class="step-result">Result: ${expectedDeflection.toFixed(3)} inches</div>
+
+            // ── det panel: 4-step load determination (full substituted math) ──
+            const detSteps = `
+                <div class="cref-hdr">Step 1 — Allowable Uniform Load from P1000HS Load Table</div>
+                <div class="cbox">
+                    <div class="mrow">Span = ${span} in (${(span/12).toFixed(2)} ft); deflection limit: ${deflectionType}</div>
+                    <div class="mrow">W&#8321; = <span class="cval">${step1Load} lbs</span> <em>(table values include SF = 1.67 and round-hole reduction)</em></div>
                 </div>
-            `;
-            
-            // Update results
-            document.getElementById('calculationSteps').innerHTML = stepsHTML;
+                <div class="cref-hdr" style="margin-top:10px">Step 2 — Unbraced Length Factor</div>
+                <div class="cbox">
+                    <div class="mrow">Unbraced length = ${unbracedLength} in; table bracing factor = ${spanData.bracingFactor.toFixed(2)}; applied factor = ${unbracedFactor.toFixed(3)}</div>
+                    <div class="mrow">W&#8322; = W&#8321; &times; factor = ${step1Load} &times; ${unbracedFactor.toFixed(3)} = <span class="cval">${step2Load.toFixed(2)} lbs</span></div>
+                </div>
+                <div class="cref-hdr" style="margin-top:10px">Step 3 — Subtract Channel Self-Weight</div>
+                <div class="cbox">
+                    <div class="mrow">W<sub>chan</sub> = ${CHANNEL_WEIGHT_PER_FOOT.toFixed(3)} lbs/ft &times; ${channelLength.toFixed(2)} ft = <span class="cval">${channelWeight.toFixed(2)} lbs</span></div>
+                    <div class="mrow">W&#8323; = ${step2Load.toFixed(2)} &minus; ${channelWeight.toFixed(2)} = <span class="cval">${step3Load.toFixed(2)} lbs</span> (net allowable uniform load)</div>
+                    <div class="mrow">w = W&#8323;/L = ${step3Load.toFixed(2)} / ${channelLength.toFixed(2)} = <span class="cval">${uniformLoadPerFoot.toFixed(2)} lbs/ft</span></div>
+                </div>
+                <div class="cref-hdr" style="margin-top:10px">Step 4 — Midspan Point Load</div>
+                <div class="cbox">
+                    ${midspanLoading
+                        ? '<div class="mrow">P = W&#8323; &times; 0.5 = ' + step3Load.toFixed(2) + ' &times; 0.5 = <span class="cval">' + step4Load.toFixed(2) + ' lbs</span> (allowable midspan point load)</div>'
+                        : '<div class="mrow">Not applicable &mdash; uniform loading selected.</div>'}
+                </div>`;
+
+            // ── det panel: expected deflection ──
+            const allowDefl = deflectionLimit === 'none' ? spanData.deflection : span / parseInt(deflectionLimit);
+            const detDefl = `
+                <div class="cref-hdr">Expected Deflection at Net Allowable Load</div>
+                <div class="cbox">
+                    <div class="mrow">Load ratio = W&#8323; / W&#8321; = ${step3Load.toFixed(2)} / ${step1Load} = <span class="cval">${loadRatio.toFixed(4)}</span></div>
+                    <div class="mrow">&delta; = &delta;<sub>table</sub> &times; ratio = ${spanData.deflection.toFixed(2)} &times; ${loadRatio.toFixed(4)} = <span class="cval">${expectedDeflection.toFixed(3)} in</span></div>
+                    <hr class="csep">
+                    <div class="mrow">Allowable: ${deflectionLimit === 'none'
+                        ? '&delta;<sub>table</sub> = ' + spanData.deflection.toFixed(2) + ' in (at max table load)'
+                        : 'L/' + deflectionLimit + ' = ' + span + '/' + deflectionLimit + ' = ' + allowDefl.toFixed(3) + ' in'}</div>
+                    <div class="mrow">&delta; = ${expectedDeflection.toFixed(3)} in &le; ${allowDefl.toFixed(3)} in &rarr; ${expectedDeflection <= allowDefl ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'}</div>
+                </div>`;
+
+            // ── canonical chk-table ──
+            let chkRows = '';
+            chkRows += '<tr><td colspan="6" style="background:#eef2fa;font-weight:700;color:#1e3c72">P1000HS Allowable Load Determination (Steps 1&ndash;4) &mdash; W&#8321; = ' + step1Load + ' lbs, factor = ' + unbracedFactor.toFixed(3) + '</td>'
+                + '<td style="background:#eef2fa"><button class="det-btn" id="dbtn_us0" onclick="toggleDet(\'us0\')">&#9656; Calc</button></td></tr>'
+                + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_us0">' + detSteps + '</div></td></tr>';
+            chkRows += usChkRow('us1', 'Net Allowable Uniform Load', 'P1000HS table (AISI ASD, SF 1.67)',
+                '&mdash;', 'W&#8323; = ' + step3Load.toFixed(1) + ' lbs (' + uniformLoadPerFoot.toFixed(1) + ' plf)', null, null, detSteps);
+            if (midspanLoading) {
+                chkRows += usChkRow('us2', 'Allowable Midspan Point Load', 'P1000HS table &times; 0.5',
+                    '&mdash;', 'P = ' + step4Load.toFixed(1) + ' lbs', null, null, detSteps);
+            }
+            chkRows += usChkRow('us3', 'Expected Deflection', deflectionLimit === 'none' ? 'Table max' : 'L/' + deflectionLimit,
+                '&delta; = ' + expectedDeflection.toFixed(3) + ' in', '&delta;<sub>allow</sub> = ' + allowDefl.toFixed(3) + ' in',
+                expectedDeflection / allowDefl, expectedDeflection <= allowDefl, detDefl);
+
+            document.getElementById('calculationSteps').innerHTML =
+                '<h3>Check Results <span style="font-size:.7em;font-weight:400;color:#666">&mdash; click "&#9656; Calc" to expand the full calculation</span></h3>'
+                + '<table class="chk-table"><thead><tr>'
+                + '<th style="width:26%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th>'
+                + '<th style="width:120px">D/C</th><th style="width:60px">Status</th><th style="width:70px">Detail</th>'
+                + '</tr></thead><tbody>' + chkRows + '</tbody></table>';
             
             // Update final results
             document.getElementById('finalUniformLoad').textContent = step3Load.toFixed(1);

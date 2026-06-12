@@ -1048,7 +1048,8 @@
             // 1 display-unit of moment expressed in lb-in (for back-conversion)
             const momentFactor = convertMoment(1, lengthUnit, forceUnit);
 
-            let resultsHTML = '';
+            let rowsHTML = '';
+            let _detIdx = 0;
             const _arePub = [];
 
             for (const [label, formula] of Object.entries(config.formulas)) {
@@ -1080,12 +1081,17 @@
                         resultUnit = forceUnit;
                     }
 
-                    resultsHTML += `
-                        <div class="result-item">
-                            <div class="result-label">${label}:</div>
-                            <div class="result-value">${displayResult.toFixed(4)} ${resultUnit}</div>
-                            <div class="formula-display">Formula: ${formula}</div>
-                        </div>
+                    const _i = _detIdx++;
+                    const _subst = substituteFormula(formula, values);
+                    rowsHTML += `
+                        <tr class="chk-row">
+                            <td><strong>${label}</strong></td>
+                            <td class="cval">${displayResult.toFixed(4)} ${resultUnit}</td>
+                            <td><button class="det-btn" id="dbtn_${_i}" onclick="toggleDet(${_i})">&#9656; Calc</button></td>
+                        </tr>
+                        <tr class="det-row"><td colspan="3"><div class="calc-det" id="det_${_i}">
+                            <div class="cbox mrow">${label.split('(')[0].trim()} = ${formula}${_subst !== formula ? ' = ' + _subst : ''} = <span class="cval">${displayResult.toFixed(4)} ${resultUnit}</span></div>
+                        </div></td></tr>
                     `;
 
                     // Results-bus publishing (normalized to kip-ft / kips)
@@ -1097,16 +1103,17 @@
                         _arePub.push({symbol:key, label:label.split('(')[0].trim(), value:result/1000, unit:'kips', kind:'reaction'});
                     }
                 } catch (error) {
-                    resultsHTML += `
-                        <div class="result-item">
-                            <div class="result-label">${label}:</div>
-                            <div class="error">Error calculating: ${error.message}</div>
-                        </div>
+                    rowsHTML += `
+                        <tr class="chk-row">
+                            <td><strong>${label}</strong></td>
+                            <td class="error">Error: ${error.message}</td>
+                            <td></td>
+                        </tr>
                     `;
                 }
             }
 
-            resultsContent.innerHTML = resultsHTML;
+            resultsContent.innerHTML = '<table class="chk-table"><thead><tr><th style="width:46%">Quantity</th><th>Value</th><th style="width:80px">Detail</th></tr></thead><tbody>' + rowsHTML + '</tbody></table>';
             if (typeof AREv2!=='undefined') AREv2.publish(_arePub.slice(0,6));
             resultsContainer.classList.remove('hidden');
             areDrawSchematic();
@@ -1380,6 +1387,20 @@
             } catch (error) {
                 throw new Error('Invalid formula: ' + formula);
             }
+        }
+
+        // Returns the formula with input variables substituted (for the expandable detail panel)
+        function substituteFormula(formula, values) {
+            let expr = formula;
+            const sortedKeys = Object.keys(values).sort((a, b) => b.length - a.length);
+            for (const variable of sortedKeys) {
+                const v = values[variable];
+                if (typeof v !== 'number' || !isFinite(v)) continue;
+                const esc = variable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp('(?<![\\w\u0394\u03c6])' + esc + '(?![\\w])', 'g');
+                expr = expr.replace(regex, parseFloat(v.toPrecision(5)).toString());
+            }
+            return expr;
         }
 
         // Alias so the ARE Save/Load toolbar auto-runs after Load

@@ -10,11 +10,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { margin: 0; padding: 0; font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--v2-bg, #f7f6f3); }
+        /* ARE navy overrides of Tailwind accents */
+        .bg-gray-50.min-h-screen { background-color: #f7f6f3 !important; }
+        .text-blue-600, .text-blue-700 { color: #1a2b5f !important; }
+        .hover\:text-blue-800:hover { color: #0f1a3a !important; }
+        .border-blue-600 { border-color: #2e4a8a !important; }
+        /* Collapsible step cards (bridge classes live in are-theme-v2.css) */
+        .step-card { overflow: hidden; }
+        .step-card .step-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; cursor: pointer; user-select: none; }
+        .step-card .step-header:hover { background: #f6f8fd; }
+        .step-toggle { font-size: 12px; font-weight: 600; color: #2e4a8a; white-space: nowrap; }
         @media print {
             body[data-pm="s"] .calc-steps { display: none !important; }
             .db-status { display: none !important; }
             .calc-steps > div { page-break-inside: avoid; }
+            .step-card .step-body { display: block !important; }
+            .step-toggle { display: none !important; }
         }
     </style>
 </head>
@@ -310,6 +322,15 @@
           const [columnProps, setColumnProps] = useState(null);
           const [results, setResults] = useState(null);
           const [calculationSteps, setCalculationSteps] = useState([]);
+          const [openSteps, setOpenSteps] = useState({});
+          const toggleStep = (i) => setOpenSteps(prev => ({ ...prev, [i]: !prev[i] }));
+
+          // Normalize member selects (short labels + full-property hint) via shared ARE utils
+          useEffect(() => {
+            if (shapesData.wShapes.length && window.AREv2 && window.AREv2.normalizeSelects) {
+              document.querySelectorAll('select.member-select').forEach(sel => window.AREv2.normalizeSelects(sel));
+            }
+          }, [shapesData]);
 
           // Fallback data (your original shapes)
           const fallbackData = {
@@ -756,7 +777,7 @@
                             id="beamSelect"
                             value={selectedBeam}
                             onChange={(e) => setSelectedBeam(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            className="member-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                           >
                             <option value="">Select W-Shape...</option>
                             {shapesData.wShapes.map(shape => (
@@ -765,6 +786,7 @@
                               </option>
                             ))}
                           </select>
+                          <span className="member-hint"></span>
                         </div>
 
                         <div>
@@ -775,7 +797,7 @@
                             id="columnSelect"
                             value={selectedColumn}
                             onChange={(e) => setSelectedColumn(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            className="member-select w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                           >
                             <option value="">Select HSS...</option>
                             {shapesData.hssShapes.map(shape => (
@@ -784,6 +806,7 @@
                               </option>
                             ))}
                           </select>
+                          <span className="member-hint"></span>
                         </div>
                       </div>
                     </div>
@@ -850,23 +873,26 @@
                     <h2 className="text-lg font-semibold text-gray-800">AISC Design Calculations</h2>
                     
                     {calculationSteps.map((step, index) => (
-                      <div key={index} className="bg-white border rounded-lg p-4">
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-1 ${
-                            step.status === 'ok' ? 'text-green-500' : 
-                            step.status === 'warning' ? 'text-yellow-500' : 
-                            step.status === 'error' ? 'text-red-500' : 'text-blue-500'
-                          }`}>
-                            {step.status === 'ok' ? <CheckCircle /> : 
-                             step.status === 'warning' || step.status === 'error' ? <AlertTriangle /> : 
-                             <Info />}
+                      <div key={index} className={"step-card bg-white" + (openSteps[index] ? " open" : "")}>
+                        <div className="step-header" onClick={() => toggleStep(index)}>
+                          <div className="flex items-center gap-3">
+                            <span className={
+                              step.status === 'ok' ? 'text-green-600' :
+                              step.status === 'warning' ? 'text-yellow-600' :
+                              step.status === 'error' ? 'text-red-600' : 'text-blue-600'
+                            }>
+                              {step.status === 'ok' ? <CheckCircle /> :
+                               step.status === 'warning' || step.status === 'error' ? <AlertTriangle /> :
+                               <Info />}
+                            </span>
+                            <h3 className="font-medium text-gray-800 m-0">{step.title}</h3>
                           </div>
-                          <div className="flex-1">
-                            <h3 className="font-medium text-gray-800 mb-2">{step.title}</h3>
-                            <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded overflow-x-auto">
-                              {step.content}
-                            </pre>
-                          </div>
+                          <span className="step-toggle no-print">{openSteps[index] ? '\u25be Hide' : '\u25b8 Calc'}</span>
+                        </div>
+                        <div className="step-body">
+                          <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono overflow-x-auto m-0" style={{background:'transparent'}}>
+                            {step.content}
+                          </pre>
                         </div>
                       </div>
                     ))}

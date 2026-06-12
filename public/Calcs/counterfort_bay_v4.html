@@ -47,6 +47,26 @@
   @media(max-width:700px){.cmp{grid-template-columns:1fr;}}
   .cbox{border:1px solid var(--border);border-radius:8px;padding:12px 14px;background:var(--surface);}
   .cbox h4{font-family:'IBM Plex Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:6px;}
+  /* ── canonical check-table + expandable calc detail ── */
+  .chk-table{width:100%;border-collapse:collapse;font-size:0.8rem;font-family:'IBM Plex Sans',sans-serif;}
+  .chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left;}
+  .chk-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text);}
+  .chk-table tr.det-row td{padding:0!important;border:none!important;}
+  .pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+  .dc-bar{height:14px;border-radius:7px;background:#2a2d4a;min-width:70px;overflow:hidden}
+  .dc-fill{height:100%;border-radius:7px}
+  .dc-cell{display:flex;align-items:center;gap:7px}
+  .calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:0.8rem;color:#1a1a1a;border-radius:0 0 6px 6px;}
+  .calc-det.open{display:block}
+  .calc-det .pass{color:#16a34a}.calc-det .fail{color:#dc2626}
+  .det-btn{background:none;border:1px solid #93c5fd;color:#60a5fa;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:0.72rem;white-space:nowrap;transition:background .15s;width:auto;margin:0;font-family:'IBM Plex Mono',monospace;}
+  .det-btn:hover{background:#dbeafe;color:#1e40af}
+  .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:0.82rem}
+  .cwb{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-family:'IBM Plex Mono',monospace;}
+  .cval{color:#15803d;font-weight:700}
+  .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+  .mrow{margin:3px 0;line-height:1.7}
+  @media print { .calc-det{display:block!important} .det-btn{display:none!important} }
 </style>
 </head>
 <body>
@@ -89,6 +109,19 @@
 <script>
 function gv(id){return parseFloat(document.getElementById(id).value);}
 function R(n,d){return d===undefined?n.toFixed(3):n.toFixed(d);}
+
+// canonical 7-col chk-row + det-row pair (display only)
+function cfChkRow(id,name,ref,dem,cap,dc,ok,det){
+  var dcCell;
+  if(isFinite(dc)){
+    var col=dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+    dcCell='<div class="dc-cell"><span style="color:'+(dc<=0.8?'#4ecdc4':dc<=1.0?'#f5a623':'#e94560')+';font-weight:600">'+R(dc,2)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+Math.min(dc*100,150)+'%;background:'+col+'"></div></div></div>';
+  } else { dcCell='<span class="na">&mdash;</span>'; }
+  var stxt=ok?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+  return '<tr><td><b>'+name+'</b></td><td>'+ref+'</td><td>'+dem+'</td><td>'+cap+'</td><td>'+dcCell+'</td><td>'+stxt+'</td>'
+    +'<td><button class="det-btn" id="dbtn_'+id+'" onclick="toggleDet(\''+id+'\')">&#9656; Calc</button></td></tr>'
+    +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+id+'">'+det+'</div></td></tr>';
+}
 
 // =================== SVG DIAGRAMS ===================
 
@@ -478,23 +511,25 @@ function calculate(){
   o+='<tr class="tot"><td>TOTAL</td><td>'+R(SW)+'</td><td>'+R(MR)+'</td></tr>';
   o+='</table></div>';
 
-  // 5. OVERTURNING
+  // 5-7. STABILITY CHECKS — canonical chk-table with expandable det panels
+  // (all math identical to v4; only the rendering changed)
   var SFot=(MR+MHp)/Mot;
-  o+='<div class="card"><h3>5. Overturning (IBC 1807.2.3)</h3><div class="eq">';
-  o+='M_resist = '+R(MR)+' + '+R(MHp)+' = <span class="hi">'+R(MR+MHp)+' ft-k</span>\n';
-  o+='M_OT = <span class="v">'+R(Mot)+' ft-k</span>\n';
-  o+='SF = '+R(MR+MHp)+'/'+R(Mot)+' = <span class="hi">'+R(SFot)+'</span> (req >= 1.5)';
-  o+='</div><br><span class="status '+(SFot>=1.5?'pass':'fail')+'">'+(SFot>=1.5?'SATISFACTORY':'UNSATISFACTORY')+' - SF = '+R(SFot)+'</span></div>';
+  var detOT='<div class="cref-hdr">Overturning — IBC 1807.2.3 (moments about toe)</div><div class="cwb">'
+    +'<div class="mrow">M_resist = &Sigma;M_W + M_Hp = '+R(MR)+' + '+R(MHp)+' = <span class="cval">'+R(MR+MHp)+' ft-k</span></div>'
+    +'<div class="mrow">M_OT = Hb&middot;y_Hb + Hs&middot;y_Hs + HE&middot;y_HE = '+R(Hb*yHb)+' + '+R(Hs*yHs)+' + '+R(HE*yHE)+' = <span class="cval">'+R(Mot)+' ft-k</span></div>'
+    +'<hr class="csep">'
+    +'<div class="mrow">SF = '+R(MR+MHp)+' / '+R(Mot)+' = <span class="cval">'+R(SFot)+'</span> &nbsp;(required &ge; 1.5) '+(SFot>=1.5?'<span class="pass">OK</span>':'<span class="fail">NG</span>')+'</div></div>';
 
   // 6. SLIDING
   var Fric=mu*SW, Rsl=Hpas+Fric, SFsl=Rsl/sumH;
-  o+='<div class="card"><h3>6. Sliding (IBC 1807.2.3)</h3><div class="eq">';
-  o+='Demand = <span class="v">'+R(sumH)+' kips</span>\n';
-  o+='Passive Hp = <span class="v">'+R(Hpas)+' k</span>\n';
-  o+='Friction = mu*Sum(W) = '+mu+'*'+R(SW)+' = <span class="v">'+R(Fric)+' k</span>\n';
-  o+='Resistance = '+R(Hpas)+'+'+R(Fric)+' = <span class="hi">'+R(Rsl)+' k</span>\n';
-  o+='SF = '+R(Rsl)+'/'+R(sumH)+' = <span class="hi">'+R(SFsl)+'</span> (req >= 1.5)';
-  o+='</div><br><span class="status '+(SFsl>=1.5?'pass':'fail')+'">'+(SFsl>=1.5?'SATISFACTORY':'UNSATISFACTORY')+' - SF = '+R(SFsl)+'</span></div>';
+  var detSL='<div class="cref-hdr">Sliding — IBC 1807.2.3</div><div class="cwb">'
+    +'<div class="mrow">Demand &Sigma;H = Hb + Hs + HE = '+R(Hb)+' + '+R(Hs)+' + '+R(HE)+' = <span class="cval">'+R(sumH)+' kips</span></div>'
+    +'<hr class="csep">'
+    +'<div class="mrow">Passive: Hp = 0.5&middot;Pp&middot;(hp+hf+hk)&sup2;&middot;Sc = 0.5&middot;'+Pp+'&middot;'+R(dpas)+'&sup2;&middot;'+R(Sc,1)+'/1000 = <span class="cval">'+R(Hpas)+' k</span></div>'
+    +'<div class="mrow">Friction = &mu;&middot;&Sigma;W = '+mu+'&middot;'+R(SW)+' = <span class="cval">'+R(Fric)+' k</span></div>'
+    +'<div class="mrow">Resistance = '+R(Hpas)+' + '+R(Fric)+' = <span class="cval">'+R(Rsl)+' k</span></div>'
+    +'<hr class="csep">'
+    +'<div class="mrow">SF = '+R(Rsl)+' / '+R(sumH)+' = <span class="cval">'+R(SFsl)+'</span> &nbsp;(required &ge; 1.5) '+(SFsl>=1.5?'<span class="pass">OK</span>':'<span class="fail">NG</span>')+'</div></div>';
 
   // 7. BEARING
   var Mnet=MR+MHp-Mot, xbar=Mnet/SW, ev=Lavg/2-xbar;
@@ -503,15 +538,44 @@ function calculate(){
   else if(xbar>0){var Be=3*xbar;qmax=2*SW/(Be*Sc);qmin=0;bn='Outside middle third - triangular, B_eff='+R(Be)+' ft';}
   else{qmax=999;qmin=0;bn='Resultant outside footing - UNSTABLE';}
 
-  o+='<div class="card"><h3>7. Bearing Pressure</h3><div class="eq">';
-  o+='(Approx using weighted-avg ftg length Lavg = '+R(Lavg)+' ft)\n\n';
-  o+='M_net = '+R(MR)+'+'+R(MHp)+'-'+R(Mot)+' = <span class="v">'+R(Mnet)+' ft-k</span>\n';
-  o+='xbar = M_net/Sum(W) = '+R(Mnet)+'/'+R(SW)+' = <span class="v">'+R(xbar)+' ft</span> from toe\n';
-  o+='e = Lavg/2-xbar = '+R(Lavg/2)+'-'+R(xbar)+' = <span class="v">'+R(ev)+' ft</span>  (Lavg/6='+R(Lavg/6)+')\n';
-  o+=bn+'\n\n';
-  o+='q_max = <span class="hi">'+(qmax>900?'UNSTABLE':R(qmax))+' ksf</span> (allow='+R(Qa,2)+' ksf)\n';
-  o+='q_min = <span class="v">'+R(qmin)+' ksf</span>';
-  o+='</div><br><span class="status '+(qmax<=Qa?'pass':'fail')+'">'+(qmax<=Qa?'SATISFACTORY':'UNSATISFACTORY')+'</span></div>';
+  // base pressure diagram (toe at left) for the det panel
+  var pdSvg='';
+  if(qmax<900){
+    var pw=420,ph=130,px0=46,pbw=330,pyb=34;
+    var qref=Math.max(qmax,qmin,0.001), qsc=58/qref;
+    var hT=qmax*qsc, hH=qmin*qsc;
+    pdSvg='<svg width="'+pw+'" height="'+ph+'" viewBox="0 0 '+pw+' '+ph+'" style="display:block;margin:8px auto 0;max-width:100%">'
+      +'<line x1="'+px0+'" y1="'+pyb+'" x2="'+(px0+pbw)+'" y2="'+pyb+'" stroke="#1a2b5f" stroke-width="2.5"/>'
+      +'<polygon points="'+px0+','+pyb+' '+(px0+pbw)+','+pyb+' '+(px0+pbw)+','+(pyb+hH)+' '+px0+','+(pyb+hT)+'" fill="#2e4a8a" opacity="0.25" stroke="#2e4a8a" stroke-width="1.2"/>'
+      +'<line x1="'+px0+'" y1="'+pyb+'" x2="'+px0+'" y2="'+(pyb+hT)+'" stroke="#2e4a8a" stroke-width="1.2"/>'
+      +'<text x="'+px0+'" y="'+(pyb+hT+16)+'" fill="#2e4a8a" font-size="11" font-family="IBM Plex Mono,monospace">q_max = '+R(qmax,2)+' ksf (toe)</text>'
+      +'<text x="'+(px0+pbw)+'" y="'+(pyb+Math.max(hH,8)+16)+'" fill="#2e4a8a" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="end">q_min = '+R(qmin,2)+' ksf (heel)</text>'
+      +'<text x="'+(px0+pbw/2)+'" y="'+(pyb-8)+'" fill="#1a7a4a" font-size="11" font-family="IBM Plex Mono,monospace" text-anchor="middle">Lavg = '+R(Lavg,2)+' ft</text>'
+      +'<text x="'+(px0-6)+'" y="'+(pyb+4)+'" fill="#6b7a96" font-size="10" text-anchor="end" font-family="IBM Plex Mono,monospace">TOE</text>'
+      +'<text x="'+(px0+pbw+6)+'" y="'+(pyb+4)+'" fill="#6b7a96" font-size="10" font-family="IBM Plex Mono,monospace">HEEL</text>'
+      +'</svg>';
+  }
+  var detBR='<div class="cref-hdr">Bearing Pressure (weighted-avg footing length Lavg = '+R(Lavg)+' ft)</div><div class="cwb">'
+    +'<div class="mrow">M_net = M_resist &minus; M_OT = '+R(MR)+' + '+R(MHp)+' &minus; '+R(Mot)+' = <span class="cval">'+R(Mnet)+' ft-k</span></div>'
+    +'<div class="mrow">x&#772; = M_net/&Sigma;W = '+R(Mnet)+' / '+R(SW)+' = <span class="cval">'+R(xbar)+' ft</span> from toe</div>'
+    +'<div class="mrow">e = Lavg/2 &minus; x&#772; = '+R(Lavg/2)+' &minus; '+R(xbar)+' = <span class="cval">'+R(ev)+' ft</span> &nbsp;(Lavg/6 = '+R(Lavg/6)+' ft)</div>'
+    +'<div class="mrow">'+bn+'</div>'
+    +'<hr class="csep">'
+    +(ev<=Lavg/6
+      ? '<div class="mrow">q = (&Sigma;W/A_ftg)(1 &plusmn; 6e/Lavg) = ('+R(SW)+'/'+R(Aftg)+')(1 &plusmn; 6&middot;'+R(ev)+'/'+R(Lavg)+')</div>'
+      : (xbar>0 ? '<div class="mrow">q_max = 2&Sigma;W/(3x&#772;&middot;Sc) = 2&middot;'+R(SW)+'/(3&middot;'+R(xbar)+'&middot;'+R(Sc,1)+')</div>' : ''))
+    +'<div class="mrow">q_max = <span class="cval">'+(qmax>900?'UNSTABLE':R(qmax)+' ksf')+'</span> vs Q_a = '+R(Qa,2)+' ksf &rarr; '+(qmax<=Qa?'<span class="pass">OK</span>':'<span class="fail">NG</span>')+'</div>'
+    +'<div class="mrow">q_min = <span class="cval">'+R(qmin)+' ksf</span></div>'
+    +pdSvg+'</div>';
+
+  o+='<div class="card"><h3>5. Stability Checks (IBC 1807.2.3) &mdash; click &#9656; Calc for full math</h3>';
+  o+='<table class="chk-table"><thead><tr>'
+    +'<th style="width:22%">Check</th><th>Reference</th><th>Demand</th><th>Capacity</th>'
+    +'<th style="width:120px">D/C</th><th style="width:64px">Status</th><th style="width:70px">Detail</th></tr></thead><tbody>';
+  o+=cfChkRow('cf0','Overturning FS','IBC 1807.2.3','M_OT = '+R(Mot)+' ft-k','M_R = '+R(MR+MHp)+' ft-k<br><span style="color:var(--dim)">FS = '+R(SFot,2)+' (req 1.5)</span>',1.5/SFot,SFot>=1.5,detOT);
+  o+=cfChkRow('cf1','Sliding FS','IBC 1807.2.3','&Sigma;H = '+R(sumH)+' k','Hp+&mu;&Sigma;W = '+R(Rsl)+' k<br><span style="color:var(--dim)">FS = '+R(SFsl,2)+' (req 1.5)</span>',1.5/SFsl,SFsl>=1.5,detSL);
+  o+=cfChkRow('cf2','Soil Bearing q_max','Service, gross','q_max = '+(qmax>900?'UNSTABLE':R(qmax,2)+' ksf'),'Q_a = '+R(Qa,2)+' ksf',(qmax>900?Infinity:qmax/Qa),qmax<=Qa,detBR);
+  o+='</tbody></table></div>';
 
   // 8. COMPARISON
   var SWss=(gb*H*LH_cf+gc*hf*Lcf+gc*tw*H+ws*LH_cf+0.5*H*LH_cf*(gc-gb)*tc/Sc+gc*hk*tw)/1000;
