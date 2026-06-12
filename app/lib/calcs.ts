@@ -166,6 +166,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22",
     status: "ready",
+    group: "HSS Connections",
     keywords: ["HSS", "branch", "chord", "T-connection", "Y-connection", "X-connection", "truss", "plastification", "punching", "sidewall", "K3", "DG24", "AISC 360"],
   },
   {
@@ -176,6 +177,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22",
     status: "ready",
+    group: "HSS Connections",
     keywords: ["W-shape", "HSS", "column", "moment", "directly welded", "flange", "local yielding", "K1", "DG24", "Example 4.3", "AISC 360"],
   },
   {
@@ -186,6 +188,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22 / DG24",
     status: "ready",
+    group: "HSS Connections",
     keywords: ["through plate", "HSS", "moment connection", "FR", "bolted", "splice plate", "tensile rupture", "bearing", "tearout", "DG24", "Example 4.2", "J4", "J3"],
   },
   {
@@ -196,6 +199,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22 / DG24",
     status: "ready",
+    group: "HSS Connections",
     keywords: ["directly welded", "HSS", "W-beam", "moment", "K1-7", "punching shear", "local yielding", "DG24", "Example 4.3"],
   },
   {
@@ -206,6 +210,7 @@ export const CALCS: CalcMeta[] = [
     category: "Connections",
     spec: "AISC 360-22 / DG24",
     status: "ready",
+    group: "HSS Connections",
     keywords: ["HSS", "connection", "limit states", "local yielding", "punching", "sidewall", "DG24", "K1", "complete"],
   },
   {
