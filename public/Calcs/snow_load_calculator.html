@@ -1620,5 +1620,26 @@
 
 </script>
 <script src="/are-utils-v2.js"></script>
+
+<script>
+(function(){
+  function hook(){
+    if (typeof window.runCalcs!=='function' || typeof window.calculateBasics!=='function') { setTimeout(hook,200); return; }
+    var orig=window.runCalcs;
+    window.runCalcs=function(){
+      orig.apply(this,arguments);
+      try{
+        var b=calculateBasics();
+        if (typeof AREv2!=='undefined') AREv2.publish([
+          {symbol:'pf', label:'Flat Roof Snow pf', value:b.pf, unit:'psf', kind:'pressure'},
+          {symbol:'gamma', label:'Snow Density γ', value:b.gamma, unit:'pcf', kind:'other'},
+          {symbol:'hb', label:'Balanced Snow Depth hb', value:b.hb, unit:'ft', kind:'other'}
+        ]);
+      }catch(e){}
+    };
+  }
+  hook();
+})();
+</script>
 </body>
 </html>
