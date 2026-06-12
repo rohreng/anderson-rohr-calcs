@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masonry ASD Design Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .input-group {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #3498db;
+        }
+
+        .input-group h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            color: #555;
+            margin-bottom: 5px;
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+
+        input[type="number"], select {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .grouting-group {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .radio-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .radio-group input[type="radio"] {
+            margin: 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(149, 165, 166, 0.3);
+        }
+
+        .results-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            border-left: 5px solid #e74c3c;
+        }
+
+        .results-section h2 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 1.5em;
+            text-align: center;
+        }
+
+        .result-group {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-group h4 {
+            color: #e74c3c;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 8px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+        }
+
+        .result-label {
+            color: #555;
+            font-weight: 500;
+        }
+
+        .result-value {
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+        }
+
+        .pass {
+            color: #27ae60;
+        }
+
+        .fail {
+            color: #e74c3c;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-pass {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .save-load-section {
+            grid-column: 1 / -1;
+            background: #e8f5e8;
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #27ae60;
+            text-align: center;
+        }
+
+        .save-load-section h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .saved-designs {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .saved-design {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #27ae60;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .saved-design:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(39, 174, 96, 0.2);
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .container { box-shadow: none; border-radius: 0; max-width: none; }
+            .header { background: #fff; color: #1e3c72; padding: 10px 0; text-align: left; }
+            .main-content { display: block; padding: 0; }
+            .save-load-section { display: none !important; }
+            .button-group { display: none !important; }
+            .results-section, .result-group { box-shadow: none; }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Masonry ASD Design Calculator</h1>
+            <p>Allowable Stress Design for Masonry Structures</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section">
+                <!-- Material Properties -->
+                <div class="input-group blk">
+                    <h3>Material Properties</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="fm">Masonry Compressive Strength (f'm) [psi]</label>
+                            <input type="number" id="fm" value="1500" step="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="fy">Steel Yield Strength (fy) [psi]</label>
+                            <input type="number" id="fy" value="60000" step="1000">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="Es">Steel Modulus (Es) [psi]</label>
+                            <input type="number" id="Es" value="29000000" step="1000000">
+                        </div>
+                        <div class="form-group">
+                            <label for="Fs">Allowable Steel Stress (Fs) [psi]</label>
+                            <input type="number" id="Fs" value="32000" step="1000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Geometry -->
+                <div class="input-group blk">
+                    <h3>Section Geometry</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="b">Width (b) [in]</label>
+                            <input type="number" id="b" value="12" step="0.5">
+                        </div>
+                        <div class="form-group">
+                            <label for="l">Length/Thickness (l) [in]</label>
+                            <input type="number" id="l" value="7.625" step="0.125">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="As">Steel Area (As) [in²]</label>
+                            <input type="number" id="As" value="0.31" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="Av">Stirrup Area (Av) [in²]</label>
+                            <input type="number" id="Av" value="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="s">Stirrup Spacing (s) [in]</label>
+                            <input type="number" id="s" value="12" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="grouting">Grouting Type</label>
+                            <select id="grouting">
+                                <option value="0.75" selected>Partially Grouted (&gamma;g = 0.75)</option>
+                                <option value="1.0">Fully Grouted (&gamma;g = 1.0)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Design Loads -->
+                <div class="input-group blk">
+                    <h3>Design Loads</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="M">Moment (M) [lb·in]</label>
+                            <input type="number" id="M" value="18764" step="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="V">Shear (V) [lb]</label>
+                            <input type="number" id="V" value="700" step="10">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="calculate()">Calculate</button>
+                    <button class="btn btn-secondary" onclick="clearInputs()">Clear</button>
+                </div>
+            </div>
+
+            <div class="results-section summary">
+                <h2>Design Results</h2>
+                
+                <div class="result-group">
+                    <h4>Shear Stress Check</h4>
+                    <div id="shearResults">
+                        <p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>
+                    </div>
+                </div>
+
+                <div class="result-group">
+                    <h4>Flexural Stress Check</h4>
+                    <div id="flexuralResults">
+                        <p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="save-load-section">
+                <h3>Save & Load Designs</h3>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="saveDesign()">Save Current Design</button>
+                    <button class="btn btn-secondary" onclick="exportResults()">Export Results</button>
+                </div>
+                <div class="saved-designs" id="savedDesigns"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let savedDesigns = [];
+
+        function getGroutingValue() {
+            return parseFloat(document.getElementById('grouting').value);
+        }
+
+        function calculate() {
+            // Get input values
+            const fm = parseFloat(document.getElementById('fm').value);
+            const fy = parseFloat(document.getElementById('fy').value);
+            const Es = parseFloat(document.getElementById('Es').value);
+            const Fs = parseFloat(document.getElementById('Fs').value);
+            const b = parseFloat(document.getElementById('b').value);
+            const l = parseFloat(document.getElementById('l').value);
+            const As = parseFloat(document.getElementById('As').value);
+            const Av = parseFloat(document.getElementById('Av').value);
+            const s = parseFloat(document.getElementById('s').value);
+            const M = parseFloat(document.getElementById('M').value);
+            const V = parseFloat(document.getElementById('V').value);
+            const yg = getGroutingValue();
+
+            // Calculated properties
+            const Em = 900 * fm;
+            const d = l / 2;
+
+            // Shear Stress Calculations
+            const Anv = b * d;
+            const fv = V / Anv;
+            
+            // M/Vd ratio (taken positive, need not exceed 1.0) — TMS 402-22 8.3.5.1.1
+            const MVd_ratio = Math.min(Math.abs(M) / (V * d), 1.0);
+
+            // Allowable masonry shear stress (TMS 402-22 Eq 8-24, P = 0 assumed)
+            const Fvm = 0.5 * (4 - 1.75 * MVd_ratio) * Math.sqrt(fm);
+
+            // Allowable steel shear stress (stirrups) — TMS 402-22 Eq 8-25
+            const Fvs = 0.5 * (Av * Fs * d) / (Anv * s);
+
+            // Maximum allowable shear stress — TMS 402-22 8.3.5.1.2
+            // M/(Vd) <= 0.25: 3*sqrt(f'm)*yg ; M/(Vd) >= 1.0: 2*sqrt(f'm)*yg ; linear interpolation between
+            let FvFactor;
+            if (MVd_ratio <= 0.25) {
+                FvFactor = 3.0;
+            } else if (MVd_ratio >= 1.0) {
+                FvFactor = 2.0;
+            } else {
+                FvFactor = 3.0 - (4.0 / 3.0) * (MVd_ratio - 0.25);
+            }
+            const Fvmmax = FvFactor * Math.sqrt(fm) * yg;
+
+            // Total allowable shear stress
+            const Fv = Math.min(Fvm + Fvs, Fvmmax);
+
+            const shearPass = Fv >= fv;
+
+            // Flexural Stress Calculations
+            // Transformed-section stress calculations with given steel area
+            const p = As / (b * d);
+            const n = Es / Em;
+            const k = Math.sqrt(Math.pow(n * p, 2) + 2 * n * p) - n * p;
+            const j = 1 - k / 3;
+
+            // Required steel area (using computed lever-arm factor j, not an assumed value)
+            const AsREQ = M / (Fs * j * d);
+            
+            const fb = (2 * M) / (j * k * b * Math.pow(d, 2));
+            const fs = M / (As * j * d);
+            
+            const fbmax = 0.45 * fm;
+            
+            const flexuralPass = fb <= fbmax && fs <= Fs;
+
+            // Display results
+            displayShearResults({
+                Anv, fv, MVd_ratio, Fvm, Fvs, Fvmmax, Fv, shearPass
+            });
+            
+            displayFlexuralResults({
+                AsREQ, p: p * 1000, n, k, j, fb, fs, fbmax, flexuralPass, As
+            });
+        }
+
+        function displayShearResults(results) {
+            const html = `
+                <div class="result-item">
+                    <span class="result-label">Net Shear Area (Anv):</span>
+                    <span class="result-value">${results.Anv.toFixed(2)} in²</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Actual Shear Stress (fv):</span>
+                    <span class="result-value">${results.fv.toFixed(3)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">M/(V·d) Ratio:</span>
+                    <span class="result-value">${results.MVd_ratio.toFixed(3)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Allowable Masonry Shear (Fvm):</span>
+                    <span class="result-value">${results.Fvm.toFixed(3)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Allowable Steel Shear (Fvs):</span>
+                    <span class="result-value">${results.Fvs.toFixed(3)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Maximum Allowable (Fvmmax):</span>
+                    <span class="result-value">${results.Fvmmax.toFixed(3)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Total Allowable (Fv):</span>
+                    <span class="result-value">${results.Fv.toFixed(3)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Status:</span>
+                    <span class="status-badge ${results.shearPass ? 'status-pass' : 'status-fail'}">
+                        ${results.shearPass ? 'PASS' : 'FAIL'}
+                    </span>
+                </div>
+            `;
+            document.getElementById('shearResults').innerHTML = html;
+        }
+
+        function displayFlexuralResults(results) {
+            const html = `
+                <div class="result-item">
+                    <span class="result-label">Required Steel Area (AsREQ):</span>
+                    <span class="result-value">${results.AsREQ.toFixed(3)} in²</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Provided Steel Area (As):</span>
+                    <span class="result-value">${results.As.toFixed(3)} in²</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Reinforcement Ratio (ρ):</span>
+                    <span class="result-value">${results.p.toFixed(3)} × 10⁻³</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Modular Ratio (n):</span>
+                    <span class="result-value">${results.n.toFixed(1)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Neutral Axis Factor (k):</span>
+                    <span class="result-value">${results.k.toFixed(3)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Lever Arm Factor (j):</span>
+                    <span class="result-value">${results.j.toFixed(3)}</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Actual Masonry Stress (fb):</span>
+                    <span class="result-value">${results.fb.toFixed(1)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Allowable Masonry Stress (fbmax):</span>
+                    <span class="result-value">${results.fbmax.toFixed(1)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Actual Steel Stress (fs):</span>
+                    <span class="result-value">${results.fs.toFixed(0)} psi</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">Status:</span>
+                    <span class="status-badge ${results.flexuralPass ? 'status-pass' : 'status-fail'}">
+                        ${results.flexuralPass ? 'PASS' : 'FAIL'}
+                    </span>
+                </div>
+            `;
+            document.getElementById('flexuralResults').innerHTML = html;
+        }
+
+        function clearInputs() {
+            document.getElementById('fm').value = '1500';
+            document.getElementById('fy').value = '60000';
+            document.getElementById('Es').value = '29000000';
+            document.getElementById('Fs').value = '32000';
+            document.getElementById('b').value = '12';
+            document.getElementById('l').value = '7.625';
+            document.getElementById('As').value = '0.31';
+            document.getElementById('Av').value = '0';
+            document.getElementById('s').value = '12';
+            document.getElementById('M').value = '18764';
+            document.getElementById('V').value = '700';
+            document.getElementById('grouting').value = '0.75';
+            
+            document.getElementById('shearResults').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>';
+            document.getElementById('flexuralResults').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>';
+        }
+
+        function saveDesign() {
+            const designName = prompt('Enter a name for this design:');
+            if (!designName) return;
+            
+            const design = {
+                name: designName,
+                date: new Date().toLocaleDateString(),
+                inputs: {
+                    fm: document.getElementById('fm').value,
+                    fy: document.getElementById('fy').value,
+                    Es: document.getElementById('Es').value,
+                    Fs: document.getElementById('Fs').value,
+                    b: document.getElementById('b').value,
+                    l: document.getElementById('l').value,
+                    As: document.getElementById('As').value,
+                    Av: document.getElementById('Av').value,
+                    s: document.getElementById('s').value,
+                    M: document.getElementById('M').value,
+                    V: document.getElementById('V').value,
+                    grouting: document.getElementById('grouting').value
+                }
+            };
+            
+            savedDesigns.push(design);
+            updateSavedDesignsList();
+        }
+
+        function loadDesign(index) {
+            const design = savedDesigns[index];
+            const inputs = design.inputs;
+            
+            document.getElementById('fm').value = inputs.fm;
+            document.getElementById('fy').value = inputs.fy;
+            document.getElementById('Es').value = inputs.Es;
+            document.getElementById('Fs').value = inputs.Fs;
+            document.getElementById('b').value = inputs.b;
+            document.getElementById('l').value = inputs.l;
+            document.getElementById('As').value = inputs.As;
+            document.getElementById('Av').value = inputs.Av;
+            document.getElementById('s').value = inputs.s;
+            document.getElementById('M').value = inputs.M;
+            document.getElementById('V').value = inputs.V;
+            document.getElementById('grouting').value = inputs.grouting || '0.75';
+        }
+
+        function deleteDesign(index) {
+            if (confirm('Are you sure you want to delete this design?')) {
+                savedDesigns.splice(index, 1);
+                updateSavedDesignsList();
+            }
+        }
+
+        function updateSavedDesignsList() {
+            const container = document.getElementById('savedDesigns');
+            if (savedDesigns.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No saved designs</p>';
+                return;
+            }
+            
+            const html = savedDesigns.map((design, index) => `
+                <div class="saved-design">
+                    <h4>${design.name}</h4>
+                    <p>Saved: ${design.date}</p>
+                    <div style="margin-top: 10px;">
+                        <button class="btn btn-primary" style="font-size: 12px; padding: 5px 10px;" onclick="loadDesign(${index})">Load</button>
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 5px 10px; margin-left: 5px;" onclick="deleteDesign(${index})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function exportResults() {
+            // Get current results from the display
+            const shearResults = document.getElementById('shearResults').innerText;
+            const flexuralResults = document.getElementById('flexuralResults').innerText;
+            
+            if (shearResults.includes('Click "Calculate"')) {
+                alert('Please calculate results before exporting.');
+                return;
+            }
+            
+            const report = `
+MASONRY ASD DESIGN CALCULATION REPORT
+=====================================
+Date: ${new Date().toLocaleDateString()}
+
+MATERIAL PROPERTIES:
+- Masonry Compressive Strength (f'm): ${document.getElementById('fm').value} psi
+- Steel Yield Strength (fy): ${document.getElementById('fy').value} psi
+- Steel Modulus (Es): ${document.getElementById('Es').value} psi
+- Allowable Steel Stress (Fs): ${document.getElementById('Fs').value} psi
+
+SECTION GEOMETRY:
+- Width (b): ${document.getElementById('b').value} in
+- Length/Thickness (l): ${document.getElementById('l').value} in
+- Steel Area (As): ${document.getElementById('As').value} in²
+- Stirrup Area (Av): ${document.getElementById('Av').value} in²
+- Stirrup Spacing (s): ${document.getElementById('s').value} in
+- Grouting: ${document.getElementById('grouting').value === '0.75' ? 'Partially Grouted' : 'Fully Grouted'}
+
+DESIGN LOADS:
+- Moment (M): ${document.getElementById('M').value} lb·in
+- Shear (V): ${document.getElementById('V').value} lb
+
+SHEAR STRESS CHECK:
+${shearResults}
+
+FLEXURAL STRESS CHECK:
+${flexuralResults}
+            `.trim();
+            
+            // Create downloadable file
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'masonry_design_report.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        updateSavedDesignsList();
+    </script>
+    <script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+    </script>
+</body>
+</html>

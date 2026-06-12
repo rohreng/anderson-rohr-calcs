@@ -234,6 +234,27 @@ export const CALCS: CalcMeta[] = [
     group: "CMU Openings",
     keywords: ["masonry", "CMU", "lintel", "jamb", "reinforced", "ASD", "flexure", "shear", "out-of-plane", "OOP", "wind", "C&C", "components cladding", "biaxial", "TMS 402", "MDG", "REK-04", "REK-06", "opening", "door", "window", "bearing"],
   },
+  {
+    slug: "masonry-lintel-asd",
+    label: "Masonry Lintel — ASD",
+    subtitle: "Reinforced CMU lintel — flexure §8.3.2, shear §8.3.5 w/ M/(Vd) interpolation, gravity + uplift",
+    htmlFile: "/Calcs/masonry_lintel_asd_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 §8.3 ASD",
+    status: "ready",
+    group: "CMU Openings",
+    keywords: ["masonry", "CMU", "lintel", "ASD", "flexure", "shear", "uplift", "TMS 402", "opening", "beam", "reinforced", "grouted"],
+  },
+  {
+    slug: "masonry-asd-general",
+    label: "Masonry ASD Design (General Section)",
+    subtitle: "Reinforced masonry section — ASD flexure + shear with Fv M/(Vd) interpolation",
+    htmlFile: "/Calcs/masonry_asd_design_calculator.html",
+    category: "Masonry",
+    spec: "TMS 402-22 Ch. 8 ASD",
+    status: "ready",
+    keywords: ["masonry", "CMU", "ASD", "flexure", "shear", "reinforced", "section", "TMS 402", "kd", "transformed section", "allowable stress"],
+  },
   // ── Masonry — Connections & Details ──────────────────────────
   {
     slug: "masonry-bearing-uplift",

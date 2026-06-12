@@ -347,7 +347,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="blk wind-blk">
   <h2>&#9632; 5. Wind Loading &mdash; Out-of-Plane <span class="badge-amber">C&amp;C Nominal Pressure Input</span></h2>
   <div class="callout blue">
-    <strong>Wind load level:</strong> Enter the <strong>nominal ASCE 7 strength-level C&amp;C design pressure</strong> from the C&amp;C chart (unfactored). The calculator applies the <strong>0.6W ASD factor</strong> (ASCE 7-22 §2.4.1, combo 6: D + 0.6W) internally to all wind demands. The optional 1/3 allowable stress increase (TMS 402-22 §8.1.4.1) is then applied to allowable stresses &mdash; both are standard practice for the ASD wind combination.
+    <strong>Wind load level:</strong> Enter the <strong>nominal ASCE 7 strength-level C&amp;C design pressure</strong> from the C&amp;C chart (unfactored). The calculator applies the <strong>0.6W ASD factor</strong> (ASCE 7-22 §2.4.1, combo 6: D + 0.6W) internally to all wind demands. <strong>Note:</strong> TMS 402 eliminated the one-third allowable stress increase in the 2011 edition (allowable values are already calibrated for wind/seismic) &mdash; leave the checkbox below unchecked unless your jurisdiction's alternative basic load combinations specifically permit it.
   </div>
   <div class="g3">
     <div class="ig">
@@ -367,8 +367,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     </div>
   </div>
   <div class="chk-row">
-    <input type="checkbox" id="windInc" checked>
-    <label for="windInc">Apply &#x2153; allowable stress increase for wind combinations (TMS 402-22 §8.1.4.1) &mdash; multiplies all wind-load allowable stresses by 4/3. Use with the 0.6W ASD load combo above.</label>
+    <input type="checkbox" id="windInc">
+    <label for="windInc">Apply &#x2153; allowable stress increase (multiplies wind-load allowables by 4/3). <strong>Not permitted by TMS 402-22 with ASCE 7 §2.4 combinations</strong> &mdash; the one-third increase was eliminated in 2011. Only check if using IBC alternative basic load combinations that permit it.</label>
   </div>
 </div>
 
@@ -572,8 +572,12 @@ function runCalcs(){
   var windInc =document.getElementById('windInc').checked;
   var k_wind  =windInc?4.0/3.0:1.0;
 
-  var Fb_rein=0.45*fm; var Fb_unr=0.33*fm; var Fbr=0.25*fm;
-  var Ft_base=(mortar==='S')?40:30;
+  var Fb_rein=0.45*fm;        // TMS 402-22 §8.3.4.2.2 (reinforced)
+  var Fb_unr=fm/3.0;          // TMS 402-22 Eq 8-13 (unreinforced flexural compression)
+  var Fbr=0.33*fm;            // TMS 402-22 §8.1.6 bearing
+  // Table 8.2.4.2 — tension PARALLEL to bed joints, running bond, fully grouted,
+  // portland cement/lime or mortar cement mortar: M/S = 106 psi, N = 80 psi
+  var Ft_base=(mortar==='S')?106:80;
   var Ft_eff=Ft_base*k_wind; var Fb_oop_eff=Fb_unr*k_wind;
   var n=29000000/(900*fm);
 
@@ -637,7 +641,9 @@ function runCalcs(){
   var fv=V_grav/(b*d);
   var MVd=(V_grav>0)?Math.min(M_grav_inlb/(V_grav*d),1.0):1.0;
   var Fvm=0.5*(4.0-1.75*MVd)*Math.sqrt(fm);
-  var Fv=Math.min(Fvm,2.0*Math.sqrt(fm));
+  // Upper bound per §8.3.5.1.2: 3*sqrt(f'm) at M/(Vd)<=0.25, 2*sqrt(f'm) at M/(Vd)>=1.0, interpolated
+  var FvFac=(MVd<=0.25)?3.0:(MVd>=1.0)?2.0:3.0-(4.0/3.0)*(MVd-0.25);
+  var Fv=Math.min(Fvm,FvFac*Math.sqrt(fm));
 
   var do_up=(Pu>0||wu>0),M_up_inlb=0,fs_top=0,fb_top=0,k_t=0,j_t=0;
   if(do_up){
@@ -679,7 +685,7 @@ function runCalcs(){
   var dc3=fv/Fv;
   var da3='<div class="cref-hdr">TMS 402-22 §8.3.5 &mdash; Shear (No Shear Reinforcement)</div><div class="cbox">';
   da3+='<div class="mrow"><span class="ceq">F<sub>vm</sub> =</span> 0.5(4&minus;1.75 M/Vd)'+ov('f&prime;<sub>m</sub>')+' = 0.5(4&minus;1.75&times;'+f2(MVd)+')&times;'+ov(f1(fm))+' = <span class="cval">'+f1(Fvm)+' psi</span></div>';
-  da3+='<div class="mrow"><span class="ceq">F<sub>v</sub> =</span> min(F<sub>vm</sub>, 2'+ov('f&prime;<sub>m</sub>')+') = <span class="cval">'+f1(Fv)+' psi</span></div>';
+  da3+='<div class="mrow"><span class="ceq">F<sub>v</sub> =</span> min(F<sub>vm</sub>, '+f2(FvFac)+ov('f&prime;<sub>m</sub>')+' [§8.3.5.1.2 interp.]) = <span class="cval">'+f1(Fv)+' psi</span></div>';
   da3+='<div class="mrow"><span class="ceq">f<sub>v</sub> =</span>'+fr('V','b&sdot;d')+' = '+fr(fc(Math.round(V_grav)),f1(b)+'&times;'+f1(d))+' = <span class="cval">'+f1(fv)+' psi</span></div>';
   da3+='<hr class="csep"><div class="mrow">D/C = '+fr(f1(fv),f1(Fv))+' = <span class="cval">'+f3(dc3)+'</span></div></div>';
   ckA({n:'Shear f<sub>v</sub>',r:'TMS 402-22 §8.3.5',d:'f<sub>v</sub> = '+f1(fv)+' psi',c:'F<sub>v</sub> = '+f1(Fv)+' psi',dc:dc3,nt:'V = '+fc(Math.round(V_grav))+' lb ; M/Vd = '+f2(MVd),pass:dc3<=1,info:false,det:da3});
@@ -786,7 +792,9 @@ function runCalcs(){
   var h_j_in=H_jamb*12.0;
   var r_j=b/Math.sqrt(12.0);
   var hr_j=h_j_in/r_j;
-  var Fa_j=(hr_j<=99)?0.25*fm*(1.0-Math.pow(h_j_in/(140.0*r_j),2)):0.25*fm*Math.pow(70.0*r_j/h_j_in,2);
+  // TMS 402-22 Eq 8-16/8-17 (reinforced): Pa = (0.30 f'm An + 0.65 Ast Fs)*slenderness.
+  // Steel term 0.65*Ast*Fs conservatively neglected (bars not laterally tied as column verts).
+  var Fa_j=(hr_j<=99)?0.30*fm*(1.0-Math.pow(h_j_in/(140.0*r_j),2)):0.30*fm*Math.pow(70.0*r_j/h_j_in,2);
   var Fa_j_eff=Fa_j*k_wind;
   var fa_j=P_jamb/(W_jamb*b);
   var Fb_j_eff=Fb_rein*k_wind;
@@ -828,18 +836,18 @@ function runCalcs(){
 
   // C2 — Bearing stress
   var A_brg=brg*b,fb_brg=P_jamb/A_brg,dcc2=fb_brg/Fbr;
-  var dc2c='<div class="cref-hdr j">TMS 402-22 §8.1.6.1 &mdash; Allowable Bearing Stress</div><div class="cbox j">';
-  dc2c+='<div class="mrow"><span class="ceq j">F<sub>br</sub> =</span> 0.25 f&prime;<sub>m</sub> = <span class="cval">'+f1(Fbr)+' psi</span></div>';
+  var dc2c='<div class="cref-hdr j">TMS 402-22 §8.1.6 &mdash; Allowable Bearing Stress</div><div class="cbox j">';
+  dc2c+='<div class="mrow"><span class="ceq j">F<sub>br</sub> =</span> 0.33 f&prime;<sub>m</sub> = <span class="cval">'+f1(Fbr)+' psi</span></div>';
   dc2c+='<div class="mrow"><span class="ceq j">A<sub>brg</sub> =</span> '+f1(brg)+'&Prime;&times;'+f1(b)+'&Prime; = <span class="cval">'+f1(A_brg)+' in&sup2;</span></div>';
   dc2c+='<div class="mrow"><span class="ceq j">f<sub>brg</sub> =</span>'+fr('R','A<sub>brg</sub>')+' = '+fr(fc(Math.round(P_jamb)),f1(A_brg))+' = <span class="cval">'+f1(fb_brg)+' psi</span></div>';
   dc2c+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fb_brg),f1(Fbr))+' = <span class="cval">'+f3(dcc2)+'</span></div></div>';
-  ckC({n:'Bearing Stress f<sub>brg</sub>',r:'TMS 402-22 §8.1.6.1',d:'f<sub>brg</sub> = '+f1(fb_brg)+' psi',c:'F<sub>br</sub> = '+f1(Fbr)+' psi',dc:dcc2,nt:'A<sub>brg</sub> = '+f1(A_brg)+' in&sup2;',pass:dcc2<=1,info:false,det:dc2c});
+  ckC({n:'Bearing Stress f<sub>brg</sub>',r:'TMS 402-22 §8.1.6',d:'f<sub>brg</sub> = '+f1(fb_brg)+' psi',c:'F<sub>br</sub> = '+f1(Fbr)+' psi',dc:dcc2,nt:'A<sub>brg</sub> = '+f1(A_brg)+' in&sup2;',pass:dcc2<=1,info:false,det:dc2c});
 
   // C3 — Axial
   var dcc3=fa_j/Fa_j_eff;
-  var dc3c='<div class="cref-hdr j">TMS 402-22 §8.3.4 &mdash; Allowable Axial Stress (with Slenderness)</div><div class="cbox j">';
-  dc3c+=(hr_j<=99)?'<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.25f&prime;<sub>m</sub>[1&minus;(h/140r)&sup2;] &nbsp; h/r = '+f1(hr_j)+' &le; 99</div>'
-    :'<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.25f&prime;<sub>m</sub>(70r/h)&sup2; &nbsp; h/r = '+f1(hr_j)+' > 99</div>';
+  var dc3c='<div class="cref-hdr j">TMS 402-22 §8.3.4.2.1, Eq 8-16/8-17 &mdash; Allowable Axial Stress (with Slenderness)</div><div class="cbox j">';
+  dc3c+=(hr_j<=99)?'<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.30f&prime;<sub>m</sub>[1&minus;(h/140r)&sup2;] (Eq 8-16; 0.65A<sub>st</sub>F<sub>s</sub> term neglected) &nbsp; h/r = '+f1(hr_j)+' &le; 99</div>'
+    :'<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.30f&prime;<sub>m</sub>(70r/h)&sup2; (Eq 8-17; 0.65A<sub>st</sub>F<sub>s</sub> term neglected) &nbsp; h/r = '+f1(hr_j)+' > 99</div>';
   dc3c+='<div class="mrow ind">r = b/&radic;12 = <span class="cval">'+f2(r_j)+' in.</span></div>';
   dc3c+='<div class="mrow ind">F<sub>a,base</sub> = <span class="cval">'+f1(Fa_j)+' psi</span>'+(windInc?' &times; 4/3 = <span class="cval">'+f1(Fa_j_eff)+' psi</span>':'')+'</div>';
   dc3c+='<div class="mrow"><span class="ceq j">f<sub>a</sub> =</span>'+fr('P','A<sub>g</sub>')+' = '+fr(fc(Math.round(P_jamb)),f1(W_jamb)+'&times;'+f1(b))+' = <span class="cval">'+f1(fa_j)+' psi</span></div>';
@@ -913,12 +921,12 @@ function runCalcs(){
   var nl=document.getElementById('notesList');nl.innerHTML='';
   [
     'Design per TMS 402-22 ASD / MDG-2022 REK-04 (jamb) and REK-06 (lintel). Enter gravity loads per ASCE 7-22 §2.4 ASD combinations.',
-    '<strong>Wind convention:</strong> Enter the nominal ASCE 7 strength-level C&amp;C pressure from the design chart. The calculator multiplies by <strong>0.6</strong> (ASCE 7-22 §2.4.1, combo D + 0.6W) for all wind demands. The optional 1/3 allowable stress increase (TMS §8.1.4.1) then scales all wind allowables by 4/3. Both apply together &mdash; this is standard ASD wind practice.',
+    '<strong>Wind convention:</strong> Enter the nominal ASCE 7 strength-level C&amp;C pressure from the design chart. The calculator multiplies by <strong>0.6</strong> (ASCE 7-22 §2.4.1, combo D + 0.6W) for all wind demands. TMS 402 eliminated the one-third allowable stress increase in 2011 &mdash; allowables (including Table 8.2.4.2 flexural tension) are already calibrated for wind/seismic, so no further increase should be applied with §2.4 combinations.',
     'Effective lintel span: L = clear + bearing/12 per §5.3.1.1. Minimum bearing 4&Prime; per §5.3.1.4; 8&Prime; typical.',
     'Lintel OOP line load: W<sub>oop</sub> = 0.6W &times; H<sub>wall</sub>/2. OOP section modulus S<sub>oop</sub> = t<sub>lin</sub>&times;b&sup2;/6 (bending about vertical axis). <strong>When lintel bars are present</strong>, OOP tension is checked as a reinforced section (steel stress check, d<sub>oop</sub> = b &minus; OOP cover). When no bars are present, the unreinforced F<sub>t</sub> limit governs.',
     'Jamb OOP model: simply supported vertical beam with (1) uniform C&amp;C = 0.6W&times;W<sub>j</sub>/12 distributed load, and (2) lintel OOP reaction as point load at mid-lintel height. Zero-shear method locates max moment.',
     'Jamb transformed section: b<sub>sec</sub> = W<sub>jamb</sub>, d = b<sub>wall</sub> &minus; cover. Combined axial+flexure check: f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub> &le; 1.0 per §8.3.4.2 Eq. 8-20.',
-    windInc?'1/3 wind stress increase (k=4/3) applied to all wind allowables per §8.1.4.1.':'No 1/3 stress increase applied. Check if applicable per §8.1.4.1.',
+    windInc?'<strong>1/3 wind stress increase (k=4/3) applied to wind allowables.</strong> CAUTION: not permitted by TMS 402-22 with ASCE 7 §2.4 load combinations &mdash; verify your basis.':'No 1/3 stress increase applied (consistent with TMS 402-22, which eliminated the increase in 2011).',
     '<strong>Wall self-weight is automatically computed</strong> from w<sub>wall,psf</sub> &times; (H<sub>wall</sub> &minus; H<sub>soffit</sub>) and added to the floor/roof tributary load. Enter only the floor/roof tributary load in w<sub>trib</sub>. Total w<sub>total</sub> = w<sub>trib</sub> + w<sub>wall</sub> is used for all moment, shear, and reaction calculations.',
     'Bearing eccentricity e (in) adds an eccentric moment M<sub>ecc</sub> = P &times; e about the OOP axis of the jamb. This is folded into the combined axial+flexure unity check (Eq. 8-20) as additional OOP bending stress. Enter 0 if the load is centered.',
     'Print button generates a clean printout/PDF of all inputs and results. Save/Load buttons store and retrieve input sets as .json files for different opening configurations.',

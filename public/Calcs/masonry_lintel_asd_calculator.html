@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Masonry Lintel Design — ASD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#f0f0f0;color:#444}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.25em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.4}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}
+.dem-card.warn .v{color:#92400e}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:5px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:14px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic;margin-right:4px}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+@media print{
+  body{background:#fff!important;padding:0!important}
+  .container{box-shadow:none!important;border-radius:0!important;max-width:none}
+  .header{padding:14px 0}
+  /* keep results blocks visible in Summary print mode (input .blk are hidden by are-utils) */
+  body[data-pm="s"] #results .blk{display:block!important}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Masonry Lintel Design &mdash; ASD</h1>
+    <p>Reinforced CMU Lintel &nbsp;&middot;&nbsp; Allowable Stress Design per TMS 402-22 &nbsp;&middot;&nbsp; MDG-2022 Example REK-06</p>
+    <div class="ref-tags">
+      <span class="tag">TMS 402-22</span>
+      <span class="tag">§5.3 Beams &amp; Lintels</span>
+      <span class="tag">§8.3.2 Flexure ASD</span>
+      <span class="tag">§8.3.5 Shear ASD</span>
+      <span class="tag">ASCE/SEI 7-22 §2.4</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- SCHEMATIC -->
+    <div class="schema-wrap">
+      <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:230px">
+        <defs>
+          <marker id="arrDn" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L0,8 L10,4z" fill="#374151"/>
+          </marker>
+          <marker id="arrUp" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto">
+            <path d="M0,0 L0,8 L10,4z" fill="#dc2626"/>
+          </marker>
+          <marker id="dimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto">
+            <path d="M7,0 L7,6 L0,3z" fill="#f59e0b"/>
+          </marker>
+          <marker id="dimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/>
+          </marker>
+        </defs>
+
+        <!-- Wall above lintel (hatched region) -->
+        <rect x="90" y="28" width="540" height="55" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>
+        <g stroke="#9ca3af" stroke-width="0.7" clip-path="url(#wallclip)">
+          <clipPath id="wallclip"><rect x="90" y="28" width="540" height="55"/></clipPath>
+          <line x1="90" y1="28" x2="90" y2="83"/><line x1="105" y1="28" x2="105" y2="83"/>
+          <line x1="120" y1="28" x2="120" y2="83"/><line x1="135" y1="28" x2="135" y2="83"/>
+          <line x1="150" y1="28" x2="150" y2="83"/><line x1="165" y1="28" x2="165" y2="83"/>
+          <line x1="180" y1="28" x2="180" y2="83"/><line x1="195" y1="28" x2="195" y2="83"/>
+          <line x1="210" y1="28" x2="210" y2="83"/><line x1="225" y1="28" x2="225" y2="83"/>
+          <line x1="240" y1="28" x2="240" y2="83"/><line x1="255" y1="28" x2="255" y2="83"/>
+          <line x1="270" y1="28" x2="270" y2="83"/><line x1="285" y1="28" x2="285" y2="83"/>
+          <line x1="300" y1="28" x2="300" y2="83"/><line x1="315" y1="28" x2="315" y2="83"/>
+          <line x1="330" y1="28" x2="330" y2="83"/><line x1="345" y1="28" x2="345" y2="83"/>
+          <line x1="360" y1="28" x2="360" y2="83"/><line x1="375" y1="28" x2="375" y2="83"/>
+          <line x1="390" y1="28" x2="390" y2="83"/><line x1="405" y1="28" x2="405" y2="83"/>
+          <line x1="420" y1="28" x2="420" y2="83"/><line x1="435" y1="28" x2="435" y2="83"/>
+          <line x1="450" y1="28" x2="450" y2="83"/><line x1="465" y1="28" x2="465" y2="83"/>
+          <line x1="480" y1="28" x2="480" y2="83"/><line x1="495" y1="28" x2="495" y2="83"/>
+          <line x1="510" y1="28" x2="510" y2="83"/><line x1="525" y1="28" x2="525" y2="83"/>
+          <line x1="540" y1="28" x2="540" y2="83"/><line x1="555" y1="28" x2="555" y2="83"/>
+          <line x1="570" y1="28" x2="570" y2="83"/><line x1="585" y1="28" x2="585" y2="83"/>
+          <line x1="600" y1="28" x2="600" y2="83"/><line x1="615" y1="28" x2="615" y2="83"/>
+        </g>
+        <text x="360" y="58" font-size="11" fill="#374151" text-anchor="middle" font-style="italic">Wall / masonry above lintel</text>
+
+        <!-- Lintel body (CMU) -->
+        <rect x="90" y="83" width="540" height="80" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>
+        <!-- CMU course lines -->
+        <line x1="90" y1="107" x2="630" y2="107" stroke="#93c5fd" stroke-width="1"/>
+        <line x1="90" y1="131" x2="630" y2="131" stroke="#93c5fd" stroke-width="1"/>
+        <line x1="90" y1="155" x2="630" y2="155" stroke="#93c5fd" stroke-width="1"/>
+        <!-- Cell voids indication -->
+        <rect x="150" y="90" width="30" height="16" rx="2" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.5"/>
+        <rect x="250" y="90" width="30" height="16" rx="2" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.5"/>
+        <rect x="350" y="90" width="30" height="16" rx="2" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.5"/>
+        <rect x="450" y="90" width="30" height="16" rx="2" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.5"/>
+        <rect x="550" y="90" width="30" height="16" rx="2" fill="#bfdbfe" stroke="#93c5fd" stroke-width="0.5"/>
+
+        <!-- Lintel label -->
+        <text x="360" y="126" font-size="11" fill="#1e3c72" text-anchor="middle" font-weight="600">LINTEL (b &times; t, fully grouted)</text>
+
+        <!-- Bearing zones -->
+        <rect x="90" y="83" width="36" height="80" fill="rgba(234,179,8,0.3)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <rect x="594" y="83" width="36" height="80" fill="rgba(234,179,8,0.3)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4,2"/>
+        <text x="108" y="80" font-size="8.5" fill="#854d0e" text-anchor="middle">Brg.</text>
+        <text x="612" y="80" font-size="8.5" fill="#854d0e" text-anchor="middle">Brg.</text>
+
+        <!-- Bottom rebar -->
+        <circle cx="360" cy="155" r="5" fill="#dc2626" stroke="#991b1b" stroke-width="1.2"/>
+        <text x="375" y="159" font-size="9" fill="#dc2626">A&#x209B; (bottom — tension, downward)</text>
+        <!-- Top rebar -->
+        <circle cx="360" cy="94" r="4" fill="#16a34a" stroke="#14532d" stroke-width="1.2"/>
+        <text x="373" y="98" font-size="9" fill="#166534">A&#x209B; (top — tension, uplift)</text>
+
+        <!-- Support triangles -->
+        <polygon points="108,163 88,180 128,180" fill="#374151"/>
+        <polygon points="612,163 592,180 632,180" fill="#374151"/>
+        <line x1="88" y1="180" x2="128" y2="180" stroke="#374151" stroke-width="2.5"/>
+        <line x1="592" y1="180" x2="632" y2="180" stroke="#374151" stroke-width="2.5"/>
+        <!-- Ground hatch lines -->
+        <g stroke="#374151" stroke-width="1">
+          <line x1="86" y1="182" x2="78" y2="190"/><line x1="93" y1="182" x2="85" y2="190"/>
+          <line x1="100" y1="182" x2="92" y2="190"/><line x1="107" y1="182" x2="99" y2="190"/>
+          <line x1="114" y1="182" x2="106" y2="190"/><line x1="121" y1="182" x2="113" y2="190"/>
+          <line x1="128" y1="182" x2="120" y2="190"/>
+          <line x1="590" y1="182" x2="582" y2="190"/><line x1="597" y1="182" x2="589" y2="190"/>
+          <line x1="604" y1="182" x2="596" y2="190"/><line x1="611" y1="182" x2="603" y2="190"/>
+          <line x1="618" y1="182" x2="610" y2="190"/><line x1="625" y1="182" x2="617" y2="190"/>
+          <line x1="632" y1="182" x2="624" y2="190"/>
+        </g>
+
+        <!-- Distributed load arrows (downward) -->
+        <line x1="126" y1="8" x2="594" y2="8" stroke="#374151" stroke-width="2"/>
+        <text x="90" y="12" font-size="10" fill="#374151" font-style="italic">w (lb/ft)</text>
+        <g stroke="#374151" fill="#374151">
+          <line x1="140" y1="8" x2="140" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="178" y1="8" x2="178" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="216" y1="8" x2="216" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="254" y1="8" x2="254" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="292" y1="8" x2="292" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="330" y1="8" x2="330" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="368" y1="8" x2="368" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="406" y1="8" x2="406" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="444" y1="8" x2="444" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="482" y1="8" x2="482" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="520" y1="8" x2="520" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+          <line x1="558" y1="8" x2="558" y2="27" stroke-width="1.5" marker-end="url(#arrDn)"/>
+        </g>
+
+        <!-- Concentrated load P (blue, downward) -->
+        <line x1="360" y1="40" x2="360" y2="82" stroke="#1d4ed8" stroke-width="3" marker-end="url(#arrDn)"/>
+        <text x="368" y="55" font-size="11" fill="#1d4ed8" font-weight="bold">P (lb)</text>
+        <text x="368" y="69" font-size="9" fill="#1d4ed8">at location a from left</text>
+
+        <!-- Span dimension line -->
+        <line x1="90" y1="210" x2="630" y2="210" stroke="#f59e0b" stroke-width="1.5" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+        <text x="360" y="225" font-size="10" fill="#b45309" text-anchor="middle">L = clear span + bearing/12 (ft) per TMS 402-22 §5.3.1.1</text>
+
+        <!-- Effective depth label -->
+        <line x1="660" y1="83" x2="660" y2="155" stroke="#dc2626" stroke-width="1.5" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+        <text x="695" y="123" font-size="9" fill="#dc2626" text-anchor="middle">d</text>
+
+        <!-- Total depth label -->
+        <line x1="680" y1="83" x2="680" y2="163" stroke="#374151" stroke-width="1.5" marker-start="url(#dimL)" marker-end="url(#dimR)"/>
+        <text x="710" y="128" font-size="9" fill="#374151" text-anchor="middle">t</text>
+      </svg>
+    </div>
+
+    <!-- BLOCK 1: MATERIALS -->
+    <div class="blk">
+      <h2>1. Material Properties</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>CMU Nominal Size</label>
+          <select id="cmu_size" onchange="setCMUWidth()">
+            <option value="5.63">6 in. CMU &mdash; b = 5.63 in.</option>
+            <option value="7.63" selected>8 in. CMU &mdash; b = 7.63 in.</option>
+            <option value="9.63">10 in. CMU &mdash; b = 9.63 in.</option>
+            <option value="11.63">12 in. CMU &mdash; b = 11.63 in.</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>f'<sub>m</sub> <span class="unit">(psi)</span></label>
+          <select id="fm">
+            <option value="1500">1,500</option>
+            <option value="1750" selected>1,750</option>
+            <option value="2000">2,000</option>
+            <option value="2500">2,500</option>
+            <option value="3000">3,000</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Steel Grade</label>
+          <select id="steel_grade">
+            <option value="20000">Grade 40 &mdash; F<sub>s</sub> = 20,000 psi</option>
+            <option value="32000" selected>Grade 60 &mdash; F<sub>s</sub> = 32,000 psi</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 2: GEOMETRY -->
+    <div class="blk">
+      <h2>2. Lintel Geometry</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Clear Opening Span <span class="unit">(ft)</span></label>
+          <input type="number" id="clear_span" value="10.0" step="0.5" min="0.5" onchange="autoFillA()">
+          <span class="hint">Clear distance between face of supports</span>
+        </div>
+        <div class="ig">
+          <label>Bearing Length Each End <span class="unit">(in.)</span></label>
+          <input type="number" id="bearing" value="8" step="1" min="4" onchange="autoFillA()">
+          <span class="hint">Min. 4 in. per TMS 402-22 §5.3.1.4</span>
+        </div>
+        <div class="ig">
+          <label>Total Lintel Depth t <span class="unit">(in.)</span></label>
+          <input type="number" id="t_depth" value="56" step="8" min="8" onchange="autoFillD()">
+          <span class="hint">Multiples of 8 in. typical for CMU</span>
+        </div>
+        <div class="ig">
+          <label>Effective Depth d <span class="unit">(in.)</span></label>
+          <input type="number" id="eff_d" value="52.5" step="0.5" min="2">
+          <span class="hint">d = t &minus; cover (auto: t &minus; 3.5 in.)</span>
+        </div>
+        <div class="ig">
+          <label>Wall Width b <span class="unit">(in.)</span></label>
+          <input type="number" id="b_width" value="7.63" step="0.01" min="1" readonly>
+          <span class="hint">Auto-filled from CMU size selection</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 3: LOADS -->
+    <div class="blk">
+      <h2>3. Design Loads <span class="badge">ASD Combined Service</span></h2>
+      <div class="callout">
+        Enter ASD combined service load combinations per ASCE/SEI 7-22 §2.4. Include lintel self-weight and wall weight above in <em>w</em>.
+        Check all applicable downward combinations: <strong>D+L, D+0.75L+0.75S, and D+0.7S</strong> per §2.4.1 —
+        <strong>D+L or D+0.75L+0.75S may govern over D+0.7S</strong> when live load (L) or roof live/rain load (Lr, R) is significant
+        (e.g., lintels under occupied floors, entries, or where roof live load controls over snow).
+        Uplift combination: 0.6D+0.6W or 0.6D+0.7E per §2.4.1.
+      </div>
+      <div class="g3" style="margin-bottom:12px">
+        <div class="ig" style="grid-column:1/-1">
+          <label>Load Entry Mode</label>
+          <select id="load_mode" onchange="toggleLoadMode()">
+            <option value="computed">Compute from distributed + concentrated loads</option>
+            <option value="direct">Enter governing M and V directly</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="div_computed">
+        <div class="g3">
+          <div class="ig">
+            <label>w &mdash; Distributed Load <span class="unit">(lb/ft)</span></label>
+            <input type="number" id="w_load" value="519" step="10" min="0">
+            <span class="hint">Self-weight + wall above (downward combo)</span>
+          </div>
+          <div class="ig">
+            <label>P &mdash; Conc. Downward Load <span class="unit">(lb)</span></label>
+            <input type="number" id="P_down" value="17390" step="100" min="0">
+            <span class="hint">0 if no concentrated load</span>
+          </div>
+          <div class="ig">
+            <label>P Location from Left Support <span class="unit">(ft)</span></label>
+            <input type="number" id="a_P" value="5.33" step="0.25" min="0">
+            <span class="hint">Midspan = L/2; auto-updates with span changes</span>
+          </div>
+          <div class="ig">
+            <label>w<sub>u</sub> &mdash; Distributed (Uplift Combo) <span class="unit">(lb/ft)</span></label>
+            <input type="number" id="wu_load" value="519" step="10" min="0">
+            <span class="hint">Distributed load for uplift combination</span>
+          </div>
+          <div class="ig">
+            <label>P<sub>uplift</sub> &mdash; Uplift Load <span class="unit">(lb)</span></label>
+            <input type="number" id="P_uplift" value="6583" step="100" min="0">
+            <span class="hint">Uplift from wind/seismic combo; 0 if N/A</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="div_direct" style="display:none">
+        <div class="callout" style="margin-bottom:10px">Enter the governing maximum design moment and shear for each combination. Use positive M for bottom tension (downward). Use negative M<sub>up</sub> to flag top tension (uplift case requires top bars).</div>
+        <div class="g3">
+          <div class="ig">
+            <label>M<sub>down</sub> &mdash; Downward Moment <span class="unit">(lb-ft)</span></label>
+            <input type="number" id="M_direct" value="53770" step="100" min="0">
+            <span class="hint">Maximum moment, governing downward combination</span>
+          </div>
+          <div class="ig">
+            <label>V<sub>down</sub> &mdash; Downward Shear <span class="unit">(lb)</span></label>
+            <input type="number" id="V_direct" value="11460" step="100" min="0">
+            <span class="hint">Maximum shear, governing downward combination</span>
+          </div>
+          <div class="ig">
+            <label>M<sub>up</sub> &mdash; Uplift Moment <span class="unit">(lb-ft, &minus; = top tension)</span></label>
+            <input type="number" id="M_up_direct" value="0" step="100">
+            <span class="hint">Negative if uplift controls and tension is in top; 0 if N/A</span>
+          </div>
+          <div class="ig">
+            <label>V<sub>up</sub> &mdash; Uplift Shear <span class="unit">(lb)</span></label>
+            <input type="number" id="V_up_direct" value="0" step="100" min="0">
+            <span class="hint">Uplift shear magnitude; 0 if N/A</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 4: BOTTOM STEEL -->
+    <div class="blk">
+      <h2>4. Bottom Reinforcement <span class="badge">Tension &mdash; Downward</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Number of Bottom Bars</label>
+          <select id="n_bot">
+            <option value="1" selected>1 Bar</option>
+            <option value="2">2 Bars</option>
+            <option value="3">3 Bars</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Bottom Bar Size</label>
+          <select id="bar_bot">
+            <option value="0.20">#4 &mdash; A<sub>s</sub> = 0.20 in&sup2;</option>
+            <option value="0.31">#5 &mdash; A<sub>s</sub> = 0.31 in&sup2;</option>
+            <option value="0.44" selected>#6 &mdash; A<sub>s</sub> = 0.44 in&sup2;</option>
+            <option value="0.60">#7 &mdash; A<sub>s</sub> = 0.60 in&sup2;</option>
+            <option value="0.79">#8 &mdash; A<sub>s</sub> = 0.79 in&sup2;</option>
+            <option value="1.00">#9 &mdash; A<sub>s</sub> = 1.00 in&sup2;</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOCK 5: TOP STEEL (UPLIFT) -->
+    <div class="blk alt-blk">
+      <h2>5. Top Reinforcement <span class="badge-green">Tension &mdash; Uplift (if applicable)</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Number of Top Bars</label>
+          <select id="n_top">
+            <option value="1" selected>1 Bar</option>
+            <option value="2">2 Bars</option>
+            <option value="3">3 Bars</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Top Bar Size</label>
+          <select id="bar_top">
+            <option value="0.20" selected>#4 &mdash; A<sub>s</sub> = 0.20 in&sup2;</option>
+            <option value="0.31">#5 &mdash; A<sub>s</sub> = 0.31 in&sup2;</option>
+            <option value="0.44">#6 &mdash; A<sub>s</sub> = 0.44 in&sup2;</option>
+            <option value="0.60">#7 &mdash; A<sub>s</sub> = 0.60 in&sup2;</option>
+            <option value="0.79">#8 &mdash; A<sub>s</sub> = 0.79 in&sup2;</option>
+            <option value="1.00">#9 &mdash; A<sub>s</sub> = 1.00 in&sup2;</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+    <!-- RESULTS -->
+    <div id="results" class="results">
+
+      <div id="sumBox" class="summary"></div>
+
+      <div class="blk">
+        <h2>Section &amp; Material Properties</h2>
+        <div id="propOut"></div>
+      </div>
+
+      <div class="blk">
+        <h2>Design Demands</h2>
+        <div id="demOut"></div>
+      </div>
+
+      <div class="blk">
+        <h2>Check Results
+          <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &ldquo;&#9656; Calc&rdquo; to expand any check</span>
+        </h2>
+        <table class="chk-table">
+          <thead>
+            <tr>
+              <th style="width:27%">Check</th>
+              <th>Code Reference</th>
+              <th>Demand</th>
+              <th>Capacity</th>
+              <th>D/C</th>
+              <th>Status</th>
+              <th style="width:70px">Detail</th>
+            </tr>
+          </thead>
+          <tbody id="chkTb"></tbody>
+        </table>
+      </div>
+
+      <div class="note-box">
+        <strong>Engineering Notes:</strong>
+        <ul>
+          <li>Design per TMS 402-22 ASD. Enter ASD load combinations per ASCE/SEI 7-22 §2.4 (e.g., D+0.7S for downward; 0.6D+0.6W for uplift).</li>
+          <li>Effective span per TMS 402-22 §5.3.1.1: L = clear opening + bearing/12 (ft). Minimum bearing = 4 in. per §5.3.1.4; 8 in. is typical.</li>
+          <li>Shear uses &gamma;<sub>g</sub> = 1.0 for lintels per §8.3.5.1.2 (lintels are not classified as partially grouted shear walls). Axial P = 0 assumed in shear equations.</li>
+          <li>ASD flexure: compressive reinforcement is ignored (not laterally tied). Governing moment is the lesser of M<sub>s</sub> (steel controls) and M<sub>m</sub> (masonry controls).</li>
+          <li>Self-weight of lintel + weight of masonry above opening must be included in <em>w</em>. Typical fully-grouted 8" CMU lintel: ~81 psf. Shear may be reduced to d/2 from face of support per §5.3.1.5.</li>
+          <li>Uplift check: if the net midspan moment under the uplift combination is negative (tension in top), top bars are required. Top bars are typically placed in a bond beam at the roof diaphragm level.</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== HELPERS =====
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+function f5(v){return isFinite(v)?v.toFixed(5):'N/A';}
+function fc(v){return isFinite(v)?Math.round(v).toLocaleString():'N/A';}
+
+function fr(n,d){
+  return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';
+}
+function ov(x){
+  return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';
+}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+function toggleLoadMode(){
+  var m=document.getElementById('load_mode').value;
+  document.getElementById('div_computed').style.display=(m==='computed')?'':'none';
+  document.getElementById('div_direct').style.display=(m==='direct')?'':'none';
+}
+
+// ===== UI =====
+function setCMUWidth(){
+  document.getElementById('b_width').value=document.getElementById('cmu_size').value;
+}
+function autoFillD(){
+  var t=parseFloat(document.getElementById('t_depth').value)||56;
+  document.getElementById('eff_d').value=(t-3.5).toFixed(1);
+  autoFillA();
+}
+function autoFillA(){
+  var clr=parseFloat(document.getElementById('clear_span').value)||10;
+  var brg=parseFloat(document.getElementById('bearing').value)||8;
+  var L=clr+brg/12;
+  document.getElementById('a_P').value=(L/2).toFixed(2);
+}
+function barNum(a){
+  var map={0.20:4,0.31:5,0.44:6,0.60:7,0.79:8,1.00:9};
+  return map[a]?map[a]:a;
+}
+
+// ===== MAIN =====
+function runCalc(){
+
+  // Section / material inputs
+  var fm     = +document.getElementById('fm').value;
+  var Fs     = +document.getElementById('steel_grade').value;
+  var b      = +document.getElementById('b_width').value;
+  var t_in   = +document.getElementById('t_depth').value;
+  var d      = +document.getElementById('eff_d').value;
+  var clr    = +document.getElementById('clear_span').value;
+  var brg    = +document.getElementById('bearing').value;
+  var n_bot  = +document.getElementById('n_bot').value;
+  var ab_bot = +document.getElementById('bar_bot').value;
+  var As_bot = n_bot * ab_bot;
+  var n_top  = +document.getElementById('n_top').value;
+  var ab_top = +document.getElementById('bar_top').value;
+  var As_top = n_top * ab_top;
+
+  if(b<=0||d<=0||clr<=0){alert('Check geometry inputs.');return;}
+
+  // Material constants
+  var Em  = 900 * fm;
+  var Es  = 29000000;
+  var n   = Es / Em;
+  var Fb  = 0.45 * fm;   // TMS 402-22 §8.3.2.2.1
+  var gam = 1.0;         // γ_g = 1.0 for lintels (§8.3.5.1.2)
+
+  // Span — TMS 402-22 §5.3.1.1: L = clear + bearing/12
+  var L_ft = clr + brg / 12;
+  var L_in = L_ft * 12;
+
+  // ============================================================
+  // LOAD DEMANDS
+  // ============================================================
+  var load_mode = document.getElementById('load_mode').value;
+  var M_lbin, V_lb, M_up_lbin, V_up_lb, do_uplift;
+  var w=0, P=0, wu=0, Pu=0;
+  var a_ft=L_ft/2, b_ft=L_ft/2;
+  var R_L=0, R_R=0, R_L_up=0, R_R_up=0, x_max=L_ft/2;
+
+  if(load_mode==='direct'){
+    M_lbin    = (+document.getElementById('M_direct').value) * 12;
+    V_lb      = +document.getElementById('V_direct').value;
+    M_up_lbin = (+document.getElementById('M_up_direct').value) * 12;
+    V_up_lb   = Math.abs(+document.getElementById('V_up_direct').value);
+    do_uplift = (V_up_lb > 0 || M_up_lbin !== 0);
+  } else {
+    w   = +document.getElementById('w_load').value;
+    P   = +document.getElementById('P_down').value;
+    wu  = +document.getElementById('wu_load').value;
+    Pu  = +document.getElementById('P_uplift').value;
+    a_ft = Math.min(Math.max(+document.getElementById('a_P').value, 0.0001), L_ft - 0.0001);
+    b_ft = L_ft - a_ft;
+
+    // Downward reactions
+    R_L = w * L_ft / 2 + (P > 0 ? P * b_ft / L_ft : 0);
+    R_R = w * L_ft / 2 + (P > 0 ? P * a_ft / L_ft : 0);
+    V_lb = Math.max(R_L, R_R);
+
+    // Max moment
+    if(P === 0){
+      x_max  = L_ft / 2;
+      M_lbin = w * L_ft * L_ft / 8 * 12;
+    } else if(w === 0){
+      x_max  = a_ft;
+      M_lbin = P * a_ft * b_ft / L_ft * 12;
+    } else {
+      var xs = R_L / w;
+      if(xs <= a_ft){
+        x_max  = xs;
+        M_lbin = R_L * xs / 2 * 12;
+      } else {
+        x_max  = a_ft;
+        M_lbin = (R_L * a_ft - w * a_ft * a_ft / 2) * 12;
+      }
+    }
+
+    // Uplift
+    do_uplift = (Pu > 0);
+    if(do_uplift){
+      R_L_up = wu * L_ft / 2 - Pu * b_ft / L_ft;
+      R_R_up = wu * L_ft / 2 - Pu * a_ft / L_ft;
+      V_up_lb = Math.max(Math.abs(R_L_up), Math.abs(R_R_up));
+      if(Pu === 0){
+        M_up_lbin = wu * L_ft * L_ft / 8 * 12;
+      } else if(wu === 0){
+        M_up_lbin = -Pu * a_ft * b_ft / L_ft * 12;
+      } else {
+        var xs_up = (wu > 0) ? R_L_up / wu : a_ft;
+        if(R_L_up > 0 && xs_up > 0 && xs_up <= a_ft){
+          M_up_lbin = R_L_up * xs_up / 2 * 12;
+        } else {
+          M_up_lbin = (R_L_up * a_ft - wu * a_ft * a_ft / 2) * 12;
+        }
+      }
+    } else {
+      V_up_lb = 0; M_up_lbin = 0;
+    }
+  }
+  var need_top = do_uplift && (M_up_lbin < 0);
+
+  // ============================================================
+  // FLEXURE — neutral axis factors
+  // ============================================================
+  var rho_b  = As_bot / (b * d);
+  var nrho_b = n * rho_b;
+  var k_b    = Math.sqrt(nrho_b*nrho_b + 2*nrho_b) - nrho_b;
+  var j_b    = 1.0 - k_b / 3.0;
+  // TMS 402-22 §8.3.2 — computed stresses
+  var fs_bot = (As_bot>0 && j_b*d>0) ? M_lbin / (As_bot * j_b * d) : 0;
+  var fb_bot = (k_b*d>0 && j_b*d>0)  ? 2*M_lbin / (b * k_b*d * j_b*d) : 0;
+
+  var rho_t=0, nrho_t=0, k_t=0, j_t=0, fs_top=0, fb_top=0;
+  var M_up_abs = Math.abs(M_up_lbin);
+  if(do_uplift && As_top > 0){
+    rho_t  = As_top / (b * d);
+    nrho_t = n * rho_t;
+    k_t    = Math.sqrt(nrho_t*nrho_t + 2*nrho_t) - nrho_t;
+    j_t    = 1.0 - k_t / 3.0;
+    if(need_top){
+      fs_top = (As_top>0 && j_t*d>0) ? M_up_abs / (As_top * j_t * d) : 0;
+      fb_top = (k_t*d>0 && j_t*d>0)  ? 2*M_up_abs / (b * k_t*d * j_t*d) : 0;
+    }
+  }
+
+  // ============================================================
+  // SHEAR
+  // ============================================================
+  // Upper-bound factor per TMS 402-22 §8.3.5.1.2:
+  // M/(V·dv) <= 0.25 -> 3, M/(V·dv) >= 1.0 -> 2, linear interpolation between
+  function fvFac(MVdr){
+    if(MVdr <= 0.25) return 3.0;
+    if(MVdr >= 1.0)  return 2.0;
+    return 3.0 - (4.0/3.0)*(MVdr - 0.25);
+  }
+  var Anv   = b * d;
+  var fv    = V_lb / Anv;
+  var MVd   = (V_lb > 0) ? Math.min(M_lbin / (V_lb * d), 1.0) : 1.0;
+  var Fvm   = 0.5 * (4.0 - 1.75 * MVd) * Math.sqrt(fm);
+  var FvFacD= fvFac(MVd);
+  var Fv_ub = FvFacD * Math.sqrt(fm) * gam;
+  var Fv    = Math.min(Fvm, Fv_ub);
+
+  var fv_up=0, Fvm_up=0, Fv_up=0, MVd_up=1.0, FvFacU=2.0, Fv_ub_up=2.0*Math.sqrt(fm)*gam;
+  if(do_uplift){
+    fv_up    = V_up_lb / Anv;
+    MVd_up   = (V_up_lb > 0) ? Math.min(M_up_abs / (V_up_lb * d), 1.0) : 1.0;
+    Fvm_up   = 0.5 * (4.0 - 1.75 * MVd_up) * Math.sqrt(fm);
+    FvFacU   = fvFac(MVd_up);
+    Fv_ub_up = FvFacU * Math.sqrt(fm) * gam;
+    Fv_up    = Math.min(Fvm_up, Fv_ub_up);
+  }
+
+  // ============================================================
+  // BUILD CHECKS
+  // ============================================================
+  var chks = [];
+
+  // Helper closures for demand detail text
+  function Mdet(){
+    if(load_mode==='direct')
+      return '<div class="mrow ind">M<sub>down</sub> = '+fc(Math.round(M_lbin/12))+' lb&middot;ft = <span class="cval">'+fc(Math.round(M_lbin))+' lb-in</span> (entered directly)</div>';
+    var s='';
+    if(P===0){
+      s+='<div class="mrow ind">M = '+fr('wL&sup2;','8')+' = '+fr(f1(w)+'&times;'+f2(L_ft)+'&sup2;','8')+' = <span class="cval">'+fc(Math.round(M_lbin/12))+' lb&middot;ft = '+fc(Math.round(M_lbin))+' lb-in</span></div>';
+    } else {
+      s+='<div class="mrow ind">R<sub>L</sub> = '+fr('wL','2')+'+'+fr('P&times;b','L')+' = '+fr(f1(w)+'&times;'+f2(L_ft),'2')+'+'+fr(fc(Math.round(P))+'&times;'+f2(b_ft),f2(L_ft))+' = <span class="cval">'+f1(R_L)+' lb</span>; R<sub>R</sub> = <span class="cval">'+f1(R_R)+' lb</span></div>';
+      s+='<div class="mrow ind">a = '+f2(a_ft)+' ft, b = '+f2(b_ft)+' ft; max M at x = '+f2(x_max)+' ft</div>';
+      s+='<div class="mrow ind">M = R<sub>L</sub>&times;x&minus;'+fr('w&times;x&sup2;','2')+' = '+f1(R_L)+'&times;'+f2(x_max)+'&minus;'+fr(f1(w)+'&times;'+f2(x_max)+'&sup2;','2')+' = <span class="cval">'+fc(Math.round(M_lbin/12))+' lb&middot;ft = '+fc(Math.round(M_lbin))+' lb-in</span></div>';
+    }
+    return s;
+  }
+  function Vdet(){
+    if(load_mode==='direct')
+      return '<div class="mrow ind">V = <span class="cval">'+fc(Math.round(V_lb))+' lb</span> (entered directly)</div>';
+    return '<div class="mrow ind">V = max(R<sub>L</sub>,R<sub>R</sub>) = max('+f1(R_L)+','+f1(R_R)+') = <span class="cval">'+f1(V_lb)+' lb</span></div>';
+  }
+
+  // --- Check 1: Shear — Downward ---
+  var d1='<div class="cref-hdr">TMS 402-22 §8.3.5.1 &mdash; Shear Stress, Downward Combination</div><div class="cbox">';
+  d1+='<div class="mrow"><span class="ceq">Design shear force:</span></div>'+Vdet();
+  d1+='<div class="mrow ind">A<sub>nv</sub> = b&times;d = '+f2(b)+'&times;'+f2(d)+' = <span class="cval">'+f1(Anv)+' in&sup2;</span></div>';
+  d1+='<hr class="csep"><div class="mrow"><span class="ceq">Applied shear stress (Eq. 8-19):</span></div>';
+  d1+='<div class="mrow ind">f<sub>v</sub> = '+fr('V','A<sub>nv</sub>')+' = '+fr(fc(Math.round(V_lb))+'lb',f1(Anv)+'in&sup2;')+' = <span class="cval">'+f2(fv)+' psi</span></div>';
+  d1+='<hr class="csep"><div class="mrow"><span class="ceq">M/Vd<sub>v</sub> ratio (max 1.0 per §8.3.5.1.3):</span></div>';
+  d1+='<div class="mrow ind">'+fr('M','Vd<sub>v</sub>')+' = '+fr(fc(Math.round(M_lbin))+'lb-in',fc(Math.round(V_lb))+'&times;'+f1(d)+'in')+' = '+f3(V_lb>0?M_lbin/(V_lb*d):1.0)+' &rarr; use <span class="cval">'+f3(MVd)+'</span></div>';
+  d1+='<hr class="csep"><div class="mrow"><span class="ceq">Allowable masonry shear (Eq. 8-23, P=0 for lintel):</span></div>';
+  d1+='<div class="mrow ind">F<sub>vm</sub>=&frac12;(4.0&minus;1.75&times;'+f3(MVd)+')&times;'+ov(fc(fm)+' psi')+' = <span class="cval">'+f2(Fvm)+' psi</span></div>';
+  d1+='<div class="mrow"><span class="ceq">Upper bound (§8.3.5.1.2, interpolated on M/(Vd<sub>v</sub>)):</span></div>';
+  d1+='<div class="mrow ind">F<sub>v,max</sub>='+f3(FvFacD)+ov("f\'<sub>m</sub>")+'&times;&gamma;<sub>g</sub>='+f3(FvFacD)+'&times;'+f2(Math.sqrt(fm))+'&times;1.0 = <span class="cval">'+f2(Fv_ub)+' psi</span></div>';
+  d1+='<div class="mrow ind">F<sub>v</sub>=min('+f2(Fvm)+','+f2(Fv_ub)+') = <span class="cval">'+f2(Fv)+' psi</span></div>';
+  d1+='<hr class="csep"><div class="mrow">D/C = '+fr('f<sub>v</sub>','F<sub>v</sub>')+' = '+fr(f2(fv)+' psi',f2(Fv)+' psi')+' = <span class="cval">'+f3(fv/Fv)+'</span></div></div>';
+  chks.push({n:'Shear &mdash; Downward',r:'TMS 402-22 §8.3.5.1, Eq. 8-19/22/23',
+    d:'f<sub>v</sub>='+f2(fv)+' psi',c:'F<sub>v</sub>='+f2(Fv)+' psi',
+    dc:fv/Fv,nt:'M/Vd='+f3(MVd)+', &gamma;<sub>g</sub>=1.0',stiff:false,det:d1});
+
+  // --- Check 2: Steel Tensile Stress — Downward ---
+  var d2='<div class="cref-hdr">TMS 402-22 §8.3.2.3 &mdash; Steel Tensile Stress (Bottom Bars), Downward</div><div class="cbox">';
+  d2+='<div class="mrow"><span class="ceq">Applied moment:</span></div>'+Mdet();
+  d2+='<hr class="csep"><div class="mrow"><span class="ceq">Transformed section (modular ratio method):</span></div>';
+  d2+='<div class="mrow ind">n=E<sub>s</sub>/E<sub>m</sub>=29,000,000/(900&times;'+fc(fm)+') = <span class="cval">'+f2(n)+'</span></div>';
+  d2+='<div class="mrow ind">&rho;=A<sub>s</sub>/(bd)='+f3(As_bot)+'/('+f2(b)+'&times;'+f2(d)+') = '+f4(rho_b)+'</div>';
+  d2+='<div class="mrow ind">n&rho;='+f4(nrho_b)+'</div>';
+  d2+='<div class="mrow ind">k='+ov('(n&rho;)&sup2;+2n&rho;')+'&minus;n&rho; = <span class="cval">'+f4(k_b)+'</span> &rarr; kd = <span class="cval">'+f2(k_b*d)+' in.</span></div>';
+  d2+='<div class="mrow ind">j=1&minus;k/3 = <span class="cval">'+f4(j_b)+'</span> &rarr; jd = <span class="cval">'+f2(j_b*d)+' in.</span></div>';
+  d2+='<hr class="csep"><div class="mrow"><span class="ceq">Computed steel tensile stress (TMS 402-22 §8.3.2.3):</span></div>';
+  d2+='<div class="mrow ind">f<sub>s</sub> = '+fr('M','A<sub>s</sub>&times;j&times;d')+' = '+fr(fc(Math.round(M_lbin)),f3(As_bot)+'&times;'+f4(j_b)+'&times;'+f2(d))+' = <span class="cval">'+fc(Math.round(fs_bot))+' psi</span></div>';
+  d2+='<div class="mrow ind">Allowable F<sub>s</sub> = <span class="cval">'+fc(Fs)+' psi</span> (Grade '+(Fs===32000?'60':'40')+')</div>';
+  d2+='<hr class="csep"><div class="mrow">D/C = '+fr('f<sub>s</sub>','F<sub>s</sub>')+' = '+fr(fc(Math.round(fs_bot))+' psi',fc(Fs)+' psi')+' = <span class="cval">'+f3(fs_bot/Fs)+'</span></div></div>';
+  chks.push({n:'Steel Stress &mdash; Downward',r:'TMS 402-22 §8.3.2.3',
+    d:'f<sub>s</sub>='+fc(Math.round(fs_bot))+' psi',c:'F<sub>s</sub>='+fc(Fs)+' psi',
+    dc:fs_bot/Fs,nt:'A<sub>s</sub>='+f3(As_bot)+' in&sup2;, j='+f3(j_b)+', kd='+f2(k_b*d)+' in.',stiff:false,det:d2});
+
+  // --- Check 3: Masonry Compressive Stress — Downward ---
+  var d3='<div class="cref-hdr">TMS 402-22 §8.3.2.2.1 &mdash; Masonry Compressive Stress (Extreme Top Fiber), Downward</div><div class="cbox">';
+  d3+='<div class="mrow"><span class="ceq">Allowable masonry compressive stress (§8.3.2.2.1):</span></div>';
+  d3+='<div class="mrow ind">F<sub>b</sub>=0.45f\'<sub>m</sub>=0.45&times;'+fc(fm)+' = <span class="cval">'+f1(Fb)+' psi</span></div>';
+  d3+='<hr class="csep"><div class="mrow"><span class="ceq">Computed masonry extreme-fiber compressive stress:</span></div>';
+  d3+='<div class="mrow ind">f<sub>b</sub> = '+fr('2M','b&times;(kd)&times;(jd)')+' = '+fr('2&times;'+fc(Math.round(M_lbin)),f2(b)+'&times;'+f2(k_b*d)+'&times;'+f2(j_b*d))+' = <span class="cval">'+f2(fb_bot)+' psi</span></div>';
+  d3+='<hr class="csep"><div class="mrow">D/C = '+fr('f<sub>b</sub>','F<sub>b</sub>')+' = '+fr(f2(fb_bot)+' psi',f1(Fb)+' psi')+' = <span class="cval">'+f3(fb_bot/Fb)+'</span></div></div>';
+  chks.push({n:'Masonry Comp. Stress &mdash; Downward',r:'TMS 402-22 §8.3.2.2.1',
+    d:'f<sub>b</sub>='+f2(fb_bot)+' psi',c:'F<sub>b</sub>='+f1(Fb)+' psi',
+    dc:fb_bot/Fb,nt:'F<sub>b</sub>=0.45f\'<sub>m</sub>, kd='+f2(k_b*d)+'in., jd='+f2(j_b*d)+'in.',stiff:false,det:d3});
+
+  // --- Uplift Checks ---
+  if(do_uplift){
+
+    // Check 4: Shear — Uplift
+    var d4='<div class="cref-hdr">TMS 402-22 §8.3.5.1 &mdash; Shear Stress, Uplift Combination</div><div class="cbox">';
+    if(load_mode==='direct'){
+      d4+='<div class="mrow ind">V<sub>up</sub>=<span class="cval">'+f1(V_up_lb)+' lb</span> (entered directly)</div>';
+    } else {
+      d4+='<div class="mrow ind">R<sub>L,up</sub>='+fr('w<sub>u</sub>L','2')+'&minus;'+fr('P<sub>u</sub>b','L')+'='+f1(R_L_up)+' lb;  R<sub>R,up</sub>='+f1(R_R_up)+' lb</div>';
+      d4+='<div class="mrow ind">|V<sub>up</sub>|=max(|R<sub>L,up</sub>|,|R<sub>R,up</sub>|) = <span class="cval">'+f1(V_up_lb)+' lb</span></div>';
+    }
+    d4+='<div class="mrow ind">f<sub>v,up</sub>=|V<sub>up</sub>|/A<sub>nv</sub>='+fr(f1(V_up_lb),f1(Anv))+' = <span class="cval">'+f2(fv_up)+' psi</span></div>';
+    d4+='<hr class="csep"><div class="mrow ind">F<sub>vm,up</sub>=&frac12;(4.0&minus;1.75&times;'+f3(MVd_up)+')&times;'+ov(fc(fm))+' = <span class="cval">'+f2(Fvm_up)+' psi</span></div>';
+    d4+='<div class="mrow ind">F<sub>v,max,up</sub>='+f3(FvFacU)+ov("f\'<sub>m</sub>")+'&times;&gamma;<sub>g</sub> = '+f2(Fv_ub_up)+' psi (§8.3.5.1.2)</div>';
+    d4+='<div class="mrow ind">F<sub>v,up</sub>=min('+f2(Fvm_up)+','+f2(Fv_ub_up)+') = <span class="cval">'+f2(Fv_up)+' psi</span></div>';
+    d4+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(fv_up)+' psi',f2(Fv_up)+' psi')+' = <span class="cval">'+f3(fv_up/Fv_up)+'</span></div></div>';
+    chks.push({n:'Shear &mdash; Uplift',r:'TMS 402-22 §8.3.5.1, Eq. 8-19/22/23',
+      d:'f<sub>v</sub>='+f2(fv_up)+' psi',c:'F<sub>v</sub>='+f2(Fv_up)+' psi',
+      dc:(Fv_up>0?fv_up/Fv_up:null),nt:'|V<sub>up</sub>|='+f1(V_up_lb)+' lb',stiff:true,det:d4});
+
+    // Check 5: Steel Tensile Stress — Uplift (top bars)
+    var d5='<div class="cref-hdr">TMS 402-22 §8.3.2.3 &mdash; Steel Tensile Stress (Top Bars), Uplift Combination</div><div class="cbox">';
+    if(load_mode==='direct'){
+      d5+='<div class="mrow ind">M<sub>up</sub>='+fc(Math.round(M_up_lbin/12))+' lb&middot;ft = <span class="cval">'+fc(Math.round(M_up_lbin))+' lb-in</span> (entered directly)</div>';
+    } else {
+      d5+='<div class="mrow ind">R<sub>L,up</sub>&times;a&minus;w<sub>u</sub>a&sup2;/2 = '+f1(R_L_up)+'&times;'+f2(a_ft)+'&minus;'+fr(f1(wu)+'&times;'+f2(a_ft)+'&sup2;','2')+' = <span class="cval">'+fc(Math.round(M_up_lbin/12))+' lb&middot;ft = '+fc(Math.round(M_up_lbin))+' lb-in</span></div>';
+    }
+    if(!need_top){
+      d5+='<div class="mrow" style="margin-top:8px;color:#16a34a">&#10003; Net uplift moment is positive (bottom tension) &mdash; top bars not required for this combination.</div>';
+    } else {
+      d5+='<div class="mrow" style="color:#dc2626;margin-top:6px">Net moment is negative &rarr; tension in TOP &rarr; top bars required.</div>';
+      d5+='<div class="mrow ind">|M<sub>up</sub>|=<span class="cval">'+fc(Math.round(M_up_abs))+' lb-in</span></div>';
+      d5+='<hr class="csep"><div class="mrow ind">n&rho;<sub>top</sub>='+f4(nrho_t)+', k<sub>top</sub>='+f4(k_t)+', j<sub>top</sub>='+f4(j_t)+', j<sub>top</sub>d=<span class="cval">'+f2(j_t*d)+' in.</span></div>';
+      d5+='<hr class="csep"><div class="mrow"><span class="ceq">f<sub>s,top</sub>='+fr('|M<sub>up</sub>|','A<sub>s,top</sub>&times;j<sub>top</sub>&times;d')+'</span></div>';
+      d5+='<div class="mrow ind">='+fr(fc(Math.round(M_up_abs)),f3(As_top)+'&times;'+f4(j_t)+'&times;'+f2(d))+' = <span class="cval">'+fc(Math.round(fs_top))+' psi</span></div>';
+      d5+='<div class="mrow ind">F<sub>s</sub>=<span class="cval">'+fc(Fs)+' psi</span></div>';
+      d5+='<hr class="csep"><div class="mrow">D/C = '+fr(fc(Math.round(fs_top))+' psi',fc(Fs)+' psi')+' = <span class="cval">'+f3(fs_top/Fs)+'</span></div>';
+    }
+    d5+='</div>';
+    var dc5 = need_top ? fs_top/Fs : null;
+    chks.push({n:'Steel Stress (Top) &mdash; Uplift',r:'TMS 402-22 §8.3.2.3',
+      d: need_top ? 'f<sub>s,top</sub>='+fc(Math.round(fs_top))+' psi' : 'M<sub>up</sub>&ge;0 (bottom tension)',
+      c: need_top ? 'F<sub>s</sub>='+fc(Fs)+' psi' : 'N/A',
+      dc:dc5, nt: need_top ? 'A<sub>s,top</sub>='+f3(As_top)+' in&sup2;, j='+f3(j_t) : 'Positive moment &mdash; bottom controls',
+      stiff:true, det:d5});
+
+    // Check 6: Masonry Compressive Stress — Uplift (only if top tension)
+    if(need_top){
+      var d6='<div class="cref-hdr">TMS 402-22 §8.3.2.2.1 &mdash; Masonry Compressive Stress (Bottom Fiber), Uplift</div><div class="cbox">';
+      d6+='<div class="mrow ind">F<sub>b</sub>=0.45f\'<sub>m</sub>=<span class="cval">'+f1(Fb)+' psi</span></div>';
+      d6+='<hr class="csep"><div class="mrow ind">k<sub>top</sub>d='+f2(k_t*d)+' in., j<sub>top</sub>d='+f2(j_t*d)+' in.</div>';
+      d6+='<div class="mrow"><span class="ceq">f<sub>b,top</sub>='+fr('2|M<sub>up</sub>|','b&times;(k<sub>top</sub>d)&times;(j<sub>top</sub>d)')+'</span></div>';
+      d6+='<div class="mrow ind">='+fr('2&times;'+fc(Math.round(M_up_abs)),f2(b)+'&times;'+f2(k_t*d)+'&times;'+f2(j_t*d))+' = <span class="cval">'+f2(fb_top)+' psi</span></div>';
+      d6+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(fb_top)+' psi',f1(Fb)+' psi')+' = <span class="cval">'+f3(fb_top/Fb)+'</span></div></div>';
+      chks.push({n:'Masonry Comp. Stress (Top)&mdash;Uplift',r:'TMS 402-22 §8.3.2.2.1',
+        d:'f<sub>b,top</sub>='+f2(fb_top)+' psi',c:'F<sub>b</sub>='+f1(Fb)+' psi',
+        dc:fb_top/Fb, nt:'kd='+f2(k_t*d)+'in., jd='+f2(j_t*d)+'in.',stiff:true,det:d6});
+    }
+  }
+
+  // ============================================================
+  // RENDER RESULTS
+  // ============================================================
+  var dcs = chks.map(function(c){return c.dc;}).filter(function(v){return v!==null&&isFinite(v)&&v>=0;});
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var allpass = maxDC <= 1.0;
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary '+(allpass?'sum-pass':'sum-fail');
+  sb.innerHTML = '<h3>'+(allpass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+f3(maxDC)+'</strong>&nbsp;&nbsp;|&nbsp;&nbsp;'
+    +(allpass?'Lintel design is satisfactory per TMS 402-22 ASD.':'Revise lintel depth and/or reinforcement.')+'</p>';
+
+  // Properties table
+  var pBarBot = n_bot+' &times; #'+barNum(ab_bot)+' (A<sub>s</sub>='+f3(As_bot)+' in&sup2;)';
+  var pBarTop = do_uplift ? n_top+' &times; #'+barNum(ab_top)+' (A<sub>s</sub>='+f3(As_top)+' in&sup2;)' : '&mdash;';
+  var lmode_txt = load_mode==='direct' ? 'M &amp; V entered directly' : 'w='+f1(w)+' lb/ft, P='+fc(Math.round(P))+' lb at a='+f2(a_ft)+' ft';
+  document.getElementById('propOut').innerHTML =
+    '<table class="prop-table"><thead><tr><th>Property</th><th>Symbol</th><th>Value</th><th>Units</th></tr></thead><tbody>'
+    +'<tr><td>Masonry Compressive Strength</td><td>f\'<sub>m</sub></td><td>'+fc(fm)+'</td><td>psi</td></tr>'
+    +'<tr><td>E<sub>m</sub> = 900f\'<sub>m</sub></td><td>E<sub>m</sub></td><td>'+fc(Em)+'</td><td>psi</td></tr>'
+    +'<tr><td>Allow. Masonry Comp. Stress</td><td>F<sub>b</sub>=0.45f\'<sub>m</sub></td><td>'+f1(Fb)+'</td><td>psi</td></tr>'
+    +'<tr><td>Allow. Steel Tensile Stress</td><td>F<sub>s</sub></td><td>'+fc(Fs)+'</td><td>psi</td></tr>'
+    +'<tr><td>Modular Ratio</td><td>n=E<sub>s</sub>/E<sub>m</sub></td><td>'+f2(n)+'</td><td>&mdash;</td></tr>'
+    +'<tr><td>Lintel Width (actual)</td><td>b</td><td>'+f3(b)+'</td><td>in.</td></tr>'
+    +'<tr><td>Lintel Total Depth</td><td>t</td><td>'+f1(t_in)+'</td><td>in.</td></tr>'
+    +'<tr><td>Effective Depth</td><td>d</td><td>'+f2(d)+'</td><td>in.</td></tr>'
+    +'<tr><td>Design Span (clear+brg/12)</td><td>L</td><td>'+f3(L_ft)+' ft ('+f1(L_in)+' in.)</td><td></td></tr>'
+    +'<tr><td>Net Shear Area</td><td>A<sub>nv</sub>=b&times;d</td><td>'+f1(Anv)+'</td><td>in&sup2;</td></tr>'
+    +'<tr><td>Load Entry</td><td>&mdash;</td><td>'+lmode_txt+'</td><td></td></tr>'
+    +'<tr><td>Bottom Rebar</td><td>A<sub>s,bot</sub></td><td>'+pBarBot+'</td><td></td></tr>'
+    +'<tr><td>Top Rebar</td><td>A<sub>s,top</sub></td><td>'+pBarTop+'</td><td></td></tr>'
+    +'</tbody></table>';
+
+  // Demand cards
+  var dem='<div class="dem-grid">';
+  dem+='<div class="dem-card"><div class="v">'+fc(Math.round(M_lbin))+' lb-in</div><div class="l">M &mdash; Downward<br>('+fc(Math.round(M_lbin/12))+' lb-ft)</div></div>';
+  dem+='<div class="dem-card"><div class="v">'+fc(Math.round(V_lb))+' lb</div><div class="l">V &mdash; Downward</div></div>';
+  dem+='<div class="dem-card"><div class="v">'+f2(fv)+' psi</div><div class="l">f<sub>v</sub> &mdash; Shear Stress</div></div>';
+  dem+='<div class="dem-card"><div class="v">'+fc(Math.round(fs_bot))+' psi</div><div class="l">f<sub>s</sub> &mdash; Steel Stress<br>(bottom, downward)</div></div>';
+  dem+='<div class="dem-card"><div class="v">'+f2(fb_bot)+' psi</div><div class="l">f<sub>b</sub> &mdash; Masonry Comp.<br>(top fiber, downward)</div></div>';
+  dem+='<div class="dem-card alt"><div class="v">'+f2(Fv)+' psi</div><div class="l">F<sub>v</sub> &mdash; Allow. Shear</div></div>';
+  dem+='<div class="dem-card alt"><div class="v">'+fc(Fs)+' psi</div><div class="l">F<sub>s</sub> &mdash; Allow. Steel</div></div>';
+  dem+='<div class="dem-card alt"><div class="v">'+f1(Fb)+' psi</div><div class="l">F<sub>b</sub> &mdash; Allow. Masonry<br>Comp. Stress</div></div>';
+  if(do_uplift){
+    var sign_lbl = M_up_lbin>=0 ? '(+) bottom tension' : '(&minus;) TOP tension';
+    dem+='<div class="dem-card warn"><div class="v">'+fc(Math.round(Math.abs(M_up_lbin)))+' lb-in</div><div class="l">|M| &mdash; Uplift Combo<br>'+sign_lbl+'</div></div>';
+    dem+='<div class="dem-card warn"><div class="v">'+fc(Math.round(V_up_lb))+' lb</div><div class="l">|V| &mdash; Uplift Shear</div></div>';
+  }
+  dem+='</div>';
+  document.getElementById('demOut').innerHTML=dem;
+
+  // Check table
+  var tb=document.getElementById('chkTb');
+  tb.innerHTML='';
+  chks.forEach(function(c,i){
+    var dc_v=(c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
+    var pct=dc_v!==null?Math.min(dc_v*100,150):0;
+    var col=dc_v===null?'#9ca3af':dc_v<=0.8?'#16a34a':dc_v<=1.0?'#d97706':'#dc2626';
+    var stxt=dc_v===null?'<span class="na">&mdash;</span>':dc_v<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var dtxt=dc_v!==null?f3(dc_v):'&mdash;';
+    var rCls=c.stiff?'class="alt-row"':'';
+    tb.innerHTML+='<tr '+rCls+'>'
+      +'<td><strong>'+c.n+'</strong>'+(c.nt?'<br><small style="color:#555">'+c.nt+'</small>':'')+'</td>'
+      +'<td><code>'+c.r+'</code></td>'
+      +'<td>'+c.d+'</td>'
+      +'<td>'+c.c+'</td>'
+      +'<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      +(dc_v!==null?'<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>':'')
+      +'</div></td>'
+      +'<td>'+stxt+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">'+'\u25B6 Calc</button></td>'
+      +'</tr>'
+      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// Alias so ARE shared utilities auto-run the calc after loading saved inputs
+function runCalcs(){ runCalc(); }
+</script>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -327,14 +327,14 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <div class="hint">Center-to-center spacing along wall length</div>
     </div>
     <div class="ig">
-      <label>L<sub>be</sub> &mdash; Edge Distance <span class="unit">(in, auto)</span></label>
-      <input type="number" id="Lbe_disp" value="3.44" readonly>
-      <div class="hint">= (b &minus; 1.5&#981;) / 2 &mdash; bolt centered in wall, clear to face. Override: enter below.</div>
+      <label>l<sub>be</sub> &mdash; Edge Distance <span class="unit">(in, auto)</span></label>
+      <input type="number" id="Lbe_disp" value="3.81" readonly>
+      <div class="hint">= b / 2 &mdash; measured from edge of masonry to center of bolt (TMS §6.3.7), bolt centered in wall. Override: enter below.</div>
     </div>
     <div class="ig">
-      <label>L<sub>be</sub> Override <span class="unit">(in)</span></label>
+      <label>l<sub>be</sub> Override <span class="unit">(in)</span></label>
       <input type="number" id="Lbe_override" value="" step="0.25" min="0" placeholder="Leave blank to use auto" oninput="autoLbe()">
-      <div class="hint">If blank, auto = (b &minus; 1.5&#981;)/2. Enter if bolt is not centered.</div>
+      <div class="hint">If blank, auto = b/2 (centered bolt). Enter the edge-to-bolt-center distance if the bolt is not centered.</div>
     </div>
   </div>
   <div class="chk-row">
@@ -396,8 +396,8 @@ function toggleDet(id){
 // ── UI Helpers ────────────────────────────────────────────────────────────────
 function autoLbe(){
   var b=parseFloat(document.getElementById('b_wall').value)||7.625;
-  var phi=parseFloat(document.getElementById('phi_in').value)||0.75;
-  var Lbe_auto=Math.max((b-1.5*phi)/2.0, 0);
+  // TMS 402-22 §6.3.7: lbe measured from edge of masonry to CENTER of bolt
+  var Lbe_auto=Math.max(b/2.0, 0);
   document.getElementById('Lbe_disp').value=Lbe_auto.toFixed(2);
   updatePlanSvg();
 }
@@ -410,7 +410,7 @@ function autoFu(){
 function getLbe(){
   var ovr=document.getElementById('Lbe_override').value;
   if(ovr!==''&&ovr!==null&&parseFloat(ovr)>0) return parseFloat(ovr);
-  return parseFloat(document.getElementById('Lbe_disp').value)||3.44;
+  return parseFloat(document.getElementById('Lbe_disp').value)||3.81;
 }
 
 // ── Plan SVG dynamic update ───────────────────────────────────────────────────
@@ -536,26 +536,43 @@ function runCalcs(){
   var S_ft   =S_in/12.0;                                            // ft
   var windInc=document.getElementById('windInc').checked;
   var k_ASD  =windInc?3.0/4.0:1.0;  // load factor (3/4 when 1/3 increase applies)
-  var combo_limit=windInc?1.33:1.0;
+  var combo_limit=1.0;              // TMS 402-22 Eq 8-8 limit; 1/3 increase handled via k on demands
 
   // ── Geometry ──
-  var Lbe_auto=Math.max((b-1.5*phi)/2.0, 0.01);
+  // TMS 402-22 §6.3.7: lbe measured from edge of masonry to CENTER of bolt
+  var Lbe_auto=Math.max(b/2.0, 0.01);
   var Lbe_ov  =document.getElementById('Lbe_override').value;
   var Lbe     =(Lbe_ov!==''&&parseFloat(Lbe_ov)>0)?parseFloat(Lbe_ov):Lbe_auto;
   document.getElementById('Lbe_disp').value=Lbe_auto.toFixed(2);
-
-  var L       =Math.min(Lb, Lbe);  // governing cone radius
+  var Lbe_far =Math.max(b-Lbe, 0.01);   // edge distance to opposite wall face
   var Ab      =Math.PI*phi*phi/4.0; // in²
 
-  // Projected breakout area Apt (TMS 402-22 §6.3.2)
-  var halfS   =0.5*S_in;
-  var theta   =(halfS<=L)?Math.acos(halfS/L):0;   // rad; 0 when spacing > 2L (no overlap)
-  var Aseg    =(halfS<=L)?L*L*(theta-0.5*Math.sin(2*theta)):0; // in² per segment
-  var Apt     =Math.PI*L*L - 2.0*Aseg;            // in² (TMS §6.3.2)
-  var Apv     =Apt;                                // same, since L = min(Lb,Lbe) used
+  // Circular-segment helper: area of a circle (radius R) lying beyond a chord at distance d from center
+  function circSeg(R,d){
+    if(d>=R||R<=0) return 0;
+    return R*R*Math.acos(d/R) - d*Math.sqrt(R*R-d*d);
+  }
 
-  // Minimum embedment (TMS §6.3.6)
-  var Lb_min  =Math.min(4*phi, 2.0); // in
+  // Projected tension breakout area (TMS 402-22 Eq 6-5: Apt = pi*lb^2),
+  // less area lying outside the masonry (beyond each wall face) and less
+  // overlap with adjacent anchors at spacing S (§6.3.2)
+  var halfS   =0.5*S_in;
+  var segNear =circSeg(Lb, Lbe);      // cone area beyond near wall face
+  var segFar  =circSeg(Lb, Lbe_far);  // cone area beyond far wall face
+  var Aseg    =circSeg(Lb, halfS);    // half-lens overlap with EACH adjacent anchor (cone radius lb)
+  var Apt     =Math.max(Math.PI*Lb*Lb - segNear - segFar - 2.0*Aseg, 0); // in²
+
+  // Projected shear breakout area (TMS 402-22 Eq 6-6: Apv = pi*lbe^2/2),
+  // half-cone toward the free edge, less overlap with adjacent anchors (§6.3.3)
+  var AsegV   =0.5*circSeg(Lbe, halfS); // per-neighbor overlap of adjacent semicircular cones
+  var Apv     =Math.max(Math.PI*Lbe*Lbe/2.0 - 2.0*AsegV, 0); // in²
+
+  // For the plan sketch only
+  var L       =Math.min(Lb, Lbe);
+  var theta   =(halfS<Lb)?Math.acos(Math.min(halfS/Lb,1)):0; // rad; 0 when S >= 2*lb (no overlap)
+
+  // Minimum embedment (TMS §6.3.6 — GREATER of 4 bolt diameters or 2 in.)
+  var Lb_min  =Math.max(4*phi, 2.0); // in
 
   // Tension capacity (TMS §8.1.4.3.1)
   var Ba_mas  =1.25*Apt*Math.sqrt(fm_psi)/1000.0;  // kips masonry breakout
@@ -564,8 +581,8 @@ function runCalcs(){
 
   // Shear capacity (TMS §8.1.4.3.2)
   var Bv1     =1.25*Apv*Math.sqrt(fm_psi)/1000.0;                   // kips masonry breakout
-  var Bv2     =580.0*Math.pow(Ab*fm_psi, 0.25)/1000.0;              // kips pryout
-  var Bv3     =2.5*Apt*Math.sqrt(fm_psi)/1000.0;                    // kips masonry shear
+  var Bv2     =580.0*Math.pow(Ab*fm_psi, 0.25)/1000.0;              // kips masonry crushing (Eq 8-5)
+  var Bv3     =2.5*Apt*Math.sqrt(fm_psi)/1000.0;                    // kips anchor pryout (Eq 8-6)
   var Bv4     =0.25*Ab*Fu_psi/1000.0;                               // kips steel shear
   var Bv      =Math.min(Bv1, Bv2, Bv3, Bv4);
 
@@ -573,8 +590,9 @@ function runCalcs(){
   var Ta      =S_ft*ba;  // kips (total tension per fastener, unfactored for combined)
   var Va      =S_ft*bv;  // kips (total shear per fastener, unfactored for combined)
 
-  // Combined interaction (TMS §8.1.4.3.3)
-  var combo   =Math.pow(Ta/Ba, 5.0/3.0) + Math.pow(Va/Bv, 5.0/3.0);
+  // Combined interaction (TMS 402-22 §8.1.4.3.3, Eq 8-8): (ba/Ba)^(5/3) + (bv/Bv)^(5/3) <= 1.0
+  // The 1/3 allowable increase (when applicable) is applied consistently as k = 3/4 on the demands.
+  var combo   =Math.pow(k_ASD*Ta/Ba, 5.0/3.0) + Math.pow(k_ASD*Va/Bv, 5.0/3.0);
   var dc_combo=combo/combo_limit;
 
   // Update plan SVG
@@ -584,7 +602,7 @@ function runCalcs(){
   var dcA=Lb_min/Lb;
   var chksA=[],pA=true,maxA=dcA;
   var daA='<div class="cref-hdr">TMS 402-22 §6.3.6 &mdash; Minimum Anchor Bolt Embedment</div><div class="cbox">';
-  daA+='<div class="mrow"><span class="ceq">L<sub>b,min</sub> =</span> MIN[4&#981;, 2&Prime;] = MIN[4&times;'+f2(phi)+', 2] = <span class="cval">'+f2(Lb_min)+'&Prime;</span></div>';
+  daA+='<div class="mrow"><span class="ceq">L<sub>b,min</sub> =</span> MAX[4&#981;, 2&Prime;] = MAX[4&times;'+f2(phi)+', 2] = <span class="cval">'+f2(Lb_min)+'&Prime;</span></div>';
   daA+='<div class="mrow"><span class="ceq">L<sub>b,provided</sub> =</span> <span class="cval">'+f2(Lb)+'&Prime;</span>'+(Lb>=Lb_min?' &ge; L<sub>b,min</sub> &#10003;':' < L<sub>b,min</sub> &#10007;')+'</div>';
   daA+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Lb_min),f2(Lb))+' = <span class="cval">'+f3(dcA)+'</span></div></div>';
   chksA.push({n:'Min Embedment L<sub>b</sub>',r:'TMS 402-22 §6.3.6',d:'L<sub>b</sub> = '+f2(Lb)+'&Prime;',c:'L<sub>b,min</sub> = '+f2(Lb_min)+'&Prime;',dc:dcA,nt:'&#981; = '+f2(phi)+'&Prime;',pass:dcA<=1,info:false,det:daA});
@@ -594,7 +612,7 @@ function runCalcs(){
   setCards('demA',[
     {v:f2(phi)+'&Prime;',l:'Fastener\nDiameter &#981;',cls:'dem-card'},
     {v:f2(Lb)+'&Prime;',l:'Embedment L<sub>b</sub>\nprovided',cls:'dem-card'},
-    {v:f2(Lb_min)+'&Prime;',l:'L<sub>b,min</sub> = min(4&#981;, 2&Prime;)\nrequired',cls:Lb>=Lb_min?'dem-card ok':'dem-card bad'},
+    {v:f2(Lb_min)+'&Prime;',l:'L<sub>b,min</sub> = max(4&#981;, 2&Prime;)\nrequired',cls:Lb>=Lb_min?'dem-card ok':'dem-card bad'},
   ]);
   chksA.forEach(function(c){buildRow(c,'chkA','');});
 
@@ -606,15 +624,17 @@ function runCalcs(){
   function ckB(c){chksB.push(c);if(!c.pass)pB=false;if(c.dc>maxB)maxB=c.dc;}
 
   // B: Lbe and L detail
-  var dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2 &mdash; Effective Embedment L and Projected Area A<sub>pt</sub></div><div class="cbox">';
-  dbLbe+='<div class="mrow"><span class="ceq">L<sub>be</sub> =</span> (b &minus; 1.5&#981;)/2 = ('+f2(b)+'&minus;1.5&times;'+f2(phi)+')/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span>'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;]':'')+'</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">L =</span> MIN(L<sub>b</sub>, L<sub>be</sub>) = MIN('+f2(Lb)+', '+f2(Lbe)+') = <span class="cval">'+f2(L)+'&Prime;</span> &mdash; '+(Lb<=Lbe?'embedment governs':'edge distance governs')+'</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">&#920; =</span> cos<sup>&minus;1</sup>(0.5S/L) = cos<sup>&minus;1</sup>('+f2(halfS)+'/'+f2(L)+') = <span class="cval">'+f4(theta)+' rad</span>'+(halfS>L?' &mdash; no cone overlap (S > 2L)':'')+'</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>seg</sub> =</span> L&sup2;[&#920; &minus; 0.5 sin(2&#920;)] = '+f2(L)+'&sup2;&times;['+f4(theta)+'&minus;0.5 sin('+f3(2*theta)+')] = <span class="cval">'+f2(Aseg)+' in&sup2;</span></div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;L&sup2; &minus; 2A<sub>seg</sub> = &pi;&times;'+f2(L)+'&sup2; &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+  var dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2 / Eq 6-5 &mdash; Projected Tension Breakout Area A<sub>pt</sub></div><div class="cbox">';
+  dbLbe+='<div class="mrow"><span class="ceq">l<sub>be</sub> =</span> b/2 = '+f2(b)+'/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span> (edge of masonry to bolt center, §6.3.7)'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;; far face = '+f2(Lbe_far)+'&Prime;]':'')+'</div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;l<sub>b</sub>&sup2; &minus; (area outside masonry) &minus; (overlap with adjacent anchors)</div>';
+  dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
+  dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; beyond far face (chord @ '+f2(Lbe_far)+'&Prime;) = '+f2(segFar)+' in&sup2;</div>';
+  dbLbe+='<div class="mrow ind">Overlap per adjacent anchor (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6)</div>';
   dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> &pi;&#981;&sup2;/4 = <span class="cval">'+f3(Ab)+' in&sup2;</span></div>';
   dbLbe+='</div>';
-  ckB({n:'Projected Area A<sub>pt</sub>',r:'TMS 402-22 §6.3.2',d:'L = '+f2(L)+'&Prime; ; A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>seg</sub> = '+f2(Aseg)+' in&sup2;',dc:null,nt:'L = min(L<sub>b</sub>='+f2(Lb)+'&Prime;, L<sub>be</sub>='+f2(Lbe)+'&Prime;)',pass:true,info:true,det:dbLbe});
+  ckB({n:'Projected Areas A<sub>pt</sub>, A<sub>pv</sub>',r:'TMS 402-22 §6.3.2/§6.3.3',d:'A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>pv</sub> = '+f2(Apv)+' in&sup2;',dc:null,nt:'l<sub>b</sub>='+f2(Lb)+'&Prime;, l<sub>be</sub>='+f2(Lbe)+'&Prime;, S='+f1(S_in)+'&Prime;',pass:true,info:true,det:dbLbe});
 
   // B: Masonry breakout tension
   var dbBmas='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 &mdash; Tension: Masonry Breakout</div><div class="cbox">';
@@ -648,24 +668,24 @@ function runCalcs(){
   function ckC(c){chksC.push(c);if(!c.pass)pC=false;if(c.dc>maxC)maxC=c.dc;}
 
   // Bv1
-  var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Masonry Breakout (A<sub>pv</sub>)</div><div class="cbox">';
-  dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> A<sub>pt</sub> = <span class="cval">'+f2(Apv)+' in&sup2;</span> (since L = min(L<sub>b</sub>, L<sub>be</sub>) used for A<sub>pt</sub>, per §6.3.3)</div>';
+  var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-4 &mdash; Shear: Masonry Breakout (A<sub>pv</sub>)</div><div class="cbox">';
+  dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6, half-cone toward free edge)</div>';
   dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apv)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
   dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
   ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
 
   // Bv2
-  var dcv2='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Pryout / Masonry Crushing</div><div class="cbox">';
+  var dcv2='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-5 &mdash; Shear: Masonry Crushing</div><div class="cbox">';
   dcv2+='<div class="mrow"><span class="ceq">B<sub>v2</sub> =</span> 580 (A<sub>b</sub> f&prime;<sub>m</sub>)<sup>0.25</sup></div>';
   dcv2+='<div class="mrow ind">= 580 &times; ('+f3(Ab)+'&times;'+f1(fm_psi)+')<sup>0.25</sup> = 580 &times; '+f3(Math.pow(Ab*fm_psi,0.25))+' = <span class="cval">'+f3(Bv2)+' kips</span></div>';
   dcv2+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv2))+' = <span class="cval">'+f3(dc_Bv2)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Pryout B<sub>v2</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v2</sub> = '+f3(Bv2)+' kips',dc:dc_Bv2,nt:'580(A\u1D47f\'m)\u00B9\u141F\u2074; Ab='+f3(Ab)+' in\u00B2',pass:dc_Bv2<=1,info:false,det:dcv2});
+  ckC({n:'Shear &mdash; Masonry Crushing B<sub>v2</sub>',r:'TMS 402-22 Eq 8-5',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v2</sub> = '+f3(Bv2)+' kips',dc:dc_Bv2,nt:'580(A\u1D47f\'m)\u00B9\u141F\u2074; Ab='+f3(Ab)+' in\u00B2',pass:dc_Bv2<=1,info:false,det:dcv2});
 
   // Bv3
-  var dcv3='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Masonry Shear Cone (A<sub>pt</sub>)</div><div class="cbox">';
-  dcv3+='<div class="mrow"><span class="ceq">B<sub>v3</sub> =</span> 2.5 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 2.5&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv3)+' kips</span></div>';
+  var dcv3='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-6 &mdash; Shear: Anchor Pryout</div><div class="cbox">';
+  dcv3+='<div class="mrow"><span class="ceq">B<sub>v3</sub> =</span> B<sub>vpry</sub> = 2.0 B<sub>ab</sub> = 2.5 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 2.5&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv3)+' kips</span></div>';
   dcv3+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv3))+' = <span class="cval">'+f3(dc_Bv3)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Masonry Cone B<sub>v3</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
+  ckC({n:'Shear &mdash; Pryout B<sub>v3</sub>',r:'TMS 402-22 Eq 8-6',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
 
   // Bv4
   var dcv4='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Steel Shear Failure</div><div class="cbox">';
@@ -678,8 +698,8 @@ function runCalcs(){
     {v:f3(S_ft*bv)+' kips',l:'Shear per Fastener\nS\u00D7b\u1D65 (unfactored)',cls:'dem-card'},
     {v:f3(k_ASD*Va)+' kips',l:'Factored Demand\nk\u00D7S\u00D7b\u1D65'+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
     {v:f3(Bv1)+' kips',l:'Bv1 Masonry\nBreakout',cls:dc_Bv1<=1?'dem-card ok':'dem-card bad'},
-    {v:f3(Bv2)+' kips',l:'Bv2 Pryout\n580(Abf\'m)\u00B9\u141F\u2074',cls:dc_Bv2<=1?'dem-card ok':'dem-card bad'},
-    {v:f3(Bv3)+' kips',l:'Bv3 Masonry\nCone',cls:dc_Bv3<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv2)+' kips',l:'Bv2 Crushing\n580(Abf\'m)\u00B9\u141F\u2074',cls:dc_Bv2<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv3)+' kips',l:'Bv3 Pryout\n2.0B\u2090\u1D47',cls:dc_Bv3<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv4)+' kips',l:'Bv4 Steel\nShear',cls:dc_Bv4<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv)+' kips',l:'Bv Governing\nmin(Bv1..Bv4)',cls:dc_Bv_gov<=1?'dem-card ok':'dem-card bad'},
   ]);
@@ -687,13 +707,13 @@ function runCalcs(){
 
   // ══ CHECK D — COMBINED ═══════════════════════════════════════════════════════
   var pD=dc_combo<=1, chksD=[], maxD=dc_combo;
-  var ddCom='<div class="cref-hdr">TMS 402-22 §8.1.4.3.3 &mdash; Combined Tension and Shear Interaction</div><div class="cbox">';
-  ddCom+='<div class="mrow"><span class="ceq">Interaction =</span>('+fr('S b<sub>a</sub>','B<sub>a</sub>')+')<sup>5/3</sup> + ('+fr('S b<sub>v</sub>','B<sub>v</sub>')+')<sup>5/3</sup> &le; '+f2(combo_limit)+'</div>';
-  ddCom+='<div class="mrow ind">= ('+fr(f3(Ta),f3(Ba))+')<sup>5/3</sup> + ('+fr(f3(Va),f3(Bv))+')<sup>5/3</sup></div>';
-  ddCom+='<div class="mrow ind">= '+f3(Math.pow(Ta/Ba,5.0/3.0))+' + '+f3(Math.pow(Va/Bv,5.0/3.0))+' = <span class="cval">'+f3(combo)+'</span>'+(combo<=combo_limit?' &le; '+f2(combo_limit)+' &#10003;':' > '+f2(combo_limit)+' &#10007;')+'</div>';
-  ddCom+='<div class="mrow"><span class="ceq">Limit:</span>'+(windInc?'1.33 (with &#x2153; increase per IBC 1605.2)':'1.0 (no increase applied)')+'</div>';
+  var ddCom='<div class="cref-hdr">TMS 402-22 §8.1.4.3.3 / Eq 8-8 &mdash; Combined Tension and Shear Interaction</div><div class="cbox">';
+  ddCom+='<div class="mrow"><span class="ceq">Interaction =</span>('+fr('k S b<sub>a</sub>','B<sub>a</sub>')+')<sup>5/3</sup> + ('+fr('k S b<sub>v</sub>','B<sub>v</sub>')+')<sup>5/3</sup> &le; 1.0</div>';
+  ddCom+='<div class="mrow ind">= ('+fr(f3(k_ASD*Ta),f3(Ba))+')<sup>5/3</sup> + ('+fr(f3(k_ASD*Va),f3(Bv))+')<sup>5/3</sup></div>';
+  ddCom+='<div class="mrow ind">= '+f3(Math.pow(k_ASD*Ta/Ba,5.0/3.0))+' + '+f3(Math.pow(k_ASD*Va/Bv,5.0/3.0))+' = <span class="cval">'+f3(combo)+'</span>'+(combo<=combo_limit?' &le; '+f2(combo_limit)+' &#10003;':' > '+f2(combo_limit)+' &#10007;')+'</div>';
+  ddCom+='<div class="mrow"><span class="ceq">k =</span> '+f2(k_ASD)+(windInc?' (&#x2153; increase per IBC 1605.2 applied consistently on demands)':' (no increase applied)')+'</div>';
   ddCom+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(combo),f2(combo_limit))+' = <span class="cval">'+f3(dc_combo)+'</span></div></div>';
-  chksD.push({n:'Combined T+V Interaction',r:'TMS 402-22 §8.1.4.3.3',d:'(S b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup>+(S b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> = '+f3(combo),c:'&le; '+f2(combo_limit),dc:dc_combo,nt:'B<sub>a</sub>='+f3(Ba)+' kips ; B<sub>v</sub>='+f3(Bv)+' kips',pass:pD,info:false,det:ddCom});
+  chksD.push({n:'Combined T+V Interaction',r:'TMS 402-22 Eq 8-8',d:'(kSb<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup>+(kSb<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> = '+f3(combo),c:'&le; '+f2(combo_limit),dc:dc_combo,nt:'B<sub>a</sub>='+f3(Ba)+' kips ; B<sub>v</sub>='+f3(Bv)+' kips',pass:pD,info:false,det:ddCom});
 
   setSummary('sumD',pD,maxD,'Combined Tension + Shear');
   setCards('demD',[
@@ -701,8 +721,8 @@ function runCalcs(){
     {v:f3(Va)+' kips',l:'Shear/Fastener\nS\u00D7b\u1D65',cls:'dem-card'},
     {v:f3(Ba)+' kips',l:'B\u2090 Governing\n(tension capacity)',cls:'dem-card'},
     {v:f3(Bv)+' kips',l:'Bv Governing\n(shear capacity)',cls:'dem-card'},
-    {v:f3(combo),l:'Interaction Sum\n(demand)',cls:'dem-card warn'},
-    {v:f2(combo_limit),l:'Limit\n'+(windInc?'(with \u2153 increase)':'(no increase)'),cls:'dem-card pur'},
+    {v:f3(combo),l:'Interaction Sum\n(k applied'+(windInc?', k=3/4':', k=1')+')',cls:'dem-card warn'},
+    {v:f2(combo_limit),l:'Limit\nEq 8-8',cls:'dem-card pur'},
     {v:f3(dc_combo),l:'D/C Combined\n(= sum / limit)',cls:dc_combo<=0.8?'dem-card ok':dc_combo<=1.0?'dem-card warn':'dem-card bad'},
   ]);
   chksD.forEach(function(c){buildRow(c,'chkD','');});
@@ -725,13 +745,13 @@ function runCalcs(){
   var nl=document.getElementById('notesList');nl.innerHTML='';
   [
     'Design per TMS 402-22 ASD §8.1.4.3. Applies to headed anchor bolts or bent bar anchors (standard hook) fully embedded in grouted masonry.',
-    '<strong>L<sub>be</sub> (edge distance):</strong> Auto-computed as (b &minus; 1.5&#981;)/2, assuming the bolt is centered in the wall thickness with the bolt head bearing from the inside. Override with the manual field if the bolt is positioned differently.',
-    '<strong>A<sub>pt</sub>:</strong> Projected area of the idealized failure cone (hemisphere) on the masonry surface. Reduced for cone overlap when S &lt; 2L (A<sub>seg</sub> removed for each adjacent bolt). (TMS §6.3.2)',
+    '<strong>l<sub>be</sub> (edge distance):</strong> Per TMS §6.3.7, measured from the edge of the masonry to the center of the bolt &mdash; auto-computed as b/2 for a bolt centered in the wall thickness. Override with the manual field if the bolt is positioned differently.',
+    '<strong>A<sub>pt</sub>:</strong> &pi;l<sub>b</sub>&sup2; per Eq 6-5, less the projected area lying outside the masonry (beyond each wall face) and less overlap with adjacent anchors at spacing S (no portion of masonry counted more than once). <strong>A<sub>pv</sub>:</strong> &pi;l<sub>be</sub>&sup2;/2 per Eq 6-6 (half-cone toward the free edge), with the same overlap adjustment. (TMS §6.3.2, §6.3.3)',
     '<strong>Tension (B<sub>a</sub>):</strong> Lesser of masonry breakout (1.25A<sub>pt</sub>&radic;f&prime;<sub>m</sub>) and steel tensile (0.5A<sub>b</sub>F<sub>u</sub>). F<sub>u</sub> capped at min(1.9f<sub>y</sub>, 125 ksi).',
     '<strong>Shear (B<sub>v</sub>):</strong> Minimum of four failure modes: masonry breakout (B<sub>v1</sub>), pryout/crushing (B<sub>v2</sub> = 580(A<sub>b</sub>f&prime;<sub>m</sub>)<sup>0.25</sup>), masonry shear cone (B<sub>v3</sub>), and steel shear (B<sub>v4</sub> = 0.25A<sub>b</sub>F<sub>u</sub>).',
-    '<strong>Combined Check:</strong> (S&middot;b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup> + (S&middot;b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> &le; 1.33 (with &#x2153; increase) or 1.0 (without). Uses unfactored per-fastener loads &mdash; the k factor is applied only to the individual tension and shear checks.',
-    windInc?'&#x2153; allowable stress increase (IBC 1605.2) applied: k = 3/4 on demand for tension and shear checks; combined interaction limit = 1.33.':'No &#x2153; stress increase: k = 1.0; combined limit = 1.0.',
-    'Minimum embedment (TMS §6.3.6): L<sub>b,min</sub> = min(4&#981;, 2&Prime;). For standard 3/4&Prime; bolts: L<sub>b,min</sub> = 2&Prime;.',
+    '<strong>Combined Check (Eq 8-8):</strong> (k&middot;S&middot;b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup> + (k&middot;S&middot;b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> &le; 1.0. The &#x2153; allowable stress increase, when checked, is applied as k = 3/4 on the demands &mdash; consistently in the individual checks and the interaction.',
+    windInc?'&#x2153; allowable stress increase (IBC 1605.2) applied: k = 3/4 on demand for all checks including the combined interaction.':'No &#x2153; stress increase: k = 1.0.',
+    'Minimum embedment (TMS §6.3.6): L<sub>b,min</sub> = <strong>greater</strong> of 4&#981; and 2&Prime;. For 3/4&Prime; bolts: L<sub>b,min</sub> = 3&Prime;.',
   ].forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});
 
   document.getElementById('results').classList.add('show');
@@ -740,6 +760,290 @@ function runCalcs(){
 
 window.onload=function(){autoLbe();autoFu();};
 document.addEventListener('change',function(){autoLbe();autoFu();});
+</script>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.setProperty('display', 'block', 'important');
+      });
+    }
+
+    document.body.setAttribute('data-pm', mode);
+    window.print();
+    document.body.removeAttribute('data-pm');
+
+    if (mode === 'f') {
+      // Restore collapsed state
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+      document.querySelectorAll('.calc-det').forEach(function (el) {
+        el.style.removeProperty('display');
+      });
+    }
+  };
+
+  // ── 7. Init ────────────────────────────────────────────────────────────────
+
+  function init() {
+    injectStyles();
+    injectToolbar();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
 </script>
 </body>
 </html>
