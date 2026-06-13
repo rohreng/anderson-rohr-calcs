@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Column Base Plate Designer — AISC DG1 | ARE</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/are-draw.js"></script>
+<script src="/are-state-loader.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef1f6;min-height:100vh}
@@ -170,6 +172,12 @@ tr.cdet td{padding:0 !important;border-top:2px solid #2a5298 !important;backgrou
     <span class="lg lg-hi">1.00&ndash;1.20</span>
     <span class="lg lg-ng">&gt;1.20 NG</span>
   </div>
+</div>
+
+<!-- ── Parametric schematic (are-draw.js) ──────────────────────────────── -->
+<div id="schemPanel" style="background:#fff;border-bottom:2px solid #d8dde8;padding:10px 16px;display:none">
+  <div style="font-size:11px;font-weight:700;color:#1e3c72;margin-bottom:4px" id="schemLabel">Connection Diagram</div>
+  <svg id="areDia" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-height:340px"></svg>
 </div>
 
 <div class="tbl-wrap">
@@ -415,6 +423,16 @@ function runRow(mid,name){
   var res=calcDesign({name:name,Pu:Pu,Vu:Vu,Mu:Mu,N:N,Bp:Bp,tp:tp,
     Fyp:36,fc:fc,nb:nb,adb:adb,Fut:58,isHSS:isHSS,col_H:col_H,col_B:col_B,
     brace:brace,hef:hef,c_edge:ced,sg:sg});
+
+  // ── Parametric diagram (are-draw.js) — update after every runRow ──────────
+  areDrawSchematic({
+    name:name, stype:type, sn:sn,
+    Pu:Pu, Vu:Vu, Mu:Mu,
+    N:N, Bp:Bp, tp:tp, Fyp:36,
+    nb:nb, adb:adb,
+    fc:fc, hef:hef, c_edge:ced, sg:sg,
+    col_H:col_H, col_B:col_B
+  });
 
   setDC('rBear_'+mid, res.dc_bear);
   setDC('rPlt_'+mid,  res.dc_plt);
@@ -856,6 +874,202 @@ function parseRISA(rows){
   });
   return mjs;
 }
+
+// ── Parametric schematic via are-draw.js ─────────────────────────────────────
+// Called after every runRow() so the diagram reflects the last-run member.
+// 'cfg' is the same object passed to calcDesign().
+function areDrawSchematic(cfg) {
+  var svg = document.getElementById('areDia');
+  if (!svg || !window.AREDraw) return;
+
+  var panel = document.getElementById('schemPanel');
+  var lbl   = document.getElementById('schemLabel');
+
+  // Resolve section label → UPPERCASE AISC_Manual_Label
+  var type = cfg.stype || 'HSS_SQ';
+  var sn   = cfg.sn   || '';
+  var colLabel = '';
+  if (sn) {
+    // Convert lowercase-x keys used by the DB to UPPERCASE AISC_Manual_Label
+    // e.g. "HSS6x6x1/4" → "HSS6X6X1/4"
+    colLabel = sn.replace(/x/g, 'X');
+  }
+
+  // Build resolvedGeometry from the already-resolved col_H/col_B/t dimensions
+  var resolvedGeometry = {};
+  if (colLabel) {
+    if (type === 'HSS_SQ' || type === 'HSS_RECT') {
+      // HSSSQ / HSSRECT entries: [H, B, t_des, ...]
+      var db = (type === 'HSS_SQ') ? HSSSQ : HSSRECT;
+      var D  = db[sn];
+      if (D) {
+        resolvedGeometry[colLabel] = { H: D[0], B: D[1], t: D[2] };
+      }
+    } else if (type === 'W') {
+      // WSEC entries: [d, bf, tf, tw, ...]
+      var Dw = WSEC[sn];
+      if (Dw) {
+        resolvedGeometry[colLabel] = { d: Dw[0], bf: Dw[1], tf: Dw[2], tw: Dw[3] };
+      }
+    }
+  }
+
+  // Build Calc State per spec §3.2 / are-draw-guide §3
+  var state = {
+    schema:   'are.calc.v1',
+    calcType: 'base-plate',
+    member: {
+      type:     'column',
+      section:  colLabel || 'HSS6X6X1/4',
+      material: { Fy: 46 }
+    },
+    demands: {
+      Pu: cfg.Pu || 0,   // kips
+      Vu: cfg.Vu || 0,   // kips
+      Mu: cfg.Mu || 0    // kip-ft (spec §3.2 mandates kip-ft for base-plate)
+    },
+    geometry: {},
+    connection: {
+      plate: {
+        N:   cfg.N   || 12,
+        B:   cfg.Bp  || 12,
+        tp:  cfg.tp  || 0.75,
+        Fyp: cfg.Fyp || 36
+      },
+      anchors: {
+        n:     cfg.nb  || 4,
+        dia:   cfg.adb || 0.75,
+        gauge: cfg.sg  || 9,
+        grade: 'F1554 Gr.36'
+      },
+      concrete: {
+        fc:    cfg.fc    || 3.0,
+        hef:   cfg.hef   || 8,
+        cEdge: cfg.c_edge || 18
+      }
+    }
+  };
+
+  // Note: AREDraw infers anchor pattern from n + gauge as 2 rows × (n/2) per row.
+  // This calc always uses a 2-row pattern (n_rows=2), n_perrow = n/2, so the
+  // renderer's inference matches. nx/ny layout is not exposed separately.
+  AREDraw.renderConnection(svg, state, { resolvedGeometry: resolvedGeometry });
+
+  // Show the panel and update its label
+  if (panel) panel.style.display = 'block';
+  if (lbl)   lbl.textContent = 'Connection Diagram — ' + (cfg.name || '') +
+    ' (' + (colLabel || 'section') + ', ' + (cfg.N || 12) + '′′×' + (cfg.Bp || 12) + '′′ plate)';
+}
+
+// ── Saved-state hydration (are-state-loader.js) ───────────────────────────────
+// Listens for the 'are:stateLoaded' event broadcast by are-state-loader.js.
+// Maps the Calc State fields back to the first matching table row's inputs,
+// then fires runRow() for that member.
+window.addEventListener('are:stateLoaded', function(e) {
+  try {
+    var st = e.detail;
+    if (!st || st.calcType !== 'base-plate') return;
+
+    var cn = st.connection || {};
+    var plate    = cn.plate    || {};
+    var anchors  = cn.anchors  || {};
+    var concrete = cn.concrete || {};
+    var demands  = st.demands  || {};
+    var member   = st.member   || {};
+
+    // Use mark if present, otherwise fall back to first member in the table
+    var mark = (member.mark || '').trim();
+    var targetName = null;
+
+    if (mark && MBR[mark]) {
+      targetName = mark;
+    } else {
+      // Fall back to first key
+      var keys = Object.keys(MBR);
+      if (keys.length > 0) targetName = keys[0];
+    }
+    if (!targetName) return;
+
+    var mid = safeid(targetName);
+
+    // ── Inverse field mapping (Calc State → form inputs) ──────────────────
+    // demands (Pu in kips, Vu in kips, Mu in kip-ft — matches spec exactly)
+    var elPu = document.getElementById('fPu_' + mid);
+    var elVu = document.getElementById('fVu_' + mid);
+    var elMu = document.getElementById('fMu_' + mid);
+    if (elPu && demands.Pu != null) elPu.value = String(demands.Pu);
+    if (elVu && demands.Vu != null) elVu.value = String(demands.Vu);
+    if (elMu && demands.Mu != null) elMu.value = String(demands.Mu);
+
+    // plate geometry
+    var elN  = document.getElementById('iN_'  + mid);
+    var elB  = document.getElementById('iB_'  + mid);
+    var eltp = document.getElementById('itp_' + mid);
+    if (elN  && plate.N  != null) elN.value  = String(plate.N);
+    if (elB  && plate.B  != null) elB.value  = String(plate.B);
+    if (eltp && plate.tp != null) eltp.value = String(plate.tp);
+
+    // anchors
+    var elN2  = document.getElementById('in_'   + mid);
+    var elSg  = document.getElementById('isg_'  + mid);
+    var elBd  = document.getElementById('bdia_' + mid);
+    if (elN2  && anchors.n     != null) elN2.value = String(anchors.n);
+    if (elSg  && anchors.gauge != null) elSg.value = String(anchors.gauge);
+    if (elBd  && anchors.dia   != null) {
+      // Set select to closest matching value
+      var opts = elBd.options;
+      for (var i = 0; i < opts.length; i++) {
+        if (Math.abs(parseFloat(opts[i].value) - anchors.dia) < 0.001) {
+          elBd.selectedIndex = i;
+          break;
+        }
+      }
+    }
+
+    // concrete
+    var elFc  = document.getElementById('ifc_'  + mid);
+    var elHef = document.getElementById('ihef_' + mid);
+    var elCed = document.getElementById('iced_' + mid);
+    if (elFc  && concrete.fc    != null) elFc.value  = String(concrete.fc);
+    if (elHef && concrete.hef   != null) elHef.value = String(concrete.hef);
+    if (elCed && concrete.cEdge != null) elCed.value = String(concrete.cEdge);
+
+    // member section — try to match state.member.section to the dropdowns
+    // state section is UPPERCASE (e.g. "HSS6X6X1/4"); DB keys use lowercase-x
+    var secLabel = (member.section || '').toUpperCase();
+    // Convert UPPERCASE AISC label back to lowercase-x DB key
+    var dbKey = secLabel.replace(/X/g, 'x');
+    var matchType = null;
+    if (HSSSQ[dbKey])   matchType = 'HSS_SQ';
+    else if (HSSRECT[dbKey]) matchType = 'HSS_RECT';
+    else if (WSEC[dbKey])    matchType = 'W';
+
+    if (matchType) {
+      var elType = document.getElementById('stype_' + mid);
+      if (elType) {
+        elType.value = matchType;
+        onTypeChange(mid);  // rebuild section dropdown for the new type
+      }
+      var elSec = document.getElementById('ssec_' + mid);
+      if (elSec) {
+        elSec.value = dbKey;
+        onSecChange(mid);   // auto-size N/B/sg from section
+        // Re-apply saved plate dims (onSecChange may have overwritten them)
+        if (elN  && plate.N  != null) elN.value  = String(plate.N);
+        if (elB  && plate.B  != null) elB.value  = String(plate.B);
+        if (elSg && anchors.gauge != null) elSg.value = String(anchors.gauge);
+      }
+    }
+
+    // Scroll the target row into view and trigger recalc
+    var rowEl = document.getElementById('row_' + mid);
+    if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    runRow(mid, targetName);
+
+  } catch (err) {
+    console.warn('[base-plate] are:stateLoaded hydration error:', err);
+  }
+});
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 buildTable();

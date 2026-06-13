@@ -77,7 +77,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <div class="content">
 
     <div class="schema-wrap">
-      <svg id="areSchemSvg" viewBox="0 0 720 280" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="areSchemSvg" width="100%" style="max-height:340px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
 
     <div class="blk" style="border-left-color:#16a34a">
@@ -298,85 +298,36 @@ function hint(){
 // ============ LIVE SCHEMATIC ============
 function areDrawSchematic(){
   var svg=document.getElementById('areSchemSvg'); if(!svg) return;
-  var ws=document.getElementById('wsec')?document.getElementById('wsec').value:'';
-  var hs=document.getElementById('hsec')?document.getElementById('hsec').value:'';
-  var W=(ws&&W_DB[ws])?W_DB[ws]:[16.8,16.43,7.12,0.715,0.43];
-  var H=(hs&&H_DB[hs])?H_DB[hs]:[16.9,10,10,0.465];
-  var d=W[1], bf=W[2], tf=W[3];
-  var B=H[2], t=H[3];
-  var MuEl=document.getElementById('Mu');
-  var Mu=MuEl?(+MuEl.value):0;
-  var flat=B-3*t;
-  var s='';
-  // ---- Elevation (left) ----
-  var sc=Math.min(120/Math.max(d,1), 70/Math.max(B,1));
-  sc=Math.max(Math.min(sc,14),2.2);
-  var colW=Math.max(B*sc,16), bmD=Math.max(d*sc,22);
-  var colX=180-colW/2, colT=38, colBtm=252;
-  var bmY=145-bmD/2, bmX=colX+colW, bmL=150;
-  var tfPx=Math.max(Math.min(tf*sc,bmD*0.25),3);
-  s+='<defs><marker id="arR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-    +'<marker id="arG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker></defs>';
-  s+='<text x="180" y="20" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Elevation</text>';
-  s+='<rect x="'+colX+'" y="'+colT+'" width="'+colW+'" height="'+(colBtm-colT)+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<text x="'+(colX+colW/2)+'" y="'+(colBtm+14)+'" font-size="11" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">'+(hs||'HSS Column')+'</text>';
-  // beam (designed element highlighted)
-  s+='<rect x="'+bmX+'" y="'+bmY+'" width="'+bmL+'" height="'+bmD+'" fill="#fde68a" stroke="#1a2b5f" stroke-width="1.5"/>';
-  s+='<rect x="'+bmX+'" y="'+bmY+'" width="'+bmL+'" height="'+tfPx+'" fill="#1a2b5f"/>';
-  s+='<rect x="'+bmX+'" y="'+(bmY+bmD-tfPx)+'" width="'+bmL+'" height="'+tfPx+'" fill="#1a2b5f"/>';
-  s+='<text x="'+(bmX+bmL/2)+'" y="'+(bmY+bmD/2+4)+'" font-size="11" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">'+(ws||'W-Beam')+'</text>';
-  // beam depth dim (green) right of beam
-  var dx=bmX+bmL+14;
-  s+='<line x1="'+dx+'" y1="'+bmY+'" x2="'+dx+'" y2="'+(bmY+bmD)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-  s+='<line x1="'+(bmX+bmL)+'" y1="'+bmY+'" x2="'+(dx+4)+'" y2="'+bmY+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<line x1="'+(bmX+bmL)+'" y1="'+(bmY+bmD)+'" x2="'+(dx+4)+'" y2="'+(bmY+bmD)+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<text x="'+(dx+6)+'" y="'+(bmY+bmD/2+4)+'" font-size="11" fill="#1a7a4a" font-family="sans-serif">d = '+d+'"</text>';
-  // flange force arrows (horizontal): top compression into column, bottom tension away
-  var fy1=bmY+tfPx/2, fy2=bmY+bmD-tfPx/2;
-  s+='<line x1="'+(bmX+70)+'" y1="'+fy1+'" x2="'+(bmX+8)+'" y2="'+fy1+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-  s+='<text x="'+(bmX+74)+'" y="'+(fy1-6)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">P_uf (C)</text>';
-  s+='<line x1="'+(bmX+8)+'" y1="'+fy2+'" x2="'+(bmX+70)+'" y2="'+fy2+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-  s+='<text x="'+(bmX+74)+'" y="'+(fy2+14)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">P_uf (T)</text>';
-  // moment arc
-  var mcx=bmX+bmL-30, mcy=bmY+bmD/2;
-  s+='<path d="M '+(mcx-16)+' '+(mcy+14)+' A 20 20 0 1 1 '+(mcx+16)+' '+(mcy+14)+'" fill="none" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-  s+='<text x="'+mcx+'" y="'+(mcy-24)+'" font-size="11" fill="#c42b2b" text-anchor="middle" font-family="sans-serif">M_u = '+(isFinite(Mu)?Mu:'?')+' k-ft</text>';
-  // ---- HSS cross-section (right) ----
-  s+='<text x="545" y="20" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">HSS Cross Section</text>';
-  var side=150, cx=545, cy=140;
-  var x0=cx-side/2, y0=cy-side/2;
-  var twPx=Math.max(Math.min(t/B*side,side*0.2),3);
-  s+='<rect x="'+x0+'" y="'+y0+'" width="'+side+'" height="'+side+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<rect x="'+(x0+twPx)+'" y="'+(y0+twPx)+'" width="'+(side-2*twPx)+'" height="'+(side-2*twPx)+'" fill="#fff" stroke="#1a2b5f" stroke-width="1"/>';
-  // beam flange plate proportionally bf/B wide, on face (top), highlighted
-  var r=Math.min(Math.max(bf/B,0.08),1.35);
-  var bfPx=r*side;
-  s+='<rect x="'+(cx-bfPx/2)+'" y="'+(y0-10)+'" width="'+bfPx+'" height="10" fill="#fde68a" stroke="#1a2b5f" stroke-width="1.2"/>';
-  s+='<text x="'+cx+'" y="'+(y0-16)+'" font-size="11" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">beam flange b_f</text>';
-  // dim: bp = bf (green) inside top of section
-  var dy1=y0+30;
-  s+='<line x1="'+(cx-bfPx/2)+'" y1="'+dy1+'" x2="'+(cx+bfPx/2)+'" y2="'+dy1+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-  s+='<line x1="'+(cx-bfPx/2)+'" y1="'+y0+'" x2="'+(cx-bfPx/2)+'" y2="'+(dy1+3)+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<line x1="'+(cx+bfPx/2)+'" y1="'+y0+'" x2="'+(cx+bfPx/2)+'" y2="'+(dy1+3)+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<text x="'+cx+'" y="'+(dy1+14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">b_p = b_f = '+bf+'"</text>';
-  // dim: flat width = B - 3t (inside, lower)
-  var flPx=Math.min(Math.max(flat/B,0.05),1)*side;
-  var dy2=y0+side-32;
-  s+='<line x1="'+(cx-flPx/2)+'" y1="'+dy2+'" x2="'+(cx+flPx/2)+'" y2="'+dy2+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-  s+='<text x="'+cx+'" y="'+(dy2+14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">flat = B−3t = '+flat.toFixed(2)+'"</text>';
-  // dim: B (below section)
-  var dy3=y0+side+16;
-  s+='<line x1="'+x0+'" y1="'+dy3+'" x2="'+(x0+side)+'" y2="'+dy3+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-  s+='<line x1="'+x0+'" y1="'+(y0+side)+'" x2="'+x0+'" y2="'+(dy3+3)+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<line x1="'+(x0+side)+'" y1="'+(y0+side)+'" x2="'+(x0+side)+'" y2="'+(dy3+3)+'" stroke="#1a7a4a" stroke-width="0.8"/>';
-  s+='<text x="'+cx+'" y="'+(dy3+14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">B = '+B+'"  (t = '+t+'")</text>';
-  // wall thickness callout
-  s+='<line x1="'+(x0+side+10)+'" y1="'+(cy)+'" x2="'+(x0+side-twPx/2)+'" y2="'+cy+'" stroke="#94a3b8" stroke-width="1"/>';
-  s+='<text x="'+(x0+side+13)+'" y="'+(cy+4)+'" font-size="11" fill="#64748b" font-family="sans-serif">t = '+t+'"</text>';
-  svg.innerHTML=s;
+  if(!window.AREDraw) return; // library not yet loaded — will retry on next input change
+
+  var wsRaw=document.getElementById('wsec')?document.getElementById('wsec').value:'';
+  var hsRaw=document.getElementById('hsec')?document.getElementById('hsec').value:'';
+  var wKey=wsRaw.toUpperCase(); // → AISC_Manual_Label e.g. 'W16X57'
+  var hKey=hsRaw.toUpperCase(); // → AISC_Manual_Label e.g. 'HSS10X10X1/2'
+
+  // Resolve geometry from the calc's own DB (preferred over label-parser fallback)
+  var W=W_DB[wsRaw]||null;
+  var H=H_DB[hsRaw]||null;
+  var resolvedGeometry={};
+  if(W) resolvedGeometry[wKey]={d:W[1], bf:W[2], tf:W[3], tw:W[4]};
+  if(H) resolvedGeometry[hKey]={H:H[1], B:H[2], t:H[3]};
+
+  var Fyb=+document.getElementById('Fyb').value||50;
+  var Fy=+document.getElementById('Fy').value||46;
+  var Mu=+(document.getElementById('Mu').value)||0;
+
+  var state={
+    schema:'are.calc.v1',
+    calcType:'w-to-hss-column',
+    member:{ type:'beam', section:wKey||'W16X57', material:{ Fy:Fyb } },
+    demands:{ Mu:Mu },             // kip-ft per spec §4.1
+    connection:{ column:{ section:hKey||'HSS10X10X1/2', Fy:Fy }, beamFy:Fyb }
+  };
+
+  AREDraw.renderConnection(svg, state, { resolvedGeometry:resolvedGeometry });
 }
 (function(){
-  ['wsec','hsec','Mu'].forEach(function(id){
+  ['wsec','hsec','Mu','Fyb','Fy'].forEach(function(id){
     var el=document.getElementById(id);
     if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
   });
@@ -519,9 +470,99 @@ function runCalc(){
 // Alias so are-utils Load/import can auto-run (skip if nothing selected yet)
 function runCalcs(){ if(document.getElementById('wsec').value && document.getElementById('hsec').value) runCalc(); }
 </script>
+<script src="/are-draw.js"></script>
+<script src="/are-state-loader.js"></script>
 <script src="/are-utils-v2.js"></script>
 <script>
 (function(){ function reg(){ if(window.AREv2){ AREv2.acceptImports({moment:{field:'Mu', unit:'kip-ft'}}); } else setTimeout(reg,150); } reg(); })();
+</script>
+<script>
+// ============ SAVED-STATE HYDRATION ============
+// Listens for the 'are:stateLoaded' event fired by are-state-loader.js when
+// the page is opened with ?id=<uuid>. Maps Calc State fields back to this
+// calc's inputs, then triggers a redraw + recalc.
+// All mapping is guarded in try/catch so a malformed state cannot break
+// a fresh page load.
+(function(){
+  // Helper: find a DB key case-insensitively given an UPPERCASE AISC label
+  function findDbKey(db, upperLabel){
+    // Try exact match first (in case DB ever gains uppercase keys)
+    if(db[upperLabel]) return upperLabel;
+    // DB keys use lowercase-x (e.g. 'W16x57', 'HSS10x10x1/2')
+    // Build lowercase version of the label and try that
+    var lower = upperLabel.toLowerCase().replace(/x/g,'x');
+    if(db[lower]) return lower;
+    // Brute-force case-insensitive scan as final fallback
+    var keys=Object.keys(db);
+    for(var i=0;i<keys.length;i++){
+      if(keys[i].toUpperCase()===upperLabel) return keys[i];
+    }
+    return null;
+  }
+
+  function setVal(id, val){
+    var el=document.getElementById(id);
+    if(el && val!==null && val!==undefined) el.value=val;
+  }
+
+  function hydrate(state){
+    try{
+      // --- member (W-beam) ---
+      var wSection=(state.member&&state.member.section)?state.member.section.toUpperCase():null;
+      if(wSection){
+        var wKey=findDbKey(W_DB, wSection);
+        if(wKey) setVal('wsec', wKey);
+      }
+
+      // --- beam Fy ---
+      if(state.member&&state.member.material&&state.member.material.Fy!=null){
+        setVal('Fyb', state.member.material.Fy);
+      }
+
+      // --- connection block ---
+      var conn=state.connection||{};
+
+      // HSS column section
+      var hSection=(conn.column&&conn.column.section)?conn.column.section.toUpperCase():null;
+      if(hSection){
+        var hKey=findDbKey(H_DB, hSection);
+        if(hKey) setVal('hsec', hKey);
+      }
+
+      // HSS column Fy
+      if(conn.column&&conn.column.Fy!=null){
+        setVal('Fy', conn.column.Fy);
+      }
+
+      // beamFy override (if present and no member.material.Fy)
+      if(conn.beamFy!=null){
+        setVal('Fyb', conn.beamFy);
+      }
+
+      // --- demands: Mu in kip-ft ---
+      if(state.demands&&state.demands.Mu!=null){
+        setVal('Mu', state.demands.Mu);
+      }
+
+      // Refresh section hints and redraw
+      if(typeof hint==='function') hint();
+      // Auto-run calc if both sections are now selected
+      if(typeof runCalcs==='function') runCalcs();
+
+    }catch(err){
+      if(window.console&&console.warn){
+        console.warn('[are-state-loader hydration]', err);
+      }
+    }
+  }
+
+  window.addEventListener('are:stateLoaded', function(e){
+    try{ hydrate(e.detail); }catch(err){
+      if(window.console&&console.warn) console.warn('[are:stateLoaded]', err);
+    }
+  });
+})();
+// ============ END SAVED-STATE HYDRATION ============
 </script>
 </body>
 </html>

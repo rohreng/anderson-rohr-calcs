@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AREDraw — Diagram Library Dev / QA</title>
+<!--
+  UNREGISTERED dev/QA page for the are-draw.js parametric SVG library.
+  This page is NOT wired into app/lib/calcs.ts and is not a production calc.
+  It inlines the three flagship example Calc States (from docs/examples) plus a
+  member example, renders each diagram with AREDraw, and labels them so the
+  review agent can eyeball the output, toggle dark mode, and sanity-check that
+  every renderer produces a clean, to-scale, annotated SVG.
+
+  Open directly:  /dev/are-draw-demo.html
+-->
+<style>
+  :root{
+    --navy-deep:#0f1a3a; --navy:#1a2b5f; --navy-mid:#2e4a8a;
+    --bg:#f7f6f3; --surface:#ffffff; --border:rgba(26,43,95,.12);
+    --text:#2b2b2b; --muted:#6b7a96; --ok:#1a7a4a; --warn:#c47d0e;
+    --font:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:var(--font)}
+  body.dark{--bg:#0e1428;--surface:#161d36;--text:#e6e9f2;--muted:#9aa6c2;--border:rgba(200,210,240,.16)}
+  header{
+    background:linear-gradient(120deg,var(--navy-deep),var(--navy) 65%,var(--navy-mid));
+    color:#fff;border-radius:12px;padding:20px 26px;margin-bottom:20px;
+    display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  }
+  header h1{font-size:1.25rem;margin:0 0 3px}
+  header p{margin:0;font-size:.85rem;opacity:.82}
+  header .meta{font-size:.72rem;opacity:.7;font-family:'Courier New',monospace;margin-top:6px}
+  .toggle{display:flex;gap:10px;align-items:center}
+  .toggle button{
+    background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.22);color:#fff;
+    border-radius:20px;padding:7px 16px;font-size:.8rem;cursor:pointer;font-family:inherit;
+  }
+  .toggle button:hover{background:rgba(255,255,255,.24)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:18px}
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-left:3px solid var(--navy-mid);border-radius:12px;
+    box-shadow:0 1px 3px rgba(15,26,58,.07),0 4px 14px rgba(15,26,58,.05);
+    padding:16px 18px;display:flex;flex-direction:column;
+  }
+  .card h2{
+    font-size:.82rem;font-weight:700;color:var(--navy);text-transform:uppercase;
+    letter-spacing:.06em;margin:0 0 4px;display:flex;align-items:center;gap:8px;
+  }
+  body.dark .card h2{color:#9fb4e8}
+  .card .slug{font-size:.68rem;font-family:'Courier New',monospace;color:var(--muted);background:rgba(26,43,95,.07);padding:2px 8px;border-radius:12px}
+  .card .sub{font-size:.78rem;color:var(--muted);margin:0 0 10px}
+  .frame{
+    background:#fff;border:1px solid var(--border);border-radius:8px;
+    padding:6px;min-height:240px;display:flex;align-items:center;justify-content:center;
+  }
+  body.dark .frame{background:#0c1124}
+  .frame svg{width:100%;height:auto;max-height:360px;display:block}
+  .err{color:#c42b2b;font-size:.8rem;padding:14px;font-family:'Courier New',monospace}
+  footer{margin-top:22px;font-size:.74rem;color:var(--muted);text-align:center}
+  code{background:rgba(26,43,95,.08);padding:1px 5px;border-radius:4px;font-size:.92em}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>AREDraw — Parametric SVG Diagram Library</h1>
+    <p>Track 1 dev / QA surface · renders Calc State examples through the shared renderer.</p>
+    <div class="meta" id="ver">are-draw.js loading…</div>
+  </div>
+  <div class="toggle">
+    <button id="btnDark">Toggle dark</button>
+    <button id="btnReload">Re-render</button>
+  </div>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>
+  Unregistered dev page — not in <code>app/lib/calcs.ts</code>. Source: <code>/public/are-draw.js</code>,
+  examples mirror <code>/docs/examples/*.json</code>.
+</footer>
+
+<!-- The library under test -->
+<script src="/are-draw.js"></script>
+
+<script>
+/* ----------------------------------------------------------------------------
+ * Inlined Calc States (mirrors docs/examples/*.json + one generic member case).
+ * Kept inline so the page renders even when opened as a bare file:// URL.
+ * --------------------------------------------------------------------------*/
+var EXAMPLES = [
+  {
+    title: 'W-Beam → HSS Column',
+    slug: 'w-to-hss-column',
+    sub: 'Directly-welded flange-couple moment connection (DG24 Ex 4.3 · §K1.3 Eq. K1-7).',
+    render: 'connection',
+    state: {
+      schema: 'are.calc.v1', calcType: 'w-to-hss-column',
+      id: '8f1c534e-2738-4a1d-b014-b651779bebc4',
+      member: { mark: 'B-12', type: 'beam', section: 'W16X57', material: { Fy: 50, E: 29000 } },
+      demands: { Mu: 60, Vu: null, Pu: null },
+      geometry: { L: null, Lb: null, Cb: null },
+      connection: { column: { section: 'HSS10X10X1/2', Fy: 46 }, beamFy: 50 },
+      results: { governing: 'HSS Wall Local Yielding (AISC 360-22 Eq. K1-7)', dcr: null, status: 'PENDING' }
+    }
+  },
+  {
+    title: 'Column Base Plate',
+    slug: 'base-plate',
+    sub: 'Plan + elevation · plate / anchor pattern / column footprint (DG1 + ACI 318-19 Ch.17).',
+    render: 'connection',
+    state: {
+      schema: 'are.calc.v1', calcType: 'base-plate',
+      id: '44067003-4420-46de-89fb-807f6d998838',
+      member: { mark: 'C-5', type: 'column', section: 'HSS6X6X1/4', material: { Fy: 46, E: 29000 } },
+      demands: { Pu: 53.22, Vu: 0.45, Mu: 0.18 },
+      geometry: {},
+      connection: {
+        plate: { N: 14, B: 14, tp: 0.75, Fyp: 36 },
+        anchors: { n: 4, dia: 0.75, gauge: 11, grade: 'F1554 Gr.36' },
+        concrete: { fc: 3, hef: 8, cEdge: 18 }
+      },
+      results: { governing: null, dcr: null, status: 'PENDING' }
+    }
+  },
+  {
+    title: 'HSS-to-HSS Branch (rect-moment T)',
+    slug: 'hss-to-hss-branch',
+    sub: 'Branch → chord · moment carried in kip-IN (note the unit gotcha) · §K / DG24.',
+    render: 'connection',
+    state: {
+      schema: 'are.calc.v1', calcType: 'hss-to-hss-branch',
+      id: 'd5513733-b590-4fd3-b55b-aa019f1d60cc',
+      member: { mark: 'T-3-BR', type: 'brace', section: 'HSS12X4X3/8', material: { Fy: 46, E: 29000 } },
+      demands: { Pu: 20, Vu: 15, Mu: 600, Mu_op: 0 },
+      geometry: {},
+      connection: {
+        subType: 'rect-moment', connType: 'T',
+        chord: { section: 'HSS4X4X3/8', Fy: 46 },
+        branchFy: 46, theta: 90, Qf: 1.00, orient: 'H', gap: null, overlap: null
+      },
+      results: { governing: null, dcr: null, status: 'PENDING' }
+    }
+  },
+  {
+    title: 'Generic Member — W18×50 beam',
+    slug: 'member (renderMember)',
+    sub: 'Elevation + section + shear/moment diagram · simple-span UDL back-figured from Mu.',
+    render: 'member',
+    state: {
+      schema: 'are.calc.v1', calcType: 'member',
+      member: { mark: 'B-1', type: 'beam', section: 'W18X50', material: { Fy: 50, E: 29000 } },
+      demands: { Mu: 120, Vu: 24, Pu: null },
+      geometry: { L: 240, Lb: 96, Cb: 1.0 }
+    }
+  }
+];
+
+/* Optionally register the bundled W/M/S/HP shape DB so W-shapes use exact
+ * geometry. HSS still resolve via the label parser (no HSS in the JSON). */
+function loadShapeDBThen(cb){
+  try {
+    fetch('/data/aisc-shapes-v16.json')
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(db){ if (db) AREDraw.setShapeDB(db); cb(); })
+      .catch(function(){ cb(); });
+  } catch (e) { cb(); }
+}
+
+function renderAll(){
+  var dark = document.body.classList.contains('dark');
+  var grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  EXAMPLES.forEach(function(ex){
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>' + ex.title + ' <span class="slug">' + ex.slug + '</span></h2>' +
+      '<p class="sub">' + ex.sub + '</p>' +
+      '<div class="frame"></div>';
+    grid.appendChild(card);
+    var frame = card.querySelector('.frame');
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    frame.appendChild(svg);
+    try {
+      if (ex.render === 'member') AREDraw.renderMember(svg, ex.state, { dark: dark });
+      else AREDraw.renderConnection(svg, ex.state, { dark: dark });
+    } catch (err) {
+      frame.removeChild(svg);
+      var e = document.createElement('div');
+      e.className = 'err';
+      e.textContent = 'Render error: ' + (err && err.message);
+      frame.appendChild(e);
+      if (window.console) console.error(ex.slug, err);
+    }
+  });
+  document.getElementById('ver').textContent =
+    'AREDraw v' + AREDraw.VERSION + ' · ' + EXAMPLES.length + ' diagrams · ' + (dark ? 'dark' : 'light');
+}
+
+document.getElementById('btnDark').addEventListener('click', function(){
+  document.body.classList.toggle('dark'); renderAll();
+});
+document.getElementById('btnReload').addEventListener('click', renderAll);
+
+loadShapeDBThen(renderAll);
+</script>
+</body>
+</html>

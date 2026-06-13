@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HSS-to-HSS Connections — AISC 360-22 Ch. K / DG24</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/are-draw.js"></script>
+<script src="/are-state-loader.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
@@ -90,7 +92,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <!-- ===================== RECTANGULAR MOMENT ===================== -->
   <div class="tabpane active" id="pane_rm">
     <div class="schema-wrap">
-      <svg id="rm_svg" viewBox="0 0 720 290" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="rm_svg" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="blk"><h2>Chord (column) &amp; Branch (beam) <span class="badge">A500</span></h2>
       <div class="g3">
@@ -125,7 +127,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <!-- ===================== ROUND MOMENT ===================== -->
   <div class="tabpane" id="pane_rd">
     <div class="schema-wrap">
-      <svg id="rd_svg" viewBox="0 0 720 250" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="rd_svg" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="blk"><h2>Round Chord &amp; Branch <span class="badge">A500</span></h2>
       <div class="g3">
@@ -158,7 +160,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <!-- ===================== TRUSS (AXIAL) ===================== -->
   <div class="tabpane" id="pane_tr">
     <div class="schema-wrap">
-      <svg id="tr_svg" viewBox="0 0 720 240" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="tr_svg" width="100%" style="max-height:300px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="blk"><h2>Geometry &amp; Members</h2>
       <div class="g3">
@@ -295,133 +297,140 @@ function rmHint(){var c=HSS[document.getElementById('rm_ch').value],b=HSS[docume
   var g=rmGeom(b,document.getElementById('rm_orient').value);
   document.getElementById('rm_hint').innerHTML='Chord B='+c.B+'", H='+c.H+'", t='+f3(c.t)+'" | Branch Bb='+g.Bb+'", Hb='+g.Hb+'", Zip='+f1(g.Zip)+', Zop='+f1(g.Zop)+' | &beta;='+f3(g.Bb/c.B);}
 
-/* ============ LIVE SCHEMATICS ============ */
+/* ============ LIVE SCHEMATICS — AREDraw parametric SVG library ============ */
 function gnum(id,d){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isFinite(v)?v:d;}
-function svgDefs(p){return '<defs><marker id="'+p+'aR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
- +'<marker id="'+p+'aG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker></defs>';}
+
+/* Build resolvedGeometry for the renderer from the calc's own HSS data.
+   Rect HSS dict is { H, B, t, ... }, round HSS dict is { D, t, ... }.
+   The renderer accepts { H, B, t } for rect and { OD, t } for round. */
+function makeRectGeom(key){var g=HSS[key]; if(!g)return null; return {H:g.H,B:g.B,t:g.t};}
+function makeRoundGeom(key){var g=HSSR[key]; if(!g)return null; return {OD:g.D,t:g.t};}
+
+/* Map an AISC_Manual_Label (uppercase needed) from a dropdown value (which
+   uses lowercase-x in the fallback dict keys, e.g. "HSS4x4x3/8").
+   The label parser in are-draw.js expects UPPERCASE. */
+function toLabel(k){return k.toUpperCase();}
+
 function drawRM(){
-  var svg=document.getElementById('rm_svg'); if(!svg)return;
-  var C=HSS[document.getElementById('rm_ch').value]||{B:10,H:10,t:.5}, BR=HSS[document.getElementById('rm_br').value]||{B:6,H:6,t:.375,Zx:1,Zy:1};
-  var g; try{g=rmGeom(BR,document.getElementById('rm_orient').value);}catch(e){g={Bb:BR.B,Hb:BR.H};}
-  var Bch=C.B,Hch=C.H,t=C.t,Bb=g.Bb,Hb=g.Hb;
-  var Pu=gnum('rm_Pu',0),Vu=gnum('rm_Vu',0),Mip=gnum('rm_Mip',0),th=gnum('rm_th',90);
-  var beta=Bb/Bch;
-  var s=svgDefs('rm')+'<defs><marker id="rmaM" markerWidth="9" markerHeight="9" refX="4" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker></defs>';
-  s+='<text x="250" y="18" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Rectangular branch on HSS chord (elevation)</text>';
-  // elevation: chord vertical, branch horizontal; widths proportional Hch vs Hb
-  var sc=Math.min(64/Math.max(Hch,1),96/Math.max(Hb,1),12); sc=Math.max(sc,3.5);
-  var cw=Math.max(Hch*sc,20), bh=Math.max(Hb*sc,16);
-  var cx=150, cT=40, cB=270;
-  s+='<rect x="'+(cx-cw/2)+'" y="'+cT+'" width="'+cw+'" height="'+(cB-cT)+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<text x="'+cx+'" y="'+(cB+14)+'" font-size="11" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">'+document.getElementById('rm_ch').value+' chord</text>';
-  var by=155-bh/2, bx=cx+cw/2, bl=250;
-  s+='<rect x="'+bx+'" y="'+by+'" width="'+bl+'" height="'+bh+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
-  s+='<text x="'+(bx+bl/2)+'" y="'+(155+4)+'" font-size="11" text-anchor="middle" fill="#92400e" font-family="sans-serif">'+document.getElementById('rm_br').value+' branch</text>';
-  s+='<text x="'+(bx+18)+'" y="'+(by-8)+'" font-size="11" fill="#1a2b5f" font-family="sans-serif">&#952; = '+th+'&#176;</text>';
-  // Hb dim
-  var dxx=bx+bl+14;
-  s+='<line x1="'+dxx+'" y1="'+by+'" x2="'+dxx+'" y2="'+(by+bh)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#rmaG)" marker-end="url(#rmaG)"/>';
-  s+='<text x="'+(dxx+5)+'" y="'+(155+4)+'" font-size="11" fill="#1a7a4a" font-family="sans-serif">Hb='+Hb+'"</text>';
-  // loads at branch end: V down, P along, M arc
-  var ex=bx+bl-40;
-  s+='<line x1="'+ex+'" y1="'+(by-44)+'" x2="'+ex+'" y2="'+(by-6)+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#rmaR)"/><text x="'+(ex+6)+'" y="'+(by-32)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Vu='+Vu+' k</text>';
-  s+='<line x1="'+(bx+bl+8)+'" y1="'+(155+bh/2+22)+'" x2="'+(bx+bl+52)+'" y2="'+(155+bh/2+22)+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#rmaR)"/><text x="'+(bx+bl+8)+'" y="'+(155+bh/2+40)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Pu='+Pu+' k</text>';
-  s+='<path d="M '+(bx+60)+' '+(by+bh+38)+' A 24 24 0 1 1 '+(bx+96)+' '+(by+bh+30)+'" fill="none" stroke="#c42b2b" stroke-width="2" marker-end="url(#rmaM)"/><text x="'+(bx+46)+'" y="'+(by+bh+58)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Mu,ip='+Mip+' k-in</text>';
-  // cross-section: chord face B with branch Bb
-  s+='<text x="590" y="40" font-size="12" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Section: Bb on B</text>';
-  var side=Math.min(150,Math.max(Bch*9,70)); var sx=590-side/2, sy=70;
-  var bbw=Math.min(Math.max(beta,0.08),1)*side;
-  s+='<rect x="'+sx+'" y="'+sy+'" width="'+side+'" height="'+side+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2.5"/>';
-  s+='<rect x="'+(590-bbw/2)+'" y="'+sy+'" width="'+bbw+'" height="'+side+'" fill="#fde68a" stroke="#92400e" stroke-width="1.6" opacity=".8"/>';
-  s+='<line x1="'+(590-bbw/2)+'" y1="'+(sy+side*0.35)+'" x2="'+(590+bbw/2)+'" y2="'+(sy+side*0.35)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#rmaG)" marker-end="url(#rmaG)"/>';
-  s+='<text x="590" y="'+(sy+side*0.35-5)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">Bb='+Bb+'"</text>';
-  s+='<line x1="'+sx+'" y1="'+(sy+side+14)+'" x2="'+(sx+side)+'" y2="'+(sy+side+14)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#rmaG)" marker-end="url(#rmaG)"/>';
-  s+='<text x="590" y="'+(sy+side+28)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">B='+Bch+'"   &#946;='+f3(beta)+'</text>';
-  svg.innerHTML=s;
+  var svg=document.getElementById('rm_svg'); if(!svg||!window.AREDraw)return;
+  var chKey=document.getElementById('rm_ch').value;
+  var brKey=document.getElementById('rm_br').value;
+  var chLbl=toLabel(chKey), brLbl=toLabel(brKey);
+  var ctypeRaw=document.getElementById('rm_ctype').value;  // 'T' or 'X'
+  var connType=(ctypeRaw==='X')?'X':'T';
+  var orient=document.getElementById('rm_orient').value;   // 'H' or 'B'
+  var state={
+    schema:'are.calc.v1', calcType:'hss-to-hss-branch',
+    member:{type:'brace', section:brLbl, material:{Fy:+document.getElementById('rm_Fyb').value||46}},
+    demands:{
+      Pu:gnum('rm_Pu',0), Vu:gnum('rm_Vu',0),
+      Mu:gnum('rm_Mip',0),      // kip-IN per spec §4.1
+      Mu_op:gnum('rm_Mop',0)
+    },
+    geometry:{},
+    connection:{
+      subType:'rect-moment', connType:connType,
+      chord:{section:chLbl, Fy:+document.getElementById('rm_Fy').value||46},
+      branchFy:+document.getElementById('rm_Fyb').value||46,
+      theta:gnum('rm_th',90), Qf:gnum('rm_Qf',1.0),
+      orient:orient, gap:null, overlap:null
+    }
+  };
+  var resolvedGeometry={};
+  var cg=makeRectGeom(chKey); if(cg)resolvedGeometry[chLbl]=cg;
+  var bg=makeRectGeom(brKey); if(bg)resolvedGeometry[brLbl]=bg;
+  AREDraw.renderConnection(svg,state,{resolvedGeometry:resolvedGeometry});
 }
 function drawRD(){
-  var svg=document.getElementById('rd_svg'); if(!svg)return;
-  var C=HSSR[document.getElementById('rd_ch').value]||{D:6,t:.375}, B=HSSR[document.getElementById('rd_br').value]||{D:4,t:.25};
-  var D=C.D,t=C.t,Db=B.D, beta=Db/D, gam=D/(2*t);
-  var Mip=gnum('rd_Mip',0),Pu=gnum('rd_Pu',0),th=gnum('rd_th',90);
-  var sc=Math.min(56/Math.max(D,1),12); sc=Math.max(sc,4);
-  var ch=Math.max(D*sc,26), bw=Math.max(Math.min(Db/D,1)*ch,14);
-  var cy=140;
-  var s=svgDefs('rd')+'<defs><marker id="rdaM" markerWidth="9" markerHeight="9" refX="4" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker></defs>';
-  s+='<text x="360" y="18" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Round HSS branch on round chord (T / Y / X)</text>';
-  s+='<rect x="120" y="'+(cy-ch/2)+'" width="380" height="'+ch+'" rx="'+(ch/2)+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<text x="310" y="'+(cy+ch/2+18)+'" font-size="11" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">'+document.getElementById('rd_ch').value+'  (D='+D+'", t='+f3(t)+'")</text>';
-  var bh2=72;
-  s+='<rect x="'+(310-bw/2)+'" y="'+(cy-ch/2-bh2)+'" width="'+bw+'" height="'+bh2+'" rx="'+(bw/2>14?14:bw/2)+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
-  s+='<text x="310" y="'+(cy-ch/2-bh2-8)+'" font-size="11" text-anchor="middle" fill="#92400e" font-family="sans-serif">'+document.getElementById('rd_br').value+'  (Db='+Db+'")</text>';
-  s+='<path d="M '+(310+bw/2+6)+' '+(cy-ch/2-bh2+12)+' A 30 30 0 0 1 '+(310+bw/2+22)+' '+(cy-ch/2-10)+'" fill="none" stroke="#c42b2b" stroke-width="2.4" marker-end="url(#rdaM)"/>';
-  s+='<text x="'+(310+bw/2+30)+'" y="'+(cy-ch/2-30)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Mr,ip='+Mip+' k-in</text>';
-  if(Pu){s+='<line x1="'+(310-bw/2-14)+'" y1="'+(cy-ch/2-bh2-26)+'" x2="'+(310-bw/2-14)+'" y2="'+(cy-ch/2-bh2+6)+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#rdaR)"/><text x="'+(310-bw/2-150)+'" y="'+(cy-ch/2-bh2-10)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Pu='+Pu+' k</text>';}
-  s+='<line x1="'+(310-bw/2)+'" y1="'+(cy-ch/2-bh2/2)+'" x2="'+(310+bw/2)+'" y2="'+(cy-ch/2-bh2/2)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#rdaG)" marker-end="url(#rdaG)"/>';
-  s+='<text x="555" y="115" font-size="11" fill="#1a2b5f" font-family="sans-serif">&#946; = Db/D = '+f3(beta)+'</text>';
-  s+='<text x="555" y="135" font-size="11" fill="#1a2b5f" font-family="sans-serif">&#947; = D/2t = '+f2(gam)+'</text>';
-  s+='<text x="555" y="155" font-size="11" fill="#1a2b5f" font-family="sans-serif">&#952; = '+th+'&#176;</text>';
-  svg.innerHTML=s;
+  var svg=document.getElementById('rd_svg'); if(!svg||!window.AREDraw)return;
+  var chKey=document.getElementById('rd_ch').value;
+  var brKey=document.getElementById('rd_br').value;
+  var chLbl=toLabel(chKey), brLbl=toLabel(brKey);
+  var ctypeRaw=document.getElementById('rd_ctype').value; // 'TY' or 'X'
+  var connType=(ctypeRaw==='X')?'X':'T';
+  var state={
+    schema:'are.calc.v1', calcType:'hss-to-hss-branch',
+    member:{type:'brace', section:brLbl, material:{Fy:+document.getElementById('rd_Fyb').value||42}},
+    demands:{
+      Pu:gnum('rd_Pu',0),
+      Mu:gnum('rd_Mip',0),      // kip-IN per spec §4.1
+      Mu_op:gnum('rd_Mop',0),
+      Vu:null
+    },
+    geometry:{},
+    connection:{
+      subType:'round-moment', connType:connType,
+      chord:{section:chLbl, Fy:+document.getElementById('rd_Fy').value||42},
+      branchFy:+document.getElementById('rd_Fyb').value||42,
+      theta:gnum('rd_th',90), Qf:gnum('rd_Qf',1.0),
+      orient:'H', gap:null, overlap:null
+    }
+  };
+  var resolvedGeometry={};
+  var cg=makeRoundGeom(chKey); if(cg)resolvedGeometry[chLbl]=cg;
+  var bg=makeRoundGeom(brKey); if(bg)resolvedGeometry[brLbl]=bg;
+  AREDraw.renderConnection(svg,state,{resolvedGeometry:resolvedGeometry});
 }
 function drawTR(){
-  var svg=document.getElementById('tr_svg'); if(!svg)return;
-  var rnd=document.getElementById('tr_fam').value==='R', k=document.getElementById('tr_conn').value;
-  var DB=rnd?HSSR:HSS;
-  var C=DB[document.getElementById('tr_ch').value]||{}, B1=DB[document.getElementById('tr_b1').value]||{}, B2=DB[document.getElementById('tr_b2').value]||{};
-  var cd=rnd?(C.D||6):(C.H||12), b1w=rnd?(B1.D||4):(B1.B||8), b2w=rnd?(B2.D||4):(B2.B||8);
-  var a1=gnum('tr_a1',90), a2=gnum('tr_a2',45), gap=gnum('tr_gap',2), P1=gnum('tr_P1',0), P2=gnum('tr_P2',0);
-  var isK=(k==='KG'||k==='KO');
-  var sc=Math.min(46/Math.max(cd,1),9); sc=Math.max(sc,2.5);
-  var ch=Math.max(cd*sc,26), topY=200-ch, w1=Math.max(b1w*sc,14), w2=Math.max(b2w*sc,14);
-  var s=svgDefs('tr');
-  s+='<text x="360" y="16" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">'+(rnd?'Round':'Rectangular')+' HSS truss connection — '+(k==='TY'?'T/Y':k==='X'?'Cross':k==='KG'?'gapped K':'overlapped K')+'</text>';
-  s+='<rect x="70" y="'+topY+'" width="580" height="'+ch+'" '+(rnd?('rx="'+ch/2+'"'):'')+' fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<text x="360" y="'+(topY+ch/2+4)+'" font-size="10" text-anchor="middle" fill="#1a2b5f" font-family="sans-serif">Chord '+document.getElementById('tr_ch').value+'</text>';
-  function branch(xb,ang,w,col,fill,lbl,Pv,isTension){
-    var r=ang*Math.PI/180, L=110;
-    var dx=Math.cos(r)*L, dy=Math.sin(r)*L;
-    var hw=w/2/Math.sin(Math.max(r,0.3));
-    var x1=xb-hw, x2=xb+hw;
-    var p=[[x1,topY],[x2,topY],[x2-dx+ (0)*1,topY-dy],[x1-dx,topY-dy]];
-    var pts=p.map(function(q){return q[0].toFixed(1)+','+q[1].toFixed(1)}).join(' ');
-    var out='<polygon points="'+pts+'" fill="'+fill+'" stroke="'+col+'" stroke-width="2"/>';
-    var mx=(x1+x2)/2-dx, my=topY-dy;
-    // C4 fix: compression branch arrow points INTO chord; tension branch arrow points AWAY from chord
-    var aFar={x:mx-Math.cos(r)*38, y:my-Math.sin(r)*38}, aNear={x:mx-Math.cos(r)*4, y:my-Math.sin(r)*4};
-    if(isTension){ out+='<line x1="'+aNear.x+'" y1="'+aNear.y+'" x2="'+aFar.x+'" y2="'+aFar.y+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#traR)"/>'; }
-    else { out+='<line x1="'+aFar.x+'" y1="'+aFar.y+'" x2="'+aNear.x+'" y2="'+aNear.y+'" stroke="#c42b2b" stroke-width="2.2" marker-end="url(#traR)"/>'; }
-    out+='<text x="'+(mx-Math.cos(r)*44)+'" y="'+(my-Math.sin(r)*44-4)+'" font-size="11" fill="#c42b2b" text-anchor="middle" font-family="sans-serif">'+Pv+' k</text>';
-    out+='<text x="'+((x1+x2)/2-dx/2+14)+'" y="'+(topY-dy/2)+'" font-size="10" fill="'+col+'" font-family="sans-serif">'+lbl+'</text>';
-    return out;
-  }
-  if(k==='TY'){ s+=branch(330,a1,w1,'#92400e','#fde68a','&#952;='+a1+'&#176;',P1); }
-  else if(k==='X'){
-    s+=branch(330,a1,w1,'#92400e','#fde68a','&#952;='+a1+'&#176;',P1);
-    // mirrored lower branch
-    var r=a1*Math.PI/180,L=70,hw=w1/2/Math.sin(Math.max(r,0.3));
-    s+='<polygon points="'+(330-hw)+','+(topY+ch)+' '+(330+hw)+','+(topY+ch)+' '+(330+hw+Math.cos(r)*L)+','+(topY+ch+Math.sin(r)*L)+' '+(330-hw+Math.cos(r)*L)+','+(topY+ch+Math.sin(r)*L)+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
-  } else {
-    var gpx=k==='KG'?Math.max(Math.min(Math.abs(gap)*sc,90),10):0;
-    var xc=330-gpx/2-20, xt=330+gpx/2+20;
-    s+=branch(xc,a1,w1,'#92400e','#fde68a','comp &#952;1='+a1+'&#176;',P1,false);
-    s+=branch(xt,180-a2,w2,'#1e40af','#bfdbfe','tens &#952;2='+a2+'&#176;',P2,true);
-    if(k==='KG'){
-      s+='<line x1="'+(xc+w1/2/Math.sin(Math.max(a1*Math.PI/180,.3)))+'" y1="'+(topY-8)+'" x2="'+(xt-w2/2/Math.sin(Math.max(a2*Math.PI/180,.3)))+'" y2="'+(topY-8)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#traG)" marker-end="url(#traG)"/>';
-      s+='<text x="330" y="'+(topY-14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">g = '+gap+'"</text>';
-    } else {
-      s+='<text x="330" y="'+(topY-14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">Ov = '+gnum('tr_ov',50)+'%</text>';
+  var svg=document.getElementById('tr_svg'); if(!svg||!window.AREDraw)return;
+  var rnd=document.getElementById('tr_fam').value==='R';
+  var k=document.getElementById('tr_conn').value; // 'TY','X','KG','KO'
+  var connType=(k==='TY')?'T':(k==='X'?'X':(k==='KG'?'KG':'KO'));
+  var chKey=document.getElementById('tr_ch').value;
+  var brKey=document.getElementById('tr_b1').value;
+  var chLbl=toLabel(chKey), brLbl=toLabel(brKey);
+  var gapVal=(k==='KG')?gnum('tr_gap',2):((k==='KO'&&rnd)?gnum('tr_gap',2):null);
+  var ovVal=(k==='KO')?gnum('tr_ov',53):null;
+  var state={
+    schema:'are.calc.v1', calcType:'hss-to-hss-branch',
+    member:{type:'brace', section:brLbl, material:{Fy:+document.getElementById('tr_Fyb').value||46}},
+    demands:{Pu:gnum('tr_P1',0), Vu:null, Mu:null, Mu_op:null},
+    geometry:{},
+    connection:{
+      subType:'truss', connType:connType,
+      chord:{section:chLbl, Fy:+document.getElementById('tr_Fy').value||46},
+      branchFy:+document.getElementById('tr_Fyb').value||46,
+      theta:gnum('tr_a1',90), Qf:gnum('tr_Qf',1.0),
+      orient:'H',
+      gap:gapVal,
+      overlap:ovVal
     }
+  };
+  var resolvedGeometry={};
+  if(rnd){
+    var cg=makeRoundGeom(chKey); if(cg)resolvedGeometry[chLbl]=cg;
+    var bg=makeRoundGeom(brKey); if(bg)resolvedGeometry[brLbl]=bg;
+  } else {
+    var cg=makeRectGeom(chKey); if(cg)resolvedGeometry[chLbl]=cg;
+    var bg=makeRectGeom(brKey); if(bg)resolvedGeometry[brLbl]=bg;
   }
-  svg.innerHTML=s;
+  AREDraw.renderConnection(svg,state,{resolvedGeometry:resolvedGeometry});
 }
-function areDrawSchematic(){ try{drawRM()}catch(e){} try{drawRD()}catch(e){} try{drawTR()}catch(e){} }
+function areDrawSchematic(){
+  /* Only redraw the active tab to avoid hidden SVG sizing glitches. */
+  var act=document.querySelector('.tabpane.active');
+  if(!act)return;
+  try{
+    if(act.id==='pane_rm') drawRM();
+    else if(act.id==='pane_rd') drawRD();
+    else if(act.id==='pane_tr') drawTR();
+  }catch(e){if(window.console)console.warn('[areDrawSchematic]',e);}
+}
 (function(){
-  ['rm_ch','rm_br','rm_orient','rm_th','rm_ctype','rm_Pu','rm_Vu','rm_Mip','rm_Mop',
-   'rd_ch','rd_br','rd_th','rd_ctype','rd_Pu','rd_Mip','rd_Mop',
-   'tr_fam','tr_conn','tr_ch','tr_b1','tr_b2','tr_a1','tr_a2','tr_gap','tr_ov','tr_P1','tr_P2'].forEach(function(id){
+  ['rm_ch','rm_br','rm_orient','rm_th','rm_ctype','rm_Pu','rm_Vu','rm_Mip','rm_Mop','rm_Fy','rm_Fyb','rm_Qf',
+   'rd_ch','rd_br','rd_th','rd_ctype','rd_Pu','rd_Mip','rd_Mop','rd_Fy','rd_Fyb','rd_Qf',
+   'tr_fam','tr_conn','tr_ch','tr_b1','tr_b2','tr_a1','tr_a2','tr_gap','tr_ov','tr_P1','tr_P2','tr_Fy','tr_Fyb','tr_Qf'].forEach(function(id){
     var el=document.getElementById(id);
     if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
   });
+})();
+/* Also redraw when a tab becomes active (the tab() function calls this). */
+(function(){
+  var _origTab=tab;
+  tab=function(id){
+    _origTab(id);
+    setTimeout(areDrawSchematic,0);
+  };
 })();
 /* ============ END LIVE SCHEMATICS ============ */
 
@@ -658,6 +667,87 @@ areDrawSchematic();
 /* are-utils auto-run alias: recalc the active tab on Load */
 function runCalcs(){var act=document.querySelector('.tabpane.active');if(!act)return;
   if(act.id==='pane_rm')runRM(); else if(act.id==='pane_rd')runRD(); else runTR();}
+
+/* ============ SAVED-STATE HYDRATION (are-state-loader.js) ============
+   Listens for 'are:stateLoaded' dispatched by are-state-loader.js when the
+   page URL contains ?id=<uuid>. Maps the Calc State fields back to inputs,
+   selects the correct tab from subType, and triggers recalc.
+   Wrapped in try/catch so a bad or unexpected state never breaks a fresh load. */
+window.addEventListener('are:stateLoaded', function(e) {
+  try {
+    var s = e.detail;
+    if (!s || s.calcType !== 'hss-to-hss-branch') return;
+    var m = s.member || {}, d = s.demands || {}, c = s.connection || {};
+    var subType = c.subType || 'rect-moment';
+
+    /* Helper: find a dropdown option whose value matches val (case-insensitive) */
+    function setSelect(id, val) {
+      if (!val) return;
+      var sel = document.getElementById(id); if (!sel) return;
+      var low = val.toLowerCase();
+      for (var i = 0; i < sel.options.length; i++) {
+        if (sel.options[i].value.toLowerCase() === low) { sel.selectedIndex = i; return; }
+      }
+    }
+    function setVal(id, v) { var el = document.getElementById(id); if (el && v != null) el.value = v; }
+
+    if (subType === 'rect-moment') {
+      tab('rm');
+      setSelect('rm_ch', (c.chord && c.chord.section) ? c.chord.section.toLowerCase().replace(/x/g,'x') : '');
+      setSelect('rm_br', m.section ? m.section.toLowerCase().replace(/x/g,'x') : '');
+      /* connType 'T' or 'Y' both map to 'T' option; 'X' maps to 'X' */
+      document.getElementById('rm_ctype').value = (c.connType === 'X') ? 'X' : 'T';
+      setVal('rm_orient', c.orient || 'H');
+      setVal('rm_Fy', c.chord ? c.chord.Fy : '');
+      setVal('rm_Fyb', c.branchFy != null ? c.branchFy : '');
+      setVal('rm_th', c.theta != null ? c.theta : 90);
+      setVal('rm_Qf', c.Qf != null ? c.Qf : 1.0);
+      setVal('rm_Pu', d.Pu != null ? d.Pu : 0);
+      setVal('rm_Vu', d.Vu != null ? d.Vu : 0);
+      setVal('rm_Mip', d.Mu != null ? d.Mu : 0);   // kip-in as stored
+      setVal('rm_Mop', d.Mu_op != null ? d.Mu_op : 0);
+      rmHint(); drawRM(); runRM();
+
+    } else if (subType === 'round-moment') {
+      tab('rd');
+      setSelect('rd_ch', (c.chord && c.chord.section) ? c.chord.section.toLowerCase() : '');
+      setSelect('rd_br', m.section ? m.section.toLowerCase() : '');
+      document.getElementById('rd_ctype').value = (c.connType === 'X') ? 'X' : 'TY';
+      setVal('rd_Fy', c.chord ? c.chord.Fy : '');
+      setVal('rd_Fyb', c.branchFy != null ? c.branchFy : '');
+      setVal('rd_th', c.theta != null ? c.theta : 90);
+      setVal('rd_Qf', c.Qf != null ? c.Qf : 1.0);
+      setVal('rd_Pu', d.Pu != null ? d.Pu : 0);
+      setVal('rd_Mip', d.Mu != null ? d.Mu : 0);
+      setVal('rd_Mop', d.Mu_op != null ? d.Mu_op : 0);
+      rdHint(); drawRD(); runRD();
+
+    } else if (subType === 'truss') {
+      tab('tr');
+      /* Determine shape family from chord section label */
+      var chordSec = (c.chord && c.chord.section) ? c.chord.section : '';
+      var isRound = /^\s*HSS\d+\.\d+/i.test(chordSec); // round labels like HSS6.000X...
+      document.getElementById('tr_fam').value = isRound ? 'R' : 'C';
+      /* connType: T→TY, Y→TY, X→X, KG→KG, KO→KO */
+      var ctMap = {T:'TY', Y:'TY', X:'X', KG:'KG', KO:'KO'};
+      document.getElementById('tr_conn').value = ctMap[c.connType] || 'TY';
+      trFam();  // repopulate branch dropdowns for the chosen family
+      trConn(); // show/hide K-specific fields
+      setSelect('tr_ch', chordSec.toLowerCase());
+      setSelect('tr_b1', m.section ? m.section.toLowerCase() : '');
+      setVal('tr_Fy', c.chord ? c.chord.Fy : '');
+      setVal('tr_Fyb', c.branchFy != null ? c.branchFy : '');
+      setVal('tr_a1', c.theta != null ? c.theta : 90);
+      setVal('tr_Qf', c.Qf != null ? c.Qf : 1.0);
+      setVal('tr_P1', d.Pu != null ? d.Pu : 0);
+      if (c.gap != null) setVal('tr_gap', c.gap);
+      if (c.overlap != null) setVal('tr_ov', c.overlap);
+      trHint(); drawTR(); runTR();
+    }
+  } catch(err) {
+    if (window.console) console.warn('[are:stateLoaded hydration]', err);
+  }
+});
 </script>
 <script src="/are-utils-v2.js"></script>
 </body>

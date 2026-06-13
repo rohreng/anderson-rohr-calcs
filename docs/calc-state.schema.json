@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://calcs.andersonrohr.com/schemas/calc-state.v1.json",
+  "title": "ARE Calc State v1",
+  "description": "Normalized data object that fully describes one calculation. Written and read by Revit (pyRevit), saved server-side by /api/calc/run, and consumed by the SVG diagram renderer. Schema discriminator is the literal 'are.calc.v1'. The 'connection' block is per-calcType and selected by 'calcType'.",
+  "type": "object",
+  "required": ["schema", "calcType", "member", "demands"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "are.calc.v1",
+      "description": "Schema discriminator. Must equal the literal string 'are.calc.v1'."
+    },
+    "calcType": {
+      "type": "string",
+      "description": "Calculator slug from app/lib/calcs.ts. Determines which 'connection' detail block applies.",
+      "enum": ["w-to-hss-column", "base-plate", "hss-to-hss-branch"]
+    },
+    "id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Permanent instance id (server-assigned). Drives the saved-calc URL. Omitted/null on POST input; populated on GET output."
+    },
+    "member": { "$ref": "#/$defs/member" },
+    "demands": { "$ref": "#/$defs/demands" },
+    "geometry": { "$ref": "#/$defs/geometry" },
+    "connection": {
+      "description": "Per-calcType detail block. Validated by the oneOf below, keyed on calcType.",
+      "type": "object"
+    },
+    "results": { "$ref": "#/$defs/results" },
+    "meta": { "$ref": "#/$defs/meta" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "calcType": { "const": "w-to-hss-column" } } },
+      "then": { "properties": { "connection": { "$ref": "#/$defs/connection_wToHss" } } }
+    },
+    {
+      "if": { "properties": { "calcType": { "const": "base-plate" } } },
+      "then": { "properties": { "connection": { "$ref": "#/$defs/connection_basePlate" } } }
+    },
+    {
+      "if": { "properties": { "calcType": { "const": "hss-to-hss-branch" } } },
+      "then": { "properties": { "connection": { "$ref": "#/$defs/connection_hssToHss" } } }
+    }
+  ],
+  "$defs": {
+    "member": {
+      "type": "object",
+      "description": "The element being designed. For connection calcs, 'section' is the primary/designed member (beam for w-to-hss-column, column for base-plate, branch for hss-to-hss-branch). Secondary members live in the connection block.",
+      "required": ["section"],
+      "additionalProperties": false,
+      "properties": {
+        "mark": {
+          "type": ["string", "null"],
+          "description": "Revit element Mark (free text identifier, e.g. 'B-12')."
+        },
+        "type": {
+          "type": ["string", "null"],
+          "enum": ["beam", "column", "wall", "connection", "brace", null],
+          "description": "Element family category."
+        },
+        "section": {
+          "type": "string",
+          "description": "AISC manual label, UPPERCASE, matching the 'AISC_Manual_Label' key. W-shapes resolve from public/data/aisc-shapes-v16.json; HSS resolve from the runtime xlsx. Examples: 'W18X50', 'HSS10X10X1/2', 'HSS10.000X0.500'."
+        },
+        "material": {
+          "type": "object",
+          "description": "Steel material props in ksi.",
+          "additionalProperties": false,
+          "properties": {
+            "Fy": { "type": "number", "description": "Yield stress, ksi.", "minimum": 0 },
+            "Fu": { "type": "number", "description": "Tensile stress, ksi.", "minimum": 0 },
+            "E": { "type": "number", "description": "Modulus of elasticity, ksi.", "default": 29000 }
+          }
+        }
+      }
+    },
+    "demands": {
+      "type": "object",
+      "description": "Factored (LRFD) design demands. Units are FIXED per the table below; the HSS-to-HSS branch calc uses kip-IN for moments (not kip-ft) - see spec doc.",
+      "additionalProperties": false,
+      "properties": {
+        "Mu":   { "type": ["number", "null"], "description": "Factored moment. UNITS: kip-ft for w-to-hss-column and base-plate; kip-IN for hss-to-hss-branch (in-plane). See spec." },
+        "Mu_op": { "type": ["number", "null"], "description": "Out-of-plane factored moment, kip-in (hss-to-hss-branch only)." },
+        "Vu":   { "type": ["number", "null"], "description": "Factored shear, kips." },
+        "Pu":   { "type": ["number", "null"], "description": "Factored axial, kips. Compression positive." },
+        "Tu":   { "type": ["number", "null"], "description": "Factored torsion, kip-in (optional)." }
+      }
+    },
+    "geometry": {
+      "type": "object",
+      "description": "Member-level geometry. All lengths in INCHES. Optional for pure connection calcs.",
+      "additionalProperties": false,
+      "properties": {
+        "L":  { "type": ["number", "null"], "description": "Member span / length, in." },
+        "Lb": { "type": ["number", "null"], "description": "Unbraced length, in." },
+        "Cb": { "type": ["number", "null"], "description": "Lateral-torsional buckling modification factor (dimensionless)." }
+      }
+    },
+    "results": {
+      "type": "object",
+      "description": "Written by the calc engine. In v1 (store-only) dcr/status/governing may be null until a server-side engine exists for the calcType.",
+      "additionalProperties": false,
+      "properties": {
+        "governing":  { "type": ["string", "null"], "description": "Governing limit state, e.g. 'HSS Wall Local Yielding (Eq. K1-7)'." },
+        "dcr":        { "type": ["number", "null"], "description": "Governing demand/capacity ratio (dimensionless)." },
+        "status":     { "type": ["string", "null"], "enum": ["PASS", "FAIL", "PENDING", null], "description": "Overall pass/fail. PENDING when no server engine has run." },
+        "url":        { "type": ["string", "null"], "format": "uri", "description": "Permanent saved-calc URL." },
+        "computedAt": { "type": ["string", "null"], "format": "date-time", "description": "ISO-8601 timestamp." },
+        "checks": {
+          "type": "array",
+          "description": "Optional per-limit-state breakdown.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name":    { "type": "string" },
+              "ref":     { "type": "string", "description": "Code reference." },
+              "demand":  { "type": ["number", "null"] },
+              "capacity":{ "type": ["number", "null"] },
+              "dcr":     { "type": ["number", "null"] },
+              "status":  { "type": "string", "enum": ["PASS", "FAIL", "NA"] }
+            }
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "description": "Provenance. Optional.",
+      "additionalProperties": true,
+      "properties": {
+        "source":     { "type": "string", "description": "'revit', 'web', or 'api'." },
+        "projectId":  { "type": ["string", "null"] },
+        "revitDoc":   { "type": ["string", "null"] },
+        "createdBy":  { "type": ["string", "null"] }
+      }
+    },
+    "connection_wToHss": {
+      "type": "object",
+      "title": "W-Beam to HSS Column connection (slug w-to-hss-column)",
+      "description": "Directly-welded W-beam moment connection to an HSS column. member.section = W-beam (primary/designed). 'column' holds the HSS chord. Moment is carried as a flange-force couple Puf = Mu/(d - tf).",
+      "additionalProperties": false,
+      "properties": {
+        "column": {
+          "type": "object",
+          "description": "HSS column (chord) receiving the beam flange force.",
+          "required": ["section"],
+          "additionalProperties": false,
+          "properties": {
+            "section": { "type": "string", "description": "HSS AISC label, e.g. 'HSS10X10X1/2'." },
+            "Fy":      { "type": "number", "description": "HSS yield stress, ksi. Default 46 (A500 Gr.B/C). Limit <= 52 ksi per K1.3." }
+          }
+        },
+        "beamFy": { "type": "number", "description": "Beam flange yield Fyb, ksi. Default 50 (A992)." }
+      }
+    },
+    "connection_basePlate": {
+      "type": "object",
+      "title": "Column Base Plate connection (slug base-plate)",
+      "description": "Steel column base plate on concrete per AISC DG1 + ACI 318-19 Ch.17. member.section = the column (W or HSS). All plate/anchor lengths in INCHES.",
+      "additionalProperties": false,
+      "properties": {
+        "plate": {
+          "type": "object",
+          "description": "Base plate. N x B x tp, inches. Fyp ksi.",
+          "additionalProperties": false,
+          "properties": {
+            "N":   { "type": "number", "description": "Plate length (along column depth axis), in." },
+            "B":   { "type": "number", "description": "Plate width, in." },
+            "tp":  { "type": "number", "description": "Plate thickness, in." },
+            "Fyp": { "type": "number", "description": "Plate yield stress, ksi. Default 36 (A36)." }
+          }
+        },
+        "anchors": {
+          "type": "object",
+          "description": "Anchor rod group.",
+          "additionalProperties": false,
+          "properties": {
+            "n":     { "type": "integer", "description": "Total anchor rod count.", "minimum": 2 },
+            "dia":   { "type": "number", "description": "Anchor rod diameter, in (e.g. 0.75, 0.875, 1.0, 1.125, 1.25, 1.5)." },
+            "gauge": { "type": "number", "description": "Bolt-to-bolt spacing sg, in (used for breakout cone area)." },
+            "grade": { "type": "string", "description": "Anchor grade. Default 'F1554 Gr.36' (Fut = 58 ksi)." }
+          }
+        },
+        "concrete": {
+          "type": "object",
+          "description": "Supporting concrete / pedestal.",
+          "additionalProperties": false,
+          "properties": {
+            "fc":    { "type": "number", "description": "f'c, ksi." },
+            "hef":   { "type": "number", "description": "Anchor embedment depth, in. Default 8." },
+            "cEdge": { "type": "number", "description": "Min concrete edge distance to nearest anchor center, in. Default 18." }
+          }
+        }
+      }
+    },
+    "connection_hssToHss": {
+      "type": "object",
+      "title": "HSS-to-HSS Branch connection (slug hss-to-hss-branch)",
+      "description": "Rectangular or round HSS branch directly welded to an HSS chord, T/Y/X (and K for truss). member.section = the BRANCH (designed). 'chord' holds the through member. NOTE: branch moments in demands are kip-IN (this calc's native unit).",
+      "required": ["chord", "subType"],
+      "additionalProperties": false,
+      "properties": {
+        "subType": {
+          "type": "string",
+          "description": "Which engine path. 'rect-moment' (Rectangular Moment T/Y/X), 'round-moment' (Round Moment T/Y/X), 'truss' (axial K2).",
+          "enum": ["rect-moment", "round-moment", "truss"]
+        },
+        "connType": {
+          "type": "string",
+          "description": "Joint topology.",
+          "enum": ["T", "Y", "X", "KG", "KO"]
+        },
+        "chord": {
+          "type": "object",
+          "description": "Through (chord) HSS member.",
+          "required": ["section"],
+          "additionalProperties": false,
+          "properties": {
+            "section": { "type": "string", "description": "Chord HSS AISC label." },
+            "Fy":      { "type": "number", "description": "Chord yield, ksi. Default 46 rect / 42 round." }
+          }
+        },
+        "branchFy": { "type": "number", "description": "Branch yield Fyb, ksi. Default 46." },
+        "theta":    { "type": "number", "description": "Branch angle to chord, degrees. Default 90.", "minimum": 0, "maximum": 90 },
+        "Qf":       { "type": "number", "description": "Chord stress interaction factor Qf (dimensionless). Default 1.00." },
+        "orient":   { "type": "string", "enum": ["H", "B"], "description": "Rect branch in-plane orientation: 'H' (strong axis) or 'B' (weak axis)." },
+        "gap":      { "type": ["number", "null"], "description": "K-gap g, in (negative = overlap). Truss/K only." },
+        "overlap":  { "type": ["number", "null"], "description": "Overlap Ov, percent. Overlapped-K only." }
+      }
+    }
+  }
+}
