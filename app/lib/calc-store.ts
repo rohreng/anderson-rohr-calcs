@@ -68,16 +68,27 @@ const CREATE_TABLE_SQL = `
  * Memoized so the dynamic import + pool creation happen at most once.
  */
 async function getPgPool(): Promise<PgPool | null> {
-  const connectionString = process.env.POSTGRES_URL;
+  // Accept whichever connection-string var the host injects. Vercel's Neon /
+  // Postgres integrations set POSTGRES_URL; Neon's native integration may only
+  // set DATABASE_URL; Prisma-style setups use POSTGRES_PRISMA_URL. Prefer the
+  // pooled URL (POSTGRES_URL / DATABASE_URL) for serverless.
+  const connectionString =
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL ??
+    process.env.POSTGRES_PRISMA_URL ??
+    process.env.POSTGRES_URL_NON_POOLING;
   if (!connectionString) return null;
 
   if (!pgPoolPromise) {
     pgPoolPromise = (async () => {
       try {
         // Dynamic import guarded so a missing `pg` package does not crash the
-        // module graph at build/import time. Webpack ignores the unresolved
-        // dependency at build; it is only required at runtime when configured.
-        const pg = (await import(/* webpackIgnore: true */ "pg")) as unknown as {
+        // module graph. `pg` is in Next.js's auto-externalized server-packages
+        // list (and listed in next.config serverExternalPackages), so it is
+        // traced into the serverless function and resolved via native require
+        // at runtime — do NOT use webpackIgnore here, which would strip it from
+        // the Vercel trace and force the file fallback.
+        const pg = (await import("pg")) as unknown as {
           Pool: new (config: { connectionString: string; ssl?: unknown }) => PgPool;
         };
         const Pool = pg.Pool ?? (pg as { default?: { Pool: typeof pg.Pool } }).default?.Pool;
