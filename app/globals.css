@@ -21,8 +21,8 @@
   --are-border:      rgba(26, 43, 95, 0.12);
   --are-border-soft: rgba(26, 43, 95, 0.07);
 
-  /* Muted text */
-  --are-muted:       #6b7a96;
+  /* Muted text — #5c6a85 (was #6b7a96, failed WCAG AA; new value passes 5.04:1 on --are-offwhite, 5.45:1 on white) */
+  --are-muted:       #5c6a85;
 
   /* Status */
   --are-ok:          #1a7a4a;
@@ -70,6 +70,40 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-archivo, "Archivo", Arial, sans-serif);
+  text-wrap: balance;
+}
+
+/* ─── Placeholder contrast ─────────────────────────────────── */
+/* --are-muted (#5c6a85) passes 4.5:1 on white — explicit opacity so browsers don't apply their own */
+::placeholder {
+  color: var(--are-muted);
+  opacity: 1;
+}
+
+/* ─── Focus ring utility ────────────────────────────────────── */
+/* Emil: focus rings must be CSS :focus-visible, never JS onFocus/onBlur */
+.are-focus-ring:focus-visible {
+  outline: none;
+  border-color: var(--are-navy-mid);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--are-navy-mid) 18%, transparent);
+  transition: box-shadow 100ms ease-out, border-color 100ms ease-out;
+}
+
+/* ─── Reduced motion ────────────────────────────────────────── */
+/* Emil: prefers-reduced-motion is not optional */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── GroupCard summary focus — inset ring, clipped by overflow-hidden */
+.are-details-summary { outline: none; }  /* suppress UA default */
+.are-details-summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--are-navy-mid) 50%, transparent);
+  outline-offset: -2px;
 }
 
 /* ─── Sidebar scrollbar ────────────────────────────────────── */

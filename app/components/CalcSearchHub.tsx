@@ -6,26 +6,16 @@ import { CALCS, type CalcMeta } from "../lib/calcs";
 
 // ─── Status badge config ──────────────────────────────────────────────────────
 
-const STATUS_BADGE: Record<
-  CalcMeta["status"],
-  { label: string; bg: string; color: string }
-> = {
-  ready:   { label: "Ready",       bg: "#eaf4ee", color: "#1a7a4a" },
-  wip:     { label: "In Progress", bg: "#fdf4dc", color: "#c47d0e" },
-  planned: { label: "Planned",     bg: "#f0f2f7", color: "#6b7a96" },
+const STATUS: Record<CalcMeta["status"], { label: string; bg: string; color: string }> = {
+  ready:   { label: "Ready",       bg: "#eaf4ee", color: "var(--are-ok)" },
+  wip:     { label: "In Progress", bg: "#fdf4dc", color: "var(--are-warn)" },
+  planned: { label: "Planned",     bg: "#f0f2f7", color: "var(--are-muted)" },
 };
 
 // ─── Search helpers ───────────────────────────────────────────────────────────
 
 function buildSearchIndex(calc: CalcMeta): string {
-  return [
-    calc.label,
-    calc.subtitle,
-    calc.category,
-    calc.spec,
-    calc.group ?? "",
-    ...(calc.keywords ?? []),
-  ]
+  return [calc.label, calc.subtitle, calc.category, calc.spec, calc.group ?? "", ...(calc.keywords ?? [])]
     .join(" ")
     .toLowerCase();
 }
@@ -34,9 +24,9 @@ function filterCalcs(calcs: CalcMeta[], query: string): CalcMeta[] {
   const q = query.trim().toLowerCase();
   if (!q) return calcs;
   const terms = q.split(/\s+/);
-  return calcs.filter((calc) => {
-    const index = buildSearchIndex(calc);
-    return terms.every((term) => index.includes(term));
+  return calcs.filter((c) => {
+    const idx = buildSearchIndex(c);
+    return terms.every((t) => idx.includes(t));
   });
 }
 
@@ -54,242 +44,340 @@ function buildRenderList(calcs: CalcMeta[]): RenderItem[] {
       list.push({ kind: "card", calc });
     } else if (!seenGroups.has(calc.group)) {
       seenGroups.add(calc.group);
-      list.push({
-        kind: "group",
-        label: calc.group,
-        calcs: calcs.filter((c) => c.group === calc.group),
-      });
+      list.push({ kind: "group", label: calc.group, calcs: calcs.filter((c) => c.group === calc.group) });
     }
   }
   return list;
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── CalcSearchHub ────────────────────────────────────────────────────────────
 
 export default function CalcSearchHub() {
   const [query, setQuery] = useState("");
-
   const isSearching = query.trim().length > 0;
 
-  const filteredCalcs = useMemo(
-    () => filterCalcs(CALCS, query),
-    [query]
-  );
-
-  const categories = useMemo(
-    () => [...new Set(CALCS.map((c) => c.category))],
-    []
-  );
+  const filteredCalcs = useMemo(() => filterCalcs(CALCS, query), [query]);
+  const categories = useMemo(() => [...new Set(CALCS.map((c) => c.category))], []);
 
   return (
-    <>
-      {/* Page heading + search bar */}
-      <div className="mb-8 max-w-2xl">
-        <p
-          className="uppercase tracking-widest text-[10px] font-semibold mb-2"
-          style={{ color: "var(--are-navy-light)", fontFamily: "var(--font-archivo)" }}
-        >
-          Anderson Rohr Engineers
-        </p>
+    /* golden ratio: min(340px, 38%) cap keeps brand column proportional across viewport widths */
+    <div className="grid" style={{ gridTemplateColumns: "min(340px, 38%) 1fr", alignItems: "start" }}>
+
+      {/* ── Brand column ──────────────────────────────────────────────── */}
+      <aside
+        className="border-r pr-10"
+        style={{
+          borderColor: "var(--are-border-soft)",
+          position: "sticky",
+          /* sticky brand column: search stays accessible as the calc grid scrolls */
+          top: "calc(var(--header-height) + 2.5rem)",
+          alignSelf: "start",
+        }}
+      >
+        {/* Firm name — Archivo 800, 30px. NOT an eyebrow: real h2, real weight, real size */}
         <h2
-          className="text-2xl font-bold mb-3"
-          style={{ color: "var(--are-navy)", fontFamily: "var(--font-archivo)" }}
+          style={{
+            fontFamily: "var(--font-archivo)",
+            fontSize: "1.875rem",
+            fontWeight: 800,
+            lineHeight: 1.05,
+            letterSpacing: "-0.025em",
+            color: "var(--are-navy)",
+            marginBottom: "0.75rem",
+          }}
         >
-          Structural Calculators
+          Anderson Rohr
+          <br />
+          Engineers
         </h2>
-        <p className="text-sm leading-relaxed mb-5" style={{ color: "var(--are-muted)" }}>
-          AISC 360-22 &amp; ACI 318-19 design calculators — live in the browser.
-          Select a calculator below or use the sidebar to navigate.
+
+        <p
+          style={{
+            fontFamily: "var(--font-dm-sans)",
+            fontSize: "0.9375rem",
+            fontWeight: 400,
+            lineHeight: 1.55,
+            color: "var(--are-muted)",
+            marginBottom: "1.25rem",
+            maxWidth: "28ch",
+          }}
+        >
+          AISC 360-22 &amp; ACI 318-19 structural design calculators — live in the browser.
         </p>
 
-        {/* Search input */}
-        <div className="relative">
+        {/* Spec badges — moved from Header so they anchor the brand column context */}
+        <div className="flex flex-wrap gap-2 mb-7">
+          {["AISC 360-22", "ACI 318-19"].map((spec) => (
+            <span
+              key={spec}
+              style={{
+                fontFamily: "var(--font-archivo)",
+                fontSize: "0.6875rem",
+                fontWeight: 600,
+                letterSpacing: "0.07em",
+                textTransform: "uppercase",
+                color: "var(--are-muted)",
+                background: "var(--are-warmwhite)",
+                border: "1px solid var(--are-border)",
+                borderRadius: "0.25rem",
+                padding: "0.25rem 0.625rem",
+              }}
+            >
+              {spec}
+            </span>
+          ))}
+        </div>
+
+        {/* Search — sr-only label + CSS focus ring; no outline-none, no JS onFocus/onBlur */}
+        <div className="relative mb-2">
+          <label htmlFor="calc-search" className="sr-only">
+            Search calculators
+          </label>
           <span
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none"
-            style={{ color: "var(--are-muted)" }}
+            aria-hidden="true"
+            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+            style={{ color: "var(--are-muted)", fontSize: "0.9375rem" }}
           >
             ⌕
           </span>
           <input
+            id="calc-search"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search calculators — e.g. anchor bolt, pier, diaphragm, RISA…"
-            className="w-full pl-8 pr-4 py-2.5 rounded-lg border text-sm outline-none transition-shadow"
+            placeholder="Search — anchor bolt, diaphragm…"
+            className="w-full pl-8 py-2.5 rounded-md border text-sm are-focus-ring"
             style={{
+              paddingRight: isSearching ? "2.25rem" : "0.75rem",
               background: "var(--are-surface)",
               borderColor: "var(--are-border)",
               color: "var(--are-navy)",
-              fontFamily: "var(--font-archivo)",
-              boxShadow: "none",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "var(--are-navy-mid)";
-              e.currentTarget.style.boxShadow = "0 0 0 2px color-mix(in srgb, var(--are-navy) 12%, transparent)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "var(--are-border)";
-              e.currentTarget.style.boxShadow = "none";
+              fontFamily: "var(--font-dm-sans)",
             }}
           />
           {isSearching && (
             <button
               onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 transition-opacity"
-              style={{ color: "var(--are-muted)", fontFamily: "var(--font-archivo)" }}
               aria-label="Clear search"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 are-focus-ring rounded px-1"
+              style={{
+                color: "var(--are-muted)",
+                fontSize: "0.625rem",
+                lineHeight: 1,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+              }}
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
           )}
         </div>
 
-        {/* Result count when searching */}
         {isSearching && (
-          <p
-            className="mt-2 text-[11px]"
-            style={{ color: "var(--are-muted)", fontFamily: "var(--font-archivo)" }}
-          >
+          <p className="text-xs" style={{ color: "var(--are-muted)", fontFamily: "var(--font-dm-sans)" }}>
             {filteredCalcs.length === 0
-              ? "No calculators matched your search."
+              ? "No calculators matched."
               : `${filteredCalcs.length} calculator${filteredCalcs.length === 1 ? "" : "s"} found`}
           </p>
         )}
-      </div>
+      </aside>
 
-      {/* ── Search results (flat list) ── */}
-      {isSearching ? (
-        <section>
-          {filteredCalcs.length === 0 ? (
-            <div
-              className="rounded-lg border p-8 text-center text-sm"
-              style={{
-                background: "var(--are-surface)",
-                borderColor: "var(--are-border)",
-                color: "var(--are-muted)",
-                fontFamily: "var(--font-archivo)",
-              }}
-            >
-              No calculators matched &ldquo;{query}&rdquo;.
-              <br />
-              <button
-                onClick={() => setQuery("")}
-                className="mt-2 underline text-xs"
-                style={{ color: "var(--are-navy-mid)" }}
-              >
-                Clear search
-              </button>
-            </div>
-          ) : (
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredCalcs.map((calc) => (
-                <SearchResultCard key={calc.slug} calc={calc} query={query} />
-              ))}
-            </div>
-          )}
-        </section>
-      ) : (
-        /* ── Normal categorized view ── */
-        <>
-          {categories.map((cat) => {
-            const calcs = CALCS.filter((c) => c.category === cat);
-            const renderList = buildRenderList(calcs);
-            return (
-              <section key={cat} className="mb-10">
-                <div className="flex items-center gap-4 mb-4">
-                  <h3
-                    className="uppercase tracking-widest text-[10px] font-bold"
-                    style={{
-                      color: "var(--are-navy)",
-                      fontFamily: "var(--font-archivo)",
-                    }}
-                  >
-                    {cat}
-                  </h3>
-                  <div
-                    className="flex-1 h-px"
-                    style={{ background: "var(--are-border)" }}
-                  />
-                </div>
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {renderList.map((item) =>
-                    item.kind === "card" ? (
-                      <CalcCard key={item.calc.slug} calc={item.calc} />
-                    ) : (
-                      <GroupCard key={item.label} label={item.label} calcs={item.calcs} />
-                    )
-                  )}
-                </div>
-              </section>
-            );
-          })}
-        </>
-      )}
-    </>
+      {/* ── Calc grid ─────────────────────────────────────────────────── */}
+      <div className="pl-10">
+        {isSearching ? (
+          <section aria-label="Search results">
+            {filteredCalcs.length === 0 ? (
+              <EmptyState query={query} onClear={() => setQuery("")} />
+            ) : (
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+                {filteredCalcs.map((calc) => (
+                  <CalcCard key={calc.slug} calc={calc} showCategory />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            {categories.map((cat) => {
+              const catCalcs = CALCS.filter((c) => c.category === cat);
+              const renderList = buildRenderList(catCalcs);
+              const catId = `cat-${cat.replace(/[^\w]+/g, "-").toLowerCase()}`;
+              return (
+                <section key={cat} className="mb-10" aria-labelledby={catId}>
+                  <div className="flex items-center gap-4 mb-4">
+                    {/* taste-skill: Archivo 600 normal-case subheading — not a 10px uppercase eyebrow */}
+                    <h3
+                      id={catId}
+                      className="shrink-0"
+                      style={{
+                        fontFamily: "var(--font-archivo)",
+                        fontSize: "0.8125rem",
+                        fontWeight: 600,
+                        color: "var(--are-navy)",
+                        letterSpacing: 0,
+                      }}
+                    >
+                      {cat}
+                    </h3>
+                    <div className="flex-1 h-px" style={{ background: "var(--are-border-soft)" }} />
+                  </div>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+                    {renderList.map((item) =>
+                      item.kind === "card" ? (
+                        <CalcCard key={item.calc.slug} calc={item.calc} />
+                      ) : (
+                        <GroupCard key={item.label} label={item.label} calcs={item.calcs} />
+                      )
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
-// ─── SearchResultCard — flat card with category badge ────────────────────────
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
-function SearchResultCard({ calc, query }: { calc: CalcMeta; query: string }) {
-  const badge = STATUS_BADGE[calc.status];
+function EmptyState({ query, onClear }: { query: string; onClear: () => void }) {
+  return (
+    <div
+      className="rounded-md border p-8 text-center"
+      style={{ background: "var(--are-surface)", borderColor: "var(--are-border)" }}
+    >
+      <p className="text-sm mb-2" style={{ color: "var(--are-charcoal-lt)", fontFamily: "var(--font-dm-sans)" }}>
+        No calculators matched &ldquo;{query}&rdquo;.
+      </p>
+      <button
+        onClick={onClear}
+        className="text-xs underline are-focus-ring rounded"
+        style={{ color: "var(--are-navy-mid)", background: "none", border: "none", cursor: "pointer" }}
+      >
+        Clear search
+      </button>
+    </div>
+  );
+}
+
+// ─── CalcCard — status-tiered visual weight ───────────────────────────────────
+
+function CalcCard({ calc, showCategory = false }: { calc: CalcMeta; showCategory?: boolean }) {
+  const badge = STATUS[calc.status];
+
+  const cardBg =
+    calc.status === "planned" ? "var(--are-offwhite)"  /* ghost */
+    : calc.status === "wip"    ? "#fdf8f2"              /* amber tint */
+    :                            "var(--are-surface)";  /* full white */
+
   const inner = (
     <div
-      className="rounded-lg border p-5 flex flex-col gap-3 h-full transition-all duration-150 group-hover:shadow-md group-hover:-translate-y-0.5"
+      className={[
+        "rounded-md border p-5 flex flex-col gap-3 h-full",
+        /* Emil: hover lift on ready cards only — ease-out 150ms; not for wip/planned */
+        calc.status === "ready" ? "group-hover:-translate-y-0.5 group-hover:shadow-md" : "",
+      ].join(" ").trim()}
       style={{
-        background: "var(--are-surface)",
-        borderColor: "var(--are-border)",
-        borderTopWidth: 2,
-        borderTopColor: "var(--are-navy)",
+        background: cardBg,
+        borderColor: calc.status === "planned" ? "var(--are-border-soft)" : "var(--are-border)",
+        /* top accent: navy for ready, amber for wip, none for planned */
+        borderTopWidth: calc.status !== "planned" ? 2 : undefined,
+        borderTopColor:
+          calc.status === "ready" ? "var(--are-navy)"
+          : calc.status === "wip"   ? "var(--are-warn)"
+          : undefined,
+        /* Emil: ease-out 150ms on ready only; prefers-reduced-motion global rule strips this */
+        transition: calc.status === "ready"
+          ? "transform 150ms cubic-bezier(0,0,0.2,1), box-shadow 150ms cubic-bezier(0,0,0.2,1)"
+          : undefined,
+        cursor: calc.status === "planned" ? "default" : "pointer",
       }}
     >
-      {/* Category tag */}
-      <span
-        className="text-[9px] font-semibold uppercase tracking-wider"
-        style={{ color: "var(--are-navy-light)", fontFamily: "var(--font-archivo)" }}
-      >
-        {calc.category}{calc.group ? ` · ${calc.group}` : ""}
-      </span>
+      {/* Category tag — shown in search results to orient the user in the flat list */}
+      {showCategory && (
+        <span
+          style={{
+            fontFamily: "var(--font-archivo)",
+            fontSize: "0.625rem",
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--are-navy-light)",
+          }}
+        >
+          {calc.category}{calc.group ? ` · ${calc.group}` : ""}
+        </span>
+      )}
 
-      {/* Top row */}
+      {/* Title + status badge */}
       <div className="flex items-start justify-between gap-2">
         <h4
-          className="font-bold text-sm leading-snug"
-          style={{ color: "var(--are-navy)", fontFamily: "var(--font-archivo)" }}
+          className="font-semibold leading-snug"
+          style={{
+            fontFamily: "var(--font-archivo)",
+            fontSize: "0.9375rem",
+            color: calc.status === "planned" ? "var(--are-charcoal-lt)" : "var(--are-navy)",
+          }}
         >
           {calc.label}
         </h4>
         <span
-          className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+          className="shrink-0 rounded px-2 py-0.5"
           style={{
+            fontFamily: "var(--font-archivo)",
+            fontSize: "0.5625rem",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.07em",
             background: badge.bg,
             color: badge.color,
-            fontFamily: "var(--font-archivo)",
           }}
         >
           {badge.label}
         </span>
       </div>
 
-      <p className="text-xs leading-relaxed flex-1" style={{ color: "var(--are-muted)" }}>
+      {/* Subtitle — DM Sans 400, 14px; --are-muted passes 4.5:1 after token fix */}
+      <p
+        className="leading-relaxed flex-1"
+        style={{
+          fontFamily: "var(--font-dm-sans)",
+          fontSize: "0.875rem",
+          color: "var(--are-muted)",
+        }}
+      >
         {calc.subtitle}
       </p>
 
+      {/* Spec tag + open link */}
       <div className="flex items-center justify-between">
         <span
-          className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 border rounded"
+          className="rounded border px-2 py-0.5"
           style={{
+            fontFamily: "var(--font-archivo)",
+            fontSize: "0.6875rem",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
             borderColor: "var(--are-border)",
             color: "var(--are-muted)",
-            fontFamily: "var(--font-archivo)",
           }}
         >
           {calc.spec}
         </span>
         {calc.status !== "planned" && (
           <span
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: "var(--are-navy-mid)", fontFamily: "var(--font-archivo)" }}
+            style={{
+              fontFamily: "var(--font-archivo)",
+              fontSize: "0.625rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: calc.status === "wip" ? "var(--are-warn)" : "var(--are-navy-mid)",
+            }}
           >
             Open →
           </span>
@@ -298,21 +386,26 @@ function SearchResultCard({ calc, query }: { calc: CalcMeta; query: string }) {
     </div>
   );
 
-  if (calc.status === "planned") return <div>{inner}</div>;
+  /* Planned: ghost div — no link, no interactive affordance */
+  if (calc.status === "planned") {
+    return <div aria-disabled="true">{inner}</div>;
+  }
+
   return (
-    <Link href={`/calcs/${calc.slug}`} className="block group">
+    <Link href={`/calcs/${calc.slug}`} className="block group are-focus-ring rounded-md">
       {inner}
     </Link>
   );
 }
 
-// ─── GroupCard ─────────────────────────────────────────────────────────────────
+// ─── GroupCard ────────────────────────────────────────────────────────────────
 
 function GroupCard({ label, calcs }: { label: string; calcs: CalcMeta[] }) {
   const spec = calcs[0]?.spec ?? "";
+
   return (
     <details
-      className="rounded-lg border overflow-hidden"
+      className="rounded-md border overflow-hidden"
       style={{
         background: "var(--are-surface)",
         borderColor: "var(--are-border)",
@@ -320,68 +413,82 @@ function GroupCard({ label, calcs }: { label: string; calcs: CalcMeta[] }) {
         borderTopColor: "var(--are-navy)",
       }}
     >
+      {/* are-details-summary: inset focus outline — overflow-hidden clips box-shadow rings */}
       <summary
-        className="flex flex-col gap-3 p-5 cursor-pointer list-none select-none"
+        className="flex flex-col gap-3 p-5 cursor-pointer list-none select-none are-details-summary"
         style={{ WebkitAppearance: "none" } as React.CSSProperties}
       >
-        {/* Top row */}
+        {/* Title + variant count */}
         <div className="flex items-start justify-between gap-2">
           <h4
-            className="font-bold text-sm leading-snug"
-            style={{ color: "var(--are-navy)", fontFamily: "var(--font-archivo)" }}
+            className="font-semibold leading-snug"
+            style={{ fontFamily: "var(--font-archivo)", fontSize: "0.9375rem", color: "var(--are-navy)" }}
           >
             {label}
           </h4>
           <span
-            className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+            className="shrink-0 rounded px-2 py-0.5"
             style={{
-              background: "#eaf4ee",
-              color: "#1a7a4a",
               fontFamily: "var(--font-archivo)",
+              fontSize: "0.5625rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.07em",
+              background: "#eaf4ee",
+              color: "var(--are-ok)",
             }}
           >
             {calcs.length} variants
           </span>
         </div>
 
-        {/* Option names preview */}
-        <p className="text-xs leading-relaxed flex-1" style={{ color: "var(--are-muted)" }}>
+        {/* Variant names preview */}
+        <p
+          className="leading-relaxed flex-1"
+          style={{ fontFamily: "var(--font-dm-sans)", fontSize: "0.875rem", color: "var(--are-muted)" }}
+        >
           {calcs.map((c) => c.label).join(" · ")}
         </p>
 
-        {/* Spec + expand hint */}
+        {/* Spec tag + expand hint */}
         <div className="flex items-center justify-between">
           <span
-            className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 border rounded"
+            className="rounded border px-2 py-0.5"
             style={{
+              fontFamily: "var(--font-archivo)",
+              fontSize: "0.6875rem",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
               borderColor: "var(--are-border)",
               color: "var(--are-muted)",
-              fontFamily: "var(--font-archivo)",
             }}
           >
             {spec}
           </span>
           <span
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: "var(--are-navy-mid)", fontFamily: "var(--font-archivo)" }}
+            style={{
+              fontFamily: "var(--font-archivo)",
+              fontSize: "0.625rem",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: "var(--are-navy-mid)",
+            }}
           >
             Select ▾
           </span>
         </div>
       </summary>
 
-      {/* Expanded options */}
+      {/* Expanded variant list */}
       <div className="border-t flex flex-col" style={{ borderColor: "var(--are-border)" }}>
         {calcs.map((calc, idx) => (
           <Link
             key={calc.slug}
             href={`/calcs/${calc.slug}`}
-            className="flex items-center justify-between px-5 py-3 transition-colors hover:bg-slate-50"
-            style={
-              idx < calcs.length - 1
-                ? { borderBottom: "1px solid var(--are-border)" }
-                : undefined
-            }
+            className="flex items-center justify-between px-5 py-3 are-details-summary transition-colors hover:bg-[var(--are-offwhite)]"
+            style={idx < calcs.length - 1 ? { borderBottom: "1px solid var(--are-border-soft)" } : undefined}
           >
             <div className="flex flex-col gap-0.5 flex-1 min-w-0">
               <span
@@ -391,15 +498,21 @@ function GroupCard({ label, calcs }: { label: string; calcs: CalcMeta[] }) {
                 {calc.label}
               </span>
               <span
-                className="text-xs leading-snug"
-                style={{ color: "var(--are-muted)" }}
+                style={{ color: "var(--are-muted)", fontFamily: "var(--font-dm-sans)", fontSize: "0.875rem" }}
               >
                 {calc.subtitle}
               </span>
             </div>
             <span
-              className="ml-4 shrink-0 text-[10px] font-semibold uppercase tracking-wider"
-              style={{ color: "var(--are-navy-mid)", fontFamily: "var(--font-archivo)" }}
+              className="ml-4 shrink-0"
+              style={{
+                fontFamily: "var(--font-archivo)",
+                fontSize: "0.625rem",
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "var(--are-navy-mid)",
+              }}
             >
               Open →
             </span>
@@ -407,76 +520,5 @@ function GroupCard({ label, calcs }: { label: string; calcs: CalcMeta[] }) {
         ))}
       </div>
     </details>
-  );
-}
-
-// ─── CalcCard ─────────────────────────────────────────────────────────────────
-
-function CalcCard({ calc }: { calc: CalcMeta }) {
-  const badge = STATUS_BADGE[calc.status];
-
-  const inner = (
-    <div
-      className="rounded-lg border p-5 flex flex-col gap-3 h-full transition-all duration-150 group-hover:shadow-md group-hover:-translate-y-0.5"
-      style={{
-        background: "var(--are-surface)",
-        borderColor: "var(--are-border)",
-        borderTopWidth: 2,
-        borderTopColor: "var(--are-navy)",
-      }}
-    >
-      {/* Top row */}
-      <div className="flex items-start justify-between gap-2">
-        <h4
-          className="font-bold text-sm leading-snug"
-          style={{ color: "var(--are-navy)", fontFamily: "var(--font-archivo)" }}
-        >
-          {calc.label}
-        </h4>
-        <span
-          className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
-          style={{
-            background: badge.bg,
-            color: badge.color,
-            fontFamily: "var(--font-archivo)",
-          }}
-        >
-          {badge.label}
-        </span>
-      </div>
-
-      <p className="text-xs leading-relaxed flex-1" style={{ color: "var(--are-muted)" }}>
-        {calc.subtitle}
-      </p>
-
-      <div className="flex items-center justify-between">
-        <span
-          className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 border rounded"
-          style={{
-            borderColor: "var(--are-border)",
-            color: "var(--are-muted)",
-            fontFamily: "var(--font-archivo)",
-          }}
-        >
-          {calc.spec}
-        </span>
-        {calc.status !== "planned" && (
-          <span
-            className="text-[10px] font-semibold uppercase tracking-wider"
-            style={{ color: "var(--are-navy-mid)", fontFamily: "var(--font-archivo)" }}
-          >
-            Open →
-          </span>
-        )}
-      </div>
-    </div>
-  );
-
-  if (calc.status === "planned") return <div>{inner}</div>;
-
-  return (
-    <Link href={`/calcs/${calc.slug}`} className="block group">
-      {inner}
-    </Link>
   );
 }

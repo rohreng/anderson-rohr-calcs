@@ -4,7 +4,8 @@ import CalcSearchHub from "../components/CalcSearchHub";
 export default function HomePage() {
   return (
     <>
-      <Header title="Calculator Hub" />
+      {/* specBadges={false}: badges live in the CalcSearchHub brand column on this page */}
+      <Header title="Calculator Hub" specBadges={false} />
 
       <main
         className="flex-1 px-10 pb-16"
