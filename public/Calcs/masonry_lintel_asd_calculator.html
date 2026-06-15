@@ -98,7 +98,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
     <!-- SCHEMATIC -->
     <div class="schema-wrap">
-      <svg id="lintelSvg" viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:230px"><!-- drawn live by areDrawLintelSvg() --></svg>
+      <svg id="lintelSvg" xmlns="http://www.w3.org/2000/svg"><!-- drawn live by areDrawLintelSvg() --></svg>
     </div>
 
     <!-- BLOCK 1: MATERIALS -->
@@ -398,113 +398,345 @@ function barNum(a){
 // ===== MAIN =====
 function areDrawLintelSvg(){
   var svg=document.getElementById('lintelSvg');
-  if(!svg)return;
-  function gv(id,d){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isNaN(v)?d:v;}
-  var clr=Math.max(0.5,gv('clear_span',10)), brg=Math.max(2,gv('bearing',8));
-  var t_in=Math.max(8,gv('t_depth',56)), d_in=Math.max(2,gv('eff_d',52.5));
-  var direct=(document.getElementById('load_mode').value==='direct');
-  var w=direct?0:gv('w_load',0), P=direct?0:gv('P_down',0), aP=direct?0:gv('a_P',0);
-  var wu=direct?0:gv('wu_load',0), Pu=direct?0:gv('P_uplift',0);
-  var n_top=gv('n_top',0), ab_top=gv('bar_top',0);
-  var L_ft=clr+brg/12, L_in=L_ft*12;
+  if(!svg||!window.AREDraw) return;
 
-  var yLB=163, pxd=Math.min(112,Math.max(24,t_in*1.4286)), yLT=+(yLB-pxd).toFixed(1);
-  var brgPx=Math.min(120,Math.max(10,brg*540/L_in));
+  function gv(id,dflt){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isNaN(v)?dflt:v;}
+  var clr   = Math.max(0.5, gv('clear_span', 10));
+  var brg   = Math.max(2,   gv('bearing', 8));
+  var t_in  = Math.max(8,   gv('t_depth', 56));
+  var d_in  = Math.max(2,   gv('eff_d', 52.5));
+  var b_in  = Math.max(1,   gv('b_width', 7.63));
+  var n_top = gv('n_top', 1);
+  var ab_top= gv('bar_top', 0.20);
+  var direct= (document.getElementById('load_mode').value === 'direct');
+  var w     = direct ? 0 : gv('w_load', 0);
+  var P     = direct ? 0 : gv('P_down', 0);
+  var aP_ft = direct ? 0 : gv('a_P', 0);
+  var wu    = direct ? 0 : gv('wu_load', 0);
+  var Pu    = direct ? 0 : gv('P_uplift', 0);
+  var L_ft  = clr + brg / 12;
+  var L_in  = L_ft * 12;
 
-  var html='<defs>'
-    +'<marker id="la_aD" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#374151"/></marker>'
-    +'<marker id="la_aR" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#c42b2b"/></marker>'
-    +'<marker id="la_aB" markerWidth="10" markerHeight="8" refX="10" refY="4" orient="auto"><path d="M0,0 L0,8 L10,4z" fill="#1d4ed8"/></marker>'
-    +'<marker id="la_dim" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L0,6 L7,3z" fill="#f59e0b"/></marker>'
-    +'<marker id="la_dimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L0,6 L7,3z" fill="#dc2626"/></marker>'
-    +'<marker id="la_dimD" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L0,6 L7,3z" fill="#374151"/></marker>'
-    +'</defs>';
+  // ── Layout constants (world inches) ──────────────────────────────────────
+  // World origin = left support face, y=0 at top of lintel.
+  // +y is DOWN (flipY:false) so the lintel bottom is at y=t_in.
+  // Wall above lintel: y negative (above) from -wallH to 0.
+  var wallH    = Math.min(t_in * 0.55, 28);   // representative wall height shown
+  var brg_in   = brg;                          // bearing in inches
+  // Pier widths drawn as masonry support piers
+  var pierW    = Math.max(brg_in * 1.4, 10);   // world width of each pier
+  var pierH    = t_in * 0.55;                  // pier depth below lintel
 
-  // Wall above lintel (hatched)
-  if(yLT>34){
-    html+='<rect x="90" y="28" width="540" height="'+(yLT-28).toFixed(1)+'" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>';
-    for(var xw=105;xw<630;xw+=15){
-      html+='<line x1="'+xw+'" y1="28" x2="'+xw+'" y2="'+yLT+'" stroke="#9ca3af" stroke-width="0.7"/>';
+  // The lintel spans from x=0 to x=L_in.
+  // Piers are centred on x=brg_in/2 (left) and x=L_in-brg_in/2 (right).
+  // Bearing zones: x=0..brg_in (left), x=L_in-brg_in..L_in (right).
+
+  // ── Scale & Drawing ──────────────────────────────────────────────────────
+  var pxBudget = 460;
+  var scale = AREDraw.fitScale(L_in + pierW * 2 + 20, pxBudget, { min: 1.2, max: 6 });
+
+  // Pixel origin: leave room for left pier + dims on left edge
+  var ox = pierW * scale + 30;
+  var oy = wallH * scale + 50;   // top wall content + udl arrows above
+
+  var dwg = new AREDraw.Drawing(svg, { margin: 22 });
+  // flipY:false  → world y=0 is top of lintel, y=t_in is bottom (screen down)
+  var v = new AREDraw.View(dwg, { scale: scale, ox: ox, oy: oy, flipY: false });
+  var st = dwg.style;
+
+  // ── 1. Wall above the lintel (gray hatched masonry) ──────────────────────
+  // Extends from x=-pierW to x=L_in+pierW (full width incl. piers), y=-wallH to 0
+  if(wallH > 4){
+    var wallRect = (function(){
+      // Build the wall rect using plate() — hatch with gray fill
+      var r = AREDraw.plate(v, -pierW, -wallH, L_in + 2*pierW, wallH,
+        { fill: st.steelFill, hatch: true });
+      return r;
+    })();
+    // Label goes ABOVE the wall (in the top gutter), not on the hatch.
+    // Use a calloutLabel: application point = top-centre of wall, label in top gutter.
+    if(wallH > 10){
+      var wallTopGutterYpx = v.py(-wallH) - 14;  // 14 px above top of wall
+      var wallCentreXpx    = v.px(L_in / 2);
+      AREDraw.calloutLabel(v, L_in / 2, -wallH, wallCentreXpx, wallTopGutterYpx,
+        'Masonry wall above',
+        { color: st.dim, anchor: 'middle' });
     }
-    if(yLT-28>16) html+='<text x="360" y="'+((28+parseFloat(yLT))/2+4).toFixed(1)+'" font-size="10" fill="#374151" text-anchor="middle" font-style="italic">Wall / masonry above lintel</text>';
   }
 
-  // Lintel body (designed element)
-  html+='<rect x="90" y="'+yLT+'" width="540" height="'+pxd.toFixed(1)+'" fill="#fde68a" stroke="#1e3c72" stroke-width="2"/>';
-  // CMU course lines every 8 in
-  var cStep=8*1.4286;
-  for(var yc=parseFloat(yLT)+cStep;yc<yLB-3;yc+=cStep){
-    html+='<line x1="90" y1="'+yc.toFixed(1)+'" x2="630" y2="'+yc.toFixed(1)+'" stroke="#eab308" stroke-width="0.8" opacity="0.7"/>';
-  }
-  html+='<text x="360" y="'+(parseFloat(yLT)+pxd/2+4).toFixed(1)+'" font-size="11" fill="#1e3c72" text-anchor="middle" font-weight="600">LINTEL (b &times; '+t_in.toFixed(0)+'&Prime;, fully grouted)</text>';
+  // ── 2. Left & Right support piers (gray hatched, below lintel) ───────────
+  var leftPierX  = -pierW;
+  var rightPierX = L_in;
+  AREDraw.plate(v, leftPierX,  t_in, pierW, pierH, { fill: st.steelFill, hatch: true });
+  AREDraw.plate(v, rightPierX, t_in, pierW, pierH, { fill: st.steelFill, hatch: true });
 
-  // Bearing zones
-  html+='<rect x="90" y="'+yLT+'" width="'+brgPx.toFixed(1)+'" height="'+pxd.toFixed(1)+'" fill="rgba(234,179,8,0.35)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4,2"/>';
-  html+='<rect x="'+(630-brgPx).toFixed(1)+'" y="'+yLT+'" width="'+brgPx.toFixed(1)+'" height="'+pxd.toFixed(1)+'" fill="rgba(234,179,8,0.35)" stroke="#ca8a04" stroke-width="1.5" stroke-dasharray="4,2"/>';
-  html+='<text x="'+(90+brgPx/2).toFixed(1)+'" y="'+(parseFloat(yLT)-3).toFixed(1)+'" font-size="8.5" fill="#854d0e" text-anchor="middle">Brg. '+brg.toFixed(0)+'&Prime;</text>';
-  html+='<text x="'+(630-brgPx/2).toFixed(1)+'" y="'+(parseFloat(yLT)-3).toFixed(1)+'" font-size="8.5" fill="#854d0e" text-anchor="middle">Brg.</text>';
+  // Ground hatch lines under piers (manual — small detail)
+  (function(){
+    var gLayer = dwg.gSteel;
+    var gColor = st.hatch;
+    [leftPierX, rightPierX].forEach(function(px){
+      var gx1 = v.px(px), gx2 = v.px(px + pierW);
+      var gy  = v.py(t_in + pierH);
+      for(var i=0; i<=5; i++){
+        var xi = gx1 + (gx2-gx1)*i/5;
+        var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+        ln.setAttribute('x1', (xi+6).toFixed(1)); ln.setAttribute('y1', gy.toFixed(1));
+        ln.setAttribute('x2',  xi.toFixed(1));    ln.setAttribute('y2', (gy+10).toFixed(1));
+        ln.setAttribute('stroke', gColor); ln.setAttribute('stroke-width', '0.9');
+        gLayer.appendChild(ln);
+      }
+      // Baseline
+      var base = document.createElementNS('http://www.w3.org/2000/svg','line');
+      base.setAttribute('x1', gx1.toFixed(1)); base.setAttribute('y1', gy.toFixed(1));
+      base.setAttribute('x2', gx2.toFixed(1)); base.setAttribute('y2', gy.toFixed(1));
+      base.setAttribute('stroke', st.steel); base.setAttribute('stroke-width', '2');
+      gLayer.appendChild(base);
+    });
+  })();
 
-  // Bottom rebar (tension)
-  html+='<circle cx="360" cy="'+(yLB-8)+'" r="5" fill="#dc2626" stroke="#991b1b" stroke-width="1.2"/>';
-  html+='<text x="375" y="'+(yLB-5)+'" font-size="9" fill="#dc2626">A&#x209B; (bottom &mdash; tension, downward)</text>';
-  // Top rebar (uplift tension) when provided
-  if(n_top>0&&ab_top>0){
-    html+='<circle cx="360" cy="'+(parseFloat(yLT)+10).toFixed(1)+'" r="4" fill="#16a34a" stroke="#14532d" stroke-width="1.2"/>';
-    html+='<text x="373" y="'+(parseFloat(yLT)+14).toFixed(1)+'" font-size="9" fill="#166534">A&#x209B; (top &mdash; tension, uplift)</text>';
-  }
+  // ── 3. Lintel body (amber, primary member) ────────────────────────────────
+  AREDraw.plate(v, 0, 0, L_in, t_in, { highlight: true });
 
-  // Supports + ground hatch
-  [108,612].forEach(function(xs){
-    html+='<polygon points="'+xs+','+yLB+' '+(xs-20)+',180 '+(xs+20)+',180" fill="#94a3b8"/>';
-    html+='<line x1="'+(xs-20)+'" y1="180" x2="'+(xs+20)+'" y2="180" stroke="#374151" stroke-width="2.5"/>';
-    for(var xg=xs-22;xg<=xs+16;xg+=7){
-      html+='<line x1="'+(xg+8)+'" y1="182" x2="'+xg+'" y2="190" stroke="#94a3b8" stroke-width="1"/>';
+  // CMU course lines every 8" within lintel (subtle, in steel layer)
+  (function(){
+    for(var yc = 8; yc < t_in - 2; yc += 8){
+      var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+      ln.setAttribute('x1', v.px(0).toFixed(1));    ln.setAttribute('y1', v.py(yc).toFixed(1));
+      ln.setAttribute('x2', v.px(L_in).toFixed(1)); ln.setAttribute('y2', v.py(yc).toFixed(1));
+      ln.setAttribute('stroke', '#c8a000'); ln.setAttribute('stroke-width','0.8');
+      ln.setAttribute('opacity','0.55');
+      dwg.gSteel.appendChild(ln);
     }
-  });
+  })();
 
-  // Distributed load arrows
-  if(w>0||direct){
-    html+='<line x1="126" y1="8" x2="594" y2="8" stroke="#374151" stroke-width="2"/>';
-    for(var xa=140;xa<=560;xa+=38){
-      html+='<line x1="'+xa+'" y1="8" x2="'+xa+'" y2="26" stroke="#374151" stroke-width="1.5" marker-end="url(#la_aD)"/>';
+  // ── 4. Bearing zone overlays (dashed outline on lintel ends) ─────────────
+  (function(){
+    function brgZone(x0){
+      var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x', v.px(x0).toFixed(1));
+      r.setAttribute('y', v.py(0).toFixed(1));
+      r.setAttribute('width',  Math.abs(v.px(x0+brg_in)-v.px(x0)).toFixed(1));
+      r.setAttribute('height', Math.abs(v.py(t_in)-v.py(0)).toFixed(1));
+      r.setAttribute('fill','none');
+      r.setAttribute('stroke','#ca8a04');
+      r.setAttribute('stroke-width','1.5');
+      r.setAttribute('stroke-dasharray','5 3');
+      dwg.gAnno.appendChild(r);
     }
-    html+='<text x="88" y="12" font-size="10" fill="#374151" font-style="italic" text-anchor="end">'+(direct?'w, P (direct M &amp; V input)':'w = '+Math.round(w).toLocaleString()+' lb/ft')+'</text>';
+    brgZone(0);
+    brgZone(L_in - brg_in);
+  })();
+
+  // ── 5. Horizontal centroidal centerline ───────────────────────────────────
+  AREDraw.centerline(v, -4, t_in/2, L_in+4, t_in/2);
+
+  // ── 6. Distributed load (UDL) arrows above lintel ────────────────────────
+  // hPx=28: shorter rail height leaves room for P arrow above it.
+  // Pass NO label to distLoad so nothing sits on the UDL rail / hatch.
+  // The label is pulled to the RIGHT gutter via calloutLabel.
+  var udlHpx = 28;
+  var udlLabel = direct
+    ? 'w, P (M & V direct input)'
+    : (w > 0 ? 'w = ' + Math.round(w).toLocaleString() + ' lb/ft' : 'w = 0');
+  AREDraw.distLoad(v, 0, L_in, 0, udlHpx, '');   // no inline label
+  // Label at RIGHT gutter: application point = midspan at rail level, label right of figure.
+  var udlRailWorldY = -udlHpx / scale;             // world y of the UDL rail
+  var udlRightGutterXpx = v.px(L_in + pierW) + 6; // right of right pier + padding
+  var udlRailYpx        = v.py(udlRailWorldY);
+  AREDraw.calloutLabel(v, L_in / 2, udlRailWorldY,
+    udlRightGutterXpx, udlRailYpx,
+    udlLabel,
+    { color: st.force, anchor: 'start' });
+
+  // ── 7. Concentrated load P ────────────────────────────────────────────────
+  // Arrow: tip at lintel top (world y=0). Tail above UDL rail (rail is udlHpx px up).
+  // Callout labels pulled to the LEFT gutter (x < 0), clear of UDL centre label.
+  if(!direct && P > 0){
+    var xP_in = Math.min(Math.max(aP_ft / L_ft, 0.01), 0.99) * L_in;
+    var arrowLenPx = 56;
+    var arrowTailY = -arrowLenPx / scale;
+    AREDraw.forceArrow(v, xP_in, arrowTailY, 0, 1, arrowLenPx,
+      null, { color: '#1d4ed8' });
+    // Application point for leader = arrow tail
+    // Label: left gutter, same y as arrow tail
+    var pCallXpx = v.px(-pierW) - 4;   // left of left pier
+    var pCallYpx = v.py(arrowTailY);
+    AREDraw.calloutLabel(v, xP_in, arrowTailY, pCallXpx, pCallYpx,
+      'P = ' + Math.round(P).toLocaleString() + ' lb',
+      { color: '#1d4ed8', anchor: 'end' });
+    AREDraw.calloutLabel(v, xP_in, arrowTailY, pCallXpx, pCallYpx + 16,
+      'a = ' + aP_ft.toFixed(2) + ' ft',
+      { color: '#1d4ed8', anchor: 'end' });
   }
 
-  // Concentrated load P at a from left
-  if(P>0){
-    var xP=90+Math.min(Math.max(aP/L_ft,0),1)*540;
-    html+='<line x1="'+xP.toFixed(1)+'" y1="34" x2="'+xP.toFixed(1)+'" y2="'+(parseFloat(yLT)-1).toFixed(1)+'" stroke="#1d4ed8" stroke-width="3" marker-end="url(#la_aB)"/>';
-    html+='<text x="'+(xP+7).toFixed(1)+'" y="50" font-size="10" fill="#1d4ed8" font-weight="bold">P = '+Math.round(P).toLocaleString()+' lb</text>';
-    html+='<text x="'+(xP+7).toFixed(1)+'" y="62" font-size="8.5" fill="#1d4ed8">at a = '+aP.toFixed(2)+' ft</text>';
-  }
-
-  // Uplift arrows
-  if(wu>0||Pu>0){
-    for(var xu=170;xu<=550;xu+=95){
-      html+='<line x1="'+xu+'" y1="'+(parseFloat(yLT)+pxd-4).toFixed(1)+'" x2="'+xu+'" y2="'+(parseFloat(yLT)+6).toFixed(1)+'" stroke="#c42b2b" stroke-width="1.3" opacity="0.7" marker-end="url(#la_aR)"/>';
+  // ── 8. Uplift arrows (if applicable) ─────────────────────────────────────
+  // distLoad always draws arrows pointing FROM railY TOWARD the member edge.
+  // For uplift we draw below the lintel (y > t_in), arrows pointing upward,
+  // so we pass the bottom edge as y and a negative hPx to put the rail below.
+  if(!direct && (wu > 0 || Pu > 0)){
+    var upliftLbl = Pu > 0
+      ? 'Pu = ' + Math.round(Pu).toLocaleString() + ' lb (uplift)'
+      : 'wu (uplift)';
+    // Manual upward arrows: from below the lintel up to its bottom face
+    var upliftRailY = t_in + 28/scale;   // world y of the uplift rail (below lintel)
+    var upliftG = document.createElementNS('http://www.w3.org/2000/svg','g');
+    upliftG.setAttribute('class','are-udl');
+    var nU = Math.max(3, Math.round((v.px(L_in - brg_in) - v.px(brg_in)) / 26));
+    var ax1U = v.px(brg_in), ax2U = v.px(L_in - brg_in);
+    var railYpx = v.py(upliftRailY);
+    var topYpx  = v.py(t_in) + 2;  // just below lintel bottom in screen space
+    // Horizontal rail line
+    var railLn = document.createElementNS('http://www.w3.org/2000/svg','line');
+    railLn.setAttribute('x1', ax1U.toFixed(1)); railLn.setAttribute('y1', railYpx.toFixed(1));
+    railLn.setAttribute('x2', ax2U.toFixed(1)); railLn.setAttribute('y2', railYpx.toFixed(1));
+    railLn.setAttribute('stroke', st.force); railLn.setAttribute('stroke-width', '1');
+    upliftG.appendChild(railLn);
+    // Upward arrows (from rail up to lintel bottom)
+    for(var ui=0; ui<=nU; ui++){
+      var ux = ax1U + (ax2U - ax1U)*ui/nU;
+      var uArr = document.createElementNS('http://www.w3.org/2000/svg','line');
+      uArr.setAttribute('x1', ux.toFixed(1)); uArr.setAttribute('y1', railYpx.toFixed(1));
+      uArr.setAttribute('x2', ux.toFixed(1)); uArr.setAttribute('y2', topYpx.toFixed(1));
+      uArr.setAttribute('stroke', st.force); uArr.setAttribute('stroke-width', '1.2');
+      uArr.setAttribute('marker-end','url(#areArrForce)');
+      upliftG.appendChild(uArr);
     }
-    html+='<text x="600" y="'+(parseFloat(yLT)+14).toFixed(1)+'" font-size="8" fill="#c42b2b" text-anchor="end">uplift'+(Pu>0?' P&#x1D64; = '+Math.round(Pu).toLocaleString()+' lb':'')+'</text>';
+    // Label below rail
+    var uLblEl = document.createElementNS('http://www.w3.org/2000/svg','text');
+    uLblEl.setAttribute('x', ((ax1U+ax2U)/2).toFixed(1));
+    uLblEl.setAttribute('y', (railYpx + 13).toFixed(1));
+    uLblEl.setAttribute('fill', st.force);
+    uLblEl.setAttribute('font-size', '11');
+    uLblEl.setAttribute('font-family', st.font);
+    uLblEl.setAttribute('font-weight','600');
+    uLblEl.setAttribute('text-anchor','middle');
+    uLblEl.textContent = upliftLbl;
+    upliftG.appendChild(uLblEl);
+    dwg.gAnno.appendChild(upliftG);
+    dwg.extend(ax1U, railYpx + 20); dwg.extend(ax2U, topYpx);
   }
 
-  // Span dimension
-  html+='<line x1="90" y1="210" x2="630" y2="210" stroke="#f59e0b" stroke-width="1.5" marker-start="url(#la_dim)" marker-end="url(#la_dim)"/>';
-  html+='<text x="360" y="225" font-size="10" fill="#b45309" text-anchor="middle">L = '+L_ft.toFixed(2)+' ft (clear '+clr.toFixed(1)+' ft + brg/12, TMS 402-22 &sect;5.3.1.1)</text>';
+  // ── 9. Reaction arrows at supports ───────────────────────────────────────
+  var showRxns = !direct && (w > 0 || P > 0);
+  if(showRxns){
+    var aP_safe = Math.min(Math.max(aP_ft || L_ft/2, 0.0001), L_ft - 0.0001);
+    var b_ft2   = L_ft - aP_safe;
+    var R_L = w * L_ft / 2 + (P > 0 ? P * b_ft2   / L_ft : 0);
+    var R_R = w * L_ft / 2 + (P > 0 ? P * aP_safe / L_ft : 0);
+    var rxLen = Math.min(32, pierH * scale * 0.5);
+    // Left reaction arrow (upward into lintel from pier)
+    AREDraw.forceArrow(v, brg_in/2, t_in + rxLen/scale, 0, -1, rxLen,
+      null, { color: st.force });
+    // Reaction labels: place INLINE on each arrow shaft (forceArrow label param)
+    // rather than pulling to a crowded gutter.
+    AREDraw.forceArrow(v, brg_in/2, t_in + rxLen/scale, 0, -1, rxLen,
+      'RL=' + Math.round(R_L/1000).toFixed(1) + 'k', { color: st.force, labelOff: 18 });
+    AREDraw.forceArrow(v, L_in - brg_in/2, t_in + rxLen/scale, 0, -1, rxLen,
+      'RR=' + Math.round(R_R/1000).toFixed(1) + 'k', { color: st.force, labelOff: -18 });
+  }
 
-  // d and t dimensions
-  var yd=parseFloat(yLT)+Math.min(pxd-2,d_in*1.4286);
-  html+='<line x1="660" y1="'+yLT+'" x2="660" y2="'+yd.toFixed(1)+'" stroke="#dc2626" stroke-width="1.5" marker-start="url(#la_dimR)" marker-end="url(#la_dimR)"/>';
-  html+='<text x="672" y="'+((parseFloat(yLT)+yd)/2+3).toFixed(1)+'" font-size="9" fill="#dc2626">d='+d_in.toFixed(1)+'&Prime;</text>';
-  html+='<line x1="700" y1="'+yLT+'" x2="700" y2="'+yLB+'" stroke="#374151" stroke-width="1.5" marker-start="url(#la_dimD)" marker-end="url(#la_dimD)"/>';
-  html+='<text x="710" y="'+((parseFloat(yLT)+yLB)/2+3).toFixed(1)+'" font-size="9" fill="#374151">t='+t_in.toFixed(0)+'&Prime;</text>';
+  // ── 10. Bearing length labels (both to the LEFT of left pier) ────────────
+  // Single "brg = X"" label covers both ends (symmetric unless noted otherwise).
+  AREDraw.leader(v, brg_in/2, t_in * 0.35, -46, 0,
+    'brg = ' + brg.toFixed(0) + '″ ea.', { color: st.dim, anchor: 'end' });
 
-  svg.innerHTML=html;
+  // ── 11. Span dimension (below lintel + piers) ────────────────────────────
+  var dimYspan = t_in + pierH + 12 / scale;
+  AREDraw.dimLine(v, 0, dimYspan, L_in, dimYspan,
+    'L = ' + L_ft.toFixed(2) + ' ft  (clear ' + clr.toFixed(1) + ' ft + brg/12)',
+    { off: 24, color: st.dim });
+
+  // Clear span sub-dim
+  AREDraw.dimLine(v, brg_in, dimYspan, L_in - brg_in, dimYspan,
+    clr.toFixed(1) + ' ft clear',
+    { off: -18, color: st.dim });
+
+  // ── 12. Depth dimensions (right side) ────────────────────────────────────
+  // Witness lines start OUTSIDE the lintel right edge. The lintel ends at x=L_in.
+  // Offset each witness line far enough right that the dim label (off:24 = 24px
+  // to the right of the witness line) never overlaps the amber fill.
+  // Inner witness line (d): 28px clear of the lintel edge in pixel space.
+  // Outer witness line (t): inner + 56px further right.
+  var dimXd = L_in + 28/scale;            // d witness line (inner, 28px right of lintel)
+  var dimXt = L_in + 28/scale + 56/scale; // t witness line (outer, 56px further right)
+
+  // Effective depth d (inner, force color)
+  // off is negative so the label nudges RIGHT (away from lintel) for a
+  // vertical dim — dimLine's perpendicular for a downward-screen dim is leftward,
+  // so a negative off flips to rightward, keeping text in the outer margin.
+  AREDraw.dimLine(v, dimXd, 0, dimXd, d_in,
+    'd = ' + d_in.toFixed(1) + '″',
+    { off: -24, color: st.force });
+
+  // Total depth t (outer, dim color)
+  AREDraw.dimLine(v, dimXt, 0, dimXt, t_in,
+    't = ' + t_in.toFixed(0) + '″',
+    { off: -24, color: st.dim });
+
+  // ── 13. Member label — leader from lintel centre to right gutter ──────────
+  // The lintel body (amber fill) runs x=0..L_in, y=0..t_in.
+  // The right depth-dim witness lines start at dimXd (28px right of lintel).
+  // Place the member label in the right gutter, between the two dim stacks,
+  // at mid-depth of the lintel (y = t_in/2) — well clear of any fill.
+  // Use leader() so a clean elbow line connects dot-to-label.
+  // lx = pixels from dot to label: dim witness is at dimXd in world inches,
+  // so offset = (v.px(dimXt) - v.px(L_in/2)) + 28 to clear the outer dim.
+  var memberLblOffPx = (v.px(L_in + 28/scale + 56/scale) - v.px(L_in/2)) + 30;
+  AREDraw.leader(v, L_in / 2, t_in / 2, memberLblOffPx, 0,
+    'CMU LINTEL  b×' + t_in.toFixed(0) + '″  (fully grouted)',
+    { color: st.steel, anchor: 'start' });
+
+  // ── 14. Rebar indicators ─────────────────────────────────────────────────
+  // Dots stay at their centroid positions inside the lintel.
+  // Leaders run to the LEFT gutter so labels clear the amber fill and the
+  // right-side depth dimension stack.
+  var rebarGutterXpx = v.px(-pierW) - 8;   // left of the left pier
+
+  // Bottom steel dot: at (L_in*0.5, d_in).
+  (function(){
+    var cy = d_in, cx = L_in * 0.5;
+    var cxpx = v.px(cx), cypx = v.py(cy);
+    var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', cxpx.toFixed(1)); c.setAttribute('cy', cypx.toFixed(1));
+    c.setAttribute('r', 4); c.setAttribute('fill','#c42b2b');
+    c.setAttribute('stroke','#7f1d1d'); c.setAttribute('stroke-width','1');
+    dwg.gSteel.appendChild(c);
+    dwg.extend(cxpx - 4, cypx - 4); dwg.extend(cxpx + 4, cypx + 4);
+    // calloutLabel: application point on dot, label in left gutter
+    AREDraw.calloutLabel(v, cx, cy, rebarGutterXpx, cypx,
+      'As, bot.', { color:'#c42b2b', anchor:'end' });
+  })();
+
+  // Top steel dot: at (L_in*0.5, topCover). Label to the left gutter.
+  if(n_top > 0 && ab_top > 0){
+    var topCover2 = t_in - d_in;
+    var topCy = topCover2 > 1 ? topCover2 : 2.5/scale;
+    var topCx = L_in * 0.5;
+    var topCxpx = v.px(topCx), topCypx = v.py(topCy);
+    var ct = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    ct.setAttribute('cx', topCxpx.toFixed(1)); ct.setAttribute('cy', topCypx.toFixed(1));
+    ct.setAttribute('r', 4); ct.setAttribute('fill','#15803d');
+    ct.setAttribute('stroke','#14532d'); ct.setAttribute('stroke-width','1');
+    dwg.gSteel.appendChild(ct);
+    dwg.extend(topCxpx - 4, topCypx - 4); dwg.extend(topCxpx + 4, topCypx + 4);
+    // calloutLabel: application point on dot, label in left gutter (16px above bot label)
+    AREDraw.calloutLabel(v, topCx, topCy, rebarGutterXpx, topCypx,
+      'As, top', { color:'#15803d', anchor:'end' });
+  }
+
+  // ── 15. View title BELOW the figure ──────────────────────────────────────
+  // +64 (was +46) gives extra clearance below the "L = ... ft" dim label.
+  var titleY = v.py(t_in + pierH + 10/scale) + 64;
+  var titleX = v.px(L_in / 2);
+  AREDraw.viewTitle(v, titleX, titleY, 'Masonry Lintel — Elevation');
+
+  dwg.commit();
 }
 
 // Redraw live on any input change
-document.addEventListener('input', areDrawLintelSvg);
-document.addEventListener('change', areDrawLintelSvg);
-window.addEventListener('load', areDrawLintelSvg);
+document.addEventListener('input', function(){ if(window.AREDraw) areDrawLintelSvg(); });
+document.addEventListener('change', function(){ if(window.AREDraw) areDrawLintelSvg(); });
+window.addEventListener('load', function(){ if(window.AREDraw) areDrawLintelSvg(); });
 
 function runCalc(){
 
@@ -887,6 +1119,7 @@ function runCalc(){
 // Alias so ARE shared utilities auto-run the calc after loading saved inputs
 function runCalcs(){ runCalc(); }
 </script>
+<script src="/are-draw.js"></script>
 <script src="/are-utils-v2.js"></script>
 </body>
 </html>

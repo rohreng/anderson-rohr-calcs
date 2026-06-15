@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/are-draw.js"></script>
     <style>
         body { margin: 0; padding: 0; font-family: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--v2-bg, #f7f6f3); }
         /* ARE navy overrides of Tailwind accents */
@@ -147,7 +148,7 @@
           }
 
           // Main loading method - tries multiple approaches
-          async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+          async loadDatabase(filePath = 'aisc-shapes-database-v16.0.xlsx') {
             this.debugInfo = [`Starting database load for: ${filePath}`];
             
             // Try different loading methods in order
@@ -598,6 +599,59 @@
             }
           }, [beamProps, columnProps]);
 
+          // Draw schematic whenever member properties or results change
+          useEffect(() => {
+            if (!beamProps || !columnProps) return;
+            const svg = document.getElementById('dwhss_schematic');
+            if (!svg || !window.AREDraw) return;
+
+            // Build resolved geometry from the calc's own data structures
+            // so the renderer gets exact dimensions without relying on the label parser.
+            const wKey = (beamProps.designation || beamProps.label || '').toUpperCase();
+            const hKey = (columnProps.designation || columnProps.label || '').toUpperCase();
+
+            const resolvedGeometry = {};
+            // W-shape: d, bf, tf, tw
+            if (beamProps.d != null && beamProps.bf != null) {
+              resolvedGeometry[wKey] = {
+                d: +beamProps.d,
+                bf: +beamProps.bf,
+                tf: +beamProps.tf,
+                tw: +beamProps.tw
+              };
+            }
+            // HSS column: H, B, t (use tdes — the design wall thickness)
+            if (columnProps.H != null && columnProps.B != null) {
+              resolvedGeometry[hKey] = {
+                H: +columnProps.H,
+                B: +columnProps.B,
+                t: +(columnProps.tdes || columnProps.t || 0)
+              };
+            }
+
+            // Mu in kip-ft: derive from results if available, otherwise use nominal
+            // The calc resolves Mn_LRFD; for the diagram show the moment capacity
+            // (or 0 if not yet computed — diagram still draws the connection correctly).
+            const MuDisplay = results ? parseFloat(results.Mn_LRFD.toFixed(1)) : 0;
+
+            const state = {
+              schema: 'are.calc.v1',
+              calcType: 'w-to-hss-column',
+              member: {
+                type: 'beam',
+                section: wKey || 'W16X57',
+                material: { Fy: 50 }
+              },
+              demands: { Mu: MuDisplay },   // kip-ft per spec §4.1
+              connection: {
+                column: { section: hKey || 'HSS10X10X1/2', Fy: 46 },
+                beamFy: 50
+              }
+            };
+
+            window.AREDraw.renderConnection(svg, state, { resolvedGeometry: resolvedGeometry });
+          }, [beamProps, columnProps, results]);
+
           // Loading screen with debug info
           if (!dbLoaded) {
             return (
@@ -759,6 +813,11 @@
                     </div>
                   </div>
                 )}
+
+                {/* Connection Schematic */}
+                <div className="bg-white border border-gray-200 rounded-lg p-3 mb-6" style={{background:'#fff'}}>
+                  <svg id="dwhss_schematic" xmlns="http://www.w3.org/2000/svg" style={{width:'100%', maxHeight:'340px', display:'block', margin:'0 auto'}}></svg>
+                </div>
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   {/* Input Section */}

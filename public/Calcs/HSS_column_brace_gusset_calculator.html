@@ -276,9 +276,10 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <!-- Schematic -->
 <div class="blk">
   <h2>Connection Schematic</h2>
+  <script src="/are-draw.js"></script>
   <div class="schematic-wrap">
-    <svg id="gx_elev" width="320" height="280" viewBox="0 0 320 280" xmlns="http://www.w3.org/2000/svg"></svg>
-    <svg id="gx_plan" width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="gx_elev" xmlns="http://www.w3.org/2000/svg"></svg>
+    <svg id="gx_plan" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 </div>
 
@@ -395,87 +396,241 @@ function fillHSS(){
 
 // ── Main Calculation ──────────────────────────────────────────────────────────
 
-// ============ LIVE SCHEMATIC ============
+// ============ LIVE SCHEMATIC (AREDraw) ============
 function areDrawSchematic(){
-  var e1=document.getElementById('gx_elev'), e2=document.getElementById('gx_plan');
-  if(!e1||!e2) return;
-  var Hc=ov('Hc')||8, Bc=ov('Bc')||8, tg=ov('tg')||0.5, dg=ov('dg')||8, N=ov('N_gp')||10;
-  var th=ov('theta_deg')||45, Pu=ov('Pu_b'), ws=parseInt(document.getElementById('weld_sides').value)||2;
-  var defs='<defs><marker id="gxaR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-    +'<marker id="gxaG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker></defs>';
-  // ---- elevation ----
-  var sc=Math.min(90/Math.max(Hc,1),9); sc=Math.max(sc,4);
-  var cw=Math.max(Hc*sc,30), cx0=210-cw/2;
-  var s=defs;
-  s+='<rect x="'+cx0+'" y="30" width="'+cw+'" height="220" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s+='<text x="'+(cx0+cw/2)+'" y="145" text-anchor="middle" font-size="11" fill="#1a2b5f" font-weight="bold" font-family="sans-serif">HSS '+Hc+'x'+Bc+'</text>';
-  // gusset: rectangle projecting left, height = N*scg, length = dg*scg
-  var scg=Math.min(110/Math.max(dg,1), 90/Math.max(N,1), sc); scg=Math.max(scg,3);
-  var gh=Math.max(N*scg,18), gl=Math.max(dg*scg,26);
-  var gy=140-gh/2, gx=cx0-gl;
-  s+='<rect x="'+gx+'" y="'+gy+'" width="'+gl+'" height="'+gh+'" fill="#fde68a" stroke="#b45309" stroke-width="2"/>';
-  s+='<text x="'+(gx+gl/2)+'" y="'+(140+4)+'" text-anchor="middle" font-size="10" fill="#78350f" font-weight="bold" font-family="sans-serif">Gusset</text>';
-  // weld line at column face
-  s+='<line x1="'+cx0+'" y1="'+gy+'" x2="'+cx0+'" y2="'+(gy+gh)+'" stroke="#c42b2b" stroke-width="3.5"/>';
-  s+='<text x="'+(cx0+4)+'" y="'+(gy-6)+'" font-size="9" fill="#c42b2b" font-family="sans-serif">weld</text>';
-  // N dim (green, left of column face)
-  var ndx=cx0-10;
-  s+='<line x1="'+ndx+'" y1="'+gy+'" x2="'+ndx+'" y2="'+(gy+gh)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxaG)" marker-end="url(#gxaG)"/>';
-  s+='<text x="'+(ndx-4)+'" y="'+(140+3)+'" text-anchor="end" font-size="10" fill="#1a7a4a" font-family="sans-serif">N='+N+'"</text>';
-  // dg dim below gusset
-  s+='<line x1="'+gx+'" y1="'+(gy+gh+12)+'" x2="'+cx0+'" y2="'+(gy+gh+12)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxaG)" marker-end="url(#gxaG)"/>';
-  s+='<text x="'+(gx+gl/2)+'" y="'+(gy+gh+26)+'" text-anchor="middle" font-size="10" fill="#1a7a4a" font-family="sans-serif">d_g='+dg+'"</text>';
-  // brace along theta from gusset corner, arrow toward gusset (tension positive away)
-  var r=th*Math.PI/180, bl=85;
-  var bx0=gx+6, by0=gy+gh;
-  var bx1=bx0-Math.cos(r)*bl, by1=by0+Math.sin(r)*bl;
-  s+='<line x1="'+bx1+'" y1="'+by1+'" x2="'+bx0+'" y2="'+by0+'" stroke="#1a2b5f" stroke-width="2.5" stroke-dasharray="6,3"/>';
-  var am=(Pu>=0)?-1:1; // tension: arrow pointing away from gusset along brace
-  var ax1=bx0-Math.cos(r)*20, ay1=by0+Math.sin(r)*20;
-  var ax2=bx0-Math.cos(r)*62, ay2=by0+Math.sin(r)*62;
-  if(Pu>=0) s+='<line x1="'+ax1+'" y1="'+ay1+'" x2="'+ax2+'" y2="'+ay2+'" stroke="#c42b2b" stroke-width="2.4" marker-end="url(#gxaR)"/>';
-  else s+='<line x1="'+ax2+'" y1="'+ay2+'" x2="'+ax1+'" y2="'+ay1+'" stroke="#c42b2b" stroke-width="2.4" marker-end="url(#gxaR)"/>';
-  s+='<text x="'+(bx1+4)+'" y="'+(by1+14)+'" font-size="10" fill="#c42b2b" font-family="sans-serif">P_u='+Pu+' k ('+(Pu>=0?'T':'C')+')</text>';
-  s+='<text x="'+(bx0-46)+'" y="'+(by0-8)+'" font-size="10" fill="#1a2b5f" font-family="sans-serif">&#952;='+th+'&#176;</text>';
-  // column loads note
-  s+='<line x1="'+(cx0+cw/2)+'" y1="6" x2="'+(cx0+cw/2)+'" y2="26" stroke="#c42b2b" stroke-width="2" marker-end="url(#gxaR)"/>';
-  s+='<text x="'+(cx0+cw/2+6)+'" y="18" font-size="9" fill="#c42b2b" font-family="sans-serif">P_u,col + M_ux/M_uy</text>';
-  e1.innerHTML=s;
-  // ---- plan ----
-  var sc2=Math.min(150/Math.max(Bc,1),16); sc2=Math.max(sc2,6);
-  var pw=Math.max(Bc*sc2,40), px=140-pw/2;
-  var tgw=Math.max(tg*sc2,5);
-  var s2=defs.replace(/gxa/g,'gxb');
-  s2+='<rect x="'+px+'" y="30" width="'+pw+'" height="220" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-  s2+='<text x="140" y="62" text-anchor="middle" font-size="11" fill="#1a2b5f" font-weight="bold" font-family="sans-serif">HSS face (B='+Bc+'")</text>';
-  var gh2=Math.max(Math.min(N*sc2,180),24), gy2=140-gh2/2;
-  s2+='<rect x="'+(140-tgw/2)+'" y="'+gy2+'" width="'+tgw+'" height="'+gh2+'" fill="#fde68a" stroke="#b45309" stroke-width="2"/>';
-  s2+='<text x="140" y="'+(gy2-8)+'" text-anchor="middle" font-size="10" fill="#b45309" font-family="sans-serif">t_g='+tg+'"</text>';
-  // weld lines: sides always; top/bottom if 4-sided
-  s2+='<line x1="'+(140-tgw/2)+'" y1="'+gy2+'" x2="'+(140-tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
-  s2+='<line x1="'+(140+tgw/2)+'" y1="'+gy2+'" x2="'+(140+tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
-  if(ws===4){
-    s2+='<line x1="'+(140-tgw/2)+'" y1="'+gy2+'" x2="'+(140+tgw/2)+'" y2="'+gy2+'" stroke="#c42b2b" stroke-width="3.5"/>';
-    s2+='<line x1="'+(140-tgw/2)+'" y1="'+(gy2+gh2)+'" x2="'+(140+tgw/2)+'" y2="'+(gy2+gh2)+'" stroke="#c42b2b" stroke-width="3.5"/>';
+  if(!window.AREDraw) return;
+  var svgElev = document.getElementById('gx_elev');
+  var svgPlan = document.getElementById('gx_plan');
+  if(!svgElev || !svgPlan) return;
+
+  var Hc  = ov('Hc')  || 8;
+  var Bc  = ov('Bc')  || 8;
+  var tc  = ov('t_col') || 0.465;
+  var tg  = ov('tg')  || 0.5;
+  var dg  = ov('dg')  || 8;
+  var N   = ov('N_gp') || 10;
+  var th  = ov('theta_deg') || 45;
+  var Pu  = ov('Pu_b');
+  var Pu_col = ov('Pu_col') || 0;
+  var ws  = parseInt(document.getElementById('weld_sides').value) || 2;
+  var isTension = (Pu >= 0);
+  var thRad = th * Math.PI / 180;
+
+  // ── ELEVATION VIEW ────────────────────────────────────────────────────────
+  // World layout (inches):
+  //   Column: vertical, x=0..Hc, tall section shown ±colHalf from y=0 centroid
+  //   Gusset: projects left, x=-(dg)..0, y=-(N/2)..(N/2)
+  //   Brace:  dashed line at angle theta, from gusset far corner outward
+  // View origin placed to give room for brace arrow left + labels right
+
+  var colHalfH = 14; // inches of column shown above+below gusset centroid
+  var elevScale = AREDraw.fitScale(Math.max(Hc, dg + 4), 160, { min: 6, max: 14 });
+
+  var colWld  = Hc;          // column is drawn with depth in world-x direction
+  var brcLen  = dg * 1.6;   // brace shown at 1.6× the gusset projection
+
+  // Origin: centroid of gusset-column interface is at (0,0) in world
+  // Column sits at x=0..colWld; gusset spans x=-dg..0, y=-N/2..N/2
+
+  var dwgE = new AREDraw.Drawing(svgElev, {});
+  var st   = dwgE.style;
+
+  // Leave room left for brace arrow + callout label
+  var elevOx = 180;
+  var elevOy = 160;
+  var vE = new AREDraw.View(dwgE, { scale: elevScale, ox: elevOx, oy: elevOy, flipY: true });
+
+  // HSS Column: tubeElevation — vertical column shown as a horizontal band.
+  // We'll draw it rotated: in elevation the column is VERTICAL.
+  // Use plate() for the full column and its walls so we can draw it vertically.
+  // Column occupies world x=0 to x=Hc (this is the cross-section face depth).
+  // Column vertical extent: -colHalfH to +colHalfH
+  AREDraw.plate(vE, 0, -colHalfH, Hc, colHalfH*2, { fill: st.steelFill, hatch: false });
+  // Show column wall thickness on left face (visible in elevation)
+  AREDraw.plate(vE, 0, -colHalfH, tc, colHalfH*2, { fill: st.steel, hatch: false });
+  // Column centerline (vertical)
+  AREDraw.centerline(vE, Hc/2, -colHalfH - 1, Hc/2, colHalfH + 1);
+
+  // Gusset plate: x=-dg..0, y=-N/2..N/2 (amber, designed member)
+  AREDraw.plate(vE, -dg, -N/2, dg, N, { highlight: true });
+
+  // Gusset centerline (horizontal, along brace axis projected onto gusset)
+  AREDraw.centerline(vE, -dg - 1, 0, Hc/2, 0);
+
+  // Weld at column face (x=0): weldFillet along the gusset height
+  AREDraw.weldFillet(vE, 0, -N/2, 0, N/2, { side: 'right', size: '', tag: false });
+
+  // Brace: dashed diagonal from gusset far corner at angle theta
+  // Brace attaches at lower-left corner of gusset (-dg, -N/2), going away at angle
+  var braceAttachX = -dg;
+  var braceAttachY = 0;  // centerline level
+  var brcWorldLen = brcLen;
+  var brcEndX = braceAttachX - brcWorldLen * Math.cos(thRad);
+  var brcEndY = braceAttachY - brcWorldLen * Math.sin(thRad);  // goes down-left in world (+y up so negative = down)
+
+  // Brace member line (dashed, navy = secondary steel)
+  var brcPx1 = vE.px(braceAttachX), brcPy1 = vE.py(braceAttachY);
+  var brcPx2 = vE.px(brcEndX),      brcPy2 = vE.py(brcEndY);
+  var brcLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  brcLine.setAttribute('x1', Math.round(brcPx1)); brcLine.setAttribute('y1', Math.round(brcPy1));
+  brcLine.setAttribute('x2', Math.round(brcPx2)); brcLine.setAttribute('y2', Math.round(brcPy2));
+  brcLine.setAttribute('stroke', st.steel);
+  brcLine.setAttribute('stroke-width', '1.8');
+  brcLine.setAttribute('stroke-dasharray', '7,3');
+  dwgE.gSteel.appendChild(brcLine);
+  dwgE.extend(brcPx2, brcPy2);
+
+  // Brace force arrow along brace axis, through gusset centroid (at x=0, y=0)
+  // Arrow starts at world centroid (gusset-column interface) and goes out along brace
+  var arrowLen = 52; // pixels
+  if(isTension){
+    // Tension: arrow points AWAY from joint (toward brace end)
+    AREDraw.forceArrow(vE, braceAttachX, braceAttachY,
+      -Math.cos(thRad), -Math.sin(thRad), arrowLen, '', { color: st.force });
+    // Callout label pulled below-left
+    AREDraw.calloutLabel(vE, braceAttachX, braceAttachY,
+      brcPx2 + 6, brcPy2 + 20,
+      'Pu = ' + Math.abs(Pu).toFixed(1) + ' k (T)', { color: st.force, anchor: 'start' });
+  } else {
+    // Compression: arrow points INTO joint (toward gusset)
+    AREDraw.forceArrow(vE, brcEndX + brcWorldLen*0.15*Math.cos(thRad),
+      brcEndY + brcWorldLen*0.15*Math.sin(thRad),
+      Math.cos(thRad), Math.sin(thRad), arrowLen, '', { color: st.force });
+    AREDraw.calloutLabel(vE, braceAttachX, braceAttachY,
+      brcPx2 + 6, brcPy2 + 20,
+      'Pu = ' + Math.abs(Pu).toFixed(1) + ' k (C)', { color: st.force, anchor: 'start' });
   }
-  s2+='<text x="'+(140+tgw/2+6)+'" y="'+(gy2+10)+'" font-size="9" fill="#c42b2b" font-family="sans-serif">'+(ws===4?'4-sided weld':'2-sided weld')+'</text>';
-  var ndx2=140+tgw/2+16;
-  s2+='<line x1="'+ndx2+'" y1="'+gy2+'" x2="'+ndx2+'" y2="'+(gy2+gh2)+'" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxbG)" marker-end="url(#gxbG)"/>';
-  s2+='<text x="'+(ndx2+5)+'" y="'+(140+3)+'" font-size="10" fill="#1a7a4a" font-family="sans-serif">N='+N+'"</text>';
-  s2+='<line x1="'+px+'" y1="262" x2="'+(px+pw)+'" y2="262" stroke="#1a7a4a" stroke-width="1.4" marker-start="url(#gxbG)" marker-end="url(#gxbG)"/>';
-  s2+='<text x="140" y="276" text-anchor="middle" font-size="10" fill="#1a7a4a" font-family="sans-serif">B='+Bc+'"</text>';
-  s2+='<text x="42" y="145" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="sans-serif">Plan View</text>';
-  e2.innerHTML=s2;
+
+  // Column axial load arrow: downward through column centroid (top of column)
+  AREDraw.forceArrow(vE, Hc/2, colHalfH + 2.5, 0, -1, 44, '', { color: st.force });
+  AREDraw.calloutLabel(vE, Hc/2, colHalfH + 2.5,
+    vE.px(Hc) + 55, vE.py(colHalfH + 2.5),
+    'Pu,col = ' + Pu_col.toFixed(0) + ' k', { color: st.force, anchor: 'start' });
+
+  // θ angle label — placed below the brace midpoint via calloutLabel to stay
+  // clear of the N dimension line which occupies the left gutter at y≈0.
+  // Anchor: along the brace, roughly at its midpoint, offset into a clear zone.
+  var thMidX = braceAttachX - brcWorldLen * 0.42 * Math.cos(thRad);
+  var thMidY = braceAttachY - brcWorldLen * 0.42 * Math.sin(thRad);
+  AREDraw.calloutLabel(vE, thMidX, thMidY,
+    vE.px(thMidX) - 4, vE.py(thMidY) + 28,
+    'θ = ' + th + '°', { color: st.dim, anchor: 'middle' });
+
+  // Dimensions
+  // N (gusset height) — outside left of gusset
+  AREDraw.dimLine(vE, -dg - 0.3, -N/2, -dg - 0.3, N/2,
+    'N = ' + AREDraw.fmtIn(N), { off: -28 });
+  // dg (gusset projection) — below gusset
+  AREDraw.dimLine(vE, -dg, -N/2 - 0.3, 0, -N/2 - 0.3,
+    'dg = ' + AREDraw.fmtIn(dg), { off: 28 });
+  // Hc column face dimension — right side
+  AREDraw.dimLine(vE, Hc + 0.3, -N/2, Hc + 0.3, N/2,
+    'H = ' + AREDraw.fmtIn(Hc), { off: 28 });
+
+  // Weld label via leader
+  AREDraw.leader(vE, 0, N/4, -36, -20,
+    ws === 4 ? '4-sided weld' : '2-sided weld', { color: st.weld });
+
+  // Member labels — placed OUTSIDE the filled regions via leaders/callouts
+  // HSS column label: leader from right edge of column to the right margin
+  AREDraw.leader(vE, Hc + 0.2, 0, 32, 0,
+    'HSS ' + Hc + '\xd7' + Bc, { color: st.steel, anchor: 'start' });
+  // Gusset label: leader from bottom edge of gusset to below-left clear space
+  AREDraw.leader(vE, -dg/2, -N/2 - 0.3, 0, 22,
+    'Gusset', { color: st.steel, anchor: 'middle' });
+
+  // View title BELOW
+  var eTitleY = dwgE.maxY + st.fsTitle + 10;
+  AREDraw.viewTitle(vE, vE.px(Hc/2), eTitleY, 'Elevation');
+
+  dwgE.commit();
+
+  // ── PLAN VIEW ──────────────────────────────────────────────────────────────
+  // HSS column cross-section centered at (0,0), gusset plate as a thin rect on the face.
+  // Plan: looking DOWN. Gusset is a thin plate attached to the near face of the HSS.
+  // HSS outer dimensions: Hc (x) × Bc (y).
+  // Gusset: tg wide (in plan x-direction), N tall (in plan y-direction), on near face (x = -Bc/2 - tg .. -Bc/2)
+  // But actually in plan view, the gusset attaches to one face of the HSS.
+  // Gusset occupies: x = -Bc/2 - dg .. -Bc/2, in plan view it's perpendicular to face
+  // In plan: gusset is a rectangle dg (outward) × N (along face)
+  // Actually gusset edge thickness tg is visible in plan
+
+  var planScale = AREDraw.fitScale(Math.max(Bc, Hc, N) + dg, 160, { min: 6, max: 16 });
+
+  var dwgP = new AREDraw.Drawing(svgPlan, {});
+  var stp  = dwgP.style;
+  var vP   = new AREDraw.View(dwgP, { scale: planScale, ox: 180, oy: 160, flipY: true });
+
+  // HSS section (cross-section view = plan view of column)
+  AREDraw.rectHSSSection(vP, 0, 0, { H: Bc, B: Hc, t: tc }, { hatch: true });
+
+  // Centerlines through section
+  AREDraw.centerline(vP, -Hc/2 - 1, 0,  Hc/2 + 1, 0);
+  AREDraw.centerline(vP,  0, -Bc/2 - 1, 0,  Bc/2 + 1);
+
+  // Gusset plate in plan — shown on the left face (x = -Hc/2):
+  // Gusset has tg thickness visible in plan, extends dg outward (in -x direction), N in y direction
+  // We'll show it centered on the face (y = -N/2 to N/2)
+  var gPlanX = -Hc/2 - dg;   // left edge of gusset in plan
+  AREDraw.plate(vP, gPlanX, -N/2, dg, N, { highlight: true });
+
+  // Gusset centerline (in plan, horizontal toward column face)
+  AREDraw.centerline(vP, gPlanX - 0.5, 0, Hc/2 + 0.5, 0);
+
+  // Weld at column face (x=-Hc/2): weld runs along gusset height N
+  if(ws === 4) {
+    // 4-sided: weld on sides and top/bottom of gusset edge
+    AREDraw.weldFillet(vP, -Hc/2, -N/2, -Hc/2, N/2, { side: 'left', tag: false });
+    AREDraw.weldFillet(vP, gPlanX, -N/2, -Hc/2, -N/2, { side: 'up', tag: false });
+    AREDraw.weldFillet(vP, gPlanX, N/2,  -Hc/2, N/2,  { side: 'down', tag: false });
+  } else {
+    // 2-sided: weld on sides only
+    AREDraw.weldFillet(vP, -Hc/2, -N/2, -Hc/2, N/2, { side: 'left', tag: false });
+  }
+
+  // Dimensions
+  // N (gusset height in plan view = vertical dimension of plan)
+  AREDraw.dimLine(vP, gPlanX - 0.3, -N/2, gPlanX - 0.3, N/2,
+    'N = ' + AREDraw.fmtIn(N), { off: -28 });
+  // B (HSS face width shown in plan) — off is negative so it pushes ABOVE (away from section in SVG y)
+  AREDraw.dimLine(vP, -Hc/2, Bc/2 + 0.3, Hc/2, Bc/2 + 0.3,
+    'B = ' + AREDraw.fmtIn(Bc), { off: -28 });
+  // tg label via leader
+  AREDraw.leader(vP, gPlanX + dg/2, N/2 + 0.2, 30, -22,
+    'tg = ' + AREDraw.fmtIn(tg), { color: stp.dim });
+
+  // Weld callout — anchor dot on the weld line at the column face (top edge of gusset),
+  // leader pulled above-left to clear both the gusset plate and the HSS section.
+  AREDraw.leader(vP, -Hc/2, N/2,
+    -(Math.abs(vP.px(-Hc/2) - vP.px(gPlanX)) + 20), -28,
+    ws === 4 ? '4-sided weld' : '2-sided weld', { color: stp.weld, anchor: 'end' });
+
+  // Member label — placed BELOW the section (outside the filled region), using a leader.
+  AREDraw.leader(vP, Hc/2 + 0.2, 0, 32, 0,
+    'HSS ' + Hc + '\xd7' + Bc, { color: stp.steel, anchor: 'start' });
+
+  // View title BELOW
+  var pTitleY = dwgP.maxY + stp.fsTitle + 10;
+  AREDraw.viewTitle(vP, vP.px(0), pTitleY, 'Plan — Column Cross Section');
+
+  dwgP.commit();
 }
 (function(){
   function bind(){
-    ['Pu_b','theta_deg','Hc','Bc','t_col','tg','dg','N_gp','Lg','weld_w','weld_sides'].forEach(function(id){
+    ['Pu_b','Pu_col','theta_deg','Hc','Bc','t_col','tg','dg','N_gp','Lg','weld_w','weld_sides'].forEach(function(id){
       var el=document.getElementById(id);
       if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
     });
-    areDrawSchematic();
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', areDrawSchematic);
+    } else {
+      areDrawSchematic();
+    }
   }
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+  // Defer until AREDraw is loaded (the <script> tag is in the same block, so it
+  // should be available synchronously, but guard for safety).
+  if(window.AREDraw){ bind(); }
+  else { window.addEventListener('load', bind); }
 })();
 // ============ END LIVE SCHEMATIC ============
 

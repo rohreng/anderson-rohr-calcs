@@ -144,48 +144,16 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <!-- Schematic -->
     <div class="schema-wrap">
       <div class="sub-head">Foundation Schematic</div>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start">
+      <div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center;align-items:flex-start">
 
         <!-- Plan view -->
         <div>
-          <div style="font-size:.78em;color:#555;margin-bottom:6px;text-align:center">Foundation Plan (beam grid)</div>
-          <svg id="svgPlan" width="340" height="220" style="border:1px solid #dde;border-radius:6px;background:#f9fafb;display:block"></svg>
+          <svg id="svgPlan" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
 
         <!-- Cross-section -->
         <div>
-          <div style="font-size:.78em;color:#555;margin-bottom:6px;text-align:center">Grade Beam Cross-Section</div>
-          <svg width="320" height="220" style="border:1px solid #dde;border-radius:6px;background:#f9fafb;display:block">
-            <!-- slab -->
-            <rect x="40" y="55" width="240" height="28" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
-            <text x="160" y="74" text-anchor="middle" font-size="10" fill="#1e293b">Slab (t&#8209;s)</text>
-            <!-- beam stem -->
-            <rect x="110" y="83" width="100" height="95" fill="#94a3b8" stroke="#64748b" stroke-width="1.5"/>
-            <text x="160" y="132" text-anchor="middle" font-size="10" fill="#0f172a" font-weight="600">Grade Beam</text>
-            <text x="160" y="146" text-anchor="middle" font-size="10" fill="#0f172a">b&#8205;&#8201;&times;&#8201;d</text>
-            <!-- top bars -->
-            <circle cx="132" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
-            <circle cx="160" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
-            <circle cx="188" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
-            <line x1="210" y1="96" x2="295" y2="78" stroke="#1e3c72" stroke-width="1" stroke-dasharray="3,2"/>
-            <text x="298" y="81" font-size="9" fill="#1e3c72">Top bars (&#8722;M)</text>
-            <!-- bottom bars -->
-            <circle cx="132" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
-            <circle cx="160" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
-            <circle cx="188" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
-            <line x1="210" y1="165" x2="295" y2="150" stroke="#9a3412" stroke-width="1" stroke-dasharray="3,2"/>
-            <text x="298" y="153" font-size="9" fill="#9a3412">Bot bars (+M)</text>
-            <!-- cover brace -->
-            <line x1="110" y1="178" x2="110" y2="192" stroke="#475569" stroke-width="1"/>
-            <line x1="210" y1="178" x2="210" y2="192" stroke="#475569" stroke-width="1"/>
-            <line x1="110" y1="185" x2="210" y2="185" stroke="#475569" stroke-width="1"/>
-            <text x="160" y="205" text-anchor="middle" font-size="9" fill="#475569">b&#8201;=&#8201;beam width</text>
-            <!-- depth annotation -->
-            <line x1="28" y1="55" x2="28" y2="178" stroke="#475569" stroke-width="1"/>
-            <line x1="23" y1="55" x2="33" y2="55" stroke="#475569" stroke-width="1"/>
-            <line x1="23" y1="178" x2="33" y2="178" stroke="#475569" stroke-width="1"/>
-            <text x="14" y="120" text-anchor="middle" font-size="9" fill="#475569" transform="rotate(-90,14,120)">Beam depth d</text>
-          </svg>
+          <svg id="svgSection" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
 
       </div>
@@ -376,6 +344,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <script>
 var rebarAreas = {'4':0.20,'5':0.31,'6':0.44,'7':0.60,'8':0.79,'9':1.00,'10':1.27,'11':1.56};
+// Computed beam depth stored here after runCalcs() so drawSection() can use it
+var _lastBeamDepth = 0;
 
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
@@ -398,38 +368,220 @@ function updatePlan(){
   var L=parseFloat(document.getElementById('L').value)||60;
   var Lp=parseFloat(document.getElementById('Lp').value)||40;
   drawPlan(L,Lp,null,null);
+  drawSection();
 }
 
-function drawPlan(L,Lp,NL,NS){
-  var svg=document.getElementById('svgPlan');
-  var W=340,H=220,margin=44;
-  var scale=Math.min((W-2*margin)/Math.max(L,1),(H-2*margin)/Math.max(Lp,1));
-  var sw=L*scale, sh=Lp*scale;
-  var ox=(W-sw)/2, oy=(H-sh)/2;
-  var lines='';
-  if(NL&&NL>1){
-    for(var i=0;i<NL;i++){
-      var y=oy+i*sh/(NL-1);
-      lines+='<line x1="'+ox+'" y1="'+y+'" x2="'+(ox+sw)+'" y2="'+y+'" stroke="#2a5298" stroke-width="2.5" opacity="0.65"/>';
+// \u2500\u2500 AREDraw Plan View \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function drawPlan(L, Lp, NL, NS) {
+  var svg = document.getElementById('svgPlan');
+  if (!svg || !window.AREDraw) return;
+
+  // Work in feet as the world unit. Budget ~260 px for the larger dimension.
+  var budget = 220;
+  var scaleRaw = budget / Math.max(L, Lp, 1);
+  var scale = Math.max(1.2, Math.min(6, scaleRaw));
+
+  var dwg = new AREDraw.Drawing(svg, { margin: 30 });
+  var st  = dwg.style;
+
+  // Origin at bottom-left of slab; Y up (flipY:true) \u2014 plan is top-down
+  // but we use flipY for consistency; slab from 0,0 to L,Lp in world-ft.
+  var v = new AREDraw.View(dwg, { scale: scale, ox: 20, oy: Lp * scale + 20, flipY: true });
+
+  // Slab footprint \u2014 secondary fill (it's the soil-contact structure, not a primary designed member)
+  AREDraw.plate(v, 0, 0, L, Lp, { fill: st.steelFill });
+
+  // Long-direction beams (run parallel to L, spaced along Lp)
+  if (NL && NL > 1) {
+    for (var i = 0; i < NL; i++) {
+      var yb = i * Lp / (NL - 1);
+      // Beam lines: navy, slightly heavier
+      var bline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      bline.setAttribute('x1', v.px(0));   bline.setAttribute('y1', v.py(yb));
+      bline.setAttribute('x2', v.px(L));   bline.setAttribute('y2', v.py(yb));
+      bline.setAttribute('stroke', st.steel);
+      bline.setAttribute('stroke-width', st.lwObject);
+      dwg.gSteel.appendChild(bline);
+      dwg.extend(v.px(0), v.py(yb)); dwg.extend(v.px(L), v.py(yb));
     }
   }
-  if(NS&&NS>1){
-    for(var j=0;j<NS;j++){
-      var x=ox+j*sw/(NS-1);
-      lines+='<line x1="'+x+'" y1="'+oy+'" x2="'+x+'" y2="'+(oy+sh)+'" stroke="#9a3412" stroke-width="2.5" opacity="0.65"/>';
+
+  // Short-direction beams (run parallel to Lp, spaced along L)
+  if (NS && NS > 1) {
+    for (var j = 0; j < NS; j++) {
+      var xb = j * L / (NS - 1);
+      var bline2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      bline2.setAttribute('x1', v.px(xb));  bline2.setAttribute('y1', v.py(0));
+      bline2.setAttribute('x2', v.px(xb));  bline2.setAttribute('y2', v.py(Lp));
+      bline2.setAttribute('stroke', st.dim);
+      bline2.setAttribute('stroke-width', st.lwObjectThin);
+      bline2.setAttribute('stroke-dasharray', '4 2');
+      dwg.gSteel.appendChild(bline2);
+      dwg.extend(v.px(xb), v.py(0)); dwg.extend(v.px(xb), v.py(Lp));
     }
   }
-  var legend='';
-  if(NL){legend+='<rect x="'+(ox+4)+'" y="'+(oy+sh-26)+'" width="10" height="3" fill="#2a5298" opacity="0.7"/>'
-    +'<text x="'+(ox+18)+'" y="'+(oy+sh-21)+'" font-size="8.5" fill="#1e3c72">Long: '+NL+' beams</text>';}
-  if(NS){legend+='<line x1="'+(ox+7)+'" y1="'+(oy+sh-14)+'" x2="'+(ox+7)+'" y2="'+(oy+sh-6)+'" stroke="#9a3412" stroke-width="2.5" opacity="0.7"/>'
-    +'<text x="'+(ox+18)+'" y="'+(oy+sh-7)+'" font-size="8.5" fill="#9a3412">Short: '+NS+' beams</text>';}
-  svg.innerHTML=
-    '<rect x="'+ox+'" y="'+oy+'" width="'+sw+'" height="'+sh+'" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>'
-    +lines+legend
-    +'<text x="'+(ox+sw/2)+'" y="'+(oy-10)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="600">L = '+L+"'"+'</text>'
-    +'<text x="'+(ox+sw+18)+'" y="'+(oy+sh/2)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="600" transform="rotate(90,'+(ox+sw+18)+','+(oy+sh/2)+')">L\u2019 = '+Lp+"'"+'</text>'
-    +'<text x="'+W/2+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#1e3c72">Foundation Plan</text>';
+
+  // Centerlines through plan centroid (long & short axes)
+  AREDraw.centerline(v, L / 2, -0.5, L / 2, Lp + 0.5);
+  AREDraw.centerline(v, -0.5, Lp / 2, L + 0.5, Lp / 2);
+
+  // L dimension (top)
+  AREDraw.dimLine(v, 0, Lp, L, Lp, "L = " + L + "'", { off: -26 });
+  // Lp dimension (right side)
+  AREDraw.dimLine(v, L, 0, L, Lp, "L' = " + Lp + "'", { off: 28 });
+
+  // Legend \u2014 beam direction labels via leaders if beams were provided
+  if (NL && NL > 1) {
+    AREDraw.leader(v, L / 2, Lp / (NL > 1 ? NL - 1 : 1), 28, -20,
+      'Long: ' + NL + ' beams', { color: st.steel });
+  }
+  if (NS && NS > 1) {
+    AREDraw.leader(v, L / (NS > 1 ? NS - 1 : 1), Lp / 2, 28, -30,
+      'Short: ' + NS + ' beams', { color: st.dim });
+  }
+
+  // Title below
+  var titleY = dwg.maxY + st.fsTitle + 12;
+  AREDraw.viewTitle(v, v.px(L / 2), titleY, 'Foundation Plan');
+
+  dwg.commit();
+}
+
+// \u2500\u2500 AREDraw Cross-Section View \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+function drawSection() {
+  var svg = document.getElementById('svgSection');
+  if (!svg || !window.AREDraw) return;
+
+  // Read current inputs (or defaults)
+  var bw   = parseFloat((document.getElementById('beam_width') || {}).value)      || 12;   // in
+  var ts   = parseFloat((document.getElementById('slab_thickness') || {}).value)  || 4;    // in
+  var dL   = parseFloat((document.getElementById('depth_long') || {}).value)      || 0;
+  var dS   = parseFloat((document.getElementById('depth_short') || {}).value)     || 0;
+  // After runCalcs(), _lastBeamDepth holds the WRI-computed depth; fall back to
+  // user overrides if entered, then a schematic default of 18" before first calc.
+  var beamD = _lastBeamDepth > 0 ? _lastBeamDepth : Math.max(dL, dS);
+  if (!beamD || beamD <= 0) beamD = 18;
+
+  var cover    = parseFloat((document.getElementById('cover') || {}).value)       || 3;    // in
+  var topBarN  = document.getElementById('top_bar_size')    ? document.getElementById('top_bar_size').value    : '8';
+  var botBarN  = document.getElementById('bottom_bar_size') ? document.getElementById('bottom_bar_size').value : '8';
+  var barDia   = { '4':0.5, '5':0.625, '6':0.75, '7':0.875, '8':1.0, '9':1.128, '10':1.27, '11':1.41 };
+  var barR = (barDia[topBarN] || 1.0) / 2; // bar radius in inches
+
+  // Scale: fit total depth (slab + beam) in ~200 px budget
+  var totalH = ts + beamD;
+  var scale = Math.max(2, Math.min(9, 200 / totalH));
+
+  // Width budget: beam is bw wide, slab extends to 4\u00d7bw each side
+  var slabW = Math.max(bw * 3, 36); // show generous slab width
+  var budget = slabW * scale;
+
+  var dwg = new AREDraw.Drawing(svg, { margin: 30 });
+  var st  = dwg.style;
+
+  // Origin: bottom of beam at y=0; slab top at y = beamD + ts
+  // Cross-section centered on x=0
+  var v = new AREDraw.View(dwg, { scale: scale, ox: budget / 2 + 30, oy: (beamD + ts) * scale + 30, flipY: true });
+
+  // \u2500\u2500 Soil hatch (below beam) \u2500\u2500
+  var soilY = -4;          // 4 inches of soil shown below beam bottom
+  var soilW = bw + 6;
+  // Simple soil hatch via manual lines (soil isn't a structural member)
+  var sPx_x1 = v.px(-soilW / 2), sPx_x2 = v.px(soilW / 2);
+  var sPx_y0 = v.py(0), sPx_y1 = v.py(soilY);
+  var soilRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  soilRect.setAttribute('x', Math.min(sPx_x1, sPx_x2));
+  soilRect.setAttribute('y', Math.min(sPx_y0, sPx_y1));
+  soilRect.setAttribute('width', Math.abs(sPx_x2 - sPx_x1));
+  soilRect.setAttribute('height', Math.abs(sPx_y1 - sPx_y0));
+  soilRect.setAttribute('fill', 'url(#' + dwg.hatchPattern('#b0a090', 4) + ')');
+  soilRect.setAttribute('stroke', '#8a7060');
+  soilRect.setAttribute('stroke-width', '1');
+  dwg.gSteel.appendChild(soilRect);
+  dwg.extend(sPx_x1, sPx_y1); dwg.extend(sPx_x2, sPx_y0);
+
+  // Soil label — leader from right edge of hatch to the right margin (outside)
+  AREDraw.leader(v, soilW / 2, soilY / 2, 56, 0,
+    'Soil', { color: '#6b5a48', anchor: 'start' });
+
+  // \u2500\u2500 Grade beam stem (primary designed member \u2014 amber highlight) \u2500\u2500
+  AREDraw.plate(v, -bw / 2, 0, bw, beamD, { highlight: true });
+
+  // \u2500\u2500 Slab (secondary member \u2014 light navy fill) \u2500\u2500
+  var halfSlab = slabW / 2;
+  AREDraw.plate(v, -halfSlab, beamD, slabW, ts, { fill: st.steelFill });
+
+  // \u2500\u2500 Centerlines: vertical (beam centroid axis) + horizontal (beam mid-height) \u2500\u2500
+  AREDraw.centerline(v, 0, -0.8, 0, beamD + ts + 0.8);
+  AREDraw.centerline(v, -halfSlab - 1, beamD / 2, halfSlab + 1, beamD / 2);
+
+  // \u2500\u2500 Rebar bars \u2500\u2500
+  // Top bars \u2014 near top of beam (just below slab/beam interface, inside stem)
+  var topBarY = beamD - cover - barR;
+  var barSpacing = Math.min(bw / 4, 3.5);
+  var barOffsets = [-barSpacing, 0, barSpacing];
+  barOffsets.forEach(function(dx) {
+    if (Math.abs(dx) + barR < bw / 2 - cover) {
+      var bxp = v.px(dx), byp = v.py(topBarY), brp = Math.max(v.s(barR), 3);
+      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', bxp); c.setAttribute('cy', byp); c.setAttribute('r', brp);
+      c.setAttribute('fill', 'none'); c.setAttribute('stroke', st.steel); c.setAttribute('stroke-width', st.lwObjectThin);
+      dwg.gSteel.appendChild(c);
+    }
+  });
+
+  // Bottom bars
+  var botBarY = cover + barR;
+  barOffsets.forEach(function(dx) {
+    if (Math.abs(dx) + barR < bw / 2 - cover) {
+      var bxp = v.px(dx), byp = v.py(botBarY), brp = Math.max(v.s(barR), 3);
+      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      c.setAttribute('cx', bxp); c.setAttribute('cy', byp); c.setAttribute('r', brp);
+      c.setAttribute('fill', 'none'); c.setAttribute('stroke', st.dim); c.setAttribute('stroke-width', st.lwObjectThin);
+      dwg.gSteel.appendChild(c);
+    }
+  });
+
+  // \u2500\u2500 Dimensions \u2500\u2500
+  // Slab thickness ts \u2014 right side of slab, outside (positive off goes right for vertical line)
+  AREDraw.dimLine(v, halfSlab, beamD, halfSlab, beamD + ts,
+    'ts = ' + ts + '"', { off: 36 });
+
+  // Beam depth d \u2014 left side of beam (negative off goes left for vertical line)
+  AREDraw.dimLine(v, -bw / 2, 0, -bw / 2, beamD,
+    'd = ' + beamD + '"', { off: -42 });
+
+  // Beam width bw \u2014 witness lines from beam-bottom corners, dim line below the soil block
+  // soilY = -4 in; at the current scale the soil block bottom lands at py(soilY).
+  // We target world y = soilY - 1 so the dimension line sits clearly below the hatch.
+  AREDraw.dimLine(v, -bw / 2, soilY - 1, bw / 2, soilY - 1,
+    'bw = ' + bw + '"', { off: 28 });
+
+  // \u2500\u2500 Leaders / callout labels \u2500\u2500
+  // Slab label \u2014 target the slab body (not beam), pull LEFT and UP clear of ts dim
+  AREDraw.leader(v, -halfSlab * 0.4, beamD + ts * 0.6, -58, -32,
+    'Slab (ts)', { color: st.dim, anchor: 'end' });
+
+  // Top bar label \u2014 pulled RIGHT; target bar nearest right face of beam
+  AREDraw.leader(v, barSpacing + barR, topBarY, 60, -18,
+    '#' + topBarN + ' top (\u2212M)', { color: st.steel });
+
+  // Grade beam label \u2014 right face mid-height; staggered BELOW top bar label
+  AREDraw.leader(v, bw / 2, beamD * 0.45, 60, 10, 'Grade Beam', { color: st.steel });
+
+  // Bottom bar label \u2014 pulled RIGHT and DOWN; staggered well below grade beam label
+  AREDraw.leader(v, barSpacing + barR, botBarY, 60, 32,
+    '#' + botBarN + ' bot (+M)', { color: st.dim });
+
+  // Cover dim \u2014 pulled LEFT at same y as bottom bar but further out
+  AREDraw.leader(v, -bw / 2, botBarY, -62, 0,
+    'cvr = ' + cover + '"', { color: st.dim, anchor: 'end' });
+
+  // Title below
+  var titleY = dwg.maxY + st.fsTitle + 12;
+  AREDraw.viewTitle(v, v.px(0), titleY, 'Grade Beam Cross-Section');
+
+  dwg.commit();
 }
 
 function calcSteel(M, bw, d, fy, fc, barSizeStr){
@@ -596,7 +748,9 @@ function runCalcs(){
     {symbol:'dS', label:'Beam Depth Req (Short)', value:sht.dCalc, unit:'in', kind:'other'}
   ]);
 
+  _lastBeamDepth = Math.max(lng.beamDepth, sht.beamDepth);
   drawPlan(L, Lp, lng.N, sht.N);
+  drawSection();
 
   // Parameters table
   document.getElementById('paramTb').innerHTML=[
@@ -746,8 +900,19 @@ function runCalcs(){
   document.getElementById('results').classList.add('show');
 }
 
-window.addEventListener('DOMContentLoaded', function(){drawPlan(60,40,null,null);});
+function tryDrawInitial() {
+  if (window.AREDraw) {
+    var L  = parseFloat(document.getElementById('L').value)  || 60;
+    var Lp = parseFloat(document.getElementById('Lp').value) || 40;
+    drawPlan(L, Lp, null, null);
+    drawSection();
+  } else {
+    setTimeout(tryDrawInitial, 80);
+  }
+}
+window.addEventListener('DOMContentLoaded', tryDrawInitial);
 </script>
+<script src="/are-draw.js"></script>
 <script src="/are-utils-v2.js"></script>
 </body>
 </html>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AISC DG 01 4.6/4.7 Base Plate Design</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="/are-draw.js"></script>
     <style>
         * {
             margin: 0;
@@ -383,7 +384,7 @@
                 </div>
 
                 <div style="background:#fff;border:1px solid #dde;border-radius:8px;padding:10px;margin:14px 0">
-                    <svg id="areSchemSvg" viewBox="0 0 760 320" width="100%" style="max-height:340px" xmlns="http://www.w3.org/2000/svg"></svg>
+                    <svg id="areSchemSvg" xmlns="http://www.w3.org/2000/svg"></svg>
                 </div>
 
                 <button class="button" onclick="calculateBasePlate()">🧮 Calculate Base Plate Design</button>
@@ -514,7 +515,7 @@
             }
 
             // Main loading method - tries multiple approaches
-            async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+            async loadDatabase(filePath = 'aisc-shapes-database-v16.0.xlsx') {
                 this.debugInfo = [`Starting database load for: ${filePath}`];
                 
                 // Try different loading methods in order
@@ -853,119 +854,223 @@
         document.getElementById('columnSize').addEventListener('change', updateColumnProperties);
 
 
-        // ============ LIVE SCHEMATIC ============
-        function areDrawSchematic(res){
-            var svg=document.getElementById('areSchemSvg'); if(!svg) return;
-            function gv(id,dft){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isFinite(v)?v:dft}
-            var DL=gv('deadLoad',0), LL=gv('liveLoad',0), MDL=gv('deadMoment',0), MLL=gv('liveMoment',0);
-            var d=gv('columnD',12.7), bf=gv('columnBf',12.2), fc=gv('fc',4), A2A1=gv('concreteRatio',4);
-            var Pu=1.2*DL+1.6*LL, Mu=1.2*MDL+1.6*MLL;
-            var N,B,Y,Tu,e,large,tpl;
-            if(res){ N=res.N; B=res.B; Y=res.Y; Tu=res.Tu; e=res.e; large=res.large; tpl=res.t; }
-            else {
-                N=Math.ceil(d+6); B=Math.ceil(bf+6);
-                e=Pu>0?Mu/Pu:0;
-                var conf=Math.min(Math.sqrt(A2A1),2.0);
-                var qmax=0.65*0.85*fc*conf*B;
-                var ecrit=N/2-Pu/(2*qmax);
-                large=e>ecrit;
-                if(!large){ Y=N-2*e; Tu=0; }
+        // ============ LIVE SCHEMATIC (AREDraw primitives) ============
+        function areDrawSchematic(res) {
+            if (!window.AREDraw) return;
+            var svg = document.getElementById('areSchemSvg');
+            if (!svg) return;
+
+            function gv(id, dft) { var el = document.getElementById(id); var v = el ? parseFloat(el.value) : NaN; return isFinite(v) ? v : dft; }
+            var DL = gv('deadLoad', 0), LL = gv('liveLoad', 0);
+            var MDL = gv('deadMoment', 0), MLL = gv('liveMoment', 0);
+            var d = gv('columnD', 12.7), bf = gv('columnBf', 12.2);
+            var fc = gv('fc', 4), A2A1 = gv('concreteRatio', 1.0);
+            var rodDia = gv('rodDia', 0.75);
+            var Pu = 1.2 * DL + 1.6 * LL;
+            var Mu = 1.2 * MDL + 1.6 * MLL; // kip-in
+
+            // Resolve geometry (from calc results if available, else quick preview)
+            var N, B, Y, Tu, e, large, tpl;
+            if (res) {
+                N = res.N; B = res.B; Y = res.Y; Tu = res.Tu;
+                e = res.e; large = res.large; tpl = res.t;
+            } else {
+                N = Math.ceil(d + 6); B = Math.ceil(bf + 6);
+                e = Pu > 0 ? Mu / Pu : 0;
+                var conf = Math.min(Math.sqrt(A2A1), 2.0);
+                var qmax = 0.65 * 0.85 * fc * conf * B;
+                var ecrit = N / 2 - Pu / (2 * qmax);
+                large = e > ecrit;
+                if (!large) { Y = N - 2 * e; Tu = 0; }
                 else {
-                    var f=N/2-1.5;
-                    var disc=Math.pow(f+N/2,2)-2*Pu*(e+f)/qmax;
-                    Y=disc>=0?(f+N/2-Math.sqrt(disc)):N/4;
-                    Tu=Math.max(qmax*Y-Pu,0);
+                    var f0 = N / 2 - 1.5;
+                    var disc = Math.pow(f0 + N / 2, 2) - 2 * Pu * (e + f0) / qmax;
+                    Y = disc >= 0 ? (f0 + N / 2 - Math.sqrt(disc)) : N / 4;
+                    Tu = Math.max(qmax * Y - Pu, 0);
                 }
-                tpl=null;
+                tpl = null;
             }
-            if(!isFinite(Y)||Y<0)Y=0; if(Y>N)Y=N;
-            // ---- elevation (left) ----
-            var s='<defs><marker id="arR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-              +'<marker id="arG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker>'
-              +'<pattern id="hat" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#94a3b8" stroke-width="1.5"/></pattern></defs>';
-            s+='<text x="200" y="18" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Elevation — '+(large?'LARGE':'SMALL')+' moment</text>';
-            var sc=Math.min(220/Math.max(N,1),12); sc=Math.max(sc,3);
-            var plW=N*sc, cx1=200, plX=cx1-plW/2;
-            var tPx=tpl?Math.max(tpl*sc,6):8;
-            var plY=210;
-            // concrete pier
-            s+='<rect x="'+(plX-22)+'" y="'+(plY+tPx)+'" width="'+(plW+44)+'" height="60" fill="url(#hat)" stroke="#94a3b8" stroke-width="1.5"/>';
-            // plate (designed)
-            s+='<rect x="'+plX+'" y="'+plY+'" width="'+plW+'" height="'+tPx+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
-            // column
-            var colWpx=Math.min(d*sc,plW*0.9);
-            s+='<rect x="'+(cx1-colWpx/2)+'" y="60" width="'+colWpx+'" height="'+(plY-60)+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-            // Pu arrow at eccentricity e from centerline
-            var ePx=Math.max(Math.min(e*sc,plW/2-4),-(plW/2-4)); if(!isFinite(ePx))ePx=0;
-            s+='<line x1="'+(cx1+ePx)+'" y1="30" x2="'+(cx1+ePx)+'" y2="56" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#arR)"/>';
-            s+='<text x="'+(cx1+ePx+6)+'" y="40" font-size="11" fill="#c42b2b" font-family="sans-serif">Pu = '+Pu.toFixed(1)+' k</text>';
-            // e dim
-            if(Math.abs(ePx)>4){
-                s+='<line x1="'+cx1+'" y1="24" x2="'+(cx1+ePx)+'" y2="24" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-                s+='<line x1="'+cx1+'" y1="20" x2="'+cx1+'" y2="60" stroke="#1a7a4a" stroke-width="0.8" stroke-dasharray="3,3"/>';
-                s+='<text x="'+(cx1+ePx/2)+'" y="16" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">e = '+e.toFixed(2)+'"</text>';
-            }
-            // moment arc at column base
-            s+='<path d="M '+(cx1-26)+' 95 A 26 26 0 0 1 '+(cx1+26)+' 95" fill="none" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-            s+='<text x="'+cx1+'" y="88" font-size="11" fill="#c42b2b" text-anchor="middle" font-family="sans-serif">Mu = '+Mu.toFixed(0)+' k-in</text>';
-            // bearing block over Y (up arrows) at right toe (moment pushes toward +e side)
-            var Ypx=Math.max(Math.min(Y*sc,plW),0);
-            var yX0=plX+plW-Ypx, byA=plY+tPx;
-            if(Ypx>2){
-                s+='<rect x="'+yX0+'" y="'+byA+'" width="'+Ypx+'" height="14" fill="#fecaca" stroke="none" opacity="0.8"/>';
-                var na=Math.max(2,Math.round(Ypx/22));
-                for(var i=0;i<=na;i++){
-                    var ax=yX0+ (na?(i*Ypx/na):0);
-                    s+='<line x1="'+ax+'" y1="'+(byA+22)+'" x2="'+ax+'" y2="'+(byA+2)+'" stroke="#c42b2b" stroke-width="1.6" marker-end="url(#arR)"/>';
+            if (!isFinite(Y) || Y < 0) Y = 0;
+            if (Y > N) Y = N;
+            if (!isFinite(e)) e = 0;
+            var tp = tpl || 0.75;
+
+            // ── Canvas setup ──────────────────────────────────────────────────
+            var D = new AREDraw.Drawing(svg, { margin: 14 });
+            var st = D.style;
+
+            // ── ELEVATION view ────────────────────────────────────────────────
+            // World coordinates: x=0 at LEFT edge of plate, y=0 at plate TOP.
+            // +y is UP (flipY:true). Everything is at positive x → no left overflow.
+            //   plate:      x=0..N,  y=-tp..0
+            //   pier:       x=-1.5..N+1.5,  y=(-tp-pierH)..(-tp)
+            //   column CL:  x=N/2
+            //   left rod:   x=1.5  (edge dist from left)
+            //   right rod:  x=N-1.5
+            //   bearing:    x=(N-Y)..N  (compression toe at right)
+            var sc = AREDraw.fitScale(Math.max(N, d, bf), 110, { min: 3, max: 9 });
+            var stubH = Math.max(N * 0.55, 5);
+            var pierH = Math.max(N * 0.7, 7);
+            var cx = N / 2;  // column CL in world x
+
+            // ox=18 = just the margin; all content is at positive world x
+            var vE = new AREDraw.View(D, { scale: sc, ox: 18, oy: 230, flipY: true });
+
+            // Concrete pier (hatched grey)
+            AREDraw.plate(vE, -1.5, -tp - pierH, N + 3, pierH,
+                { fill: '#eceae4', hatch: true });
+
+            // Base plate (amber, the designed member)
+            AREDraw.plate(vE, 0, -tp, N, tp, { highlight: true, hatch: false });
+
+            // Bearing pressure arrows (upward) at compression toe (right side)
+            if (Y > 0.5) {
+                var bearX0 = N - Y;
+                var nArr = Math.max(2, Math.round(Y * sc / 20));
+                for (var i = 0; i <= nArr; i++) {
+                    AREDraw.forceArrow(vE, bearX0 + Y * i / nArr, -tp - 1.6,
+                        0, 1, 16, '', { color: st.force });
                 }
-                s+='<line x1="'+yX0+'" y1="'+(byA+34)+'" x2="'+(yX0+Ypx)+'" y2="'+(byA+34)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-                s+='<text x="'+(yX0+Ypx/2)+'" y="'+(byA+48)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">Y = '+Y.toFixed(2)+'"</text>';
             }
-            // anchor rod tension side (left) if Tu>0
-            if(Tu>0.01){
-                var rx=plX+14;
-                s+='<line x1="'+rx+'" y1="'+plY+'" x2="'+rx+'" y2="'+(plY+tPx+28)+'" stroke="#475569" stroke-width="3"/>';
-                s+='<line x1="'+rx+'" y1="'+(plY-26)+'" x2="'+rx+'" y2="'+(plY-2)+'" stroke="#c42b2b" stroke-width="2"/>';
-                s+='<line x1="'+rx+'" y1="'+(plY-2)+'" x2="'+rx+'" y2="'+(plY+12)+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-                s+='<text x="'+(rx-4)+'" y="'+(plY-30)+'" font-size="11" fill="#c42b2b" text-anchor="middle" font-family="sans-serif">Tu = '+Tu.toFixed(1)+' k</text>';
+
+            // Column W-shape stub: wElevation(v, xLeft, cy, len, geom, opts)
+            var colW = Math.min(bf, N * 0.9);
+            var tf_approx = Math.max(colW * 0.075, 0.45);
+            AREDraw.wElevation(vE, cx - colW / 2, stubH / 2, colW,
+                { d: stubH, tf: tf_approx }, { fill: st.steelFill });
+
+            // Anchor rods (thin navy plate strips)
+            var rodW = Math.max(rodDia * 0.9, 0.15);
+            var rodDepth = Math.min(pierH * 0.7, 5.5);
+            var rL = 1.5;          // left rod x (edge dist)
+            var rR = N - 1.5;     // right rod x
+            AREDraw.plate(vE, rL - rodW / 2, -tp - rodDepth, rodW, tp + rodDepth,
+                { fill: st.steel, hatch: false });
+            AREDraw.plate(vE, rR - rodW / 2, -tp - rodDepth, rodW, tp + rodDepth,
+                { fill: st.steel, hatch: false });
+
+            // Centroidal centerline (vertical)
+            AREDraw.centerline(vE, cx, stubH + 1.5, cx, -tp - pierH - 1);
+
+            // ── FORCES ────────────────────────────────────────────────────────
+            // Arrows on/through the centroid; labels stacked in a right gutter.
+            // The Pu arrow tail sits 4" above stub top; e-dim goes 9" above stub top.
+            // That keeps the arrow tail in clear space above the column stub.
+            var puTailY = stubH + 6;    // arrow tail for Pu — raised to keep above e-dim
+            var eDimY   = stubH + 1.5; // e dim line, just above stub top (below arrow tail)
+            var rGutX = vE.px(N) + 12;         // right gutter, past plate right edge
+            var gRow0 = vE.py(stubH) - 68;     // Pu (top row)
+            var gRow1 = gRow0 + 16;             // Mu
+            var gRow2 = gRow1 + 16;             // Tu
+
+            // Pu — compression, downward along centroidal axis (arrow goes into stub)
+            AREDraw.forceArrow(vE, cx, puTailY, 0, -1, 50, '', { color: st.force });
+            AREDraw.calloutLabel(vE, cx, puTailY,
+                rGutX, gRow0, 'Pu = ' + Pu.toFixed(1) + ' k',
+                { color: st.force, anchor: 'start' });
+
+            // Mu — moment arc on centroid at mid-stub
+            var momY = stubH * 0.48;
+            AREDraw.momentArrow(vE, cx, momY, 14, '', { ccw: true, color: st.moment });
+            AREDraw.calloutLabel(vE, cx, momY,
+                rGutX, gRow1, 'Mu = ' + AREDraw.fmtKin(Mu),
+                { color: st.moment, anchor: 'start' });
+
+            // Tu — upward tension at left rod face
+            if (Tu > 0.01) {
+                AREDraw.forceArrow(vE, rL, 0, 0, 1, 32, '', { color: st.force });
+                AREDraw.calloutLabel(vE, rL, 0,
+                    rGutX, gRow2, 'Tu = ' + Tu.toFixed(1) + ' k',
+                    { color: st.force, anchor: 'start' });
             }
-            // N dim below pier
-            var ny=plY+tPx+72;
-            s+='<line x1="'+plX+'" y1="'+ny+'" x2="'+(plX+plW)+'" y2="'+ny+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-            s+='<text x="'+cx1+'" y="'+(ny+14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">N = '+N+'"'+(tpl?('   (t = '+tpl+'")'):'')+'</text>';
-            // ---- plan (right) ----
-            s+='<text x="570" y="18" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Plan</text>';
-            var sc2=Math.min(180/Math.max(N,1),150/Math.max(B,1)); sc2=Math.max(sc2,3);
-            var pw=N*sc2, ph=B*sc2, px0=570-pw/2, py0=140-ph/2+10;
-            s+='<rect x="'+px0+'" y="'+py0+'" width="'+pw+'" height="'+ph+'" fill="#fde68a" stroke="#92400e" stroke-width="2"/>';
-            // column W-shape footprint (d horizontal to match elevation, bf vertical)
-            var cdw=Math.min(d*sc2,pw*0.92), cbf=Math.min(bf*sc2,ph*0.92), tfp=Math.max(cbf*0.08,3);
-            var ccx=570, ccy=py0+ph/2;
-            s+='<rect x="'+(ccx-cdw/2)+'" y="'+(ccy-cbf/2)+'" width="'+tfp+'" height="'+cbf+'" fill="#1a2b5f"/>';
-            s+='<rect x="'+(ccx+cdw/2-tfp)+'" y="'+(ccy-cbf/2)+'" width="'+tfp+'" height="'+cbf+'" fill="#1a2b5f"/>';
-            s+='<rect x="'+(ccx-cdw/2+tfp)+'" y="'+(ccy-tfp/2)+'" width="'+(cdw-2*tfp)+'" height="'+tfp+'" fill="#1a2b5f"/>';
-            // anchor rods 4 corners
-            [[px0+12,py0+12],[px0+pw-12,py0+12],[px0+12,py0+ph-12],[px0+pw-12,py0+ph-12]].forEach(function(p){
-                s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4" fill="none" stroke="#475569" stroke-width="2"/>';
-            });
-            // dims
-            var pdy=py0+ph+16;
-            s+='<line x1="'+px0+'" y1="'+pdy+'" x2="'+(px0+pw)+'" y2="'+pdy+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-            s+='<text x="'+ccx+'" y="'+(pdy+14)+'" font-size="11" fill="#1a7a4a" text-anchor="middle" font-family="sans-serif">N = '+N+'"</text>';
-            var pdx=px0+pw+14;
-            s+='<line x1="'+pdx+'" y1="'+py0+'" x2="'+pdx+'" y2="'+(py0+ph)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-            s+='<text x="'+(pdx+6)+'" y="'+(ccy+4)+'" font-size="11" fill="#1a7a4a" font-family="sans-serif">B = '+B+'"</text>';
-            svg.innerHTML=s;
+
+            // ── DIMENSIONS ────────────────────────────────────────────────────
+            // Witness row anchor: 0.5 world-units below pier bottom (outside all fill).
+            var dimRowY = -tp - pierH - 0.5;
+
+            // Y — bearing length; witness lines drop from plate bottom to the dim row,
+            // then the dim line sits 24 px further out (stacked outside N).
+            if (Y > 0.5) {
+                AREDraw.dimLine(vE, N - Y, dimRowY, N, dimRowY,
+                    'Y = ' + Y.toFixed(2) + '"', { off: 48 });
+            }
+
+            // e — eccentricity from plate CL to bearing resultant CL; shown well above stub
+            if (e > 0.3 && e < N / 2) {
+                AREDraw.dimLine(vE, cx, eDimY, cx + e, eDimY,
+                    'e = ' + e.toFixed(2) + '"', { off: -16 });
+            }
+
+            // tp — plate thickness, right side
+            AREDraw.dimLine(vE, N, -tp, N, 0, 'tp = ' + tp + '"', { off: 24 });
+
+            // N — plate length, below pier; off>0 → dim line goes down (outside pier)
+            AREDraw.dimLine(vE, 0, dimRowY, N, dimRowY,
+                'N = ' + N + '"', { off: 24 });
+
+            // Elevation title BELOW — record bottom before drawing plan
+            var elBottomY = D.maxY;
+            AREDraw.viewTitle(vE, vE.px(cx), elBottomY + 20,
+                'Elevation — ' + (large ? 'LARGE' : 'SMALL') + ' Moment');
+
+            // ── PLAN view (right) ─────────────────────────────────────────────
+            // Origin: plate center; N along x, B along y.
+            var sc2 = AREDraw.fitScale(Math.max(N, B), 105, { min: 3, max: 9 });
+            var planOx = D.maxX + 48;
+            // Align plan mid-height with elevation column mid-height
+            var planOy = vE.py(stubH / 2);
+            var vP = new AREDraw.View(D, { scale: sc2, ox: planOx, oy: planOy, flipY: true });
+
+            // Plate
+            AREDraw.plate(vP, -N / 2, -B / 2, N, B, { highlight: true, hatch: false });
+
+            // Column W footprint (d along x = depth, bf along y = width)
+            AREDraw.wSection(vP, 0, 0, {
+                kind: 'W', d: d, bf: bf,
+                tf: Math.max(bf * 0.075, 0.45),
+                tw: Math.max(d * 0.04, 0.28)
+            }, { hatch: true, fill: st.steelFill });
+
+            // Anchor bolts — 4 corners
+            var bax = N / 2 - 1.5, bay = B / 2 - 1.5;
+            AREDraw.bolt(vP, -bax, -bay, rodDia);
+            AREDraw.bolt(vP,  bax, -bay, rodDia);
+            AREDraw.bolt(vP, -bax,  bay, rodDia);
+            AREDraw.bolt(vP,  bax,  bay, rodDia);
+
+            // Centerlines
+            AREDraw.centerline(vP, -N / 2 - 1, 0, N / 2 + 1, 0);
+            AREDraw.centerline(vP, 0, -B / 2 - 1, 0, B / 2 + 1);
+
+            // Dims: N bottom, B right
+            AREDraw.dimLine(vP, -N / 2, -B / 2, N / 2, -B / 2, 'N = ' + N + '"', { off: 24 });
+            AREDraw.dimLine(vP,  N / 2, -B / 2,  N / 2, B / 2, 'B = ' + B + '"', { off: 24 });
+
+            // Plan title, same row as elevation title
+            AREDraw.viewTitle(vP, vP.px(0), elBottomY + 20, 'Plan');
+
+            D.commit();
+            svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
         }
-        (function(){
-            function bind(){
-                ['deadLoad','liveLoad','deadMoment','liveMoment','columnD','columnBf','fc','concreteRatio','columnSize'].forEach(function(id){
-                    var el=document.getElementById(id);
-                    if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,function(){areDrawSchematic()})});}
+        (function () {
+            function bind() {
+                ['deadLoad', 'liveLoad', 'deadMoment', 'liveMoment',
+                 'columnD', 'columnBf', 'fc', 'concreteRatio', 'columnSize',
+                 'rodDia', 'nRodsT'].forEach(function (id) {
+                    var el = document.getElementById(id);
+                    if (el) {
+                        ['input', 'change'].forEach(function (ev) {
+                            el.addEventListener(ev, function () { areDrawSchematic(); });
+                        });
+                    }
                 });
                 areDrawSchematic();
             }
-            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bind);
+            } else {
+                bind();
+            }
         })();
         // ============ END LIVE SCHEMATIC ============
 

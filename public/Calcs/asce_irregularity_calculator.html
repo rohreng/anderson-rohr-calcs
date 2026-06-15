@@ -428,6 +428,24 @@
             </div>
         </div>
 
+        <!-- Diagrams Section -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px">
+            <!-- Vertical Irregularity Elevation Diagram -->
+            <div class="result-card" style="padding:16px">
+                <h3 class="section-title" style="margin-bottom:12px">Vertical Irregularity — Building Elevation</h3>
+                <div id="vertDiagWrap" style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px">
+                    <svg id="vertIrrSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+                </div>
+            </div>
+            <!-- Plan Irregularity Schematic Diagram -->
+            <div class="result-card" style="padding:16px">
+                <h3 class="section-title" style="margin-bottom:12px">Plan Irregularity — Schematic Types</h3>
+                <div id="planDiagWrap" style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px">
+                    <svg id="planIrrSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+                </div>
+            </div>
+        </div>
+
         <!-- Notes Section -->
         <div class="notes-section">
             <h3 class="notes-title">Notes and References</h3>
@@ -834,10 +852,434 @@
         // Alias for are-utils auto-run after Load
         function runCalcs() { calculateIrregularities(); }
 
+        /* ===================================================================
+         * DIAGRAM RENDERING — uses AREDraw primitives via are-draw.js
+         * ================================================================ */
+
+        // ── SVG namespace helpers (inline, no dependency on AREDraw internals)
+        var SVGNS = 'http://www.w3.org/2000/svg';
+        function svgEl(tag, attrs) {
+            var n = document.createElementNS(SVGNS, tag);
+            if (attrs) { for (var k in attrs) { if (attrs[k] != null) n.setAttribute(k, String(attrs[k])); } }
+            return n;
+        }
+        function svgText(parent, x, y, str, attrs) {
+            var t = svgEl('text', Object.assign({ x: x, y: y }, attrs || {}));
+            t.textContent = str;
+            parent.appendChild(t);
+            return t;
+        }
+        function rnd(v, p) { var f = Math.pow(10, p == null ? 1 : p); return Math.round(v * f) / f; }
+
+        // Brand palette (ARE standard)
+        var PAL = {
+            navy: '#1a2b5f', amber: '#fde68a', secondary: '#dbe2f0',
+            dim: '#6b7a96', force: '#c42b2b', center: '#9aa6c2',
+            font: "'DM Sans','Segoe UI',system-ui,sans-serif"
+        };
+
+        /* ── Diagram 1: Vertical Irregularity Elevation ─────────────────────
+         * Layout zones (left → right):
+         *   [DIM_X]  dim line column (25 px wide)
+         *   [gap 6]
+         *   [LBL_X]  story level text, right-anchored (60 px wide)
+         *   [gap 8]
+         *   [BX … BX+BLDG_W]  building rectangle
+         *   [gap 12]
+         *   [K labels, left-anchored]
+         */
+        function drawVerticalDiagram() {
+            var svg = document.getElementById('vertIrrSvg');
+            if (!svg) return;
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+            var kVals = stories.map(function(s) {
+                var f = parseFloat(s.force) || 0, d = parseFloat(s.deflection) || 0;
+                return d > 0 ? f / d : 0;
+            });
+            var hasData = kVals.some(function(k) { return k > 0; });
+
+            // ── Layout constants ──────────────────────────────────────────────
+            var STORY_H = 54, N = stories.length;
+            // Horizontal zones
+            var DIM_X   = 18;          // dim line x
+            var LBL_X   = 60;          // story label right edge
+            var BX      = 76;          // building left edge
+            var BLDG_W  = 150;
+            var BLDG_R  = BX + BLDG_W;
+            var K_X     = BLDG_R + 14; // K-label left edge
+            var SVG_W   = K_X + 160;   // total width
+            // Vertical — leave 36px at top for seismic arrow + label
+            var TOP_Y   = 36;
+            var groundY = TOP_Y + N * STORY_H;
+            var titleY  = groundY + 26;
+            var capY    = titleY + 18;
+            var SVG_H   = capY + 18;
+
+            // Apply SVG sizing
+            svg.setAttribute('viewBox', '0 0 ' + SVG_W + ' ' + SVG_H);
+            svg.setAttribute('width', SVG_W);
+            svg.setAttribute('height', SVG_H);
+            svg.style.setProperty('width', '100%');
+            svg.style.setProperty('max-width', rnd(SVG_W * 1.3, 0) + 'px');
+            svg.style.setProperty('height', 'auto');
+            svg.style.setProperty('display', 'block');
+            svg.style.setProperty('margin', '0 auto');
+
+            var defs = svgEl('defs');
+            svg.appendChild(defs);
+
+            // Arrowhead marker for seismic force
+            var mk = svgEl('marker', { id: 'vArr', markerWidth: 9, markerHeight: 9,
+                refX: 8, refY: 4.5, orient: 'auto', markerUnits: 'userSpaceOnUse' });
+            mk.appendChild(svgEl('path', { d: 'M0,0 L0,9 L9,4.5 z', fill: PAL.force }));
+            defs.appendChild(mk);
+
+            // Which stories are irregular?
+            var irregStories = {};
+            for (var i = 0; i < kVals.length; i++) {
+                if (!kVals[i]) continue;
+                if (i > 0 && kVals[i-1]) {
+                    var r0 = kVals[i] / kVals[i-1];
+                    if (r0 < 0.7) irregStories[i] = r0 < 0.6 ? 'extreme' : 'soft';
+                }
+            }
+
+            // ── Per-story elements ────────────────────────────────────────────
+            var tlen = 4.5, tk = tlen * 0.7071;
+            for (var si = 0; si < N; si++) {
+                var sTop = TOP_Y + si * STORY_H;
+                var sMid = sTop + STORY_H / 2;
+                var sBot = sTop + STORY_H;
+                var isIrreg = irregStories[si];
+
+                // Story fill
+                var fill = isIrreg === 'extreme' ? '#fde8e8'
+                         : isIrreg === 'soft'    ? PAL.amber
+                         : PAL.secondary;
+                svg.appendChild(svgEl('rect', {
+                    x: BX, y: sTop, width: BLDG_W, height: STORY_H,
+                    fill: fill, stroke: PAL.navy, 'stroke-width': 1.8, 'stroke-linejoin': 'round'
+                }));
+
+                // Heavy slab line at floor (all but roof top)
+                if (si > 0) {
+                    svg.appendChild(svgEl('line', {
+                        x1: BX, y1: sTop, x2: BLDG_R, y2: sTop,
+                        stroke: PAL.navy, 'stroke-width': 3
+                    }));
+                }
+
+                // Story label — right-anchored at LBL_X, clear of building
+                svgText(svg, LBL_X, sMid + 4, stories[si].level, {
+                    fill: PAL.navy, 'font-size': '10.5', 'font-family': PAL.font,
+                    'font-weight': '600', 'text-anchor': 'end'
+                });
+
+                // Tick-mark dim line in the DIM_X column (skip roof — no "story" above)
+                if (si > 0) {
+                    var dy1 = sTop, dy2 = sBot;
+                    // Extension lines from building to dim column
+                    svg.appendChild(svgEl('line', { x1: BX, y1: dy1, x2: DIM_X + 4, y2: dy1, stroke: PAL.dim, 'stroke-width': 0.7 }));
+                    svg.appendChild(svgEl('line', { x1: BX, y1: dy2, x2: DIM_X + 4, y2: dy2, stroke: PAL.dim, 'stroke-width': 0.7 }));
+                    // Dim line
+                    svg.appendChild(svgEl('line', { x1: DIM_X, y1: dy1, x2: DIM_X, y2: dy2, stroke: PAL.dim, 'stroke-width': 1 }));
+                    // Tick marks (45° oblique, structural drafting)
+                    svg.appendChild(svgEl('line', { x1: rnd(DIM_X-tk,1), y1: rnd(dy1-tk,1), x2: rnd(DIM_X+tk,1), y2: rnd(dy1+tk,1), stroke: PAL.dim, 'stroke-width': 1 }));
+                    svg.appendChild(svgEl('line', { x1: rnd(DIM_X-tk,1), y1: rnd(dy2-tk,1), x2: rnd(DIM_X+tk,1), y2: rnd(dy2+tk,1), stroke: PAL.dim, 'stroke-width': 1 }));
+                    // Label right of dim line, centered vertically
+                    svgText(svg, DIM_X - 4, (dy1+dy2)/2 + 4, 'h', {
+                        fill: PAL.dim, 'font-size': '9', 'font-family': PAL.font,
+                        'text-anchor': 'end', 'font-style': 'italic'
+                    });
+                }
+
+                // K-label on right via dotted leader
+                if (hasData && kVals[si] > 0) {
+                    var kStr = 'K = ' + rnd(kVals[si], 2) + ' k/in';
+                    var kColor = isIrreg ? PAL.force : PAL.dim;
+                    // Dot at building face
+                    svg.appendChild(svgEl('circle', { cx: BLDG_R, cy: sMid, r: 1.8, fill: kColor }));
+                    // Dotted leader to label zone
+                    svg.appendChild(svgEl('line', {
+                        x1: BLDG_R, y1: sMid, x2: K_X, y2: sMid,
+                        stroke: kColor, 'stroke-width': 0.8, 'stroke-dasharray': '2 2'
+                    }));
+                    svgText(svg, K_X, sMid + 4, kStr, {
+                        fill: kColor, 'font-size': '10', 'font-family': PAL.font,
+                        'font-weight': isIrreg ? '700' : '500', 'text-anchor': 'start'
+                    });
+                    if (isIrreg) {
+                        var badge = isIrreg === 'extreme' ? '▶ EXTREME SOFT STORY' : '▶ SOFT STORY (1a)';
+                        svgText(svg, K_X, sMid + 16, badge, {
+                            fill: PAL.force, 'font-size': '9', 'font-family': PAL.font,
+                            'font-weight': '700', 'text-anchor': 'start'
+                        });
+                    }
+                }
+            }
+
+            // ── Ground line + hatch ───────────────────────────────────────────
+            svg.appendChild(svgEl('line', {
+                x1: BX - 6, y1: groundY, x2: BLDG_R + 6, y2: groundY,
+                stroke: PAL.navy, 'stroke-width': 3
+            }));
+            for (var gh = 0; gh < 8; gh++) {
+                var gx = BX - 4 + gh * (BLDG_W + 10) / 7;
+                svg.appendChild(svgEl('line', {
+                    x1: gx, y1: groundY, x2: gx - 7, y2: groundY + 9,
+                    stroke: PAL.navy, 'stroke-width': 1
+                }));
+            }
+
+            // ── Centroidal centerline (vertical) ──────────────────────────────
+            var clX = BX + BLDG_W / 2;
+            svg.appendChild(svgEl('path', {
+                d: 'M'+clX+','+(TOP_Y-8)+' L'+clX+','+(groundY+8),
+                fill: 'none', stroke: PAL.center, 'stroke-width': 0.9, 'stroke-dasharray': '7 2 1.5 2'
+            }));
+
+            // ── Seismic force arrow (lateral, above the building) ────────────
+            // Arrow points RIGHT, sits above the roof line so it never overlaps
+            // story labels. Label above the shaft, clear of everything.
+            var arrowY  = TOP_Y - 14;           // above the roof
+            var arrowX1 = BX + BLDG_W * 0.15;  // tail (inside left quarter)
+            var arrowX2 = BX + BLDG_W * 0.75;  // head (right of center)
+            svg.appendChild(svgEl('line', {
+                x1: arrowX1, y1: arrowY, x2: arrowX2, y2: arrowY,
+                stroke: PAL.force, 'stroke-width': 2, 'marker-end': 'url(#vArr)'
+            }));
+            svgText(svg, (arrowX1 + arrowX2) / 2, arrowY - 5, 'V (seismic)', {
+                fill: PAL.force, 'font-size': '9.5', 'font-family': PAL.font,
+                'font-weight': '700', 'text-anchor': 'middle'
+            });
+
+            // ── View title BELOW figure (underlined) ──────────────────────────
+            var titleTxt = 'Vertical Irregularity — Elevation';
+            var titleX   = BX + BLDG_W / 2;
+            svgText(svg, titleX, titleY, titleTxt, {
+                fill: PAL.navy, 'font-size': '13', 'font-family': PAL.font,
+                'font-weight': '700', 'text-anchor': 'middle'
+            });
+            var uw = titleTxt.length * 13 * 0.56 / 2 + 4;
+            svg.appendChild(svgEl('line', {
+                x1: rnd(titleX-uw,1), y1: titleY+5,
+                x2: rnd(titleX+uw,1), y2: titleY+5,
+                stroke: PAL.navy, 'stroke-width': 1.1
+            }));
+
+            // ── Caption ───────────────────────────────────────────────────────
+            svgText(svg, BX, capY, 'ASCE 7-16 \xa7 12.3.2.1 — Types 1a/1b Stiffness \xb7 2 Mass \xb7 3 Geometric \xb7 5a/5b Strength', {
+                fill: PAL.dim, 'font-size': '9', 'font-family': PAL.font, 'text-anchor': 'start'
+            });
+
+            svg.setAttribute('viewBox', '0 0 ' + SVG_W + ' ' + SVG_H);
+        }
+
+        /* ── Diagram 2: Plan Irregularity Schematic ──────────────────────────
+         * Three panels side by side: Regular · Re-entrant Corner · Torsional.
+         * Wider canvas (560 px). Each panel 160 px wide with 20 px gutters.
+         * Labels pulled fully outside geometry, no overlaps.
+         */
+        function drawPlanDiagram() {
+            var svg = document.getElementById('planIrrSvg');
+            if (!svg) return;
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+            // ── Canvas ────────────────────────────────────────────────────────
+            var PW = 140, PH = 88;   // panel plan width/height
+            var PAD_TOP = 58;        // space above buildings: type caption (14px) + dim line (-22px) + gap
+            var PAD_L = 30;          // left gutter (room for 'L' dim label)
+            var GAP = 28;            // gap between panels
+            // Panel origins (top-left of each rectangle)
+            var P = [PAD_L, PAD_L + PW + GAP, PAD_L + 2*(PW + GAP)];
+            // Total width: last panel right edge + right labels + margin
+            var SVG_W = P[2] + PW + 80;
+            var PY = PAD_TOP;
+            var titleY = PY + PH + 28;   // overall figure title below panels (no per-panel captions competing here)
+            var titleCapY = titleY + 18;
+            var SVG_H = titleCapY + 22;
+
+            svg.setAttribute('viewBox', '0 0 ' + SVG_W + ' ' + SVG_H);
+            svg.setAttribute('width', SVG_W);
+            svg.setAttribute('height', SVG_H);
+            svg.style.setProperty('width', '100%');
+            svg.style.setProperty('max-width', rnd(SVG_W * 1.3, 0) + 'px');
+            svg.style.setProperty('height', 'auto');
+            svg.style.setProperty('display', 'block');
+            svg.style.setProperty('margin', '0 auto');
+
+            var defs = svgEl('defs');
+            svg.appendChild(defs);
+            var fnt = PAL.font;
+            var TK = 4.5 * 0.7071;  // tick half-length
+
+            // ── Shared helpers ────────────────────────────────────────────────
+            function poly(pts, fill) {
+                var d = pts.map(function(p,i){ return (i?'L':'M')+p[0]+','+p[1]; }).join(' ')+' Z';
+                svg.appendChild(svgEl('path', { d: d, fill: fill||PAL.secondary, stroke: PAL.navy, 'stroke-width': 1.8, 'stroke-linejoin': 'round' }));
+            }
+            function cl(x1,y1,x2,y2) {  // dash-dot centerline
+                svg.appendChild(svgEl('line', { x1:x1,y1:y1,x2:x2,y2:y2, stroke:PAL.center, 'stroke-width':0.9, 'stroke-dasharray':'7 2 1.5 2' }));
+            }
+            function dimH(x1,x2,y,off,lbl) {  // horizontal dim; off = px above/below y
+                var dy = y + off, sign = off < 0 ? -1 : 1;
+                svg.appendChild(svgEl('line',{x1:x1,y1:y,x2:x1,y2:dy+sign*4,stroke:PAL.dim,'stroke-width':0.7}));
+                svg.appendChild(svgEl('line',{x1:x2,y1:y,x2:x2,y2:dy+sign*4,stroke:PAL.dim,'stroke-width':0.7}));
+                svg.appendChild(svgEl('line',{x1:x1,y1:dy,x2:x2,y2:dy,stroke:PAL.dim,'stroke-width':1}));
+                svg.appendChild(svgEl('line',{x1:rnd(x1-TK,1),y1:rnd(dy-TK,1),x2:rnd(x1+TK,1),y2:rnd(dy+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                svg.appendChild(svgEl('line',{x1:rnd(x2-TK,1),y1:rnd(dy-TK,1),x2:rnd(x2+TK,1),y2:rnd(dy+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                svgText(svg,(x1+x2)/2,dy+(off<0?-4:12),lbl,{fill:PAL.dim,'font-size':'9','font-family':fnt,'text-anchor':'middle','font-weight':'500'});
+            }
+            function dimV(x,y1,y2,off,lbl) {  // vertical dim; off = px left/right of x
+                var dx = x + off, sign = off < 0 ? -1 : 1;
+                svg.appendChild(svgEl('line',{x1:x,y1:y1,x2:dx+sign*4,y2:y1,stroke:PAL.dim,'stroke-width':0.7}));
+                svg.appendChild(svgEl('line',{x1:x,y1:y2,x2:dx+sign*4,y2:y2,stroke:PAL.dim,'stroke-width':0.7}));
+                svg.appendChild(svgEl('line',{x1:dx,y1:y1,x2:dx,y2:y2,stroke:PAL.dim,'stroke-width':1}));
+                svg.appendChild(svgEl('line',{x1:rnd(dx-TK,1),y1:rnd(y1-TK,1),x2:rnd(dx+TK,1),y2:rnd(y1+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                svg.appendChild(svgEl('line',{x1:rnd(dx-TK,1),y1:rnd(y2-TK,1),x2:rnd(dx+TK,1),y2:rnd(y2+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                var tx = dx + (off < 0 ? -12 : 12), ty = (y1+y2)/2;
+                var t = svgEl('text',{x:tx,y:ty,fill:PAL.dim,'font-size':'9','font-family':fnt,'text-anchor':'middle','font-weight':'500',transform:'rotate(-90,'+tx+','+ty+')'});
+                t.textContent = lbl; svg.appendChild(t);
+            }
+            function leader(x1,y1,x2,y2,lbl,anchor,color,fs) {
+                svg.appendChild(svgEl('circle',{cx:x1,cy:y1,r:2,fill:color||PAL.dim}));
+                var ex = (x2+x1)/2;
+                svg.appendChild(svgEl('polyline',{points:x1+','+y1+' '+ex+','+y2+' '+x2+','+y2,
+                    fill:'none',stroke:color||PAL.dim,'stroke-width':0.85,'stroke-dasharray':'2 2'}));
+                svgText(svg,x2+(anchor==='start'?3:-3),y2-3,lbl,{fill:color||PAL.dim,'font-size':fs||'10','font-family':fnt,'font-weight':'600','text-anchor':anchor||'start'});
+            }
+            function panelTitle(cx,y,lbl) {
+                svgText(svg,cx,y,lbl,{fill:PAL.navy,'font-size':'10.5','font-family':fnt,'font-weight':'700','text-anchor':'middle'});
+                var hw = lbl.length * 10.5 * 0.56 / 2 + 4;
+                svg.appendChild(svgEl('line',{x1:rnd(cx-hw,1),y1:y+4,x2:rnd(cx+hw,1),y2:y+4,stroke:PAL.navy,'stroke-width':1}));
+            }
+
+            // ── PANEL 0: Regular rectangular ──────────────────────────────────
+            var px = P[0], py = PY;
+            poly([[px,py],[px+PW,py],[px+PW,py+PH],[px,py+PH]]);
+            cl(px+PW/2, py-8, px+PW/2, py+PH+8);
+            cl(px-8, py+PH/2, px+PW+8, py+PH/2);
+            dimH(px, px+PW, py, -22, 'B');
+            // 'L' dim: use left side going further left so label doesn't clip
+            dimV(px, py, py+PH, -26, 'L');
+            // "Regular" caption goes BELOW the figure, not on it
+            svgText(svg, px+PW/2, py+PH+14, 'Regular', {
+                fill: PAL.dim, 'font-size': '9', 'font-family': fnt,
+                'font-weight': '500', 'text-anchor': 'middle', 'font-style': 'italic'
+            });
+            panelTitle(px+PW/2, py-14, 'REGULAR PLAN');
+
+            // ── PANEL 1: Re-entrant corner (L-shaped) ─────────────────────────
+            px = P[1]; py = PY;
+            var cx2 = px + PW*0.45, cy2 = py + PH*0.45;  // re-entrant corner
+            poly([[px,py],[px+PW,py],[px+PW,cy2],[cx2,cy2],[cx2,py+PH],[px,py+PH]]);
+            // Amber dot at re-entrant corner
+            svg.appendChild(svgEl('circle',{cx:cx2,cy:cy2,r:4.5,fill:PAL.amber,stroke:PAL.navy,'stroke-width':1.4}));
+            // Setback dims — 'a' across top, 'b' down right side
+            // 'b' dim: place in the gap between panel 1 and panel 2.
+            // GAP = 28px; put dim line at +10 (just right of panel edge) so text at +22 is in the gap, clear of both rects.
+            dimH(cx2, px+PW, py, -22, 'a');
+            // Instead of dimV (which may clip into panel 2), draw 'b' manually in the inter-panel gap
+            (function() {
+                var x1 = px+PW, vy1 = cy2, vy2 = py+PH, off = 10;
+                var dx = x1 + off, sign = 1;
+                // extension lines
+                svg.appendChild(svgEl('line',{x1:x1,y1:vy1,x2:dx+sign*4,y2:vy1,stroke:PAL.dim,'stroke-width':0.7}));
+                svg.appendChild(svgEl('line',{x1:x1,y1:vy2,x2:dx+sign*4,y2:vy2,stroke:PAL.dim,'stroke-width':0.7}));
+                // dim line
+                svg.appendChild(svgEl('line',{x1:dx,y1:vy1,x2:dx,y2:vy2,stroke:PAL.dim,'stroke-width':1}));
+                // tick marks
+                svg.appendChild(svgEl('line',{x1:rnd(dx-TK,1),y1:rnd(vy1-TK,1),x2:rnd(dx+TK,1),y2:rnd(vy1+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                svg.appendChild(svgEl('line',{x1:rnd(dx-TK,1),y1:rnd(vy2-TK,1),x2:rnd(dx+TK,1),y2:rnd(vy2+TK,1),stroke:PAL.dim,'stroke-width':1}));
+                // 'b' label: horizontal text (NOT rotated) above the dim line midpoint, in the gap
+                svgText(svg, dx, (vy1+vy2)/2 - 4, 'b', {
+                    fill:PAL.dim, 'font-size':'9', 'font-family':fnt,
+                    'text-anchor':'middle', 'font-weight':'500', 'font-style':'italic'
+                });
+            })();
+            // Threshold labels: leader from the re-entrant corner dot OUT to the void below/right the L
+            // "a/L>15%" leaders UP-RIGHT to above the panel (in the PAD_TOP space)
+            // "b/B>15%" leaders DOWN-RIGHT into the void below the right wing
+            // Both labels route outside the filled L-shape region
+            leader(cx2, cy2, cx2 - 28, py - 32, 'a/L > 15%', 'end', PAL.force, '8');
+            leader(cx2, cy2, cx2 + 10, py + PH + 14, 'b/B > 15%', 'start', PAL.force, '8');
+            panelTitle(px+PW/2, py-14, 'RE-ENTRANT CORNER');
+
+            // ── PANEL 2: Torsional ────────────────────────────────────────────
+            px = P[2]; py = PY;
+            var tpw = PW, tph = PH;
+            poly([[px,py],[px+tpw,py],[px+tpw,py+tph],[px,py+tph]]);
+
+            // Shear walls on the right side (amber rectangles)
+            svg.appendChild(svgEl('rect',{x:px+tpw-9,y:py+8,width:7,height:20,fill:PAL.amber,stroke:PAL.navy,'stroke-width':1.2}));
+            svg.appendChild(svgEl('rect',{x:px+tpw-9,y:py+tph-28,width:7,height:20,fill:PAL.amber,stroke:PAL.navy,'stroke-width':1.2}));
+
+            // CM dot (navy) and CR dot (amber) — offset horizontally
+            // Dots stay ON figure but ALL text leaders out to clear space
+            var cmX = px + tpw*0.35, cmY = py + tph*0.5;
+            var crX = px + tpw*0.60, crY = py + tph*0.5;
+            svg.appendChild(svgEl('circle',{cx:cmX,cy:cmY,r:5,fill:PAL.navy}));
+            // NO text inside CM dot — label leaders out below the panel
+            svg.appendChild(svgEl('circle',{cx:crX,cy:crY,r:5,fill:PAL.amber,stroke:PAL.navy,'stroke-width':1.2}));
+            // NO text inside CR dot — label leaders out below the panel
+
+            // Eccentricity arrow CM→CR
+            var mka = svgEl('marker',{id:'pArr',markerWidth:8,markerHeight:8,refX:7,refY:4,orient:'auto',markerUnits:'userSpaceOnUse'});
+            mka.appendChild(svgEl('path',{d:'M0,0 L0,8 L8,4 z',fill:PAL.force}));
+            defs.appendChild(mka);
+            svg.appendChild(svgEl('line',{x1:cmX+5,y1:cmY,x2:crX-5,y2:crY,stroke:PAL.force,'stroke-width':1.5,'marker-end':'url(#pArr)'}));
+
+            // 'e' label: route outside the panel to the left margin (not on the filled rect)
+            // Leader from midpoint of CM-CR arrow, out to left of panel
+            var eMidX = (cmX+crX)/2, eMidY = cmY;
+            leader(eMidX, eMidY, px - 16, py - 10, 'e', 'end', PAL.force, '10');
+
+            // CM label: leader from CM dot downward, exiting below the panel
+            leader(cmX, cmY, cmX - 12, py + tph + 14, 'CM', 'end', PAL.navy, '9');
+            // CR label: leader from CR dot downward, exiting below the panel
+            leader(crX, crY, crX + 12, py + tph + 14, 'CR', 'start', PAL.dim, '9');
+
+            // Walls label: leader from wall rect going LEFT then OUTSIDE the panel top-left
+            leader(px+tpw-5, py+18, px - 16, py + 8, 'Walls', 'end', PAL.dim, '9');
+            panelTitle(px+tpw/2, py-14, 'TORSIONAL (Type 1)');
+
+            // ── Overall view title (below all panels) ─────────────────────────
+            var titTxt = 'Plan Irregularity — Reference Schematics';
+            svgText(svg, SVG_W/2, titleY, titTxt, {
+                fill:PAL.navy, 'font-size':'13', 'font-family':fnt, 'font-weight':'700', 'text-anchor':'middle'
+            });
+            var uw = titTxt.length * 13 * 0.56 / 2 + 4;
+            svg.appendChild(svgEl('line',{x1:rnd(SVG_W/2-uw,1),y1:titleY+5,x2:rnd(SVG_W/2+uw,1),y2:titleY+5,stroke:PAL.navy,'stroke-width':1.1}));
+
+            // Caption
+            svgText(svg, PAD_L, titleCapY, 'ASCE 7-16 Table 12.3-1 — plan irregularities require separate evaluation, not computed here.', {
+                fill:PAL.dim, 'font-size':'9', 'font-family':fnt, 'text-anchor':'start'
+            });
+
+            svg.setAttribute('viewBox', '0 0 ' + SVG_W + ' ' + SVG_H);
+        }
+
+        // Hook diagrams into the main calc cycle
+        var _origCalc = calculateIrregularities;
+        calculateIrregularities = function() {
+            _origCalc();
+            if (window.AREDraw) {
+                drawVerticalDiagram();
+                drawPlanDiagram();
+            }
+        };
+
         // Initialize the calculator
         renderStories();
         calculateIrregularities();
     </script>
+<script src="/are-draw.js"></script>
+<script>
+    // Draw diagrams once AREDraw is loaded
+    drawVerticalDiagram();
+    drawPlanDiagram();
+</script>
 <script>
 /* ===== ARE shared utilities (inlined; Save/Load/Print) ===== */
 // =============================================================================

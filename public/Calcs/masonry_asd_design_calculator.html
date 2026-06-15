@@ -340,7 +340,7 @@
                 <div class="input-group blk">
                     <h3>Section Geometry</h3>
                     <div style="text-align:center;margin:6px 0 12px">
-                      <svg id="sectSvg" viewBox="0 0 320 190" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:320px"><!-- drawn live by areDrawSection() --></svg>
+                      <svg id="sectSvg" xmlns="http://www.w3.org/2000/svg"></svg>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -435,53 +435,131 @@
         }
 
         function areDrawSection() {
-            const svg = document.getElementById('sectSvg');
-            if (!svg) return;
-            const gv = (id, dflt) => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? dflt : v; };
-            const b = Math.max(1, gv('b', 12)), l = Math.max(1, gv('l', 7.625));
-            const As = gv('As', 0.31), V = gv('V', 0), M = gv('M', 0);
-            const d = l / 2;
+            var svg = document.getElementById('sectSvg');
+            if (!svg || !window.AREDraw) return;
+            var gv = function(id, dflt) { var v = parseFloat(document.getElementById(id).value); return isNaN(v) ? dflt : v; };
+            var b  = Math.max(1, gv('b', 12));
+            var l  = Math.max(1, gv('l', 7.625));
+            var As = gv('As', 0.31);
+            var V  = gv('V', 0);
+            var M  = gv('M', 0);
+            var d  = l / 2;   // effective depth — rebar at mid-thickness (d = l/2)
 
-            // Section rectangle: clamp aspect so extreme b/l stay readable
-            const ar = Math.min(3.5, Math.max(0.4, b / l));
-            const maxW = 190, maxH = 120;
-            let W, H;
-            if (ar >= maxW / maxH) { W = maxW; H = W / ar; } else { H = maxH; W = H * ar; }
-            W = Math.max(60, W); H = Math.max(34, H);
-            const x0 = +(120 - W / 2).toFixed(1), x1 = +(120 + W / 2).toFixed(1);
-            const y0 = +(80 - H / 2).toFixed(1), y1 = +(80 + H / 2).toFixed(1);
-            const yd = +(parseFloat(y0) + H * (d / l)).toFixed(1);
+            // Scale: fit the section to ~110 px tall and up to ~130 px wide.
+            var scaleH = AREDraw.fitScale(l, 110, { min: 4, max: 20 });
+            var scaleW = AREDraw.fitScale(b, 130, { min: 4, max: 20 });
+            var scale  = Math.min(scaleH, scaleW);
 
-            let s = '<defs>'
-              + '<marker id="ms_dim" markerWidth="7" markerHeight="6" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0 L7,3 L0,6z" fill="#1a7a4a"/></marker>'
-              + '<marker id="ms_aR" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L0,7 L8,3.5z" fill="#c42b2b"/></marker>'
-              + '</defs>';
-            // Masonry section (designed element)
-            s += '<rect x="' + x0 + '" y="' + y0 + '" width="' + W.toFixed(1) + '" height="' + H.toFixed(1) + '" fill="#fde68a" stroke="#1a2b5f" stroke-width="2"/>';
-            // Section hatch
-            for (let xh = parseFloat(x0) + 12; xh < parseFloat(x1); xh += 16) {
-                s += '<line x1="' + xh.toFixed(1) + '" y1="' + y0 + '" x2="' + (xh - 8).toFixed(1) + '" y2="' + y1 + '" stroke="#d6a915" stroke-width="0.6" opacity="0.7"/>';
+            // Large left offset to accommodate: l-dim (off=-32 ≈ 48 px) + V-label
+            // + gap. Right offset for: As/M callouts + d-dim.
+            // ox=130 (left gutter ~110 px), oy set so section mid sits around 130 px.
+            var sectionMidY = l / 2;
+            var dwg = new AREDraw.Drawing(svg, {});
+            var st  = dwg.style;
+            var vS  = new AREDraw.View(dwg, { scale: scale, ox: 130, oy: 130 + sectionMidY * scale, flipY: true });
+
+            // ── Masonry section rectangle (designed primary member — amber) ───────
+            AREDraw.plate(vS, 0, 0, b, l, { highlight: true, hatch: true });
+
+            // ── Centroidal centerlines ────────────────────────────────────────────
+            // Horizontal (bending/shear) axis at l/2 — rebar sits exactly here.
+            AREDraw.centerline(vS, -b * 0.18, l / 2, b * 1.18, l / 2);
+            // Vertical symmetry axis at b/2
+            AREDraw.centerline(vS, b / 2, -l * 0.12, b / 2, l * 1.12);
+
+            // ── Rebar circle at d = l/2 ───────────────────────────────────────────
+            var rebarR = Math.max(vS.s(Math.sqrt(Math.max(As, 0.01) / Math.PI) * 0.85), 3.5);
+            var SVGNS  = 'http://www.w3.org/2000/svg';
+            var rb = document.createElementNS(SVGNS, 'circle');
+            rb.setAttribute('cx', vS.px(b / 2));
+            rb.setAttribute('cy', vS.py(d));
+            rb.setAttribute('r',  rebarR);
+            rb.setAttribute('fill', st.force);
+            rb.setAttribute('stroke', '#7f1d1d');
+            rb.setAttribute('stroke-width', '1');
+            dwg.gAnno.appendChild(rb);
+            dwg.extend(vS.px(b / 2) - rebarR, vS.py(d) - rebarR);
+            dwg.extend(vS.px(b / 2) + rebarR, vS.py(d) + rebarR);
+
+            // Pixel coordinates used for callout placement
+            var rightEdgePx = vS.px(b);
+            var leftEdgePx  = vS.px(0);
+            var rebarPy     = vS.py(d);   // pixel y of rebar / centroid line
+            var topPy       = vS.py(l);   // pixel y of compression face
+            var botPy       = vS.py(0);   // pixel y of tension face (bottom)
+
+            // ── As label — pulled RIGHT of section, at rebar height ───────────────
+            // Sits 62 px to the right of the section right edge, on the centroid line.
+            AREDraw.calloutLabel(vS, b / 2, d,
+                rightEdgePx + 62, rebarPy,
+                'As = ' + As.toFixed(2) + ' in²', { color: st.force, anchor: 'start' });
+
+            // ── d dimension — from compression face (top) to rebar ────────────────
+            // Placed on the left side, between the section edge and the l-dim.
+            // The dim runs top→mid in pixel space so nxu = -1; a positive off
+            // value pushes LEFT (outside the section). off=+24 lands at ~106 px,
+            // clear of the l-dim at ~76 px. Vertical dim: (0,l) → (0,d).
+            AREDraw.dimLine(vS, 0, l, 0, d,
+                'd = ' + d.toFixed(3) + '"', { off: 24 });
+
+            // ── Compression face leader — top-centre edge, pulled up-right ────────
+            AREDraw.leader(vS, b * 0.62, l, 46, -30, 'Comp. face', { color: st.steel });
+
+            // ── b dimension — below the section ──────────────────────────────────
+            AREDraw.dimLine(vS, 0, 0, b, 0, 'b = ' + b + '"', { off: 28 });
+
+            // ── l dimension — left of section, further left than d-dim ───────────
+            // off = -52 ensures it clears the d-dim (which is at off = -24).
+            AREDraw.dimLine(vS, 0, 0, 0, l, 'l = ' + l + '"', { off: -54 });
+
+            // ── Moment arc on the centroid, label below the As callout ────────────
+            if (Math.abs(M) > 0) {
+                AREDraw.momentArrow(vS, b / 2, l / 2, 14,
+                    '', { ccw: (M >= 0), color: st.moment });
+                AREDraw.calloutLabel(vS, b / 2, l / 2,
+                    rightEdgePx + 62, rebarPy + 20,
+                    'M = ' + Math.round(Math.abs(M)).toLocaleString() + ' lb·in',
+                    { color: st.moment, anchor: 'start' });
             }
-            // Compression face marker (top)
-            s += '<text x="120" y="' + (parseFloat(y0) - 5).toFixed(1) + '" font-size="9" fill="#1a2b5f" text-anchor="middle">compression face</text>';
-            // Rebar at d = l/2
-            s += '<circle cx="120" cy="' + yd + '" r="5" fill="#c42b2b" stroke="#7f1d1d" stroke-width="1.2"/>';
-            s += '<text x="130" y="' + (parseFloat(yd) + 4).toFixed(1) + '" font-size="9" fill="#c42b2b" font-weight="600">As = ' + As.toFixed(2) + ' in&#178;</text>';
-            // b dimension (bottom)
-            s += '<line x1="' + x0 + '" y1="' + (parseFloat(y1) + 14).toFixed(1) + '" x2="' + x1 + '" y2="' + (parseFloat(y1) + 14).toFixed(1) + '" stroke="#1a7a4a" stroke-width="1" marker-start="url(#ms_dim)" marker-end="url(#ms_dim)"/>';
-            s += '<text x="120" y="' + (parseFloat(y1) + 26).toFixed(1) + '" font-size="10" fill="#1a7a4a" font-weight="600" text-anchor="middle">b = ' + b + '&#8243;</text>';
-            // l dimension (left) and d dimension (right)
-            s += '<line x1="' + (parseFloat(x0) - 12).toFixed(1) + '" y1="' + y0 + '" x2="' + (parseFloat(x0) - 12).toFixed(1) + '" y2="' + y1 + '" stroke="#1a7a4a" stroke-width="1" marker-start="url(#ms_dim)" marker-end="url(#ms_dim)"/>';
-            s += '<text x="' + (parseFloat(x0) - 18).toFixed(1) + '" y="83" font-size="10" fill="#1a7a4a" font-weight="600" text-anchor="middle" transform="rotate(-90,' + (parseFloat(x0) - 18).toFixed(1) + ',83)">l = ' + l + '&#8243;</text>';
-            s += '<line x1="' + (parseFloat(x1) + 12).toFixed(1) + '" y1="' + y0 + '" x2="' + (parseFloat(x1) + 12).toFixed(1) + '" y2="' + yd + '" stroke="#c42b2b" stroke-width="1" marker-start="url(#ms_dim)" marker-end="url(#ms_dim)"/>';
-            s += '<text x="' + (parseFloat(x1) + 22).toFixed(1) + '" y="' + ((parseFloat(y0) + parseFloat(yd)) / 2 + 3).toFixed(1) + '" font-size="9" fill="#c42b2b">d = ' + d.toFixed(2) + '&#8243;</text>';
-            // Demand annotation
-            s += '<text x="120" y="178" font-size="9" fill="#374151" text-anchor="middle">M = ' + Math.round(M).toLocaleString() + ' lb&#183;in &nbsp;|&nbsp; V = ' + Math.round(V).toLocaleString() + ' lb</text>';
-            svg.innerHTML = s;
+
+            // ── Shear arrow — transverse through centroid, label below dim zone ───
+            // Arrow: tail 1.5 in left of left face; tip at left face. The shaft
+            // passes through the centroid (y = l/2). Label pulled further left so
+            // it clears the l-dim text that sits left of the section.
+            if (Math.abs(V) > 0) {
+                var vTailX = -1.5;
+                AREDraw.forceArrow(vS, vTailX, l / 2, 1, 0, vS.s(1.5), '',
+                    { color: st.force });
+                // V label goes ABOVE the top of the section to stay clear of all
+                // left-side dimension lines.
+                AREDraw.calloutLabel(vS, vTailX, l / 2,
+                    vS.px(vTailX) - 6, topPy - 22,
+                    'V = ' + Math.round(Math.abs(V)).toLocaleString() + ' lb',
+                    { color: st.force, anchor: 'end' });
+            }
+
+            // ── View title BELOW all content ──────────────────────────────────────
+            AREDraw.viewTitle(vS, vS.px(b / 2), dwg.maxY + st.fsTitle + 10,
+                'Masonry Cross Section');
+
+            dwg.commit();
         }
-        document.addEventListener('input', areDrawSection);
-        document.addEventListener('change', areDrawSection);
-        window.addEventListener('load', areDrawSection);
+
+        // Wire redraw to every relevant input
+        (function () {
+            var ids = ['b', 'l', 'As', 'Av', 's', 'M', 'V', 'grouting'];
+            ids.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    ['input', 'change'].forEach(function (ev) {
+                        el.addEventListener(ev, areDrawSection);
+                    });
+                }
+            });
+            // Initial draw: retry after are-draw.js finishes loading
+            function tryDraw() { if (window.AREDraw) { areDrawSection(); } else { setTimeout(tryDraw, 40); } }
+            tryDraw();
+        }());
 
         function calculate() {
             // Get input values
@@ -772,6 +850,7 @@ ${flexuralResults}
         // Initialize
         updateSavedDesignsList();
     </script>
+    <script src="/are-draw.js"></script>
     <script src="/are-utils-v2.js"></script>
 </body>
 </html>

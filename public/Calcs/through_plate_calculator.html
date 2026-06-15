@@ -240,6 +240,7 @@
     </style>
   <link rel="stylesheet" href="./are-calc.css">
 </head>
+<script src="/are-draw.js"></script>
 <body>
     <div class="container">
         <h1>Through-Plate Connection Design Calculator</h1>
@@ -260,7 +261,7 @@
         </div>
         
         <div style="background:#fff;border:1px solid #dde;border-radius:8px;padding:12px;margin-bottom:18px">
-            <svg id="areSchemSvg" viewBox="0 0 760 300" width="100%" style="max-height:320px" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="areSchemSvg" xmlns="http://www.w3.org/2000/svg"></svg>
         </div>
 
         <div class="input-section blk">
@@ -545,7 +546,7 @@
             }
 
             // Main loading method - tries multiple approaches
-            async loadDatabase(filePath = 'aiscshapesdatabasev16.0.xlsx') {
+            async loadDatabase(filePath = 'aisc-shapes-database-v16.0.xlsx') {
                 this.debugInfo = [`Starting database load for: ${filePath}`];
                 
                 // Try different loading methods in order
@@ -897,71 +898,165 @@
         // ============ LIVE SCHEMATIC ============
         function areDrawSchematic(){
             var svg=document.getElementById('areSchemSvg'); if(!svg) return;
-            function gv(id,d){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isFinite(v)?v:d}
+            if(!window.AREDraw) return;
+
+            function gv(id,def){var e=document.getElementById(id);var v=e?parseFloat(e.value):NaN;return isFinite(v)?v:def;}
             var beamSize=document.getElementById('beamSize')?document.getElementById('beamSize').value:'';
-            var hssSize=document.getElementById('hssSize')?document.getElementById('hssSize').value:'';
-            var beam=null,hss=null;
+            var hssSize =document.getElementById('hssSize') ?document.getElementById('hssSize').value :'';
+            var beam=null, hss=null;
             try{ if(beamSize) beam=getShapeProperties('beam',beamSize); }catch(e){}
-            try{ if(hssSize) hss=getShapeProperties('hss',hssSize); }catch(e){}
-            var d=(beam&&beam.d)?beam.d:18, Hc=(hss&&hss.H)?hss.H:8;
-            var tp=gv('plateThickness',0.5), nb=Math.max(1,Math.round(gv('boltsPerLine',3))), sp=gv('boltSpacing',3), ed=gv('edgeDist',1.5);
-            var VuL=gv('shearDeadLeft',0)*1.2+gv('shearLiveLeft',0)*1.6;
-            var VuR=gv('shearDeadRight',0)*1.2+gv('shearLiveRight',0)*1.6;
-            var Pu=gv('deadLoad',0)*1.2+gv('liveLoad',0)*1.6;
-            // scale: in -> px
-            var sc=Math.min(120/Math.max(d,1), 70/Math.max(Hc,1), 22);
-            sc=Math.max(sc,2);
-            var cx=380, midY=170;
-            var colW=Math.max(Hc*sc,18), bmD=Math.max(d*sc,30), tpPx=Math.max(tp*sc,4);
-            var colX=cx-colW/2, colT=60, colB=288;
-            var bmY=midY-bmD/2, bmLen=200;
-            var pLen=Math.max(nb*sp*sc*0.9+ed*sc, 60); pLen=Math.min(pLen,bmLen-20);
-            var s='<defs><marker id="arR" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-              +'<marker id="arG" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker></defs>';
-            s+='<text x="'+cx+'" y="20" font-size="13" font-weight="700" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">Through-Plate FR Connection — Elevation</text>';
-            // column (above and below joint)
-            s+='<rect x="'+colX+'" y="'+colT+'" width="'+colW+'" height="'+(colB-colT)+'" fill="#dbe2f0" stroke="#1a2b5f" stroke-width="2"/>';
-            s+='<text x="'+(cx+colW/2+8)+'" y="'+(colB-6)+'" font-size="11" fill="#1a2b5f" font-family="sans-serif">'+(hssSize||'HSS column')+'</text>';
-            // beams each side
-            var bxL=colX-bmLen, bxR=colX+colW;
-            s+='<rect x="'+bxL+'" y="'+bmY+'" width="'+bmLen+'" height="'+bmD+'" fill="#eef2f9" stroke="#1a2b5f" stroke-width="1.5"/>';
-            s+='<rect x="'+bxR+'" y="'+bmY+'" width="'+bmLen+'" height="'+bmD+'" fill="#eef2f9" stroke="#1a2b5f" stroke-width="1.5"/>';
-            s+='<text x="'+(bxL+bmLen/2)+'" y="'+(midY+4)+'" font-size="11" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">'+(beamSize||'W-beam')+'</text>';
-            s+='<text x="'+(bxR+bmLen/2)+'" y="'+(midY+4)+'" font-size="11" fill="#1a2b5f" text-anchor="middle" font-family="sans-serif">'+(beamSize||'W-beam')+'</text>';
-            // through plates (designed element, highlighted) passing through column, on outside of flanges
-            var pyT=bmY-tpPx, pyB=bmY+bmD;
-            s+='<rect x="'+(colX-pLen)+'" y="'+pyT+'" width="'+(colW+2*pLen)+'" height="'+tpPx+'" fill="#fde68a" stroke="#92400e" stroke-width="1.5"/>';
-            s+='<rect x="'+(colX-pLen)+'" y="'+pyB+'" width="'+(colW+2*pLen)+'" height="'+tpPx+'" fill="#fde68a" stroke="#92400e" stroke-width="1.5"/>';
-            // bolts (circles) each side, each plate
-            var i,bx;
-            for(i=0;i<nb;i++){
-                var off=ed*sc+i*sp*sc; if(off>pLen-4) off=pLen-4;
-                [colX-off-4, colX+colW+off].forEach(function(bx0){
-                    s+='<circle cx="'+(bx0+2)+'" cy="'+(pyT+tpPx/2)+'" r="3" fill="#475569"/>';
-                    s+='<circle cx="'+(bx0+2)+'" cy="'+(pyB+tpPx/2)+'" r="3" fill="#475569"/>';
-                });
+            try{ if(hssSize)  hss =getShapeProperties('hss', hssSize);  }catch(e){}
+
+            // Real-world dimensions (inches)
+            var d  = (beam&&beam.d) ? +beam.d   : 16.4;
+            var tf = (beam&&beam.tf)? +beam.tf  : 0.715;
+            var Hc = (hss &&hss.H)  ? +hss.H    : 20.0;
+            var Bc = (hss &&hss.B)  ? +hss.B    : 12.0;
+            var tc = (hss &&hss.t)  ? +hss.t    : 0.465;
+            var tp = gv('plateThickness',0.75);
+            var nb = Math.max(1, Math.round(gv('boltsPerLine',5)));
+            var sp = gv('boltSpacing',3);
+            var ed = gv('edgeDist',1.25);
+            var dia= gv('boltDiameter',1.0);
+
+            // Factored loads for display
+            var VuL = gv('shearDeadLeft',0)*1.2  + gv('shearLiveLeft',0)*1.6;
+            var VuR = gv('shearDeadRight',0)*1.2 + gv('shearLiveRight',0)*1.6;
+            var MuL = gv('momentDeadLeft',0)*1.2  + gv('momentLiveLeft',0)*1.6;
+            var MuR = gv('momentDeadRight',0)*1.2 + gv('momentLiveRight',0)*1.6;
+            var Pu  = gv('deadLoad',0)*1.2 + gv('liveLoad',0)*1.6;
+
+            // Layout: origin = HSS column centroid. +x right, +y up (flipY:true).
+            var halfBc = Bc / 2;
+            // Bolt group extent from column face (edge dist + bolts)
+            var pLen  = ed + (nb-1)*sp + ed;
+            // Beam drawn beyond plates + room for dim labels on the right
+            var bmLen = pLen + 8;
+
+            // Scale to fit both HSS height and total width in ~210 px height
+            var sc = AREDraw.fitScale(Math.max(Hc, d+2*tp+8), 210, {min:3, max:10});
+
+            var dwg = new AREDraw.Drawing(svg, {});
+            var st  = dwg.style;
+            var v   = new AREDraw.View(dwg, { scale: sc, ox: 0, oy: 0, flipY: true });
+
+            // ── HSS column (shown as vertical rectangular tube) ─────────────────
+            // Outer box
+            AREDraw.plate(v, -halfBc, -Hc/2, Bc, Hc, { fill: st.steelFill });
+            // Inner void to show wall thickness
+            AREDraw.plate(v, -halfBc+tc, -Hc/2+tc, Bc-2*tc, Hc-2*tc, { fill:'#ffffff' });
+            // Column vertical centerline
+            AREDraw.centerline(v, 0, -Hc/2-1, 0, Hc/2+1);
+
+            // ── Left & right W-beams ────────────────────────────────────────────
+            var bGeom  = { d:d, tf:tf };
+            var lbX    = -(halfBc + bmLen);   // left beam left face world x
+            var rbX    =   halfBc;            // right beam left face world x
+            AREDraw.wElevation(v, lbX, 0, bmLen, bGeom, { fill: st.steelFill });
+            AREDraw.wElevation(v, rbX, 0, bmLen, bGeom, { fill: st.steelFill });
+            // Beam centreline dashes
+            AREDraw.centerline(v, lbX-1, 0, -halfBc+0.5, 0);
+            AREDraw.centerline(v, halfBc-0.5, 0, rbX+bmLen+1, 0);
+
+            // ── Through-plates (amber, designed member) ─────────────────────────
+            // Top plate: sits against top flange (y = d/2 to d/2+tp), full width
+            // Bottom plate: y = -(d/2+tp) to -d/2
+            var plX = -(halfBc + pLen);
+            var plW =  2*(halfBc + pLen);
+            AREDraw.plate(v, plX,  d/2,      plW, tp, { highlight:true }); // top
+            AREDraw.plate(v, plX, -(d/2+tp), plW, tp, { highlight:true }); // bottom
+
+            // ── Bolts (at plate mid-height, on each side of column) ─────────────
+            for(var i=0;i<nb;i++){
+                var bOff = halfBc + ed + i*sp;
+                AREDraw.bolt(v, -bOff,  d/2+tp/2, dia, {cross:false});
+                AREDraw.bolt(v,  bOff,  d/2+tp/2, dia, {cross:false});
+                AREDraw.bolt(v, -bOff, -(d/2+tp/2), dia, {cross:false});
+                AREDraw.bolt(v,  bOff, -(d/2+tp/2), dia, {cross:false});
             }
-            // loads: axial at top (down), shears at beam ends (down), moment arcs
-            s+='<line x1="'+cx+'" y1="32" x2="'+cx+'" y2="'+(colT-4)+'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#arR)"/>';
-            s+='<text x="'+(cx+6)+'" y="44" font-size="11" fill="#c42b2b" font-family="sans-serif">Pu = '+Pu.toFixed(1)+' k</text>';
-            s+='<line x1="'+(bxL+24)+'" y1="'+(bmY-34)+'" x2="'+(bxL+24)+'" y2="'+(pyT-4)+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-            s+='<text x="'+(bxL+30)+'" y="'+(bmY-38)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Vu,L = '+VuL.toFixed(1)+' k</text>';
-            s+='<line x1="'+(bxR+bmLen-24)+'" y1="'+(bmY-34)+'" x2="'+(bxR+bmLen-24)+'" y2="'+(pyT-4)+'" stroke="#c42b2b" stroke-width="2" marker-end="url(#arR)"/>';
-            s+='<text x="'+(bxR+bmLen-90)+'" y="'+(bmY-38)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">Vu,R = '+VuR.toFixed(1)+' k</text>';
-            s+='<path d="M '+(bxL+70)+' '+(bmY+bmD+30)+' A 18 18 0 1 1 '+(bxL+98)+' '+(bmY+bmD+34)+'" fill="none" stroke="#c42b2b" stroke-width="1.8" marker-end="url(#arR)"/>';
-            s+='<text x="'+(bxL+58)+'" y="'+(bmY+bmD+52)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">M,L</text>';
-            s+='<path d="M '+(bxR+bmLen-98)+' '+(bmY+bmD+34)+' A 18 18 0 1 1 '+(bxR+bmLen-70)+' '+(bmY+bmD+30)+'" fill="none" stroke="#c42b2b" stroke-width="1.8" marker-end="url(#arR)"/>';
-            s+='<text x="'+(bxR+bmLen-58)+'" y="'+(bmY+bmD+52)+'" font-size="11" fill="#c42b2b" font-family="sans-serif">M,R</text>';
-            // dims: beam depth d and lever arm d+tp (green)
-            var dx=bxL-16;
-            s+='<line x1="'+dx+'" y1="'+bmY+'" x2="'+dx+'" y2="'+(bmY+bmD)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-            s+='<text x="'+(dx-4)+'" y="'+(midY+4)+'" font-size="11" fill="#1a7a4a" text-anchor="end" font-family="sans-serif">d = '+d+'"</text>';
-            var dx2=bxR+bmLen+14;
-            s+='<line x1="'+dx2+'" y1="'+(pyT+tpPx/2)+'" x2="'+dx2+'" y2="'+(pyB+tpPx/2)+'" stroke="#1a7a4a" stroke-width="1.5" marker-start="url(#arG)" marker-end="url(#arG)"/>';
-            s+='<text x="'+(dx2+4)+'" y="'+(midY)+'" font-size="11" fill="#1a7a4a" font-family="sans-serif">lever =</text>';
-            s+='<text x="'+(dx2+4)+'" y="'+(midY+13)+'" font-size="11" fill="#1a7a4a" font-family="sans-serif">d+t_p = '+(d+tp).toFixed(2)+'"</text>';
-            s+='<text x="'+(colX-pLen)+'" y="'+(pyT-6)+'" font-size="11" fill="#92400e" font-family="sans-serif">through plate t_p = '+tp+'"</text>';
-            svg.innerHTML=s;
+
+            // ── Member labels — pulled OUTSIDE all filled regions ─────────────────
+            var lbMid = lbX + bmLen/2;
+            var rbMid = rbX + bmLen/2;
+            // Left beam: callout from web centroid → below bottom flange, centred under left beam
+            AREDraw.calloutLabel(v, lbMid, 0,
+                v.px(lbMid), v.py(-d/2 - 3),
+                beamSize||'W-beam', {color:st.steel, anchor:'middle'});
+            // Right beam: callout from web centroid → below bottom flange, centred under right beam
+            AREDraw.calloutLabel(v, rbMid, 0,
+                v.px(rbMid), v.py(-d/2 - 3),
+                beamSize||'W-beam', {color:st.steel, anchor:'middle'});
+            // HSS column: callout from column centroid → below the column, clear of beam labels
+            AREDraw.calloutLabel(v, 0, 0,
+                v.px(0), v.py(-Hc/2 - 3),
+                hssSize||'HSS col.', {color:st.steel, anchor:'middle'});
+
+            // ── Plate callout leader from top plate ──────────────────────────────
+            // Target: mid of top plate. Label goes up-left above beam, outside steel.
+            AREDraw.calloutLabel(v, 0, d/2+tp/2,
+                v.px(-halfBc-2), v.py(d/2+tp+5),
+                'T.P. tp='+tp+'"', {color:st.dim, anchor:'end'});
+
+            // ── Dimension lines ──────────────────────────────────────────────────
+            // Beam depth d: dim on left face of left beam, inward (off=+28 pushes line right)
+            var dDimX = lbX;
+            AREDraw.dimLine(v, dDimX, -d/2, dDimX, d/2, 'd = '+d.toFixed(2)+'"', {off:-28});
+
+            // Lever arm (d + tp, centroid-to-centroid of plates): vertical dim on the
+            // right face of the right beam. Dim line inward (off=-24). Value label
+            // placed right of the beam in a clear gutter above the shear arrow zone.
+            var lvDimX = rbX + bmLen;
+            AREDraw.dimLine(v, lvDimX, -(d/2+tp/2), lvDimX, d/2+tp/2, '', {off:-24});
+            // Value + description as a calloutLabel from the top plate centroid, going right
+            AREDraw.calloutLabel(v, lvDimX, d/2+tp/2,
+                v.px(lvDimX) + 6, v.py(d/2+tp/2),
+                (d+tp).toFixed(2)+'" = lever', {color:st.dim, anchor:'start'});
+
+            // Plate thickness tp: text shown in T.P. callout above — dim ticks only here
+            AREDraw.dimLine(v, halfBc+pLen/2, d/2, halfBc+pLen/2, d/2+tp,
+                '', {off:18});
+
+            // ── Force arrows through centroids, labels pulled outside ────────────
+            // Axial Pu — arrives at top of column, arrow pointing down, centroid x=0
+            var topY = Hc/2;
+            AREDraw.forceArrow(v, 0, topY+4.5, 0, -1, v.s(4.5), '', {color:st.force});
+            AREDraw.calloutLabel(v, 0, topY+4.5,
+                v.px(halfBc+3), v.py(topY+2.5),
+                'Pu='+Pu.toFixed(1)+' k', {color:st.force, anchor:'start'});
+
+            // Shear Vu,L — downward arrow at top-left of left beam (centroid line extended to face)
+            var lShearX = lbX;
+            AREDraw.forceArrow(v, lShearX, d/2+4, 0, -1, v.s(4), '', {color:st.force});
+            AREDraw.calloutLabel(v, lShearX, d/2+4,
+                v.px(lbX-1.5), v.py(d/2+6),
+                'Vu,L='+VuL.toFixed(1)+' k', {color:st.force, anchor:'end'});
+
+            // Shear Vu,R — downward at top-right of right beam
+            var rShearX = rbX + bmLen;
+            AREDraw.forceArrow(v, rShearX, d/2+4, 0, -1, v.s(4), '', {color:st.force});
+            AREDraw.calloutLabel(v, rShearX, d/2+4,
+                v.px(rShearX+1.5), v.py(d/2+6),
+                'Vu,R='+VuR.toFixed(1)+' k', {color:st.force, anchor:'start'});
+
+            // ── Moment arcs — arc sits ON the centroid (y=0), label outside below ─
+            // Labels pulled below bottom plate (world y = -(d/2+tp+8 in)) via callout.
+            var momWorldY = -(d/2 + tp + 8);   // world y of moment label row
+            AREDraw.momentArrow(v, lbMid, 0, 20, '', {color:st.moment, ccw:MuL>=0});
+            AREDraw.calloutLabel(v, lbMid, 0,
+                v.px(lbMid) - 4, v.py(momWorldY),
+                'Mu,L='+MuL.toFixed(1)+' k-ft', {color:st.moment, anchor:'end'});
+
+            AREDraw.momentArrow(v, rbMid, 0, 20, '', {color:st.moment, ccw:MuR>=0});
+            AREDraw.calloutLabel(v, rbMid, 0,
+                v.px(rbMid) + 4, v.py(momWorldY),
+                'Mu,R='+MuR.toFixed(1)+' k-ft', {color:st.moment, anchor:'start'});
+
+            // ── View title BELOW all content (below moment labels), underlined ────
+            // Title must sit below the lowest content: moment labels at momWorldY
+            var titleY = v.py(momWorldY) + 26;   // 26px below moment label baseline
+            AREDraw.viewTitle(v, v.px(0), titleY, 'Through-Plate FR Connection — Elevation');
+
+            dwg.commit();
         }
         (function(){
             function bind(){

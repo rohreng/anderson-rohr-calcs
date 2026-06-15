@@ -348,21 +348,182 @@ function updateDiagram(){
   var Vx=parseFloat(document.getElementById('Vx').value)||0;
   var Vy=parseFloat(document.getElementById('Vy').value)||0;
 
-  // ── Canvas layout ─────────────────────────────────────────────────────────
-  // Zones: ml=wall label(left), mr=wall label+D dim(right), mt=wall label(top), mb=B dim+legend(bot)
-  var W=600, H=370;
-  var ml=68, mr=88, mt=38, mb=68;
-  var maxBW=W-ml-mr, maxDH=H-mt-mb;  // 444 × 264 px available
-  var scale=Math.min(maxBW*0.9/B, maxDH*0.9/D);
-  var bw=B*scale, dh=D*scale;
-  var ox=ml+(maxBW-bw)/2, oy=mt+(maxDH-dh)/2;
-  var left=ox, right=ox+bw, top=oy, bottom=oy+dh;
-  var cx=left+bw/2, cy=top+dh/2;  // building centre
-
   // ── Read shearwalls ───────────────────────────────────────────────────────
   var swX=getSWRowsForDiagram('X'); // N/S walls (horizontal, running EW), resist V_x, loc=dist from S
   var swY=getSWRowsForDiagram('Y'); // E/W walls (vertical, running NS), resist V_y, loc=dist from W
 
+  // ── Build or reuse the SVG element ───────────────────────────────────────
+  var wrap=document.getElementById('diagWrap');
+  var svgEl_=wrap.querySelector('svg.rd-diagram');
+  if(!svgEl_){
+    svgEl_=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svgEl_.setAttribute('class','rd-diagram diagram');
+    svgEl_.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    wrap.innerHTML='';
+    wrap.appendChild(svgEl_);
+  }
+
+  // ── Brand tokens ─────────────────────────────────────────────────────────
+  var NAVY='#1a2b5f', AMBER='#fde68a', MUTED='#6b7a96', FORCE='#c42b2b', CENTER='#9aa6c2';
+  var FONT="'DM Sans','Segoe UI',system-ui,sans-serif";
+
+  if(typeof AREDraw==='undefined'){
+    wrap.innerHTML='<p style="padding:12px;color:'+FORCE+';font-family:'+FONT+'">Diagram library loading…</p>';
+    syncSwJSON(); return;
+  }
+
+  // ── Scale: fit building into ~420 × 250 px content zone ──────────────────
+  var maxBW=420, maxDH=250;
+  var sc=Math.min(maxBW/B, maxDH/D)*0.88;
+  // World origin (0,0)=SW corner of building; flipY:true so +y=north=up on screen
+  var SW_PX_X=100, SW_PX_Y=290;
+
+  var dwg=new AREDraw.Drawing(svgEl_,{margin:28});
+  var v=new AREDraw.View(dwg,{scale:sc, ox:SW_PX_X, oy:SW_PX_Y, flipY:true});
+
+  // ── Pixel helpers ─────────────────────────────────────────────────────────
+  var px_=function(xft){return v.px(xft);};
+  var py_=function(yft){return v.py(yft);};
+  var pxW=px_(0), pxE=px_(B), pyS=py_(0), pyN=py_(D);
+  var pxC=px_(B/2), pyC=py_(D/2);
+  var bwPx=v.s(B), dhPx=v.s(D);
+
+  // ── Low-level SVG helper ──────────────────────────────────────────────────
+  function mk(tag,attrs){
+    var n=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    for(var k in attrs) if(attrs[k]!=null) n.setAttribute(k,attrs[k]);
+    return n;
+  }
+  function addA(n){ dwg.gAnno.appendChild(n); return n; }
+  function addS(n){ dwg.gSteel.appendChild(n); return n; }
+  function addTxt(txt,attrs){ var t=mk('text',attrs); t.textContent=txt; addA(t); return t; }
+
+  // ── 1. Diaphragm fill (amber + light hatch) ───────────────────────────────
+  var hatchId=dwg.hatchPattern('#8595bd',9);
+  addS(mk('rect',{x:pxW,y:pyN,width:bwPx,height:dhPx,fill:AMBER}));
+  addS(mk('rect',{x:pxW,y:pyN,width:bwPx,height:dhPx,fill:'url(#'+hatchId+')','fill-opacity':0.45}));
+  dwg.extend(pxW,pyN); dwg.extend(pxE,pyS);
+
+  // ── 2. EW shearwalls — horizontal lines (N/S walls), resist Vx ───────────
+  swX.forEach(function(sw){
+    var yPx=py_(sw.loc);
+    if(yPx>pyS+3||yPx<pyN-3) return;
+    var isSouth=(sw.loc/D<0.03), isNorth=(sw.loc/D>0.97), isEdge=isSouth||isNorth;
+    addS(mk('line',{x1:pxW,y1:yPx,x2:pxE,y2:yPx,stroke:NAVY,'stroke-width':isEdge?3.5:2.5,'stroke-linecap':'round'}));
+    var labTxt=sw.label+(sw.len>0?' ('+sw.len+' ft)':'');
+    var labLenPx=labTxt.length*6;
+    if(isNorth){
+      var labY=pyN-14;
+      addA(mk('line',{x1:pxC,y1:yPx,x2:pxC,y2:labY+2,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      addTxt(labTxt,{x:pxC,y:labY,'text-anchor':'middle','font-size':10.5,'font-weight':700,'font-family':FONT,fill:NAVY});
+      dwg.extend(pxC-labLenPx/2,labY-12); dwg.extend(pxC+labLenPx/2,labY);
+    } else if(isSouth){
+      var labY2=pyS+22;
+      addA(mk('line',{x1:pxC,y1:yPx,x2:pxC,y2:labY2-2,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      addTxt(labTxt,{x:pxC,y:labY2,'text-anchor':'middle','font-size':10.5,'font-weight':700,'font-family':FONT,fill:NAVY});
+      dwg.extend(pxC-labLenPx/2,labY2+4); dwg.extend(pxC+labLenPx/2,labY2+4);
+    } else {
+      var labXI=pxW-8;
+      addA(mk('line',{x1:pxW,y1:yPx,x2:labXI+2,y2:yPx,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      addTxt(labTxt,{x:labXI,y:yPx+4,'text-anchor':'end','font-size':10,'font-weight':700,'font-family':FONT,fill:NAVY});
+      dwg.extend(labXI-labLenPx,yPx-12); dwg.extend(pxW+2,yPx+4);
+    }
+  });
+
+  swY.forEach(function(sw){
+    var xPx=px_(sw.loc);
+    if(xPx<pxW-3||xPx>pxE+3) return;
+    var isWest=(sw.loc/B<0.03), isEast=(sw.loc/B>0.97), isEdge=isWest||isEast;
+    addS(mk('line',{x1:xPx,y1:pyN,x2:xPx,y2:pyS,stroke:NAVY,'stroke-width':isEdge?3.5:2.5,
+      'stroke-linecap':'round','stroke-dasharray':isEdge?null:'6 3'}));
+    var labTxt=sw.label+(sw.len>0?' ('+sw.len+' ft)':'');
+    var labLenPx=labTxt.length*6;
+    if(isWest){
+      var labX=pxW-26, labYc=pyC;
+      addA(mk('line',{x1:xPx,y1:pyC,x2:labX+3,y2:labYc,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      var tW=mk('text',{x:labX,y:labYc,'text-anchor':'middle','dominant-baseline':'middle',
+        'font-size':10.5,'font-weight':700,'font-family':FONT,fill:NAVY,
+        transform:'rotate(-90,'+labX+','+labYc+')'}); tW.textContent=labTxt; addA(tW);
+      dwg.extend(labX-14,labYc-labLenPx/2-4); dwg.extend(labX+14,labYc+labLenPx/2+4);
+    } else if(isEast){
+      var labXE=pxE+26, labYcE=pyC;
+      addA(mk('line',{x1:xPx,y1:pyC,x2:labXE-3,y2:labYcE,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      var tE=mk('text',{x:labXE,y:labYcE,'text-anchor':'middle','dominant-baseline':'middle',
+        'font-size':10.5,'font-weight':700,'font-family':FONT,fill:NAVY,
+        transform:'rotate(-90,'+labXE+','+labYcE+')'}); tE.textContent=labTxt; addA(tE);
+      dwg.extend(labXE-14,labYcE-labLenPx/2-4); dwg.extend(labXE+14,labYcE+labLenPx/2+4);
+    } else {
+      var labYI=pyN-16;
+      addA(mk('line',{x1:xPx,y1:pyN,x2:xPx,y2:labYI+3,stroke:MUTED,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+      addTxt(labTxt,{x:xPx,y:labYI,'text-anchor':'middle','font-size':10,'font-weight':700,'font-family':FONT,fill:NAVY});
+      dwg.extend(xPx-labLenPx/2,labYI-12); dwg.extend(xPx+labLenPx/2,labYI+2);
+    }
+  });
+
+  addS(mk('rect',{x:pxW,y:pyN,width:bwPx,height:dhPx,fill:'none',stroke:NAVY,'stroke-width':2.5}));
+
+  AREDraw.centerline(v, 0, D/2, B, D/2);
+  AREDraw.centerline(v, B/2, 0, B/2, D);
+
+  // Vx arrow: from west face, pointing east along EW CL; label pulled left outside
+  var vxFtLen=Math.max(B*0.22,10);
+  AREDraw.forceArrow(v, 0, D*0.72, 1, 0, vxFtLen*sc, '');
+  var vxStr='Vx (EW)'+(Vx>0?' = '+f1(Vx)+' k':'');
+  var vxLX=pxW-14, vxLY=py_(D*0.72);
+  addA(mk('circle',{cx:px_(0),cy:py_(D*0.72),r:1.7,fill:FORCE}));
+  addA(mk('line',{x1:px_(0),y1:py_(D*0.72),x2:vxLX+2,y2:vxLY,stroke:FORCE,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+  addTxt(vxStr,{x:vxLX,y:vxLY+4,'text-anchor':'end','font-size':11,'font-weight':600,'font-family':FONT,fill:FORCE});
+  dwg.extend(vxLX-vxStr.length*5.8,vxLY-13); dwg.extend(vxLX+2,vxLY+4);
+
+  // Vy arrow: from south face, pointing north along NS CL; label pulled right outside
+  var vyFtLen=Math.max(D*0.18,10);
+  AREDraw.forceArrow(v, B*0.72, 0, 0, 1, vyFtLen*sc, '');
+  var vyStr='Vy (NS)'+(Vy>0?' = '+f1(Vy)+' k':'');
+  var vyLX=pxE+14, vyLY=pyS+16;
+  addA(mk('circle',{cx:px_(B*0.72),cy:py_(0),r:1.7,fill:FORCE}));
+  addA(mk('line',{x1:px_(B*0.72),y1:py_(0),x2:vyLX-2,y2:vyLY,stroke:FORCE,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
+  addTxt(vyStr,{x:vyLX,y:vyLY,'text-anchor':'start','font-size':11,'font-weight':600,'font-family':FONT,fill:FORCE});
+  dwg.extend(vyLX,vyLY-13); dwg.extend(vyLX+vyStr.length*5.8,vyLY+4);
+
+  // Dimensions: B below building (off negative = below in screen), D right of building
+  AREDraw.dimLine(v, 0, 0, B, 0, 'B = '+f1(B)+' ft (EW)', {off:44});
+  AREDraw.dimLine(v, B, 0, B, D, 'D = '+f1(D)+' ft (NS)', {off:100});
+
+  // North arrow (upper left of building, above north edge)
+  var nX=pxW-32, nHead=pyN-4, nTail=pyN+24;
+  addA(mk('line',{x1:nX,y1:nTail,x2:nX,y2:nHead+6,'marker-end':'url(#areArrForce)',stroke:NAVY,'stroke-width':1.8}));
+  addTxt('N',{x:nX,y:nHead,'text-anchor':'middle','font-size':12,'font-weight':700,'font-family':FONT,fill:NAVY});
+  dwg.extend(nX-8,nHead-12); dwg.extend(nX+8,nTail+4);
+
+  // Legend: below building, below dim line
+  var lgY=pyS+74, lgX=pxW;
+  addA(mk('line',{x1:lgX,y1:lgY,x2:lgX+20,y2:lgY,stroke:NAVY,'stroke-width':3}));
+  addTxt('EW Wall (N/S line) resists Vx',{x:lgX+24,y:lgY+4,'font-size':9.5,'font-family':FONT,fill:'#374151'});
+  addA(mk('line',{x1:lgX,y1:lgY+16,x2:lgX+20,y2:lgY+16,stroke:NAVY,'stroke-width':3,'stroke-dasharray':'6 3'}));
+  addTxt('NS Wall (E/W line) resists Vy',{x:lgX+24,y:lgY+20,'font-size':9.5,'font-family':FONT,fill:'#374151'});
+  dwg.extend(lgX,lgY-4); dwg.extend(lgX+230,lgY+24);
+
+  // View title below figure, underlined per standard
+  var titleY=pyS+112;
+  var titleStr='DIAPHRAGM PLAN';
+  addTxt(titleStr,{x:pxC,y:titleY,'text-anchor':'middle','font-size':13,'font-weight':700,'font-family':FONT,fill:NAVY});
+  var uw=titleStr.length*13*0.56/2+5;
+  addA(mk('line',{x1:pxC-uw,y1:titleY+5,x2:pxC+uw,y2:titleY+5,stroke:NAVY,'stroke-width':1.1}));
+  dwg.extend(pxC-uw-4,titleY-13); dwg.extend(pxC+uw+4,titleY+8);
+
+  // Spec caption
+  var capY=titleY+18;
+  addTxt('SDPWS 2021 §4.2 | Beam analogy — diaphragm shear, chord & collector forces',
+    {x:pxW,y:capY,'font-size':8.5,'font-family':FONT,fill:MUTED});
+  dwg.extend(pxW,capY+4); dwg.extend(pxW+370,capY+4);
+
+  dwg.commit();
+  syncSwJSON();
+
+  // ─── LEGACY CODE BLOCK (removed — replaced with AREDraw above) ─────────
+  var _LEGACY_REMOVED_=true;
+  if(false){
+  var W=600, H=370;
   var svg='<svg width="'+W+'" height="'+H+'" class="diagram" xmlns="http://www.w3.org/2000/svg">'
     +'<defs><pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#eab308" stroke-width="0.7"/></pattern>'
       +'<marker id="rdaDimS" markerWidth="7" markerHeight="5" refX="3.5" refY="2.5" orient="auto"><polygon points="7 2.5,0 0,0 5" fill="#1a7a4a"/></marker>'
@@ -471,10 +632,8 @@ function updateDiagram(){
     +'<rect x="'+(lgx+160)+'" y="'+(lgy-7)+'" width="16" height="4" fill="#7c3aed" rx="1"/>'
     +'<text x="'+(lgx+180)+'" y="'+lgy+'" font-size="9" fill="#374151">E/W Wall — resist V\u1D67 (NS)</text>';
 
-  svg+='</svg>';
-  document.getElementById('diagWrap').innerHTML=svg;
-  syncSwJSON();
-}
+  } // end if(false) legacy block
+} // end updateDiagram
 
 // ─── DIRECTION CALCULATION ───────────────────────────────────────────────────
 // dir: 'X' or 'Y'
@@ -1250,5 +1409,6 @@ document.addEventListener('DOMContentLoaded',function(){
 })();
 </script>
 <script src="/are-utils-v2.js"></script>
+<script src="/are-draw.js"></script>
 </body>
 </html>

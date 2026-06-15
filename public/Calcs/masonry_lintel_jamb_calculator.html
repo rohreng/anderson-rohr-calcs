@@ -146,8 +146,15 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <div class="content">
 
 <div class="schema-wrap">
-<h3>Wall Elevation &mdash; Lintel &amp; Jamb Loading Diagram</h3>
-<svg id="lintelSchemSvg" viewBox="0 0 780 215" style="width:100%;max-width:780px;display:block;margin:0 auto"><!-- drawn live by areDrawLintelSchem() --></svg>
+<h3>Diagrams &mdash; Lintel Elevation &amp; Section &nbsp;&middot;&nbsp; Jamb Elevation &amp; Section</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+  <svg id="lintelElevSvg" xmlns="http://www.w3.org/2000/svg"><!-- Lintel Elevation --></svg>
+  <svg id="lintelSecSvg"  xmlns="http://www.w3.org/2000/svg"><!-- Lintel Section --></svg>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+  <svg id="jambElevSvg" xmlns="http://www.w3.org/2000/svg"><!-- Jamb Elevation --></svg>
+  <svg id="jambSecSvg"  xmlns="http://www.w3.org/2000/svg"><!-- Jamb Section --></svg>
+</div>
 </div>
 
 <div class="blk">
@@ -448,125 +455,261 @@ function updateWallWeight(){
   document.getElementById('w_total_disp').value=Math.round(wt+wwa);
 }
 
-// ── Live schematic — redraws from current inputs ─────────────────────────────
-function areDrawLintelSchem(){
-  var svg=document.getElementById('lintelSchemSvg');
-  if(!svg)return;
+// ── Live diagrams — redraws from current inputs ───────────────────────────────
+function areDrawDiagrams(){
+  if(!window.AREDraw) return;
   function gv(id,d){var el=document.getElementById(id);var v=el?parseFloat(el.value):NaN;return isNaN(v)?d:v;}
   var clr=Math.max(0.5,gv('clear_span',8)), brg=Math.max(2,gv('bearing',8));
   var t_lin=Math.max(8,gv('t_lin',32)), Hw=Math.max(2,gv('H_wall',14)), Hs=Math.max(0,gv('H_soffit',10));
   var Wj=Math.max(8,gv('W_jamb',24));
   var w_trib=gv('w_load',0), wpsf=gv('w_wall_psf',0);
-  var w_tot=Math.round(w_trib+wpsf*Math.max(Hw-Hs,0));
-  var Pd=gv('P_down',0), aP=gv('a_P',(clr+brg/12)/2);
   var wcc=gv('w_cc',0), wu=gv('wu_load',0), Pu=gv('P_uplift',0);
+  var b_wall = Math.max(1, gv('b_wall', 7.625));
+  var H_jamb = Math.max(1, gv('H_jamb', 14));
+  var w_tot  = w_trib + wpsf * Math.max(Hw - Hs, 0);
+  var Pd     = gv('P_down', 0);
+  var aP_ft  = gv('a_P', (clr + brg/12) / 2);
+  var wcc_asd = 0.6 * wcc;
+  var W_oop  = wcc_asd * Hw / 2;
+  var cov_j  = gv('cover_jamb', 2.5);
+  var d_jamb = b_wall - cov_j;
+  var n_bot  = gv('n_bot', 1);
+  var n_top  = gv('n_top', 1);
+  var As_top = n_top * gv('bar_top', 0.20);
+  var n_jamb = gv('n_jamb', 3);
+  var L_ft   = clr + brg / 12;
+  var L_in   = L_ft * 12;
+  var d_lin  = Math.max(2, gv('eff_d', t_lin - 3.5));
 
-  // Horizontal scale: total real width (in) -> 720 px
-  var totIn=2*Wj+clr*12;
-  var sx=720/totIn;
-  var xJL0=30, xJL1=+(30+Wj*sx).toFixed(1);                 // left jamb
-  var xJR0=+(750-Wj*sx).toFixed(1), xJR1=750;               // right jamb
-  var brgPx=Math.min(Wj*sx,brg*sx);
-  var xLin0=+(xJL1-brgPx).toFixed(1), xLin1=+(parseFloat(xJR0)+brgPx).toFixed(1);
-  var xMid=(parseFloat(xJL1)+parseFloat(xJR0))/2;
-
-  // Vertical scale: H_wall (ft) -> 155 px (y 20..175)
-  var sy=155/Hw;
-  var ySoff=+(175-Math.min(Hs,Hw)*sy).toFixed(1);           // lintel soffit
-  var yLinT=+(Math.max(20,parseFloat(ySoff)-(t_lin/12)*sy)).toFixed(1); // lintel top
-  var hasWallAbove=(parseFloat(yLinT)>22);
-
-  var html='<defs>'
-    +'<marker id="ls_aD" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0L0,7L8,3.5z" fill="#374151"/></marker>'
-    +'<marker id="ls_aR" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0L0,7L8,3.5z" fill="#c42b2b"/></marker>'
-    +'<marker id="ls_aW" markerWidth="8" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0L0,7L8,3.5z" fill="#2563eb"/></marker>'
-    +'<marker id="ls_dim" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto-start-reverse"><path d="M0,0L0,6L7,3z" fill="#ca8a04"/></marker>'
-    +'</defs>';
-
-  // Jambs
-  html+='<rect x="'+xJL0+'" y="20" width="'+(parseFloat(xJL1)-xJL0).toFixed(1)+'" height="155" fill="#d1fae5" stroke="#16a34a" stroke-width="2"/>';
-  html+='<rect x="'+xJR0+'" y="20" width="'+(xJR1-parseFloat(xJR0)).toFixed(1)+'" height="155" fill="#d1fae5" stroke="#16a34a" stroke-width="2"/>';
-  html+='<text x="'+((xJL0+parseFloat(xJL1))/2).toFixed(1)+'" y="100" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">JAMB L</text>';
-  html+='<text x="'+((xJL0+parseFloat(xJL1))/2).toFixed(1)+'" y="113" text-anchor="middle" font-size="8" fill="#166534">'+Wj.toFixed(0)+'&Prime; wide</text>';
-  html+='<text x="'+((parseFloat(xJR0)+xJR1)/2).toFixed(1)+'" y="100" text-anchor="middle" font-size="9" fill="#166534" font-weight="600">JAMB R</text>';
-
-  // Wall above lintel
-  if(hasWallAbove){
-    html+='<rect x="'+xJL1+'" y="20" width="'+(parseFloat(xJR0)-parseFloat(xJL1)).toFixed(1)+'" height="'+(parseFloat(yLinT)-20).toFixed(1)+'" fill="#e5e7eb" stroke="#374151" stroke-width="1.5"/>';
-    html+='<text x="'+xMid.toFixed(1)+'" y="'+((20+parseFloat(yLinT))/2+3).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#374151" font-style="italic">Wall above opening</text>';
-  }
-
-  // Lintel (designed element)
-  html+='<rect x="'+xLin0+'" y="'+yLinT+'" width="'+(parseFloat(xLin1)-parseFloat(xLin0)).toFixed(1)+'" height="'+(parseFloat(ySoff)-parseFloat(yLinT)).toFixed(1)+'" fill="#fde68a" stroke="#1e3c72" stroke-width="2"/>';
-  var yLinMid=(parseFloat(yLinT)+parseFloat(ySoff))/2;
-  html+='<text x="'+xMid.toFixed(1)+'" y="'+(yLinMid-1).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="700">LINTEL ('+t_lin.toFixed(0)+'&Prime; deep)</text>';
-  // Bottom steel
-  html+='<circle cx="'+xMid.toFixed(1)+'" cy="'+(parseFloat(ySoff)-6).toFixed(1)+'" r="4" fill="#dc2626"/>';
-  html+='<text x="'+(xMid+12).toFixed(1)+'" y="'+(parseFloat(ySoff)-3).toFixed(1)+'" font-size="8" fill="#dc2626">A_s (bot)</text>';
-  // Bearing zones
-  html+='<rect x="'+xLin0+'" y="'+yLinT+'" width="'+brgPx.toFixed(1)+'" height="'+(parseFloat(ySoff)-parseFloat(yLinT)).toFixed(1)+'" fill="rgba(234,179,8,.25)" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="3,2"/>';
-  html+='<rect x="'+(parseFloat(xLin1)-brgPx).toFixed(1)+'" y="'+yLinT+'" width="'+brgPx.toFixed(1)+'" height="'+(parseFloat(ySoff)-parseFloat(yLinT)).toFixed(1)+'" fill="rgba(234,179,8,.25)" stroke="#ca8a04" stroke-width="1.2" stroke-dasharray="3,2"/>';
-  html+='<text x="'+(parseFloat(xLin0)+brgPx/2).toFixed(1)+'" y="'+(parseFloat(yLinT)-2).toFixed(1)+'" font-size="7" fill="#854d0e" text-anchor="middle">Brg '+brg.toFixed(0)+'&Prime;</text>';
-
-  // Opening
-  html+='<rect x="'+xJL1+'" y="'+ySoff+'" width="'+(parseFloat(xJR0)-parseFloat(xJL1)).toFixed(1)+'" height="'+(175-parseFloat(ySoff)).toFixed(1)+'" fill="#fff" stroke="#9ca3af" stroke-width="1" stroke-dasharray="5,3"/>';
-  html+='<text x="'+xMid.toFixed(1)+'" y="'+((parseFloat(ySoff)+175)/2).toFixed(1)+'" text-anchor="middle" font-size="11" fill="#9ca3af">Opening</text>';
-
-  // Floor line
-  html+='<line x1="30" y1="175" x2="750" y2="175" stroke="#374151" stroke-width="2.5"/>';
-
-  // Distributed load w over lintel
-  if(w_tot>0){
-    var yArr=Math.max(10,parseFloat(yLinT)-(hasWallAbove?0:0)-0);
-    var y0=hasWallAbove?10:Math.max(8,parseFloat(yLinT)-38);
-    var yTipLn=hasWallAbove?20:parseFloat(yLinT);
-    for(var k=0;k<3;k++){
-      var xa=parseFloat(xLin0)+(k+1)*(parseFloat(xLin1)-parseFloat(xLin0))/4;
-      html+='<line x1="'+xa.toFixed(1)+'" y1="'+y0+'" x2="'+xa.toFixed(1)+'" y2="'+(yTipLn-2).toFixed(1)+'" stroke="#374151" stroke-width="1.5" marker-end="url(#ls_aD)"/>';
+  // ── 1. Lintel Elevation ─────────────────────────────────────────────────────
+  (function(){
+    var svg = document.getElementById('lintelElevSvg');
+    if(!svg) return;
+    var wallH = Math.min(t_lin * 0.55, 28);
+    var pierW = Math.max(brg * 1.4, 10);
+    var pierH = t_lin * 0.55;
+    var scale = AREDraw.fitScale(L_in + pierW*2 + 20, 420, {min:1.2, max:6});
+    var ox = pierW * scale + 36;
+    var oy = wallH * scale + 56;
+    var dwg = new AREDraw.Drawing(svg, {margin:20});
+    var v   = new AREDraw.View(dwg, {scale:scale, ox:ox, oy:oy, flipY:false});
+    var st  = dwg.style;
+    // Wall above
+    if(wallH > 4){
+      AREDraw.plate(v, -pierW, -wallH, L_in+2*pierW, wallH, {fill:st.steelFill, hatch:true});
+      // Label goes LEFT of the hatch, in the left pier margin
+      if(wallH > 10) AREDraw.leader(v, -pierW, -wallH/2, -44, 0, 'Masonry wall above', {color:st.dim, anchor:'end'});
     }
-    html+='<line x1="'+(parseFloat(xLin0)+0.15*(parseFloat(xLin1)-parseFloat(xLin0))).toFixed(1)+'" y1="'+y0+'" x2="'+(parseFloat(xLin1)-0.15*(parseFloat(xLin1)-parseFloat(xLin0))).toFixed(1)+'" y2="'+y0+'" stroke="#374151" stroke-width="1.5"/>';
-    html+='<text x="'+(parseFloat(xLin1)+5).toFixed(1)+'" y="'+(y0+4)+'" font-size="9" fill="#374151" font-style="italic">w = '+w_tot.toLocaleString()+' plf</text>';
-  }
-
-  // Point load P at a_P
-  if(Pd>0){
-    var L_ft=clr+brg/12, aFrac=Math.min(Math.max(aP/L_ft,0),1);
-    var xP=parseFloat(xLin0)+aFrac*(parseFloat(xLin1)-parseFloat(xLin0));
-    var yP0=Math.max(2,parseFloat(yLinT)-46);
-    html+='<line x1="'+xP.toFixed(1)+'" y1="'+yP0+'" x2="'+xP.toFixed(1)+'" y2="'+(parseFloat(yLinT)-2).toFixed(1)+'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#ls_aR)"/>';
-    html+='<text x="'+(xP+5).toFixed(1)+'" y="'+(yP0+8)+'" font-size="9" fill="#c42b2b" font-weight="700">P = '+Math.round(Pd).toLocaleString()+' lb @ '+aP.toFixed(2)+' ft</text>';
-  }
-
-  // Uplift arrows (upward, from lintel bottom)
-  if(wu>0||Pu>0){
-    for(var ku=0;ku<3;ku++){
-      var xu=parseFloat(xLin0)+(ku+1)*(parseFloat(xLin1)-parseFloat(xLin0))/4;
-      html+='<line x1="'+xu.toFixed(1)+'" y1="'+(yLinMid+8).toFixed(1)+'" x2="'+xu.toFixed(1)+'" y2="'+(parseFloat(yLinT)-14).toFixed(1)+'" stroke="#c42b2b" stroke-width="1.2" opacity="0.7" marker-end="url(#ls_aR)"/>';
+    // Piers
+    AREDraw.plate(v, -pierW, t_lin, pierW, pierH, {fill:st.steelFill, hatch:true});
+    AREDraw.plate(v,  L_in,  t_lin, pierW, pierH, {fill:st.steelFill, hatch:true});
+    // Ground hatch
+    (function(){
+      [-pierW, L_in].forEach(function(px){
+        var gx1=v.px(px), gx2=v.px(px+pierW), gy=v.py(t_lin+pierH);
+        for(var i=0;i<=5;i++){var xi=gx1+(gx2-gx1)*i/5;var ln=document.createElementNS('http://www.w3.org/2000/svg','line');ln.setAttribute('x1',(xi+6).toFixed(1));ln.setAttribute('y1',gy.toFixed(1));ln.setAttribute('x2',xi.toFixed(1));ln.setAttribute('y2',(gy+10).toFixed(1));ln.setAttribute('stroke',st.hatch);ln.setAttribute('stroke-width','0.9');dwg.gSteel.appendChild(ln);}
+        var base=document.createElementNS('http://www.w3.org/2000/svg','line');base.setAttribute('x1',gx1.toFixed(1));base.setAttribute('y1',gy.toFixed(1));base.setAttribute('x2',gx2.toFixed(1));base.setAttribute('y2',gy.toFixed(1));base.setAttribute('stroke',st.steel);base.setAttribute('stroke-width','2');dwg.gSteel.appendChild(base);
+      });
+    })();
+    // Lintel body (amber)
+    AREDraw.plate(v, 0, 0, L_in, t_lin, {highlight:true});
+    // CMU courses
+    (function(){for(var yc=8;yc<t_lin-2;yc+=8){var ln=document.createElementNS('http://www.w3.org/2000/svg','line');ln.setAttribute('x1',v.px(0).toFixed(1));ln.setAttribute('y1',v.py(yc).toFixed(1));ln.setAttribute('x2',v.px(L_in).toFixed(1));ln.setAttribute('y2',v.py(yc).toFixed(1));ln.setAttribute('stroke','#c8a000');ln.setAttribute('stroke-width','0.8');ln.setAttribute('opacity','0.55');dwg.gSteel.appendChild(ln);}})();
+    // Bearing overlays (dashed)
+    (function(){function bz(x0){var r=document.createElementNS('http://www.w3.org/2000/svg','rect');r.setAttribute('x',v.px(x0).toFixed(1));r.setAttribute('y',v.py(0).toFixed(1));r.setAttribute('width',Math.abs(v.px(x0+brg)-v.px(x0)).toFixed(1));r.setAttribute('height',Math.abs(v.py(t_lin)-v.py(0)).toFixed(1));r.setAttribute('fill','none');r.setAttribute('stroke','#ca8a04');r.setAttribute('stroke-width','1.5');r.setAttribute('stroke-dasharray','5 3');dwg.gAnno.appendChild(r);}bz(0);bz(L_in-brg);})();
+    // Centroidal CL
+    AREDraw.centerline(v, -4, t_lin/2, L_in+4, t_lin/2);
+    // UDL — draw arrows only, then place w= callout in the LEFT margin above the wall
+    if(w_tot>0){
+      AREDraw.distLoad(v, 0, L_in, 0, 30, '');
+      var wLblXpx = v.px(-pierW) - 6;
+      var wLblYpx = v.py(0) - 38;
+      AREDraw.calloutLabel(v, 0, 0, wLblXpx, wLblYpx, 'w = '+Math.round(w_tot).toLocaleString()+' lb/ft', {color:st.force, anchor:'end'});
     }
-    html+='<text x="'+(xMid+40).toFixed(1)+'" y="'+(parseFloat(yLinT)-16).toFixed(1)+'" font-size="7.5" fill="#c42b2b" opacity="0.85">uplift</text>';
-  }
+    // Point load
+    if(Pd>0){
+      var xP_in=Math.min(Math.max(aP_ft/L_ft,0.01),0.99)*L_in;
+      var aTY=-(50/scale)-(w_tot>0?30/scale:0);
+      AREDraw.forceArrow(v,xP_in,aTY,0,1,50,null,{color:st.force});
+      var pcx=v.px(-pierW)-4, pcy=v.py(aTY);
+      AREDraw.calloutLabel(v,xP_in,aTY,pcx,pcy,'P = '+Math.round(Pd).toLocaleString()+' lb',{color:st.force,anchor:'end'});
+      AREDraw.calloutLabel(v,xP_in,aTY,pcx,pcy+16,'a = '+aP_ft.toFixed(2)+' ft',{color:st.force,anchor:'end'});
+    }
+    // Uplift
+    if(wu>0||Pu>0){
+      var ulbl=Pu>0?'Pu = '+Math.round(Pu).toLocaleString()+' lb (uplift)':'wu = '+Math.round(wu).toLocaleString()+' lb/ft (uplift)';
+      var ury=t_lin+30/scale,ax1u=v.px(brg),ax2u=v.px(L_in-brg),ryp=v.py(ury),typ=v.py(t_lin)+2;
+      var ug=document.createElementNS('http://www.w3.org/2000/svg','g');
+      var rl=document.createElementNS('http://www.w3.org/2000/svg','line');rl.setAttribute('x1',ax1u.toFixed(1));rl.setAttribute('y1',ryp.toFixed(1));rl.setAttribute('x2',ax2u.toFixed(1));rl.setAttribute('y2',ryp.toFixed(1));rl.setAttribute('stroke',st.force);rl.setAttribute('stroke-width','1');ug.appendChild(rl);
+      var nu=Math.max(3,Math.round((ax2u-ax1u)/26));
+      for(var ui=0;ui<=nu;ui++){var ux=ax1u+(ax2u-ax1u)*ui/nu;var ua=document.createElementNS('http://www.w3.org/2000/svg','line');ua.setAttribute('x1',ux.toFixed(1));ua.setAttribute('y1',ryp.toFixed(1));ua.setAttribute('x2',ux.toFixed(1));ua.setAttribute('y2',typ.toFixed(1));ua.setAttribute('stroke',st.force);ua.setAttribute('stroke-width','1.2');ua.setAttribute('marker-end','url(#areArrForce)');ug.appendChild(ua);}
+      var ut=document.createElementNS('http://www.w3.org/2000/svg','text');ut.setAttribute('x',((ax1u+ax2u)/2).toFixed(1));ut.setAttribute('y',(ryp+13).toFixed(1));ut.setAttribute('fill',st.force);ut.setAttribute('font-size','10.5');ut.setAttribute('font-family',st.font);ut.setAttribute('font-weight','600');ut.setAttribute('text-anchor','middle');ut.textContent=ulbl;ug.appendChild(ut);
+      dwg.gAnno.appendChild(ug);dwg.extend(ax1u,ryp+20);dwg.extend(ax2u,typ);
+    }
+    // OOP wind (navy, horizontal arrows on left face — labels placed above the lintel body to clear brg leader)
+    if(wcc>0){
+      var oopLbl='OOP: '+W_oop.toFixed(0)+' lb/ft';
+      var oopLbl2='(0.6\xD7'+wcc_asd.toFixed(0)+' psf)';
+      var arrowStartX = -(32/scale);
+      [t_lin*0.3, t_lin*0.7].forEach(function(yw){AREDraw.forceArrow(v,arrowStartX,yw,1,0,32,null,{color:st.steel});});
+      // Place callout above the lintel top (y<0 in model coords) to stay well clear of the brg leader
+      var oop_label_y = -(18/scale);
+      var callPx = v.px(arrowStartX) - 6;
+      AREDraw.calloutLabel(v,arrowStartX,oop_label_y,callPx,v.py(oop_label_y)-8,oopLbl,{color:st.steel,anchor:'end'});
+      AREDraw.calloutLabel(v,arrowStartX,oop_label_y,callPx,v.py(oop_label_y)+8,oopLbl2,{color:st.steel,anchor:'end'});
+    }
+    // Reactions
+    if(w_tot>0||Pd>0){
+      var as2=Math.min(Math.max(aP_ft||L_ft/2,0.0001),L_ft-0.0001);
+      var RL=w_tot*L_ft/2+(Pd>0?Pd*(L_ft-as2)/L_ft:0);
+      var RR=w_tot*L_ft/2+(Pd>0?Pd*as2/L_ft:0);
+      var rxl=Math.min(32,pierH*scale*0.45);
+      AREDraw.forceArrow(v,brg/2,t_lin+rxl/scale,0,-1,rxl,'R = '+Math.round(RL/1000*10)/10+'k',{color:st.force,labelOff:18});
+      AREDraw.forceArrow(v,L_in-brg/2,t_lin+rxl/scale,0,-1,rxl,'R = '+Math.round(RR/1000*10)/10+'k',{color:st.force,labelOff:-18});
+    }
+    // Bearing label
+    AREDraw.leader(v,brg/2,t_lin*0.35,-44,0,'brg = '+brg.toFixed(0)+'″ ea.',{color:st.dim,anchor:'end'});
+    // Span dims
+    var dYs=t_lin+pierH+12/scale;
+    AREDraw.dimLine(v,0,dYs,L_in,dYs,'L = '+L_ft.toFixed(2)+' ft (clr '+clr.toFixed(1)+' ft)',{off:26,color:st.dim});
+    AREDraw.dimLine(v,brg,dYs,L_in-brg,dYs,clr.toFixed(1)+' ft clear',{off:-18,color:st.dim});
+    // Depth dims (right side) — vertical dims going DOWN in px → nxu=-1, so off must be negative to push RIGHT
+    AREDraw.dimLine(v,L_in+pierW+6/scale,0,L_in+pierW+6/scale,d_lin,'d = '+d_lin.toFixed(1)+'″',{off:-24,color:st.force});
+    AREDraw.dimLine(v,L_in+pierW+6/scale+65/scale,0,L_in+pierW+6/scale+65/scale,t_lin,'t = '+t_lin.toFixed(0)+'″',{off:-24,color:st.dim});
+    // Member label — leader from right edge of lintel body to right margin
+    AREDraw.leader(v,L_in,t_lin/2,48,0,'CMU LINTEL  b×'+t_lin.toFixed(0)+'″',{color:st.steel,anchor:'start'});
+    // Bottom rebar — leader goes RIGHT past the right pier into the clear margin
+    (function(){
+      var cy=d_lin,cx=L_in*0.65,cxpx=v.px(cx),cypx=v.py(cy);
+      var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx',cxpx.toFixed(1));c.setAttribute('cy',cypx.toFixed(1));c.setAttribute('r',4);
+      c.setAttribute('fill',st.force);c.setAttribute('stroke','#7f1d1d');c.setAttribute('stroke-width','1');
+      dwg.gSteel.appendChild(c);dwg.extend(cxpx-4,cypx-4);dwg.extend(cxpx+4,cypx+4);
+      // Leader target = right edge of right pier + margin, so label is fully outside all filled regions
+      var lxPx = v.px(L_in+pierW) + 8;
+      AREDraw.calloutLabel(v,cx,cy,lxPx,cypx,'As bot',{color:st.force,anchor:'start'});
+    })();
+    // Top rebar — leader goes LEFT past the left pier into the clear margin
+    if(n_top>0&&As_top>0){
+      var tc2=t_lin-d_lin,tcy2=tc2>1?tc2:2.5/scale,tcx2=L_in*0.35;
+      var tcxpx2=v.px(tcx2),tcypx2=v.py(tcy2);
+      var ct2=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ct2.setAttribute('cx',tcxpx2.toFixed(1));ct2.setAttribute('cy',tcypx2.toFixed(1));ct2.setAttribute('r',4);
+      ct2.setAttribute('fill',st.dim);ct2.setAttribute('stroke','#3b4f7a');ct2.setAttribute('stroke-width','1');
+      dwg.gSteel.appendChild(ct2);dwg.extend(tcxpx2-4,tcypx2-4);dwg.extend(tcxpx2+4,tcypx2+4);
+      var tlxPx = v.px(-pierW) - 8;
+      AREDraw.calloutLabel(v,tcx2,tcy2,tlxPx,tcypx2,'As top',{color:st.dim,anchor:'end'});
+    }
+    // Title — pushed further below the span dim lines to avoid collision
+    AREDraw.viewTitle(v, v.px(L_in/2), v.py(t_lin+pierH+10/scale)+72, 'Lintel — Elevation');
+    dwg.commit();
+  })();
 
-  // OOP wind arrows (left edge)
-  if(wcc>0){
-    html+='<line x1="2" y1="'+(yLinMid-6).toFixed(1)+'" x2="26" y2="'+(yLinMid-6).toFixed(1)+'" stroke="#2563eb" stroke-width="2" marker-end="url(#ls_aW)"/>';
-    html+='<line x1="2" y1="'+(yLinMid+8).toFixed(1)+'" x2="26" y2="'+(yLinMid+8).toFixed(1)+'" stroke="#2563eb" stroke-width="2" marker-end="url(#ls_aW)"/>';
-    html+='<text x="2" y="'+(yLinMid-12).toFixed(1)+'" font-size="7.5" fill="#2563eb" font-weight="600">OOP '+wcc.toFixed(0)+' psf</text>';
-  }
+  // ── 2. Lintel Cross-Section ─────────────────────────────────────────────────
+  (function(){
+    var svg=document.getElementById('lintelSecSvg');
+    if(!svg) return;
+    var scale=AREDraw.fitScale(Math.max(b_wall,t_lin),180,{min:2,max:10});
+    var dwg=new AREDraw.Drawing(svg,{margin:22});
+    var v=new AREDraw.View(dwg,{scale:scale,ox:70,oy:50,flipY:false});
+    var st=dwg.style;
+    AREDraw.plate(v,0,0,b_wall,t_lin,{highlight:true});
+    AREDraw.centerline(v,-4/scale,t_lin/2,b_wall+4/scale,t_lin/2);
+    AREDraw.centerline(v,b_wall/2,-4/scale,b_wall/2,t_lin+4/scale);
+    (function(){for(var yc=8;yc<t_lin-2;yc+=8){var ln=document.createElementNS('http://www.w3.org/2000/svg','line');ln.setAttribute('x1',v.px(0).toFixed(1));ln.setAttribute('y1',v.py(yc).toFixed(1));ln.setAttribute('x2',v.px(b_wall).toFixed(1));ln.setAttribute('y2',v.py(yc).toFixed(1));ln.setAttribute('stroke','#c8a000');ln.setAttribute('stroke-width','0.8');ln.setAttribute('opacity','0.55');dwg.gSteel.appendChild(ln);}})();
+    var nd=Math.min(Math.max(n_bot,1),3),sp=b_wall/(nd+1),rr=Math.max(3,Math.min(5,scale*0.4));
+    for(var i=1;i<=nd;i++){var bx=sp*i,cp=v.px(bx),cyp=v.py(d_lin);var c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',cp.toFixed(1));c.setAttribute('cy',cyp.toFixed(1));c.setAttribute('r',rr);c.setAttribute('fill',st.force);c.setAttribute('stroke','#7f1d1d');c.setAttribute('stroke-width','1');dwg.gSteel.appendChild(c);dwg.extend(cp-rr-1,cyp-rr-1);dwg.extend(cp+rr+1,cyp+rr+1);}
+    if(n_top>0&&As_top>0){var nt2=Math.min(Math.max(n_top,1),3),st2=b_wall/(nt2+1),tcy2s=t_lin-d_lin;for(var j=1;j<=nt2;j++){var tx=st2*j,tcp=v.px(tx),tcy3=v.py(tcy2s>0?tcy2s:2.5/scale);var ct2s=document.createElementNS('http://www.w3.org/2000/svg','circle');ct2s.setAttribute('cx',tcp.toFixed(1));ct2s.setAttribute('cy',tcy3.toFixed(1));ct2s.setAttribute('r',rr);ct2s.setAttribute('fill',st.dim);ct2s.setAttribute('stroke','#3b4f7a');ct2s.setAttribute('stroke-width','1');dwg.gSteel.appendChild(ct2s);dwg.extend(tcp-rr-1,tcy3-rr-1);dwg.extend(tcp+rr+1,tcy3+rr+1);}}
+    AREDraw.dimLine(v,0,t_lin+8/scale,b_wall,t_lin+8/scale,'b = '+b_wall.toFixed(3)+'″',{off:22,color:st.dim});
+    // Vertical dims go DOWN in px (flipY:false) → nxu=-1 → off must be negative to push text RIGHT
+    AREDraw.dimLine(v,b_wall+8/scale,0,b_wall+8/scale,t_lin,'t = '+t_lin.toFixed(0)+'″',{off:-24,color:st.dim});
+    AREDraw.dimLine(v,b_wall+8/scale+55/scale,0,b_wall+8/scale+55/scale,d_lin,'d = '+d_lin.toFixed(1)+'″',{off:-24,color:st.force});
+    // Rebar leaders go LEFT to avoid crowding the right-side dims
+    AREDraw.leader(v,sp,d_lin,-36,-14,'As bot',{color:st.force,anchor:'end'});
+    // Title — pushed further below the bottom dim line to avoid collision with b= label
+    AREDraw.viewTitle(v,v.px(b_wall/2),v.py(t_lin+8/scale)+68,'Lintel — Section');
+    dwg.commit();
+  })();
 
-  // Jamb axial transfer markers
-  html+='<line x1="'+(parseFloat(xJL1)+10).toFixed(1)+'" y1="'+ySoff+'" x2="'+(parseFloat(xJL1)+10).toFixed(1)+'" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>';
-  html+='<line x1="'+(parseFloat(xJR0)-10).toFixed(1)+'" y1="'+ySoff+'" x2="'+(parseFloat(xJR0)-10).toFixed(1)+'" y2="160" stroke="#16a34a" stroke-width="2" stroke-dasharray="4,2"/>';
-  html+='<text x="'+(parseFloat(xJL1)+18).toFixed(1)+'" y="'+((parseFloat(ySoff)+160)/2).toFixed(1)+'" font-size="8" fill="#166534">R_L (axial to jamb)</text>';
+  // ── 3. Jamb Elevation ───────────────────────────────────────────────────────
+  (function(){
+    var svg=document.getElementById('jambElevSvg');
+    if(!svg) return;
+    var H_j_in=H_jamb*12;
+    var a_oop_in=Math.min(Hs+t_lin/24.0,H_jamb-0.001)*12;
+    var scale=AREDraw.fitScale(H_j_in+20,300,{min:1.0,max:4.5});
+    var dwg=new AREDraw.Drawing(svg,{margin:20});
+    var v=new AREDraw.View(dwg,{scale:scale,ox:100,oy:50,flipY:true});
+    var st=dwg.style;
+    AREDraw.plate(v,0,0,Wj,H_j_in,{fill:st.steelFill,hatch:true});
+    // Lintel zone (amber highlight)
+    var lt=a_oop_in,lb=Math.max(0,a_oop_in-t_lin);
+    if(lt<=H_j_in){var hLin=document.createElementNS('http://www.w3.org/2000/svg','rect');hLin.setAttribute('x',v.px(0).toFixed(1));hLin.setAttribute('y',Math.min(v.py(lt),v.py(lb)).toFixed(1));hLin.setAttribute('width',Math.abs(v.px(Wj)-v.px(0)).toFixed(1));hLin.setAttribute('height',Math.abs(v.py(lt)-v.py(lb)).toFixed(1));hLin.setAttribute('fill','#fde68a');hLin.setAttribute('fill-opacity','0.55');hLin.setAttribute('stroke','#ca8a04');hLin.setAttribute('stroke-width','1');hLin.setAttribute('stroke-dasharray','4 3');dwg.gSteel.appendChild(hLin);}
+    AREDraw.centerline(v,Wj/2,-3/scale,Wj/2,H_j_in+3/scale);
+    // OOP wind arrows (right face, pointing left into jamb)
+    if(wcc>0){
+      var qj=wcc_asd*(Wj/12);
+      for(var ai=0;ai<4;ai++){var yw=H_j_in*(ai+0.5)/4;AREDraw.forceArrow(v,Wj+22/scale,yw,-1,0,22,null,{color:st.steel});}
+      AREDraw.calloutLabel(v,Wj+22/scale,H_j_in/2,v.px(Wj+25/scale)+6,v.py(H_j_in/2),'w = '+qj.toFixed(0)+' lb/ft (0.6W)',{color:st.steel,anchor:'start'});
+    }
+    // OOP point load from lintel
+    if(W_oop>0){
+      var Poop=W_oop*clr/2;
+      AREDraw.forceArrow(v,Wj+22/scale,a_oop_in,-1,0,22,null,{color:st.force});
+      AREDraw.calloutLabel(v,Wj+22/scale,a_oop_in,v.px(Wj+26/scale)+6,v.py(a_oop_in),'Poop = '+Math.round(Poop).toLocaleString()+' lb',{color:st.force,anchor:'start'});
+    }
+    // Axial load (downward from lintel reaction) — label goes LEFT of the arrow
+    var Rjam=0;
+    if(w_tot>0||Pd>0){var as3=Math.min(Math.max(aP_ft||L_ft/2,0.0001),L_ft-0.0001);Rjam=w_tot*L_ft/2+(Pd>0?Pd*(L_ft-as3)/L_ft:0);}
+    if(Rjam>0){
+      AREDraw.forceArrow(v,Wj/2,H_j_in+36/scale,0,-1,36,null,{color:st.force});
+      var axCallXpx=v.px(Wj/2)-6;
+      AREDraw.calloutLabel(v,Wj/2,H_j_in+36/scale,axCallXpx,v.py(H_j_in+36/scale)-2,'P = '+Math.round(Rjam).toLocaleString()+' lb',{color:st.force,anchor:'end'});
+    }
+    // Supports
+    (function(){
+      var NS2='http://www.w3.org/2000/svg';
+      var bpx=v.px(Wj/2),bpy=v.py(0)+4;
+      var tri=document.createElementNS(NS2,'polygon');tri.setAttribute('points',(bpx-8)+','+(bpy)+' '+(bpx+8)+','+(bpy)+' '+bpx+','+(bpy+14));tri.setAttribute('fill','none');tri.setAttribute('stroke',st.dim);tri.setAttribute('stroke-width','1.2');dwg.gAnno.appendChild(tri);dwg.extend(bpx-8,bpy);dwg.extend(bpx+8,bpy+14);
+      var tpx=v.px(Wj/2),tpy=v.py(H_j_in)-4;
+      var circ=document.createElementNS(NS2,'circle');circ.setAttribute('cx',tpx.toFixed(1));circ.setAttribute('cy',(tpy-6).toFixed(1));circ.setAttribute('r','5');circ.setAttribute('fill','none');circ.setAttribute('stroke',st.dim);circ.setAttribute('stroke-width','1.2');dwg.gAnno.appendChild(circ);dwg.extend(tpx-6,tpy-12);dwg.extend(tpx+6,tpy);
+    })();
+    AREDraw.dimLine(v,-12/scale,0,-12/scale,H_j_in,'H = '+H_jamb.toFixed(1)+' ft',{off:-28,color:st.dim});
+    // Horizontal dim above jamb top (flipY:true) — nyu=+1 so off:+20 pushes DOWN into the body; use off:-20 to push UP (away from body)
+    AREDraw.dimLine(v,0,H_j_in+8/scale,Wj,H_j_in+8/scale,'W = '+Wj.toFixed(0)+'″',{off:-20,color:st.dim});
+    // Member label — leader from left edge of jamb body to left margin
+    AREDraw.leader(v,0,H_j_in/2,-48,0,'CMU JAMB',{color:st.steel,anchor:'end'});
+    // Title — pushed further below the W dim + axial arrow zone to clear P= callout
+    AREDraw.viewTitle(v,v.px(Wj/2),v.py(H_j_in+12/scale+20/scale)+30,'Jamb — Elevation');
+    dwg.commit();
+  })();
 
-  // L_clear dimension
-  html+='<line x1="'+xJL1+'" y1="190" x2="'+xJR0+'" y2="190" stroke="#ca8a04" stroke-width="1.5" marker-start="url(#ls_dim)" marker-end="url(#ls_dim)"/>';
-  html+='<text x="'+xMid.toFixed(1)+'" y="202" text-anchor="middle" font-size="9" fill="#b45309">L_clear = '+clr.toFixed(1)+' ft</text>';
-
-  // H_wall dimension
-  html+='<line x1="760" y1="20" x2="760" y2="175" stroke="#6b7280" stroke-width="1.2" marker-start="url(#ls_dim)" marker-end="url(#ls_dim)"/>';
-  html+='<text x="770" y="100" font-size="8" fill="#374151" text-anchor="middle" transform="rotate(-90,770,100)">H_wall = '+Hw.toFixed(1)+' ft</text>';
-
-  svg.innerHTML=html;
+  // ── 4. Jamb Cross-Section ───────────────────────────────────────────────────
+  (function(){
+    var svg=document.getElementById('jambSecSvg');
+    if(!svg) return;
+    var scale=AREDraw.fitScale(Math.max(Wj,b_wall),160,{min:1,max:8});
+    var dwg=new AREDraw.Drawing(svg,{margin:22});
+    var v=new AREDraw.View(dwg,{scale:scale,ox:70,oy:50,flipY:false});
+    var st=dwg.style;
+    AREDraw.plate(v,0,0,Wj,b_wall,{fill:st.steelFill,hatch:true});
+    AREDraw.centerline(v,-3/scale,b_wall/2,Wj+3/scale,b_wall/2);
+    AREDraw.centerline(v,Wj/2,-3/scale,Wj/2,b_wall+3/scale);
+    var nd2=Math.min(Math.max(n_jamb,1),6),spj=Wj/(nd2+1),rr2=Math.max(3,Math.min(5,scale*0.4));
+    for(var jk=1;jk<=nd2;jk++){var jbx=spj*jk,cp2=v.px(jbx),cyp2=v.py(d_jamb);var cj=document.createElementNS('http://www.w3.org/2000/svg','circle');cj.setAttribute('cx',cp2.toFixed(1));cj.setAttribute('cy',cyp2.toFixed(1));cj.setAttribute('r',rr2);cj.setAttribute('fill',st.force);cj.setAttribute('stroke','#7f1d1d');cj.setAttribute('stroke-width','1');dwg.gSteel.appendChild(cj);dwg.extend(cp2-rr2-1,cyp2-rr2-1);dwg.extend(cp2+rr2+1,cyp2+rr2+1);}
+    (function(){var cl=document.createElementNS('http://www.w3.org/2000/svg','line');cl.setAttribute('x1',v.px(-2/scale).toFixed(1));cl.setAttribute('y1',v.py(d_jamb).toFixed(1));cl.setAttribute('x2',v.px(Wj+2/scale).toFixed(1));cl.setAttribute('y2',v.py(d_jamb).toFixed(1));cl.setAttribute('stroke',st.dim);cl.setAttribute('stroke-width','0.7');cl.setAttribute('stroke-dasharray','4 3');dwg.gAnno.appendChild(cl);})();
+    // OOP arrow on left face; label angled up more to stay clear of the As vert. leader
+    if(wcc>0){AREDraw.forceArrow(v,-20/scale,b_wall/2,1,0,20,null,{color:st.steel});AREDraw.leader(v,0,b_wall/2,-28,-28,'OOP wind',{color:st.steel,anchor:'end'});}
+    AREDraw.dimLine(v,0,b_wall+8/scale,Wj,b_wall+8/scale,'W = '+Wj.toFixed(0)+'″',{off:22,color:st.dim});
+    // Vertical dims go DOWN in px (flipY:false) → nxu=-1 → off must be negative to push text RIGHT
+    AREDraw.dimLine(v,Wj+8/scale,0,Wj+8/scale,b_wall,'b = '+b_wall.toFixed(3)+'″',{off:-24,color:st.dim});
+    AREDraw.dimLine(v,Wj+8/scale+55/scale,0,Wj+8/scale+55/scale,d_jamb,'d = '+d_jamb.toFixed(1)+'″',{off:-24,color:st.force});
+    // Rebar leader goes LEFT (away from right-side dims)
+    AREDraw.leader(v,spj,d_jamb,-36,-14,'As vert.',{color:st.force,anchor:'end'});
+    // Title — pushed further below the W dim line to clear the W= label
+    AREDraw.viewTitle(v,v.px(Wj/2),v.py(b_wall+8/scale)+68,'Jamb — Section');
+    dwg.commit();
+  })();
 }
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
@@ -1016,16 +1159,18 @@ function runCalcs(){
       {symbol:'w', label:'Total lintel line load', value:Math.round(w_total), unit:'lb/ft', kind:'lineload'}
     ]);
   }
-  areDrawLintelSchem();
+  areDrawDiagrams();
 
   document.getElementById('results').classList.add('show');
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-window.onload=function(){setCMUDims();autoFill();updateOopDisplay();updateWallWeight();areDrawLintelSchem();};
-document.addEventListener('input',function(){updateOopDisplay();updateWallWeight();areDrawLintelSchem();});
-document.addEventListener('change',function(){areDrawLintelSchem();});
+window.onload=function(){setCMUDims();autoFill();updateOopDisplay();updateWallWeight();areDrawDiagrams();};
+document.addEventListener('input',function(){updateOopDisplay();updateWallWeight();if(window.AREDraw)areDrawDiagrams();});
+document.addEventListener('change',function(){if(window.AREDraw)areDrawDiagrams();});
 </script>
+<script src="/are-draw.js"></script>
+<script>window.addEventListener('load',function(){if(window.AREDraw)areDrawDiagrams();});</script>
 <script src="/are-utils-v2.js"></script>
 <script>(function(){function reg(){if(window.AREv2){AREv2.acceptImports({lineload:{field:'w_load',unit:'lb/ft'}});}else setTimeout(reg,150);}reg();})();</script>
 </body>

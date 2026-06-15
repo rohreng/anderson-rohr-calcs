@@ -161,6 +161,40 @@
     return t;
   }
 
+  /**
+   * Estimate the rendered WIDTH of a label in pixels. SVG gives no measurement
+   * API without a live layout, so the diagram primitives never reserved room for
+   * their own text — long titles and dimension values overflowed the auto-fit
+   * viewBox and collided with neighbouring views. DM Sans (the diagram face)
+   * averages ~0.55x the font-size per glyph; 0.56 is a safe mean.
+   * @param {string} str
+   * @param {number} fs font-size px
+   * @returns {number} estimated width px
+   */
+  function textWidthPx(str, fs) {
+    return str == null ? 0 : String(str).length * fs * 0.56;
+  }
+
+  /**
+   * Extend a Drawing's bbox to cover a text label drawn at pixel (x, y) with the
+   * given size + anchor, so the viewBox auto-fit reserves room for it. This is
+   * the single fix that stops titles/dimensions from clipping or overprinting.
+   * @param {Drawing} dwg
+   * @param {number} xpx baseline x (px)
+   * @param {number} ypx baseline y (px)
+   * @param {string} str
+   * @param {number} fs font-size px
+   * @param {'start'|'middle'|'end'} [anchor='start']
+   */
+  function extendText(dwg, xpx, ypx, str, fs, anchor) {
+    var w = textWidthPx(str, fs), x0 = xpx, x1 = xpx;
+    if (anchor === 'middle') { x0 = xpx - w / 2; x1 = xpx + w / 2; }
+    else if (anchor === 'end') { x0 = xpx - w; }
+    else { x1 = xpx + w; }
+    dwg.extend(x0, ypx - fs);         // ascender
+    dwg.extend(x1, ypx + fs * 0.32);  // descender
+  }
+
   /* ==========================================================================
    * NUMBER FORMATTING (engineering units per spec §4)
    * ========================================================================*/
@@ -505,6 +539,28 @@
     this.svg.setAttribute('viewBox', r(x, 1) + ' ' + r(y, 1) + ' ' + r(w, 1) + ' ' + r(h, 1));
     if (!this.svg.getAttribute('preserveAspectRatio')) {
       this.svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    }
+    // --- Render at natural size, downscale-only -----------------------------
+    // The viewBox is authored in PIXELS, so a fixed-px font only yields a STABLE
+    // on-screen size if the SVG is not stretched. The calc markup uses
+    // width="100%", which upscales a small diagram (and its text) to fill the
+    // card — a 1.66" connection blew its title up ~1.7x while a large member
+    // shrank it. Pin the intrinsic size to the content box and cap with
+    // max-width:100% so the diagram renders 1:1 on wide cards and scales down
+    // uniformly on narrow ones. Every calc then shares one text size.
+    if (this.svg.style) {
+      // Intrinsic size = the content box. Render responsively but cap UPSCALING
+      // at 1.3x: a small diagram fills more of a wide card without its fixed-px
+      // text ballooning (the old width:100% stretched a 1.66" connection ~1.7x).
+      // It still downscales freely on narrow cards. Bounded scale => cohesive
+      // text size across every calc.
+      this.svg.setAttribute('width', r(w, 1));
+      this.svg.setAttribute('height', r(h, 1));
+      this.svg.style.setProperty('width', '100%');
+      this.svg.style.setProperty('max-width', r(w * 1.3, 0) + 'px');
+      this.svg.style.setProperty('height', 'auto');
+      this.svg.style.setProperty('display', 'block');
+      this.svg.style.setProperty('margin', '0 auto');
     }
     if (this.style.bg && this.style.bg !== 'transparent') {
       var bgRect = el('rect', { x: x, y: y, width: w, height: h, fill: this.style.bg });
@@ -911,11 +967,19 @@
     var ext = 4;
     g.appendChild(el('line', { x1: ax1, y1: ay1, x2: bx1 + nxu * ext, y2: by1 + nyu * ext, stroke: color, 'stroke-width': 0.7 }));
     g.appendChild(el('line', { x1: ax2, y1: ay2, x2: bx2 + nxu * ext, y2: by2 + nyu * ext, stroke: color, 'stroke-width': 0.7 }));
-    // Dimension line with arrowheads both ends.
-    g.appendChild(el('line', {
-      x1: bx1, y1: by1, x2: bx2, y2: by2, stroke: color, 'stroke-width': st.lwDim,
-      'marker-start': 'url(#areArrDim)', 'marker-end': 'url(#areArrDim)'
-    }));
+    // Dimension line with 45-degree oblique TICK MARKS at each end (structural
+    // drafting convention), not triangular arrowheads.
+    g.appendChild(el('line', { x1: bx1, y1: by1, x2: bx2, y2: by2, stroke: color, 'stroke-width': st.lwDim }));
+    var ux2 = dx / len, uy2 = dy / len;                 // along-line unit
+    var tkx = (ux2 - uy2) * 0.7071, tky = (ux2 + uy2) * 0.7071;  // unit rotated 45deg
+    var tlen = 4.5;
+    [[bx1, by1], [bx2, by2]].forEach(function (pt) {
+      g.appendChild(el('line', {
+        x1: r(pt[0] - tkx * tlen), y1: r(pt[1] - tky * tlen),
+        x2: r(pt[0] + tkx * tlen), y2: r(pt[1] + tky * tlen),
+        stroke: color, 'stroke-width': st.lwDim
+      }));
+    });
     // Label centered, nudged off the line.
     var mx = (bx1 + bx2) / 2 + nxu * 9, my = (by1 + by2) / 2 + nyu * 9;
     var horizontalish = Math.abs(dx) >= Math.abs(dy);
@@ -927,7 +991,8 @@
     t.textContent = label;
     g.appendChild(t);
     v.add(g, 'anno');
-    v.dwg.extend(mx, my); v.dwg.extend(bx1, by1); v.dwg.extend(bx2, by2);
+    v.dwg.extend(bx1, by1); v.dwg.extend(bx2, by2);
+    extendText(v.dwg, mx, my, label, st.fsDim, 'middle');
     return g;
   }
 
@@ -958,15 +1023,49 @@
       points: r(px0) + ',' + r(py0) + ' ' + r(elbX) + ',' + r(ey) + ' ' + r(ex) + ',' + r(ey),
       fill: 'none', stroke: color, 'stroke-width': 0.9
     }));
+    var labelX = ex + (lx > 0 ? 3 : -3), labelAnchor = o.anchor || (lx > 0 ? 'start' : 'end');
     var t = el('text', {
-      x: r(ex + (lx > 0 ? 3 : -3)), y: r(ey - 3), fill: color,
+      x: r(labelX), y: r(ey - 3), fill: color,
       'font-size': st.fsLabel, 'font-family': st.font,
-      'text-anchor': o.anchor || (lx > 0 ? 'start' : 'end')
+      'text-anchor': labelAnchor
     });
     t.textContent = label;
     g.appendChild(t);
     v.add(g, 'anno');
-    v.dwg.extend(ex + (lx > 0 ? 40 : -40), ey - 12); v.dwg.extend(ex, ey + 6);
+    v.dwg.extend(px0, py0);
+    extendText(v.dwg, labelX, ey - 3, label, st.fsLabel, labelAnchor);
+    return g;
+  }
+
+  /**
+   * Pull a demand LABEL out to a clear point with a thin dotted leader back to
+   * the geometric application point (world). The arrow/arc stays on the
+   * centroid; only the text leaves the object — a "force field" so no value sits
+   * on a member.
+   * @param {View} v
+   * @param {number} appX world x of the application point (on the centroid)
+   * @param {number} appY world y of the application point
+   * @param {number} labXpx label x in PIXELS (an outside gutter)
+   * @param {number} labYpx label y in PIXELS
+   * @param {string} text
+   * @param {Object} [o] {color, anchor}
+   * @returns {SVGGElement}
+   */
+  function calloutLabel(v, appX, appY, labXpx, labYpx, text, o) {
+    o = o || {};
+    var st = v.style, color = o.color || st.force;
+    var apx = v.px(appX), apy = v.py(appY);
+    var anchor = o.anchor || (labXpx >= apx ? 'start' : 'end');
+    var pad = anchor === 'start' ? 4 : (anchor === 'end' ? -4 : 0);
+    var g = el('g', { 'class': 'are-callout' });
+    g.appendChild(el('line', { x1: r(apx), y1: r(apy), x2: r(labXpx), y2: r(labYpx), stroke: color, 'stroke-width': 0.8, 'stroke-dasharray': '2 2' }));
+    g.appendChild(el('circle', { cx: r(apx), cy: r(apy), r: 1.7, fill: color }));
+    var t = el('text', { x: r(labXpx + pad), y: r(labYpx - 3), fill: color, 'font-size': st.fsForce, 'font-family': st.font, 'font-weight': 600, 'text-anchor': anchor });
+    t.textContent = text;
+    g.appendChild(t);
+    v.add(g, 'anno');
+    extendText(v.dwg, labXpx + pad, labYpx - 3, text, st.fsForce, anchor);
+    v.dwg.extend(apx, apy);
     return g;
   }
 
@@ -995,6 +1094,9 @@
     var dpx = dirX, dpy = v.flipY ? -dirY : dirY;
     var dl = Math.sqrt(dpx * dpx + dpy * dpy) || 1;
     var ux = dpx / dl, uy = dpy / dl;
+    // Optional standoff: push the whole arrow `standoff` px along its direction
+    // so the shaft clears the member it annotates instead of drawing over it.
+    if (o.standoff) { px0 += ux * o.standoff; py0 += uy * o.standoff; }
     var hx = px0 + ux * lenPx, hy = py0 + uy * lenPx;
     var g = el('g', { 'class': 'are-force' });
     g.appendChild(el('line', {
@@ -1004,15 +1106,21 @@
       'marker-start': o.headAtTail ? 'url(#areArrForce)' : null
     }));
     if (label) {
-      var lo = o.labelOff != null ? o.labelOff : 8;
-      var mxp = (px0 + hx) / 2 - uy * lo, myp = (py0 + hy) / 2 + ux * lo;
+      // Offset the label perpendicular to the shaft and anchor it on that side so
+      // the arrow line never runs through the text. labelOff sign flips the side.
+      var lo = o.labelOff != null ? o.labelOff : 9;
+      var perpx = -uy, perpy = ux;
+      var offx = perpx * lo, offy = perpy * lo;
+      var mxp = (px0 + hx) / 2 + offx, myp = (py0 + hy) / 2 + offy;
+      var lanchor = offx > 1 ? 'start' : (offx < -1 ? 'end' : 'middle');
+      var lvy = myp + (lanchor === 'middle' ? (offy >= 0 ? 4 : -1) : 3);
       var t = el('text', {
-        x: r(mxp), y: r(myp), fill: color, 'font-size': st.fsForce,
-        'font-family': st.font, 'font-weight': 600, 'text-anchor': 'middle'
+        x: r(mxp), y: r(lvy), fill: color, 'font-size': st.fsForce,
+        'font-family': st.font, 'font-weight': 600, 'text-anchor': lanchor
       });
       t.textContent = label;
       g.appendChild(t);
-      v.dwg.extend(mxp, myp - 8); v.dwg.extend(mxp + label.length * 4, myp + 4);
+      extendText(v.dwg, mxp, lvy, label, st.fsForce, lanchor);
     }
     v.add(g, 'anno');
     v.dwg.extend(hx, hy); v.dwg.extend(px0, py0);
@@ -1046,9 +1154,11 @@
       g.appendChild(el('line', { x1: ax, y1: railY, x2: ax, y2: ay - 1, stroke: color, 'stroke-width': st.lwDim, 'marker-end': 'url(#areArrForce)' }));
     }
     if (label) {
-      var t = el('text', { x: (ax1 + ax2) / 2, y: railY - 5, fill: color, 'font-size': st.fsForce, 'font-family': st.font, 'font-weight': 600, 'text-anchor': 'middle' });
+      var udlLabelX = (ax1 + ax2) / 2;
+      var t = el('text', { x: udlLabelX, y: railY - 5, fill: color, 'font-size': st.fsForce, 'font-family': st.font, 'font-weight': 600, 'text-anchor': 'middle' });
       t.textContent = label;
       g.appendChild(t);
+      extendText(v.dwg, udlLabelX, railY - 5, label, st.fsForce, 'middle');
     }
     v.add(g, 'anno');
     v.dwg.extend(ax1, railY - 14); v.dwg.extend(ax2, ay);
@@ -1085,12 +1195,14 @@
       fill: 'none', stroke: color, 'stroke-width': st.lwForce, 'marker-end': 'url(#areArrMoment)'
     }));
     if (label) {
+      var mLabelY = cyp + (o.labelDy != null ? o.labelDy : -6);
       var t = el('text', {
-        x: cxp, y: cyp + (o.labelDy != null ? o.labelDy : -6), fill: color,
+        x: cxp, y: mLabelY, fill: color,
         'font-size': st.fsForce, 'font-family': st.font, 'font-weight': 600, 'text-anchor': 'middle'
       });
       t.textContent = label;
       g.appendChild(t);
+      extendText(v.dwg, cxp, mLabelY, label, st.fsForce, 'middle');
     }
     v.add(g, 'anno');
     v.dwg.extend(cxp - rPx - 6, cyp - rPx - 12); v.dwg.extend(cxp + rPx + 6, cyp + rPx + 6);
@@ -1113,7 +1225,11 @@
     });
     t.textContent = str;
     v.add(t, 'anno');
-    v.dwg.extend(xpx, ypx - st.fsTitle);
+    // Underline rule beneath the heading (drafting heading indication).
+    var uw = textWidthPx(str, st.fsTitle) / 2 + 3;
+    v.add(el('line', { x1: r(xpx - uw), y1: r(ypx + 4.5), x2: r(xpx + uw), y2: r(ypx + 4.5), stroke: st.title, 'stroke-width': 1.1 }), 'anno');
+    extendText(v.dwg, xpx, ypx, str, st.fsTitle, 'middle');
+    v.dwg.extend(xpx, ypx + 8);
     return t;
   }
 
@@ -1136,7 +1252,7 @@
     });
     t.textContent = str;
     v.add(t, 'anno');
-    v.dwg.extend(v.px(x), v.py(y));
+    extendText(v.dwg, v.px(x), v.py(y), str, o.size || st.fsLabel, o.anchor || 'middle');
     return t;
   }
 
@@ -1257,7 +1373,6 @@
     var colTopIn = Math.max(col.H, beam.d) * 0.85 + 6;
     var colBotIn = -(Math.max(col.H, beam.d) * 0.85 + 6);
     var vE = new View(dwg, { scale: elevScale, ox: 70, oy: 165, flipY: true });
-    viewTitle(vE, vE.px(col.B / 2), vE.py(colTopIn) - 12, 'Elevation');
 
     // HSS column (vertical) drawn as a tube elevation centered on world x=0.
     tubeElevation(vE, -col.B / 2, (colTopIn + colBotIn) / 2, col.B, (colTopIn - colBotIn),
@@ -1270,43 +1385,50 @@
     // Beam framing into the right column face (world x from B/2 outward).
     var beamLen = (col.B / 2) + Math.max(beam.d * 1.9, 16);
     wElevation(vE, col.B / 2, 0, beamLen - col.B / 2, beam, { highlight: true });
-    memberLabel(vE, (col.B / 2 + beamLen) / 2 + 1, 0, beamLbl, { size: st.fsLabel });
-    centerline(vE, col.B / 2, 0, beamLen + 2, 0);
+    memberLabel(vE, (col.B / 2 + beamLen) / 2 + 1, -beam.d / 2 - 1.4, beamLbl, { size: st.fsLabel });  // below the beam, off the fill
+    centerline(vE, col.B / 2, 0, beamLen + 2, 0);      // beam centroidal axis
+    centerline(vE, 0, colTopIn + 1, 0, colBotIn - 1);  // column centroidal axis
 
     // Weld at the beam-to-column interface (top + bottom flange).
     weldFillet(vE, col.B / 2, beam.d / 2, col.B / 2, beam.d / 2 - beam.tf, { size: '5/16', side: 'left', tag: false });
     weldFillet(vE, col.B / 2, -beam.d / 2 + beam.tf, col.B / 2, -beam.d / 2, { size: '5/16', side: 'left', tag: false });
 
-    // Flange-force couple arrows (top = compression into column, bottom = tension out).
+    // Flange-force couple at the connection face: top flange in compression
+    // (force INTO the column), bottom flange in tension (force OUT). Both arrows
+    // share an x so they read as one couple; labels sit clear above / below the
+    // beam so they never collide with the applied-moment arc further right.
     var fLbl = Puf != null ? ('Puf = ' + fmtKip(Math.abs(Puf))) : 'Puf';
-    forceArrow(vE, col.B / 2 + beam.d * 1.1, beam.d / 2 - beam.tf / 2, -1, 0, 46, fLbl, { color: st.force });
-    forceArrow(vE, col.B / 2 + beam.d * 0.4, -beam.d / 2 + beam.tf / 2, 1, 0, 46, '(T)', { color: st.force, labelOff: -10 });
-    // Applied moment arc near the beam free end.
-    momentArrow(vE, beamLen - beam.d * 0.5, 0, Math.min(vE.s(beam.d) * 0.42, 24),
-      Mu != null ? ('Mu = ' + fmtKft(Mu)) : 'Mu', { ccw: true, color: st.moment, labelDy: -vE.s(beam.d) * 0.5 - 8 });
+    var faX = col.B / 2 + Math.max(beam.d * 0.5, 4);
+    forceArrow(vE, faX, beam.d / 2 - beam.tf / 2, -1, 0, 32, fLbl, { color: st.force, labelOff: 13 });
+    forceArrow(vE, faX, -beam.d / 2 + beam.tf / 2, 1, 0, 32, '(T)', { color: st.force, labelOff: 13 });
+    // Applied moment arc near the beam free end, label well above the top flange.
+    momentArrow(vE, beamLen - beam.d * 0.55, 0, Math.min(vE.s(beam.d) * 0.4, 22),
+      Mu != null ? ('Mu = ' + fmtKft(Mu)) : 'Mu', { ccw: true, color: st.moment, labelDy: -(vE.s(beam.d) * 0.4 + 14) });
 
     // Beam depth dimension.
     dimLine(vE, beamLen, -beam.d / 2, beamLen, beam.d / 2, fmtIn(beam.d), { off: 26 });
+
+    // Elevation title BELOW the view, underlined. dwg.maxY is the elevation's
+    // lowest content (column label) — the section view is not drawn yet.
+    viewTitle(vE, vE.px((-col.B / 2 + beamLen) / 2), dwg.maxY + st.fsTitle + 12, 'Elevation');
 
     // ---- HSS COLUMN SECTION view (right) ----
     var secScale = fitScale(col.B * 1.5, 120, { min: 4, max: 16 });
     var secCx = 1; // placed via ox below
     var sectionOx = vE.px(beamLen) + 150;
     var vS = new View(dwg, { scale: secScale, ox: sectionOx, oy: 150, flipY: true });
-    viewTitle(vS, vS.px(0), vS.py(col.H / 2) - 26, 'HSS Section');
     rectHSSSection(vS, 0, 0, col, { highlight: false });
 
-    // Beam flange width band on the top face (bp = bf).
+    // Beam flange width band on the top face; bp = bf is dimensioned above it.
     var bandH = Math.max(col.B * 0.06, 0.25);
     plate(vS, -beam.bf / 2, col.H / 2, beam.bf, bandH, { highlight: true, hatch: false });
-    leader(vS, 0, col.H / 2 + bandH, 30, -26, 'beam flange bf', { color: st.steel });
-
-    // Dimensions: bp=bf (top inside), flat = B-3t, and B below.
-    dimLine(vS, -beam.bf / 2, col.H / 2 - 0.6, beam.bf / 2, col.H / 2 - 0.6, 'bp = bf = ' + fmtIn(beam.bf), { off: -20 });
-    var flat = col.B - 3 * col.t;
-    dimLine(vS, -flat / 2, -col.H / 2 + 0.6, flat / 2, -col.H / 2 + 0.6, 'flat = B−3t = ' + fmtIn(flat), { off: 20 });
+    dimLine(vS, -beam.bf / 2, col.H / 2 + bandH, beam.bf / 2, col.H / 2 + bandH, 'bp = bf = ' + fmtIn(beam.bf), { off: -15 });
+    // Overall width B (below) and wall thickness t (leader). The effective flat
+    // width B−3t is reported numerically in the calc body, not crowded in here.
     dimLine(vS, -col.B / 2, -col.H / 2, col.B / 2, -col.H / 2, 'B = ' + fmtIn(col.B), { off: 26 });
     leader(vS, col.B / 2 - col.t / 2, 0, 34, 0, 't = ' + fmtIn(col.t), { color: st.dim });
+    // Section title BELOW the view, clear of the B dimension, underlined.
+    viewTitle(vS, vS.px(0), vS.py(-col.H / 2) + 58, 'HSS Section');
 
     // Caption with the governing limit state if present.
     captionBox(dwg, st, state, 'AISC 360-22 §K1.3, Eq. K1-7 — HSS wall local yielding from flange couple');
@@ -1340,7 +1462,8 @@
     // ---- PLAN view ----
     var planScale = fitScale(Math.max(N, B) * 1.18, 150, { min: 3, max: 14 });
     var vP = new View(dwg, { scale: planScale, ox: 95, oy: 150, flipY: true });
-    viewTitle(vP, vP.px(0), vP.py(N / 2) - 30, 'Plan');
+    // Plan title BELOW the view (clear of the B dimension), underlined.
+    viewTitle(vP, vP.px(0), vP.py(-N / 2) + 58, 'Plan');
     // Plate (centered on origin), N along y (depth), B along x (width).
     plate(vP, -B / 2, -N / 2, B, N, { highlight: true, hatch: false });
 
@@ -1372,7 +1495,8 @@
     var elOx = vP.px(B / 2) + 150;
     var pedH = Math.max(N * 0.6, 6);
     var vE = new View(dwg, { scale: elScale, ox: elOx, oy: 150, flipY: true });
-    viewTitle(vE, vE.px(0), vE.py(N / 2) - 30, 'Elevation');
+    // Elevation title BELOW the pedestal, underlined.
+    viewTitle(vE, vE.px(0), vE.py(-pedH) + 22, 'Elevation');
     // Concrete pedestal block under the plate.
     plate(vE, -B / 2 - 1.2, -pedH, B + 2.4, pedH, { fill: '#eceae4', hatch: true });
     // Base plate (thin band on top of pedestal).
@@ -1391,15 +1515,28 @@
     });
     centerline(vE, 0, tp + stubH + 2, 0, -pedH - 2);
 
-    // Demand arrows: axial Pu (down onto column top), moment Mu (arc), shear Vu.
+    // Demands resolve on the COLUMN centroidal axis (x = 0): axial Pu along it,
+    // moment Mu on the centroid, shear Vu transverse through it. Values pulled to
+    // an outside gutter above the column with dotted leaders.
     var topY = tp + stubH;
-    if (Pu != null) forceArrow(vE, 0, topY + colDepthEl * 0.9, 0, -1, 40, 'Pu = ' + fmtKip(Pu), { color: st.force, labelOff: 12 });
-    if (Mu != null && Mu !== 0) momentArrow(vE, 0, topY * 0.6 + tp, 16, 'Mu = ' + fmtKft(Mu), { ccw: true, color: st.moment, labelDy: -22 });
-    if (Vu != null && Vu !== 0) forceArrow(vE, -colWEl / 2 - 1, topY * 0.5, 1, 0, 34, 'Vu = ' + fmtKip(Vu), { color: st.force, labelOff: -10 });
+    var topGY = vE.py(topY + colDepthEl * 0.9) - 14;
+    if (Pu != null && Pu !== 0) {
+      forceArrow(vE, 0, topY + colDepthEl * 0.9, 0, -1, 40, '', { color: st.force });
+      calloutLabel(vE, 0, topY + colDepthEl * 0.9, vE.px(0), topGY, 'Pu = ' + fmtKip(Pu), { color: st.force, anchor: 'middle' });
+    }
+    if (Mu != null && Mu !== 0) {
+      momentArrow(vE, 0, topY * 0.55 + tp, 15, '', { ccw: true, color: st.moment });
+      calloutLabel(vE, 0, topY * 0.55 + tp, vE.px(0) - 74, topGY, 'Mu = ' + fmtKft(Mu), { color: st.moment, anchor: 'end' });
+    }
+    if (Vu != null && Vu !== 0) {
+      var vY = tp + stubH * 0.32, hwc = colWEl / 2 + 0.6;
+      forceArrow(vE, -hwc, vY, 1, 0, (colWEl + 1.2) * elScale, '', { color: st.force });
+      calloutLabel(vE, 0, vY, vE.px(0) + 64, topGY, 'Vu = ' + fmtKip(Vu), { color: st.force, anchor: 'start' });
+    }
 
     // Plate thickness + embedment dims.
     dimLine(vE, B / 2, 0, B / 2, tp, 'tp = ' + fmtIn(tp), { off: 22 });
-    dimLine(vE, gauge / 2 + 0.3, tp, gauge / 2 + 0.3, -Math.min(hef, pedH - 0.5), 'hef = ' + fmtIn(hef), { off: 24 });
+    dimLine(vE, B / 2, tp, B / 2, -Math.min(hef, pedH - 0.5), 'hef = ' + fmtIn(hef), { off: -44 });
 
     captionBox(dwg, st, state, 'AISC DG1 + ACI 318-19 Ch.17 — bearing, plate, anchor steel & concrete checks');
     return dwg.commit();
@@ -1450,72 +1587,101 @@
     var branchLbl = state.member.section || 'HSS Branch';
 
     // ---- ELEVATION ----
-    var maxDim = Math.max(chordDepth, branchDepth * 2.6);
-    var elScale = fitScale(maxDim * 1.3, 150, { min: 2.5, max: 13 });
-    var chordLen = chordDepth * 5.5;
-    var vE = new View(dwg, { scale: elScale, ox: 60, oy: 175, flipY: true });
-    viewTitle(vE, vE.px(chordLen / 2 - chordLen / 2 + chordLen / 2), vE.py(chordDepth / 2) - 30,
-      subType === 'truss' ? 'Truss Joint — ' + connType : 'Branch Connection — ' + connType + (theta !== 90 ? ' (θ=' + theta + '°)' : ''));
+    var maxDim = Math.max(chordDepth, branchDepth * 2.4);
+    var elScale = fitScale(maxDim * 1.3, 185, { min: 3, max: 18 });
+    var chordLen = chordDepth * 5.2;
+    var vE = new View(dwg, { scale: elScale, ox: 66, oy: 196, flipY: true });
 
     // Chord runs horizontally along world x, centered on y=0.
-    if (round) {
-      tubeElevation(vE, 0, 0, chordLen, chordDepth, { fill: st.steelFill, hatch: false });
-      vE.add(el('line', { x1: vE.px(0), y1: vE.py(0), x2: vE.px(chordLen), y2: vE.py(0), stroke: st.center, 'stroke-width': st.lwCenter, 'stroke-dasharray': '7 2 1.5 2' }), 'center');
-    } else {
-      tubeElevation(vE, 0, 0, chordLen, chordDepth, { fill: st.steelFill, hatch: false });
-    }
-    memberLabel(vE, chordLen * 0.5, -chordDepth / 2 - 1.3, chordLbl, { size: st.fsLabel });
+    tubeElevation(vE, 0, 0, chordLen, chordDepth, { fill: st.steelFill, hatch: false });
+    // Chord centroidal centerline (every member carries one).
+    centerline(vE, -chordDepth * 0.4, 0, chordLen + chordDepth * 0.4, 0);
+    // Chord label sits BELOW the chord, clear of the title band at the top.
+    memberLabel(vE, chordLen * 0.5, -chordDepth / 2 - 1.7, chordLbl, { size: st.fsLabel });
 
     // Branch(es). For truss-K draw two diagonals; otherwise one branch at theta.
     var th = theta * Math.PI / 180;
     var bx0 = chordLen / 2; // branch lands at chord mid by default
-    var bLen = branchDepth * 3.0;
+    var bLen = branchDepth * 2.4;
 
-    function drawBranch(footX, dir, lbl, hi) {
-      // dir = +1 (theta from +x) or -1 (mirror) for K joints.
+    // labelSide = +1 puts the section label on the branch's +x flank, -1 the −x.
+    function drawBranch(footX, dir, lbl, hi, labelSide) {
       var ang = dir > 0 ? th : (Math.PI - th);
       var topY = chordDepth / 2;
-      var tipX = footX + Math.cos(ang) * bLen;
-      var tipY = topY + Math.sin(ang) * bLen;
-      // Branch as a rotated band: build 4 corners in world coords.
+      var sin = Math.sin(ang), cos = Math.cos(ang);
       var hw = branchWidth / 2;
-      var perpX = -Math.sin(ang), perpY = Math.cos(ang);
+      var tipX = footX + cos * bLen;
+      var tipY = topY + sin * bLen;
+      var perpX = -sin, perpY = cos;
+      // The branch sits ON the chord: its foot is CUT HORIZONTALLY along the
+      // chord top face (the walls meet the chord at footX ∓ hw/sin θ), so an
+      // angled branch never overlaps into the chord. Tip is cut square.
+      var footHalf = Math.abs(hw / (Math.abs(sin) < 0.2 ? 0.2 : sin));
       var c = [
-        [footX + perpX * hw, topY + perpY * hw],
-        [footX - perpX * hw, topY - perpY * hw],
+        [footX - footHalf, topY],
+        [tipX + perpX * hw, tipY + perpY * hw],
         [tipX - perpX * hw, tipY - perpY * hw],
-        [tipX + perpX * hw, tipY + perpY * hw]
+        [footX + footHalf, topY]
       ];
       var p = el('path', { d: pathFromWorld(vE, c, true), fill: hi ? st.steelFillHi : st.steelFill, stroke: st.steel, 'stroke-width': st.lwObject, 'stroke-linejoin': 'round' });
       vE.add(p, 'steel');
       markPts(vE, c);
-      // Weld at the footprint (along chord top edge under branch).
-      weldFillet(vE, footX - hw, topY, footX + hw, topY, { size: round ? '3/16' : '1/4', side: 'up', tag: false });
-      memberLabel(vE, (footX + tipX) / 2 + perpX * (hw + 1.4), (topY + tipY) / 2 + perpY * (hw + 1.4), lbl, { size: st.fsLabel, anchor: 'middle' });
-      return { tipX: tipX, tipY: tipY, ang: ang, footX: footX };
+      // Branch centroidal centerline along its axis (into the chord, past the tip).
+      centerline(vE, footX - cos * chordDepth * 0.45, topY - sin * chordDepth * 0.45,
+        tipX + cos * branchDepth * 0.5, tipY + sin * branchDepth * 0.5);
+      // Weld teeth along the trimmed footprint on the chord face.
+      weldFillet(vE, footX - footHalf, topY, footX + footHalf, topY, { size: round ? '3/16' : '1/4', side: 'up', tag: false });
+      // Branch label offset well clear of the steel, perpendicular to the flank.
+      var side = (perpX >= 0 ? 1 : -1) * (labelSide || 1);
+      var lxw = perpX * side, lyw = perpY * side;
+      memberLabel(vE, (footX + tipX) / 2 + lxw * (hw + 3.2), (topY + tipY) / 2 + lyw * (hw + 3.2), lbl,
+        { size: st.fsLabel, anchor: lxw >= 0 ? 'start' : 'end' });
+      return { tipX: tipX, tipY: tipY, ang: ang, footX: footX, footHalf: footHalf };
     }
 
+    var topYworld;
     if (subType === 'truss' && (connType === 'KG' || connType === 'KO')) {
       var gap = conn.gap != null ? conn.gap : chordDepth * 0.5;
-      var b1 = drawBranch(bx0 - branchWidth / 2 - gap / 2, -1, branchLbl, true);
-      var b2 = drawBranch(bx0 + branchWidth / 2 + gap / 2, 1, branchLbl, true);
-      // Gap dimension between branch toes.
-      dimLine(vE, b1.footX + branchWidth / 2, chordDepth / 2, b2.footX - branchWidth / 2, chordDepth / 2,
+      var b1 = drawBranch(bx0 - branchWidth / 2 - gap / 2, -1, branchLbl, true, -1);
+      var b2 = drawBranch(bx0 + branchWidth / 2 + gap / 2, 1, branchLbl, true, 1);
+      // Gap dimension between the trimmed branch toes on the chord face.
+      dimLine(vE, b1.footX + b1.footHalf, chordDepth / 2, b2.footX - b2.footHalf, chordDepth / 2,
         'g = ' + fmtIn(gap), { off: -16 });
-      if (Pu != null) {
-        forceArrow(vE, b1.tipX, b1.tipY, Math.cos(b1.ang), Math.sin(b1.ang), 34, 'Pu = ' + fmtKip(Pu), { color: st.force });
-        forceArrow(vE, b2.tipX, b2.tipY, Math.cos(b2.ang), Math.sin(b2.ang), 34, '', { color: st.force });
+      if (Pu != null && Pu !== 0) {
+        forceArrow(vE, b1.tipX, b1.tipY, -Math.cos(b1.ang), -Math.sin(b1.ang), 30, '', { color: st.force, standoff: -46 });
+        forceArrow(vE, b2.tipX, b2.tipY, -Math.cos(b2.ang), -Math.sin(b2.ang), 30, '', { color: st.force, standoff: -46 });
+        calloutLabel(vE, b1.tipX, b1.tipY, vE.px(b1.tipX) - 10, vE.py(b1.tipY) - 32, 'Pu = ' + fmtKip(Pu), { color: st.force, anchor: 'end' });
       }
+      topYworld = Math.max(b1.tipY, b2.tipY);
     } else {
-      var b = drawBranch(bx0, 1, branchLbl, true);
-      // Branch width dim across the foot.
-      dimLine(vE, bx0 - branchWidth / 2, chordDepth / 2, bx0 + branchWidth / 2, chordDepth / 2,
-        (round ? 'Db = ' : 'Bb = ') + fmtIn(branchWidth), { off: 16, color: st.dim });
-      // Demands on the branch: axial Pu (along branch), moment Mu (kip-in), shear Vu.
-      if (Pu != null && Pu !== 0) forceArrow(vE, b.tipX, b.tipY, -Math.cos(b.ang), -Math.sin(b.ang), 38, 'Pu = ' + fmtKip(Pu), { color: st.force });
-      if (Mu != null && Mu !== 0) momentArrow(vE, b.tipX - Math.cos(b.ang) * branchDepth * 0.2, b.tipY - Math.sin(b.ang) * branchDepth * 0.2, 16, 'Mu,ip = ' + fmtKin(Mu), { ccw: true, color: st.moment, labelDy: -20 });
-      if (Vu != null && Vu !== 0) forceArrow(vE, b.footX + branchWidth / 2 + branchDepth * 0.3, (chordDepth / 2 + b.tipY) / 2, 0, -1, 28, 'Vu = ' + fmtKip(Vu), { color: st.force, labelOff: 14 });
-      // Angle annotation if not 90.
+      var b = drawBranch(bx0, 1, branchLbl, true, -1);  // label on the left flank
+      topYworld = b.tipY;
+      var bux = Math.cos(b.ang), buy = Math.sin(b.ang);     // branch axis unit (outward)
+      var bpx = -buy, bpy = bux;                            // transverse (shear) unit
+      var cgX = (b.footX + b.tipX) / 2, cgY = (chordDepth / 2 + b.tipY) / 2;  // branch centroid
+      var tipPx = vE.px(b.tipX), topGY = vE.py(b.tipY) - 56;  // a clear gutter above the tip
+      // Each demand is drawn on its true geometric location (through the
+      // centroidal axis); the VALUE is pulled out to the top gutter with a
+      // dotted leader so no label ever sits on the steel.
+      // Axial Pu — along the centroidal axis, outside the tip, into the joint.
+      if (Pu != null && Pu !== 0) {
+        forceArrow(vE, b.tipX, b.tipY, -bux, -buy, 30, '', { color: st.force, standoff: -46 });
+        calloutLabel(vE, b.tipX + bux * (46 / elScale), b.tipY + buy * (46 / elScale), tipPx, topGY, 'Pu = ' + fmtKip(Pu), { color: st.force, anchor: 'middle' });
+      }
+      // In-plane moment Mu — arc ON the branch centroid; value pulled top-left.
+      if (Mu != null && Mu !== 0) {
+        momentArrow(vE, cgX, cgY, 14, '', { ccw: true, color: st.moment });
+        calloutLabel(vE, cgX, cgY, tipPx - 86, topGY + 1, 'Mu,ip = ' + fmtKin(Mu), { color: st.moment, anchor: 'end' });
+      }
+      // Shear Vu — transverse arrow PASSING THROUGH the centroidal axis near the
+      // base; value pulled top-right.
+      if (Vu != null && Vu !== 0) {
+        var vd = bLen * 0.32, vAx = b.footX + bux * vd, vAy = chordDepth / 2 + buy * vd;
+        var hwe = branchWidth / 2 + 0.6;
+        forceArrow(vE, vAx + bpx * hwe, vAy + bpy * hwe, -bpx, -bpy, (branchWidth + 1.2) * elScale, '', { color: st.force });
+        calloutLabel(vE, vAx, vAy, tipPx + 70, topGY + 1, 'Vu = ' + fmtKip(Vu), { color: st.force, anchor: 'start' });
+      }
+      // Skew angle (an intentional eccentricity from 90°).
       if (theta !== 90) {
         vE.add(el('path', {
           d: 'M' + r(vE.px(bx0 + chordDepth * 0.6)) + ',' + r(vE.py(chordDepth / 2)) +
@@ -1523,30 +1689,39 @@
             r(vE.px(bx0 + Math.cos(th) * chordDepth * 0.6)) + ',' + r(vE.py(chordDepth / 2 + Math.sin(th) * chordDepth * 0.6)),
           fill: 'none', stroke: st.dim, 'stroke-width': 0.8
         }), 'anno');
-        memberLabel(vE, bx0 + chordDepth * 0.85, chordDepth / 2 + chordDepth * 0.25, 'θ=' + theta + '°', { size: st.fsDim, color: st.dim, weight: 600 });
+        memberLabel(vE, bx0 + chordDepth * 0.95, chordDepth / 2 + chordDepth * 0.25, 'θ=' + theta + '°', { size: st.fsDim, color: st.dim, weight: 600 });
       }
     }
-    // Chord depth dim.
+    // Chord depth dim at the right end (Bb/Db is dimensioned once, in the section).
     dimLine(vE, chordLen, -chordDepth / 2, chordLen, chordDepth / 2, (round ? 'D = ' : 'H = ') + fmtIn(chordDepth), { off: 26 });
 
+    // View title BELOW the elevation, underlined (heading indication). dwg.maxY
+    // is the elevation's lowest content here (chord label + depth dim) since the
+    // section view has not been drawn yet.
+    var titleY = dwg.maxY + st.fsTitle + 13;
+    viewTitle(vE, vE.px(chordLen / 2), titleY,
+      subType === 'truss' ? 'Truss Joint — ' + connType : 'Branch Connection — ' + connType + (theta !== 90 ? ' (θ=' + theta + '°)' : ''));
+
     // ---- SECTION (chord cross-section with branch footprint) ----
-    var secScale = fitScale(chordWidth * 1.6, 110, { min: 4, max: 16 });
-    var secOx = vE.px(chordLen) + 145;
-    var vS = new View(dwg, { scale: secScale, ox: secOx, oy: 150, flipY: true });
-    viewTitle(vS, vS.px(0), vS.py(chordDepth / 2) - 24, 'Chord Section');
+    var secScale = fitScale(chordWidth * 1.6, 125, { min: 5, max: 19 });
+    var secOx = vE.px(chordLen) + 132;
+    var vS = new View(dwg, { scale: secScale, ox: secOx, oy: 182, flipY: true });
     if (round) {
       roundHSSSection(vS, 0, 0, chord, {});
       // Branch saddle band on top.
       plate(vS, -branchWidth / 2, chordDepth / 2 - 0.1, branchWidth, Math.max(chordWidth * 0.05, 0.2), { highlight: true, hatch: false });
-      dimLine(vS, -chord.OD / 2, -chord.OD / 2, chord.OD / 2, -chord.OD / 2, 'D = ' + fmtIn(chord.OD), { off: 24 });
-      leader(vS, chord.OD / 2 - chord.t / 2, 0, 30, 0, 't = ' + fmtIn(chord.t), { color: st.dim });
+      dimLine(vS, -branchWidth / 2, chordDepth / 2, branchWidth / 2, chordDepth / 2, 'Db = ' + fmtIn(branchWidth), { off: -22 });
+      dimLine(vS, -chord.OD / 2, -chord.OD / 2, chord.OD / 2, -chord.OD / 2, 'D = ' + fmtIn(chord.OD), { off: 28 });
+      leader(vS, chord.OD / 2 - chord.t / 2, 0, 36, 0, 't = ' + fmtIn(chord.t), { color: st.dim });
     } else {
       rectHSSSection(vS, 0, 0, chord, {});
       plate(vS, -branchWidth / 2, chordDepth / 2, branchWidth, Math.max(chordWidth * 0.05, 0.2), { highlight: true, hatch: false });
-      dimLine(vS, -branchWidth / 2, chordDepth / 2, branchWidth / 2, chordDepth / 2, 'Bb = ' + fmtIn(branchWidth), { off: -18 });
-      dimLine(vS, -chord.B / 2, -chord.H / 2, chord.B / 2, -chord.H / 2, 'B = ' + fmtIn(chord.B), { off: 24 });
-      leader(vS, chord.B / 2 - chord.t / 2, 0, 30, 0, 't = ' + fmtIn(chord.t), { color: st.dim });
+      dimLine(vS, -branchWidth / 2, chordDepth / 2, branchWidth / 2, chordDepth / 2, 'Bb = ' + fmtIn(branchWidth), { off: -22 });
+      dimLine(vS, -chord.B / 2, -chord.H / 2, chord.B / 2, -chord.H / 2, 'B = ' + fmtIn(chord.B), { off: 28 });
+      leader(vS, chord.B / 2 - chord.t / 2, 0, 36, 0, 't = ' + fmtIn(chord.t), { color: st.dim });
     }
+    // Section title BELOW the view, clear of the bottom (B/D) dimension, underlined.
+    viewTitle(vS, vS.px(0), vS.py(-chordDepth / 2) + 62, 'Chord Section');
 
     var ref = subType === 'truss'
       ? 'AISC 360-22 Ch.K (§K2) — HSS truss connection, axial limit states'
@@ -1694,19 +1869,22 @@
     var res = state && state.results;
     var gov = res && res.governing ? res.governing : null;
     var status = res && res.status ? res.status : null;
-    var x = dwg.minX, y = dwg.maxY + 8;
+    // Place the caption baseline a full text-height + gap below the lowest
+    // drawn content so its ascenders never ride up into a low member label.
+    var x = dwg.minX, y = dwg.maxY + st.fsDim + 7;
     var g = el('g', { 'class': 'are-caption' });
     var t1 = el('text', { x: r(x), y: r(y), fill: st.dim, 'font-size': st.fsDim, 'font-family': st.font });
     t1.textContent = ref;
     g.appendChild(t1);
+    extendText(dwg, x, y, ref, st.fsDim, 'start');
     if (gov) {
+      var govStr = 'Governs: ' + gov + (status ? '  [' + status + ']' : '');
       var t2 = el('text', { x: r(x), y: r(y + 13), fill: st.title, 'font-size': st.fsDim, 'font-family': st.font, 'font-weight': 600 });
-      t2.textContent = 'Governs: ' + gov + (status ? '  [' + status + ']' : '');
+      t2.textContent = govStr;
       g.appendChild(t2);
-      dwg.extend(x, y + 18);
+      extendText(dwg, x, y + 13, govStr, st.fsDim, 'start');
     }
     dwg.gAnno.appendChild(g);
-    dwg.extend(x, y); dwg.extend(x + ref.length * 5.4, y);
   }
 
   /** Coerce a rect geometry to an equivalent round (uses larger dim as OD). @private */
@@ -1832,6 +2010,7 @@
     dimLine: dimLine,
     leader: leader,
     forceArrow: forceArrow,
+    calloutLabel: calloutLabel,
     distLoad: distLoad,
     momentArrow: momentArrow,
     viewTitle: viewTitle,

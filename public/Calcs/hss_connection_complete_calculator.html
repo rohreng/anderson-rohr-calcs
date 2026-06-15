@@ -58,12 +58,27 @@
         }
     </style>
   <link rel="stylesheet" href="./are-calc.css">
+  <script src="/are-draw.js"></script>
+  <style>
+    .schema-wrap {
+      background: #fff;
+      border: 1px solid rgba(26,43,95,.12);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 20px;
+    }
+    .schema-wrap svg {
+      display: block;
+      width: 100%;
+      max-height: 380px;
+    }
+  </style>
 </head>
 <body class="print-friendly">
     <div id="root"></div>
     
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
         
         // Enhanced SVG Icons
         const Calculator = ({ size = 24, className = "" }) => (
@@ -126,6 +141,7 @@
           const [calculationSteps, setCalculationSteps] = useState([]);
           const [openSteps, setOpenSteps] = useState({});
           const toggleStep = (i) => setOpenSteps(prev => ({ ...prev, [i]: !prev[i] }));
+          const schemSvgRef = useRef(null);
 
           // Normalize member selects (short labels + full-property hint) via shared ARE utils
           useEffect(() => {
@@ -205,6 +221,54 @@
               setColumnProps(column);
             }
           }, [selectedColumn, shapesData.hssShapes]);
+
+          // Live schematic — redraws whenever beam or column selection changes
+          useEffect(() => {
+            const svg = schemSvgRef.current;
+            if (!svg || !window.AREDraw) return;
+            if (!beamProps || !columnProps) return;
+
+            const beamLabel = selectedBeam.toUpperCase().replace('X', 'X');
+            const colLabel  = selectedColumn.toUpperCase();
+
+            // Supply resolved geometry directly from the calc's own DB
+            const resolvedGeometry = {};
+            resolvedGeometry[beamLabel] = {
+              d:  beamProps.d,
+              bf: beamProps.bf,
+              tf: beamProps.tf,
+              tw: beamProps.tw
+            };
+            resolvedGeometry[colLabel] = {
+              H: columnProps.H,
+              B: columnProps.B,
+              t: columnProps.tdes
+            };
+
+            const calcState = {
+              schema:   'are.calc.v1',
+              calcType: 'w-to-hss-column',
+              member: {
+                type:     'beam',
+                section:  beamLabel,
+                material: { Fy: 50 }
+              },
+              demands: { Mu: results ? results.Mn_LRFD : null },
+              connection: {
+                column:  { section: colLabel, Fy: 46 },
+                beamFy: 50
+              }
+            };
+
+            window.AREDraw.renderConnection(svg, calcState, { resolvedGeometry });
+            // AREDraw.commit() sets a fixed pixel width+height on the SVG.
+            // We want the SVG to scale responsively within the container:
+            // keep the viewBox (for aspect ratio), set width=100%, remove height
+            // so the browser sizes it via the viewBox intrinsic ratio.
+            // Then cap height via the container's max-height (set in CSS).
+            svg.setAttribute('width', '100%');
+            svg.removeAttribute('height');
+          }, [beamProps, columnProps, results]);
 
           // COMPLETE calculation method with all AISC limit states
           const calculateConnection = () => {
@@ -586,6 +650,16 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
                       <PrintIcon size={20} />
                       Print Report
                     </button>
+                  </div>
+
+                  {/* Live Connection Schematic */}
+                  <div className="schema-wrap mb-8">
+                    <svg
+                      ref={schemSvgRef}
+                      id="hssCompleteSchemSvg"
+                      style={{ display: 'block', width: '100%' }}
+                      xmlns="http://www.w3.org/2000/svg"
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">

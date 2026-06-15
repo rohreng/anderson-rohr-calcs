@@ -571,10 +571,19 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Drift Load Diagram -->
+            <div class="card" style="margin-top:24px;padding:16px;">
+                <svg id="snowDriftSvg" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;"></svg>
+            </div>
         </div>
 
         <!-- Joist Perpendicular Tab -->
         <div id="joist-perp-content" class="tab-content">
+            <!-- Joist Load Diagram -->
+            <div class="card" style="margin-bottom:24px;padding:16px;">
+                <svg id="snowJoistSvg" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;"></svg>
+            </div>
             <div class="grid grid-2">
                 <div class="card card-purple">
                     <h2 class="card-title card-title-purple">Joist Perpendicular to Wall</h2>
@@ -838,6 +847,7 @@
         </div>
     </div>
 
+    <script src="/are-draw.js"></script>
     <script>
         // Global state
         let configurations = [
@@ -1653,6 +1663,617 @@
 
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+/* =========================================================
+ * Snow Load Diagrams — AREDraw primitives
+ * SVG 1: Drift load diagram (flat roof + balanced pf + triangular pd)
+ * SVG 2: Joist perpendicular load diagram (beam + UDL + triangular)
+ * ========================================================= */
+
+// ── brand palette (standard only — no green/blue) ────────
+var COL = {
+  navy:   '#1a2b5f',   // object lines / roof outline
+  fill:   '#dbe2f0',   // secondary fill (roof deck, beam body)
+  force:  '#c42b2b',   // drift load accent (brand red = force/load)
+  dim:    '#6b7a96',   // dimensions / witness lines / leaders
+  center: '#9aa6c2',   // centerlines (dash-dot)
+  title:  '#1a2b5f',   // view title text
+  snow:   '#8595bd',   // balanced snow fill — muted navy tint (NOT green/blue/red)
+  font:   "'DM Sans','Segoe UI',system-ui,sans-serif"
+};
+
+// ── helper: draw a filled polygon path (px coords array [[x,y],...]) ─
+function polyPath(pts, fill, stroke, sw) {
+  var d = pts.map(function(p,i){ return (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ') + ' Z';
+  var el = document.createElementNS('http://www.w3.org/2000/svg','path');
+  el.setAttribute('d', d);
+  if (fill)   el.setAttribute('fill', fill);
+  if (stroke) el.setAttribute('stroke', stroke);
+  if (sw)     el.setAttribute('stroke-width', sw);
+  el.setAttribute('stroke-linejoin','round');
+  return el;
+}
+function svgEl(tag, attrs) {
+  var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (var k in attrs) { if (attrs[k]!=null) e.setAttribute(k, attrs[k]); }
+  return e;
+}
+function svgText(svg, x, y, str, attrs) {
+  var t = svgEl('text', Object.assign({x:x.toFixed(1),y:y.toFixed(1)}, attrs||{}));
+  t.textContent = str;
+  svg.appendChild(t);
+  return t;
+}
+function svgLine(svg, x1,y1,x2,y2, attrs) {
+  var l = svgEl('line', Object.assign({x1:x1.toFixed(1),y1:y1.toFixed(1),x2:x2.toFixed(1),y2:y2.toFixed(1)}, attrs||{}));
+  svg.appendChild(l);
+  return l;
+}
+
+/* ── Tick-mark dim line (structural drafting convention) ─────────── */
+function drawDimLine(svg, x1, y1, x2, y2, label, offPx, color) {
+  color = color || COL.dim;
+  // perpendicular direction
+  var dx = x2-x1, dy = y2-y1, len = Math.sqrt(dx*dx+dy*dy)||1;
+  var nx = -dy/len, ny = dx/len;
+  var ox = nx*offPx, oy = ny*offPx;
+  // witness lines
+  svgLine(svg, x1,y1, x1+ox+nx*3,y1+oy+ny*3, {stroke:color,'stroke-width':0.7});
+  svgLine(svg, x2,y2, x2+ox+nx*3,y2+oy+ny*3, {stroke:color,'stroke-width':0.7});
+  // dim line
+  svgLine(svg, x1+ox,y1+oy, x2+ox,y2+oy, {stroke:color,'stroke-width':1});
+  // tick marks (45° oblique)
+  var ux=dx/len, uy=dy/len;
+  var tkx=(ux-uy)*0.7071, tky=(ux+uy)*0.7071, tl=4.5;
+  [[x1+ox,y1+oy],[x2+ox,y2+oy]].forEach(function(pt){
+    svgLine(svg, pt[0]-tkx*tl,pt[1]-tky*tl, pt[0]+tkx*tl,pt[1]+tky*tl, {stroke:color,'stroke-width':1});
+  });
+  // label
+  var isH = Math.abs(dx)>=Math.abs(dy);
+  var mx=(x1+x2)/2+ox+nx*9, my=(y1+y2)/2+oy+ny*9;
+  svgText(svg, mx, my+(isH?4:0), label, {
+    fill:color, 'font-size':10.5, 'font-family':COL.font,
+    'text-anchor':'middle', 'dominant-baseline': isH?'middle':'auto'
+  });
+}
+
+/* ── Filled triangular load shape (px coords for outline) ─────────── */
+function drawTriLoad(svg, pts, fillColor, strokeColor) {
+  // pts = array of [x,y] forming closed polygon
+  var path = polyPath(pts, fillColor, strokeColor||fillColor, 1);
+  path.setAttribute('opacity','0.82');
+  svg.appendChild(path);
+}
+
+/* ── Arrow tip helper ─────────────────────────────────────────────── */
+function arrowHead(svg, x, y, dx, dy, color, size) {
+  size = size||7;
+  var len=Math.sqrt(dx*dx+dy*dy)||1;
+  var ux=dx/len, uy=dy/len, px=-uy, py=ux;
+  var path = polyPath([
+    [x,y],
+    [x-ux*size+px*(size*0.4), y-uy*size+py*(size*0.4)],
+    [x-ux*size-px*(size*0.4), y-uy*size-py*(size*0.4)]
+  ], color, 'none', 0);
+  svg.appendChild(path);
+}
+
+/* ── Dotted leader + label ──────────────────────────────────────────── */
+function drawCallout(svg, appX, appY, labX, labY, label, color, anchor) {
+  color = color || COL.force;
+  anchor = anchor || (labX >= appX ? 'start' : 'end');
+  svgLine(svg, appX,appY, labX,labY, {stroke:color,'stroke-width':0.8,'stroke-dasharray':'2 2'});
+  var dot = svgEl('circle',{cx:appX.toFixed(1),cy:appY.toFixed(1),r:1.7,fill:color});
+  svg.appendChild(dot);
+  var pad = anchor==='start' ? 4 : -4;
+  svgText(svg, labX+pad, labY-3, label, {
+    fill:color,'font-size':11,'font-weight':600,'font-family':COL.font,'text-anchor':anchor
+  });
+}
+
+/* ── View title below + underline ────────────────────────────────── */
+function drawViewTitle(svg, cx, y, label) {
+  svgText(svg, cx, y, label, {
+    fill:COL.title,'font-size':13,'font-weight':700,
+    'font-family':COL.font,'text-anchor':'middle'
+  });
+  var uw = label.length*13*0.56/2 + 3;
+  svgLine(svg, cx-uw, y+4.5, cx+uw, y+4.5, {stroke:COL.title,'stroke-width':1.1});
+}
+
+/* ==============================================================
+ * DIAGRAM 1 — Drift Load (flat roof + balanced pf + triangular pd)
+ * Shows the highest-pd configuration from the current state so the
+ * diagram always reflects real inputs.
+ * ============================================================== */
+function drawDriftDiagram() {
+  var svg = document.getElementById('snowDriftSvg');
+  if (!svg) return;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  var basics = calculateBasics();
+  var pf = basics.pf, hb = basics.hb;
+
+  // Pick the config with highest pd for the canonical diagram
+  var bestCfg = null, bestDrift = null, bestPd = -1;
+  configurations.forEach(function(cfg) {
+    var d = calculateDrift(cfg, basics);
+    if (d.pd > bestPd) { bestPd = d.pd; bestCfg = cfg; bestDrift = d; }
+  });
+
+  // If no configs or zero drift, draw a simple balanced-only diagram
+  var hasDrift = bestDrift && bestDrift.W > 0 && bestDrift.pd > 0;
+  var W = hasDrift ? bestDrift.W : 0;         // drift width ft
+  var pd = hasDrift ? bestDrift.pd : 0;       // drift pressure psf
+  var hr = bestCfg ? bestCfg.hr : 4;          // parapet/step height ft
+  var totalP = pd + pf;
+
+  // ── layout constants (px) ──────────────────────────────────────
+  var SX = 110;   // left margin — wide enough for hb dim + labels
+  var SY = 30;    // top margin
+  var ROOF_W = 460; // roof span px
+  var SCALE = 7;  // px per ft for height (snow/wall proportions)
+  var ROOF_H = 14;  // roof deck thickness px
+  var WALL_W = 20;  // parapet/wall width px
+  var WALL_H = Math.max(hr * SCALE, 35); // parapet height px
+
+  // Balanced snow depth px (visual, minimum 14px so it's always visible)
+  var hbPx = Math.max(Math.min(hb * SCALE, 40), pf > 0.01 ? 14 : 0);
+  // Drift width: proportional to lu (fetch span), capped at 60% of roof
+  var luPx = Math.max(bestCfg ? bestCfg.lu : 60, 30);
+  var maxDriftPx = ROOF_W * 0.60;
+  var WPx = hasDrift ? Math.min(W * (ROOF_W / luPx), maxDriftPx) : 0;
+  WPx = Math.max(WPx, hasDrift ? 50 : 0);
+  // Drift peak height px (proportion of hc to wall height)
+  var hc = hasDrift ? bestDrift.hc : 0;
+  var driftPeakPx = hasDrift ? Math.min((hc > 0 ? Math.min(pd/(hc*basics.gamma||1),1) : 0.7) * WALL_H * 0.8, WALL_H * 0.82) : 0;
+  driftPeakPx = Math.max(driftPeakPx, hasDrift ? 24 : 0);
+
+  // Right gutter: room for callout labels (pd, pd+pf)
+  var RIGHT_GUTTER = 165;
+  // Bottom: dims + legend + title
+  var BOT = 115;
+  // ROOF_Y: enough top room for the wall + drift triangle above it
+  var ROOF_Y = SY + WALL_H + driftPeakPx + hbPx + 10;
+
+  var CW = SX + ROOF_W + WALL_W + RIGHT_GUTTER;
+  var CH = ROOF_Y + ROOF_H + BOT;
+
+  svg.setAttribute('viewBox', '0 0 '+CW+' '+CH);
+  svg.setAttribute('width', CW);
+  svg.setAttribute('height', CH);
+  svg.style.maxWidth = Math.round(CW*1.25)+'px';
+  svg.style.height = 'auto';
+
+  // Coordinate shortcuts
+  var rX    = SX;              // left edge of roof span
+  var rXend = rX + ROOF_W;     // right edge (wall side)
+  var wallX = rXend;           // wall left edge
+  var deckTop = ROOF_Y;        // y of top of roof deck
+  var deckBot = ROOF_Y + ROOF_H;
+  var snowTop = deckTop - hbPx; // top of balanced snow layer
+  var wallTop = deckTop - WALL_H; // top of parapet
+
+  // ── Defs (hatch patterns) ─────────────────────────────────────
+  var defs = svgEl('defs',{});
+  svg.appendChild(defs);
+
+  var hatchId = 'wh1d';
+  var pat = svgEl('pattern',{id:hatchId,width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
+  pat.appendChild(svgEl('line',{x1:0,y1:0,x2:0,y2:6,stroke:COL.navy,'stroke-width':0.7,'stroke-opacity':0.45}));
+  defs.appendChild(pat);
+
+  var hid2='rh1d';
+  var pat2=svgEl('pattern',{id:hid2,width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'});
+  pat2.appendChild(svgEl('line',{x1:0,y1:0,x2:0,y2:6,stroke:COL.navy,'stroke-width':0.7,'stroke-opacity':0.3}));
+  defs.appendChild(pat2);
+
+  // ── Draw wall / parapet ───────────────────────────────────────
+  var wallRect = svgEl('rect',{
+    x:wallX, y:wallTop, width:WALL_W, height:WALL_H+ROOF_H,
+    fill:COL.fill, stroke:COL.navy, 'stroke-width':2, 'stroke-linejoin':'round'
+  });
+  svg.appendChild(wallRect);
+  var wallHatch = svgEl('rect',{
+    x:wallX, y:wallTop, width:WALL_W, height:WALL_H+ROOF_H,
+    fill:'url(#'+hatchId+')', stroke:'none'
+  });
+  svg.appendChild(wallHatch);
+
+  // Wall label — above wall top, left-anchored, no overlap with dim
+  svgText(svg, wallX - 6, wallTop - 8, 'Wall / Parapet', {
+    fill:COL.dim,'font-size':9.5,'font-family':COL.font,'text-anchor':'end'
+  });
+
+  // ── Draw roof deck ────────────────────────────────────────────
+  var roofRect = svgEl('rect',{
+    x:rX, y:deckTop, width:ROOF_W, height:ROOF_H,
+    fill:COL.fill, stroke:COL.navy, 'stroke-width':2, 'stroke-linejoin':'round'
+  });
+  svg.appendChild(roofRect);
+  var roofHatch = svgEl('rect',{
+    x:rX, y:deckTop, width:ROOF_W, height:ROOF_H,
+    fill:'url(#'+hid2+')', stroke:'none'
+  });
+  svg.appendChild(roofHatch);
+
+  // ── Balanced snow load (pf) — filled rectangle above roof ─────
+  if (pf > 0.01) {
+    var snowRect = svgEl('rect',{
+      x:rX, y:snowTop, width:ROOF_W, height:hbPx,
+      fill:COL.snow, stroke:COL.navy, 'stroke-width':1, opacity:0.65
+    });
+    svg.appendChild(snowRect);
+  }
+
+  // ── Drift load (pd) — triangular surcharge on top of balanced snow ─
+  if (hasDrift && WPx > 0 && driftPeakPx > 0) {
+    var driftPeakX = rXend;          // peak at wall face
+    var driftBaseX = rXend - WPx;    // zero end of drift
+
+    // Filled drift triangle
+    var driftPts = [
+      [driftBaseX, snowTop],
+      [driftPeakX, snowTop - driftPeakPx],
+      [driftPeakX, snowTop]
+    ];
+    drawTriLoad(svg, driftPts, COL.force, COL.force);
+
+    // Drift outline (crisp edge)
+    var outline = polyPath(driftPts, 'none', COL.force, 1.5);
+    svg.appendChild(outline);
+
+    // ── Dimension: drift width W (below deck) ─────────────────
+    var dimY = deckBot + 28;
+    drawDimLine(svg, driftBaseX, dimY, driftPeakX, dimY,
+      'W = '+W.toFixed(1)+' ft', 0, COL.dim);
+    svgLine(svg, driftBaseX, deckBot, driftBaseX, dimY+4,
+      {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+    svgLine(svg, driftPeakX, deckBot, driftPeakX, dimY+4,
+      {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+
+    // ── Callout: pd (drift surcharge at peak) ────────────────
+    // Application point: on the hypotenuse mid-height, pulled right
+    var appXpd = driftPeakX - WPx * 0.18;
+    var appYpd = snowTop - driftPeakPx * 0.52;
+    var labXpd = CW - 12;
+    var labYpd = appYpd + 4;
+    drawCallout(svg, appXpd, appYpd, labXpd, labYpd,
+      'pd = '+pd.toFixed(1)+' psf', COL.force, 'end');
+
+    // ── Callout: total (pd+pf) at drift peak tip ─────────────
+    var tipX = driftPeakX;
+    var tipY = snowTop - driftPeakPx;
+    var labXtot = CW - 12;
+    var labYtot = tipY - 10;
+    drawCallout(svg, tipX, tipY, labXtot, labYtot,
+      'pd+pf = '+totalP.toFixed(1)+' psf', COL.force, 'end');
+  }
+
+  // ── Callout: pf (balanced snow) — leader from snow mid-span ──
+  if (pf > 0.01) {
+    // Application: mid-span on the snow block surface (centre of roof)
+    var pfAppX = rX + ROOF_W * 0.38;
+    var pfAppY = snowTop + hbPx * 0.5;
+    // Label: top-left — above the snow layer, clear of hb dim
+    var pfLabX = rX - 14;
+    var pfLabY = snowTop - 18;
+    drawCallout(svg, pfAppX, pfAppY, pfLabX, pfLabY,
+      'pf = '+pf.toFixed(1)+' psf', COL.snow, 'end');
+  }
+
+  // ── Dimension: hb (balanced snow depth) — left of roof ───────
+  if (pf > 0.01 && hbPx >= 8) {
+    var hbDimX = rX - 22;
+    drawDimLine(svg, hbDimX, snowTop, hbDimX, deckTop,
+      'hb='+hb.toFixed(2)+'\'', 0, COL.dim);
+    // Witness lines from snow top/bottom to dim line
+    svgLine(svg, rX, snowTop, hbDimX - 2, snowTop,
+      {stroke:COL.dim,'stroke-width':0.6,'stroke-dasharray':'2 2'});
+    svgLine(svg, rX, deckTop, hbDimX - 2, deckTop,
+      {stroke:COL.dim,'stroke-width':0.6,'stroke-dasharray':'2 2'});
+  }
+
+  // ── Dimension: hr (full parapet height) — right of wall ───────
+  // Use a callout-style label so it doesn't fight with hc
+  var hrDimX = wallX + WALL_W + 40;
+  // Vertical dim line hr (wall top to deck top)
+  svgLine(svg, hrDimX, wallTop, hrDimX, deckTop,
+    {stroke:COL.dim,'stroke-width':1});
+  // Tick marks at ends (45° obliques)
+  [[wallTop],[deckTop]].forEach(function(pt) {
+    var y = pt[0];
+    svgLine(svg, hrDimX-4, y-4, hrDimX+4, y+4,
+      {stroke:COL.dim,'stroke-width':1});
+  });
+  // Witness from wall right edge to dim line
+  svgLine(svg, wallX+WALL_W, wallTop, hrDimX-1, wallTop,
+    {stroke:COL.dim,'stroke-width':0.6,'stroke-dasharray':'2 2'});
+  svgLine(svg, wallX+WALL_W, deckTop, hrDimX-1, deckTop,
+    {stroke:COL.dim,'stroke-width':0.6,'stroke-dasharray':'2 2'});
+  // Leader from mid-point of hr dim to label (upper-right gutter)
+  var hrMidY = (wallTop + deckTop) / 2;
+  var hrLabX = hrDimX + 16;
+  var hrLabY = wallTop - 12;  // above the wall top — clear gutter
+  svgLine(svg, hrDimX, hrMidY, hrLabX, hrLabY,
+    {stroke:COL.dim,'stroke-width':0.8,'stroke-dasharray':'2 2'});
+  svgText(svg, hrLabX + 3, hrLabY, 'hr = '+(bestCfg?bestCfg.hr:0).toFixed(1)+' ft', {
+    fill:COL.dim,'font-size':10.5,'font-family':COL.font,'text-anchor':'start'
+  });
+
+  // ── Dimension: hc (clear above balanced snow) ─────────────────
+  if (hasDrift && hc > 0.01 && hbPx < WALL_H - 8) {
+    // hc dim: from snowTop down to deckTop, same column as hr
+    var hcDimX = hrDimX;
+    svgLine(svg, hcDimX, snowTop, hcDimX, deckTop,
+      {stroke:COL.dim,'stroke-width':1,'stroke-dasharray':'4 2'});
+    // Tick marks
+    [[snowTop],[deckTop]].forEach(function(pt) {
+      var y = pt[0];
+      svgLine(svg, hcDimX-4, y-4, hcDimX+4, y+4,
+        {stroke:COL.dim,'stroke-width':1});
+    });
+    svgLine(svg, wallX+WALL_W, snowTop, hcDimX-1, snowTop,
+      {stroke:COL.dim,'stroke-width':0.6,'stroke-dasharray':'2 2'});
+    // Leader from mid of hc to label (below hr label)
+    var hcMidY = (snowTop + deckTop) / 2;
+    svgLine(svg, hcDimX, hcMidY, hrLabX, hrLabY + 18,
+      {stroke:COL.dim,'stroke-width':0.8,'stroke-dasharray':'2 2'});
+    svgText(svg, hrLabX + 3, hrLabY + 18, 'hc = '+hc.toFixed(2)+' ft', {
+      fill:COL.dim,'font-size':10.5,'font-family':COL.font,'text-anchor':'start'
+    });
+  }
+
+  // ── Ground / base line at deck bottom ─────────────────────────
+  svgLine(svg, rX, deckBot, rXend + WALL_W + 4, deckBot,
+    {stroke:COL.navy,'stroke-width':1.5});
+
+  // ── Legend (bottom left) ──────────────────────────────────────
+  var lgY = CH - 30;
+  var sw1 = svgEl('rect',{x:rX,y:lgY-9,width:18,height:9,fill:COL.snow,opacity:0.65,stroke:COL.navy,'stroke-width':0.7});
+  svg.appendChild(sw1);
+  svgText(svg, rX+22, lgY, 'Balanced Snow (pf)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  if (hasDrift) {
+    var sw2 = svgEl('rect',{x:rX+170,y:lgY-9,width:18,height:9,fill:COL.force,opacity:0.82,stroke:COL.force,'stroke-width':0.7});
+    svg.appendChild(sw2);
+    svgText(svg, rX+192, lgY, 'Drift Surcharge (pd)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  }
+
+  // ── View title (below, underlined) ───────────────────────────
+  var cfgLabel = bestCfg ? ' — '+bestCfg.name+' ('+bestCfg.type+')' : '';
+  drawViewTitle(svg, rX + ROOF_W/2, CH - 12, 'Snow Drift Load Diagram'+cfgLabel);
+}
+
+/* ==============================================================
+ * DIAGRAM 2 — Joist Perpendicular (beam + UDL pf + triangular pd)
+ * ============================================================== */
+function drawJoistDiagram() {
+  var svg = document.getElementById('snowJoistSvg');
+  if (!svg) return;
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  var sourceIndex = document.getElementById('perp-drift-source').value;
+  var spacingIn   = parseFloat(document.getElementById('perp-spacing').value)  || 24;
+  var lengthFt    = parseFloat(document.getElementById('perp-length').value)   || 20;
+  var peakLoc     = document.getElementById('perp-peak-location').value;
+
+  if (sourceIndex === '') {
+    // No config selected — draw a placeholder
+    svg.setAttribute('viewBox','0 0 600 80');
+    svg.setAttribute('width','600'); svg.setAttribute('height','80');
+    svg.style.maxWidth='780px'; svg.style.height='auto';
+    svgText(svg, 300, 44, 'Select a Drift Configuration to view the joist diagram', {
+      fill:COL.dim,'font-size':11,'font-family':COL.font,'text-anchor':'middle'
+    });
+    return;
+  }
+
+  var basics = calculateBasics();
+  var cfg = configurations[sourceIndex];
+  var dResult = calculateDrift(cfg, basics);
+  var pf = basics.pf;
+  var pd = dResult.pd;
+  var W  = dResult.W;  // drift width ft
+  var spacingFt = spacingIn / 12;
+
+  var uniformPlf  = pf * spacingFt;   // plf balanced
+  var triPeakPlf  = pd * spacingFt;   // plf drift peak
+  var effW = Math.min(W, lengthFt);   // effective drift width (capped at joist length)
+
+  // ── layout constants ─────────────────────────────────────────
+  var SX = 70;   // left margin (room for left label)
+  var SY = 20;   // top margin
+  var BEAM_W = 460;  // beam span px
+  var BEAM_Y = 170;  // beam centerline y px
+  var BEAM_H = 14;   // beam depth px
+  var UDL_H  = 40;   // uniform load rail height px
+  var SCALE_L = BEAM_W / lengthFt; // px per ft (length scale)
+  var PEAK_H  = 55;  // triangular drift peak height px (visual, constant)
+  var WPx = Math.min(effW * SCALE_L, BEAM_W);
+
+  var CW = SX + BEAM_W + 140;
+  var CH = SY + PEAK_H + UDL_H + BEAM_H + 110;
+
+  svg.setAttribute('viewBox','0 0 '+CW+' '+CH);
+  svg.setAttribute('width',CW);
+  svg.setAttribute('height',CH);
+  svg.style.maxWidth=Math.round(CW*1.3)+'px';
+  svg.style.height='auto';
+
+  var bX0 = SX;
+  var bX1 = SX + BEAM_W;
+  var beamTop = BEAM_Y;
+  var beamBot = BEAM_Y + BEAM_H;
+  var udlTop  = beamTop - UDL_H;     // top of uniform load rail
+
+  // ── Defs (arrowhead marker) ───────────────────────────────────
+  var defs2 = svgEl('defs',{});
+  var mId = 'arr2';
+  var marker = svgEl('marker',{id:mId,markerWidth:7,markerHeight:7,refX:6,refY:3.5,orient:'auto',markerUnits:'userSpaceOnUse'});
+  marker.appendChild(svgEl('path',{d:'M0,0 L0,7 L7,3.5 z',fill:COL.force}));
+  defs2.appendChild(marker);
+  svg.appendChild(defs2);
+
+  // ── Uniform load (pf × spacing) ────────────────────────────
+  // Filled navy-tint rectangle
+  if (uniformPlf > 0.01) {
+    var uRect = svgEl('rect',{
+      x:bX0, y:udlTop, width:BEAM_W, height:UDL_H,
+      fill:COL.snow, stroke:'none', opacity:0.55
+    });
+    svg.appendChild(uRect);
+    // Top rail
+    svgLine(svg, bX0, udlTop, bX1, udlTop, {stroke:COL.snow,'stroke-width':1.5});
+    // Arrow ticks
+    var nArr = Math.max(4, Math.round(BEAM_W/50));
+    for (var i=0;i<=nArr;i++) {
+      var ax = bX0 + BEAM_W*(i/nArr);
+      svgLine(svg, ax,udlTop, ax,beamTop-1, {stroke:COL.snow,'stroke-width':1,'marker-end':'url(#'+mId+')'});
+    }
+  }
+
+  // ── Triangular drift load (pd × spacing) ─────────────────────
+  if (triPeakPlf > 0.01 && WPx > 0) {
+    var peakX = peakLoc === 'right' ? bX1 : bX0;
+    var zeroX = peakLoc === 'right' ? bX1 - WPx : bX0 + WPx;
+    var triTop = udlTop - PEAK_H;
+
+    // Filled triangle
+    var triPts = [
+      [peakX, udlTop - PEAK_H],
+      [zeroX, udlTop],
+      [peakX, udlTop]
+    ];
+    drawTriLoad(svg, triPts, COL.force, COL.force);
+
+    // Arrow ticks for drift triangle
+    var nTri = Math.max(3, Math.round(WPx/40));
+    for (var j=0;j<=nTri;j++) {
+      var frac = j/nTri;
+      var arrowX = peakLoc==='right' ? bX1-WPx*frac : bX0+WPx*frac;
+      var heightFrac = peakLoc==='right' ? frac : (1-frac);
+      var arrowTopY = udlTop - PEAK_H*heightFrac;
+      if (PEAK_H*heightFrac > 4) {
+        svgLine(svg, arrowX,arrowTopY, arrowX,beamTop-1,
+          {stroke:COL.force,'stroke-width':1,'marker-end':'url(#'+mId+')'});
+      }
+    }
+
+    // ── Callout: drift peak ──────────────────────────────────
+    var dAppX = peakX;
+    var dAppY = udlTop - PEAK_H;
+    var dLabX = peakLoc==='right' ? CW-15 : SX/2;
+    var dAnchor = peakLoc==='right' ? 'end' : 'start';
+    drawCallout(svg, dAppX, dAppY, dLabX, dAppY-10,
+      'wd = '+triPeakPlf.toFixed(0)+' plf (peak)', COL.force, dAnchor);
+
+    // Drift width dim
+    var dimY2 = beamBot + 36;
+    drawDimLine(svg, Math.min(peakX,zeroX), dimY2, Math.max(peakX,zeroX), dimY2,
+      'W = '+W.toFixed(1)+' ft', 0, COL.dim);
+    svgLine(svg, Math.min(peakX,zeroX),beamBot, Math.min(peakX,zeroX),dimY2+4,
+      {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+    svgLine(svg, Math.max(peakX,zeroX),beamBot, Math.max(peakX,zeroX),dimY2+4,
+      {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+  }
+
+  // ── Callout: uniform load ─────────────────────────────────────
+  if (uniformPlf > 0.01) {
+    var uAppX = bX0 + BEAM_W*0.35;
+    var uAppY = udlTop + UDL_H*0.5;
+    var uLabX = bX0 - 10;
+    drawCallout(svg, uAppX, uAppY, uLabX, uAppY,
+      'wu = '+uniformPlf.toFixed(0)+' plf', COL.snow, 'end');
+  }
+
+  // ── Beam (joist) ─────────────────────────────────────────────
+  var beamRect = svgEl('rect',{
+    x:bX0, y:beamTop, width:BEAM_W, height:BEAM_H,
+    fill:COL.fill, stroke:COL.navy, 'stroke-width':2, 'stroke-linejoin':'round'
+  });
+  svg.appendChild(beamRect);
+
+  // Centerline through beam
+  svgLine(svg, bX0-10, beamTop+BEAM_H/2, bX1+10, beamTop+BEAM_H/2, {
+    stroke:COL.center,'stroke-width':0.9,'stroke-dasharray':'7 2 1.5 2'
+  });
+
+  // ── Support triangles ─────────────────────────────────────────
+  function drawSupport(x) {
+    var sy = beamBot;
+    var path = polyPath([[x,sy],[x-10,sy+16],[x+10,sy+16]], COL.fill, COL.navy, 1.5);
+    svg.appendChild(path);
+    svgLine(svg, x-12, sy+18, x+12, sy+18, {stroke:COL.navy,'stroke-width':1.5});
+  }
+  drawSupport(bX0);
+  drawSupport(bX1);
+
+  // ── Reaction callouts ─────────────────────────────────────────
+  var RL = parseFloat((document.getElementById('perp-left-reaction')||{textContent:'0'}).textContent) || 0;
+  var RR = parseFloat((document.getElementById('perp-right-reaction')||{textContent:'0'}).textContent) || 0;
+  if (RL > 0 || RR > 0) {
+    var rLabelY = beamBot + 38;
+    svgText(svg, bX0, rLabelY, 'RL = '+RL.toFixed(0)+' lbs', {
+      fill:COL.dim,'font-size':9.5,'font-family':COL.font,'text-anchor':'middle'
+    });
+    svgText(svg, bX1, rLabelY, 'RR = '+RR.toFixed(0)+' lbs', {
+      fill:COL.dim,'font-size':9.5,'font-family':COL.font,'text-anchor':'middle'
+    });
+  }
+
+  // ── Length dimension ──────────────────────────────────────────
+  var lenDimY = beamBot + 56;
+  drawDimLine(svg, bX0, lenDimY, bX1, lenDimY,
+    'L = '+lengthFt.toFixed(1)+' ft', 0, COL.dim);
+  svgLine(svg, bX0,beamBot, bX0,lenDimY+4, {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+  svgLine(svg, bX1,beamBot, bX1,lenDimY+4, {stroke:COL.dim,'stroke-width':0.7,'stroke-dasharray':'2 2'});
+
+  // ── Legend ────────────────────────────────────────────────────
+  var lgY2 = CH - 14;
+  var sw3=svgEl('rect',{x:bX0,y:lgY2-9,width:18,height:9,fill:COL.snow,opacity:0.6,stroke:COL.navy,'stroke-width':0.7});
+  svg.appendChild(sw3);
+  svgText(svg, bX0+22, lgY2, 'Balanced Snow (pf)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  if (triPeakPlf > 0.01) {
+    var sw4=svgEl('rect',{x:bX0+180,y:lgY2-9,width:18,height:9,fill:COL.force,opacity:0.82,stroke:COL.force,'stroke-width':0.7});
+    svg.appendChild(sw4);
+    svgText(svg, bX0+202, lgY2, 'Drift Surcharge (pd)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  }
+
+  // ── View title ────────────────────────────────────────────────
+  drawViewTitle(svg, bX0 + BEAM_W/2, CH-2,
+    'Joist Perpendicular — '+cfg.name+' · '+spacingIn+'" o.c. · L='+lengthFt.toFixed(0)+"'");
+}
+
+/* ── Hook into the existing update cycle ─────────────────────────── */
+(function(){
+  // Patch updateDisplay to also redraw diagrams
+  var _orig = window.updateDisplay;
+  window.updateDisplay = function() {
+    _orig.apply(this, arguments);
+    try { drawDriftDiagram(); } catch(e){ console.warn('drift diagram:', e); }
+    try { drawJoistDiagram(); } catch(e){ console.warn('joist diagram:', e); }
+  };
+
+  // Patch updatePerpendicular similarly
+  var _origPerp = window.updatePerpendicular;
+  window.updatePerpendicular = function() {
+    _origPerp.apply(this, arguments);
+    try { drawJoistDiagram(); } catch(e){ console.warn('joist diagram:', e); }
+  };
+
+  // Also redraw when tab switches reveal the joist tab
+  var _origSwitch = window.switchTab;
+  window.switchTab = function(tabName) {
+    _origSwitch.apply(this, arguments);
+    if (tabName === 'joist-perp') {
+      setTimeout(function(){ try { drawJoistDiagram(); } catch(e){} }, 50);
+    }
+    if (tabName === 'drift') {
+      setTimeout(function(){ try { drawDriftDiagram(); } catch(e){} }, 50);
+    }
+  };
+})();
+</script>
 
 <script>
 (function(){

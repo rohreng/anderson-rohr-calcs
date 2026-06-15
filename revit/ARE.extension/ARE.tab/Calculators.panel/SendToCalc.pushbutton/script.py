@@ -41,7 +41,9 @@ try:
     from Autodesk.Revit.DB import (
         FilteredElementCollector,
         BuiltInCategory,
+        BuiltInParameter,
         Element,
+        ElementId,
         Transaction,
         StorageType,
     )
@@ -64,7 +66,12 @@ VALID_CATEGORIES = (
     "Walls",
 )
 
-# Revit shared-param names
+# Revit shared-param names. Canonical key = the legacy "ARE_*" name, which is
+# still used as the dict key throughout this script. The input params were
+# renamed with a numeric sort prefix (e.g. "2_Section_ARE") so the Properties
+# palette lists them in functional order; the GUIDs are unchanged. We read/write
+# by trying the new name first, then the legacy name, so both freshly-bound
+# projects and older projects keep working.
 INPUT_PARAM_NAMES = [
     "ARE_Mu", "ARE_Vu", "ARE_Pu", "ARE_Span", "ARE_Lb",
     "ARE_Section", "ARE_CalcType",
@@ -73,12 +80,28 @@ WRITEBACK_PARAM_NAMES = [
     "ARE_DCR", "ARE_Status", "ARE_CalcURL", "ARE_CalcDate",
 ]
 
+# canonical key -> [preferred new name, legacy fallback]
+PARAM_ALIASES = {
+    "ARE_CalcType": ["1_CalcType_ARE", "ARE_CalcType"],
+    "ARE_Section":  ["2_Section_ARE",  "ARE_Section"],
+    "ARE_Span":     ["3_Length_ARE",   "ARE_Span"],
+    "ARE_Lb":       ["4_Lb_ARE",       "ARE_Lb"],
+    "ARE_Vu":       ["5_Vu_ARE",       "ARE_Vu"],
+    "ARE_Mu":       ["6_Mu_ARE",       "ARE_Mu"],
+    "ARE_Pu":       ["7_Pu_ARE",       "ARE_Pu"],
+}
+
+
+def param_candidates(key):
+    """Return the lookup-name candidates for a canonical param key."""
+    return PARAM_ALIASES.get(key, [key])
+
 # Config file: %APPDATA%\ARE\calc_config.json
 CONFIG_DIR = os.path.join(
     os.environ.get("APPDATA", os.path.expanduser("~")),
     "ARE",
 )
-CONFIG_PATH = os.path.join(CONFIG_DIR, "calc_config.json")
+CONFIG_PATH = ([p for p in [os.path.join(os.environ.get("APPDATA","") or "_", "ARE", "calc_config.json"), os.path.join("C:\\Users", os.environ.get("USERNAME","") or "_", "AppData", "Roaming", "ARE", "calc_config.json"), os.path.join(os.environ.get("PROGRAMDATA","C:\\ProgramData"), "ARE", "calc_config.json")] if os.path.isfile(p)] or [os.path.join(CONFIG_DIR, "calc_config.json")])[0]
 
 # ---------------------------------------------------------------------------
 # Section-name normalisation helpers
@@ -244,6 +267,24 @@ def set_param_value(elem, param_name, value):
         param.Set(int(value))
     return True
 
+
+def get_param_value_any(elem, names):
+    """First non-empty value among candidate param names, or None."""
+    for n in names:
+        val = get_param_value(elem, n)
+        if val is not None:
+            return val
+    return None
+
+
+def set_param_value_any(elem, names, value):
+    """Set the first writable param found among candidate names. True on success."""
+    for n in names:
+        param = elem.LookupParameter(n)
+        if param is not None and not param.IsReadOnly:
+            return set_param_value(elem, n, value)
+    return False
+
 # ---------------------------------------------------------------------------
 # Category validation
 # ---------------------------------------------------------------------------
@@ -261,6 +302,88 @@ def is_valid_category(elem):
         if valid.lower() in cat.lower():
             return True
     return False
+
+# ---------------------------------------------------------------------------
+# Modelled-data readers (Goal 3: auto-read section + length from the element)
+# ---------------------------------------------------------------------------
+
+
+def _element_name(e):
+    """Return an element's Name robustly under IronPython (avoids indexer ambiguity)."""
+    try:
+        return Element.Name.GetValue(e)
+    except Exception:
+        try:
+            return e.Name
+        except Exception:
+            return ""
+
+
+def get_element_section_name(elem):
+    """
+    Read the modelled section/type name off the element, e.g. 'W8X10'.
+
+    For Structural Framing / Columns (FamilyInstance) the type symbol name is the
+    shape label. Falls back to the element's type name for anything else.
+    Returns "" if no name can be read. The raw name is fed through
+    normalize_section() / section-map.csv downstream.
+    """
+    # FamilyInstance -> the FamilySymbol (type) name is the shape, e.g. "W8X10"
+    sym = getattr(elem, "Symbol", None)
+    if sym is not None:
+        name = _element_name(sym)
+        if name:
+            return name
+
+    # Generic fallback: the element's type name
+    try:
+        tid = elem.GetTypeId()
+        if tid is not None and tid != ElementId.InvalidElementId:
+            etype = elem.Document.GetElement(tid)
+            if etype is not None:
+                name = _element_name(etype)
+                if name:
+                    return name
+    except Exception:
+        pass
+    return ""
+
+
+def get_element_length_inches(elem):
+    """
+    Read the modelled length off the element and return it in INCHES, or None.
+
+    Revit stores lengths internally in decimal feet, so the result is x12.
+    Tries the framing 'Cut Length' / instance 'Length' / curve length built-in
+    params in order, then falls back to the location-curve geometry length.
+    """
+    bip_candidates = [
+        BuiltInParameter.STRUCTURAL_FRAME_CUT_LENGTH,  # framing "Cut Length"
+        BuiltInParameter.INSTANCE_LENGTH_PARAM,        # instance "Length"
+        BuiltInParameter.CURVE_ELEM_LENGTH,            # generic curve length
+    ]
+    for bip in bip_candidates:
+        try:
+            p = elem.get_Parameter(bip)
+        except Exception:
+            p = None
+        if (p is not None and p.HasValue
+                and p.StorageType == StorageType.Double):
+            feet = p.AsDouble()
+            if feet and feet > 0:
+                return feet * 12.0
+
+    # Geometry fallback: length of the element's location curve
+    try:
+        loc = elem.Location
+        crv = getattr(loc, "Curve", None)
+        if crv is not None:
+            feet = crv.Length
+            if feet and feet > 0:
+                return feet * 12.0
+    except Exception:
+        pass
+    return None
 
 # ---------------------------------------------------------------------------
 # HTTP helper (IronPython-compatible, uses System.Net.HttpWebRequest)
@@ -334,6 +457,42 @@ def http_post_json(url, payload_dict, api_key):
 # ---------------------------------------------------------------------------
 # Secondary-member dialog helpers (pyRevit forms)
 # ---------------------------------------------------------------------------
+
+
+def suggest_calc_type(elem):
+    """
+    Best-guess calc type from the element category (Goal 2 auto-suggest).
+    Columns most often need a base plate; framing most often frames into an
+    HSS column. Only used to pre-select the default in the picker.
+    """
+    cat = get_element_category_name(elem).lower()
+    if "column" in cat:
+        return "base-plate"
+    return "w-to-hss-column"
+
+
+def prompt_calc_type(suggested=None):
+    """
+    Show a dropdown of the valid calc-type slugs (Goal 2: the picker lives in the
+    button UI because Revit TEXT params can't be a native enum/dropdown).
+    Returns the chosen slug, or None if cancelled.
+    """
+    options = list(VALID_CALC_TYPES)
+    # Float the suggested type to the top so it reads as the default.
+    if suggested in options:
+        options.remove(suggested)
+        options.insert(0, suggested)
+
+    prompt_msg = "Select the calculation type (saved to ARE_CalcType):"
+    if suggested:
+        prompt_msg += "\nSuggested for this element: {}".format(suggested)
+
+    return forms.ask_for_one_item(
+        options,
+        default=options[0],
+        prompt=prompt_msg,
+        title="ARE Calc -- Calc Type",
+    )
 
 
 def prompt_hss_section(label, default="HSS10X10X1/2"):
@@ -549,13 +708,20 @@ def build_calc_state(elem, calc_type, params, connection_block):
     Returns a dict ready for json.dumps.
     Raises ValueError with a user-readable message on validation failure.
     """
-    # Section
-    raw_section = params.get("ARE_Section") or ""
+    # Section (Goal 3): use the modelled type name by default; ARE_Section is an
+    # optional manual override. process_element() resolves precedence into
+    # "_resolved_section_raw".
+    raw_section = (
+        params.get("_resolved_section_raw")
+        or params.get("ARE_Section")
+        or ""
+    )
     section = normalize_section(raw_section)
     if not section:
         raise ValueError(
-            "ARE_Section is blank on element Mark='{}'. "
-            "Set the AISC_Manual_Label (e.g. W18X50) before running.".format(
+            "Could not determine a section for element Mark='{}'.\n"
+            "Name the Revit type with an AISC label (e.g. W18X50) or set "
+            "ARE_Section manually before running.".format(
                 params.get("mark", "?")
             )
         )
@@ -592,10 +758,15 @@ def build_calc_state(elem, calc_type, params, connection_block):
         demands["Mu_op"] = 0.0
 
     # Geometry (spec §1.3: all lengths in inches)
-    # ARE_Span and ARE_Lb are NUMBER params; user enters values in INCHES per
-    # spec §7 table (display unit "inches"), so no unit conversion needed here.
+    # Length L (Goal 3): use the modelled length by default; ARE_Span is an
+    # optional manual override. ARE_Span/ARE_Lb are NUMBER params the user enters
+    # in INCHES (spec §7), and "_modeled_length_in" is already converted to
+    # inches in get_element_length_inches(), so no unit conversion is needed here.
+    length_L = params.get("ARE_Span")
+    if length_L is None:
+        length_L = params.get("_modeled_length_in")
     geometry = {
-        "L":  params.get("ARE_Span"),
+        "L":  length_L,
         "Lb": params.get("ARE_Lb"),
         "Cb": None,
     }
@@ -686,10 +857,10 @@ def process_element(doc, elem, cfg, section_map_path):
             ),
         }
 
-    # Read ARE_* input params
+    # Read ARE_* input params (new prefixed name first, legacy name as fallback)
     params = {}
     for pname in INPUT_PARAM_NAMES:
-        params[pname] = get_param_value(elem, pname)
+        params[pname] = get_param_value_any(elem, param_candidates(pname))
 
     # Element mark
     mark_param = elem.LookupParameter("Mark")
@@ -700,20 +871,42 @@ def process_element(doc, elem, cfg, section_map_path):
     )
     params["_category"] = get_element_category_name(elem)
 
-    # Validate ARE_CalcType
-    calc_type = params.get("ARE_CalcType") or ""
-    calc_type = calc_type.strip().lower()
+    # Goal 3: auto-read section + length off the modelled element.
+    # ARE_Section / ARE_Span act as optional manual overrides when set.
+    modeled_section = get_element_section_name(elem)
+    modeled_length_in = get_element_length_inches(elem)
+    params["_modeled_section"] = modeled_section
+    params["_modeled_length_in"] = modeled_length_in
+    # Resolved section precedence: manual ARE_Section override wins, else modelled.
+    params["_resolved_section_raw"] = (
+        (params.get("ARE_Section") or "").strip() or modeled_section
+    )
+
+    # Resolve ARE_CalcType (Goal 2). If it's blank or invalid, pop a dropdown
+    # picker in the button UI (Revit TEXT params can't be a native dropdown) and
+    # persist the choice back onto the element so it sticks for next time.
+    calc_type = (params.get("ARE_CalcType") or "").strip().lower()
     if calc_type not in VALID_CALC_TYPES:
-        return {
-            "mark": params["mark"], "calc_type": calc_type,
-            "url": None, "dcr": None, "status": None,
-            "error": (
-                "ARE_CalcType '{}' is not valid on element Mark='{}'.\n"
-                "Must be one of: {}".format(
-                    calc_type, params["mark"], ", ".join(VALID_CALC_TYPES)
-                )
-            ),
-        }
+        picked = prompt_calc_type(suggest_calc_type(elem))
+        if picked is None:
+            return {
+                "mark": params["mark"], "calc_type": calc_type or None,
+                "url": None, "dcr": None, "status": None,
+                "error": "Cancelled -- no calc type selected for Mark='{}'.".format(
+                    params["mark"]
+                ),
+            }
+        calc_type = picked.strip().lower()
+        params["ARE_CalcType"] = calc_type
+        # Write the picked slug back onto the calc-type param in its own
+        # transaction (new prefixed name if present, else legacy name).
+        try:
+            t = Transaction(doc, "ARE Set Calc Type")
+            t.Start()
+            set_param_value_any(elem, param_candidates("ARE_CalcType"), calc_type)
+            t.Commit()
+        except Exception:
+            pass
 
     # Validate at least one load param is set
     load_vals = [params.get(p) for p in ("ARE_Mu", "ARE_Vu", "ARE_Pu")]
@@ -759,7 +952,7 @@ def process_element(doc, elem, cfg, section_map_path):
             }
 
     elif calc_type == "hss-to-hss-branch":
-        primary_section = normalize_section(params.get("ARE_Section") or "")
+        primary_section = normalize_section(params.get("_resolved_section_raw") or "")
         connection_block = prompt_hss_branch_connection(primary_section)
         if connection_block is None:
             return {
@@ -807,6 +1000,12 @@ def process_element(doc, elem, cfg, section_map_path):
         "url":       api_response.get("url"),
         "dcr":       api_response.get("dcr"),
         "status":    api_response.get("status") or "PENDING",
+        "section":   normalize_section(params.get("_resolved_section_raw") or ""),
+        "length_in": (params.get("ARE_Span")
+                      if params.get("ARE_Span") is not None
+                      else params.get("_modeled_length_in")),
+        "section_overridden": bool((params.get("ARE_Section") or "").strip()),
+        "length_overridden":  params.get("ARE_Span") is not None,
         "error":     None,
     }
 
@@ -836,6 +1035,16 @@ def show_results_summary(results):
                     r["status"] or "",
                 )
             )
+            # Show the section + length actually used so the engineer can confirm
+            # the auto-read modelled values (or note a manual override).
+            if r.get("section"):
+                sec_src = "override" if r.get("section_overridden") else "modelled"
+                lines.append("    Section: {} ({})".format(r["section"], sec_src))
+            if r.get("length_in") is not None:
+                len_src = "override" if r.get("length_overridden") else "modelled"
+                lines.append(
+                    "    Length:  {:.2f} in ({})".format(r["length_in"], len_src)
+                )
             if r.get("url"):
                 lines.append("    URL: {}".format(r["url"]))
 
@@ -853,6 +1062,37 @@ def show_results_summary(results):
     td.MainContent = summary
     td.CommonButtons = TaskDialogCommonButtons.Ok
     td.Show()
+
+
+def open_calc_urls(urls):
+    """
+    Goal 1: offer to open the saved calc URL(s) in the default browser.
+    The ARE_CalcURL writeback param is read-only (greyed out) in Properties, so
+    this is the reliable way to actually reach the calc from Revit.
+    """
+    if not urls:
+        return
+    if len(urls) == 1:
+        msg = "Open the saved calc in your browser?\n\n{}".format(urls[0])
+    else:
+        msg = "Open all {} saved calcs in your browser?".format(len(urls))
+
+    try:
+        do_open = forms.alert(msg, title="ARE Calc", yes=True, no=True)
+    except Exception:
+        do_open = False
+    if not do_open:
+        return
+
+    import webbrowser
+    for u in urls:
+        try:
+            webbrowser.open(u)
+        except Exception:
+            try:
+                os.startfile(u)
+            except Exception:
+                pass
 
 # ---------------------------------------------------------------------------
 # Entry point (called by pyRevit when the button is clicked)
@@ -911,6 +1151,14 @@ def main():
 
     # Show summary
     show_results_summary(results)
+
+    # Goal 1: offer to open the resulting calc URL(s) in the browser, since the
+    # ARE_CalcURL writeback param is read-only / not clickable in Properties.
+    success_urls = [
+        r["url"] for r in results
+        if r.get("error") is None and r.get("url")
+    ]
+    open_calc_urls(success_urls)
 
 
 # Run when pyRevit executes this script

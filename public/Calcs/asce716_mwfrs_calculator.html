@@ -142,7 +142,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
     <div class="row">
       <div class="ig"><label>Width B (ft) — EW</label><input type="number" id="B" value="60" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig"><label>Depth D (ft) — NS</label><input type="number" id="D" value="120" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1"/></div>
+      <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig">
         <label>Roof Type</label>
         <select id="roofType" onchange="toggleRoofInputs()">
@@ -153,7 +153,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       <div class="ig" id="thetaRow" style="display:none"><label>Roof Pitch θ (deg)</label><input type="number" id="theta" value="18" min="10" max="60" step="1"/></div>
     </div>
     <div class="row">
-      <div class="ig"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5"/></div>
+      <div class="ig"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
     </div>
     <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B)</div>
     <div id="mwfrsDiagWrap" style="margin-top:12px;text-align:center"></div>
@@ -859,163 +859,399 @@ function doSendDiaphragm(){
   window.open(url,'_blank');
 }
 
-// ─── MWFRS BUILDING PLAN DIAGRAM ─────────────────────────────────────────────
+// ─── MWFRS BUILDING ELEVATION DIAGRAM (AREDraw) ──────────────────────────────
 function drawMWFRSDiagram(){
-  var B=parseFloat(document.getElementById('B').value)||60;
-  var Ddim=parseFloat(document.getElementById('D').value)||120;
-  var wrap=document.getElementById('mwfrsDiagWrap');
+  if(!window.AREDraw) return;
+
+  var B    = parseFloat(document.getElementById('B').value)||60;
+  var Ddim = parseFloat(document.getElementById('D').value)||120;
+  var hVal = parseFloat(document.getElementById('h').value)||40;
+  var hp   = parseFloat(document.getElementById('hp').value)||0;
+  var wrap = document.getElementById('mwfrsDiagWrap');
   if(!wrap) return;
 
-  // SVG canvas and margin zones (dedicated, no overlap)
-  // ml: West wall label zone
-  // mr: East wall label + D dim string zone
-  // mt: North wall label + N compass zone
-  // mb: B dim string + South wall label zone
-  var W=600, H=370;
-  var ml=76, mr=112, mt=52, mb=80;
-  var bldW=W-ml-mr, bldH=H-mt-mb;
-
-  // Scale building proportionally to fit inside bld zone
-  var scale=Math.min(bldW/B, bldH/Ddim);
-  var bW=B*scale, bH=Ddim*scale;
-
-  // Building rect (centred in bld zone)
-  var bx=ml+(bldW-bW)/2;
-  var by=mt+(bldH-bH)/2;
-  var bx2=bx+bW, by2=by+bH;
-  var bcx=bx+bW/2, bcy=by+bH/2;
-
-  // Marker defs
-  function ar(id,col){
-    return '<marker id="'+id+'" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">'
-      +'<path d="M0,0 L0,6 L8,3 Z" fill="'+col+'"/></marker>';
-  }
-  function arR(id,col){
-    // "reverse" marker — arrowhead points toward x1 (use as marker-start)
-    return '<marker id="'+id+'" markerWidth="8" markerHeight="8" refX="1" refY="3" orient="auto">'
-      +'<path d="M8,0 L8,6 L0,3 Z" fill="'+col+'"/></marker>';
+  // ── Re-use or create the <svg> element ───────────────────────────────────
+  var svg = wrap.querySelector('svg');
+  if(!svg){
+    svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    wrap.appendChild(svg);
   }
 
-  // Wind-X arrow (→ inside building, upper-left quadrant)
-  var wxArY=by+bH*0.30;
-  var wxArLen=Math.min(bW*0.45,68);
-  var wxArX1=bx+bW*0.10, wxArX2=wxArX1+wxArLen;
+  // ── Scale: fit building elevation in ~200 px height budget ───────────────
+  // World units = feet. sc = px/ft.
+  var hTot = hVal + hp;
+  var sc   = Math.min(200 / Math.max(hTot, 8), 5);
+  sc       = Math.max(sc, 1.4);
 
-  // Wind-Y arrow (↑ inside building, lower-right quadrant)
-  var wyArX=bx+bW*0.72;
-  var wyArLen=Math.min(bH*0.45,68);
-  var wyArY2=by+bH*0.78, wyArY1=wyArY2-wyArLen;  // y1=top(arrowhead), y2=base
+  // Wall cosmetic thickness (ft) — visible structural shell
+  var wt = Math.max(0.6, Math.min(1.5, B * 0.02));
 
-  // B dim string (below building)  — dedicated zone: by2+8 to by2+50
-  var dimBY=by2+20;     // dim line y
-  var dimBTextY=by2+36; // text y
+  // ── Pre-declare plan inset geometry so callouts can clear it ─────────────
+  var arLen   = 34;   // px — pressure arrow length (used throughout)
+  var planGap = 80;   // px — gap between elevation right edge and plan left edge
+  var psc     = Math.max(0.5, Math.min(2.0, 110 / Math.max(Math.max(B, Ddim), 8)));
+  // Elevation right edge pixel = elevOx + (B+wt)*sc
+  // elevOx = 110, so approx right edge = 110 + (B+wt)*sc
+  // Leeward arrow tips = right edge + arLen  (in px)
+  // Plan left edge = right edge + planGap
+  // LW callout goes between arrow tips and plan, well clear of plan
 
-  // D dim string (right of building) — starts after EAST WALL label zone (bx2+28)
-  var dimDX=bx2+44;     // dim line x (clear of EAST WALL label at bx2+14)
-  var dimDTextX=bx2+72; // text x (rotated)
+  // ── Drawing ───────────────────────────────────────────────────────────────
+  var dwg = new AREDraw.Drawing(svg, { margin: 20 });
+  var st  = dwg.style;
 
-  // South wall label — below B dim string
-  var southY=dimBTextY+20;
+  // ── ELEVATION VIEW (Wind-X, wind from left) ───────────────────────────────
+  // Origin at ground-left of windward wall; y flips so +y = up.
+  // Left gutter for incoming arrows + approach label (110 px).
+  var elevOx = 110;
+  var elevOy = 50 + hTot * sc;   // ground pixel y (SVG y increases downward)
+  var vE = new AREDraw.View(dwg, { scale: sc, ox: elevOx, oy: elevOy, flipY: true });
 
-  // X-Y axis — bottom-left corner
-  var axX0=22, axY0=H-16;
+  // ── Building shell (plates) ───────────────────────────────────────────────
+  // Ground slab
+  AREDraw.plate(vE, 0, -wt, B, wt, { fill: st.steel, hatch: false });
+  // Windward wall
+  AREDraw.plate(vE, 0, 0, wt, hVal, { fill: st.steelFill, hatch: false });
+  // Leeward wall
+  AREDraw.plate(vE, B-wt, 0, wt, hVal, { fill: st.steelFill, hatch: false });
+  // Roof (amber = primary surface of interest)
+  AREDraw.plate(vE, 0, hVal, B, wt, { fill: st.steelFillHi, hatch: false });
+  // Parapet
+  if(hp > 0.1){
+    AREDraw.plate(vE, 0,    hVal+wt, wt, hp-wt, { fill: st.steelFill, hatch: false });
+    AREDraw.plate(vE, B-wt, hVal+wt, wt, hp-wt, { fill: st.steelFill, hatch: false });
+  }
+  // Roof centerline
+  AREDraw.centerline(vE, -1, hVal+wt/2, B+1, hVal+wt/2);
 
-  var svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+W+'" height="'+H
-    +'" style="display:block;margin:0 auto;max-width:100%;background:#fff;border-radius:8px">'
-    +((typeof AREv2!=='undefined'&&AREv2.svgDefs)?AREv2.svgDefs('mw'):'<defs>'
-      +'<marker id="mwaLoad" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-      +'<marker id="mwaReact" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#2e4a8a"/></marker>'
-      +'</defs>')
-    +'<defs>'
-    +ar('arDim','#1a7a4a')+arR('arDimS','#1a7a4a')
-    +'</defs>'
+  // ── Windward wall pressure arrows (→ into wall) ───────────────────────────
+  // 4 arrows spaced up the windward face; tails at x = -arLen/sc, heads at x = 0
+  // arLen pre-declared above (34 px)
+  var nW = 4;
+  for(var i=0; i<nW; i++){
+    var yw = hVal*(i+0.5)/nW;
+    AREDraw.forceArrow(vE, -arLen/sc, yw, 1, 0, arLen, '', { color: st.force });
+  }
+  // Windward callout: pulled left, at ~25% wall height (below "Wind-X" label at 75%)
+  var wwCallPx = elevOx - arLen - 62;    // px target X for label
+  var wwCallPy = elevOy - hVal*sc*0.22;  // px target Y — near bottom of wall
+  AREDraw.calloutLabel(vE, -arLen/sc, hVal*0.22,
+    wwCallPx, wwCallPy, '+p, WW', { color: st.force, anchor: 'end' });
 
-    // Building fill + border
-    +'<rect x="'+bx+'" y="'+by+'" width="'+bW+'" height="'+bH+'" fill="#fde68a" stroke="#1a2b5f" stroke-width="2"/>'
+  // ── Leeward wall suction arrows (→ away from wall = suction) ─────────────
+  for(var j=0; j<nW; j++){
+    var yl = hVal*(j+0.5)/nW;
+    AREDraw.forceArrow(vE, B+wt, yl, 1, 0, arLen, '', { color: st.force });
+  }
+  // Leeward callout: placed AFTER the plan inset (far right), connected back
+  // by a long dotted leader. This keeps it clear of the plan box entirely.
+  // planLeft computed below — approximate now: elevOx + (B+wt)*sc + planGap + psc*B
+  var lwArTipPx = elevOx + (B+wt)*sc + arLen;
+  // Put label to the right of the plan box (plan right ≈ lwArTipPx + planGap + psc*B)
+  var lwCallPx  = lwArTipPx + planGap + psc*B + 10;
+  var lwCallPy  = elevOy - hVal*sc*0.5;
+  AREDraw.calloutLabel(vE, B+wt, hVal*0.5,
+    lwCallPx, lwCallPy, '−p, LW', { color: st.force, anchor: 'start' });
 
-    // ── Wall labels ──────────────────────────────────────────────────
-    // NORTH WALL — centered horizontally, in top margin
-    +'<text x="'+bcx+'" y="'+(by-8)+'" text-anchor="middle" dominant-baseline="alphabetic"'
-    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8">NORTH WALL</text>'
+  // ── Roof uplift arrows (↑ suction pulling roof up) ───────────────────────
+  var nR = Math.max(3, Math.min(6, Math.round(B/12)));
+  var roofArBase = hVal + wt + 30/sc;  // tail in world-ft above roof top
+  for(var k=0; k<nR; k++){
+    var xr = wt + (B-2*wt)*(k+0.5)/nR;
+    AREDraw.forceArrow(vE, xr, roofArBase, 0, 1, 28, '', { color: st.force });
+  }
+  // Roof callout: centered above arrows
+  var roofCallPx = vE.px(B/2);
+  var roofCallPy = elevOy - (roofArBase*sc) - 28 - 14; // well above arrow tips
+  AREDraw.calloutLabel(vE, B/2, roofArBase,
+    roofCallPx, roofCallPy, '−p, Roof (uplift)', { color: st.force, anchor: 'middle' });
 
-    // SOUTH WALL — in bottom margin, below B dim text
-    +'<text x="'+bcx+'" y="'+southY+'" text-anchor="middle" dominant-baseline="hanging"'
-    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8">SOUTH WALL</text>'
+  // ── "Wind-X →" approach arrow (above windward arrows, further left) ───────
+  AREDraw.forceArrow(vE, -(arLen+50)/sc, hVal*0.75, 1, 0, 44,
+    'Wind-X', { color: st.force, labelOff: 13 });
 
-    // WEST WALL — rotated -90°, centred vertically, in left margin
-    +'<text x="'+(bx-14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8"'
-    +' transform="rotate(-90,'+(bx-14)+','+bcy+')">WEST WALL</text>'
+  // ── Dimensions ───────────────────────────────────────────────────────────
+  // Width B — below ground slab
+  AREDraw.dimLine(vE, 0, -wt, B, -wt, f1(B)+' ft (B, EW)', { off: -26 });
+  // Height h — right of leeward wall
+  AREDraw.dimLine(vE, B+wt, 0, B+wt, hVal, f1(hVal)+' ft (h)', { off: 26 });
+  // Parapet hp — right, stacked above h
+  if(hp > 0.1){
+    AREDraw.dimLine(vE, B+wt, hVal, B+wt, hVal+hp, f1(hp)+' ft (hp)', { off: 26 });
+  }
 
-    // EAST WALL — rotated -90°, centred vertically, in right margin
-    +'<text x="'+(bx2+14)+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" font-weight="700" fill="#1a2b5f" letter-spacing="0.8"'
-    +' transform="rotate(-90,'+(bx2+14)+','+bcy+')">EAST WALL</text>'
+  // ── View title (below elevation) ─────────────────────────────────────────
+  var eTitleY = elevOy + 28;
+  AREDraw.viewTitle(vE, vE.px(B/2), eTitleY, 'Wind-X Elevation — MWFRS (ASCE 7-16 Ch. 27)');
 
-    // ── Wind-X arrow (→, EW) inside building ─────────────────────────
-    +'<line x1="'+wxArX1+'" y1="'+wxArY+'" x2="'+wxArX2+'" y2="'+wxArY
-    +'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#mwaLoad)"/>'
-    +'<text x="'+(wxArX1+(wxArX2-wxArX1)/2)+'" y="'+(wxArY-7)+'" text-anchor="middle"'
-    +' font-size="11" fill="#c42b2b" font-weight="700">Wind-X (EW)</text>'
+  // Code caption
+  var capY = eTitleY + 18;
+  dwg.extend(vE.px(0), capY + 12);
+  dwg.extend(vE.px(B), capY + 12);
+  (function(){
+    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', String(Math.round(vE.px(B/2))));
+    t.setAttribute('y', String(capY));
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','9');
+    t.setAttribute('fill', st.dim);
+    t.setAttribute('font-family', st.font);
+    t.textContent = 'Fig. 27.3-1  |  Cp,WW = +0.8 (qz)  |  Cp,LW per L/B  |  Roof uplift = suction';
+    dwg.gAnno.appendChild(t);
+  })();
 
-    // ── Wind-Y arrow (↑, NS) inside building ─────────────────────────
-    // Line from y2 (base/south) up to y1 (arrowhead/north)
-    +'<line x1="'+wyArX+'" y1="'+wyArY2+'" x2="'+wyArX+'" y2="'+wyArY1
-    +'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#mwaLoad)"/>'
-    +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2-6)+'" text-anchor="start"'
-    +' dominant-baseline="middle" font-size="11" fill="#c42b2b" font-weight="700">Wind-Y</text>'
-    +'<text x="'+(wyArX+7)+'" y="'+(wyArY1+(wyArY2-wyArY1)/2+8)+'" text-anchor="start"'
-    +' dominant-baseline="middle" font-size="11" fill="#c42b2b" font-weight="700">(NS)</text>'
+  // ── PLAN INSET (right of elevation) ──────────────────────────────────────
+  // psc and planGap pre-declared above.
+  // Plan sits between the leeward arrow tips and the LW callout label.
+  var planLeft = elevOx + (B+wt)*sc + planGap;
+  var planTop  = elevOy - hTot*sc*0.5 - Ddim*psc*0.5; // vertically centered
+  // Make a simple plan without a View (direct pixel coordinates)
+  var pW = B*psc, pH = Ddim*psc;
 
-    // ── B dimension string (below building) ──────────────────────────
-    // Extension ticks
-    +'<line x1="'+bx+'" y1="'+(by2+4)+'" x2="'+bx+'" y2="'+(by2+26)+'" stroke="#1a7a4a" stroke-width="1"/>'
-    +'<line x1="'+bx2+'" y1="'+(by2+4)+'" x2="'+bx2+'" y2="'+(by2+26)+'" stroke="#1a7a4a" stroke-width="1"/>'
-    // Dimension line with inward-pointing arrows
-    +'<line x1="'+bx+'" y1="'+dimBY+'" x2="'+bx2+'" y2="'+dimBY
-    +'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
-    // Text
-    +'<rect x="'+(bcx-30)+'" y="'+(dimBY-7)+'" width="60" height="14" fill="#fff"/>'
-    +'<text x="'+bcx+'" y="'+dimBY+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11.5" fill="#1a7a4a" font-weight="600">'+f1(B)+' ft</text>'
-    // Label below line
-    +'<text x="'+bcx+'" y="'+dimBTextY+'" text-anchor="middle" dominant-baseline="hanging"'
-    +' font-size="11" fill="#1a7a4a">B (EW width)</text>'
+  // Plan building rect
+  (function(){
+    var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x',  String(Math.round(planLeft)));
+    r.setAttribute('y',  String(Math.round(planTop)));
+    r.setAttribute('width',  String(Math.round(pW)));
+    r.setAttribute('height', String(Math.round(pH)));
+    r.setAttribute('fill','#dbe2f0');
+    r.setAttribute('stroke','#1a2b5f');
+    r.setAttribute('stroke-width','1.5');
+    dwg.gSteel.appendChild(r);
+    dwg.extend(planLeft, planTop);
+    dwg.extend(planLeft+pW, planTop+pH);
+  })();
 
-    // ── D dimension string (right of building) ────────────────────────
-    // Extension ticks (start after EAST WALL label)
-    +'<line x1="'+(bx2+28)+'" y1="'+by+'" x2="'+(bx2+50)+'" y2="'+by+'" stroke="#1a7a4a" stroke-width="1"/>'
-    +'<line x1="'+(bx2+28)+'" y1="'+by2+'" x2="'+(bx2+50)+'" y2="'+by2+'" stroke="#1a7a4a" stroke-width="1"/>'
-    // Dimension line with outward-pointing arrows (vertical, from by to by2)
-    +'<line x1="'+dimDX+'" y1="'+by+'" x2="'+dimDX+'" y2="'+by2
-    +'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#arDimS)" marker-end="url(#arDim)"/>'
-    // Text (background rect for clarity, then text)
-    +'<rect x="'+(dimDX-7)+'" y="'+(bcy-30)+'" width="14" height="60" fill="#fff"/>'
-    +'<text x="'+dimDX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11.5" fill="#1a7a4a" font-weight="600"'
-    +' transform="rotate(-90,'+dimDX+','+bcy+')">'+f1(Ddim)+' ft</text>'
-    // Label (further right, also rotated)
-    +'<text x="'+dimDTextX+'" y="'+bcy+'" text-anchor="middle" dominant-baseline="middle"'
-    +' font-size="11" fill="#1a7a4a" transform="rotate(-90,'+dimDTextX+','+bcy+')">D (NS depth)</text>'
+  // Wind-X approach arrow (→ into left face of plan)
+  var pWxY  = planTop + pH*0.32;
+  var pWxX1 = planLeft - 28;
+  var pWxX2 = planLeft - 2;
+  (function(){
+    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', String(Math.round(pWxX1)));
+    ln.setAttribute('y1', String(Math.round(pWxY)));
+    ln.setAttribute('x2', String(Math.round(pWxX2)));
+    ln.setAttribute('y2', String(Math.round(pWxY)));
+    ln.setAttribute('stroke','#c42b2b'); ln.setAttribute('stroke-width','1.8');
+    ln.setAttribute('marker-end','url(#areArrForce)');
+    dwg.gAnno.appendChild(ln);
+    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', String(Math.round((pWxX1+pWxX2)/2)));
+    t.setAttribute('y', String(Math.round(pWxY-5)));
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','8.5');
+    t.setAttribute('fill','#c42b2b');
+    t.setAttribute('font-family', st.font);
+    t.setAttribute('font-weight','700');
+    t.textContent = 'W-X';
+    dwg.gAnno.appendChild(t);
+    dwg.extend(pWxX1-2, pWxY-12);
+  })();
 
-    // ── X-Y axis (bottom-left) ────────────────────────────────────────
-    +'<line x1="'+axX0+'" y1="'+axY0+'" x2="'+(axX0+28)+'" y2="'+axY0
-    +'" stroke="#555" stroke-width="1.5" marker-end="url(#arDim)"/>'
-    +'<text x="'+(axX0+32)+'" y="'+(axY0+1)+'" text-anchor="start" dominant-baseline="middle"'
-    +' font-size="10" fill="#555" font-weight="700">X (E)</text>'
-    +'<line x1="'+axX0+'" y1="'+axY0+'" x2="'+axX0+'" y2="'+(axY0-28)
-    +'" stroke="#555" stroke-width="1.5" marker-end="url(#arDim)"/>'
-    +'<text x="'+(axX0)+'" y="'+(axY0-32)+'" text-anchor="middle" dominant-baseline="auto"'
-    +' font-size="10" fill="#555" font-weight="700">Y (N)</text>'
+  // Wind-Y approach arrow (↑ into bottom face of plan — NS direction)
+  // Place to the left of the B/D labels so they don't overlap
+  var pWyX  = planLeft + pW*0.18;
+  var pWyY1 = planTop + pH + 28;
+  var pWyY2 = planTop + pH + 2;
+  (function(){
+    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', String(Math.round(pWyX)));
+    ln.setAttribute('y1', String(Math.round(pWyY1)));
+    ln.setAttribute('x2', String(Math.round(pWyX)));
+    ln.setAttribute('y2', String(Math.round(pWyY2)));
+    ln.setAttribute('stroke','#c42b2b'); ln.setAttribute('stroke-width','1.8');
+    ln.setAttribute('marker-end','url(#areArrForce)');
+    dwg.gAnno.appendChild(ln);
+    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', String(Math.round(pWyX+7)));
+    t.setAttribute('y', String(Math.round((pWyY1+pWyY2)/2)));
+    t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('font-size','8.5');
+    t.setAttribute('fill','#c42b2b');
+    t.setAttribute('font-family', st.font);
+    t.setAttribute('font-weight','700');
+    t.textContent = 'W-Y';
+    dwg.gAnno.appendChild(t);
+    dwg.extend(pWyX+30, pWyY1+4);
+  })();
 
-    // ── North arrow (top-left, compact compass) ───────────────────────
-    +'<line x1="55" y1="42" x2="55" y2="18" stroke="#c42b2b" stroke-width="2" marker-end="url(#mwaLoad)"/>'
-    +'<text x="55" y="14" text-anchor="middle" dominant-baseline="alphabetic"'
-    +' font-size="12" fill="#c42b2b" font-weight="900">N</text>'
+  // ── B dimension: ABOVE plan box (horizontal extent = EW width) ──────────────
+  // Witness lines rise from planLeft and planLeft+pW up to dimY; dim line + tick + label
+  // sit in the space above the plan, well clear of the filled rectangle.
+  (function(){
+    var extOff  = 6;   // px gap between plan edge and start of witness line
+    var dimOff  = 24;  // px above plan edge where dim line sits
+    var tickLen = 5;   // px tick half-length on each side of dim line
+    var dimY    = planTop - dimOff;          // y of the horizontal dim line
+    var wL      = planLeft;                  // left corner x
+    var wR      = planLeft + pW;             // right corner x
+    var ns = 'http://www.w3.org/2000/svg';
 
-    +'</svg>';
+    // Left witness line (rises from top edge of plan up to dim line, with small overrun)
+    var wl = document.createElementNS(ns, 'line');
+    wl.setAttribute('x1', String(Math.round(wL))); wl.setAttribute('y1', String(Math.round(planTop - extOff)));
+    wl.setAttribute('x2', String(Math.round(wL))); wl.setAttribute('y2', String(Math.round(dimY - tickLen)));
+    wl.setAttribute('stroke','#1a2b5f'); wl.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(wl);
 
-  wrap.innerHTML=svg;
+    // Right witness line
+    var wr = document.createElementNS(ns, 'line');
+    wr.setAttribute('x1', String(Math.round(wR))); wr.setAttribute('y1', String(Math.round(planTop - extOff)));
+    wr.setAttribute('x2', String(Math.round(wR))); wr.setAttribute('y2', String(Math.round(dimY - tickLen)));
+    wr.setAttribute('stroke','#1a2b5f'); wr.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(wr);
+
+    // Horizontal dim line
+    var dl = document.createElementNS(ns, 'line');
+    dl.setAttribute('x1', String(Math.round(wL))); dl.setAttribute('y1', String(Math.round(dimY)));
+    dl.setAttribute('x2', String(Math.round(wR))); dl.setAttribute('y2', String(Math.round(dimY)));
+    dl.setAttribute('stroke','#1a2b5f'); dl.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(dl);
+
+    // Left tick
+    var tkL = document.createElementNS(ns, 'line');
+    tkL.setAttribute('x1', String(Math.round(wL - tickLen*0.7))); tkL.setAttribute('y1', String(Math.round(dimY + tickLen)));
+    tkL.setAttribute('x2', String(Math.round(wL + tickLen*0.7))); tkL.setAttribute('y2', String(Math.round(dimY - tickLen)));
+    tkL.setAttribute('stroke','#1a2b5f'); tkL.setAttribute('stroke-width','1.2');
+    dwg.gAnno.appendChild(tkL);
+
+    // Right tick
+    var tkR = document.createElementNS(ns, 'line');
+    tkR.setAttribute('x1', String(Math.round(wR - tickLen*0.7))); tkR.setAttribute('y1', String(Math.round(dimY + tickLen)));
+    tkR.setAttribute('x2', String(Math.round(wR + tickLen*0.7))); tkR.setAttribute('y2', String(Math.round(dimY - tickLen)));
+    tkR.setAttribute('stroke','#1a2b5f'); tkR.setAttribute('stroke-width','1.2');
+    dwg.gAnno.appendChild(tkR);
+
+    // Dimension label above dim line (centred on span)
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', String(Math.round(wL + pW/2)));
+    t.setAttribute('y', String(Math.round(dimY - 4)));
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','8.5');
+    t.setAttribute('fill','#1a2b5f');
+    t.setAttribute('font-family', st.font);
+    t.setAttribute('font-weight','700');
+    t.textContent = 'B='+f1(B)+' ft';
+    dwg.gAnno.appendChild(t);
+
+    dwg.extend(wL - 4, dimY - 14);
+    dwg.extend(wR + 4, dimY + 2);
+  })();
+
+  // ── D dimension: RIGHT of plan box (vertical extent = NS depth) ──────────────
+  // Witness lines extend right from planLeft+pW; dim line + tick + label sit outside.
+  (function(){
+    var extOff  = 6;   // px gap between plan edge and start of witness line
+    var dimOff  = 24;  // px right of plan right edge where dim line sits
+    var tickLen = 5;
+    var dimX    = planLeft + pW + dimOff;  // x of the vertical dim line
+    var wT      = planTop;                 // top corner y
+    var wB      = planTop + pH;            // bottom corner y
+    var ns = 'http://www.w3.org/2000/svg';
+
+    // Top witness line
+    var wt2 = document.createElementNS(ns, 'line');
+    wt2.setAttribute('x1', String(Math.round(planLeft + pW + extOff))); wt2.setAttribute('y1', String(Math.round(wT)));
+    wt2.setAttribute('x2', String(Math.round(dimX + tickLen)));         wt2.setAttribute('y2', String(Math.round(wT)));
+    wt2.setAttribute('stroke','#1a2b5f'); wt2.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(wt2);
+
+    // Bottom witness line
+    var wb2 = document.createElementNS(ns, 'line');
+    wb2.setAttribute('x1', String(Math.round(planLeft + pW + extOff))); wb2.setAttribute('y1', String(Math.round(wB)));
+    wb2.setAttribute('x2', String(Math.round(dimX + tickLen)));         wb2.setAttribute('y2', String(Math.round(wB)));
+    wb2.setAttribute('stroke','#1a2b5f'); wb2.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(wb2);
+
+    // Vertical dim line
+    var dl = document.createElementNS(ns, 'line');
+    dl.setAttribute('x1', String(Math.round(dimX))); dl.setAttribute('y1', String(Math.round(wT)));
+    dl.setAttribute('x2', String(Math.round(dimX))); dl.setAttribute('y2', String(Math.round(wB)));
+    dl.setAttribute('stroke','#1a2b5f'); dl.setAttribute('stroke-width','0.8');
+    dwg.gAnno.appendChild(dl);
+
+    // Top tick (45° slash)
+    var tkT = document.createElementNS(ns, 'line');
+    tkT.setAttribute('x1', String(Math.round(dimX - tickLen))); tkT.setAttribute('y1', String(Math.round(wT + tickLen*0.7)));
+    tkT.setAttribute('x2', String(Math.round(dimX + tickLen))); tkT.setAttribute('y2', String(Math.round(wT - tickLen*0.7)));
+    tkT.setAttribute('stroke','#1a2b5f'); tkT.setAttribute('stroke-width','1.2');
+    dwg.gAnno.appendChild(tkT);
+
+    // Bottom tick
+    var tkB = document.createElementNS(ns, 'line');
+    tkB.setAttribute('x1', String(Math.round(dimX - tickLen))); tkB.setAttribute('y1', String(Math.round(wB + tickLen*0.7)));
+    tkB.setAttribute('x2', String(Math.round(dimX + tickLen))); tkB.setAttribute('y2', String(Math.round(wB - tickLen*0.7)));
+    tkB.setAttribute('stroke','#1a2b5f'); tkB.setAttribute('stroke-width','1.2');
+    dwg.gAnno.appendChild(tkB);
+
+    // Rotated dimension label (centred vertically, to the right of dim line)
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', String(Math.round(dimX + 4)));
+    t.setAttribute('y', String(Math.round(wT + pH/2)));
+    t.setAttribute('dominant-baseline','middle');
+    t.setAttribute('font-size','8.5');
+    t.setAttribute('fill','#1a2b5f');
+    t.setAttribute('font-family', st.font);
+    t.setAttribute('font-weight','700');
+    t.setAttribute('transform', 'rotate(90,'+String(Math.round(dimX + 4))+','+String(Math.round(wT + pH/2))+')');
+    t.textContent = 'D='+f1(Ddim)+' ft';
+    dwg.gAnno.appendChild(t);
+
+    dwg.extend(dimX - 2, wT - 4);
+    dwg.extend(dimX + 18, wB + 4);
+  })();
+
+  // North arrow (above plan, to the right)
+  var nAx  = planLeft + pW + 14;
+  var nAy2 = planTop - 4;
+  var nAy1 = nAy2 - 20;
+  (function(){
+    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', String(nAx)); ln.setAttribute('y1', String(Math.round(nAy1+2)));
+    ln.setAttribute('x2', String(nAx)); ln.setAttribute('y2', String(Math.round(nAy2)));
+    ln.setAttribute('stroke','#1a2b5f'); ln.setAttribute('stroke-width','1.5');
+    ln.setAttribute('marker-end','url(#areArrForce)');
+    dwg.gAnno.appendChild(ln);
+    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', String(nAx)); t.setAttribute('y', String(Math.round(nAy1-2)));
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','9'); t.setAttribute('fill','#1a2b5f');
+    t.setAttribute('font-family', st.font); t.setAttribute('font-weight','900');
+    t.textContent = 'N';
+    dwg.gAnno.appendChild(t);
+    dwg.extend(nAx-6, nAy1-14); dwg.extend(nAx+6, nAy2+4);
+  })();
+
+  // Plan view title: below plan box + Wind-Y arrow (which extends ~30px below box)
+  var planTitleY = planTop + pH + 44;
+  (function(){
+    var str = 'Building Plan';
+    var tw  = str.length * 13 * 0.56 / 2;
+    var tx  = planLeft + pW/2;
+    var t   = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', String(Math.round(tx)));
+    t.setAttribute('y', String(Math.round(planTitleY)));
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('font-size','13');
+    t.setAttribute('fill','#1a2b5f');
+    t.setAttribute('font-family', st.font);
+    t.setAttribute('font-weight','700');
+    t.textContent = str;
+    dwg.gAnno.appendChild(t);
+    // Underline rule
+    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', String(Math.round(tx-tw)));
+    ln.setAttribute('y1', String(Math.round(planTitleY+4.5)));
+    ln.setAttribute('x2', String(Math.round(tx+tw)));
+    ln.setAttribute('y2', String(Math.round(planTitleY+4.5)));
+    ln.setAttribute('stroke','#1a2b5f'); ln.setAttribute('stroke-width','1.1');
+    dwg.gAnno.appendChild(ln);
+    dwg.extend(tx-tw-4, planTitleY-13);
+    dwg.extend(tx+tw+4, planTitleY+10);
+  })();
+
+  dwg.commit();
 }
 
 // ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
@@ -1117,6 +1353,7 @@ document.addEventListener('DOMContentLoaded',function(){
 // expose updateSendPreview to inline handlers
 window.updateSendPreview=updateSendPreview;
 </script>
+<script src="/are-draw.js"></script>
 <script src="/are-utils-v2.js"></script>
 </body>
 </html>
