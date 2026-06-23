@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -113,7 +113,6 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 }
 
 </style>
-  <link rel="stylesheet" href="./are-calc.css">
 </head>
 <body>
 <!-- Floating Print Button -->
@@ -144,16 +143,48 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <!-- Schematic -->
     <div class="schema-wrap">
       <div class="sub-head">Foundation Schematic</div>
-      <div style="display:flex;gap:32px;flex-wrap:wrap;justify-content:center;align-items:flex-start">
+      <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center;align-items:flex-start">
 
         <!-- Plan view -->
         <div>
-          <svg id="svgPlan" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div style="font-size:.78em;color:#555;margin-bottom:6px;text-align:center">Foundation Plan (beam grid)</div>
+          <svg id="svgPlan" width="340" height="220" style="border:1px solid #dde;border-radius:6px;background:#f9fafb;display:block"></svg>
         </div>
 
         <!-- Cross-section -->
         <div>
-          <svg id="svgSection" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div style="font-size:.78em;color:#555;margin-bottom:6px;text-align:center">Grade Beam Cross-Section</div>
+          <svg width="320" height="220" style="border:1px solid #dde;border-radius:6px;background:#f9fafb;display:block">
+            <!-- slab -->
+            <rect x="40" y="55" width="240" height="28" fill="#cbd5e1" stroke="#64748b" stroke-width="1.5"/>
+            <text x="160" y="74" text-anchor="middle" font-size="10" fill="#1e293b">Slab (t&#8209;s)</text>
+            <!-- beam stem -->
+            <rect x="110" y="83" width="100" height="95" fill="#94a3b8" stroke="#64748b" stroke-width="1.5"/>
+            <text x="160" y="132" text-anchor="middle" font-size="10" fill="#0f172a" font-weight="600">Grade Beam</text>
+            <text x="160" y="146" text-anchor="middle" font-size="10" fill="#0f172a">b&#8205;&#8201;&times;&#8201;d</text>
+            <!-- top bars -->
+            <circle cx="132" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
+            <circle cx="160" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
+            <circle cx="188" cy="96" r="5" fill="none" stroke="#1e3c72" stroke-width="2"/>
+            <line x1="210" y1="96" x2="295" y2="78" stroke="#1e3c72" stroke-width="1" stroke-dasharray="3,2"/>
+            <text x="298" y="81" font-size="9" fill="#1e3c72">Top bars (&#8722;M)</text>
+            <!-- bottom bars -->
+            <circle cx="132" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
+            <circle cx="160" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
+            <circle cx="188" cy="165" r="5" fill="none" stroke="#9a3412" stroke-width="2"/>
+            <line x1="210" y1="165" x2="295" y2="150" stroke="#9a3412" stroke-width="1" stroke-dasharray="3,2"/>
+            <text x="298" y="153" font-size="9" fill="#9a3412">Bot bars (+M)</text>
+            <!-- cover brace -->
+            <line x1="110" y1="178" x2="110" y2="192" stroke="#475569" stroke-width="1"/>
+            <line x1="210" y1="178" x2="210" y2="192" stroke="#475569" stroke-width="1"/>
+            <line x1="110" y1="185" x2="210" y2="185" stroke="#475569" stroke-width="1"/>
+            <text x="160" y="205" text-anchor="middle" font-size="9" fill="#475569">b&#8201;=&#8201;beam width</text>
+            <!-- depth annotation -->
+            <line x1="28" y1="55" x2="28" y2="178" stroke="#475569" stroke-width="1"/>
+            <line x1="23" y1="55" x2="33" y2="55" stroke="#475569" stroke-width="1"/>
+            <line x1="23" y1="178" x2="33" y2="178" stroke="#475569" stroke-width="1"/>
+            <text x="14" y="120" text-anchor="middle" font-size="9" fill="#475569" transform="rotate(-90,14,120)">Beam depth d</text>
+          </svg>
         </div>
 
       </div>
@@ -174,9 +205,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           <div class="hint">From WRI Figure 15</div>
         </div>
         <div class="ig">
-          <label>l<sub>c</sub> Factor (Fig 15) <span class="unit">—</span></label>
-          <input type="number" id="lc_factor" value="6.5" step="0.1">
-          <div class="hint">Combined soil &amp; climate rating from Figure 15</div>
+          <label>(1-C) Support Index (Fig 15) <span class="unit">—</span></label>
+          <input type="number" id="lc_factor" value="0.23" step="0.01" min="0" max="1">
+          <div class="hint">Soil-climate support index from Figure 15 (PI vs. C<sub>w</sub>); typical range 0.05–0.50</div>
         </div>
         <div class="ig">
           <label>Max Beam Spacing S <span class="unit">ft</span></label>
@@ -344,8 +375,6 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <script>
 var rebarAreas = {'4':0.20,'5':0.31,'6':0.44,'7':0.60,'8':0.79,'9':1.00,'10':1.27,'11':1.56};
-// Computed beam depth stored here after runCalcs() so drawSection() can use it
-var _lastBeamDepth = 0;
 
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
@@ -368,220 +397,38 @@ function updatePlan(){
   var L=parseFloat(document.getElementById('L').value)||60;
   var Lp=parseFloat(document.getElementById('Lp').value)||40;
   drawPlan(L,Lp,null,null);
-  drawSection();
 }
 
-// \u2500\u2500 AREDraw Plan View \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function drawPlan(L, Lp, NL, NS) {
-  var svg = document.getElementById('svgPlan');
-  if (!svg || !window.AREDraw) return;
-
-  // Work in feet as the world unit. Budget ~260 px for the larger dimension.
-  var budget = 220;
-  var scaleRaw = budget / Math.max(L, Lp, 1);
-  var scale = Math.max(1.2, Math.min(6, scaleRaw));
-
-  var dwg = new AREDraw.Drawing(svg, { margin: 30 });
-  var st  = dwg.style;
-
-  // Origin at bottom-left of slab; Y up (flipY:true) \u2014 plan is top-down
-  // but we use flipY for consistency; slab from 0,0 to L,Lp in world-ft.
-  var v = new AREDraw.View(dwg, { scale: scale, ox: 20, oy: Lp * scale + 20, flipY: true });
-
-  // Slab footprint \u2014 secondary fill (it's the soil-contact structure, not a primary designed member)
-  AREDraw.plate(v, 0, 0, L, Lp, { fill: st.steelFill });
-
-  // Long-direction beams (run parallel to L, spaced along Lp)
-  if (NL && NL > 1) {
-    for (var i = 0; i < NL; i++) {
-      var yb = i * Lp / (NL - 1);
-      // Beam lines: navy, slightly heavier
-      var bline = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      bline.setAttribute('x1', v.px(0));   bline.setAttribute('y1', v.py(yb));
-      bline.setAttribute('x2', v.px(L));   bline.setAttribute('y2', v.py(yb));
-      bline.setAttribute('stroke', st.steel);
-      bline.setAttribute('stroke-width', st.lwObject);
-      dwg.gSteel.appendChild(bline);
-      dwg.extend(v.px(0), v.py(yb)); dwg.extend(v.px(L), v.py(yb));
+function drawPlan(L,Lp,NL,NS){
+  var svg=document.getElementById('svgPlan');
+  var W=340,H=220,margin=44;
+  var scale=Math.min((W-2*margin)/Math.max(L,1),(H-2*margin)/Math.max(Lp,1));
+  var sw=L*scale, sh=Lp*scale;
+  var ox=(W-sw)/2, oy=(H-sh)/2;
+  var lines='';
+  if(NL&&NL>1){
+    for(var i=0;i<NL;i++){
+      var y=oy+i*sh/(NL-1);
+      lines+='<line x1="'+ox+'" y1="'+y+'" x2="'+(ox+sw)+'" y2="'+y+'" stroke="#2a5298" stroke-width="2.5" opacity="0.65"/>';
     }
   }
-
-  // Short-direction beams (run parallel to Lp, spaced along L)
-  if (NS && NS > 1) {
-    for (var j = 0; j < NS; j++) {
-      var xb = j * L / (NS - 1);
-      var bline2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      bline2.setAttribute('x1', v.px(xb));  bline2.setAttribute('y1', v.py(0));
-      bline2.setAttribute('x2', v.px(xb));  bline2.setAttribute('y2', v.py(Lp));
-      bline2.setAttribute('stroke', st.dim);
-      bline2.setAttribute('stroke-width', st.lwObjectThin);
-      bline2.setAttribute('stroke-dasharray', '4 2');
-      dwg.gSteel.appendChild(bline2);
-      dwg.extend(v.px(xb), v.py(0)); dwg.extend(v.px(xb), v.py(Lp));
+  if(NS&&NS>1){
+    for(var j=0;j<NS;j++){
+      var x=ox+j*sw/(NS-1);
+      lines+='<line x1="'+x+'" y1="'+oy+'" x2="'+x+'" y2="'+(oy+sh)+'" stroke="#9a3412" stroke-width="2.5" opacity="0.65"/>';
     }
   }
-
-  // Centerlines through plan centroid (long & short axes)
-  AREDraw.centerline(v, L / 2, -0.5, L / 2, Lp + 0.5);
-  AREDraw.centerline(v, -0.5, Lp / 2, L + 0.5, Lp / 2);
-
-  // L dimension (top)
-  AREDraw.dimLine(v, 0, Lp, L, Lp, "L = " + L + "'", { off: -26 });
-  // Lp dimension (right side)
-  AREDraw.dimLine(v, L, 0, L, Lp, "L' = " + Lp + "'", { off: 28 });
-
-  // Legend \u2014 beam direction labels via leaders if beams were provided
-  if (NL && NL > 1) {
-    AREDraw.leader(v, L / 2, Lp / (NL > 1 ? NL - 1 : 1), 28, -20,
-      'Long: ' + NL + ' beams', { color: st.steel });
-  }
-  if (NS && NS > 1) {
-    AREDraw.leader(v, L / (NS > 1 ? NS - 1 : 1), Lp / 2, 28, -30,
-      'Short: ' + NS + ' beams', { color: st.dim });
-  }
-
-  // Title below
-  var titleY = dwg.maxY + st.fsTitle + 12;
-  AREDraw.viewTitle(v, v.px(L / 2), titleY, 'Foundation Plan');
-
-  dwg.commit();
-}
-
-// \u2500\u2500 AREDraw Cross-Section View \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-function drawSection() {
-  var svg = document.getElementById('svgSection');
-  if (!svg || !window.AREDraw) return;
-
-  // Read current inputs (or defaults)
-  var bw   = parseFloat((document.getElementById('beam_width') || {}).value)      || 12;   // in
-  var ts   = parseFloat((document.getElementById('slab_thickness') || {}).value)  || 4;    // in
-  var dL   = parseFloat((document.getElementById('depth_long') || {}).value)      || 0;
-  var dS   = parseFloat((document.getElementById('depth_short') || {}).value)     || 0;
-  // After runCalcs(), _lastBeamDepth holds the WRI-computed depth; fall back to
-  // user overrides if entered, then a schematic default of 18" before first calc.
-  var beamD = _lastBeamDepth > 0 ? _lastBeamDepth : Math.max(dL, dS);
-  if (!beamD || beamD <= 0) beamD = 18;
-
-  var cover    = parseFloat((document.getElementById('cover') || {}).value)       || 3;    // in
-  var topBarN  = document.getElementById('top_bar_size')    ? document.getElementById('top_bar_size').value    : '8';
-  var botBarN  = document.getElementById('bottom_bar_size') ? document.getElementById('bottom_bar_size').value : '8';
-  var barDia   = { '4':0.5, '5':0.625, '6':0.75, '7':0.875, '8':1.0, '9':1.128, '10':1.27, '11':1.41 };
-  var barR = (barDia[topBarN] || 1.0) / 2; // bar radius in inches
-
-  // Scale: fit total depth (slab + beam) in ~200 px budget
-  var totalH = ts + beamD;
-  var scale = Math.max(2, Math.min(9, 200 / totalH));
-
-  // Width budget: beam is bw wide, slab extends to 4\u00d7bw each side
-  var slabW = Math.max(bw * 3, 36); // show generous slab width
-  var budget = slabW * scale;
-
-  var dwg = new AREDraw.Drawing(svg, { margin: 30 });
-  var st  = dwg.style;
-
-  // Origin: bottom of beam at y=0; slab top at y = beamD + ts
-  // Cross-section centered on x=0
-  var v = new AREDraw.View(dwg, { scale: scale, ox: budget / 2 + 30, oy: (beamD + ts) * scale + 30, flipY: true });
-
-  // \u2500\u2500 Soil hatch (below beam) \u2500\u2500
-  var soilY = -4;          // 4 inches of soil shown below beam bottom
-  var soilW = bw + 6;
-  // Simple soil hatch via manual lines (soil isn't a structural member)
-  var sPx_x1 = v.px(-soilW / 2), sPx_x2 = v.px(soilW / 2);
-  var sPx_y0 = v.py(0), sPx_y1 = v.py(soilY);
-  var soilRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-  soilRect.setAttribute('x', Math.min(sPx_x1, sPx_x2));
-  soilRect.setAttribute('y', Math.min(sPx_y0, sPx_y1));
-  soilRect.setAttribute('width', Math.abs(sPx_x2 - sPx_x1));
-  soilRect.setAttribute('height', Math.abs(sPx_y1 - sPx_y0));
-  soilRect.setAttribute('fill', 'url(#' + dwg.hatchPattern('#b0a090', 4) + ')');
-  soilRect.setAttribute('stroke', '#8a7060');
-  soilRect.setAttribute('stroke-width', '1');
-  dwg.gSteel.appendChild(soilRect);
-  dwg.extend(sPx_x1, sPx_y1); dwg.extend(sPx_x2, sPx_y0);
-
-  // Soil label — leader from right edge of hatch to the right margin (outside)
-  AREDraw.leader(v, soilW / 2, soilY / 2, 56, 0,
-    'Soil', { color: '#6b5a48', anchor: 'start' });
-
-  // \u2500\u2500 Grade beam stem (primary designed member \u2014 amber highlight) \u2500\u2500
-  AREDraw.plate(v, -bw / 2, 0, bw, beamD, { highlight: true });
-
-  // \u2500\u2500 Slab (secondary member \u2014 light navy fill) \u2500\u2500
-  var halfSlab = slabW / 2;
-  AREDraw.plate(v, -halfSlab, beamD, slabW, ts, { fill: st.steelFill });
-
-  // \u2500\u2500 Centerlines: vertical (beam centroid axis) + horizontal (beam mid-height) \u2500\u2500
-  AREDraw.centerline(v, 0, -0.8, 0, beamD + ts + 0.8);
-  AREDraw.centerline(v, -halfSlab - 1, beamD / 2, halfSlab + 1, beamD / 2);
-
-  // \u2500\u2500 Rebar bars \u2500\u2500
-  // Top bars \u2014 near top of beam (just below slab/beam interface, inside stem)
-  var topBarY = beamD - cover - barR;
-  var barSpacing = Math.min(bw / 4, 3.5);
-  var barOffsets = [-barSpacing, 0, barSpacing];
-  barOffsets.forEach(function(dx) {
-    if (Math.abs(dx) + barR < bw / 2 - cover) {
-      var bxp = v.px(dx), byp = v.py(topBarY), brp = Math.max(v.s(barR), 3);
-      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', bxp); c.setAttribute('cy', byp); c.setAttribute('r', brp);
-      c.setAttribute('fill', 'none'); c.setAttribute('stroke', st.steel); c.setAttribute('stroke-width', st.lwObjectThin);
-      dwg.gSteel.appendChild(c);
-    }
-  });
-
-  // Bottom bars
-  var botBarY = cover + barR;
-  barOffsets.forEach(function(dx) {
-    if (Math.abs(dx) + barR < bw / 2 - cover) {
-      var bxp = v.px(dx), byp = v.py(botBarY), brp = Math.max(v.s(barR), 3);
-      var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      c.setAttribute('cx', bxp); c.setAttribute('cy', byp); c.setAttribute('r', brp);
-      c.setAttribute('fill', 'none'); c.setAttribute('stroke', st.dim); c.setAttribute('stroke-width', st.lwObjectThin);
-      dwg.gSteel.appendChild(c);
-    }
-  });
-
-  // \u2500\u2500 Dimensions \u2500\u2500
-  // Slab thickness ts \u2014 right side of slab, outside (positive off goes right for vertical line)
-  AREDraw.dimLine(v, halfSlab, beamD, halfSlab, beamD + ts,
-    'ts = ' + ts + '"', { off: 36 });
-
-  // Beam depth d \u2014 left side of beam (negative off goes left for vertical line)
-  AREDraw.dimLine(v, -bw / 2, 0, -bw / 2, beamD,
-    'd = ' + beamD + '"', { off: -42 });
-
-  // Beam width bw \u2014 witness lines from beam-bottom corners, dim line below the soil block
-  // soilY = -4 in; at the current scale the soil block bottom lands at py(soilY).
-  // We target world y = soilY - 1 so the dimension line sits clearly below the hatch.
-  AREDraw.dimLine(v, -bw / 2, soilY - 1, bw / 2, soilY - 1,
-    'bw = ' + bw + '"', { off: 28 });
-
-  // \u2500\u2500 Leaders / callout labels \u2500\u2500
-  // Slab label \u2014 target the slab body (not beam), pull LEFT and UP clear of ts dim
-  AREDraw.leader(v, -halfSlab * 0.4, beamD + ts * 0.6, -58, -32,
-    'Slab (ts)', { color: st.dim, anchor: 'end' });
-
-  // Top bar label \u2014 pulled RIGHT; target bar nearest right face of beam
-  AREDraw.leader(v, barSpacing + barR, topBarY, 60, -18,
-    '#' + topBarN + ' top (\u2212M)', { color: st.steel });
-
-  // Grade beam label \u2014 right face mid-height; staggered BELOW top bar label
-  AREDraw.leader(v, bw / 2, beamD * 0.45, 60, 10, 'Grade Beam', { color: st.steel });
-
-  // Bottom bar label \u2014 pulled RIGHT and DOWN; staggered well below grade beam label
-  AREDraw.leader(v, barSpacing + barR, botBarY, 60, 32,
-    '#' + botBarN + ' bot (+M)', { color: st.dim });
-
-  // Cover dim \u2014 pulled LEFT at same y as bottom bar but further out
-  AREDraw.leader(v, -bw / 2, botBarY, -62, 0,
-    'cvr = ' + cover + '"', { color: st.dim, anchor: 'end' });
-
-  // Title below
-  var titleY = dwg.maxY + st.fsTitle + 12;
-  AREDraw.viewTitle(v, v.px(0), titleY, 'Grade Beam Cross-Section');
-
-  dwg.commit();
+  var legend='';
+  if(NL){legend+='<rect x="'+(ox+4)+'" y="'+(oy+sh-26)+'" width="10" height="3" fill="#2a5298" opacity="0.7"/>'
+    +'<text x="'+(ox+18)+'" y="'+(oy+sh-21)+'" font-size="8.5" fill="#1e3c72">Long: '+NL+' beams</text>';}
+  if(NS){legend+='<line x1="'+(ox+7)+'" y1="'+(oy+sh-14)+'" x2="'+(ox+7)+'" y2="'+(oy+sh-6)+'" stroke="#9a3412" stroke-width="2.5" opacity="0.7"/>'
+    +'<text x="'+(ox+18)+'" y="'+(oy+sh-7)+'" font-size="8.5" fill="#9a3412">Short: '+NS+' beams</text>';}
+  svg.innerHTML=
+    '<rect x="'+ox+'" y="'+oy+'" width="'+sw+'" height="'+sh+'" fill="#dbeafe" stroke="#1e3c72" stroke-width="2"/>'
+    +lines+legend
+    +'<text x="'+(ox+sw/2)+'" y="'+(oy-10)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="600">L = '+L+"'"+'</text>'
+    +'<text x="'+(ox+sw+18)+'" y="'+(oy+sh/2)+'" text-anchor="middle" font-size="10" fill="#1e3c72" font-weight="600" transform="rotate(90,'+(ox+sw+18)+','+(oy+sh/2)+')">L\u2019 = '+Lp+"'"+'</text>'
+    +'<text x="'+W/2+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#1e3c72">Foundation Plan</text>';
 }
 
 function calcSteel(M, bw, d, fy, fc, barSizeStr){
@@ -626,12 +473,13 @@ function calcWRI(span, width, lc, w, bw, fy, fc, cover, maxSpacing, topBar, botB
   var Lbeam = lc * 12;    // cantilever length in inches
   var delta = 5 * q * Math.pow(Lbeam, 4) / (384 * Ec * I);
   var allowDelta = span * 12 / 360; // L/360 in inches
-  // Steel design — uses design depth (deeper beam = less reinforcement)
-  var botSteel = calcSteel(M, bw, d, fy, fc, botBar);
-  var topSteel = calcSteel(M, bw, d, fy, fc, topBar);
+  // Steel design — per beam (M_total / N gives moment per beam)
+  var M_beam = M / N;
+  var botSteel = calcSteel(M_beam, bw, d, fy, fc, botBar);
+  var topSteel = calcSteel(M_beam, bw, d, fy, fc, topBar);
   var phiMn_bot = 0.9 * botSteel.Mn;
   var phiMn_top = 0.9 * topSteel.Mn;
-  return {numBeamsCalc:numBeamsCalc, N:N, B:B, M:M, dCalc:dCalc,
+  return {numBeamsCalc:numBeamsCalc, N:N, B:B, M:M, M_beam:M_beam, dCalc:dCalc,
           beamDepthMin:beamDepthMin, beamDepth:beamDepth,
           d:d, Ec:Ec, I:I, q:q, Lbeam:Lbeam, delta:delta, allowDelta:allowDelta,
           botSteel:botSteel, topSteel:topSteel, phiMn_bot:phiMn_bot, phiMn_top:phiMn_top,
@@ -649,7 +497,8 @@ function makeDets(dir, fc, fy, cover, r){
   det0+='<hr class="csep">';
   det0+='<div class="mrow"><span class="ceq">Step 2 \u2014 Design Moment M = w l<sub>c</sub><sup>2</sup> L\u2019/2000:</span></div>';
   det0+='<div class="mrow ind">M = '+fr(f1(r.w)+' \u00d7 ('+f2(r.lc)+')<sup>2</sup> \u00d7 '+f1(r.width),'2000')+'</div>';
-  det0+='<div class="mrow ind">M = '+fr(f1(r.w)+' \u00d7 '+f2(r.lc*r.lc)+' \u00d7 '+f1(r.width),'2000')+' = <span class="cval">'+f1(r.M)+' kip-ft</span></div>';
+  det0+='<div class="mrow ind">M = '+fr(f1(r.w)+' \u00d7 '+f2(r.lc*r.lc)+' \u00d7 '+f1(r.width),'2000')+' = <span class="cval">'+f1(r.M)+' kip-ft (total)</span></div>';
+  det0+='<div class="mrow ind">M<sub>beam</sub> = M/N = '+f1(r.M)+'/'+r.N+' = <span class="cval">'+f1(r.M_beam)+' kip-ft per beam</span> (used for steel design)</div>';
   det0+='<hr class="csep">';
   det0+='<div class="mrow"><span class="ceq">Step 3 \u2014 WRI Beam Depth d = \u221B(664 M l<sub>c</sub> / B):</span></div>';
   det0+='<div class="mrow ind">d = \u221B'+fr('664 \u00d7 '+f1(r.M)+' \u00d7 '+f2(r.lc), f1(r.B))+' = \u221B'+f1(664*r.M*r.lc/r.B)+'</div>';
@@ -663,35 +512,35 @@ function makeDets(dir, fc, fy, cover, r){
   // det1 — bottom steel flexure
   var bs=r.botSteel;
   var det1='';
-  det1+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Bottom Steel, Positive Moment</div>';
+  det1+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Bottom Steel, Positive Moment (per beam)</div>';
   det1+='<div class="cbox">';
   det1+='<div class="mrow">Beam depth = '+r.beamDepth+'", cover = '+f1(cover)+'", effective depth d = <span class="cval">'+f1(r.d)+'"</span></div>';
-  det1+='<div class="mrow">M<sub>u</sub> = '+f1(r.M)+' kip-ft = <span class="cval">'+f1(r.M*12)+' kip-in</span></div>';
+  det1+='<div class="mrow">M<sub>total</sub> = '+f1(r.M)+' kip-ft, N = '+r.N+' beams \u2192 M<sub>u,beam</sub> = '+f1(r.M)+'/'+r.N+' = <span class="cval">'+f1(r.M_beam)+' kip-ft</span></div>';
   det1+='<hr class="csep">';
-  det1+='<div class="mrow"><span class="ceq">ACI 318-19 \u00a722.2.2 \u2014 Rectangular stress block iteration:</span></div>';
-  det1+='<div class="mrow ind">A<sub>s,est</sub> = '+fr('M<sub>u</sub>','f<sub>y</sub>(d\u22123")')+' = '+fr(f1(r.M*12000/1000)+' k-in', f1(fy/1000)+' ksi \u00d7 '+f1(r.d-3)+'"')+' = '+f3(r.M*12000/(fy*(r.d-3)))+' in\u00b2</div>';
-  det1+='<div class="mrow ind">a = '+fr('A<sub>s</sub>f<sub>y</sub>','0.85f\u2019<sub>c</sub>b')+', refine \u2192 A<sub>s,req</sub> = '+fr('M<sub>u</sub>','f<sub>y</sub>(d\u2212a/2)')+' = <span class="cval">'+f3(bs.AsRequired)+' in\u00b2</span></div>';
-  det1+='<div class="mrow">Provide '+bs.numBars+' \u2013 #'+bs.barSize+' bars, A<sub>s,prov</sub> = '+bs.numBars+' \u00d7 '+bs.barArea+' = <span class="cval">'+f2(bs.AsProvided)+' in\u00b2</span></div>';
+  det1+='<div class="mrow"><span class="ceq">ACI 318-19 \u00a722.2.2 \u2014 Rectangular stress block iteration (per beam):</span></div>';
+  det1+='<div class="mrow ind">A<sub>s,est</sub> = '+fr('M<sub>u,beam</sub>','f<sub>y</sub>(d\u22123")')+' = '+fr(f1(r.M_beam*12000/1000)+' k-in', f1(fy/1000)+' ksi \u00d7 '+f1(r.d-3)+'"')+' = '+f3(r.M_beam*12000/(fy*(r.d-3)))+' in\u00b2</div>';
+  det1+='<div class="mrow ind">a = '+fr('A<sub>s</sub>f<sub>y</sub>','0.85f\u2019<sub>c</sub>b<sub>w</sub>')+', refine \u2192 A<sub>s,req</sub> = '+fr('M<sub>u,beam</sub>','f<sub>y</sub>(d\u2212a/2)')+' = <span class="cval">'+f3(bs.AsRequired)+' in\u00b2</span></div>';
+  det1+='<div class="mrow">Provide '+bs.numBars+' \u2013 #'+bs.barSize+' bars per beam, A<sub>s,prov</sub> = '+bs.numBars+' \u00d7 '+bs.barArea+' = <span class="cval">'+f2(bs.AsProvided)+' in\u00b2</span></div>';
   det1+='<div class="mrow">a<sub>actual</sub> = '+fr(f2(bs.AsProvided)+' \u00d7 '+f1(fy/1000)+' ksi','0.85 \u00d7 '+f1(fc/1000)+' ksi \u00d7 '+f1(r.bw)+'"')+' = <span class="cval">'+f3(bs.a)+'"</span></div>';
   det1+='<div class="mrow">M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d\u2212a/2)/12 = '+f2(bs.AsProvided)+' \u00d7 '+f1(fy/1000)+' \u00d7 '+f2(bs.jd)+'/12 = <span class="cval">'+f1(bs.Mn)+' kip-ft</span></div>';
   det1+='<hr class="csep">';
-  det1+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(bs.Mn)+' = <span class="cval">'+f1(r.phiMn_bot)+' kip-ft</span></div>';
-  det1+='<div class="mrow">D/C = '+fr('M<sub>u</sub> = '+f1(r.M)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_bot)+' k-ft')+' = <span class="cval">'+f3(r.M/r.phiMn_bot)+'</span></div>';
+  det1+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(bs.Mn)+' = <span class="cval">'+f1(r.phiMn_bot)+' kip-ft</span> (per beam)</div>';
+  det1+='<div class="mrow">D/C = '+fr('M<sub>u,beam</sub> = '+f1(r.M_beam)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_bot)+' k-ft')+' = <span class="cval">'+f3(r.M_beam/r.phiMn_bot)+'</span></div>';
   det1+='</div>';
 
   // det2 — top steel flexure
   var ts=r.topSteel;
   var det2='';
-  det2+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Top Steel, Negative Moment</div>';
+  det2+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Top Steel, Negative Moment (per beam)</div>';
   det2+='<div class="cbox">';
-  det2+='<div class="mrow">d = '+f1(r.d)+'", M<sub>u</sub> = '+f1(r.M)+' kip-ft = '+f1(r.M*12)+' kip-in</div>';
-  det2+='<div class="mrow">A<sub>s,req</sub> = <span class="cval">'+f3(ts.AsRequired)+' in\u00b2</span></div>';
-  det2+='<div class="mrow">Provide '+ts.numBars+' \u2013 #'+ts.barSize+' bars, A<sub>s,prov</sub> = <span class="cval">'+f2(ts.AsProvided)+' in\u00b2</span></div>';
+  det2+='<div class="mrow">d = '+f1(r.d)+'", M<sub>u,beam</sub> = '+f1(r.M_beam)+' kip-ft (M<sub>total</sub>/N = '+f1(r.M)+'/'+r.N+')</div>';
+  det2+='<div class="mrow">A<sub>s,req</sub> = <span class="cval">'+f3(ts.AsRequired)+' in\u00b2</span> per beam</div>';
+  det2+='<div class="mrow">Provide '+ts.numBars+' \u2013 #'+ts.barSize+' bars per beam, A<sub>s,prov</sub> = <span class="cval">'+f2(ts.AsProvided)+' in\u00b2</span></div>';
   det2+='<div class="mrow">a<sub>actual</sub> = <span class="cval">'+f3(ts.a)+'"</span>, \u2003 jd = <span class="cval">'+f2(ts.jd)+'"</span></div>';
   det2+='<div class="mrow">M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d\u2212a/2)/12 = <span class="cval">'+f1(ts.Mn)+' kip-ft</span></div>';
-  det2+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(ts.Mn)+' = <span class="cval">'+f1(r.phiMn_top)+' kip-ft</span></div>';
+  det2+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(ts.Mn)+' = <span class="cval">'+f1(r.phiMn_top)+' kip-ft</span> (per beam)</div>';
   det2+='<hr class="csep">';
-  det2+='<div class="mrow">D/C = '+fr('M<sub>u</sub> = '+f1(r.M)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_top)+' k-ft')+' = <span class="cval">'+f3(r.M/r.phiMn_top)+'</span></div>';
+  det2+='<div class="mrow">D/C = '+fr('M<sub>u,beam</sub> = '+f1(r.M_beam)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_top)+' k-ft')+' = <span class="cval">'+f3(r.M_beam/r.phiMn_top)+'</span></div>';
   det2+='</div>';
 
   // det3 — deflection
@@ -741,16 +590,8 @@ function runCalcs(){
   var lng = calcWRI(L,  Lp, lcLong,  w, bw, fy, fc, cover, maxS, topBar, botBar, depthLong);
   // Short direction: beams run parallel to L; span counted along Lp; moment uses L tributary
   var sht = calcWRI(Lp, L,  lcShort, w, bw, fy, fc, cover, maxS, topBar, botBar, depthShort);
-  if (typeof AREv2!=='undefined') AREv2.publish([
-    {symbol:'ML', label:'WRI Moment (Long)', value:lng.M, unit:'kip-ft', kind:'moment'},
-    {symbol:'MS', label:'WRI Moment (Short)', value:sht.M, unit:'kip-ft', kind:'moment'},
-    {symbol:'dL', label:'Beam Depth Req (Long)', value:lng.dCalc, unit:'in', kind:'other'},
-    {symbol:'dS', label:'Beam Depth Req (Short)', value:sht.dCalc, unit:'in', kind:'other'}
-  ]);
 
-  _lastBeamDepth = Math.max(lng.beamDepth, sht.beamDepth);
   drawPlan(L, Lp, lng.N, sht.N);
-  drawSection();
 
   // Parameters table
   document.getElementById('paramTb').innerHTML=[
@@ -763,9 +604,12 @@ function runCalcs(){
     ['Total beam width B','N \u00d7 b<sub>w</sub>',
       '<strong>'+f1(lng.B)+'"</strong>',
       '<strong>'+f1(sht.B)+'"</strong>'],
-    ['Design moment M','w l<sub>c</sub><sup>2</sup> L\u2019 / 2000',
+    ['Design moment M<sub>total</sub>','w l<sub>c</sub><sup>2</sup> L\u2019 / 2000',
       '<strong>'+f1(lng.M)+' kip-ft</strong>',
       '<strong>'+f1(sht.M)+' kip-ft</strong>'],
+    ['Moment per beam M<sub>beam</sub>','M<sub>total</sub> / N',
+      '<strong>'+f1(lng.M_beam)+' kip-ft</strong>',
+      '<strong>'+f1(sht.M_beam)+' kip-ft</strong>'],
     ['WRI minimum beam depth d<sub>min</sub>','WRI: \u221B(664 M l<sub>c</sub>/B)',
       f2(lng.dCalc)+'" \u2192 <strong>'+lng.beamDepthMin+'"</strong>',
       f2(sht.dCalc)+'" \u2192 <strong>'+sht.beamDepthMin+'"</strong>'],
@@ -789,8 +633,10 @@ function runCalcs(){
   document.getElementById('demGrid').innerHTML=[
     {v:f2(lcLong)+" ft", l:'l<sub>c</sub> Long Direction'},
     {v:f2(lcShort)+" ft", l:'l<sub>c</sub> Short Direction'},
-    {v:f1(lng.M)+' k-ft', l:'M<sub>u</sub> Long Direction'},
-    {v:f1(sht.M)+' k-ft', l:'M<sub>u</sub> Short Direction'},
+    {v:f1(lng.M)+' k-ft', l:'M<sub>total</sub> Long Direction'},
+    {v:f1(sht.M)+' k-ft', l:'M<sub>total</sub> Short Direction'},
+    {v:f1(lng.M_beam)+' k-ft', l:'M<sub>beam</sub> Long (per beam)'},
+    {v:f1(sht.M_beam)+' k-ft', l:'M<sub>beam</sub> Short (per beam)'},
     {v:lng.beamDepth+'"', l:'Beam Depth — Long Dir'},
     {v:sht.beamDepth+'"', l:'Beam Depth — Short Dir'},
     {v:lng.N, l:'Beams — Long Direction'},
@@ -812,18 +658,18 @@ function runCalcs(){
      dc:lng.beamDepthMin/lng.beamDepth,
      nt:'N<sub>L</sub> = '+lng.N+' beams, B = '+f1(lng.B)+'"',
      det:ld[0]},
-    {n:'Long Dir \u2014 Bottom Steel \u03c6M<sub>n</sub>',
+    {n:'Long Dir \u2014 Bottom Steel \u03c6M<sub>n</sub> (per beam)',
      r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u</sub> = '+f1(lng.M)+' k-ft',
+     d:'M<sub>u,beam</sub> = '+f1(lng.M_beam)+' k-ft',
      c:'\u03c6M<sub>n</sub> = '+f1(lng.phiMn_bot)+' k-ft',
-     dc:lng.M/lng.phiMn_bot,
+     dc:lng.M_beam/lng.phiMn_bot,
      nt:lng.botSteel.numBars+' \u2013 #'+lng.botSteel.barSize+'/beam, A<sub>s</sub> = '+f2(lng.botSteel.AsProvided)+' in\u00b2',
      det:ld[1]},
-    {n:'Long Dir \u2014 Top Steel \u03c6M<sub>n</sub>',
+    {n:'Long Dir \u2014 Top Steel \u03c6M<sub>n</sub> (per beam)',
      r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u</sub> = '+f1(lng.M)+' k-ft',
+     d:'M<sub>u,beam</sub> = '+f1(lng.M_beam)+' k-ft',
      c:'\u03c6M<sub>n</sub> = '+f1(lng.phiMn_top)+' k-ft',
-     dc:lng.M/lng.phiMn_top,
+     dc:lng.M_beam/lng.phiMn_top,
      nt:lng.topSteel.numBars+' \u2013 #'+lng.topSteel.barSize+'/beam, A<sub>s</sub> = '+f2(lng.topSteel.AsProvided)+' in\u00b2',
      det:ld[2]},
     {n:'Long Dir \u2014 Deflection',
@@ -840,18 +686,18 @@ function runCalcs(){
      dc:sht.beamDepthMin/sht.beamDepth,
      nt:'N<sub>S</sub> = '+sht.N+' beams, B = '+f1(sht.B)+'"',
      det:sd[0]},
-    {n:'Short Dir \u2014 Bottom Steel \u03c6M<sub>n</sub>',
+    {n:'Short Dir \u2014 Bottom Steel \u03c6M<sub>n</sub> (per beam)',
      r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u</sub> = '+f1(sht.M)+' k-ft',
+     d:'M<sub>u,beam</sub> = '+f1(sht.M_beam)+' k-ft',
      c:'\u03c6M<sub>n</sub> = '+f1(sht.phiMn_bot)+' k-ft',
-     dc:sht.M/sht.phiMn_bot,
+     dc:sht.M_beam/sht.phiMn_bot,
      nt:sht.botSteel.numBars+' \u2013 #'+sht.botSteel.barSize+'/beam, A<sub>s</sub> = '+f2(sht.botSteel.AsProvided)+' in\u00b2',
      det:sd[1]},
-    {n:'Short Dir \u2014 Top Steel \u03c6M<sub>n</sub>',
+    {n:'Short Dir \u2014 Top Steel \u03c6M<sub>n</sub> (per beam)',
      r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u</sub> = '+f1(sht.M)+' k-ft',
+     d:'M<sub>u,beam</sub> = '+f1(sht.M_beam)+' k-ft',
      c:'\u03c6M<sub>n</sub> = '+f1(sht.phiMn_top)+' k-ft',
-     dc:sht.M/sht.phiMn_top,
+     dc:sht.M_beam/sht.phiMn_top,
      nt:sht.topSteel.numBars+' \u2013 #'+sht.topSteel.barSize+'/beam, A<sub>s</sub> = '+f2(sht.topSteel.AsProvided)+' in\u00b2',
      det:sd[2]},
     {n:'Short Dir \u2014 Deflection',
@@ -900,19 +746,256 @@ function runCalcs(){
   document.getElementById('results').classList.add('show');
 }
 
-function tryDrawInitial() {
-  if (window.AREDraw) {
-    var L  = parseFloat(document.getElementById('L').value)  || 60;
-    var Lp = parseFloat(document.getElementById('Lp').value) || 40;
-    drawPlan(L, Lp, null, null);
-    drawSection();
-  } else {
-    setTimeout(tryDrawInitial, 80);
-  }
-}
-window.addEventListener('DOMContentLoaded', tryDrawInitial);
+window.addEventListener('DOMContentLoaded', function(){drawPlan(60,40,null,null);});
 </script>
-<script src="/are-draw.js"></script>
-<script src="/are-utils-v2.js"></script>
-</body>
-</html>
+<script src="/are-utils.js"></script>
+<script>
+// =============================================================================
+// ARE Calculator Shared Utilities  —  v1.0
+// Save/Load inputs via localStorage · Print Summary · Print Full Calc
+// Inject this script into any ARE calculator HTML file.
+// =============================================================================
+
+(function () {
+  'use strict';
+
+  // Storage key is unique per calculator file
+  var STORE_KEY = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
+
+  // ── 1. Inject Styles ───────────────────────────────────────────────────────
+
+  function injectStyles() {
+    var css = [
+
+      // ── Toolbar ──────────────────────────────────────────────────────────
+      '.are-bar{',
+        'display:flex;align-items:center;gap:8px;padding:6px 14px;',
+        'background:#fff;border-bottom:2px solid #1e3c72;',
+        'position:sticky;top:0;z-index:9999;flex-wrap:wrap;',
+        'font-family:system-ui,Arial,sans-serif;',
+        'box-shadow:0 1px 5px rgba(30,60,114,.10);',
+      '}',
+      '.are-bar label{font-size:11px;font-weight:700;color:#1e3c72;white-space:nowrap;letter-spacing:.03em}',
+      '.are-bar-job{',
+        'border:1.5px solid #c7d2e0;border-radius:4px;',
+        'padding:4px 9px;font-size:12px;color:#1a1a1a;',
+        'width:210px;outline:none;transition:border-color .15s;',
+      '}',
+      '.are-bar-job:focus{border-color:#1e3c72}',
+      '.are-bar-sep{width:1px;height:22px;background:#dde;margin:0 3px;flex-shrink:0}',
+      '.are-btn{',
+        'border:1.5px solid #1e3c72;background:#fff;color:#1e3c72;',
+        'border-radius:4px;padding:4px 12px;font-size:11px;font-weight:700;',
+        'cursor:pointer;white-space:nowrap;letter-spacing:.02em;',
+        'transition:background .12s,color .12s;font-family:inherit;',
+      '}',
+      '.are-btn:hover{background:#1e3c72;color:#fff}',
+      '.are-btn.pr{border-color:#2a5298;color:#2a5298}',
+      '.are-btn.pr:hover{background:#2a5298;color:#fff}',
+      '.are-spacer{flex:1;min-width:8px}',
+
+      // ── Toast notification ────────────────────────────────────────────────
+      '.are-toast{',
+        'position:fixed;bottom:20px;right:20px;',
+        'background:#1e3c72;color:#fff;',
+        'padding:9px 18px;border-radius:6px;',
+        'font-size:13px;font-family:system-ui,Arial,sans-serif;',
+        'z-index:99999;opacity:0;transition:opacity .2s;',
+        'pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.25);',
+      '}',
+      '.are-toast.show{opacity:1}',
+
+      // ── Print-only header (hidden on screen) ──────────────────────────────
+      '.are-ph{display:none}',
+
+      // ── Print media query ─────────────────────────────────────────────────
+      '@media print{',
+
+        // Always hide
+        '.are-bar{display:none!important}',
+        'button,.calc-btn,.det-btn,.btn-ra,.are-bar{display:none!important}',
+
+        // Show print header
+        '.are-ph{',
+          'display:block!important;',
+          'border-bottom:2px solid #1e3c72;',
+          'padding-bottom:8px;margin-bottom:14px;',
+          'font-family:system-ui,Arial,sans-serif;',
+        '}',
+        '.are-ph-title{font-size:15px;font-weight:700;color:#1e3c72;margin:0 0 3px}',
+        '.are-ph-meta{font-size:11px;color:#555;margin:0}',
+
+        // Results always visible when printing
+        '.results,.results-section{display:block!important}',
+
+        // — Summary mode (data-pm="s") ————————————————————————————————————
+        // Hide input blocks, floor inputs, demand cards, detail panels
+        'body[data-pm="s"] .blk{display:none!important}',
+        'body[data-pm="s"] .floor-blk{display:none!important}',
+        'body[data-pm="s"] #floor-con{display:none!important}',
+        'body[data-pm="s"] .dem-grid{display:none!important}',
+        'body[data-pm="s"] .det-row{display:none!important}',
+        'body[data-pm="s"] .calc-btn{display:none!important}',
+        // Keep check table and summary visible
+        'body[data-pm="s"] .chk-table{display:table!important}',
+        'body[data-pm="s"] .summary{display:block!important}',
+        'body[data-pm="s"] #sumBox{display:block!important}',
+
+        // — Full mode (data-pm="f") ——————————————————————————————————————
+        // Show expanded detail rows
+        'body[data-pm="f"] .det-row{display:table-row!important}',
+        'body[data-pm="f"] .calc-det{display:block!important}',
+
+        // Page setup
+        '@page{margin:.75in;size:letter portrait}',
+
+      '}', // end @media print
+
+    ].join('');
+
+    var el = document.createElement('style');
+    el.id = 'are-utils-styles';
+    el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  // ── 2. Inject Toolbar ─────────────────────────────────────────────────────
+
+  function injectToolbar() {
+    // Toolbar
+    var bar = document.createElement('div');
+    bar.className = 'are-bar';
+    bar.id = 'areBar';
+    bar.innerHTML =
+      '<label for="areJob">Project</label>' +
+      '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<div class="are-bar-sep"></div>' +
+      '<button class="are-btn" onclick="areSave()">&#128190; Save</button>' +
+      '<button class="are-btn" onclick="areLoad()">&#128194; Load</button>' +
+      '<div class="are-spacer"></div>' +
+      '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
+      '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>';
+
+    document.body.insertBefore(bar, document.body.firstChild);
+
+    // Print-only header block (right after toolbar, before calc content)
+    var ph = document.createElement('div');
+    ph.className = 'are-ph';
+    ph.id = 'arePH';
+    ph.innerHTML =
+      '<div class="are-ph-title" id="arePHtitle">' + document.title + '</div>' +
+      '<div class="are-ph-meta" id="arePHmeta"></div>';
+    bar.insertAdjacentElement('afterend', ph);
+
+    // Toast element
+    var toast = document.createElement('div');
+    toast.className = 'are-toast';
+    toast.id = 'areToast';
+    document.body.appendChild(toast);
+
+    // Restore saved job name on load (non-intrusively — don't auto-fill inputs)
+    try {
+      var saved = localStorage.getItem(STORE_KEY);
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d._job) document.getElementById('areJob').value = d._job;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // ── 3. Toast helper ────────────────────────────────────────────────────────
+
+  function showToast(msg, ms) {
+    var el = document.getElementById('areToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  // ── 4. Save ────────────────────────────────────────────────────────────────
+
+  window.areSave = function () {
+    var job = '';
+    var jobEl = document.getElementById('areJob');
+    if (jobEl) job = jobEl.value.trim();
+
+    var inputs = {};
+    document.querySelectorAll('input[id], select[id], textarea[id]').forEach(function (el) {
+      if (el.id === 'areJob') return;
+      if (el.type === 'file') return;
+      inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+
+    var payload = { _job: job, _ts: Date.now(), _inputs: inputs };
+
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+      showToast('✓ Saved' + (job ? ' — ' + job : ''));
+    } catch (e) {
+      showToast('⚠ Save failed: storage may be full.');
+    }
+  };
+
+  // ── 5. Load ────────────────────────────────────────────────────────────────
+
+  window.areLoad = function () {
+    var raw = localStorage.getItem(STORE_KEY);
+    if (!raw) {
+      showToast('No saved inputs found for this calculator.', 3200);
+      return;
+    }
+
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e) { showToast('⚠ Could not read saved data.', 3200); return; }
+
+    // Restore job name
+    var jobEl = document.getElementById('areJob');
+    if (jobEl && data._job) jobEl.value = data._job;
+
+    // Restore all inputs
+    var count = 0;
+    Object.keys(data._inputs || {}).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') {
+        el.checked = !!data._inputs[id];
+      } else {
+        el.value = data._inputs[id];
+      }
+      // Dispatch events so dependent UI updates (e.g. updatePlan())
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      count++;
+    });
+
+    // Auto-run calculations
+    if (typeof runCalcs === 'function') { runCalcs(); }
+    else if (typeof runAll === 'function') { runAll(); }
+    else if (typeof calculate === 'function') { calculate(); }
+    else if (typeof calcAll === 'function') { calcAll(); }
+
+    var d = new Date(data._ts);
+    var ds = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    showToast('✓ Loaded' + (data._job ? ' — ' + data._job : '') + '  (saved ' + ds + ')');
+  };
+
+  // ── 6. Print ───────────────────────────────────────────────────────────────
+
+  window.arePrint = function (mode) {
+    // Update print header
+    var metaEl = document.getElementById('arePHmeta');
+    if (metaEl) {
+      var jobEl = document.getElementById('areJob');
+      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
+      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+    }
+
+    if (mode === 'f') {
+      // Expand all detail rows and panels before printing
+      document.querySelectorAll('.det-row').forEach(function (el) {
+        el.style.setProperty('display', 'table-row', 'important');
+      });
+      document.querySelectorAll('.calc-det').forEach(functi
