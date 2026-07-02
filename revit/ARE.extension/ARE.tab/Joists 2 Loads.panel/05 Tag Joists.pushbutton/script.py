@@ -4,14 +4,18 @@ ARE Tag Joists -- pyRevit pushbutton script
 Anderson Rohr Engineering - Joist Loading - Phase 2 helper
 
 Select joists in the model, then run this to set their load-category checkboxes:
-  * Roof   -> ARE_J_is_Roof = Yes, ARE_J_is_Floor = No
-  * Floor  -> ARE_J_is_Floor = Yes, ARE_J_is_Roof = No
-  * +Solar -> ARE_J_has_Solar = Yes (leaves roof/floor as-is)
-  * -Solar -> ARE_J_has_Solar = No
-  * Clear  -> all three = No
+  * Roof          -> ARE_J_is_Roof = Yes, ARE_J_is_Floor = No
+  * Floor         -> ARE_J_is_Floor = Yes, ARE_J_is_Roof = No
+  * +Solar        -> ARE_J_has_Solar = Yes (leaves roof/floor as-is)
+  * -Solar        -> ARE_J_has_Solar = No
+  * Edge Zone Z2  -> ARE_J_is_EdgeZone = Yes (leaves roof/floor/solar as-is)
+  * Interior Z1   -> ARE_J_is_EdgeZone = No
+  * Clear         -> roof/floor/solar = No (edge zone left as-is)
 
-Roof and Floor are mutually exclusive; Solar is additive. The family formulas
-gate each load by these boxes, so tagging changes the computed PLF live.
+Roof and Floor are mutually exclusive; Solar and the C&C wind zone are
+independent toggles. The family formulas gate each load by these boxes, so
+tagging changes the computed PLF live. Edge Zone (Z2) switches the wind uplift
+formula from ARE_J_Wind_psf (interior Z1) to ARE_J_Wind2_psf (edge Z2).
 
 CPython note: instance params via LookupParameter; never FamilyInstance.Symbol.
 """
@@ -54,17 +58,23 @@ except ImportError:
 ROOF = "ARE_J_is_Roof"
 FLOOR = "ARE_J_is_Floor"
 SOLAR = "ARE_J_has_Solar"
+EDGE = "ARE_J_is_EdgeZone"
 MARKER = ROOF  # an element is a taggable joist if it has this param
 
 # Action -> dict of {param: 0/1} to set. None value = leave unchanged.
+# Edge Zone (Z2) / Interior Zone (Z1) toggle ONLY ARE_J_is_EdgeZone; they do not
+# disturb the roof/floor mutual exclusion or the solar flag.
 ACTIONS = {
     "Roof":     {ROOF: 1, FLOOR: 0},
     "Floor":    {FLOOR: 1, ROOF: 0},
     "+ Solar":  {SOLAR: 1},
     "- Solar":  {SOLAR: 0},
+    "Edge Zone (Z2)":     {EDGE: 1},
+    "Interior Zone (Z1)": {EDGE: 0},
     "Clear all": {ROOF: 0, FLOOR: 0, SOLAR: 0},
 }
-ACTION_ORDER = ["Roof", "Floor", "+ Solar", "- Solar", "Clear all"]
+ACTION_ORDER = ["Roof", "Floor", "+ Solar", "- Solar",
+                "Edge Zone (Z2)", "Interior Zone (Z1)", "Clear all"]
 
 
 def set_bool(inst, pname, val):

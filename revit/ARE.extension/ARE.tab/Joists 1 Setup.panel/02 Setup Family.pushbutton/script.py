@@ -67,11 +67,16 @@ try:
         BuiltInCategory,
         BuiltInParameter,
         Family,
+        FamilyParameter,
         FilteredElementCollector,
         Transaction,
     )
     from Autodesk.Revit.UI import TaskDialog, TaskDialogCommonButtons, TaskDialogResult
     from pyrevit import forms, script
+
+    # .NET generic list, needed to hand FamilyManager.ReorderParameters a
+    # strongly-typed List[FamilyParameter]. clr is imported just above.
+    from System.Collections.Generic import List
 
     RUNNING_IN_REVIT = True
 except ImportError:
@@ -122,7 +127,8 @@ FORMULAS = [
      "roundup((if(ARE_J_is_Roof, ARE_J_Snow_psf, 0) "
      "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
     ("ARE_J_Wind_plf",
-     "roundup((if(ARE_J_is_Roof, ARE_J_Wind_psf, 0) "
+     "roundup((if(ARE_J_is_Roof, "
+     "if(ARE_J_is_EdgeZone, ARE_J_Wind2_psf, ARE_J_Wind_psf), 0) "
      "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
     # Governing live = max(Lr, Snow, LL). Revit has no max() -> nested if().
     ("ARE_J_wLL_plf",
@@ -159,6 +165,32 @@ WRITEBACK_NAMES = set([
     "ARE_J_Axial_k", "ARE_J_LoadMark", "ARE_J_LoadKey", "ARE_J_Remarks",
     "ARE_J_HasPointLoads",
 ])
+
+# Canonical ordering of the ARE_J_* parameters in the Family Editor. Inputs
+# first (in engineer-facing entry order), then all writeback outputs. A
+# best-effort ReorderParameters pass (see inject_into_family) sorts the family's
+# ARE_J_* params to match; non-ARE params keep their existing relative order.
+# Any ARE_J_* name not listed here is appended after the ones that are.
+PARAM_ORDER = [
+    # --- inputs ---
+    "ARE_J_is_Roof", "ARE_J_is_Floor", "ARE_J_has_Solar", "ARE_J_is_EdgeZone",
+    "ARE_J_Spacing", "ARE_J_Spacing_Source",
+    "ARE_J_DLroof_psf", "ARE_J_DLfloor_psf", "ARE_J_Solar_psf",
+    "ARE_J_Lr_psf", "ARE_J_LL_psf", "ARE_J_Snow_psf",
+    "ARE_J_Wind_psf", "ARE_J_Wind2_psf", "ARE_J_WindDown_psf",
+    "ARE_J_Axial_Wind_k", "ARE_J_Axial_Seismic_k",
+    "ARE_J_Sched_Depth", "ARE_J_Sched_Series", "ARE_J_Grid_Ref",
+    "ARE_J_P1_Mag", "ARE_J_P1_Dist", "ARE_J_P2_Mag", "ARE_J_P2_Dist",
+    "ARE_J_P3_Mag", "ARE_J_P3_Dist", "ARE_J_P4_Mag", "ARE_J_P4_Dist",
+    "ARE_J_P5_Mag", "ARE_J_P5_Dist",
+    # --- writeback ---
+    "ARE_J_DL_plf", "ARE_J_Lr_plf", "ARE_J_LL_plf", "ARE_J_Snow_plf",
+    "ARE_J_wLL_plf", "ARE_J_Wind_plf", "ARE_J_WindDown_plf",
+    "ARE_J_wTL_plf", "ARE_J_wUplift_plf", "ARE_J_NetUplift_plf",
+    "ARE_J_PointLoad_Callout", "ARE_J_HasPointLoads",
+    "ARE_J_LoadMark", "ARE_J_LoadKey", "ARE_J_Axial_k",
+    "ARE_J_Remarks", "ARE_J_Calc_Status", "ARE_J_Calc_Date",
+]
 
 # ---------------------------------------------------------------------------
 # Version-robust ForgeTypeId / legacy-enum resolution
@@ -280,7 +312,9 @@ def open_joist_defs(app):
 
     defs = {}
     for group in def_file.Groups:
-        if group.Name in SP_GROUPS:
+        # Case-insensitive: master file uses "ARE JOIST INPUTS", the bundled
+        # fallback ARE_JoistLoads.txt uses "ARE Joist Inputs".
+        if group.Name.upper() in SP_GROUPS:
             for d in group.Definitions:
                 defs[d.Name] = d
 
@@ -349,7 +383,7 @@ def inject_into_family(doc, family, defs):
     """EditFamily -> add params/helper/formulas -> reload. Returns a result dict."""
     res = {
         "family": None, "added": 0, "skipped": 0, "conflicts": [],
-        "formulas_set": 0, "reloaded": False, "error": None,
+        "formulas_set": 0, "reloaded": False, "error": None, "reordered": 0,
     }
     res["family"] = revit_name(family) or "(family)"
 
@@ -446,6 +480,55 @@ def inject_into_family(doc, family, defs):
                 except Exception as exc:
                     res["conflicts"].append(rname + " (retire failed: {0})".format(exc))
 
+        # 5) Best-effort canonical reorder of the ARE_J_* parameters. Non-ARE_J
+        # params (including the TYPE helper ARE_J_ref_1ft, which we deliberately
+        # treat as non-canonical so it stays put) keep their current relative
+        # order; the ARE_J_* params are sorted per PARAM_ORDER, with any ARE_J_*
+        # name not in PARAM_ORDER appended after the ordered ones. A failure here
+        # must NOT abort the run -- the params + formulas are already committed.
+        try:
+            order_index = {}
+            for i, nm in enumerate(PARAM_ORDER):
+                order_index[nm] = i
+
+            def _is_canonical(fp):
+                # ARE_J_ref_1ft is the unit-shim helper -- keep it in the
+                # non-ARE section so it is never shuffled by PARAM_ORDER.
+                try:
+                    nm = fp.Definition.Name
+                except Exception:
+                    return False, ""
+                if nm == HELPER_NAME:
+                    return False, nm
+                return nm.startswith("ARE_J_"), nm
+
+            current = list(fm.GetParameters())
+            non_are = []
+            are_params = []
+            for fp in current:
+                is_can, nm = _is_canonical(fp)
+                if is_can:
+                    are_params.append((nm, fp))
+                else:
+                    non_are.append(fp)
+
+            # ARE_J params in PARAM_ORDER first (stable), unknown ARE_J last.
+            big = len(PARAM_ORDER)
+            are_sorted = [pair[1] for _, pair in sorted(
+                enumerate(are_params),
+                key=lambda t: (order_index.get(t[1][0], big + t[0]),))]
+
+            ordered = List[FamilyParameter]()
+            for fp in non_are:
+                ordered.Add(fp)
+            for fp in are_sorted:
+                ordered.Add(fp)
+
+            fm.ReorderParameters(ordered)
+            res["reordered"] = len(are_sorted)
+        except Exception as exc:
+            res["conflicts"].append("reorder failed: {0}".format(exc))
+
         t.Commit()
         t = None
 
@@ -523,6 +606,7 @@ def show_summary(results):
     tadded = sum(r["added"] for r in results)
     tskip = sum(r["skipped"] for r in results)
     tform = sum(r["formulas_set"] for r in results)
+    treorder = sum(r.get("reordered", 0) for r in results)
     ok = [r for r in results if r["reloaded"] and not r["error"]]
     failed = [r for r in results if r["error"] or not r["reloaded"]]
     conflicts = [(r["family"], c) for r in results for c in r["conflicts"]]
@@ -530,8 +614,9 @@ def show_summary(results):
     out.print_md(
         "- Families processed: **{0}**  (reloaded OK: **{1}**, failed: **{2}**)\n"
         "- Parameters added: **{3}**, already present: **{4}**\n"
-        "- Formulas set: **{5}**".format(
-            len(results), len(ok), len(failed), tadded, tskip, tform))
+        "- Formulas set: **{5}**\n"
+        "- Parameters reordered (canonical): **{6}**".format(
+            len(results), len(ok), len(failed), tadded, tskip, tform, treorder))
 
     rows = []
     for r in results:

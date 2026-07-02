@@ -78,6 +78,15 @@ def getd(inst, name):
         return 0.0
 
 
+def geti(inst, name):
+    """Integer value of a YESNO/integer instance param. Missing param -> 0."""
+    try:
+        p = inst.LookupParameter(name)
+        return p.AsInteger() if p is not None else 0
+    except Exception:
+        return 0
+
+
 def set_str(inst, name, value):
     p = inst.LookupParameter(name)
     if p is None or p.IsReadOnly:
@@ -191,6 +200,12 @@ def build_record(doc, inst):
     up = int(round(getd(inst, "ARE_J_NetUplift_plf")))
     sig = pointload_sig(inst)
     wtl = int(round(getd(inst, "ARE_J_wTL_plf")))
+    edge = geti(inst, "ARE_J_is_EdgeZone") == 1
+
+    # C&C edge-zone (Zone 2) joists get an "EDGE Z2" note in the schedule
+    # REMARKS (combined with any Wind/Seismic axial note).
+    if edge:
+        rem = (rem + "; EDGE Z2") if rem else "EDGE Z2"
 
     # Point-loaded joists get a "SEE SPECIAL SCHED" note in the main schedule
     # REMARKS (combined with any Wind/Seismic axial note).
@@ -198,9 +213,12 @@ def build_record(doc, inst):
         rem = (rem + "; SEE SPECIAL SCHED") if rem else "SEE SPECIAL SCHED"
 
     # Cluster by DEPTH + loading (not the modeled type name) -- the engineer
-    # specifies the final series (K/KSP/LH/DLH) per mark in the schedule.
-    key = ("D={0}|DL={1}|LL={2}|WD={3}|UP={4}|ADD={5}|AXW={6:.1f}|AXE={7:.1f}"
-           .format(dep, dl, ll, wd, up, sig, axw, axe))
+    # specifies the final series (K/KSP/LH/DLH) per mark in the schedule. Edge
+    # vs. interior wind zone (Z2/Z1) drives a different uplift, so it is part of
+    # the signature.
+    key = ("D={0}|DL={1}|LL={2}|WD={3}|UP={4}|ADD={5}|AXW={6:.1f}|AXE={7:.1f}|Z={8}"
+           .format(dep, dl, ll, wd, up, sig, axw, axe,
+                   "Z2" if edge else "Z1"))
 
     prefix = "G" if "girder" in family_name(inst) else "J"
     old = ""

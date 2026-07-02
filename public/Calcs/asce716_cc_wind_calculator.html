@@ -327,6 +327,15 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <span class="hint" id="effAreaHint">A = max(L&times;w, L&sup2;/3) &ge; 10 sf &mdash; §26.2</span>
     </div>
   </div>
+
+  <!-- Revit export bar -->
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:8px">
+    <button onclick="exportRevitCC()"
+      style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">&#127959;&nbsp; Export for Revit</button>
+    <button id="copyRevitCCBtn" onclick="copyRevitCC()"
+      style="background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:8px 18px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">&#128203;&nbsp; Copy for Revit</button>
+    <span style="font-size:.82em;color:#475569">Wind pressures &#8594; ARE Revit joist tools (Zone 1 = interior, Zone 2 = edge)</span>
+  </div>
 </div>
 
 <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Calculate Pressures</button>
@@ -1401,7 +1410,7 @@ function runCalc(){
     if(z.isParapet){
       // ── Parapet zone — pre-computed net pressures (no GCpi) ──
       var govP=z.govNet;
-      _lastZonePressures.push({name:z.name, govP:govP, isParapet:true, isWall:false});
+      _lastZonePressures.push({name:z.name, govP:govP, isParapet:true, isWall:false, pPos:null, pNeg:null, figKey:'parapet'});
       var caseAstr=(z.caseA!==null)?f1(z.caseA):'&mdash;';
       var caseBstr=f1(z.caseB);
       var detHtml=buildParapetDet(z, A, V, exp, hZ, KhZ, khRowZ, Kzt, Kd, qhZ);
@@ -1424,7 +1433,7 @@ function runCalc(){
       var pNeg=qhZ*(gcpNeg-GCpi);
       var govP=Math.max(Math.abs(pPos!==null?pPos:0), Math.abs(pNeg));
       var isWallZone=(/Zone\s*4/.test(z.name)||/Zone\s*5/.test(z.name)) && !z.oh;
-      if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP, isParapet:false, isWall:isWallZone});
+      if(!z.oh) _lastZonePressures.push({name:z.name, govP:govP, isParapet:false, isWall:isWallZone, pPos:(pPos!==null?pPos:null), pNeg:pNeg, figKey:item.figKey});
       var gcpPosStr=(gcpPos!==null)?f3(gcpPos):'&mdash;';
       var pPosStr=(pPos!==null)?f1(pPos):'&mdash;';
       var rowCls=z.oh?'class="oh-row"':'';
@@ -1457,6 +1466,7 @@ function runCalc(){
     var maxZone   = _lastZonePressures.reduce(function(b,z){return z.govP>b.govP?z:b;});
     // Find Zone 5 specifically (wall corner — used by masonry wall calc)
     var wallZ5    = wallOnlyZones.filter(function(z){return /Zone\s*5/.test(z.name);})[0] || null;
+    var revitPayload = (function(){ try { var p=buildRevitCCPayload(); return p?p.revit:null; } catch(e){ return null; } })();
     try {
       localStorage.setItem('ARE_cc_wind', JSON.stringify({
         govP:    maxWall ? maxWall.govP : maxZone.govP,
@@ -1466,6 +1476,7 @@ function runCalc(){
         zone_parapet: maxPar ? maxPar.name : null,
         allZones: _lastZonePressures,
         hp: hp,
+        revit: revitPayload,
         saved: new Date().toISOString()
       }));
     } catch(e) {}
@@ -1473,6 +1484,137 @@ function runCalc(){
 
   document.getElementById('results').className='results show';
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ─── REVIT C&C WIND EXPORT ───────────────────────────────────────────────────
+function buildRevitCCPayload(){
+  if(typeof _lastZonePressures==='undefined' || !_lastZonePressures || !_lastZonePressures.length) return null;
+  var r1=function(v){ return (v===null||v===undefined) ? null : Math.round(v*10)/10; };
+
+  // Classify zones
+  var roofZones=[];
+  _lastZonePressures.forEach(function(z){
+    if(z.isParapet) return;
+    if(z.isWall && !z.isParapet) return;
+    roofZones.push(z);
+  });
+
+  // Bucket roof zones by name → interior(1) / edge(2) / corner(3)
+  function pickBucket(re){
+    var best=null;
+    roofZones.forEach(function(z){
+      if(!re.test(z.name)) return;
+      if(z.pNeg===null || z.pNeg===undefined) return;
+      if(best===null || z.pNeg<best.pNeg) best=z;   // most NEGATIVE
+    });
+    return best;
+  }
+  var b1=pickBucket(/Zone\s*1/);
+  var b2=pickBucket(/Zone\s*2/);
+  var b3=pickBucket(/Zone\s*3/);
+
+  // Governing downward = most POSITIVE pPos among roof zones, floored at 0
+  var downVal=0, downLabel='';
+  roofZones.forEach(function(z){
+    if(z.pPos===null || z.pPos===undefined) return;
+    if(z.pPos>downVal){ downVal=z.pPos; downLabel=z.name; }
+  });
+
+  var zones=[];
+  _lastZonePressures.forEach(function(z){
+    zones.push({
+      name:z.name,
+      figKey:(z.figKey!==undefined?z.figKey:null),
+      pPos_psf:r1(z.pPos!==undefined?z.pPos:null),
+      pNeg_psf:r1(z.pNeg!==undefined?z.pNeg:null),
+      govP_psf:r1(z.govP),
+      isWall:!!z.isWall,
+      isParapet:!!z.isParapet
+    });
+  });
+
+  var z1u=b1?r1(b1.pNeg):null;
+  var z2u=b2?r1(b2.pNeg):null;
+  var z3u=b3?r1(b3.pNeg):null;
+
+  var payload={
+    schema:"are.cc.wind.v1",
+    _calc:"cc-revit",
+    generatedAt:new Date().toISOString(),
+    inputs:{
+      V_mph:parseFloat(document.getElementById('V').value),
+      exposure:document.getElementById('exp').value,
+      h_ft:parseFloat(document.getElementById('h').value),
+      minDim_ft:parseFloat(document.getElementById('minDim').value),
+      hp_ft:parseFloat(document.getElementById('hp').value)||0,
+      Kd:parseFloat(document.getElementById('Kd').value),
+      Kzt:parseFloat(document.getElementById('Kzt').value),
+      GCpi:parseFloat(document.getElementById('GCpi').value),
+      wallFig:document.getElementById('wallFig').value,
+      roofFig:document.getElementById('roofFig').value,
+      span_ft:parseFloat(document.getElementById('spanL').value),
+      trib_ft:parseFloat(document.getElementById('tribW').value),
+      effArea_sf:parseFloat(document.getElementById('effArea').value)
+    },
+    zones:zones,
+    roof:{
+      zone1_uplift_psf:z1u, zone1_label:(b1?b1.name:null),
+      zone2_uplift_psf:z2u, zone2_label:(b2?b2.name:null),
+      zone3_uplift_psf:z3u, zone3_label:(b3?b3.name:null),
+      governing_down_psf:r1(downVal), governing_down_label:downLabel
+    },
+    revit:{
+      // Revit family formula wUplift = 0.6*DL - Wind_plf expects uplift as POSITIVE magnitude
+      ARE_G_Wind_psf:  (z1u!==null?r1(Math.abs(z1u)):0),
+      ARE_G_Wind2_psf: (z2u!==null?r1(Math.abs(z2u)):0),
+      ARE_G_WindDown_psf: r1(downVal)
+    }
+  };
+  return payload;
+}
+
+function exportRevitCC(){
+  var payload=buildRevitCCPayload();
+  if(!payload){ alert('Run Calculate first.'); return; }
+  if(payload.roof.zone1_uplift_psf===null&&payload.roof.zone2_uplift_psf===null){
+    alert('No roof zone pressures to export — select a Roof Figure and Calculate first.'); return;
+  }
+  var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='cc_wind_revit.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function copyRevitCC(){
+  var payload=buildRevitCCPayload();
+  if(!payload){ alert('Run Calculate first.'); return; }
+  if(payload.roof.zone1_uplift_psf===null&&payload.roof.zone2_uplift_psf===null){
+    alert('No roof zone pressures to export — select a Roof Figure and Calculate first.'); return;
+  }
+  var txt=JSON.stringify(payload,null,2);
+  var btn=document.getElementById('copyRevitCCBtn');
+  function flash(){
+    if(!btn) return;
+    var orig=btn.textContent;
+    btn.textContent='✓ Copied';
+    setTimeout(function(){ btn.textContent=orig; },1500);
+  }
+  function fallback(){
+    var ta=document.createElement('textarea');
+    ta.value=txt;
+    ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand('copy'); flash(); }catch(e){ alert('Copy failed.'); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(flash).catch(fallback);
+  } else {
+    fallback();
+  }
 }
 
 // ─── Zone calculation detail panel ───────────────────────────────────────────
@@ -1686,9 +1828,35 @@ function sendToMasonryWall(){
   window.open(url, '_blank');
 }
 
+// ─── URL prefill ─────────────────────────────────────────────────────────────
+(function(){
+  try{
+    var qs=new URLSearchParams(window.location.search);
+    var keys=['V','exp','h','minDim','hp','Kd','Kzt','GCpi','wallFig','roofFig','spanL','tribW','effArea'];
+    keys.forEach(function(k){
+      if(qs.has(k)){
+        var v=qs.get(k);
+        var el=document.getElementById(k);
+        if(el && v!==null && v!=='') el.value=v;
+      }
+    });
+  }catch(e){}
+})();
+
 // Initialize figure note on load
 updateFigNotes();
 calcEffArea();
+
+// If effArea was passed explicitly, it wins over the calcEffArea() recompute
+(function(){
+  try{
+    var qs=new URLSearchParams(window.location.search);
+    if(qs.has('effArea')){
+      var v=qs.get('effArea');
+      if(v!==null && v!=='') document.getElementById('effArea').value=v;
+    }
+  }catch(e){}
+})();
 </script>
 <script src="/are-utils-v2.js"></script>
 </body>
