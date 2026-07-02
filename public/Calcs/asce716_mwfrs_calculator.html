@@ -102,6 +102,8 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       <button class="sl-btn save" onclick="saveInputsMWFRS()" title="Save all inputs to a .json file">💾 Save Inputs</button>
       <button class="sl-btn" onclick="document.getElementById('mwfrsLoadFile').click()" title="Load previously saved inputs">📂 Load Inputs</button>
       <input type="file" id="mwfrsLoadFile" accept=".json" style="display:none" onchange="loadInputsMWFRS(this)"/>
+      <button class="sl-btn" onclick="exportRevitWind()" title="Download wind pressures as JSON for the ARE Revit joist tools">🏗 Export for Revit</button>
+      <button class="sl-btn" id="copyRevitBtn" onclick="copyRevitWind()" title="Copy wind pressure JSON to clipboard">📋 Copy for Revit</button>
       <span class="sl-label">Save / restore all inputs as a .json file</span>
     </div>
   </div>
@@ -297,7 +299,8 @@ function flatRoofCp(h,L){
     {zone:'h/2–h',  from:z1,   to:z2, Cp1:-0.9, Cp2:-0.18},
     {zone:'h–2h',   from:z2,   to:z3, Cp1:-0.5, Cp2:-0.18},
     {zone:'>2h',    from:z3,   to:L,  Cp1:-0.3, Cp2:-0.18}
-  ].filter(function(z){return z.from<L});
+  ].filter(function(z){return z.from<L})
+   .map(function(z){ z.to=Math.min(z.to,L); return z; });
 }
 
 // Sloped roof bilinear interpolation for a given theta and h/L
@@ -535,7 +538,7 @@ function calculate(){
         // governs: case A = Cp1 + GCpi, Case B = Cp2 - GCpi  (uplift/suction on roof)
         var p_caseA=qhv*G*z.Cp1 - qhv*GCpi; // Case A: max uplift (GCpi adding to suction)
         var p_caseB=qhv*G*z.Cp2 + qhv*GCpi; // Case B: min uplift
-        out.push({zone:z.zone, Cp1:z.Cp1, Cp2:z.Cp2, pA:p_caseA, pB:p_caseB});
+        out.push({zone:z.zone, from:z.from, to:z.to, Cp1:z.Cp1, Cp2:z.Cp2, pA:p_caseA, pB:p_caseB});
       });
       return {type:'flat',zones:out,dir:dirLabel,L:L};
     } else {
@@ -592,6 +595,12 @@ function calculate(){
     ]);
   }
   drawMWFRSDiagram();
+
+  // stash last results for Revit export
+  window.__mwfrsLast = {V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:roofType, theta:theta, hp:hp, GCpi:GCpi, qh:qh_val, wx:wx, wy:wy, roofX:roofX, roofY:roofY, parapet:parapetData};
+
+  // publish wind pressures to localStorage for the ARE Revit joist tools
+  try{ localStorage.setItem('ARE_mwfrs_wind', JSON.stringify(buildRevitWindPayload())); }catch(e){}
 
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1293,6 +1302,168 @@ function saveInputsMWFRS(){
   URL.revokeObjectURL(a.href);
 }
 
+// ─── REVIT WIND EXPORT ───────────────────────────────────────────────────────
+function buildRevitWindPayload(){
+  var L=window.__mwfrsLast;
+  if(typeof L==='undefined'||!L) return null;
+  var r1=function(v){ return Math.round(v*10)/10; };
+
+  // governing roof uplift (most negative pA/pB) and downward (most positive, floored at 0)
+  var upliftVal=0, upliftZone='';
+  var downVal=0, downZone='';
+  var considered=false;
+  // Iterate both directions
+  [L.roofX, L.roofY].forEach(function(r){
+    if(!r) return;
+    if(r.type==='flat'){
+      r.zones.forEach(function(z){
+        var pairs=[{lbl:'A',v:z.pA},{lbl:'B',v:z.pB}];
+        pairs.forEach(function(p){
+          if(!considered || p.v<upliftVal){ upliftVal=p.v; upliftZone=r.dir+' / '+z.zone+' (Case '+p.lbl+')'; }
+          if(p.v>downVal){ downVal=p.v; downZone=r.dir+' / '+z.zone+' (Case '+p.lbl+')'; }
+          considered=true;
+        });
+      });
+    } else {
+      var slots=[
+        {zone:'Windward (low)',  a:r.p_WW_A_low,  b:r.p_WW_B_low},
+        {zone:'Windward (high)', a:r.p_WW_A_high, b:r.p_WW_B_high},
+        {zone:'Leeward',         a:r.p_LW_A,      b:r.p_LW_B}
+      ];
+      slots.forEach(function(s){
+        var pairs=[{lbl:'A',v:s.a},{lbl:'B',v:s.b}];
+        pairs.forEach(function(p){
+          if(!considered || p.v<upliftVal){ upliftVal=p.v; upliftZone=r.dir+' / '+s.zone+' (Case '+p.lbl+')'; }
+          if(p.v>downVal){ downVal=p.v; downZone=r.dir+' / '+s.zone+' (Case '+p.lbl+')'; }
+          considered=true;
+        });
+      });
+    }
+  });
+  if(upliftVal>0){ upliftVal=0; upliftZone=''; }   // no net uplift anywhere
+  if(downVal<0){ downVal=0; downZone=''; }
+
+  // roof directions array
+  var dirs=[];
+  [L.roofX, L.roofY].forEach(function(r){
+    if(!r) return;
+    if(r.type==='flat'){
+      var zones=[];
+      r.zones.forEach(function(z){
+        zones.push({
+          zone:z.zone,
+          from_ft:(z.from!==undefined?z.from:null),
+          to_ft:(z.to!==undefined?z.to:null),
+          Cp1:z.Cp1, Cp2:z.Cp2,
+          pA_psf:r1(z.pA), pB_psf:r1(z.pB)
+        });
+      });
+      dirs.push({dir:r.dir, L_ft:r.L, type:'flat', zones:zones});
+    } else {
+      dirs.push({
+        dir:r.dir, L_ft:r.L, type:'sloped', theta_deg:r.theta,
+        zones:[
+          {zone:'Windward (low)',  Cp:r.Cp_WW_low,  pA_psf:r1(r.p_WW_A_low),  pB_psf:r1(r.p_WW_B_low)},
+          {zone:'Windward (high)', Cp:r.Cp_WW_high, pA_psf:r1(r.p_WW_A_high), pB_psf:r1(r.p_WW_B_high)},
+          {zone:'Leeward',         Cp:r.Cp_LW,      pA_psf:r1(r.p_LW_A),      pB_psf:r1(r.p_LW_B)}
+        ]
+      });
+    }
+  });
+
+  // walls: max windward (pWW_B) and max leeward suction (min pLW_A) across wx+wy rows
+  var wwMax=-1e9, lwMin=1e9;
+  [L.wx, L.wy].forEach(function(d){
+    if(!d) return;
+    d.rows.forEach(function(rw){
+      if(rw.pWW_B>wwMax) wwMax=rw.pWW_B;
+      if(rw.pLW_A<lwMin) lwMin=rw.pLW_A;
+    });
+  });
+
+  var payload={
+    schema:"are.mwfrs.wind.v1",
+    _calc:"mwfrs-revit",
+    generatedAt:new Date().toISOString(),
+    project:{
+      name:document.getElementById('projName').value,
+      number:document.getElementById('projNum').value,
+      date:document.getElementById('projDate').value,
+      engineer:document.getElementById('projEng').value
+    },
+    inputs:{
+      V_mph:L.V, exposure:L.exp, enclosure:L.encl,
+      Kzt:L.Kzt, Ke:L.Ke, Kd:0.85, G:0.85, GCpi:L.GCpi,
+      B_ft:L.B, D_ft:L.D, h_ft:L.h,
+      roofType:L.roofType, theta_deg:L.theta, parapet_ft:L.hp
+    },
+    qh_psf:r1(L.qh),
+    roof:{
+      directions:dirs,
+      governing_uplift_psf:r1(upliftVal),
+      governing_uplift_zone:upliftZone,
+      governing_down_psf:r1(downVal),
+      governing_down_zone:downZone
+    },
+    revit:{
+      // these feed Revit global parameters directly; family formula wUplift = 0.6*DL - Wind_plf expects UPLIFT AS POSITIVE MAGNITUDE
+      ARE_G_Wind_psf:r1(Math.abs(upliftVal)),
+      ARE_G_WindDown_psf:r1(downVal)
+    },
+    walls:{
+      windward_max_psf:r1(wwMax),
+      leeward_max_suction_psf:r1(lwMin)
+    },
+    parapet:L.parapet?{
+      hp_ft:L.parapet.hp,
+      qp_psf:r1(L.parapet.qp),
+      pp_windward_psf:r1(L.parapet.pp_WW),
+      pp_leeward_psf:r1(L.parapet.pp_LW)
+    }:null
+  };
+  return payload;
+}
+
+function exportRevitWind(){
+  var payload=buildRevitWindPayload();
+  if(!payload){ alert('Run Calculate first.'); return; }
+  var proj=payload.project.name||payload.project.number||'mwfrs';
+  var fname=proj.replace(/[^a-z0-9_\-]/gi,'_').replace(/_+/g,'_')+'_wind_revit.json';
+  var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function copyRevitWind(){
+  var payload=buildRevitWindPayload();
+  if(!payload){ alert('Run Calculate first.'); return; }
+  var txt=JSON.stringify(payload,null,2);
+  var btn=document.getElementById('copyRevitBtn');
+  function flash(){
+    if(!btn) return;
+    var orig=btn.textContent;
+    btn.textContent='✓ Copied';
+    setTimeout(function(){ btn.textContent=orig; },1500);
+  }
+  function fallback(){
+    var ta=document.createElement('textarea');
+    ta.value=txt;
+    ta.style.position='fixed'; ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand('copy'); flash(); }catch(e){ alert('Copy failed.'); }
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(flash).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
 function loadInputsMWFRS(input){
   var file=input.files[0]; if(!file) return;
   var reader=new FileReader();
@@ -1336,6 +1507,18 @@ document.addEventListener('DOMContentLoaded',function(){
   // Set today's date
   var d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
   document.getElementById('projDate').value=d.getFullYear()+'-'+m+'-'+dd;
+
+  // URL-query-param prefill (e.g. pyRevit opens this calc pre-filled with model geometry)
+  var qp=new URLSearchParams(window.location.search);
+  ['projName','projNum','projEng','V','exp','encl','Kzt','Ke','B','D','h','roofType','theta','hp'].forEach(function(key){
+    if(qp.has(key)){
+      var val=qp.get(key);
+      if(val!==null&&val!==''){
+        var el=document.getElementById(key);
+        if(el) el.value=val;
+      }
+    }
+  });
 
   // Initialize block states
   document.querySelectorAll('.blk-hd').forEach(function(hd){
