@@ -196,8 +196,8 @@ def build_record(doc, inst):
     dep = depth_in(doc, inst)
     dl = int(round(getd(inst, "ARE_J_DL_plf")))
     ll = int(round(getd(inst, "ARE_J_wLL_plf")))
-    wd = int(round(getd(inst, "ARE_J_WindDown_plf")))
-    up = int(round(getd(inst, "ARE_J_NetUplift_plf")))
+    wd = int(round(getd(inst, "ARE_J_WindDownASD_plf")))
+    up = int(round(getd(inst, "ARE_J_NetUpliftASD_plf")))
     sig = pointload_sig(inst)
     wtl = int(round(getd(inst, "ARE_J_wTL_plf")))
     edge = geti(inst, "ARE_J_is_EdgeZone") == 1

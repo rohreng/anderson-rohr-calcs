@@ -70,9 +70,9 @@ LOADS = [
     ("Roof live Lr",  "ARE_G_Lr_psf",      "ARE_J_Lr_psf"),
     ("Live L",        "ARE_G_LL_psf",      "ARE_J_LL_psf"),
     ("Snow S",        "ARE_G_Snow_psf",    "ARE_J_Snow_psf"),
-    ("Wind uplift W interior Z1", "ARE_G_Wind_psf",  "ARE_J_Wind_psf"),
-    ("Wind uplift W edge Z2",     "ARE_G_Wind2_psf", "ARE_J_Wind2_psf"),
-    ("Wind downward", "ARE_G_WindDown_psf", "ARE_J_WindDown_psf"),
+    ("Wind uplift W interior Z1 (ULT)", "ARE_G_Wind_psf",  "ARE_J_WindULT_psf"),
+    ("Wind uplift W edge Z2 (ULT)",     "ARE_G_Wind2_psf", "ARE_J_Wind2ULT_psf"),
+    ("Wind downward (ULT)", "ARE_G_WindDown_psf", "ARE_J_WindDownULT_psf"),
     ("Solar (dead)",  "ARE_G_Solar_psf",    "ARE_J_Solar_psf"),
 ]
 

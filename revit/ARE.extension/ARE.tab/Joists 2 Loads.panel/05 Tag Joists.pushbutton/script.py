@@ -15,7 +15,7 @@ Select joists in the model, then run this to set their load-category checkboxes:
 Roof and Floor are mutually exclusive; Solar and the C&C wind zone are
 independent toggles. The family formulas gate each load by these boxes, so
 tagging changes the computed PLF live. Edge Zone (Z2) switches the wind uplift
-formula from ARE_J_Wind_psf (interior Z1) to ARE_J_Wind2_psf (edge Z2).
+formula from ARE_J_WindULT_psf (interior Z1) to ARE_J_Wind2ULT_psf (edge Z2).
 
 CPython note: instance params via LookupParameter; never FamilyInstance.Symbol.
 """

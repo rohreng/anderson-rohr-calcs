@@ -74,8 +74,8 @@ DETAIL_FIELDS = [
     "Mark", "Family and Type", "ARE_J_LoadMark",
     "ARE_J_is_Roof", "ARE_J_is_Floor", "ARE_J_has_Solar",
     "ARE_J_Spacing", "ARE_J_Spacing_Source",
-    "ARE_J_DL_plf", "ARE_J_wLL_plf", "ARE_J_WindDown_plf", "ARE_J_NetUplift_plf",
-    "ARE_J_wTL_plf", "ARE_J_wUplift_plf",
+    "ARE_J_DL_plf", "ARE_J_wLL_plf", "ARE_J_WindDownASD_plf", "ARE_J_NetUpliftASD_plf",
+    "ARE_J_wTL_plf", "ARE_J_wUpliftASD_plf",
     "ARE_J_PointLoad_Callout", "ARE_J_Axial_k", "ARE_J_Remarks", "ARE_J_Calc_Status",
 ]
 # SJI load schedule columns, in order. Depth/Series/Grid are editable text the
@@ -83,7 +83,7 @@ DETAIL_FIELDS = [
 SJI_FIELDS = [
     "ARE_J_LoadMark", "ARE_J_Sched_Depth", "ARE_J_Sched_Series",
     "ARE_J_DL_plf", "ARE_J_wLL_plf",
-    "ARE_J_WindDown_plf", "ARE_J_NetUplift_plf",
+    "ARE_J_WindDownASD_plf", "ARE_J_NetUpliftASD_plf",
     "ARE_J_Axial_k", "ARE_J_Remarks",
 ]
 # The special point-load schedule (only point-loaded joists): mark + grid + the
@@ -101,8 +101,8 @@ HEADINGS = {
     "ARE_J_Sched_Series": "SERIES",
     "ARE_J_DL_plf": "DL (plf)",
     "ARE_J_wLL_plf": "LL / Lr / S / R (plf)",
-    "ARE_J_WindDown_plf": "WIND DOWN (plf)",
-    "ARE_J_NetUplift_plf": "NET UPLIFT (plf)",
+    "ARE_J_WindDownASD_plf": "WIND DOWN (ASD)",
+    "ARE_J_NetUpliftASD_plf": "NET UPLIFT (ASD)",
     "ARE_J_PointLoad_Callout": "ADD-LOAD",
     "ARE_J_Grid_Ref": "GRID",
     "ARE_J_Axial_k": "AXIAL (k)",
@@ -116,7 +116,7 @@ HEADINGS = {
     "ARE_J_Spacing": "SPACING",
     "ARE_J_Spacing_Source": "SPACING SRC",
     "ARE_J_wTL_plf": "TOTAL TL (plf)",
-    "ARE_J_wUplift_plf": "UPLIFT signed (plf)",
+    "ARE_J_wUpliftASD_plf": "UPLIFT signed (ASD)",
     "ARE_J_Calc_Status": "STATUS",
 }
 
@@ -136,7 +136,7 @@ def add_field(definition, sf, name, field_ids):
 # Merged super-header banners: (label, first field, last field).
 SUPER_HEADERS = [
     ("LOADING", "ARE_J_DL_plf", "ARE_J_wLL_plf"),
-    ("W WIND", "ARE_J_WindDown_plf", "ARE_J_NetUplift_plf"),
+    ("W WIND", "ARE_J_WindDownASD_plf", "ARE_J_NetUpliftASD_plf"),
 ]
 
 

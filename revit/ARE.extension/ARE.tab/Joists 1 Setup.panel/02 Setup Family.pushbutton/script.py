@@ -126,42 +126,60 @@ FORMULAS = [
     ("ARE_J_Snow_plf",
      "roundup((if(ARE_J_is_Roof, ARE_J_Snow_psf, 0) "
      "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
-    ("ARE_J_Wind_plf",
+    # Wind uplift line load, ASD 0.6W: interior/edge C&C ULTIMATE psf * 0.6.
+    ("ARE_J_WindASD_plf",
      "roundup((if(ARE_J_is_Roof, "
-     "if(ARE_J_is_EdgeZone, ARE_J_Wind2_psf, ARE_J_Wind_psf), 0) "
-     "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
+     "if(ARE_J_is_EdgeZone, ARE_J_Wind2ULT_psf, ARE_J_WindULT_psf), 0) "
+     "* 0.6 * (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
     # Governing live = max(Lr, Snow, LL). Revit has no max() -> nested if().
     ("ARE_J_wLL_plf",
      "if(ARE_J_Lr_plf > ARE_J_Snow_plf, "
      "if(ARE_J_Lr_plf > ARE_J_LL_plf, ARE_J_Lr_plf, ARE_J_LL_plf), "
      "if(ARE_J_Snow_plf > ARE_J_LL_plf, ARE_J_Snow_plf, ARE_J_LL_plf))"),
-    # Downward wind (roof), gated + rounded like the other components.
-    ("ARE_J_WindDown_plf",
-     "roundup((if(ARE_J_is_Roof, ARE_J_WindDown_psf, 0) "
-     "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
+    # Downward wind (roof), ASD 0.6W: ULTIMATE psf * 0.6, gated + rounded.
+    ("ARE_J_WindDownASD_plf",
+     "roundup((if(ARE_J_is_Roof, ARE_J_WindDownULT_psf, 0) "
+     "* 0.6 * (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
     # Total gravity = dead + governing live (both already rounded to 5).
     ("ARE_J_wTL_plf", "ARE_J_DL_plf + ARE_J_wLL_plf"),
-    # Net ASD uplift (negative = uplift). roundup() on a negative rounds toward
-    # zero (unconservative), so round the MAGNITUDE away from zero.
-    ("ARE_J_wUplift_plf",
-     "if((0.6 * ARE_J_DL_plf - ARE_J_Wind_plf) < 0, "
-     "rounddown((0.6 * ARE_J_DL_plf - ARE_J_Wind_plf) / 5) * 5, "
-     "roundup((0.6 * ARE_J_DL_plf - ARE_J_Wind_plf) / 5) * 5)"),
-    # Net uplift as a POSITIVE magnitude for the SJI schedule column.
-    ("ARE_J_NetUplift_plf",
-     "if(ARE_J_wUplift_plf < 0, -ARE_J_wUplift_plf, 0)"),
+    # Net ASD uplift 0.6D - 0.6W (negative = uplift). WindASD already carries the
+    # 0.6 wind factor, so this is 0.6D - 0.6W. roundup() on a negative rounds
+    # toward zero (unconservative), so round the MAGNITUDE away from zero.
+    ("ARE_J_wUpliftASD_plf",
+     "if((0.6 * ARE_J_DL_plf - ARE_J_WindASD_plf) < 0, "
+     "rounddown((0.6 * ARE_J_DL_plf - ARE_J_WindASD_plf) / 5) * 5, "
+     "roundup((0.6 * ARE_J_DL_plf - ARE_J_WindASD_plf) / 5) * 5)"),
+    # Net uplift as a POSITIVE magnitude (ASD) for the SJI schedule column.
+    ("ARE_J_NetUpliftASD_plf",
+     "if(ARE_J_wUpliftASD_plf < 0, -ARE_J_wUpliftASD_plf, 0)"),
 ]
 
 # Superseded params to remove from the family once formulas no longer reference
-# them (e.g. the generic dead load, split into roof/floor dead).
-RETIRE_PARAMS = ["ARE_J_DL_psf"]
+# them (e.g. the generic dead load, split into roof/floor dead). The old wind
+# ULT/ASD-agnostic names are retired here after their formulas are rewritten
+# onto the new ULT-input / ASD-output names (removal runs AFTER SetFormula, so
+# no remaining formula references these when RemoveParameter is called).
+# Order is LEAF-FIRST (dependents before their dependencies): on the first
+# migration run the OLD params still carry the OLD formulas (NetUplift->wUplift->
+# Wind_plf->Wind_psf/Wind2_psf; WindDown_plf->WindDown_psf), and RemoveParameter
+# fails if any REMAINING param's formula still references the one being removed.
+# Removing the outputs before the inputs they read keeps every removal legal.
+RETIRE_PARAMS = [
+    # retired wind outputs first (each depends on the ones below it)
+    "ARE_J_NetUplift_plf", "ARE_J_wUplift_plf",
+    "ARE_J_Wind_plf", "ARE_J_WindDown_plf",
+    # then the retired wind inputs they referenced
+    "ARE_J_Wind_psf", "ARE_J_Wind2_psf", "ARE_J_WindDown_psf",
+    # independent superseded input (generic dead load, split into roof/floor)
+    "ARE_J_DL_psf",
+]
 
 # Writeback param names get the Identity Data palette group; everything else Data.
 WRITEBACK_NAMES = set([
     "ARE_J_DL_plf", "ARE_J_Lr_plf", "ARE_J_LL_plf", "ARE_J_Snow_plf",
-    "ARE_J_Wind_plf", "ARE_J_wTL_plf", "ARE_J_wUplift_plf",
+    "ARE_J_WindASD_plf", "ARE_J_wTL_plf", "ARE_J_wUpliftASD_plf",
     "ARE_J_PointLoad_Callout", "ARE_J_Calc_Status", "ARE_J_Calc_Date",
-    "ARE_J_wLL_plf", "ARE_J_WindDown_plf", "ARE_J_NetUplift_plf",
+    "ARE_J_wLL_plf", "ARE_J_WindDownASD_plf", "ARE_J_NetUpliftASD_plf",
     "ARE_J_Axial_k", "ARE_J_LoadMark", "ARE_J_LoadKey", "ARE_J_Remarks",
     "ARE_J_HasPointLoads",
 ])
@@ -177,7 +195,7 @@ PARAM_ORDER = [
     "ARE_J_Spacing", "ARE_J_Spacing_Source",
     "ARE_J_DLroof_psf", "ARE_J_DLfloor_psf", "ARE_J_Solar_psf",
     "ARE_J_Lr_psf", "ARE_J_LL_psf", "ARE_J_Snow_psf",
-    "ARE_J_Wind_psf", "ARE_J_Wind2_psf", "ARE_J_WindDown_psf",
+    "ARE_J_WindULT_psf", "ARE_J_Wind2ULT_psf", "ARE_J_WindDownULT_psf",
     "ARE_J_Axial_Wind_k", "ARE_J_Axial_Seismic_k",
     "ARE_J_Sched_Depth", "ARE_J_Sched_Series", "ARE_J_Grid_Ref",
     "ARE_J_P1_Mag", "ARE_J_P1_Dist", "ARE_J_P2_Mag", "ARE_J_P2_Dist",
@@ -185,8 +203,8 @@ PARAM_ORDER = [
     "ARE_J_P5_Mag", "ARE_J_P5_Dist",
     # --- writeback ---
     "ARE_J_DL_plf", "ARE_J_Lr_plf", "ARE_J_LL_plf", "ARE_J_Snow_plf",
-    "ARE_J_wLL_plf", "ARE_J_Wind_plf", "ARE_J_WindDown_plf",
-    "ARE_J_wTL_plf", "ARE_J_wUplift_plf", "ARE_J_NetUplift_plf",
+    "ARE_J_wLL_plf", "ARE_J_WindASD_plf", "ARE_J_WindDownASD_plf",
+    "ARE_J_wTL_plf", "ARE_J_wUpliftASD_plf", "ARE_J_NetUpliftASD_plf",
     "ARE_J_PointLoad_Callout", "ARE_J_HasPointLoads",
     "ARE_J_LoadMark", "ARE_J_LoadKey", "ARE_J_Axial_k",
     "ARE_J_Remarks", "ARE_J_Calc_Status", "ARE_J_Calc_Date",

@@ -22,7 +22,7 @@ Actions:
   * Open MWFRS calc from model       -- B / D / mean roof height -> browser.
 
 Because the joist family formulas compute
-  Wind_plf = if(is_EdgeZone, Wind2_psf, Wind_psf) x spacing
+  WindASD_plf = if(is_EdgeZone, Wind2ULT_psf, WindULT_psf) x 0.6 x spacing
 from the globals, setting them updates every joist line load and the
 "ARE - Load Schedule" instantly. Idempotent; writes only to the active doc.
 
@@ -48,10 +48,12 @@ DEFAULT_BASE_URL = "https://calcs.andersonrohr.com"
 
 # (label, global name, joist instance param, payload key) -- globals must
 # match 03 Project Loads; instance params must match the family schema.
+# Values are ULTIMATE (strength-level) pressures straight from the calc;
+# the family formulas apply the 0.6 ASD factor (ARE_J_*ASD_plf outputs).
 WIND_LOADS = [
-    ("Wind uplift Z1 (int.)", "ARE_G_Wind_psf", "ARE_J_Wind_psf", "_uplift1"),
-    ("Wind uplift Z2 (edge)", "ARE_G_Wind2_psf", "ARE_J_Wind2_psf", "_uplift2"),
-    ("Wind downward", "ARE_G_WindDown_psf", "ARE_J_WindDown_psf", "_down"),
+    ("Wind Z1 int. (ULT)", "ARE_G_Wind_psf", "ARE_J_WindULT_psf", "_uplift1"),
+    ("Wind Z2 edge (ULT)", "ARE_G_Wind2_psf", "ARE_J_Wind2ULT_psf", "_uplift2"),
+    ("Wind down (ULT)", "ARE_G_WindDown_psf", "ARE_J_WindDownULT_psf", "_down"),
 ]
 SOURCE_GLOBAL = "ARE_G_Wind_Source"
 MARKER_PARAM = "ARE_J_Spacing"
