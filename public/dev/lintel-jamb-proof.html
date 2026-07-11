@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lintel/Jamb calc — verification proof</title>
+<style>
+  body{margin:0;font-family:'DM Sans','Segoe UI',system-ui,sans-serif;background:#f7f6f3;color:#3d3d3d}
+  header{background:#0f1a3a;color:#fff;padding:10px 20px;font-size:14px}
+  #verdict{background:#fff;border:1px solid #1a2b5f1f;margin:16px;padding:12px;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap}
+  iframe{width:1400px;height:2400px;border:1px solid #1a2b5f1f;margin:16px;background:#fff}
+</style>
+</head>
+<body>
+<header>Lintel/Jamb verification — case: <span id="caseName">…</span></header>
+<pre id="verdict">RUNNING</pre>
+<iframe id="calcFrame" src="/Calcs/masonry_lintel_jamb_calculator.html"></iframe>
+<script>
+(function(){
+  // Cases: default plus stress matrix. Select with ?case=NAME (default: "default").
+  var CASES = {
+    "default":      {},
+    "shortdeep":    {clear_span:3, t_lin:48, eff_d:44.5, w_load:4000},
+    "longspan":     {clear_span:16, t_lin:16, eff_d:12.5, H_soffit:8},
+    "slenderjamb":  {H_jamb:20, H_wall:20, e_ecc:2, W_jamb:48, n_jamb:6},
+    "uplift":       {wu_load:400, P_uplift:1500},
+    "singlecourse": {t_lin:8, eff_d:4.5, clear_span:3},
+    "notop":        {n_top:0},
+    // Phase-1 implementer benchmark cases (exact inputs from its report):
+    "bench1a": {clear_span:3, bearing:8, t_lin:24, eff_d:20.5, w_load:6000, n_bot:3, bar_bot:0.79, a_P:1.83},
+    "bench1b": {clear_span:3, bearing:8, t_lin:24, eff_d:20.5, w_load:6000, n_bot:3, bar_bot:0.79, a_P:1.83, shearReinf:true},
+    "bench2":  {H_jamb:20, e_ecc:2},
+    "bench3":  {P_uplift:6000, n_top:2, bar_top:0.31, a_P:4.33},
+    "bench4":  {clear_span:16, t_lin:16, eff_d:12.5, w_load:400, n_bot:3, bar_bot:0.60, a_P:8.33}
+  };
+  var qs = new URLSearchParams(location.search);
+  var caseName = qs.get('case') || 'default';
+  document.getElementById('caseName').textContent = caseName;
+  var overrides = CASES[caseName] || {};
+
+  // Text labels intentionally drawn inside member bodies (allowed to overlap geometry):
+  var IN_BODY_OK = [/CMU LINTEL/i, /CMU JAMB/i, /Masonry wall/i];
+
+  function bboxesIntersect(a, b, pad){
+    pad = pad || 0;
+    return !(a.x + a.width < b.x + pad || b.x + b.width < a.x + pad ||
+             a.y + a.height < b.y + pad || b.y + b.height < a.y + pad);
+  }
+
+  function checkSvg(doc, id){
+    var svg = doc.getElementById(id);
+    var out = {id:id, ok:true, textTextOverlaps:[], textGeomOverlaps:[], outOfViewBox:[], counts:{}};
+    if(!svg){ out.ok=false; out.error='svg not found'; return out; }
+    var vb = svg.viewBox.baseVal;
+    var texts = Array.prototype.slice.call(svg.querySelectorAll('text'));
+    var geoms = Array.prototype.slice.call(svg.querySelectorAll('rect, circle, polygon, path'))
+      .filter(function(g){ return !g.closest('defs') && !g.closest('marker'); });
+    out.counts = {texts:texts.length, geoms:geoms.length};
+    // text-vs-text (zero tolerance minus 1px slack)
+    for(var i=0;i<texts.length;i++){
+      for(var j=i+1;j<texts.length;j++){
+        try{
+          var ba=texts[i].getBBox(), bb=texts[j].getBBox();
+          if(bboxesIntersect(ba,bb,1)){
+            out.textTextOverlaps.push(texts[i].textContent.trim()+' <-> '+texts[j].textContent.trim());
+          }
+        }catch(e){}
+      }
+    }
+    // text-vs-geometry (filled member shapes only: rect/polygon/path with a visible fill)
+    var solid = geoms.filter(function(g){
+      var f = g.getAttribute('fill');
+      return f && f !== 'none' && !(g.getAttribute('fill-opacity') === '0');
+    });
+    texts.forEach(function(t){
+      var txt = t.textContent.trim();
+      if(IN_BODY_OK.some(function(rx){return rx.test(txt);})) return;
+      try{
+        var tb = t.getBBox();
+        for(var k=0;k<solid.length;k++){
+          var gb = solid[k].getBBox();
+          // ignore tiny geoms (bar circles etc. < 12px) — leader dots sit near text legitimately
+          if(gb.width<12 && gb.height<12) continue;
+          if(bboxesIntersect(tb, gb, 2)){
+            out.textGeomOverlaps.push(txt+' over <'+solid[k].tagName+' '+Math.round(gb.width)+'x'+Math.round(gb.height)+'>');
+            break;
+          }
+        }
+      }catch(e){}
+    });
+    // viewBox containment (2px slack)
+    if(vb && vb.width>0){
+      texts.concat(geoms).forEach(function(el){
+        try{
+          var b = el.getBBox();
+          if(b.x < vb.x-2 || b.y < vb.y-2 || b.x+b.width > vb.x+vb.width+2 || b.y+b.height > vb.y+vb.height+2){
+            out.outOfViewBox.push((el.tagName==='text'?el.textContent.trim():el.tagName));
+          }
+        }catch(e){}
+      });
+    }
+    out.ok = out.textTextOverlaps.length===0 && out.textGeomOverlaps.length===0 && out.outOfViewBox.length===0 && !out.error;
+    return out;
+  }
+
+  function scrapeNumbers(doc){
+    var nums = {};
+    var banner = doc.getElementById('overallBanner');
+    nums.banner = banner ? banner.textContent.replace(/\s+/g,' ').trim() : null;
+    ['demA','demB','demC'].forEach(function(id){
+      var el = doc.getElementById(id);
+      if(!el) return;
+      nums[id] = Array.prototype.map.call(el.querySelectorAll('.dem-card'), function(c){
+        return c.textContent.replace(/\s+/g,' ').trim();
+      });
+    });
+    ['chkA','chkB','chkC'].forEach(function(id){
+      var tb = doc.getElementById(id);
+      if(!tb) return;
+      nums[id] = Array.prototype.map.call(tb.querySelectorAll('tr'), function(r){
+        return r.textContent.replace(/\s+/g,' ').trim();
+      }).filter(function(s){ return s && s.length < 300; });
+    });
+    return nums;
+  }
+
+  var frame = document.getElementById('calcFrame');
+  frame.addEventListener('load', function(){
+    // let are-draw.js + onload handlers run
+    setTimeout(function(){
+      var doc = frame.contentDocument, win = frame.contentWindow;
+      var result = {case:caseName, overrides:overrides, svg:{}, numbers:null, errors:[]};
+      try{
+        Object.keys(overrides).forEach(function(id){
+          var el = doc.getElementById(id);
+          if(!el){ result.errors.push('input not found: '+id); return; }
+          if(el.type === 'checkbox'){ el.checked = !!overrides[id]; }
+          else { el.value = overrides[id]; }
+        });
+        if(win.updateWallWeight) win.updateWallWeight();
+        if(win.updateOopDisplay) win.updateOopDisplay();
+        if(win.runCalcs) win.runCalcs();
+        ['lintelElevSvg','lintelSecSvg','jambElevSvg','jambSecSvg'].forEach(function(id){
+          result.svg[id] = checkSvg(doc, id);
+        });
+        result.numbers = scrapeNumbers(doc);
+        result.allDiagramsOk = Object.keys(result.svg).every(function(k){ return result.svg[k].ok; });
+      }catch(e){
+        result.errors.push(String(e && e.stack || e));
+        result.allDiagramsOk = false;
+      }
+      document.getElementById('verdict').textContent = 'VERDICT_JSON_BEGIN\n' + JSON.stringify(result, null, 1) + '\nVERDICT_JSON_END';
+      document.title = 'PROOF_DONE_' + caseName;
+    }, 1200);
+  });
+})();
+</script>
+</body>
+</html>
