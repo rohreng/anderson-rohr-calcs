@@ -1,0 +1,19 @@
+# Masonry audit decision register — 2026-07
+
+Status: frozen audit inputs. These are constraints, not defects. Source hierarchy: calculator engineering notes and the frozen Rev 5 plan govern; the obsolete embed-plate action plan does not override them.
+
+## DR-01 — Embed plate
+
+embed_plate: Apt bearing-area deduction = one circular-segment half-lens per neighboring anchor (in-row c=Sx/2, cross-row c=d/2, diagonal c=g/2) per TMS §6.3.2 — the action-plan's "×2" is obsolete; plate bending uses the bolt-tension model M = 0.5·T_row·a (K=0.5), NOT a V·e cantilever; nt (threads/in) is intentionally under-the-hood UNC coarse by diameter; k=3/4 one-third stress increase applied per-case on all demand sides. The HTML's own engineering-notes section is authoritative over refs/Masonry/embed_plate_calculator_action_plan.md.
+
+Locked audit expectations: one half-lens per neighbor; K=0.5; diameter-selected UNC coarse threads; k applied once and to every demand side. Source: frozen plan and the authoritative engineering-notes section in `embed_plate_beam_bearing_calculator.html`.
+
+## DR-02 — Lintel/jamb
+
+lintel/jamb: jamb combined check is a cracked-section P+M solver per TMS §8.3.4.2.2 (fa/Fa+fb/Fb unity is prohibited for reinforced masonry — do not reinstate it); ¼Pe slender cap = Eq. 8-10 and Pe = Eq. 8-14 in TMS 402-22 numbering; Fa = 0.30·f'm for reinforced (Eq. 8-16) with the 0.65·Ast·Fs steel term deliberately neglected (conservative, disclosed); cover_jamb default 3.81" (= b/2 centered bars); deflection uses an L≤8d waiver gate with a manual-check warning above (deliberately no auto I_eff); wind input is ULTIMATE C&C psf with ×0.6 applied exactly once.
+
+Locked audit expectations: cracked-section P+M; Eq. 8-10/8-14 numbering; Fa=0.30f'm with disclosed steel-term omission; centered 3.81 in cover; L≤8d waiver/manual warning; one 0.6 conversion. Source: frozen plan and the existing lintel/jamb calculator notes.
+
+## DR-03 — Governing sources and tolerance
+
+TMS 402/602-22 governs equation form and applicability. MDG 2022 worked examples are the only numerical oracle in this round. Tolerance is the unrounded internal value versus MDG printed value within displayed precision or 0.5% relative, whichever is looser; any governing conclusion flip is a CALC ERROR. Unit conversions, display rounding, and loop mechanics are exempt from shown-work findings.
