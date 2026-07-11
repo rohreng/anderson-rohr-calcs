@@ -560,30 +560,32 @@ function areDrawDiagrams(){
   var tieLbl  = shearReinf ? ('#4 SHEAR REINF @ '+A.fmtIn(s_shear)) : '#4 SHEAR REINF (TYP. DETAIL)';
 
   // ── 1. Lintel Elevation ─────────────────────────────────────────────────────
-  // Model: x=0 at LEFT edge of clear opening; opening spans 0..S. Lintel spans
-  // -brg..S+brg, y 0..t_lin with y=0 at the TOP (flipY:false). Jamb piers flank
-  // the opening; the opening reads as white space beneath the lintel.
+  // Model: x=0 at LEFT edge of clear opening; opening spans 0..S. Jamb strips run
+  // FULL HEIGHT (ground to top of wall) at x in [-Wj,0] and [S,S+Wj]; the lintel
+  // (-brg..S+brg, y 0..t_lin, flipY:false) BEARS on them — its ends overlap the
+  // jamb strips by brg. Jamb vertical reinforcing runs through and crosses the
+  // extended lintel bars at the bearing zones.
   (function(){
     var svg = document.getElementById('lintelElevSvg');
     if(!svg) return;
     var wallH = Math.min(0.5*t_lin + 8, 24);
     var pierH = Math.min(Hs*12, 2*t_lin);
     var ext   = (clr <= 6) ? 16 : Math.max(24, Wj);
-    var scale = A.fitScale(S + 2*(brg+Wj) + 2*ext, 460, {min:1.2, max:6});
+    var scale = A.fitScale(S + 2*Wj + 60, 460, {min:1.2, max:6});
     var dwg = new A.Drawing(svg, {margin:20});
-    var ox  = (Wj + brg + Math.max(ext, 34)) * scale + 40;   // room for left load gutter
+    var ox  = Wj * scale + 180;   // room for left load gutter
     var oy  = wallH * scale + 56;
     var v   = new A.View(dwg, {scale:scale, ox:ox, oy:oy, flipY:false});
     var st  = dwg.style;
 
-    // Wall hatch above the lintel.
+    // Full-height jamb strips (hatched) each side of the opening.
+    A.plate(v, -Wj, -wallH, Wj, wallH + t_lin + pierH, {fill:st.steelFill, hatch:true});
+    A.plate(v,  S,  -wallH, Wj, wallH + t_lin + pierH, {fill:st.steelFill, hatch:true});
+    // Wall hatch above the lintel, between the jamb strips.
     if(wallH > 2){
-      A.plate(v, -brg-Wj, -wallH, S+2*(brg+Wj), wallH, {fill:st.steelFill, hatch:true});
+      A.plate(v, 0, -wallH, S, wallH, {fill:st.steelFill, hatch:true});
     }
-    // Jamb piers (hatched) each side, from y=t_lin down pierH.
-    A.plate(v, -brg-Wj, t_lin, Wj, pierH, {fill:st.steelFill, hatch:true});
-    A.plate(v,  S+brg,  t_lin, Wj, pierH, {fill:st.steelFill, hatch:true});
-    // Lintel body (amber designed member).
+    // Lintel body (amber designed member) drawn OVER the jamb strips: bearing seats.
     A.plate(v, -brg, 0, S+2*brg, t_lin, {highlight:true});
     // 8" course lines across the lintel body.
     for(var yc=8; yc<t_lin-1; yc+=8){
@@ -596,23 +598,38 @@ function areDrawDiagrams(){
     // Centroidal centerline.
     A.centerline(v, -brg-4, t_lin/2, S+brg+4, t_lin/2);
 
-    // Rebar lines: bottom (designed, dashed red) at y=d_lin; top (st.dim) at t_lin-d_lin.
+    // Rebar lines (dashed): bottom (designed, red) at y=d_lin; top (st.dim) at
+    // t_lin-d_lin. Extension is measured past the OPENING FACE per S802, so the
+    // bars run through the bearing zones into the jamb strips.
     var extIn = Math.min(ext, Wj-2);
     (function(){
-      var x1=v.px(-brg-extIn), x2=v.px(S+brg+extIn), yb=v.py(d_lin);
+      var x1=v.px(-extIn), x2=v.px(S+extIn), yb=v.py(d_lin);
       raw(dwg,'line',{x1:x1.toFixed(1),y1:yb.toFixed(1),x2:x2.toFixed(1),y2:yb.toFixed(1),stroke:st.force,'stroke-width':'1.6','stroke-dasharray':'8 3'},[[x1,yb],[x2,yb]]);
     })();
     if(n_top>0 && As_top>0){
       var ytv=t_lin-d_lin; if(ytv<1) ytv=2.5;
-      var tx1=v.px(-brg-extIn), tx2=v.px(S+brg+extIn), yt=v.py(ytv);
+      var tx1=v.px(-extIn), tx2=v.px(S+extIn), yt=v.py(ytv);
       raw(dwg,'line',{x1:tx1.toFixed(1),y1:yt.toFixed(1),x2:tx2.toFixed(1),y2:yt.toFixed(1),stroke:st.dim,'stroke-width':'1.3','stroke-dasharray':'8 3'},[[tx1,yt],[tx2,yt]]);
     }
+    // Jamb vertical reinforcing: dashed bars in each jamb strip, full height,
+    // drawn after the lintel body so they visibly CROSS the lintel bars at the
+    // bearing zones.
+    (function(){
+      var spjE = Wj/(n_jamb+1);
+      var yTopPx = v.py(-wallH+2/scale), yBotPx = v.py(t_lin+pierH-2/scale);
+      for(var jb=1;jb<=Math.min(n_jamb,6);jb++){
+        [ -Wj+spjE*jb, S+spjE*jb ].forEach(function(xb){
+          var xpx=v.px(xb);
+          raw(dwg,'line',{x1:xpx.toFixed(1),y1:yTopPx.toFixed(1),x2:xpx.toFixed(1),y2:yBotPx.toFixed(1),stroke:'#7f1d1d','stroke-width':'1.3','stroke-dasharray':'6 3',opacity:'0.85'},[[xpx,yTopPx],[xpx,yBotPx]]);
+        });
+      }
+    })();
     // Dimension the bar extension once, on the left end, above the WALL hatch
     // (offset past the wall band so the label never sits on the hatch fill).
-    A.dimLine(v, -brg-extIn, 0, -brg, 0, A.fmtIn(extIn)+' min. ext.', {off:-(wallH*scale+16), color:st.dim});
+    A.dimLine(v, -extIn, 0, 0, 0, A.fmtIn(extIn)+' min. ext.', {off:-(wallH*scale+16), color:st.dim});
 
-    // ── LEFT gutter: applied loads (force red / navy). x just left of the pier. ──
-    var gL = makeGutter(v.px(-brg-Wj)-12, v.py(0)-44, 'end');
+    // ── LEFT gutter: applied loads (force red / navy). x just left of the jamb. ──
+    var gL = makeGutter(v.px(-Wj)-12, v.py(0)-44, 'end');
     if(w_tot>0){
       A.distLoad(v, -brg, S+brg, 0, 30, '');
       A.calloutLabel(v, -brg, 0, gL.x, gL.next(), 'w = '+Math.round(w_tot).toLocaleString()+' lb/ft', {color:st.force, anchor:'end'});
@@ -660,22 +677,28 @@ function areDrawDiagrams(){
     A.dimLine(v, -brg, y_d, S+brg, y_d, 'L = '+L_ft.toFixed(2)+' ft', {off:40, color:st.dim});
     A.dimLine(v, S, y_d, S+brg, y_d, A.fmtIn(brg)+' brg', {off:18, color:st.dim});
     // Right-side depth dims: t (outer) and d (inner). Vertical dims → negative off pushes RIGHT.
-    var xR = S+brg+Wj;
+    var xR = S+Wj;
     A.dimLine(v, xR, 0, xR, t_lin, 't = '+A.fmtIn(t_lin,0), {off:-24, color:st.dim});
     A.dimLine(v, xR+55/scale, 0, xR+55/scale, d_lin, 'd = '+A.fmtIn(d_lin,1), {off:-24, color:st.dim});
     // Member label INSIDE the lintel body (allowed to overlap geometry).
     A.memberLabel(v, S/2, t_lin/2, 'CMU LINTEL', {color:st.steel});
 
     // ── RIGHT gutter: reinforcement callouts (bot then top, >=16px apart).
-    // x sits 110px past the pier edge — clear of both t/d dim columns and labels. ──
-    var gR = makeGutter(v.px(S+brg+Wj)+110, 0, 'start');
-    A.calloutLabel(v, S+brg+extIn*0.6, d_lin, gR.x, v.py(d_lin), 'BOT. REINF '+botLbl+' ('+A.fmtIn(extIn)+' ext. min.)', {color:st.force, anchor:'start'});
+    // x sits 110px past the jamb edge — clear of both t/d dim columns and labels. ──
+    var gR = makeGutter(v.px(S+Wj)+110, 0, 'start');
+    A.calloutLabel(v, S+extIn*0.6, d_lin, gR.x, v.py(d_lin), 'BOT. REINF '+botLbl+' ('+A.fmtIn(extIn)+' ext. min.)', {color:st.force, anchor:'start'});
     if(n_top>0 && As_top>0){
       var ytv2=t_lin-d_lin; if(ytv2<1) ytv2=2.5;
       var yTopPx = v.py(ytv2);
       if(Math.abs(yTopPx - v.py(d_lin)) < 16) yTopPx = v.py(d_lin) - 16;
-      A.calloutLabel(v, S+brg+extIn*0.6, ytv2, gR.x, yTopPx, 'TOP REINF '+topLbl, {color:st.dim, anchor:'start'});
+      A.calloutLabel(v, S+extIn*0.6, ytv2, gR.x, yTopPx, 'TOP REINF '+topLbl, {color:st.dim, anchor:'start'});
     }
+    // Jamb vertical reinforcing callout (third right-gutter row, below the reinf rows).
+    (function(){
+      var spjE = Wj/(n_jamb+1);
+      var yJv = Math.max(v.py(d_lin), v.py(t_lin-d_lin)) + 16;
+      A.calloutLabel(v, S+spjE, t_lin+pierH*0.35, gR.x, yJv, jambLbl+' JAMB VERT. (EA. JAMB)', {color:'#7f1d1d', anchor:'start'});
+    })();
 
     // Title LAST, below the figure.
     A.viewTitle(v, v.px(S/2), dwg.maxY + st.fsTitle + 14, 'Lintel — Elevation');
@@ -793,7 +816,9 @@ function areDrawDiagrams(){
     var H=H_jamb*12;
     var Hsoff=Math.min(Hs*12, H-0.001);                     // lintel soffit height (in)
     var opW=Math.min(S/2, 40);                              // opening context width (in)
-    var scale=A.fitScale(H+40, 320, {min:1.0, max:4.5});
+    // Scale: height-driven, but with a WIDTH FLOOR so the jamb reads as a pier,
+    // not a wall section (min ~64px wide, capped so tall walls stay sane).
+    var scale=Math.max(A.fitScale(H+40, 320, {min:1.0, max:4.5}), Math.min(64/Wj, 3.2));
     var dwg=new A.Drawing(svg,{margin:20});
     var v=new A.View(dwg,{scale:scale, ox:104, oy:0, flipY:true});   // oy set after; use extend
     // oy needs jamb base near bottom: place origin so full height fits with room below for W dim.
@@ -802,17 +827,30 @@ function areDrawDiagrams(){
 
     // Jamb plate (hatched, secondary context member).
     A.plate(v, 0, 0, Wj, H, {fill:st.steelFill, hatch:true});
-    // Opening context to the right (dashed, unfilled) up to soffit, + amber lintel stub above.
+    // Opening context to the right (dashed, unfilled) up to the soffit; the amber
+    // lintel BEARS ON the jamb — its band overlaps the jamb strip by brg.
+    var lintelTop=Math.min(Hsoff+t_lin,H);
     (function(){
       var oy0=v.py(0), oyS=v.py(Hsoff);
       raw(dwg,'rect',{x:v.px(Wj).toFixed(1),y:Math.min(oy0,oyS).toFixed(1),width:Math.abs(v.px(Wj+opW)-v.px(Wj)).toFixed(1),height:Math.abs(oyS-oy0).toFixed(1),fill:'none',stroke:st.steel,'stroke-width':st.lwObjectThin,'stroke-dasharray':'4 3'},[[v.px(Wj),oy0],[v.px(Wj+opW),oyS]]);
-      var ly0=v.py(Hsoff), ly1=v.py(Math.min(Hsoff+t_lin,H));
-      raw(dwg,'rect',{x:v.px(Wj).toFixed(1),y:Math.min(ly0,ly1).toFixed(1),width:Math.abs(v.px(Wj+opW)-v.px(Wj)).toFixed(1),height:Math.abs(ly1-ly0).toFixed(1),fill:st.steelFillHi,'fill-opacity':'0.55',stroke:'#ca8a04','stroke-width':'1','stroke-dasharray':'4 3'},[[v.px(Wj),ly0],[v.px(Wj+opW),ly1]]);
+      var ly0=v.py(Hsoff), ly1=v.py(lintelTop);
+      var lx0=Math.max(Wj-brg, 0);                          // bearing seat on the jamb
+      raw(dwg,'rect',{x:v.px(lx0).toFixed(1),y:Math.min(ly0,ly1).toFixed(1),width:Math.abs(v.px(Wj+opW)-v.px(lx0)).toFixed(1),height:Math.abs(ly1-ly0).toFixed(1),fill:st.steelFillHi,'fill-opacity':'0.55',stroke:'#ca8a04','stroke-width':'1.2'},[[v.px(lx0),ly0],[v.px(Wj+opW),ly1]]);
+      // Dashed bearing-seat box over the overlap (lintel end on jamb).
+      raw(dwg,'rect',{x:v.px(lx0).toFixed(1),y:Math.min(ly0,ly1).toFixed(1),width:Math.abs(v.px(Wj)-v.px(lx0)).toFixed(1),height:Math.abs(ly1-ly0).toFixed(1),fill:'none',stroke:'#ca8a04','stroke-width':'1.2','stroke-dasharray':'5 3'});
+      // Lintel bottom bar (dashed red) extending INTO the jamb, crossing the verticals.
+      var extJ=Math.min(extBar, Wj-2);
+      var ybar=v.py(Hsoff + Math.max(t_lin-d_lin, 1.5));
+      raw(dwg,'line',{x1:v.px(Wj-extJ).toFixed(1),y1:ybar.toFixed(1),x2:v.px(Wj+opW).toFixed(1),y2:ybar.toFixed(1),stroke:st.force,'stroke-width':'1.5','stroke-dasharray':'8 3'},[[v.px(Wj-extJ),ybar],[v.px(Wj+opW),ybar]]);
     })();
 
-    // Grouted cells: dash-dot verticals at each bar x, full height.
+    // Jamb vertical reinforcing: dashed bars at each grouted cell, full height —
+    // they run THROUGH the lintel bearing zone and cross the lintel bar above.
     var spj=Wj/(n_jamb+1);
-    for(var gi=1;gi<=n_jamb;gi++){ A.centerline(v, spj*gi, 0, spj*gi, H); }
+    for(var gi=1;gi<=n_jamb;gi++){
+      var xj=v.px(spj*gi), yj0=v.py(2/scale), yj1=v.py(H-2/scale);
+      raw(dwg,'line',{x1:xj.toFixed(1),y1:yj0.toFixed(1),x2:xj.toFixed(1),y2:yj1.toFixed(1),stroke:'#7f1d1d','stroke-width':'1.4','stroke-dasharray':'6 3',opacity:'0.9'},[[xj,yj0],[xj,yj1]]);
+    }
 
     // ── OOP wind: arrows on LEFT face pointing +x (into jamb), rail at px(0)-22. ──
     if(wcc>0){
@@ -838,9 +876,10 @@ function areDrawDiagrams(){
     var Rjam=0;
     if(w_tot>0||Pd>0){var as3=Math.min(Math.max(aP_ft||L_ft/2,0.0001),L_ft-0.0001);Rjam=w_tot*L_ft/2+(Pd>0?Pd*(L_ft-as3)/L_ft:0);}
     if(Rjam>0){
-      var soffTop=Math.min(Hsoff+t_lin, H);
-      A.forceArrow(v, 3*Wj/4, soffTop+36/scale, 0, -1, 36, null, {color:st.force});
-      A.calloutLabel(v, 3*Wj/4, soffTop, gRx, gR.next(), 'P = R = '+Math.round(Rjam).toLocaleString()+' lb', {color:st.force, anchor:'start'});
+      // Reaction lands at the bearing seat (center of the brg overlap on the jamb).
+      var xSeat=Math.max(Wj-brg/2, Wj*0.6);
+      A.forceArrow(v, xSeat, lintelTop+36/scale, 0, -1, 36, null, {color:st.force});
+      A.calloutLabel(v, xSeat, lintelTop, gRx, gR.next(), 'P = R = '+Math.round(Rjam).toLocaleString()+' lb', {color:st.force, anchor:'start'});
     }
 
     // Supports: pin at bottom, roller at top.
@@ -860,11 +899,13 @@ function areDrawDiagrams(){
     }
     A.dimLine(v, 0, -8/scale, Wj, -8/scale, 'W = '+A.fmtIn(Wj,0), {off:22, color:st.dim});
 
-    // CMU JAMB label: inside the hatch when wide enough, else a RIGHT-gutter row.
+    // CMU JAMB label: inside the hatch when wide enough (kept below the lintel
+    // bearing band), else a RIGHT-gutter row.
+    var yLbl = (Hsoff>40) ? Hsoff*0.5 : H*0.35;
     if(Wj*scale >= 34){
-      A.memberLabel(v, Wj/2, H*0.62, 'CMU JAMB', {color:st.steel});
+      A.memberLabel(v, Wj/2, yLbl, 'CMU JAMB', {color:st.steel});
     } else {
-      A.calloutLabel(v, Wj/2, H*0.45, gRx, gR.next(), 'CMU JAMB', {color:st.steel, anchor:'start'});
+      A.calloutLabel(v, Wj/2, yLbl, gRx, gR.next(), 'CMU JAMB', {color:st.steel, anchor:'start'});
     }
 
     // Title LAST, below the figure (dwg.maxY is the true bottom).
