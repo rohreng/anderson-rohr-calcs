@@ -408,6 +408,36 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   </div>
 </div>
 
+<div class="blk jamb-blk">
+  <h2>&#9632; 8. Jamb Demands <span class="badge-purple">REK-04 M/V/P</span></h2>
+  <div class="callout blue"><strong>Demand source:</strong> By default the jamb checks derive M, V, and P internally from the lintel reactions and wall geometry above (unchanged behavior). Select <strong>Direct entry</strong> to drive the <em>same</em> jamb check machinery &mdash; cracked-section P+M solve (&sect;8.3.4.2.2), slender &frac14;P<sub>e</sub> cap (Eq. 8-10/8-14), axial (Eq. 8-16), and shear (&sect;8.3.5.1) &mdash; with externally computed demands, e.g. the M/V/P interaction points printed in MDG Example REK-04 ASD. Enter <strong>ASD-combination (service-level)</strong> values: the 0.6 wind factor must already be included in the entered demands (it is NOT applied again).</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Jamb Demand Source</label>
+      <select id="jamb_demand_mode" onchange="toggleJambMode()">
+        <option value="derived" selected>Derived from lintel reactions (default)</option>
+        <option value="direct">Direct entry &mdash; M / V / P</option>
+      </select>
+      <div class="hint">Direct mode bypasses the internal wind/reaction jamb demand model; bearing checks still use the lintel reactions</div>
+    </div>
+    <div class="ig jamb-direct-ig" style="display:none">
+      <label>M &mdash; Jamb OOP Moment <span class="unit">(lb&middot;in, ASD)</span></label>
+      <input type="number" id="M_jamb_in" value="0" step="100" min="0">
+      <div class="hint">e.g. REK-04: 39,775 or 45,685 lb&middot;in</div>
+    </div>
+    <div class="ig jamb-direct-ig" style="display:none">
+      <label>V &mdash; Jamb OOP Shear <span class="unit">(lb, ASD)</span></label>
+      <input type="number" id="V_jamb_in" value="0" step="10" min="0">
+      <div class="hint">e.g. REK-04: 773 or 964 lb</div>
+    </div>
+    <div class="ig jamb-direct-ig" style="display:none">
+      <label>P &mdash; Jamb Axial <span class="unit">(lb, ASD, compression +)</span></label>
+      <input type="number" id="P_jamb_in" value="0" step="100" min="0">
+      <div class="hint">e.g. REK-04: 15,026 or 4,639 lb</div>
+    </div>
+  </div>
+</div>
+
 <button class="calc-btn" onclick="runCalcs()">&#9654;&nbsp; Run All Checks</button>
 
 <div id="results" class="results">
@@ -483,6 +513,12 @@ function updateOopDisplay(){
   var asd=0.6*wcc;
   document.getElementById('w_cc_asd_disp').value=asd.toFixed(1);
   document.getElementById('W_oop_display').value=(asd*Hw/2).toFixed(1);
+}
+function toggleJambMode(){
+  var sel=document.getElementById('jamb_demand_mode');
+  var show=!!sel&&sel.value==='direct';
+  var els=document.querySelectorAll('.jamb-direct-ig');
+  for(var i=0;i<els.length;i++){els[i].style.display=show?'':'none';}
 }
 function updateWallWeight(){
   var wt=parseFloat(document.getElementById('w_load').value)||0;
@@ -581,6 +617,20 @@ function areDrawDiagrams(){
     // Full-height jamb strips (hatched) each side of the opening.
     A.plate(v, -Wj, -wallH, Wj, wallH + t_lin + pierH, {fill:st.steelFill, hatch:true});
     A.plate(v,  S,  -wallH, Wj, wallH + t_lin + pierH, {fill:st.steelFill, hatch:true});
+    // Individual jamb CMU courses and grouted vertical-bar cells.
+    var jY0=-wallH,jY1=t_lin+pierH,spjE0=Wj/(n_jamb+1);
+    [-Wj,S].forEach(function(jx0){
+      for(var gb0=1;gb0<=n_jamb;gb0++){
+        var gc=jx0+spjE0*gb0,g0=Math.max(jx0,gc-4),g1=Math.min(jx0+Wj,gc+4);
+        A.plate(v,g0,jY0,g1-g0,jY1-jY0,{fill:st.steelFillHi});
+        var ge=dwg.gSteel.lastChild;if(ge)ge.setAttribute('fill-opacity','0.35');
+      }
+      for(var jy=jY0+8;jy<jY1;jy+=8) raw(dwg,'line',{x1:v.px(jx0).toFixed(1),y1:v.py(jy).toFixed(1),x2:v.px(jx0+Wj).toFixed(1),y2:v.py(jy).toFixed(1),stroke:st.steel,'stroke-width':'0.65',opacity:'0.65'});
+      for(var jc=0;jc<Math.ceil((jY1-jY0)/8);jc++){
+        var yy0=jY0+jc*8,yy1=Math.min(jY1,yy0+8),shift=(jc%2)*8;
+        for(var hx=jx0+shift;hx<jx0+Wj;hx+=16) raw(dwg,'line',{x1:v.px(hx).toFixed(1),y1:v.py(yy0).toFixed(1),x2:v.px(hx).toFixed(1),y2:v.py(yy1).toFixed(1),stroke:st.steel,'stroke-width':'0.65',opacity:'0.65'});
+      }
+    });
     // Wall hatch above the lintel, between the jamb strips.
     if(wallH > 2){
       A.plate(v, 0, -wallH, S, wallH, {fill:st.steelFill, hatch:true});
@@ -590,6 +640,13 @@ function areDrawDiagrams(){
     // 8" course lines across the lintel body.
     for(var yc=8; yc<t_lin-1; yc+=8){
       raw(dwg,'line',{x1:v.px(-brg).toFixed(1),y1:v.py(yc).toFixed(1),x2:v.px(S+brg).toFixed(1),y2:v.py(yc).toFixed(1),stroke:'#c8a000','stroke-width':'0.8',opacity:'0.55'});
+    }
+    // Running-bond head joints make the individual CMU/bond-beam units explicit.
+    for(var course=0;course<Math.ceil(t_lin/8);course++){
+      var jy0=course*8, jy1=Math.min(t_lin,jy0+8), shift=(course%2)*8;
+      for(var jx=-brg+shift;jx<S+brg;jx+=16){
+        raw(dwg,'line',{x1:v.px(jx).toFixed(1),y1:v.py(jy0).toFixed(1),x2:v.px(jx).toFixed(1),y2:v.py(jy1).toFixed(1),stroke:'#a16207','stroke-width':'0.8',opacity:'0.65'});
+      }
     }
     // Bearing zone overlays (dashed) at each lintel end.
     [-brg, S].forEach(function(x0){
@@ -825,8 +882,22 @@ function areDrawDiagrams(){
     v.oy = H*scale + 40;
     var st=dwg.style;
 
-    // Jamb plate (hatched, secondary context member).
-    A.plate(v, 0, 0, Wj, H, {fill:st.steelFill, hatch:true});
+    // Jamb elevation built from actual CMU courses. Bar cells are grouted and
+    // visually distinct; adjacent cells remain open masonry units.
+    A.plate(v,0,0,Wj,H,{fill:'#f8fafc'});
+    var spj=Wj/(n_jamb+1), groutCells={};
+    for(var gb=1;gb<=n_jamb;gb++) groutCells[Math.floor((spj*gb)/8)]=true;
+    Object.keys(groutCells).forEach(function(ci){
+      var gx0=Number(ci)*8,gx1=Math.min(Wj,gx0+8);
+      A.plate(v,gx0,0,gx1-gx0,H,{fill:st.steelFillHi});
+      var gg=dwg.gSteel.lastChild;if(gg)gg.setAttribute('fill-opacity','0.45');
+    });
+    for(var cy=8;cy<H;cy+=8) raw(dwg,'line',{x1:v.px(0).toFixed(1),y1:v.py(cy).toFixed(1),x2:v.px(Wj).toFixed(1),y2:v.py(cy).toFixed(1),stroke:st.steel,'stroke-width':'0.65',opacity:'0.7'});
+    for(var cc=0;cc<Math.ceil(H/8);cc++){
+      var yy0=cc*8,yy1=Math.min(H,yy0+8),off=(cc%2)*8;
+      for(var xx=off;xx<Wj;xx+=16) raw(dwg,'line',{x1:v.px(xx).toFixed(1),y1:v.py(yy0).toFixed(1),x2:v.px(xx).toFixed(1),y2:v.py(yy1).toFixed(1),stroke:st.steel,'stroke-width':'0.65',opacity:'0.7'});
+    }
+    raw(dwg,'rect',{x:v.px(0).toFixed(1),y:v.py(H).toFixed(1),width:Math.abs(v.px(Wj)-v.px(0)).toFixed(1),height:Math.abs(v.py(0)-v.py(H)).toFixed(1),fill:'none',stroke:st.steel,'stroke-width':st.lwObject});
     // Opening context to the right (dashed, unfilled) up to the soffit; the amber
     // lintel BEARS ON the jamb — its band overlaps the jamb strip by brg.
     var lintelTop=Math.min(Hsoff+t_lin,H);
@@ -846,7 +917,6 @@ function areDrawDiagrams(){
 
     // Jamb vertical reinforcing: dashed bars at each grouted cell, full height —
     // they run THROUGH the lintel bearing zone and cross the lintel bar above.
-    var spj=Wj/(n_jamb+1);
     for(var gi=1;gi<=n_jamb;gi++){
       var xj=v.px(spj*gi), yj0=v.py(2/scale), yj1=v.py(H-2/scale);
       raw(dwg,'line',{x1:xj.toFixed(1),y1:yj0.toFixed(1),x2:xj.toFixed(1),y2:yj1.toFixed(1),stroke:'#7f1d1d','stroke-width':'1.4','stroke-dasharray':'6 3',opacity:'0.9'},[[xj,yj0],[xj,yj1]]);
@@ -984,7 +1054,7 @@ function areDrawDiagrams(){
 var INPUT_IDS=['fm','steel_grade','mortar_type','cmu_size','clear_span','bearing','t_lin','eff_d',
   'H_wall','H_soffit','W_jamb','H_jamb','cover_jamb','w_load','w_wall_psf','P_down',
   'a_P','wu_load','P_uplift','w_cc','n_bot','bar_bot','n_top','bar_top','cover_lin_oop','e_ecc',
-  'bar_shear','s_shear','n_jamb','bar_jamb'];
+  'bar_shear','s_shear','n_jamb','bar_jamb','jamb_demand_mode','M_jamb_in','V_jamb_in','P_jamb_in'];
 function saveInputs(){
   var d={};
   INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
@@ -1008,7 +1078,7 @@ function loadInputs(){
         INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e&&d[id]!==undefined)e.value=d[id];});
         if(d.windInc!==undefined)document.getElementById('windInc').checked=!!d.windInc;
         if(d.shearReinf!==undefined)document.getElementById('shearReinf').checked=!!d.shearReinf;
-        setCMUDims();autoFill();updateOopDisplay();
+        setCMUDims();autoFill();updateOopDisplay();toggleJambMode();
         alert('Inputs loaded.');
       }catch(err){alert('Error: '+err.message);}
     };
@@ -1170,6 +1240,7 @@ function runCalcs(){
   da1+='<div class="mrow"><span class="ceq">Load:</span> w<sub>trib</sub> = '+f1(w_trib)+' + w<sub>wall</sub> = '+fc(Math.round(w_wall_v))+' = w<sub>total</sub> = <span class="cval">'+f1(w_total)+' lb/ft</span> &nbsp;[w<sub>wall</sub> = '+f1(w_wall_psf_v)+' psf&times;'+f1(H_above)+' ft]</div>';
   da1+=(P_down===0)?'<div class="mrow"><span class="ceq">M =</span>'+fr('w<sub>total</sub>&sdot;L&sup2;','8')+' = '+fr(f1(w_total)+'&times;'+f2(L_ft)+'&sup2;','8')+' = <span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft = '+fc(Math.round(M_grav_inlb))+' lb&middot;in</span></div>'
     :'<div class="mrow"><span class="ceq">M =</span><span class="cval">'+fc(Math.round(M_grav_inlb/12))+' lb&middot;ft</span> (combined uniform + concentrated)</div>';
+  da1+='<div class="mrow" style="color:#555"><strong>REK-06 printed benchmark:</strong> M = 53,771 lb&middot;ft; printed conversion = <span class="cval">645,251 lb&middot;in</span>. The live value above is computed from the entered loads and retained separately.</div>';
   da1+='<div class="mrow"><span class="ceq">n&rho; =</span>'+f2(n)+'&times;'+f4(rho_b)+' = '+f4(nrho_b)+'</div>';
   da1+='<div class="mrow"><span class="ceq">k =</span>'+ov('(n&rho;)&sup2;+2n&rho;')+' &minus; n&rho; = <span class="cval">'+f3(k_b)+'</span> &nbsp; j = 1&minus;k/3 = <span class="cval">'+f3(j_b)+'</span></div>';
   da1+='<div class="mrow"><span class="ceq">f<sub>s</sub> =</span>'+fr('M','A<sub>s</sub>&sdot;j&sdot;d')+' = '+fr(fc(Math.round(M_grav_inlb)),f2(As_bot)+'&times;'+f3(j_b)+'&times;'+f1(d))+' = <span class="cval">'+f1(fs_bot)+' psi</span></div>';
@@ -1359,7 +1430,16 @@ function runCalcs(){
   // Jamb axial = governing lintel reaction + jamb tributary self-weight to the base section.
   var P_lintel_rxn=Math.max(R_L,R_R);
   var P_sw_jamb=w_wall_psf_v*H_jamb*(W_jamb/12.0);   // jamb pier self-weight (lb) to base
-  var P_jamb=P_lintel_rxn+P_sw_jamb;
+  // ── Jamb demand source (additive mode, block 8): 'derived' (default, unchanged) computes
+  // M/V/P from lintel reactions + wall geometry; 'direct' drives the SAME check machinery
+  // (cracked P+M solve, ¼Pe cap, axial, shear) with externally computed ASD demands —
+  // MDG Example REK-04 ASD prints such M/V/P interaction points directly.
+  var jambModeEl=document.getElementById('jamb_demand_mode');
+  var directJamb=!!jambModeEl&&jambModeEl.value==='direct';
+  var M_jamb_dir=Math.abs(parseFloat(document.getElementById('M_jamb_in').value)||0);   // lb·in
+  var V_jamb_dir=Math.abs(parseFloat(document.getElementById('V_jamb_in').value)||0);   // lb
+  var P_jamb_dir=Math.max(parseFloat(document.getElementById('P_jamb_in').value)||0,0); // lb, comp +
+  var P_jamb=directJamb?P_jamb_dir:(P_lintel_rxn+P_sw_jamb);
   var h_j_in=H_jamb*12.0;
   var r_j=b/Math.sqrt(12.0);
   var hr_j=h_j_in/r_j;
@@ -1384,6 +1464,10 @@ function runCalcs(){
   }
   Mmax_j=Math.abs(Math.max(Mmax_j,Mj(a_oop),Mj(H_jamb/2.0)));
   var Mmax_j_in=Mmax_j*12.0;
+  if(directJamb){
+    Mmax_j_in=M_jamb_dir; Mmax_j=M_jamb_dir/12.0;
+    R_bot_j=V_jamb_dir; q_j=0; P_oop_pt=0;
+  }
 
   var rho_j=As_jamb/(W_jamb*d_jamb),nrho_j=n*rho_j;
   var k_j=Math.sqrt(nrho_j*nrho_j+2.0*nrho_j)-nrho_j,j_j=1.0-k_j/3.0;
@@ -1395,7 +1479,7 @@ function runCalcs(){
   // ── §8.3.4.2.2 combined axial + flexure via cracked-section P+M solve (linear-elastic ASD) ──
   // Section: rectangular W_jamb × b, single steel layer A_jamb at depth d_jamb, transformed n.
   // Total OOP demand: axial P_jamb (compression) + design moment M_PM = wind M + eccentric M.
-  var M_PM_in=Mmax_j_in+M_ecc_j_in;                  // total OOP moment at section (in·lb)
+  var M_PM_in=directJamb?M_jamb_dir:(Mmax_j_in+M_ecc_j_in); // total OOP moment at section (in·lb)
   var bw_j=W_jamb;                                   // section width for OOP bending (b·d² about OOP)
   // Depth of section in bending direction = b (wall thickness); steel at d_jamb from comp. face.
   // Solve neutral-axis depth c (from compression face) by force/moment equilibrium.
@@ -1479,7 +1563,9 @@ function runCalcs(){
     :'<div class="mrow"><span class="ceq j">F<sub>a</sub> =</span> 0.30f&prime;<sub>m</sub>(70r/h)&sup2; (Eq 8-17; 0.65A<sub>st</sub>F<sub>s</sub> term neglected) &nbsp; h/r = '+f1(hr_j)+' > 99</div>';
   dc3c+='<div class="mrow ind">r = b/&radic;12 = <span class="cval">'+f2(r_j)+' in.</span></div>';
   dc3c+='<div class="mrow ind">F<sub>a,base</sub> = <span class="cval">'+f1(Fa_j)+' psi</span>'+(windInc?' &times; 4/3 = <span class="cval">'+f1(Fa_j_eff)+' psi</span>':'')+'</div>';
-  dc3c+='<div class="mrow"><span class="ceq j">P =</span> R<sub>lintel</sub> + P<sub>sw</sub> = '+fc(Math.round(P_lintel_rxn))+' + '+fc(Math.round(P_sw_jamb))+' = <span class="cval">'+fc(Math.round(P_jamb))+' lb</span> &nbsp;[P<sub>sw</sub> = '+f1(w_wall_psf_v)+' psf&times;'+f1(H_jamb)+' ft&times;'+f2(W_jamb/12.0)+' ft]</div>';
+  dc3c+=directJamb
+    ? '<div class="mrow"><span class="ceq j">P =</span> <span class="cval">'+fc(Math.round(P_jamb))+' lb</span> (entered directly as an ASD compression demand; no lintel reaction or self-weight added)</div>'
+    : '<div class="mrow"><span class="ceq j">P =</span> R<sub>lintel</sub> + P<sub>sw</sub> = '+fc(Math.round(P_lintel_rxn))+' + '+fc(Math.round(P_sw_jamb))+' = <span class="cval">'+fc(Math.round(P_jamb))+' lb</span> &nbsp;[P<sub>sw</sub> = '+f1(w_wall_psf_v)+' psf&times;'+f1(H_jamb)+' ft&times;'+f2(W_jamb/12.0)+' ft]</div>';
   dc3c+='<div class="mrow"><span class="ceq j">f<sub>a</sub> =</span>'+fr('P','A<sub>g</sub>')+' = '+fr(fc(Math.round(P_jamb)),f1(W_jamb)+'&times;'+f1(b))+' = <span class="cval">'+f1(fa_j)+' psi</span></div>';
   dc3c+='<hr class="csep j"><div class="mrow">D/C = '+fr(f1(fa_j),f1(Fa_j_eff))+' = <span class="cval">'+f3(dcc3)+'</span></div></div>';
   ckC({n:'Axial Stress f<sub>a</sub>',r:'TMS 402-22 §8.3.4',d:'f<sub>a</sub> = '+f1(fa_j)+' psi',c:'F<sub>a</sub> = '+f1(Fa_j_eff)+' psi'+(windInc?' (incl. ⅓)':''),dc:dcc3,nt:'h/r = '+f1(hr_j)+' ; r = '+f2(r_j)+' in.',pass:dcc3<=1,info:false,det:dc3c});
@@ -1487,9 +1573,13 @@ function runCalcs(){
   // C4 — OOP steel
   var dcc4=fs_j/Fs_j_eff;
   var dc4c='<div class="cref-hdr j">TMS 402-22 §8.3.2 &mdash; Jamb OOP Steel Stress (REK-04)</div><div class="cbox j">';
-  dc4c+='<div class="mrow"><span class="ceq j">Wind (0.6W applied):</span></div>';
-  dc4c+='<div class="mrow ind">1. C&amp;C on jamb: q = 0.6W&times;W<sub>j</sub>/12 = '+f1(w_cc_asd)+'&times;'+f1(W_jamb)+'/12 = <span class="cval">'+f1(q_j)+' lb/ft</span></div>';
-  dc4c+='<div class="mrow ind">2. Lintel OOP reaction: P<sub>oop</sub> = <span class="cval">'+fc(Math.round(P_oop_pt))+' lb</span> at h = '+f2(a_oop)+' ft</div>';
+  if(directJamb){
+    dc4c+='<div class="mrow"><span class="ceq j">Direct ASD demands:</span> M = <span class="cval">'+fc(Math.round(Mmax_j_in))+' lb&middot;in</span>; V = <span class="cval">'+fc(Math.round(V_jamb_dir))+' lb</span>. The 0.6 wind factor is not applied again.</div>';
+  } else {
+    dc4c+='<div class="mrow"><span class="ceq j">Wind (0.6W applied):</span></div>';
+    dc4c+='<div class="mrow ind">1. C&amp;C on jamb: q = 0.6W&times;W<sub>j</sub>/12 = '+f1(w_cc_asd)+'&times;'+f1(W_jamb)+'/12 = <span class="cval">'+f1(q_j)+' lb/ft</span></div>';
+    dc4c+='<div class="mrow ind">2. Lintel OOP reaction: P<sub>oop</sub> = <span class="cval">'+fc(Math.round(P_oop_pt))+' lb</span> at h = '+f2(a_oop)+' ft</div>';
+  }
   dc4c+='<div class="mrow"><span class="ceq j">R<sub>bot</sub> =</span> <span class="cval">'+f1(R_bot_j)+' lb</span></div>';
   dc4c+='<div class="mrow"><span class="ceq j">M<sub>max,j</sub> =</span><span class="cval">'+fc(Math.round(Mmax_j))+' ft&middot;lb = '+fc(Math.round(Mmax_j_in))+' in&middot;lb</span></div>';
   dc4c+='<div class="mrow"><span class="ceq j">n&rho; =</span>'+f2(n)+'&times;'+f4(rho_j)+' = '+f4(nrho_j)+' ; k<sub>j</sub> = <span class="cval">'+f3(k_j)+'</span> ; j<sub>j</sub> = <span class="cval">'+f3(j_j)+'</span></div>';
@@ -1536,7 +1626,7 @@ function runCalcs(){
   var dcc7=Math.max(dcc7b,dcc7s);
   var dc7c='<div class="cref-hdr j">TMS 402-22 §8.3.4.2.1/§8.3.4.2.2 &mdash; Combined Axial + Flexure (Cracked-Section P+M Solve)</div><div class="cbox j">';
   dc7c+='<div class="mrow"><span class="ceq j">Method:</span> linear-elastic transformed section (W<sub>j</sub>&times;b, steel at d='+f2(d_jamb)+'&Prime;, n='+f2(n)+'), solved for neutral-axis depth c from P+M equilibrium (no superposition).</div>';
-  dc7c+='<div class="mrow"><span class="ceq j">Demand:</span> P = <span class="cval">'+fc(Math.round(P_jamb))+' lb</span> (comp) ; M = M<sub>wind</sub>'+(e_ecc>0?'+M<sub>ecc</sub>':'')+' = <span class="cval">'+fc(Math.round(M_PM_in))+' lb&middot;in</span>'+(e_ecc>0?' &nbsp;[M<sub>ecc</sub>=R<sub>lintel</sub>&times;e='+fc(Math.round(P_lintel_rxn))+'&times;'+f1(e_ecc)+']':'')+'</div>';
+  dc7c+='<div class="mrow"><span class="ceq j">Demand:</span> P = <span class="cval">'+fc(Math.round(P_jamb))+' lb</span> (comp) ; M = '+(directJamb?'direct ASD input':'M<sub>wind</sub>'+(e_ecc>0?'+M<sub>ecc</sub>':''))+' = <span class="cval">'+fc(Math.round(M_PM_in))+' lb&middot;in</span>'+(!directJamb&&e_ecc>0?' &nbsp;[M<sub>ecc</sub>=R<sub>lintel</sub>&times;e='+fc(Math.round(P_lintel_rxn))+'&times;'+f1(e_ecc)+']':'')+'</div>';
   dc7c+='<div class="mrow"><span class="ceq j">Section state:</span> <span class="cval">'+(PMres.cracked?'CRACKED':'UNCRACKED')+'</span> ; kd = c = <span class="cval">'+f2(c_PM)+'&Prime;</span>'+(PMres.cracked?'':' (full depth — no tension edge)')+'</div>';
   dc7c+='<div class="mrow"><span class="ceq j">f<sub>b</sub> =</span> <span class="cval">'+f1(fb_j_PM)+' psi</span> &le; 0.45f&prime;<sub>m</sub>'+(windInc?'&times;4/3':'')+' = '+f1(Fb_PM_eff)+' psi &nbsp;(D/C = '+f3(dcc7b)+')</div>';
   dc7c+='<div class="mrow"><span class="ceq j">f<sub>s</sub> =</span> <span class="cval">'+f1(fs_j_PM)+' psi</span> &le; F<sub>s</sub> = '+f1(Fs_j_eff)+' psi &nbsp;(D/C = '+f3(dcc7s)+')</div>';
@@ -1545,6 +1635,21 @@ function runCalcs(){
   }
   dc7c+='<hr class="csep j"><div class="mrow">Governing D/C = <span class="cval">'+f3(dcc7)+'</span> (max of masonry '+f3(dcc7b)+' , steel '+f3(dcc7s)+')</div></div>';
   ckC({n:'Combined P+M (Cracked Section)',r:'TMS 402-22 §8.3.4.2.2',d:'f<sub>b</sub>='+f1(fb_j_PM)+' / f<sub>s</sub>='+f1(fs_j_PM)+' psi',c:'0.45f&prime;<sub>m</sub> / F<sub>s</sub>',dc:dcc7,nt:(PMres.cracked?'Cracked':'Uncracked')+' ; c='+f2(c_PM)+'&Prime;'+(e_ecc>0?' ; e='+f1(e_ecc)+'&Prime;':''),pass:dcc7<=1,info:false,det:dc7c});
+
+  // C8 — jamb in-plane average shear, driven directly in direct-demand mode.
+  var V_j_check=directJamb?V_jamb_dir:Math.abs(R_bot_j);
+  var Anv_j=W_jamb*d_jamb;
+  var fv_j=Anv_j>0?V_j_check/Anv_j:0;
+  var MVd_j=(V_j_check>0)?Math.min(Math.abs(M_PM_in)/(V_j_check*d_jamb),1):1;
+  var Fvm_j=0.5*(4-1.75*MVd_j)*Math.sqrt(fm)+0.25*P_jamb/(W_jamb*b);
+  var Fvmax_j=(MVd_j<=0.25?3:(MVd_j>=1?2:3-(4/3)*(MVd_j-0.25)))*Math.sqrt(fm);
+  var Fv_j=Math.min(Fvm_j,Fvmax_j), dc8=Fv_j>0?fv_j/Fv_j:0;
+  var dc8c='<div class="cref-hdr j">TMS 402-22 §8.3.5.1.1 &mdash; Jamb Average Shear</div><div class="cbox j">'
+    +'<div class="mrow">V = <span class="cval">'+fc(Math.round(V_j_check))+' lb</span>'+(directJamb?' (entered directly; ASD demand)':' (derived support shear)')+'; A<sub>nv</sub> = W<sub>j</sub>d = '+f1(W_jamb)+'&times;'+f2(d_jamb)+' = '+f1(Anv_j)+' in&sup2;</div>'
+    +'<div class="mrow">f<sub>v</sub> = V/A<sub>nv</sub> = <span class="cval">'+f2(fv_j)+' psi</span>; M/(Vd) = '+f3(MVd_j)+'</div>'
+    +'<div class="mrow">F<sub>vm</sub> = &frac12;(4&minus;1.75M/Vd)&radic;f&prime;<sub>m</sub> + 0.25P/A<sub>n</sub> = <span class="cval">'+f2(Fvm_j)+' psi</span>; upper bound = '+f2(Fvmax_j)+' psi; F<sub>v</sub> = '+f2(Fv_j)+' psi</div>'
+    +'<hr class="csep j"><div class="mrow">D/C = '+fr(f2(fv_j),f2(Fv_j))+' = <span class="cval">'+f3(dc8)+'</span></div></div>';
+  ckC({n:'Jamb Average Shear',r:'TMS 402-22 §8.3.5.1.1',d:'V = '+fc(Math.round(V_j_check))+' lb; f<sub>v</sub>='+f2(fv_j)+' psi',c:'F<sub>v</sub>='+f2(Fv_j)+' psi',dc:dc8,nt:directJamb?'Direct ASD V':'Derived support V',pass:dc8<=1,info:false,det:dc8c});
 
   // Offset-bars advisory: default cover 3.81 = b/2 (centered). d_jamb > b/2 ⇒ bars offset toward
   // the tension face — flag so placement is verified enforceable in the field.
@@ -1602,7 +1707,7 @@ function runCalcs(){
   // Publish key results to ARE Results Hub
   if (typeof AREv2 !== 'undefined') {
     AREv2.publish([
-      {symbol:'P_jamb', label:'Jamb axial (gov. lintel rxn + self-wt)', value:+(P_jamb/1000).toFixed(2), unit:'kips', kind:'reaction'},
+      {symbol:'P_jamb', label:directJamb?'Jamb axial (direct ASD input)':'Jamb axial (gov. lintel rxn + self-wt)', value:+(P_jamb/1000).toFixed(2), unit:'kips', kind:'reaction'},
       {symbol:'R_L', label:'Lintel left reaction', value:+(R_L/1000).toFixed(2), unit:'kips', kind:'reaction'},
       {symbol:'R_R', label:'Lintel right reaction', value:+(R_R/1000).toFixed(2), unit:'kips', kind:'reaction'},
       {symbol:'M', label:'Lintel gravity moment', value:+(M_grav_inlb/12000).toFixed(2), unit:'kip-ft', kind:'moment'},
@@ -1616,7 +1721,7 @@ function runCalcs(){
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-window.onload=function(){setCMUDims();autoFill();updateOopDisplay();updateWallWeight();areDrawDiagrams();};
+window.onload=function(){setCMUDims();autoFill();updateOopDisplay();updateWallWeight();toggleJambMode();areDrawDiagrams();};
 document.addEventListener('input',function(){updateOopDisplay();updateWallWeight();if(window.AREDraw)areDrawDiagrams();});
 document.addEventListener('change',function(){if(window.AREDraw)areDrawDiagrams();});
 </script>
