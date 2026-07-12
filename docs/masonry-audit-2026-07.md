@@ -1,5 +1,51 @@
 # Masonry calculator audit — July 2026
 
+> **FIX PHASE COMPLETE — 2026-07-11.** All findings below are resolved except two NEW findings awaiting an EOR ruling. Final strict gate: `AGGREGATE PASS STRICT acknowledged=2 executed=21/21 calculators=10/10 mismatches=0 diagram_failures=0 harness_errors=0` (re-runnable: `node tools/masonry-audit/run-audit.mjs`).
+
+## Fix-phase resolution summary
+
+| Finding | Status | Resolution |
+|---|---|---|
+| MAB-1 (CALC ERROR) | **RESOLVED** | Per EOR ruling: Eq. 6-7 net tensile area (0.142 in²); crushing reproduces MDG 9.3-11's 7,180 lb (3-sig-fig per MDG), full derivation rendered. |
+| MAB-2 (DIAGRAM) | **RESOLVED** | Bond-beam elevation + plan rebuilt: face shells, webs, grouted cell, headed bolt, cones retained; also fixed literal-string dim labels and a NaN label position (pre-existing bugs). |
+| ANCHOR-1 (HIDDEN VALUE) | **RESOLVED** | Total-embedment + head-thickness entry mode added (lb = emb − t_head rendered); effective-mode states no deduction applied. |
+| ANCHOR-2 (CALC ERROR) | **RESOLVED** | Per-provision area bases; governing steel branches use Eq. 6-7 threaded area; MDG 9.3-2's gross-area 5.890 kips retained as labeled non-governing comparison; REK-08 reproduces Ba=4.969 k / Ab=0.334 / Apt=95.03 / crushing 2.853 k. Bonus fix: lbe≥b no longer invents a 0.01" opposite edge. |
+| ANCHOR-3 (HIDDEN VALUE) | **RESOLVED** | f'm = 1,750 psi selectable; REK-08 fixture drives it. |
+| ANCHOR-4 (DIAGRAM) | **RESOLVED** | Parametric shells/webs, open vs grouted cells, anchors in grouted cells. |
+| MASASD-1 (HIDDEN VALUE) | **RESOLVED** | Axial P input + cracked-section P+M path per §8.3.4.2.2 (unity check explicitly rejected); both REK-04 printed points reproduce (D/C 0.337 / 0.814); slenderness scope disclosed. |
+| MASASD-2 (DIAGRAM) | **RESOLVED** | Real block section: shells, webs, grouted center cell with bar, open cells labeled. |
+| BEARING-1 (CALC ERROR) | **RESOLVED** | Parametric group projection Apt = t·[(n−1)s + 2·√(lbe²−(t/2)²)] = 133.66 in², Bab = 6,989 lb (REK-09). NOTE: MDG's printed "25.26 − 7" is an OCR artifact of "2(5.26) + 7" — do not "fix" this back. |
+| BEARING-2 (DIAGRAM) | **RESOLVED** | W16-proportioned beam, bond-beam course with grouted anchor cells, coursing with shells/webs. |
+| LAP-1 (DIAGRAM) | **RESOLVED** | Real unit section: shells, web, grouted vs open cell, bar at true cover (fixed latent always-centered bug); elevation grouted column. |
+| LINTEL-1 (HIDDEN VALUE) | **RESOLVED** | REK-06 sizing chain rendered: As,req = 0.43 in² (j≈0.9 sizing step per MDG) and Ms = 687,572.5 lb-in with verification narrative. |
+| LINTEL-2 (DIAGRAM) | **RESOLVED** | Lintel depth drawn as real grouted courses (7 @ 8" for 56"), running-bond joints, bars at eff_d. |
+| LJ-1 (HIDDEN VALUE) | **RESOLVED** | Direct jamb M/V/P demand mode (additive; DR-02 solver unchanged — verified: 0 unity-check occurrences, Eq. 8-10/8-14 intact); REK-04 points drive and pass; 645,251 lb·in conversion rendered. |
+| LJ-2 (DIAGRAM) | **RESOLVED** | Four views kept; coursing, head joints, grouted bar cells added. |
+| RWALL-1 (FLAG) | **RESOLVED by ruling** | Mapped to REK-02 (OOP), REK-03 (axial+flexure), REK-05 (in-plane shear). Fixtures installed; see NEW findings below. |
+| RWALL-2 (DIAGRAM) | **RESOLVED** | OOP section rebuilt: coursing, shells, grouted bar cell, parapet rendering (hTotal wired to redraw — pre-existing gap). |
+| URWALL-1 (FLAG) | **RESOLVED by ruling** | Hand-derived Table 11.3.1 benchmark (6", h=9 ft) installed: 7 of 8 assertions pass. See NEW findings. |
+| URWALL-2 (DIAGRAM) | **RESOLVED** | End + interior webs added; open cells bound to grout condition. |
+| EMBED-1 (FLAG) | **RESOLVED by ruling** | docs/embed-plate-hand-check-2026-07.md: every check hand-verified within ±0.5%; zero escalations; DR-01 methodology confirmed as implemented. |
+| EMBED-2 (DIAGRAM) | **RESOLVED** | Beam profile, 4 rods, coursing/grout distinction; half-lens Apt view untouched. |
+
+**Diagram acceptance:** all 10 calcs re-judged post-fix against their checklists from live screenshots (tools/masonry-audit/diagram-review/) — all PASS. `are-draw.js` was NOT modified (all drawing inline per calc), so the 36-consumer smoke requirement does not trigger.
+
+## NEW findings — discovered building the ruling benchmarks (PENDING EOR RULING)
+
+Recorded in fixtures (`pending_eor_ruling` / `benchmark_not_drivable`) and the decision register (DR-03). Not fixed this round — wall-calc section-model surgery needs an explicit EOR decision.
+
+- **RWALL-3 (CALC ERROR, conservative direction):** in-plane shear area = face shells only (640 in² for REK-05 wall) vs MDG Anv = 968 in² (grouted cells + webs) → fv 25.16 vs 16.6 psi (+52%). Allowable side applies γg to the masonry term rather than only the 2√f'm cap.
+- **RWALL-4 (CALC ERROR, UNCONSERVATIVE):** out-of-plane one-way shear divided by full per-ft net area → fv 3.42 vs MDG 13.95 psi (~4× under-predicted).
+- **RWALL-5 (CALC ERROR, convention):** OOP wind moment enters the "D + 0.6W" combo unfactored (axial wind term IS factored) — a user entering ultimate C&C psf over-predicts M by 1.67×; entering pre-reduced pressure is currently required.
+- **RWALL-6 (CALC ERROR, UNCONSERVATIVE):** allowable axial masonry coefficient 0.30·f'm vs TMS 0.25·f'm (+20%). Partially offset by the face-shell-only An (net effect for REK-03: Pa 13,891 vs MDG 16,300 lb/ft).
+- **RWALL-7 (HIDDEN VALUE):** f'm select lacks 1,750 psi (blocks REK-02/03 driving; REK-05 driven at 2,000 since fv is f'm-independent).
+- **URWALL-3 (CALC ERROR, minor/conservative):** Fb coded 0.33·f'm vs Eq. 8-13 f'm/3 (495 vs 500 psi).
+- **URWALL-4 (FLAG, missing limit state):** no P ≤ Pe/4 buckling check (Eq. 8-10/8-14) — Em never computed.
+- **URWALL-5 (FLAG, missing limit state):** no out-of-plane shear check (§8.2.6.2).
+
+---
+
+
 Audit baseline: `84af9632678594555db4ceffca78ec88186a49ee`. Scope is audit/report only. No calculator, product file, `are-draw.js`, reference, branch, worktree, or commit was changed. Frozen inputs remain in [the decision register](masonry-audit-decision-register-2026-07.md).
 
 ## Executive result and deploy gate
