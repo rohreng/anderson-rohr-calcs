@@ -327,14 +327,48 @@ function drawMasuplDiagrams() {
     var dwg = new AREDraw.Drawing(svgE, { margin: 24 });
     var st  = dwg.style;
 
+    // ── Inline CMU coursing helper (face shells + webs + open/grouted cells) ──
+    // Draws one CMU course band [xLeft, xLeft+len] x [yBot, yBot+courseH]: an
+    // open (hollow) cell field, top/bottom face shells, transverse webs at an
+    // 8 in. block-module spacing, and optional grouted-cell highlight zones
+    // layered on top. The drawn EXTENT (xLeft/len/yBot/courseH/groutZones) is
+    // parametric to the live wall/bond-beam/anchor geometry passed in by the
+    // caller; only the shell/web module proportions are fixed drafting
+    // conventions (not tied to a live input — this calc has no CMU-unit
+    // dimension fields).
+    function drawCmuCourse(v, xLeft, len, yBot, courseH, groutZones) {
+      var shellT = Math.min(courseH * 0.22, 1.1);
+      var webT   = Math.min(courseH * 0.18, 0.9);
+      var module = 8;
+      AREDraw.plate(v, xLeft, yBot, len, courseH, { fill: '#f8fafc' });
+      AREDraw.plate(v, xLeft, yBot + courseH - shellT, len, shellT, { fill: st.steelFill, hatch: true });
+      AREDraw.plate(v, xLeft, yBot, len, shellT, { fill: st.steelFill, hatch: true });
+      for (var wx = 0; wx <= len + 0.01; wx += module) {
+        var wxa = Math.min(Math.max(xLeft + wx - webT / 2, xLeft), xLeft + len - webT);
+        AREDraw.plate(v, wxa, yBot + shellT, webT, courseH - 2 * shellT, { fill: st.steelFill, hatch: true });
+      }
+      (groutZones || []).forEach(function (gz) {
+        var gx0 = Math.max(gz.x0, xLeft), gx1 = Math.min(gz.x1, xLeft + len);
+        if (gx1 > gx0) {
+          AREDraw.plate(v, gx0, yBot + shellT, gx1 - gx0, courseH - 2 * shellT, { fill: st.steelFillHi });
+        }
+      });
+    }
+
     // Sizing — keep the wall aspect ratio reasonable on screen
     var bondBeamH = Math.max(lbe + 1, 8);  // bond beam height spans lbe + head
     var wallBodyH = bondBeamH * 1.4;        // lower wall body (below bond beam)
     var wallH     = wallBodyH + bondBeamH;
     var wallSpan  = Math.max(lp + 8, 22);  // width of wall shown in elevation
     var plateTh   = 0.5;                   // bearing plate display thickness (in)
+    // W16x31 elevation profile (MDG REK-09 example beam) — flange-thickness-
+    // to-depth ratio taken from actual AISC W16X31 (d=15.9 in, tf=0.440 in),
+    // normalized to a 10 in. display depth so the beam sits at the same scale
+    // as the rest of the wall/bond-beam geometry. Display only — this calc
+    // has no live beam-size input, and are-draw.js's wElevation() draws a
+    // longitudinal side view that only consumes d and tf (no bf/tw).
     var beamD     = 10;                    // representative beam depth (display only)
-    var beamTf    = 0.55;
+    var beamTf    = beamD * (0.440 / 15.9); // real W16x31 flange/depth ratio (≈0.28 in)
     var beamOver  = 4;                     // beam extends beyond wall on each side
 
     var sc = AREDraw.fitScale(Math.max(wallH + beamD + 6, 28), 210,
@@ -342,38 +376,55 @@ function drawMasuplDiagrams() {
     // ox=180 gives ~160px left gutter for bond beam callout leader extending left
     var vE = new AREDraw.View(dwg, { scale: sc, ox: 180, oy: 280, flipY: true });
 
-    // ── Wall body (lower CMU courses) ─────────────────────────────────────────
-    AREDraw.plate(vE, 0, 0, wallSpan, wallBodyH, { fill: st.steelFill });
+    // Plate/beam centerline + anchor layout, computed up front so the bond-
+    // beam CMU course below can highlight the anchor-engaged (grouted) cells.
+    var plateCx   = wallSpan / 2;
+    var studSpacX = Math.min(lp_s * 0.5, lp * 0.38);
+    var studXs = (n_anc >= 2)
+      ? [plateCx - studSpacX/2, plateCx + studSpacX/2]
+      : [plateCx];
+    // Grouted-cell zone half-length beyond the anchor-group centerline —
+    // mirrors the half-chord anchor-cone projection used for the printed
+    // breakout area. Visual only: does not feed the Apt/Bab math in runCalc().
+    var groutC       = Math.sqrt(Math.max(lbe * lbe - (t / 2) * (t / 2), 0));
+    var groutHalfLen = (n_anc >= 2 ? studSpacX / 2 : 0) + groutC;
+    var groutX0      = plateCx - groutHalfLen;
+    var groutX1      = plateCx + groutHalfLen;
 
-    // CMU horizontal course lines
-    var courseH = Math.min(8, wallBodyH / 2);
-    var nC = Math.max(1, Math.floor(wallBodyH / courseH));
-    for (var ic = 1; ic < nC; ic++) {
-      var cL = document.createElementNS(NS, 'line');
-      cL.setAttribute('x1', vE.px(0));         cL.setAttribute('y1', vE.py(ic * courseH));
-      cL.setAttribute('x2', vE.px(wallSpan));  cL.setAttribute('y2', vE.py(ic * courseH));
-      cL.setAttribute('stroke', st.steel);      cL.setAttribute('stroke-width', '0.4');
-      cL.setAttribute('opacity', '0.4');
-      dwg.gSteel.appendChild(cL);
+    // ── Wall body (lower CMU courses) — open cells, face shells + webs ────────
+    var courseH  = Math.min(8, wallBodyH / 2);
+    var nCourses = Math.max(1, Math.round(wallBodyH / courseH));
+    courseH = wallBodyH / nCourses; // evenly divide the body into whole courses
+    for (var ic = 0; ic < nCourses; ic++) {
+      drawCmuCourse(vE, 0, wallSpan, ic * courseH, courseH, null);
     }
+    AREDraw.memberLabel(vE, wallSpan / 2, wallBodyH * 0.25,
+      'CMU Wall (Open Cells)', { color: st.dim, size: 8 });
 
-    // ── Bond beam (grouted, amber highlight) ──────────────────────────────────
-    AREDraw.plate(vE, 0, wallBodyH, wallSpan, bondBeamH, { highlight: true });
-    // Bond beam label: calloutLabel from left wall face going into left gutter
-    // ox=180 so left wall face is at pixel 180; label placed at pixel ~14 (after margin)
-    // Use 0.3 (lower third) to give vertical separation from Rup callout at top
-    var bbLblY = wallBodyH + bondBeamH * 0.3;
+    // ── Bond beam (grouted CMU course) ─────────────────────────────────────────
+    // Same face-shell/web texture as the wall body below, with the anchor-
+    // engaged cells (groutX0..groutX1) highlighted amber to show the MDG
+    // REK-09 assumption that "the cells adjacent to the studs [are] grouted."
+    drawCmuCourse(vE, 0, wallSpan, wallBodyH, bondBeamH, [{ x0: groutX0, x1: groutX1 }]);
+    // Bond-beam course label: leader from wall left face into left gutter
+    var bbLblY = wallBodyH + bondBeamH * 0.18;
     AREDraw.calloutLabel(vE, 0, bbLblY,
       14, vE.py(bbLblY),
-      'Bond Beam (grouted)', { color: st.steel, anchor: 'start' });
+      'Bond-Beam Course', { color: st.steel, anchor: 'start' });
+    // Grouted-anchor-cell label: leader from the highlighted zone, stacked
+    // above the bond-beam label in the same left gutter (clear vertical gap,
+    // and clear of the Rup callout which sits at plateY = top of course).
+    var gcLblY = wallBodyH + bondBeamH * 0.55;
+    AREDraw.calloutLabel(vE, groutX0, gcLblY,
+      14, vE.py(gcLblY),
+      'Grouted Cell(s) at Anchors', { color: st.steel, anchor: 'start' });
 
     // ── Bearing plate (at top of wall) ────────────────────────────────────────
     var plateY   = wallH;
-    var plateCx  = wallSpan / 2;
     AREDraw.plate(vE, plateCx - lp/2, plateY, lp, plateTh, { highlight: true });
 
     // ── Steel beam ────────────────────────────────────────────────────────────
-    var beamGeom = { d: beamD, tf: beamTf, tw: 0.35, bf: 7 };
+    var beamGeom = { d: beamD, tf: beamTf };
     var beamLeft = plateCx - lp/2 - beamOver;
     var beamLen  = lp + 2 * beamOver;
     var beamCy   = plateY + plateTh + beamD / 2;
@@ -381,18 +432,14 @@ function drawMasuplDiagrams() {
     AREDraw.centerline(vE, beamLeft - 1, beamCy, beamLeft + beamLen + 1, beamCy);
     // Steel beam label: leader from TOP-LEFT corner of beam, going UP-LEFT
     AREDraw.leader(vE, beamLeft + 1, beamCy + beamD/2,
-      -54, -24, 'Steel Beam', { color: st.steel });
+      -54, -24, 'Steel Beam (W16 profile)', { color: st.steel });
 
     // ── Wall vertical centerline ──────────────────────────────────────────────
     AREDraw.centerline(vE, plateCx, beamCy + beamD/2 + 3, plateCx, -0.5);
 
     // ── Headed anchors ────────────────────────────────────────────────────────
-    var studSpacX = Math.min(lp_s * 0.5, lp * 0.38);
     var studYtop  = plateY;
     var studYbot  = plateY - lbe;
-    var studXs = (n_anc >= 2)
-      ? [plateCx - studSpacX/2, plateCx + studSpacX/2]
-      : [plateCx];
 
     studXs.forEach(function(sx) {
       var sLine = document.createElementNS(NS, 'line');
@@ -714,7 +761,17 @@ function runCalc(){
 
   // ── REK-09: Anchor Uplift ─────────────────────────────────────────────────
   // TMS 402 §8.1.4.3.1 Eq. 8-1 (masonry breakout) + Eq. 8-2 (steel yielding)
-  var Apt = t * (lp_s + 2*lbe);        // projected tension area (in²)
+  // Group projection per MDG REK-09: each anchor projects a circle of radius
+  // lbe onto the wall face; the full two-circle area is reduced by the overlap
+  // of adjacent circles and the portions falling outside the wall faces.
+  // REK-09 approximates this conservatively with inscribed rectangles of full
+  // wall thickness t: one spanning between the anchors, plus one beyond each
+  // end anchor extending c = √(lbe² − (t/2)²), the half-chord where the
+  // projected circle intersects the wall face.
+  var c_edge  = Math.sqrt(Math.max(lbe*lbe - (t/2)*(t/2), 0)); // in., per group end
+  var s_grp   = (n_anc - 1) * Math.min(lp_s, 2*lbe);           // in., length between end anchors
+  var midProj = Math.sqrt(Math.max(lbe*lbe - (lp_s/2)*(lp_s/2), 0)); // circle reach at mid-spacing
+  var Apt = t * (s_grp + 2*c_edge);
   var Ab  = Math.PI/4 * d_anc*d_anc;  // cross-section area of one anchor (in²)
   var Bab = 1.25 * Apt * Math.sqrt(fm);        // masonry breakout (lb) — total for anchor group
   var Bas = 0.5 * n_anc * Ab * fu;             // steel yielding (lb) — n anchors
@@ -813,8 +870,11 @@ function runCalc(){
   var det2='';
   det2+='<div class="cref-hdr">TMS 402-22 &sect;8.1.4.3.1 Eq. 8-1 &mdash; Masonry Breakout (Anchor Group)</div>';
   det2+='<div class="cbox">';
-  det2+='<div class="mrow"><span class="ceq">Projected tension area, A<sub>pt</sub>:</span></div>';
-  det2+='<div class="mrow">A<sub>pt</sub> = t &times; (l<sub>p,stud</sub> + 2l<sub>be</sub>) = '+f2(t)+' &times; ('+f2(lp_s)+' + 2&times;'+f2(lbe)+') = '+f2(t)+' &times; '+f2(lp_s+2*lbe)+' = <span class="cval">'+f2(Apt)+' in.²</span></div>';
+  det2+='<div class="mrow"><span class="ceq">Projected tension area, A<sub>pt</sub> (anchor group, per MDG REK-09):</span></div>';
+  det2+='<div class="mrow ind" style="font-size:.9em;color:#555">Each anchor projects a breakout circle of radius l<sub>be</sub> onto the wall face. The full circle areas (&pi;l<sub>be</sub>² each) are reduced by the overlap of adjacent circles (s = '+f2(lp_s)+' in. &lt; 2l<sub>be</sub> = '+f2(2*lbe)+' in.) and by the portions falling outside the wall faces. Conservative approximation: inscribed rectangles of full wall thickness t.</div>';
+  det2+='<div class="mrow">Half-chord at wall face, c = '+ov('l<sub>be</sub>² &minus; (t/2)²')+' = '+ov(f2(lbe)+'² &minus; '+f2(t/2)+'²')+' = <span class="cval">'+f2(c_edge)+' in.</span> beyond each end anchor</div>';
+  det2+='<div class="mrow">Circle reach at mid-spacing = '+ov('l<sub>be</sub>² &minus; (s/2)²')+' = '+f2(midProj)+' in. '+(midProj>=t/2?'&gt; t/2 = '+f2(t/2)+' in. &rarr; full thickness engaged between anchors':'&lt; t/2 = '+f2(t/2)+' in. &mdash; full-thickness rectangle between anchors not fully engaged (unconservative; verify)')+'</div>';
+  det2+='<div class="mrow">A<sub>pt</sub> = t &times; [(n&minus;1)s + 2c] = '+f2(t)+' &times; [('+n_anc+'&minus;1)&times;'+f2(lp_s)+' + 2&times;'+f2(c_edge)+'] = '+f2(t)+' &times; '+f2(s_grp + 2*c_edge)+' = <span class="cval">'+f2(Apt)+' in.²</span></div>';
   if(!lbe_ok) det2+='<div class="mrow" style="color:#dc2626">⚠ l<sub>be</sub> = '+f2(lbe)+' in. &lt; t/2 = '+f2(t/2)+' in. — Embedment should exceed half wall thickness</div>';
   det2+='<hr class="csep">';
   det2+='<div class="mrow"><span class="ceq">Eq. 8-1:</span> B<sub>ab</sub> = 1.25 A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'</div>';
