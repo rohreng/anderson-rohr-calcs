@@ -1727,15 +1727,16 @@ function areDrawWallSection(){
   var svg = document.getElementById('wallSectSvg');
   if (!svg || typeof AREDraw === 'undefined') return;
 
-  var size   = parseInt(document.getElementById('wSize').value);
-  var c      = CMU_DIMS[size] || CMU_DIMS[8];
-  var grout  = document.getElementById('grout').value;
-  var rfType = document.getElementById('rfType').value;
-  var h_ft   = areNum('hWall', 12);
-  var w_psf  = areNum('wWind', 0);
-  var dOOP_v = areNum('dOOP', c.t/2);
-  var mCalcT = document.getElementById('mCalcType').value;
-  var cant   = (mCalcT === 'cantilever');
+  var size    = parseInt(document.getElementById('wSize').value);
+  var c       = CMU_DIMS[size] || CMU_DIMS[8];
+  var grout   = document.getElementById('grout').value;
+  var rfType  = document.getElementById('rfType').value;
+  var h_ft    = areNum('hWall', 12);
+  var hTot_ft = Math.max(areNum('hTotal', h_ft), h_ft); // total ht. above design pt.; never < design span
+  var w_psf   = areNum('wWind', 0);
+  var dOOP_v  = areNum('dOOP', c.t/2);
+  var mCalcT  = document.getElementById('mCalcType').value;
+  var cant    = (mCalcT === 'cantilever');
 
   var t   = c.t;    // wall thickness (in)
   var tfs = c.tfs;  // face shell thickness (in)
@@ -1743,9 +1744,11 @@ function areDrawWallSection(){
   // Scale: wall is drawn vertically.
   // x = depth into wall (0 = exterior face, t = interior face)
   // y = height up the wall (compressed to fit a reasonable pixel height)
-  var h_in = h_ft * 12;
+  var h_in    = h_ft * 12;      // design span — unsupported height for slenderness & OOP moment
+  var hTot_in = hTot_ft * 12;   // full height above design point (incl. any parapet / additional wall)
+  var par_in  = hTot_in - h_in; // parapet / above-design-pt. portion (0 if none)
   var SC   = 4.5;                          // px per inch (thickness direction)
-  var SH   = Math.min(3.5, 140 / h_in);   // px per inch (height direction — compressed)
+  var SH   = Math.min(3.5, 140 / hTot_in);   // px per inch (height direction — compressed, budgeted on TOTAL height)
 
   var dwg = new AREDraw.Drawing(svg, { margin: 20 });
   var ST  = dwg.style;
@@ -1760,11 +1763,14 @@ function areDrawWallSection(){
 
   // --- Pixel layout constants ---
   var OX  = 68;              // pixel x of exterior face — leaves room for wind arrows+label on left
-  var wtPx = t * SC;         // wall thickness in px
-  var fsPx = tfs * SC;       // face shell in px
-  var OY  = 16;              // pixel y of wall top
-  var hPx = h_in * SH;      // wall height in px
-  var BOT = OY + hPx;        // pixel y of wall base
+  var wtPx  = t * SC;        // wall thickness in px
+  var fsPx  = tfs * SC;      // face shell in px
+  var OY    = 16;            // pixel y of wall TOP (top of parapet portion if present, else top of design span)
+  var hPx   = h_in * SH;     // design-span height in px
+  var parPx = par_in * SH;   // parapet / above-design-pt. height in px (0 if none)
+  var totPx = hPx + parPx;   // total drawn wall height in px
+  var BOT = OY + totPx;      // pixel y of wall base
+  var topSpanPx = BOT - hPx; // pixel y of the upper lateral-support / design point (== OY when no parapet)
 
   var SVGNS = 'http://www.w3.org/2000/svg';
   function mkEl(tag, attrs) {
@@ -1775,33 +1781,65 @@ function areDrawWallSection(){
   function px(x) { return OX + x * SC; }      // world-x (in) to pixel-x
   function py(y) { return BOT - y * SH; }      // world-y (in) to pixel-y (flipped)
 
-  // Exterior face shell (left band)
-  var extFill = dwg.hatchPattern(ST.hatch, 4);
-  var extRect = mkEl('rect', { x: OX, y: OY, width: fsPx, height: hPx,
-    fill: ST.steelFill, stroke: ST.steel, 'stroke-width': ST.lwObject });
-  dwg.gSteel.appendChild(extRect);
-  var extHatch = mkEl('rect', { x: OX, y: OY, width: fsPx, height: hPx,
-    fill: 'url(#' + extFill + ')', stroke: 'none' });
-  dwg.gSteel.appendChild(extHatch);
-
-  // Interior face shell (right band)
-  var intX = OX + wtPx - fsPx;
-  var intRect = mkEl('rect', { x: intX, y: OY, width: fsPx, height: hPx,
-    fill: ST.steelFill, stroke: ST.steel, 'stroke-width': ST.lwObject });
-  dwg.gSteel.appendChild(intRect);
-  var intHatch = mkEl('rect', { x: intX, y: OY, width: fsPx, height: hPx,
-    fill: 'url(#' + extFill + ')', stroke: 'none' });
-  dwg.gSteel.appendChild(intHatch);
-
-  // Core (hollow or grouted)
+  var intX  = OX + wtPx - fsPx;               // pixel x of interior face shell's inner edge
   var coreX = OX + fsPx, coreW = wtPx - 2*fsPx;
-  var coreFill = grout === 'full' ? ST.steelFillHi : '#f0f2f6';
-  var coreRect = mkEl('rect', { x: coreX, y: OY, width: coreW, height: hPx,
-    fill: coreFill, stroke: ST.dim, 'stroke-width': 0.7 });
-  dwg.gSteel.appendChild(coreRect);
 
-  // Wall outline
-  var outline = mkEl('rect', { x: OX, y: OY, width: wtPx, height: hPx,
+  // ---- Actual CMU coursing: face shells + cell cavity drawn per 8" course so the
+  // section reads as real block (shells / bed-joint "webs" / cell cavity), not an
+  // anonymous strip. This cut runs through the reinforced (bar) cell, which per
+  // TMS 402 is grouted full height regardless of the wall's overall grout
+  // classification (a partial-grout wall still grouts every reinforced cell) — so
+  // the core drawn here is always the grouted fill. Non-reinforced cells elsewhere
+  // along the wall (open when grout = partial) are shown in the CMU Plan View above.
+  var hatchId  = dwg.hatchPattern(ST.hatch, 4);
+  var hatchRef = 'url(#' + hatchId + ')';
+  var coreFillGrouted = ST.steelFillHi;
+  var courseH = 8;                            // nominal CMU course height (in) — same module as the plan view's 8" cells
+  var showCourses = (courseH * SH) >= 2.2;    // degrade to one band at extreme compression so geometry never inverts
+
+  if (showCourses) {
+    for (var yy = 0; yy < hTot_in - 1e-6; yy += courseH) {
+      var y0 = yy, y1 = Math.min(yy + courseH, hTot_in);
+      var yTopPx = py(y1), yBotPx = py(y0);
+      // Cell cavity (grouted — this is the reinforced cell, full height).
+      var courseCore = mkEl('rect', { x: coreX, y: yTopPx, width: coreW, height: (yBotPx - yTopPx),
+        fill: coreFillGrouted, stroke: ST.dim, 'stroke-width': 0.5 });
+      courseCore.setAttribute('fill-opacity', '0.5');
+      dwg.gSteel.appendChild(courseCore);
+      // Face shells (hatched), this course only.
+      dwg.gSteel.appendChild(mkEl('rect', { x: OX, y: yTopPx, width: fsPx, height: (yBotPx - yTopPx),
+        fill: ST.steelFill, stroke: 'none' }));
+      dwg.gSteel.appendChild(mkEl('rect', { x: OX, y: yTopPx, width: fsPx, height: (yBotPx - yTopPx),
+        fill: hatchRef, stroke: 'none' }));
+      dwg.gSteel.appendChild(mkEl('rect', { x: intX, y: yTopPx, width: fsPx, height: (yBotPx - yTopPx),
+        fill: ST.steelFill, stroke: 'none' }));
+      dwg.gSteel.appendChild(mkEl('rect', { x: intX, y: yTopPx, width: fsPx, height: (yBotPx - yTopPx),
+        fill: hatchRef, stroke: 'none' }));
+      // Bed-joint / coursing "web" line at the top of this course.
+      if (y1 < hTot_in - 1e-6) {
+        dwg.gSteel.appendChild(mkEl('line', { x1: OX, y1: yTopPx, x2: OX + wtPx, y2: yTopPx,
+          stroke: ST.steel, 'stroke-width': 0.6, opacity: 0.6 }));
+      }
+    }
+  } else {
+    // Fallback: single continuous band (extreme height compression only) — keeps
+    // geometry sane rather than drawing hairline slivers.
+    var coreFallback = mkEl('rect', { x: coreX, y: OY, width: coreW, height: totPx,
+      fill: coreFillGrouted, stroke: ST.dim, 'stroke-width': 0.7 });
+    coreFallback.setAttribute('fill-opacity', '0.5');
+    dwg.gSteel.appendChild(coreFallback);
+    dwg.gSteel.appendChild(mkEl('rect', { x: OX, y: OY, width: fsPx, height: totPx,
+      fill: ST.steelFill, stroke: 'none' }));
+    dwg.gSteel.appendChild(mkEl('rect', { x: OX, y: OY, width: fsPx, height: totPx,
+      fill: hatchRef, stroke: 'none' }));
+    dwg.gSteel.appendChild(mkEl('rect', { x: intX, y: OY, width: fsPx, height: totPx,
+      fill: ST.steelFill, stroke: 'none' }));
+    dwg.gSteel.appendChild(mkEl('rect', { x: intX, y: OY, width: fsPx, height: totPx,
+      fill: hatchRef, stroke: 'none' }));
+  }
+
+  // Wall outline (heavy, drawn over the coursing).
+  var outline = mkEl('rect', { x: OX, y: OY, width: wtPx, height: totPx,
     fill: 'none', stroke: ST.steel, 'stroke-width': ST.lwObject });
   dwg.gSteel.appendChild(outline);
 
@@ -1811,7 +1849,9 @@ function areDrawWallSection(){
     stroke: ST.center, 'stroke-width': ST.lwCenter, 'stroke-dasharray': '7 2 1.5 2' });
   dwg.gCenter.appendChild(cl);
 
-  // Tension rebar: vertical dashed line at depth dOOP from exterior face
+  // Tension rebar: vertical dashed line at depth dOOP from exterior face — runs the
+  // full drawn height (design span + any parapet portion above); the reinforced
+  // cell is continuously grouted top to bottom.
   var xrPx = Math.min(OX + wtPx - 4, Math.max(OX + 4, OX + dOOP_v * SC));
   var rbLine = mkEl('line', { x1: xrPx, y1: OY, x2: xrPx, y2: BOT,
     stroke: ST.steel, 'stroke-width': 1.4, 'stroke-dasharray': '5 3' });
@@ -1819,16 +1859,21 @@ function areDrawWallSection(){
 
   // As label — callout pulled right of wall
   var asLblX = OX + wtPx + 32;
-  var asLblY = OY + hPx * 0.42;
+  var asLblY = OY + totPx * 0.42;
   var asDot  = mkEl('line', { x1: xrPx, y1: asLblY, x2: asLblX, y2: asLblY,
     stroke: ST.dim, 'stroke-width': 0.8, 'stroke-dasharray': '2 2' });
   dwg.gAnno.appendChild(asDot);
   dwg.gAnno.appendChild(mkEl('circle', { cx: xrPx, cy: asLblY, r: 1.6, fill: ST.dim }));
+  // Label states the grout condition explicitly (this cut always runs through the
+  // reinforced cell, which is grouted full height regardless of the wall's overall
+  // grout classification — see the CMU Plan View above for the open/grouted layout
+  // of the OTHER cells along the wall length).
+  var asStr = 'As (tension) — grouted cell';
   var asTxt = mkEl('text', { x: asLblX + 3, y: asLblY - 3,
     fill: ST.steel, 'font-size': ST.fsLabel, 'font-family': ST.font, 'font-weight': 700 });
-  asTxt.textContent = 'As (tension)';
+  asTxt.textContent = asStr;
   dwg.gAnno.appendChild(asTxt);
-  dwg.extend(asLblX + 80, asLblY);
+  dwg.extend(asLblX + 3 + asStr.length * ST.fsLabel * 0.56, asLblY);
 
   // Compression rebar (double reinforced)
   if (rfType === 'double') {
@@ -1837,7 +1882,7 @@ function areDrawWallSection(){
     var rb2 = mkEl('line', { x1: xr2Px, y1: OY, x2: xr2Px, y2: BOT,
       stroke: ST.dim, 'stroke-width': 1.4, 'stroke-dasharray': '5 3' });
     dwg.gAnno.appendChild(rb2);
-    var as2LblY = OY + hPx * 0.62;
+    var as2LblY = OY + totPx * 0.62;
     dwg.gAnno.appendChild(mkEl('line', { x1: xr2Px, y1: as2LblY, x2: asLblX, y2: as2LblY,
       stroke: ST.dim, 'stroke-width': 0.8, 'stroke-dasharray': '2 2' }));
     dwg.gAnno.appendChild(mkEl('circle', { cx: xr2Px, cy: as2LblY, r: 1.6, fill: ST.dim }));
@@ -1849,13 +1894,16 @@ function areDrawWallSection(){
 
   var tkLen = 4;
 
-  // Wind UDL arrows — on exterior face, pointing right into wall
+  // Wind UDL arrows — on exterior face, over the DESIGN SPAN only (topSpanPx..BOT).
+  // wWind drives the OOP moment/slenderness check, which is computed on hWall; any
+  // parapet / above-design-pt. portion is self-weight only in this calculator (see
+  // the separate Parapet tab for its own OOP wind check).
   var arLen = 22;   // arrow length in px
   var railX = OX - arLen;
   if (w_psf > 0) {
     var nArrows = 6;
     for (var ai = 0; ai <= nArrows; ai++) {
-      var ayPx = OY + (hPx * ai / nArrows);
+      var ayPx = topSpanPx + (hPx * ai / nArrows);
       dwg.gAnno.appendChild(mkEl('line', {
         x1: railX, y1: ayPx, x2: OX - 3, y2: ayPx,
         stroke: ST.force, 'stroke-width': 1.6,
@@ -1863,11 +1911,11 @@ function areDrawWallSection(){
     }
     // Rail line along the arrows
     dwg.gAnno.appendChild(mkEl('line', {
-      x1: railX, y1: OY, x2: railX, y2: BOT,
+      x1: railX, y1: topSpanPx, x2: railX, y2: BOT,
       stroke: ST.force, 'stroke-width': ST.lwDim }));
     // w label: rotated text to the left of the rail, tracked in bounds
     var wLblCx = railX - 14;
-    var wLblCy = OY + hPx / 2;
+    var wLblCy = topSpanPx + hPx / 2;
     var wStr = 'w = ' + f1(w_psf) + ' psf';
     var wTxt = mkEl('text', {
       x: wLblCx, y: wLblCy + 4,
@@ -1881,11 +1929,12 @@ function areDrawWallSection(){
     dwg.extend(wLblCx - ST.fsForce, wLblCy - wLblHalf);
     dwg.extend(wLblCx + ST.fsForce, wLblCy + wLblHalf);
   } else {
-    dwg.extend(OX - 8, OY);
+    dwg.extend(OX - 8, topSpanPx);
   }
 
-  // Axial load P — downward arrow at top, label pulled right via dotted leader
-  var pArwY1 = OY - 24, pArwY2 = OY - 4;
+  // Axial load P — downward arrow at the design point (top of hWall, where the
+  // upper reaction bears); label pulled right via dotted leader.
+  var pArwY1 = topSpanPx - 24, pArwY2 = topSpanPx - 4;
   dwg.gAnno.appendChild(mkEl('line', {
     x1: clX, y1: pArwY1, x2: clX, y2: pArwY2,
     stroke: ST.force, 'stroke-width': ST.lwForce,
@@ -1904,28 +1953,82 @@ function areDrawWallSection(){
   dwg.extend(pLblX + 20, pLblY - 14);
   dwg.extend(clX, pArwY1 - 4);
 
-  // h dimension — vertical, to the right of the wall (outside As label)
+  // Parapet / above-design-point portion — identified with a dashed break line at
+  // the design point, plus a rotated label in the wind gutter above it (that space
+  // is otherwise unused once wind arrows stop at the design point). Only drawn when
+  // hTotal exceeds hWall, so the default (no-parapet) case renders unchanged.
+  if (par_in > 1e-6) {
+    dwg.gAnno.appendChild(mkEl('line', { x1: OX - 6, y1: topSpanPx, x2: OX + wtPx + 6, y2: topSpanPx,
+      stroke: ST.dim, 'stroke-width': 0.9, 'stroke-dasharray': '2 2' }));
+    dwg.extend(OX + wtPx + 6, topSpanPx);
+    // The break line is labelled by the "h_total" bracket + the rotated gutter
+    // label below (not an inline label here) to avoid crowding the As callout,
+    // which starts at the same x column a few pixels further out.
+    if (parPx >= 26) {
+      var parLblCx = railX - 14, parLblCy = OY + parPx/2;
+      var parStr = 'PARAPET — ABOVE DESIGN PT.';
+      var parTxt = mkEl('text', { x: parLblCx, y: parLblCy + 4,
+        fill: ST.dim, 'font-size': ST.fsLabel, 'font-family': ST.font,
+        'font-weight': 600, 'text-anchor': 'middle',
+        transform: 'rotate(-90,' + parLblCx + ',' + (parLblCy + 4) + ')' });
+      parTxt.textContent = parStr;
+      dwg.gAnno.appendChild(parTxt);
+      var parHalf = parStr.length * ST.fsLabel * 0.56 / 2;
+      dwg.extend(parLblCx - ST.fsLabel, parLblCy - parHalf);
+      dwg.extend(parLblCx + ST.fsLabel, parLblCy + parHalf);
+    }
+  }
+
+  // h dimension — vertical, to the right of the wall (outside As label). Brackets
+  // the DESIGN SPAN (hWall) only: topSpanPx..BOT.
   var hDimX = asLblX + 90;
-  dwg.gAnno.appendChild(mkEl('line', { x1: OX+wtPx, y1: OY, x2: hDimX+5, y2: OY,
+  dwg.gAnno.appendChild(mkEl('line', { x1: OX+wtPx, y1: topSpanPx, x2: hDimX+5, y2: topSpanPx,
     stroke: ST.dim, 'stroke-width': 0.7 }));
   dwg.gAnno.appendChild(mkEl('line', { x1: OX+wtPx, y1: BOT, x2: hDimX+5, y2: BOT,
     stroke: ST.dim, 'stroke-width': 0.7 }));
-  dwg.gAnno.appendChild(mkEl('line', { x1: hDimX, y1: OY, x2: hDimX, y2: BOT,
+  dwg.gAnno.appendChild(mkEl('line', { x1: hDimX, y1: topSpanPx, x2: hDimX, y2: BOT,
     stroke: ST.dim, 'stroke-width': ST.lwDim }));
-  [[hDimX, OY],[hDimX, BOT]].forEach(function(pt){
+  [[hDimX, topSpanPx],[hDimX, BOT]].forEach(function(pt){
     dwg.gAnno.appendChild(mkEl('line', {
       x1: pt[0]-tkLen*0.707, y1: pt[1]-tkLen*0.707,
       x2: pt[0]+tkLen*0.707, y2: pt[1]+tkLen*0.707,
       stroke: ST.dim, 'stroke-width': ST.lwDim }));
   });
-  var hMid = (OY + BOT)/2;
+  var hMid = (topSpanPx + BOT)/2;
   var hTxt = mkEl('text', { x: hDimX + 10, y: hMid + 4,
     fill: ST.dim, 'font-size': ST.fsDim, 'font-family': ST.font, 'text-anchor': 'middle',
     transform: 'rotate(-90,' + (hDimX+10) + ',' + hMid + ')' });
   hTxt.textContent = 'h = ' + f1(h_ft) + ' ft';
   dwg.gAnno.appendChild(hTxt);
-  dwg.extend(hDimX + 22, OY);
+  dwg.extend(hDimX + 22, topSpanPx);
   dwg.extend(hDimX + 22, BOT);
+
+  // h_total dimension — outer bracket spanning the FULL wall (OY..BOT). Only shown
+  // when a parapet / above-design-pt. portion exists, so the no-parapet default
+  // case renders identically to the un-rebuilt diagram.
+  if (par_in > 1e-6) {
+    var hDimX2 = hDimX + 26;
+    dwg.gAnno.appendChild(mkEl('line', { x1: hDimX, y1: OY, x2: hDimX2+5, y2: OY,
+      stroke: ST.dim, 'stroke-width': 0.7 }));
+    dwg.gAnno.appendChild(mkEl('line', { x1: hDimX, y1: BOT, x2: hDimX2+5, y2: BOT,
+      stroke: ST.dim, 'stroke-width': 0.7 }));
+    dwg.gAnno.appendChild(mkEl('line', { x1: hDimX2, y1: OY, x2: hDimX2, y2: BOT,
+      stroke: ST.dim, 'stroke-width': ST.lwDim }));
+    [[hDimX2, OY],[hDimX2, BOT]].forEach(function(pt){
+      dwg.gAnno.appendChild(mkEl('line', {
+        x1: pt[0]-tkLen*0.707, y1: pt[1]-tkLen*0.707,
+        x2: pt[0]+tkLen*0.707, y2: pt[1]+tkLen*0.707,
+        stroke: ST.dim, 'stroke-width': ST.lwDim }));
+    });
+    var hTotMid = (OY + BOT)/2;
+    var hTotTxt = mkEl('text', { x: hDimX2 + 10, y: hTotMid + 4,
+      fill: ST.dim, 'font-size': ST.fsDim, 'font-family': ST.font, 'text-anchor': 'middle',
+      transform: 'rotate(-90,' + (hDimX2+10) + ',' + hTotMid + ')' });
+    hTotTxt.textContent = 'h_total = ' + f1(hTot_ft) + ' ft';
+    dwg.gAnno.appendChild(hTotTxt);
+    dwg.extend(hDimX2 + 22, OY);
+    dwg.extend(hDimX2 + 22, BOT);
+  }
 
   // t dimension — horizontal below wall
   var tDimY = BOT + 24;
@@ -1971,7 +2074,9 @@ function areDrawWallSection(){
   dwg.extend(OX, dDimY + 16);
   dwg.extend(xrPx, dDimY + 16);
 
-  // Support symbols
+  // Support symbols — base always at BOT; upper support (if any) at topSpanPx, the
+  // design point. Any parapet / above-design-pt. portion continues unsupported
+  // (free) past it, which is why no support glyph is drawn at the wall's very top.
   if (cant) {
     // Fixed base — heavy bar + hatching
     var fixW = wtPx + 14;
@@ -1990,7 +2095,7 @@ function areDrawWallSection(){
     dwg.gAnno.appendChild(extLbl);
     dwg.extend(OX - 10, BOT + 14);
   } else {
-    // Pin–pin: triangle bottom, inverted triangle top
+    // Pin–pin: triangle bottom, inverted triangle top (at the design point)
     var pinR = 8;
     function pinTriangle(cx, tipY, pointUp) {
       var dy = pointUp ? -pinR*1.4 : pinR*1.4;
@@ -2006,20 +2111,21 @@ function areDrawWallSection(){
         x1: xh2+7, y1: BOT+pinR*1.4+2, x2: xh2, y2: BOT+pinR*1.4+9,
         stroke: ST.dim, 'stroke-width': 0.9 }));
     }
-    // Top pin (inverted)
-    dwg.gSteel.appendChild(mkEl('path', { d: pinTriangle(clX, OY, true),
+    // Top pin (inverted) — at the design point (topSpanPx), not necessarily the
+    // wall's very top when a parapet / above-design-pt. portion continues past it.
+    dwg.gSteel.appendChild(mkEl('path', { d: pinTriangle(clX, topSpanPx, true),
       fill: 'none', stroke: ST.steel, 'stroke-width': 1.5 }));
-    dwg.gSteel.appendChild(mkEl('line', { x1: clX-14, y1: OY-pinR*1.4-2, x2: clX+14, y2: OY-pinR*1.4-2,
+    dwg.gSteel.appendChild(mkEl('line', { x1: clX-14, y1: topSpanPx-pinR*1.4-2, x2: clX+14, y2: topSpanPx-pinR*1.4-2,
       stroke: ST.steel, 'stroke-width': 1.5 }));
-    dwg.extend(clX, OY - pinR*1.4 - 4);
+    dwg.extend(clX, topSpanPx - pinR*1.4 - 4);
     dwg.extend(clX, BOT + pinR*1.4 + 11);
   }
 
-  // EXT. / INT. face labels (small, rotated)
+  // EXT. / INT. face labels (small, rotated) — centered on the full visible wall.
   function faceLabel(xpx, label) {
-    var lbl = mkEl('text', { x: xpx, y: OY + hPx*0.5 + 4,
+    var lbl = mkEl('text', { x: xpx, y: OY + totPx*0.5 + 4,
       fill: ST.dim, 'font-size': 8, 'font-family': ST.font, 'font-weight': 600,
-      'text-anchor': 'middle', transform: 'rotate(-90,' + xpx + ',' + (OY+hPx*0.5+4) + ')' });
+      'text-anchor': 'middle', transform: 'rotate(-90,' + xpx + ',' + (OY+totPx*0.5+4) + ')' });
     lbl.textContent = label;
     dwg.gAnno.appendChild(lbl);
   }
@@ -2282,7 +2388,7 @@ function areDrawAllSchematics(){
 
 // Redraw schematics live whenever geometry inputs change
 (function(){
-  var ids = ['wSize','grout','rfType','hWall','wWind','dOOP','dOOP2','sOOP','sOOP2','sIP','barIP','Lwall','vIP','mCalcType'];
+  var ids = ['wSize','grout','rfType','hWall','hTotal','wWind','dOOP','dOOP2','sOOP','sOOP2','sIP','barIP','Lwall','vIP','mCalcType'];
   ids.forEach(function(id){
     var el = document.getElementById(id);
     if (!el) return;
