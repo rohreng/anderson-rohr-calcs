@@ -27,6 +27,15 @@
       const fn=fixture.run_function || cfg.run;
       if(fn && typeof win[fn]==='function') win[fn]();
       await new Promise(r=>setTimeout(r,500));
+      // The audit bar is "all work shown when EXPANDED" — force every collapsed
+      // shown-work panel visible before scraping, else innerText misses them.
+      // (Scripts/styles stay hidden so source text can never satisfy an assertion.)
+      doc.body.querySelectorAll('*').forEach(el=>{
+        const tag=el.tagName;
+        if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEMPLATE'||tag==='NOSCRIPT') return;
+        if(el.style && el.style.display==='none') el.style.display='block';
+        else if(win.getComputedStyle(el).display==='none') el.style.setProperty('display','block','important');
+      });
       const body=doc.body.innerText.replace(/\s+/g,' ').trim();
       result.raw={title:doc.title, body_text:body, body_length:body.length,
         svg:Array.from(doc.querySelectorAll('svg')).map(s=>({id:s.id||null,elements:s.querySelectorAll('path,rect,line,circle,polygon,text').length}))};
