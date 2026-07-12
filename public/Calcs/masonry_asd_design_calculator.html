@@ -390,6 +390,12 @@
                             <input type="number" id="V" value="700" step="10">
                         </div>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="P">Axial Load (P) [lb] (+ = compression; 0 = flexure only)</label>
+                            <input type="number" id="P" value="0" step="100">
+                        </div>
+                    </div>
                 </div>
 
                 <div class="button-group">
@@ -411,6 +417,13 @@
                 <div class="result-group">
                     <h4>Flexural Stress Check</h4>
                     <div id="flexuralResults">
+                        <p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>
+                    </div>
+                </div>
+
+                <div class="result-group">
+                    <h4>Combined Axial + Flexure (P&ndash;M) Check</h4>
+                    <div id="pmResults">
                         <p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>
                     </div>
                 </div>
@@ -458,8 +471,19 @@
             var st  = dwg.style;
             var vS  = new AREDraw.View(dwg, { scale: scale, ox: 130, oy: 130 + sectionMidY * scale, flipY: true });
 
-            // ── Masonry section rectangle (designed primary member — amber) ───────
-            AREDraw.plate(vS, 0, 0, b, l, { highlight: true, hatch: true });
+            // ── Actual CMU plan section: face shells, 8-in cell modules, webs,
+            // open cells, and the grouted/reinforced center cell. ───────────────
+            var shell=Math.min(1.25,l*0.18), web=Math.min(0.75,b*0.025);
+            AREDraw.plate(vS,0,0,b,l,{fill:'#f8fafc'});
+            AREDraw.plate(vS,0,0,b,shell,{fill:st.steelFill,hatch:true});
+            AREDraw.plate(vS,0,l-shell,b,shell,{fill:st.steelFill,hatch:true});
+            for(var wx=0;wx<=b+0.01;wx+=8){
+                AREDraw.plate(vS,Math.max(0,wx-web/2),0,Math.min(web,b-wx+web/2),l,{fill:st.steelFill,hatch:true});
+            }
+            var cell0=Math.max(0,Math.floor((b/2)/8)*8), cell1=Math.min(b,cell0+8);
+            AREDraw.plate(vS,cell0+web/2,shell,Math.max(0,cell1-cell0-web),l-2*shell,{fill:st.steelFillHi});
+            AREDraw.memberLabel(vS,b*0.18,l/2,'OPEN CELL',{color:st.dim,size:8});
+            AREDraw.memberLabel(vS,(cell0+cell1)/2,l-shell-0.25,'GROUTED CELL',{color:st.dim,size:8});
 
             // ── Centroidal centerlines ────────────────────────────────────────────
             // Horizontal (bending/shear) axis at l/2 — rebar sits exactly here.
@@ -561,6 +585,51 @@
             tryDraw();
         }());
 
+        // ── Combined axial + flexure (P–M) cracked-section solver ─────────────
+        // TMS 402-22 §8.3.4.2.2 approach: linear-elastic cracked transformed
+        // section under simultaneous P and M. Tension in masonry neglected;
+        // compressive stress in reinforcement taken as zero (bars untied,
+        // §8.3.3.3) — same assumptions as the MDG REK-04 ASD interaction
+        // spreadsheet. NOT a fa/Fa + fb/Fb unity check (that equation is not
+        // applicable to reinforced masonry per TMS 402-22 Commentary §8.3).
+        //
+        // Unknowns: neutral-axis depth c (= kd) and extreme-fiber stress fb.
+        //   Compression resultant per unit fb (geometric):
+        //     c <= t : triangle   Cbar = b·c/2,            ybar = c/3
+        //     c >  t : trapezoid  Cbar = b·t·(1 − t/(2c)), ybar from top face
+        //   Strain compatibility: fs = n·fb·(d − c)/c  (tension +; 0 if c >= d)
+        //   ΣF:       fb·Cbar − As·fs = P
+        //   ΣM@steel: fb·Cbar·(d − ybar) = Ms = M + P·(d − t/2)
+        // Eliminating fb gives one equation in c, solved by bisection.
+        function solvePM(P, M, b, t, d, As, n) {
+            const Ms = M + P * (d - t / 2);
+            if (Ms <= 0) return { status: 'no-moment', Ms: Ms };
+            function geom(c) {
+                if (c <= t) return { Cbar: 0.5 * b * c, ybar: c / 3 };
+                const b2 = 1 - t / c; // stress ratio at bottom face
+                return { Cbar: b * t * (1 - t / (2 * c)), ybar: t * (1 + 2 * b2) / (3 * (1 + b2)) };
+            }
+            function resid(c) {
+                const g = geom(c);
+                const Tbar = c < d ? As * n * (d - c) / c : 0;
+                return P * g.Cbar * (d - g.ybar) - Ms * (g.Cbar - Tbar);
+            }
+            let lo = 1e-9 * t, hi = 200 * t;
+            if (resid(lo) < 0 || resid(hi) > 0) return { status: 'no-solution', Ms: Ms };
+            for (let i = 0; i < 200; i++) {
+                const mid = 0.5 * (lo + hi);
+                if (resid(mid) > 0) { lo = mid; } else { hi = mid; }
+            }
+            const c = 0.5 * (lo + hi);
+            const g = geom(c);
+            const fb = Ms / (g.Cbar * (d - g.ybar));
+            const fs = c < d ? n * fb * (d - c) / c : 0;
+            return {
+                status: 'ok', c: c, k: c / d, fb: fb, fs: fs,
+                Cm: fb * g.Cbar, Ts: As * fs, Ms: Ms, ybar: g.ybar
+            };
+        }
+
         function calculate() {
             // Get input values
             const fm = parseFloat(document.getElementById('fm').value);
@@ -574,6 +643,8 @@
             const s = parseFloat(document.getElementById('s').value);
             const M = parseFloat(document.getElementById('M').value);
             const V = parseFloat(document.getElementById('V').value);
+            const Pin = parseFloat(document.getElementById('P').value);
+            const P = isNaN(Pin) ? 0 : Pin;   // axial load defaults to 0 (pure flexure)
             const yg = getGroutingValue();
 
             // Calculated properties
@@ -635,10 +706,14 @@
             displayFlexuralResults({
                 AsREQ, p: p * 1000, n, k, j, fb, fs, fbmax, flexuralPass, As, Fs
             });
+            const pm = solvePM(Math.max(P, 0), Math.abs(M), b, l, d, As, n);
+            displayPMResults({P:Math.max(P,0),M:Math.abs(M),b:b,t:l,d:d,As:As,n:n,
+                Fs:Fs,Fb:fbmax,pm:pm});
 
             // Publish key results to ARE Results Hub
             if (typeof AREv2 !== 'undefined') {
-                const maxDC = Math.max(Fv > 0 ? fv / Fv : 0, fbmax > 0 ? fb / fbmax : 0, Fs > 0 ? fs / Fs : 0);
+                const pmDC=(pm.status==='ok')?Math.max(pm.fb/fbmax,pm.fs/Fs):0;
+                const maxDC = Math.max(Fv > 0 ? fv / Fv : 0, fbmax > 0 ? fb / fbmax : 0, Fs > 0 ? fs / Fs : 0, pmDC);
                 AREv2.publish([
                     {symbol:'M', label:'Design moment', value:+(M / 12000).toFixed(3), unit:'kip-ft', kind:'moment'},
                     {symbol:'V', label:'Design shear', value:+(V / 1000).toFixed(3), unit:'kips', kind:'shear'},
@@ -704,6 +779,25 @@
             document.getElementById('flexuralResults').innerHTML = buildChkTable(rows, 1);
         }
 
+        function displayPMResults(r) {
+            if(r.pm.status!=='ok'){
+                document.getElementById('pmResults').innerHTML='<div class="result fail">No stable cracked-section equilibrium was found for the entered P and M. Verify signs and section geometry.</div>';
+                return;
+            }
+            const x=r.pm, dcB=x.fb/r.Fb, dcS=x.fs/r.Fs, dc=Math.max(dcB,dcS);
+            const det='<strong>Simultaneous P&ndash;M equilibrium; no f<sub>a</sub>/F<sub>a</sub> + f<sub>b</sub>/F<sub>b</sub> unity equation.</strong><br>'
+              +'Inputs: P = <span class="cval">'+Math.round(r.P).toLocaleString()+' lb</span>; M = <span class="cval">'+Math.round(r.M).toLocaleString()+' lb-in</span>; b = '+r.b.toFixed(2)+' in; t = '+r.t.toFixed(3)+' in; d = '+r.d.toFixed(3)+' in; A<sub>s</sub> = '+r.As.toFixed(2)+' in&sup2;; n = '+r.n.toFixed(2)+'<br>'
+              +'Moment about steel: M<sub>s</sub> = M + P(d &minus; t/2) = '+Math.round(r.M).toLocaleString()+' + '+Math.round(r.P).toLocaleString()+'&times;('+r.d.toFixed(3)+' &minus; '+(r.t/2).toFixed(3)+') = <span class="cval">'+Math.round(x.Ms).toLocaleString()+' lb-in</span><br>'
+              +'Solve &Sigma;F and &Sigma;M with masonry tension neglected: c = kd = <span class="cval">'+x.c.toFixed(3)+' in</span>; C<sub>m</sub> = '+x.Cm.toFixed(1)+' lb; T<sub>s</sub> = '+x.Ts.toFixed(1)+' lb; C<sub>m</sub> &minus; T<sub>s</sub> = '+(x.Cm-x.Ts).toFixed(1)+' lb = P<br>'
+              +'f<sub>b</sub> = <span class="cval">'+x.fb.toFixed(1)+' psi</span> &le; 0.45f&#8242;<sub>m</sub> = '+r.Fb.toFixed(1)+' psi (D/C '+dcB.toFixed(3)+'); f<sub>s</sub> = <span class="cval">'+x.fs.toFixed(1)+' psi</span> &le; F<sub>s</sub> = '+r.Fs.toFixed(0)+' psi (D/C '+dcS.toFixed(3)+')<br>'
+              +'<strong>Slenderness scope:</strong> this is a cross-section interaction check. Entered P and M must already include the governing member analysis; second-order/slenderness effects are not generated here and require a separate TMS &sect;8.3.4 member-stability check.';
+            document.getElementById('pmResults').innerHTML=buildChkTable([{
+                name:'Combined P+M (Cracked Section)',ref:'TMS 402-22 &sect;8.3.4.2.2',
+                demand:'P = '+Math.round(r.P).toLocaleString()+' lb<br>M = '+Math.round(r.M).toLocaleString()+' lb-in',
+                cap:'f<sub>b</sub> &le; '+r.Fb.toFixed(1)+' psi<br>f<sub>s</sub> &le; '+r.Fs.toFixed(0)+' psi',dc:dc,pass:dc<=1,det:det
+            }],2);
+        }
+
         function clearInputs() {
             document.getElementById('fm').value = '1500';
             document.getElementById('fy').value = '60000';
@@ -716,10 +810,12 @@
             document.getElementById('s').value = '12';
             document.getElementById('M').value = '18764';
             document.getElementById('V').value = '700';
+            document.getElementById('P').value = '0';
             document.getElementById('grouting').value = '0.75';
             
             document.getElementById('shearResults').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>';
             document.getElementById('flexuralResults').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>';
+            document.getElementById('pmResults').innerHTML = '<p style="text-align: center; color: #666; font-style: italic;">Click "Calculate" to see results</p>';
         }
 
         function saveDesign() {
@@ -741,6 +837,7 @@
                     s: document.getElementById('s').value,
                     M: document.getElementById('M').value,
                     V: document.getElementById('V').value,
+                    P: document.getElementById('P').value,
                     grouting: document.getElementById('grouting').value
                 }
             };
@@ -764,6 +861,7 @@
             document.getElementById('s').value = inputs.s;
             document.getElementById('M').value = inputs.M;
             document.getElementById('V').value = inputs.V;
+            document.getElementById('P').value = inputs.P || '0';
             document.getElementById('grouting').value = inputs.grouting || '0.75';
         }
 
@@ -827,12 +925,16 @@ SECTION GEOMETRY:
 DESIGN LOADS:
 - Moment (M): ${document.getElementById('M').value} lb·in
 - Shear (V): ${document.getElementById('V').value} lb
+- Axial compression (P): ${document.getElementById('P').value} lb
 
 SHEAR STRESS CHECK:
 ${shearResults}
 
 FLEXURAL STRESS CHECK:
 ${flexuralResults}
+
+COMBINED P-M CHECK:
+${document.getElementById('pmResults').innerText}
             `.trim();
             
             // Create downloadable file
