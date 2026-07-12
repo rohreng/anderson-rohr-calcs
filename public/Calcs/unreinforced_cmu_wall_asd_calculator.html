@@ -320,7 +320,7 @@ function runCalcs() {
   var hr   = h_in / sec.r;         // h/r slenderness ratio
 
   // --- Allowable stresses (base values) ---
-  var Fb = 0.33 * fm;              // TMS 402-22 §8.2.3
+  var Fb = fm / 3.0;               // TMS 402-22 §8.2.3, Eq. (8-13): Fb = (1/3)·f'm
   var Fa;
   if (hr <= 99) {
     Fa = 0.25 * fm * (1 - Math.pow(h_in / (140.0 * sec.r), 2));
@@ -328,6 +328,9 @@ function runCalcs() {
     Fa = 0.25 * fm * Math.pow((70.0 * sec.r) / h_in, 2);
   }
   var Ft = Ft_table[mortarT][gc];
+
+  // Modulus of elasticity, concrete masonry — TMS 402-22 §4.2.2, Table 4.2.2
+  var Em = 900.0 * fm;              // Em = 900·f'm
 
   // Wind 1/3 increase factor
   var k = windInc ? 4.0/3.0 : 1.0;
@@ -349,6 +352,27 @@ function runCalcs() {
   var f_net_tens  = fb - fa;                       // net tension at extreme fiber
   var dc_tension  = (f_net_tens > 0) ? (f_net_tens / Ft_eff) : 0; // only if tension exists
   var tension_ok  = (f_net_tens <= 0) ? true : (f_net_tens <= Ft_eff);
+
+  // --- Buckling safeguard (TMS 402-22 §8.2.4.1 Eq. 8-10 / Eq. 8-14) ---
+  // Pe = π²·Em·In/h² × [1 − 0.577(e/r)]³.  This calculator has no eccentricity
+  // input and models concentric axial load only, so e = 0 and the bracket = 1.
+  // In taken from the section's net moment of inertia (sec.I), already shown
+  // in the Section Properties table above.
+  var Pe        = Math.pow(Math.PI, 2) * Em * sec.I / (h_in * h_in);   // lb/ft
+  var PeOver4   = Pe / 4.0;
+  var buckling_pass = (P <= PeOver4);
+
+  // --- Out-of-plane shear (TMS 402-22 §8.2.6) ---
+  // Demand: V = w·h/2 (simply-supported reaction statics — the calc uses this
+  // same V for all support conditions as a practical simplification; see
+  // Engineering Notes for the caveat on the fixed-pinned case).
+  var V         = w * h_ft / 2.0;                 // lb/ft (plf)
+  var fv        = 1.5 * V / sec.An;                // MDG Eq. 11.3-1 / TMS 402-22 §8.2.6.1 commentary (rectangular section): fv = 3/2 · V/An
+  var Fv_sqrt   = 1.5 * Math.sqrt(fm);              // §8.2.6.2(a)
+  var Fv_cap    = 120.0;                            // §8.2.6.2(b)
+  var Fv_bond   = (gc === 'grouted') ? (60.0 + 0.45 * fa) : (37.0 + 0.45 * fa); // Table 8.2.6.2, running bond
+  var Fv        = Math.min(Fv_sqrt, Fv_cap, Fv_bond);
+  var shear_pass = (fv <= Fv);
 
   // --- Build check array ---
   var chks = [];
@@ -412,14 +436,14 @@ function runCalcs() {
   var fb_pass = (fb <= Fb_eff);
   var suppLabel = mcoef===8 ? 'Simply Supported' : (mcoef===10 ? 'Fixed-Pinned' : 'Fixed-Fixed');
   var det2 = '';
-  det2 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.3 \u2014 Allowable Flexural Compressive Stress</div>';
+  det2 += '<div class="cref-hdr">TMS 402-22 \u00A78.2.3, Eq. (8-13) \u2014 Allowable Flexural Compressive Stress</div>';
   det2 += '<div class="cbox">';
   det2 += '<div class="mrow"><span class="ceq">Support condition:</span> '+suppLabel+' \u2014 M<sub>max</sub> = w\u00B7h\u00B2/'+mcoef+'</div>';
   det2 += '<div class="mrow"><span class="ceq">M<sub>max</sub> =</span> w \u00D7 h\u00B2/'+mcoef+' = '+f1(w)+' \u00D7 '+f1(h_ft)+'\u00B2/'+mcoef+' = '+f1(M_ftlb)+' ft\u2011lb/ft</div>';
   det2 += '<div class="mrow ind">= '+f1(M_ftlb)+' \u00D7 12 = <span class="cval">'+f1(M_inlb)+'</span> in\u2011lb/ft</div>';
   det2 += '<div class="mrow"><span class="ceq">f<sub>b</sub> =</span> M/S<sub>n</sub> = '+f1(M_inlb)+' / '+f1(sec.S)+' = <span class="cval">'+f1(fb)+'</span> psi</div>';
   det2 += '<hr class="csep">';
-  det2 += '<div class="mrow"><span class="ceq">F<sub>b</sub> =</span> 0.33 \u00D7 f\u02BCm = 0.33 \u00D7 '+f1(fm)+' = '+f1(Fb)+' psi (base) \u00D7 '+f2(k)+' = <span class="cval">'+f1(Fb_eff)+'</span> psi (eff.)</div>';
+  det2 += '<div class="mrow"><span class="ceq">Eq. (8-13):</span> F<sub>b</sub> = '+fr('1','3')+' \u00D7 f\u02BCm = '+fr('1','3')+' \u00D7 '+f1(fm)+' = '+f1(Fb)+' psi (base) \u00D7 '+f2(k)+' = <span class="cval">'+f1(Fb_eff)+'</span> psi (eff.)</div>';
   det2 += '<div class="mrow">D/C = '+fr(f1(fb), f1(Fb_eff))+' = <span class="cval">'+f2(fb/Fb_eff)+'</span></div>';
   det2 += '</div>';
   chks.push({
@@ -483,9 +507,64 @@ function runCalcs() {
     det: det4
   });
 
+  // Check 5: Buckling safeguard — P vs ¼Pe
+  var det5 = '';
+  det5 += '<div class="cref-hdr">TMS 402-22 §8.2.4.1 — Buckling Safeguard, Eq. (8-10) &amp; Eq. (8-14)</div>';
+  det5 += '<div class="cbox">';
+  det5 += '<div class="mrow"><span class="ceq">Eq. (8-10) limit:</span> P ≤ ¼P<sub>e</sub></div>';
+  det5 += '<div class="mrow"><span class="ceq">E<sub>m</sub> =</span> 900 × fʼm (TMS 402-22 §4.2.2) = 900 × '+f1(fm)+' = <span class="cval">'+f1(Em)+'</span> psi</div>';
+  det5 += '<div class="mrow"><span class="ceq">Eq. (8-14):</span> P<sub>e</sub> = π²E<sub>m</sub>I<sub>n</sub>/h² × [1 − 0.577(e/r)]³</div>';
+  det5 += '<div class="mrow ind">Assumption: concentric axial load — this calculator has no eccentricity input and models axial load as concentric, so e = 0 and [1 − 0.577(e/r)]³ = 1</div>';
+  det5 += '<div class="mrow ind">I<sub>n</sub> = '+f1(sec.I)+' in⁴/ft (from Section Properties table)</div>';
+  det5 += '<div class="mrow ind">= π² × '+f1(Em)+' × '+f1(sec.I)+' / '+f1(h_in)+'² × 1</div>';
+  det5 += '<div class="mrow ind">= <span class="cval">'+f1(Pe)+'</span> lb/ft</div>';
+  det5 += '<hr class="csep">';
+  det5 += '<div class="mrow"><span class="ceq">¼P<sub>e</sub> =</span> '+f1(Pe)+' / 4 = <span class="cval">'+f1(PeOver4)+'</span> lb/ft</div>';
+  det5 += '<div class="mrow"><span class="ceq">P =</span> '+f1(P)+' plf (applied axial load)</div>';
+  det5 += '<div class="mrow">D/C = '+fr(f1(P), f1(PeOver4))+' = <span class="cval">'+f3(P/PeOver4)+'</span></div>';
+  det5 += '</div>';
+  chks.push({
+    n:  'Buckling Safeguard — P vs ¼P<sub>e</sub>',
+    r:  'TMS 402-22 §8.2.4.1 Eq. (8-10)',
+    d:  'P = '+f1(P)+' plf',
+    c:  '¼P<sub>e</sub> = '+f1(PeOver4)+' plf',
+    dc: P/PeOver4,
+    nt: 'P<sub>e</sub> = '+f1(Pe)+' lb/ft &nbsp;(e = 0 assumed, concentric axial — Eq. 8-14)',
+    stiff: buckling_pass,
+    det: det5
+  });
+
+  // Check 6: Out-of-plane shear fv vs Fv
+  var det6 = '';
+  det6 += '<div class="cref-hdr">TMS 402-22 §8.2.6 — Out-of-Plane Shear</div>';
+  det6 += '<div class="cbox">';
+  det6 += '<div class="mrow"><span class="ceq">V =</span> w·h/2 (simply-supported reaction statics) = '+f1(w)+' × '+f1(h_ft)+' / 2 = <span class="cval">'+f1(V)+'</span> lb/ft</div>';
+  det6 += '<div class="mrow"><span class="ceq">f<sub>v</sub> =</span> (MDG Eq. 11.3-1; TMS 402-22 §8.2.6.1 Eq. 8-15 commentary for rectangular sections) '+fr('3','2')+' × V/A<sub>n</sub></div>';
+  det6 += '<div class="mrow ind">= 1.5 × '+f1(V)+' / '+f1(sec.An)+' = <span class="cval">'+f1(fv)+'</span> psi</div>';
+  det6 += '<hr class="csep">';
+  det6 += '<div class="mrow"><span class="ceq">F<sub>v</sub> = min of §8.2.6.2(a)–(c):</span></div>';
+  det6 += '<div class="mrow ind">(a) 1.5 × '+ov(f1(fm))+' (1.5'+ov('fʼm')+') = <span class="cval">'+f1(Fv_sqrt)+'</span> psi</div>';
+  det6 += '<div class="mrow ind">(b) 120 psi (cap)</div>';
+  det6 += '<div class="mrow ind">(c) Table 8.2.6.2, running bond, '+(gc==='grouted'?'fully grouted':'other than fully grouted')+': '+(gc==='grouted'?'60':'37')+' + 0.45 × P/A<sub>n</sub> = '+(gc==='grouted'?'60':'37')+' + 0.45 × '+f1(fa)+' = <span class="cval">'+f1(Fv_bond)+'</span> psi</div>';
+  det6 += '<div class="mrow">Governs: F<sub>v</sub> = min('+f1(Fv_sqrt)+', 120, '+f1(Fv_bond)+') = <span class="cval">'+f1(Fv)+'</span> psi</div>';
+  det6 += '<hr class="csep">';
+  det6 += '<div class="mrow">D/C = '+fr(f1(fv), f1(Fv))+' = <span class="cval">'+f3(fv/Fv)+'</span></div>';
+  det6 += '</div>';
+  det6 += '<div class="mrow" style="font-size:.85em;color:#78350f;font-style:italic;margin-top:6px">Disclosure: fv = 1.5V/An is the rectangular-section stress (MDG Eq. 11.3-1) using the net area A<sub>n</sub> already computed above. TMS 402-22 §8.2.6.3 additionally requires that, for hollow units with an ASTM C140 normalized web area &lt; 25 in.²/ft², the shear stress calculated in the webs (not this face-shell-bedded A<sub>n</sub>) shall not exceed §8.2.6.2(a). This calculator does not collect unit web geometry (web count/thickness/height) and cannot perform that web-specific check — per MDG Example 11.3-2 commentary it rarely governs, but verify separately for thin-web/high-efficiency CMU.</div>';
+  chks.push({
+    n:  'Out-of-Plane Shear  f<sub>v</sub> vs F<sub>v</sub>',
+    r:  'TMS 402-22 §8.2.6',
+    d:  'f<sub>v</sub> = '+f1(fv)+' psi',
+    c:  'F<sub>v</sub> = '+f1(Fv)+' psi',
+    dc: fv/Fv,
+    nt: 'V = '+f1(V)+' lb/ft;  F<sub>v</sub> governed by '+(Fv===Fv_bond?'Table 8.2.6.2 (P/Aₙ term)':(Fv===Fv_sqrt?'1.5√fʼm':'120 psi cap')),
+    stiff: shear_pass,
+    det: det6
+  });
+
   // ─── Render results ─────────────────────────────────────────────────────
   // Determine overall pass/fail
-  var allPass = ht_pass && fa_pass && fb_pass && unity_pass && tension_ok;
+  var allPass = ht_pass && fa_pass && fb_pass && unity_pass && tension_ok && buckling_pass && shear_pass;
   var maxDC = 0;
   chks.forEach(function(c){ if(c.dc!==null && c.dc > maxDC) maxDC = c.dc; });
 
@@ -505,6 +584,7 @@ function runCalcs() {
     ['Net section modulus', 'S<sub>n</sub>', f1(sec.S)+' in\u00B3/ft', gc==='hollow'?'I\u2099/(t/2)':'Gross: (12t\u00B2)/6'],
     ['Net moment of inertia', 'I<sub>n</sub>', f1(sec.I)+' in\u2074/ft', gc==='hollow'?'t\u00B3 \u2212 (t\u22122t\u209Fs)\u00B3':'Gross: t\u00B3'],
     ['Radius of gyration', 'r', f1(sec.r)+' in', 't/\u221A12 (simplified per TMS)'],
+    ['Modulus of elasticity', 'E<sub>m</sub>', f1(Em)+' psi', '900 \u00D7 f\u02BCm (TMS 402-22 \u00A74.2.2)'],
     ['Face shell thickness', 't<sub>fs</sub>', f1(sec.tfs)+' in', 'Min. per TMS 602-22'],
     ['Wall weight', 'w<sub>wall</sub>', f1(sec.wt)+' psf', 'Approximate'],
     ['h/r slenderness', 'h/r', f1(hr), hr>99?'Slender: use Eq. (8-17)':'Short: use Eq. (8-16)'],
@@ -570,9 +650,12 @@ function runCalcs() {
       ? '4/3 stress increase applied per TMS 402-22 \u00A78.1.4.1 for D+W or D+L+W load combinations.'
       : 'No wind 1/3 stress increase applied. Check TMS 402-22 \u00A78.1.4.1 to confirm.',
     'Moment assumes wall simply supported at top and bottom for M = wh\u00B2/'+mcoef+'. Verify boundary conditions for your project.',
+    'Shear demand V = wh/2 (simply-supported reaction statics) is used for the out-of-plane shear check regardless of the selected support condition. This is exact for simply-supported and fixed-fixed walls; for fixed-pinned walls the true fixed-end reaction can be as high as 5wh/8 \u2014 verify shear independently for that case.',
     'Self-weight of wall is NOT automatically added to P. Include it as part of the input P if required at the critical section.',
     'TMS 402-22 Table 8.2.5.2 F\u209C values are for in-plane running bond, normal to bed joints (bending about horizontal axis as occurs here).',
-    'This calculator checks out-of-plane bending only. In-plane shear and axial load to be checked separately per TMS 402-22 Chapter 8.',
+    'Out-of-plane shear (TMS 402-22 \u00A78.2.6) is checked as fv = 1.5\u00B7V/An against the smaller of 1.5\u221Af\u02BCm, 120 psi, and the Table 8.2.6.2 running-bond allowable. This calculator assumes running bond and does NOT perform the ASTM C140 normalized web-area check of \u00A78.2.6.3 \u2014 for hollow units, verify the web shear stress separately if the normalized web area is less than 25 in.\u00B2/ft\u00B2 (rarely governs per MDG Example 11.3-2, but must be checked).',
+    'Buckling safeguard per TMS 402-22 \u00A78.2.4.1 Eq. (8-10)/(8-14) assumes concentric axial load (e = 0, i.e., [1 \u2212 0.577e/r]\u00B3 = 1) since this calculator has no eccentricity input. If the applied load is eccentric, recompute P\u2091 using the actual eccentricity.',
+    'This calculator checks out-of-plane bending, out-of-plane shear, and the axial buckling safeguard. In-plane shear and in-plane loading are outside its scope and must be checked separately per TMS 402-22 Chapter 8.',
     'For walls with large openings, pilasters, or non-uniform loading, additional analysis is required beyond this uniform-wall check.'
   ];
   var nl = document.getElementById('notesList');
