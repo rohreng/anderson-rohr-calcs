@@ -220,6 +220,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <option value="18">18 TPI (1/2" fine)</option>
         <option value="16">16 TPI (5/8")</option>
         <option value="14">14 TPI (3/4" fine)</option>
+        <option value="13">13 TPI (1/2" UNC)</option>
         <option value="10" selected>10 TPI (3/4" — A36/F1554)</option>
         <option value="9">9 TPI (7/8")</option>
         <option value="8">8 TPI (1" and larger)</option>
@@ -491,7 +492,10 @@ function runCalc(){
   var phi_Bvnb = useBreakout ? 0.50 * Bvnb_nom : Infinity;
 
   // Eq. 9-5: masonry crushing (always applies)
-  var Bvnc_nom = 1750 * Math.pow(fm * Ab, 0.25);
+  // Ab = net tensile stress area per Eq. 6-7 (0.142 in² for 1/2-13 UNC), matching MDG Ex. 9.3-11.
+  // Nominal reported to 3 significant figures per MDG Ex. 9.3-11 (7,180 lb, φBvnc = 3,590 lb).
+  var Bvnc_exact = 1750 * Math.pow(fm * Ab, 0.25);
+  var Bvnc_nom = Number(Bvnc_exact.toPrecision(3));
   var phi_Bvnc = 0.50 * Bvnc_nom;
 
   // Eq. 9-6: pryout = 2 × nominal masonry breakout tension
@@ -550,8 +554,9 @@ function runCalc(){
   }
   // Eq. 9-5
   detV += '<div class="mrow"><span class="ceq">Eq. 9-5 (masonry crushing):</span> B<sub>vnc</sub> = 1750 &times; '+rt4("f'<sub>m</sub> &times; A<sub>b</sub>")+'</div>';
-  detV += '<div class="mrow ind">= 1750 &times; ('+fm+' &times; '+f3(Ab)+')^0.25 = 1750 &times; '+f2(Math.pow(fm*Ab,0.25))+'</div>';
-  detV += '<div class="mrow ind">B<sub>vnc</sub> = <span class="cval">'+fc(Bvnc_nom)+' lb</span></div>';
+  detV += '<div class="mrow ind">A<sub>b</sub> = '+Ab_note+' = <span class="cval">'+f3(Ab)+' in.&sup2;</span>'+(nt===0?'':' (net tensile stress area per Eq. 6-7)')+'</div>';
+  detV += '<div class="mrow ind">= 1750 &times; ('+fm+' &times; '+f3(Ab)+')^0.25 = 1750 &times; '+f3(Math.pow(fm*Ab,0.25))+' = '+fc(Bvnc_exact)+' lb</div>';
+  detV += '<div class="mrow ind">B<sub>vnc</sub> = <span class="cval">'+fc(Bvnc_nom)+' lb</span> (reported to 3 significant figures, per MDG Ex. 9.3-11)</div>';
   detV += '<div class="mrow ind">&phi;B<sub>vnc</sub> = 0.50 &times; '+fc(Bvnc_nom)+' = <span class="cval">'+fc(phi_Bvnc)+' lb</span></div>';
   detV += '<hr class="csep">';
   // Eq. 9-6
@@ -736,6 +741,17 @@ function runCalc(){
 updateBoltCalcs();
 drawMabDiagram();
 
+// Wall thickness (t_nom) now drives the CMU cross-section in the diagram
+// (MAB-2) — wire a redraw on change without touching the <select> markup.
+(function () {
+  var tNomEl = document.getElementById('t_nom');
+  if (tNomEl) {
+    tNomEl.addEventListener('change', function () {
+      if (typeof drawMabDiagram === 'function') drawMabDiagram();
+    });
+  }
+})();
+
 // ─── AREDraw Diagram ─────────────────────────────────────────────────────────
 function drawMabDiagram() {
   if (typeof AREDraw === 'undefined') { return; }
@@ -746,13 +762,26 @@ function drawMabDiagram() {
   var lbe  = parseFloat(document.getElementById('lbe').value)      || 7.625;
   var lb   = Math.max(0.1, emb - th);
 
+  // Actual (net) CMU wall thickness from the nominal selector — matches the
+  // option labels in Block 1 (nominal → actual, in.). Drives every "block
+  // anatomy" dimension below (face-shell thickness, grouted-cell width), so
+  // the diagram always reflects the wall thickness actually selected.
+  var T_NOM_ACTUAL = {4:3.63, 6:5.63, 8:7.63, 10:9.63, 12:11.63, 16:15.63};
+  var tNomEl  = document.getElementById('t_nom');
+  var tNomSel = tNomEl ? parseFloat(tNomEl.value) : 8;
+  if (!isFinite(tNomSel)) tNomSel = 8;
+  var t = T_NOM_ACTUAL[tNomSel] || (tNomSel - 0.375);   // fallback: nominal − 3/8"
+  var shell = Math.min(1.25, t * 0.18);                  // CMU face-shell thickness (in)
+
   // ─────────────────────────────────────────────────────────────────────────
-  // ELEVATION: bolt in masonry wall
-  // World space: x = across wall (0 = face), y = depth (0 = bottom, wallH = top/face)
-  // Bolt enters from top (face) downward.
+  // ELEVATION: bolt in a grouted CMU bond-beam cross-section (MAB-2)
+  // World space: x = across wall thickness (0 = face), y = depth (0 = bottom,
+  // wallH = top/face). Bolt enters from top (face) downward. x in [0,shell]
+  // and [wallW-shell,wallW] are the CMU face shells (hatched); x in
+  // [shell, wallW-shell] is the grouted cell cavity (amber) the bolt sits in.
   // y-up in View so increasing y = upward in display.
   // ─────────────────────────────────────────────────────────────────────────
-  var wallW  = 8;           // display wall thickness (in)
+  var wallW  = t;           // display wall thickness (in) — actual CMU thickness
   var wallH  = emb + 3;     // display wall height (face at top = wallH)
   var boltCX = wallW / 2;   // bolt x-center in wall
   // Bolt shaft occupies from face (wallH) down by lb, then head below that by th
@@ -773,10 +802,48 @@ function drawMabDiagram() {
   var ox = 80, oy = scaleE * wallH + 30;
   var vE = new AREDraw.View(dwgE, { scale: scaleE, ox: ox, oy: oy, flipY: true });
 
-  // --- Masonry wall ---
-  AREDraw.plate(vE, 0, 0, wallW, wallH, { fill: st.steelFill });
+  // --- CMU bond-beam cross-section: face shells + grouted cell (MAB-2) ---
+  var hatchIdE = 'url(#' + dwgE.hatchPattern(st.hatch, 4) + ')';
 
-  // CMU course joints — muted dashes
+  // Grouted cell cavity (amber, half-opacity) — the cell the bolt bears in.
+  var gx0 = vE.px(shell), gx1 = vE.px(wallW - shell), gy0 = vE.py(0), gy1 = vE.py(wallH);
+  var groutCellE = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  groutCellE.setAttribute('x', Math.min(gx0, gx1).toFixed(1));
+  groutCellE.setAttribute('y', Math.min(gy0, gy1).toFixed(1));
+  groutCellE.setAttribute('width', Math.abs(gx1 - gx0).toFixed(1));
+  groutCellE.setAttribute('height', Math.abs(gy1 - gy0).toFixed(1));
+  groutCellE.setAttribute('fill', st.steelFillHi);
+  groutCellE.setAttribute('fill-opacity', '0.5');
+  groutCellE.setAttribute('stroke', 'none');
+  dwgE.gSteel.appendChild(groutCellE);
+
+  // Face shells (hatched strips), left and right of the grouted cell.
+  [[0, shell], [wallW - shell, wallW]].forEach(function (fs) {
+    var fx0 = vE.px(fs[0]), fx1 = vE.px(fs[1]);
+    var fEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    fEl.setAttribute('x', Math.min(fx0, fx1).toFixed(1));
+    fEl.setAttribute('y', Math.min(gy0, gy1).toFixed(1));
+    fEl.setAttribute('width', Math.abs(fx1 - fx0).toFixed(1));
+    fEl.setAttribute('height', Math.abs(gy1 - gy0).toFixed(1));
+    fEl.setAttribute('fill', hatchIdE);
+    fEl.setAttribute('stroke', 'none');
+    dwgE.gSteel.appendChild(fEl);
+  });
+
+  // Outer CMU outline (heavy).
+  var outlineE = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  outlineE.setAttribute('x', Math.min(vE.px(0), vE.px(wallW)).toFixed(1));
+  outlineE.setAttribute('y', Math.min(gy0, gy1).toFixed(1));
+  outlineE.setAttribute('width', Math.abs(vE.px(wallW) - vE.px(0)).toFixed(1));
+  outlineE.setAttribute('height', Math.abs(gy1 - gy0).toFixed(1));
+  outlineE.setAttribute('fill', 'none');
+  outlineE.setAttribute('stroke', st.steel);
+  outlineE.setAttribute('stroke-width', st.lwObject);
+  dwgE.gSteel.appendChild(outlineE);
+  dwgE.extend(vE.px(0), vE.py(0));
+  dwgE.extend(vE.px(wallW), vE.py(wallH));
+
+  // CMU course joints — muted dashes (coursing texture layered over the section).
   var courseSpacing = 2.67; // ~8" CMU at display scale
   for (var ci = 1; ci * courseSpacing < wallH - 0.1; ci++) {
     var yc = ci * courseSpacing;
@@ -788,12 +855,13 @@ function drawMabDiagram() {
     dwgE.gSteel.appendChild(cl);
   }
 
-  // --- Bolt shaft (amber = designed member) ---
-  AREDraw.plate(vE, boltCX - boltR, headTop, do_, lb, { fill: st.steelFillHi });
+  // --- Bolt shaft (drawn white/steel-outlined so it reads distinctly from
+  //     the amber grout fill it's embedded in — MAB-2 headed bolt) ---
+  AREDraw.plate(vE, boltCX - boltR, headTop, do_, lb, { fill: '#ffffff' });
 
-  // Bolt head (bearing surface) — wider amber plate
+  // Bolt head (bearing surface) — wider steel plate, same treatment.
   var headW = Math.max(do_ * 2.5, 1.5);
-  AREDraw.plate(vE, boltCX - headW / 2, headBot, headW, th, { fill: st.steelFillHi });
+  AREDraw.plate(vE, boltCX - headW / 2, headBot, headW, th, { fill: '#ffffff' });
 
   // --- Centerline along bolt axis ---
   AREDraw.centerline(vE, boltCX, wallH + 0.5, boltCX, headBot - 0.2);
@@ -864,16 +932,20 @@ function drawMabDiagram() {
   // lb: from wall face (y=wallH) down to bolt head top (y=headTop) — left of wall.
   // For this vertical dim, nxu=-1, so off>0 pushes LEFT. Use off=90 so the dim line
   // centre clears the baf/bvf callout labels that sit ~22–28px left of the wall edge.
-  AREDraw.dimLine(vE, 0, wallH, 0, headTop, 'lb', { off: 90 });
+  AREDraw.dimLine(vE, 0, wallH, 0, headTop, 'Lb = ' + AREDraw.fmtIn(lb, 2), { off: 90 });
 
   // thead: from head bottom to head top — right of wall, close
-  AREDraw.dimLine(vE, wallW, headBot, wallW, headTop, 'thead', { off: 26 });
+  AREDraw.dimLine(vE, wallW, headBot, wallW, headTop, 't_head = ' + AREDraw.fmtIn(th, 3), { off: 26 });
 
   // do: diameter label — leader from shaft right edge into the right gutter ABOVE the
   // Apt leader (which exits at dy=-22). Use dy=-38 to clear it, and lx=100 to ensure
   // the label centre is past the wall right edge (world x=wallW) at all bolt sizes.
   AREDraw.leader(vE, boltCX + boltR, headTop + lb * 0.6,
-    100, -38, 'do', { color: st.steel });
+    100, -38, 'do = ' + AREDraw.fmtIn(do_, 3), { color: st.steel });
+
+  // t: overall (actual) CMU wall thickness, driven by the Block-1 nominal
+  // selector — below the section, clear of everything else.
+  AREDraw.dimLine(vE, 0, 0, wallW, 0, 't = ' + AREDraw.fmtIn(wallW, 2), { off: 30 });
 
   // lbe note — leader from top-right corner pointing right, labelled
   // (lbe is a shear-direction dimension, shown in plan; reference it with a note here)
@@ -901,6 +973,23 @@ function drawMabDiagram() {
     'Grout ≥2 courses', { color: st.dim, anchor: 'start' });
   dwgE.extend(grLabelPx + 90, grLabelPy + 8);
   dwgE.extend(grLabelPx + 90, grLabelPy - 8);
+
+  // --- MAB-2 legend: grouted cell (amber) vs. face shell (hatched) ---------
+  // "Grouted cell" — one gutter row above the grout note, same right-side column.
+  var gcLabelPy = grLabelPy - 18;
+  AREDraw.calloutLabel(vE, boltCX, 1.6, grLabelPx, gcLabelPy,
+    'Grouted cell', { color: '#92400e', anchor: 'start' });
+  dwgE.extend(grLabelPx + 90, gcLabelPy + 8);
+  dwgE.extend(grLabelPx + 90, gcLabelPy - 8);
+
+  // "Face shell" — mirrored on the left, low on the wall (clear of the bolt
+  // head, which always sits at y ≥ 3 in. since headBot = wallH − emb = 3).
+  var fsLabelPx = vE.px(0) - 46;
+  var fsLabelPy = vE.py(0.9);
+  AREDraw.calloutLabel(vE, shell / 2, 0.6, fsLabelPx, fsLabelPy,
+    'Face shell ' + AREDraw.fmtIn(shell, 2), { color: st.hatch, anchor: 'end' });
+  dwgE.extend(fsLabelPx - 90, fsLabelPy + 8);
+  dwgE.extend(fsLabelPx - 90, fsLabelPy - 8);
 
   // --- Force arrows at wall face (centroid height of connection) ---
   // Place both arrows outside the wall to the left; baf horizontal, bvf vertical.
@@ -946,9 +1035,11 @@ function drawMabDiagram() {
   dwgE.commit();
 
   // ─────────────────────────────────────────────────────────────────────────
-  // PLAN VIEW: Apv shear half-cone, looking down at top of wall
-  // World: x = lateral (±lbe), y = depth into wall (0 = near edge, positive = into wall)
-  // flipY: false so y increases downward (into wall = downward in display)
+  // PLAN VIEW: Apv shear half-cone over a real CMU cell/web plan (MAB-2)
+  // World: x = lateral, along the wall run (where CMU webs occur at ~8" o.c.);
+  // y = across the wall thickness, from the near face (0 = edge of masonry,
+  // the lbe reference face) toward the far face (y = t). flipY: false so y
+  // increases downward (into the wall = downward in display).
   // ─────────────────────────────────────────────────────────────────────────
   var svgP = document.getElementById('mabPlanSvg');
   var dwgP = new AREDraw.Drawing(svgP, { margin: 22 });
@@ -964,15 +1055,65 @@ function drawMabDiagram() {
   var poy = 40;                    // top margin; wall edge at poy
   var vP = new AREDraw.View(dwgP, { scale: planScale, ox: pox, oy: poy, flipY: false });
 
-  // --- Wall near edge line (horizontal at y_world=0) ---
   var halfSpan = lbe + 0.4;
-  var eln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  eln.setAttribute('x1', vP.px(-halfSpan)); eln.setAttribute('y1', vP.py(0));
-  eln.setAttribute('x2', vP.px(halfSpan));  eln.setAttribute('y2', vP.py(0));
-  eln.setAttribute('stroke', stP.steel); eln.setAttribute('stroke-width', '2');
-  dwgP.gSteel.appendChild(eln);
-  dwgP.extend(vP.px(-halfSpan), vP.py(0));
-  dwgP.extend(vP.px(halfSpan),  vP.py(0));
+
+  // Half-cone geometry — computed up front (previously computed further down,
+  // after the label below already needed it: a latent bug where neLabelPx/
+  // neLabelPy read arcCX/arcR before assignment and evaluated to NaN).
+  var arcCX = vP.px(0), arcCY = vP.py(0);
+  var arcR  = vP.s(lbe);
+
+  // --- CMU plan anatomy: face shells + webs/cells + grouted cell (MAB-2) ---
+  // The band spans the actual wall thickness (t, from Block 1) below the near
+  // face (y=0); webs at ~8" o.c. divide it into cells, and the cell at the
+  // bolt (x=0) is grouted (amber) — same conventions as the Elevation view.
+  var webSpan = Math.min(4, Math.max(halfSpan * 0.55, 1.5));  // half-width of the home cell
+
+  function planRect(x0w, y0w, x1w, y1w, fill, opacity) {
+    var px0 = vP.px(x0w), px1 = vP.px(x1w), py0 = vP.py(y0w), py1 = vP.py(y1w);
+    var rEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rEl.setAttribute('x', Math.min(px0, px1).toFixed(1));
+    rEl.setAttribute('y', Math.min(py0, py1).toFixed(1));
+    rEl.setAttribute('width', Math.abs(px1 - px0).toFixed(1));
+    rEl.setAttribute('height', Math.abs(py1 - py0).toFixed(1));
+    rEl.setAttribute('fill', fill);
+    if (opacity) rEl.setAttribute('fill-opacity', opacity);
+    rEl.setAttribute('stroke', 'none');
+    dwgP.gSteel.appendChild(rEl);
+    return rEl;
+  }
+
+  // Outer CMU outline (heavy) — top edge doubles as the "near edge of masonry".
+  var outlineP = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  var opx0 = vP.px(-halfSpan), opx1 = vP.px(halfSpan), opy0 = vP.py(0), opy1 = vP.py(t);
+  outlineP.setAttribute('x', Math.min(opx0, opx1).toFixed(1));
+  outlineP.setAttribute('y', Math.min(opy0, opy1).toFixed(1));
+  outlineP.setAttribute('width', Math.abs(opx1 - opx0).toFixed(1));
+  outlineP.setAttribute('height', Math.abs(opy1 - opy0).toFixed(1));
+  outlineP.setAttribute('fill', 'none');
+  outlineP.setAttribute('stroke', stP.steel);
+  outlineP.setAttribute('stroke-width', '2');
+  dwgP.gSteel.appendChild(outlineP);
+  dwgP.extend(opx0, opy0); dwgP.extend(opx1, opy1);
+
+  // Grouted home cell (amber) — the cell containing the bolt.
+  planRect(-webSpan, shell, webSpan, t - shell, stP.steelFillHi, '0.5');
+
+  // Face shells (hatched), near face (y=0..shell) and far face (y=t-shell..t).
+  var hatchIdP = 'url(#' + dwgP.hatchPattern(stP.hatch, 4) + ')';
+  planRect(-halfSpan, 0, halfSpan, shell, hatchIdP);
+  planRect(-halfSpan, t - shell, halfSpan, t, hatchIdP);
+
+  // Webs at ~8" o.c. either side of the home cell.
+  for (var wx = webSpan; wx < halfSpan - 0.1; wx += 8) {
+    [wx, -wx].forEach(function (xw) {
+      var wl = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      wl.setAttribute('x1', vP.px(xw)); wl.setAttribute('y1', vP.py(0));
+      wl.setAttribute('x2', vP.px(xw)); wl.setAttribute('y2', vP.py(t));
+      wl.setAttribute('stroke', stP.steel); wl.setAttribute('stroke-width', '1.1');
+      dwgP.gSteel.appendChild(wl);
+    });
+  }
 
   // "Near Edge of Masonry" — the half-cone fill path is the upper arc (sweep=CW from
   // left to right), so its SVG bbox spans y: (arcCY - arcR) to arcCY.
@@ -995,19 +1136,18 @@ function drawMabDiagram() {
   AREDraw.centerline(vP, -lbe * 0.55, lbe, lbe * 0.55, lbe);  // lateral
   AREDraw.centerline(vP, 0, -0.15, 0, lbe + lbe * 0.3);        // depth axis (shear dir)
 
-  // --- Half-cone: in plan, Apv is the half-circle at the wall face
+  // --- Half-cone: in plan, Apv is the half-circle at the wall face — LAYERED
+  // on top of the CMU plan anatomy drawn above (breakout geometry over real
+  // block geometry, per MAB-2).
   // The cone apex is at the bolt (0, lbe); the cone spreads lbe back to the edge,
   // forming a semicircle of radius lbe centered at the bolt's projection on the edge (0,0).
   // Arc: semicircle centered at (px(0), py(0)) of radius planScale*lbe, spanning 0→π (below edge)
-  var arcCX = vP.px(0), arcCY = vP.py(0);
-  var arcR  = vP.s(lbe);
-
   // Half-cone fill
   var coneFillEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   coneFillEl.setAttribute('d',
     'M ' + (arcCX - arcR) + ',' + arcCY +
     ' A ' + arcR + ',' + arcR + ' 0 0 1 ' + (arcCX + arcR) + ',' + arcCY + ' Z');
-  coneFillEl.setAttribute('fill', 'rgba(107,122,150,0.12)');
+  coneFillEl.setAttribute('fill', 'rgba(107,122,150,0.2)');
   coneFillEl.setAttribute('stroke', 'none');
   dwgP.gSteel.appendChild(coneFillEl);
 
@@ -1048,11 +1188,16 @@ function drawMabDiagram() {
   // Use a dedicated dim reference point at x = -halfSpan (leftmost extent).
   // off=28 pushes the dim line further left.
   AREDraw.dimLine(vP, -halfSpan + 0.1, 0, -halfSpan + 0.1, lbe,
-    'lbe', { off: 28, color: stP.dim });
+    'lbe = ' + AREDraw.fmtIn(lbe, 2), { off: 28, color: stP.dim });
 
   // --- Apv label via leader — place on RIGHT side of cone to avoid lbe dim overlap ---
   AREDraw.leader(vP, lbe * 0.42, lbe * 0.28,
     60, 28, 'Apv = π lbe²/2', { color: stP.dim });
+
+  // --- MAB-2 legend: grouted cell, near the top of the cell (clear of the
+  // lbe dim column, the bvf label, and the Apv leader below it). ---
+  AREDraw.leader(vP, -webSpan * 0.5, shell + 0.15,
+    -56, -10, 'Grouted cell', { color: '#92400e' });
 
   // --- View title BELOW ---
   var pTitleY = vP.py(lbe) + arcR * 0.15 + 32;
