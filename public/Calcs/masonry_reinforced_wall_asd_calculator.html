@@ -243,6 +243,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           <label>f&prime;<sub>m</sub> — Specified Compressive Strength <span class="unit">psi</span></label>
           <select id="fm" onchange="updateHints()">
             <option value="1500">1,500 psi</option>
+            <option value="1750">1,750 psi</option>
             <option value="2000" selected>2,000 psi</option>
             <option value="2500">2,500 psi</option>
             <option value="3000">3,000 psi</option>
@@ -392,9 +393,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <h2>&#9679; Out-of-Plane Loading <span class="badge-green">OOP Wind / Seismic — Service Level</span></h2>
       <div class="g3">
         <div class="ig">
-          <label>Service Wind Pressure w <span class="unit">psf</span> <span style="color:#dc2626;font-size:.75em">(unfactored — ASD)</span></label>
+          <label>Ultimate C&amp;C Wind Pressure w <span class="unit">psf</span> <span style="color:#dc2626;font-size:.75em">(strength-level — ×0.6 applied internally)</span></label>
           <input type="number" id="wWind" value="20" step="0.5" min="0">
-          <span class="hint">Net OOP design pressure at service level. For C&amp;C wind: use the direct zone pressure (do not multiply by load factors). Import from C&amp;C Calc above.</span>
+          <span class="hint">Enter the <strong>ultimate</strong> (strength-level) C&amp;C zone pressure. The calculator applies the ASD wind factor <strong>×0.6</strong> once, internally, to both the OOP moment and the axial wind term (IBC/ASCE 7 ASD). Same convention as the lintel/jamb calc. Import the direct zone pressure from the C&amp;C Calc above.</span>
         </div>
         <div class="ig">
           <label>OOP Moment Calculation</label>
@@ -408,7 +409,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <div class="ig" id="manualMRow" style="display:none">
           <label>Manual M<sub>oop</sub> <span class="unit">lb&middot;ft/ft</span></label>
           <input type="number" id="MoopManual" value="0" step="100" min="0">
-          <span class="hint">Moment per unit width of wall (per ft), service level</span>
+          <span class="hint">Ultimate OOP moment per ft. The &times;0.6 ASD wind factor is applied internally (enter strength-level).</span>
         </div>
       </div>
     </div>
@@ -859,6 +860,62 @@ var CMU_DIMS = {
   10: {t:9.625,  tfs:1.375},
   12: {t:11.625, tfs:1.50}
 };
+// ── Partial-grout geometry (per MDG-2022 Ch.19 REK examples + NCMA TEK 14-1B) ──
+// GROUT_CELL_LEN — grouted-cell length assumed for NET SHEAR AREA (Anv). MDG REK-05
+//   assumes grouted cells are 8 in. long (ASTM C90 half-block module). Used for the
+//   in-plane and out-of-plane Anv models below.
+// GROUT_CELL_W  — grouted-cell tributary solid width (grouted cell + webs on each
+//   side) for the AXIAL/FLEXURE net cross-sectional area (An), per the REK-03
+//   interaction spreadsheet ("Web Width = Grouted Cell + webs on each side = 8.3125").
+//   (Length-direction block geometry — same for all wall thicknesses.)
+// ETA_FS_PARTIAL — NCMA TEK 14-1B face-shell-bedding effectiveness applied to the
+//   face-shell composite (parallel-axis) inertia of a partially grouted, face-shell-
+//   bedded wall. Calibrated so 8" @ 40" o.c. reproduces the NCMA/MDG REK-03 tabulated
+//   r = 2.63 in (a plain transformed box gives r ≈ 2.81; NCMA tabulates a reduced In
+//   because the un-mortared cross-webs between grouted cells do not develop full
+//   composite face-shell action). See report / RWALL-6.
+var GROUT_CELL_LEN = 8.0;      // in — grouted cell length for Anv (MDG REK-05)
+var GROUT_CELL_W   = 8.3125;   // in — grouted cell + webs width for An (MDG REK-03)
+var ETA_FS_PARTIAL = 0.867;    // NCMA TEK 14-1B face-shell composite effectiveness
+
+// ── Partial-grout section properties (An, In, r) — parametric in size, grout, spacing ──
+// Reproduces MDG REK-03 (8" partial, No.4 @ 40): An = 42.8 in²/ft, r = 2.63 in, h/r = 73.
+function sectionProps(size, grout, sVert) {
+  var c = CMU_DIMS[size], t = c.t, tfs = c.tfs, b = 12, core = t - 2*tfs;
+  var An, In;
+  if (grout === 'full') {
+    An = t * b;
+    In = b * Math.pow(t,3) / 12;                 // solid section
+  } else {
+    var cellsPerFt = b / sVert;                  // one grouted cell per vertical bar
+    // Net area: continuous face shells + grouted-cell full-depth cores prorated at s
+    An = 2*tfs*b + cellsPerFt * GROUT_CELL_W * core;
+    // Net inertia: face-shell self + (NCMA-reduced) face-shell composite + grout cores
+    var In_fs_self = 2 * (b * Math.pow(tfs,3) / 12);
+    var In_fs_comp = 2 * (b * tfs * Math.pow(t/2 - tfs/2, 2));
+    var In_core    = cellsPerFt * (GROUT_CELL_W * Math.pow(core,3) / 12);
+    In = In_fs_self + ETA_FS_PARTIAL * In_fs_comp + In_core;
+  }
+  return { t:t, tfs:tfs, core:core, An:An, In:In, r:Math.sqrt(In/An) };
+}
+// In-plane NET SHEAR AREA (Anv, in²) — full wall length. MDG REK-05:
+//   Anv = 2·tfs·Lw + n_gc·GROUT_CELL_LEN·(t − 2·tfs);  full grout = t·Lw.
+function AnvInPlane(size, grout, Lw_ft, sVert) {
+  var c = CMU_DIMS[size], t = c.t, tfs = c.tfs, lw = Lw_ft * 12;
+  if (grout === 'full') return t * lw;
+  var ngc = Math.ceil(lw / sVert) + 1;           // bars at both ends + interior ≤ s o.c.
+  var maxc = Math.floor(lw / GROUT_CELL_LEN);     // cannot exceed available cells
+  if (ngc > maxc) ngc = maxc;
+  if (ngc < 2)    ngc = 2;                         // minimum: an end cell each end
+  return 2*tfs*lw + ngc * GROUT_CELL_LEN * (t - 2*tfs);
+}
+// Out-of-plane NET SHEAR AREA (Anv, in²/ft). MDG REK-02 / TMS Table 4.4.5:
+//   partial: Anv = (GROUT_CELL_LEN/s)·b·d ;  full grout: Anv = b·d.
+function AnvOOP(size, grout, d, sVert) {
+  var b = 12;
+  if (grout === 'full') return b * d;
+  return (GROUT_CELL_LEN / sVert) * b * d;
+}
 var CC_CALC_PATH   = 'asce716_cc_wind_calculator.html';
 var DIAP_CALC_PATH = 'rectangular_diaphragm_calculator.html';
 
@@ -910,7 +967,8 @@ function updateHints() {
   var fm    = parseInt(document.getElementById('fm').value);
   var mtype = document.getElementById('mtype').value;
   var c     = CMU_DIMS[size];
-  var An_p  = (2 * c.tfs * 12).toFixed(1);
+  var sVert = parseFloat((document.getElementById('sOOP')||{}).value) || 40;
+  var An_p  = sectionProps(size, 'partial', sVert).An.toFixed(1);
   var An_f  = (c.t * 12).toFixed(1);
   var Em    = (mtype === 'clay' ? 700 : 900) * fm;
   var n     = 29000000 / Em;
@@ -920,7 +978,7 @@ function updateHints() {
 
   document.getElementById('sizeHint').innerHTML =
     '&#8505;&nbsp; '+size+'&Prime; CMU: t = '+c.t+'&Prime;, t<sub>fs</sub> = '+c.tfs+
-    '&Prime; &nbsp;|&nbsp; A<sub>n</sub> (partial) = '+An_p+
+    '&Prime; &nbsp;|&nbsp; A<sub>n</sub> (partial @ '+f1(sVert)+'&Prime;) = '+An_p+
     ' in&sup2;/ft &nbsp;|&nbsp; A<sub>n</sub> (full) = '+An_f+
     ' in&sup2;/ft &nbsp;|&nbsp; Suggested d (mid-depth) = '+sugD+'&Prime;';
   document.getElementById('matHint').innerHTML =
@@ -1032,17 +1090,14 @@ function runChecks() {
   var h_in = h_ft * 12;
   var b    = 12; // 1-ft strip
 
-  var An, In;
-  if (grout === 'full') {
-    An = t * 12;
-    In = 12 * Math.pow(t,3) / 12; // = t³
-  } else {
-    An = 2 * tfs * 12;
-    var d_fs = t/2 - tfs/2;
-    var I_each = 12*Math.pow(tfs,3)/12 + 12*tfs*d_fs*d_fs;
-    In = 2 * I_each;
-  }
-  var r_in = Math.sqrt(In / An);
+  // Partial-grout section properties include the grouted-cell contribution prorated
+  // at the vertical bar spacing (RWALL-6). Reproduces MDG REK-03 (8" @ No.4@40:
+  // An=42.8 in²/ft, r=2.63 in, h/r=73). Fully grouted → full net (t·12, t³).
+  var _sp  = sectionProps(size, grout, sOOP);
+  var An   = _sp.An;
+  var In   = _sp.In;
+  var An_fs = 2 * tfs * 12;                 // face-shell-only area (for shown work)
+  var r_in = _sp.r;
   var h_r  = h_in / r_in;
 
   // ---- MATERIAL PROPERTIES ----
@@ -1067,18 +1122,29 @@ function runChecks() {
   } else {
     R_factor = Math.pow(70/h_r, 2);
   }
-  var Pa_allow = (0.30*fm*An + 0.65*Ast_perft*Fs) * R_factor;
+  // Allowable axial (TMS 402-22 Eq. 8-16 / 8-17). Coefficient 0.30·f'm·An per the
+  // CURRENT TMS 402-22 code text (§8.3.4.2.1) — NOT 0.25. The 0.65·Ast·Fs term is
+  // dropped: for a wall the vertical bars are NOT laterally tied, so untied
+  // compression reinforcement is not counted (per MDG REK-03: "Because compression
+  // reinforcement is not tied, it is not counted"). This reproduces REK-03's
+  // Pa = 16,300 lb/ft. See report / RWALL-6.
+  var Pa_allow = 0.30*fm*An * R_factor;
   var Fa       = Pa_allow / An;
 
   // ---- IBC ASD LOAD COMBINATIONS (§1605.3.1) ----
   // Wall self-weight is Dead load at e=0; applied loads have eccentricity.
   // Wind combos include OOP moment from lateral wind on wall face.
-  var Moop_wind_lbft;
-  if (mCalcT === 'simple')          Moop_wind_lbft = w_psf * h_ft * h_ft / 8;
-  else if (mCalcT === 'cantilever') Moop_wind_lbft = w_psf * h_ft * h_ft / 2;
-  else if (mCalcT === 'fixed')      Moop_wind_lbft = w_psf * h_ft * h_ft / 12;
-  else                              Moop_wind_lbft = parseFloat(document.getElementById('MoopManual').value) || 0;
-  var Voop_plf = w_psf * h_ft / 2;
+  // RWALL-5 — wWind is entered at ULTIMATE (strength) level. The ASD wind factor 0.6
+  // is applied ONCE, internally, to BOTH the OOP moment and the axial wind term.
+  var w_ult     = w_psf;                 // ultimate C&C pressure (input)
+  var w_service = 0.6 * w_ult;           // ×0.6 applied once → ASD service wind
+  var Moop_wind_ult;                     // ultimate OOP wind moment (lb·ft/ft)
+  if (mCalcT === 'simple')          Moop_wind_ult = w_ult * h_ft * h_ft / 8;
+  else if (mCalcT === 'cantilever') Moop_wind_ult = w_ult * h_ft * h_ft / 2;
+  else if (mCalcT === 'fixed')      Moop_wind_ult = w_ult * h_ft * h_ft / 12;
+  else                              Moop_wind_ult = parseFloat(document.getElementById('MoopManual').value) || 0;
+  var Moop_wind_lbft = 0.6 * Moop_wind_ult;   // SERVICE OOP wind moment (display basis)
+  var Voop_plf = w_service * h_ft / 2;        // SERVICE OOP shear (lb/ft)
 
   var ASD_COMBOS = [
     {name:'D',                              fD:1,   fL:0,    fLr:0,    fS:0,    fW:0,    wind:false},
@@ -1105,7 +1171,9 @@ function runChecks() {
     if (Pt < 0) Pt = 0; // net tension not considered for masonry ASD compression check
     var Me = Pa_combo * ecc_in / 12; // lb·ft/ft — only applied loads have eccentricity
     if (Me < 0) Me = 0;
-    var Mt = c.wind ? (Me + Moop_wind_lbft) : Me; // add OOP wind moment for wind combos
+    // OOP wind moment scales by the SAME combo wind factor as the axial wind term
+    // (c.fW = 0.6 for D+0.6W → service; 0.45 for the 0.75·0.6W combos). RWALL-5.
+    var Mt = c.wind ? (Me + c.fW * Moop_wind_ult) : Me;
     // Quick unity estimate: fa/Fa + fb/Fb (simplified, using gross section)
     var fa_c = Pt / An;
     var Mt_lbin = Mt * 12;
@@ -1169,16 +1237,24 @@ function runChecks() {
   var dc_comb = (Fa > 0 ? fa/Fa : 0) + (Fb > 0 ? fb_oop/Fb : 0);
 
   // ---- OOP SHEAR ----
+  // RWALL-4: divide OOP shear by the NET SHEAR AREA Anv (partial grout: grouted
+  // cells only), NOT the full per-ft net area. MDG REK-02: Anv = (8/s)·b·d.
+  var Anv_oop  = AnvOOP(size, grout, dOOP, sOOP);   // in²/ft
   var MVdv_oop = 1.0; // OOP always governs upper limit
-  var Fvm_oop  = 0.5*(4.0-1.75*MVdv_oop)*Math.sqrt(fm) + 0.25*fa;
+  var Fvm_oop  = 0.5*(4.0-1.75*MVdv_oop)*Math.sqrt(fm) + 0.20*fa; // TMS Eq. 8-23 (0.20·P/An)
   var Fv_oop   = Math.min(2.0*Math.sqrt(fm), Fvm_oop) * gamma_g;
-  var fv_oop   = (Voop_plf > 0) ? Voop_plf/An : 0;
+  var fv_oop   = (Voop_plf > 0 && Anv_oop > 0) ? Voop_plf/Anv_oop : 0;
   var dc_oop_v = (Fv_oop > 0) ? fv_oop/Fv_oop : 0;
 
   // ---- IN-PLANE SHEAR ----
-  var fv_ip    = v_plf / An;
-  var Fvm_ip   = 0.5*(4.0-1.75*MVdv_i)*Math.sqrt(fm) + 0.25*fa;
-  var Fvs_ip   = (barIP > 0) ? 0.5*Av_per_in*Fs*9.6/An : 0;
+  // RWALL-3: fv = V / Anv (total), where V = v·Lw and Anv is the partial-grout net
+  // shear area (2 face shells full length + grouted cells full depth). MDG REK-05:
+  // Anv = 968 in² → fv = 16,100/968 = 16.6 psi.
+  var V_ip_lb  = v_plf * Lw_ft;                       // total in-plane shear (lb)
+  var Anv_ip   = AnvInPlane(size, grout, Lw_ft, sOOP); // in²
+  var fv_ip    = (Anv_ip > 0) ? V_ip_lb / Anv_ip : 0;
+  var Fvm_ip   = 0.5*(4.0-1.75*MVdv_i)*Math.sqrt(fm) + 0.20*fa; // TMS Eq. 8-23 (0.20·P/An)
+  var Fvs_ip   = (barIP > 0) ? 0.5*Av_per_in*Fs*9.6/An_fs : 0;
   var Fvm_cap;
   if      (MVdv_i <= 0.25) Fvm_cap = 3.0*Math.sqrt(fm);
   else if (MVdv_i >= 1.0)  Fvm_cap = 2.0*Math.sqrt(fm);
@@ -1216,30 +1292,50 @@ function runChecks() {
   else                              deflC = 5.0/384.0; // approximate for manual
 
   // δ = C × (w/12) × h⁴ / (Em × Ieff)  [units: lb/in per ft, in, psi, in⁴/ft → inches]
-  var delta_in   = (w_psf > 0 && Ieff > 0 && mCalcT !== 'manual') ?
-    deflC * (w_psf/12) * Math.pow(h_in,4) / (Em * Ieff) : null;
+  var delta_in   = (w_service > 0 && Ieff > 0 && mCalcT !== 'manual') ?
+    deflC * (w_service/12) * Math.pow(h_in,4) / (Em * Ieff) : null;
   var defl_allow = h_in / 150; // TMS 402-22 / typical masonry practice
   var dc_defl    = (delta_in !== null) ? delta_in / defl_allow : null;
 
   // ============================================================
   // DETAIL PANELS
   // ============================================================
+  // Partial-grout section-property derivation (shown work) — RWALL-6
+  function buildSectPropDet() {
+    var s = '';
+    if (grout === 'full') {
+      s += '<div class="mrow"><span class="ceq">Fully grouted &rarr; solid section:</span> A<sub>n</sub> = t&middot;b = '+f2(t)+'&times;12 = <span class="cval">'+f1(An)+' in&sup2;/ft</span></div>';
+      s += '<div class="mrow ind">I<sub>n</sub> = b&middot;t<sup>3</sup>/12 = 12&times;'+f2(t)+'<sup>3</sup>/12 = '+f1(In)+' in&sup4;/ft &nbsp;|&nbsp; r = &radic;(I<sub>n</sub>/A<sub>n</sub>) = <span class="cval">'+f3(r_in)+'&Prime;</span></div>';
+      return s;
+    }
+    var cpf = 12 / sOOP, core = t - 2*tfs;
+    s += '<div class="mrow" style="color:#555;font-size:.9em">Partial grout &mdash; grouted cell every s = '+f1(sOOP)+'&Prime; &rarr; '+f3(cpf)+' cells/ft (NCMA TEK 14-1B / MDG REK-03)</div>';
+    s += '<div class="mrow"><span class="ceq">A<sub>n</sub>:</span> 2&middot;t<sub>fs</sub>&middot;b + (12/s)&middot;w<sub>gc</sub>&middot;(t&minus;2t<sub>fs</sub>)</div>';
+    s += '<div class="mrow ind">= 2&times;'+f2(tfs)+'&times;12 + '+f3(cpf)+'&times;'+GROUT_CELL_W+'&times;'+f3(core)+' = '+f1(An_fs)+' + '+f1(cpf*GROUT_CELL_W*core)+' = <span class="cval">'+f2(An)+' in&sup2;/ft</span></div>';
+    s += '<div class="mrow"><span class="ceq">I<sub>n</sub>:</span> face-shell self + &eta;<sub>fs</sub>&middot;(face-shell composite) + grout cores &nbsp;<span style="color:#555;font-size:.85em">(&eta;<sub>fs</sub>='+ETA_FS_PARTIAL+', NCMA face-shell bedding)</span></div>';
+    s += '<div class="mrow ind">= <span class="cval">'+f1(In)+' in&sup4;/ft</span></div>';
+    s += '<div class="mrow"><span class="ceq">r:</span> &radic;(I<sub>n</sub>/A<sub>n</sub>) = &radic;('+f1(In)+'/'+f2(An)+') = <span class="cval">'+f3(r_in)+'&Prime;</span></div>';
+    return s;
+  }
+
   function buildAxialDet() {
     var s = '';
-    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.4.2 &mdash; Allowable Axial Compression (Reinforced)</div>';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.4.2.1 &mdash; Allowable Axial Compression (Reinforced)</div>';
     s += '<div class="cbox">';
-    s += '<div class="mrow"><span class="ceq">'+(h_r<=99?'Eq. 8-16:':'Eq. 8-17:')+'</span> P<sub>a</sub> = (0.30f&prime;<sub>m</sub>A<sub>n</sub> + 0.65A<sub>st</sub>F<sub>s</sub>) &times; R';
+    s += '<div style="font-weight:700;color:#1e3c72;margin-bottom:4px">Section properties</div>';
+    s += buildSectPropDet();
+    s += '<hr class="csep">';
+    s += '<div class="mrow"><span class="ceq">'+(h_r<=99?'Eq. 8-16:':'Eq. 8-17:')+'</span> P<sub>a</sub> = 0.30&middot;f&prime;<sub>m</sub>&middot;A<sub>n</sub> &times; R';
     if(h_r<=99) s += '&nbsp; where R = 1 &minus; (h/140r)<sup>2</sup>';
     else        s += '&nbsp; where R = (70r/h)<sup>2</sup>';
     s += '</div>';
-    s += '<hr class="csep">';
-    s += '<div class="mrow">h/r = '+f2(h_in)+'&Prime; / '+f2(r_in)+'&Prime; = <span class="cval">'+f2(h_r)+'</span> '+(h_r<=99?'&le; 99 &rarr; Eq. 8-16':'&gt; 99 &rarr; Eq. 8-17')+'</div>';
+    s += '<div class="mrow" style="color:#555;font-size:.85em">0.30 coefficient per TMS 402-22 &sect;8.3.4.2.1. Untied wall compression bars are not counted (0.65A<sub>st</sub>F<sub>s</sub> omitted) &mdash; MDG REK-03.</div>';
+    s += '<div class="mrow">h/r = '+f1(h_in)+'&Prime; / '+f3(r_in)+'&Prime; = <span class="cval">'+f2(h_r)+'</span> '+(h_r<=99?'&le; 99 &rarr; Eq. 8-16':'&gt; 99 &rarr; Eq. 8-17')+'</div>';
     if(h_r<=99) s += '<div class="mrow">R = 1 &minus; ('+f2(h_r)+'/140)<sup>2</sup> = <span class="cval">'+f4(R_factor)+'</span></div>';
     else        s += '<div class="mrow">R = (70/'+f2(h_r)+')<sup>2</sup> = <span class="cval">'+f4(R_factor)+'</span></div>';
-    s += '<div class="mrow">P<sub>a</sub> = (0.30 &times; '+fm+' &times; '+f1(An)+' + 0.65 &times; '+f3(Ast_perft)+' &times; '+fp(Fs)+') &times; '+f4(R_factor)+'</div>';
-    s += '<div class="mrow ind">= ('+fp(0.30*fm*An)+' + '+fp(0.65*Ast_perft*Fs)+') &times; '+f4(R_factor)+' = <span class="cval">'+fp(Pa_allow)+' lb/ft</span></div>';
+    s += '<div class="mrow">P<sub>a</sub> = 0.30 &times; '+fm+' &times; '+f2(An)+' &times; '+f4(R_factor)+' = <span class="cval">'+fp(Pa_allow)+' lb/ft</span></div>';
     s += '<hr class="csep">';
-    s += '<div class="mrow">f<sub>a</sub> = P/A<sub>n</sub> = '+fp(P_plf)+'/'+f1(An)+' = <span class="cval">'+f2(fa)+' psi</span></div>';
+    s += '<div class="mrow">f<sub>a</sub> = P/A<sub>n</sub> = '+fp(P_plf)+'/'+f2(An)+' = <span class="cval">'+f2(fa)+' psi</span></div>';
     s += '<div class="mrow">D/C = P/P<sub>a</sub> = '+fr(fp(P_plf),fp(Pa_allow))+' = <span class="cval">'+f3(dc_axial)+'</span></div>';
     s += '</div>';
     return s;
@@ -1251,7 +1347,15 @@ function runChecks() {
     s += '<div class="cbox">';
     s += '<div class="mrow"><span class="ceq">Inputs:</span> b = '+b+'&Prime;, d = '+f2(dOOP)+'&Prime;, A<sub>s</sub> = '+f3(As_perft)+' in&sup2;/ft, n = '+f2(n)+'</div>';
     s += '<div class="mrow" style="color:#555;font-size:.9em"><span class="ceq">Gov. Combo:</span> '+govCombo.name+'</div>';
-    if (govCombo.wind) s += '<div class="mrow"><span class="ceq">M<sub>wind</sub>:</span> '+f2(Moop_wind_lbft)+' lb&middot;ft/ft</div>';
+    if (govCombo.wind) {
+      var mCoef = mCalcT==='simple'?'h&sup2;/8':mCalcT==='cantilever'?'h&sup2;/2':mCalcT==='fixed'?'h&sup2;/12':'(manual)';
+      s += '<div class="mrow"><span class="ceq">Wind &times;0.6:</span> w<sub>service</sub> = 0.6 &times; '+f1(w_ult)+' psf (ultimate) = <span class="cval">'+f2(w_service)+' psf</span> <span style="color:#555;font-size:.85em">(ASD wind factor, RWALL-5)</span></div>';
+      if (mCalcT!=='manual')
+        s += '<div class="mrow ind">M<sub>wind,service</sub> = w<sub>service</sub>&middot;'+mCoef+' = '+f2(w_service)+'&times;'+f1(h_ft)+'&sup2;/'+(mCalcT==='simple'?'8':mCalcT==='cantilever'?'2':'12')+' = <span class="cval">'+f2(Moop_wind_lbft)+' lb&middot;ft/ft</span></div>';
+      else
+        s += '<div class="mrow ind">M<sub>wind,service</sub> = 0.6 &times; '+f2(Moop_wind_ult)+' (ultimate) = <span class="cval">'+f2(Moop_wind_lbft)+' lb&middot;ft/ft</span></div>';
+      if (govCombo.fW !== 0.6) s += '<div class="mrow ind" style="color:#555;font-size:.85em">Gov. combo applies &times;'+f2(govCombo.fW/0.6)+' to the 0.6W effect &rarr; M<sub>wind</sub> in combo = '+f2(govCombo.fW*Moop_wind_ult)+' lb&middot;ft/ft</div>';
+    }
     if (ecc_in > 0 && M_ecc_lbft > 0) s += '<div class="mrow"><span class="ceq">M<sub>ecc</sub> = P<sub>app</sub>&times;e:</span> '+fp(Math.round(govCombo._Pt - govCombo.fD*P_wall))+' &times; '+f2(ecc_in)+'&Prime; / 12 = '+f2(M_ecc_lbft)+' lb&middot;ft/ft</div>';
     s += '<div class="mrow"><span class="ceq">M<sub>total</sub>:</span> '+f2(Moop_total_lbft)+' lb&middot;ft/ft &rarr; <span class="cval">'+fp(Moop_lbin)+' lb&middot;in/ft</span></div>';
     s += '<hr class="csep">';
@@ -1311,14 +1415,18 @@ function runChecks() {
 
   function buildOOPShearDet() {
     var s = '';
-    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.2 &mdash; Out-of-Plane Shear</div>';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.2 / Eq. 8-19 &mdash; Out-of-Plane Shear</div>';
     s += '<div class="cbox">';
-    s += '<div class="mrow"><span class="ceq">V<sub>oop</sub>:</span> wh/2 = '+f1(w_psf)+'&times;'+f1(h_ft)+'/2 = <span class="cval">'+f1(Voop_plf)+' lb/ft</span></div>';
-    s += '<div class="mrow"><span class="ceq">f<sub>v</sub>:</span> '+f1(Voop_plf)+'/'+f1(An)+' = <span class="cval">'+f2(fv_oop)+' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">V<sub>oop</sub>:</span> w<sub>service</sub>&middot;h/2 = '+f2(w_service)+'&times;'+f1(h_ft)+'/2 = <span class="cval">'+f1(Voop_plf)+' lb/ft</span> <span style="color:#555;font-size:.85em">(w<sub>service</sub>=0.6&times;'+f1(w_ult)+' ult)</span></div>';
+    if (grout === 'full')
+      s += '<div class="mrow"><span class="ceq">A<sub>nv</sub> (Eq. 8-19, full grout):</span> b&middot;d = 12&times;'+f2(dOOP)+' = <span class="cval">'+f2(Anv_oop)+' in&sup2;/ft</span></div>';
+    else
+      s += '<div class="mrow"><span class="ceq">A<sub>nv</sub> (TMS Tbl 4.4.5, partial):</span> (s<sub>cell</sub>/s)&middot;b&middot;d = ('+GROUT_CELL_LEN+'/'+f1(sOOP)+')&times;12&times;'+f2(dOOP)+' = <span class="cval">'+f2(Anv_oop)+' in&sup2;/ft</span> <span style="color:#555;font-size:.85em">(grouted cells only &mdash; MDG REK-02)</span></div>';
+    s += '<div class="mrow"><span class="ceq">f<sub>v</sub> = V/A<sub>nv</sub>:</span> '+f1(Voop_plf)+'/'+f2(Anv_oop)+' = <span class="cval">'+f2(fv_oop)+' psi</span></div>';
     s += '<hr class="csep">';
     s += '<div class="mrow"><span class="ceq">M/Vd<sub>v</sub> for OOP</span> &raquo; 1.0 (governs upper limit)</div>';
-    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub>:</span> 0.5(4&minus;1.75)&radic;f&prime;<sub>m</sub> + 0.25f<sub>a</sub> = '+f2(Fvm_oop)+' psi</div>';
-    s += '<div class="mrow"><span class="ceq">F<sub>v,oop</sub>:</span> min('+f2(Fvm_oop)+', 2&radic;'+fm+') &times; '+f1(gamma_g)+' = <span class="cval">'+f2(Fv_oop)+' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub> (Eq. 8-23):</span> 0.5(4&minus;1.75)&radic;f&prime;<sub>m</sub> + 0.20f<sub>a</sub> = '+f2(Fvm_oop)+' psi</div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>v,oop</sub> (Eq. 8-22):</span> min('+f2(Fvm_oop)+', 2&radic;'+fm+') &times; &gamma;<sub>g</sub>('+f1(gamma_g)+') = <span class="cval">'+f2(Fv_oop)+' psi</span></div>';
     s += '<div class="mrow">D/C = '+fr(f2(fv_oop),f2(Fv_oop))+' = <span class="cval">'+f3(dc_oop_v)+'</span></div>';
     s += '</div>';
     return s;
@@ -1326,14 +1434,22 @@ function runChecks() {
 
   function buildIPShearDet() {
     var s = '';
-    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.1 / MDG-2022 &sect;11.4.3 &mdash; In-Plane Shear</div>';
+    s += '<div class="cref-hdr">TMS 402-22 &sect;8.3.5.1.1 / Eq. 8-19 / MDG REK-05 &mdash; In-Plane Shear</div>';
     s += '<div class="cbox">';
-    s += '<div class="mrow"><span class="ceq">f<sub>v</sub>:</span> v/A<sub>n</sub> = '+fp(v_plf)+'/'+f1(An)+' = <span class="cval">'+f2(fv_ip)+' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">V (total):</span> v&middot;L<sub>w</sub> = '+fp(v_plf)+' plf &times; '+f1(Lw_ft)+' ft = <span class="cval">'+fp(V_ip_lb)+' lb</span></div>';
+    if (grout === 'full') {
+      s += '<div class="mrow"><span class="ceq">A<sub>nv</sub> (full grout):</span> t&middot;L<sub>w</sub> = '+f2(t)+'&times;'+fp(Lw_ft*12)+' = <span class="cval">'+fp(Anv_ip)+' in&sup2;</span></div>';
+    } else {
+      var _ngc = Math.min(Math.floor(Lw_ft*12/GROUT_CELL_LEN), Math.ceil(Lw_ft*12/sOOP)+1); if(_ngc<2)_ngc=2;
+      s += '<div class="mrow"><span class="ceq">A<sub>nv</sub> (partial, Tbl 4.4.5):</span> 2&middot;t<sub>fs</sub>&middot;L<sub>w</sub> + n<sub>gc</sub>&middot;s<sub>cell</sub>&middot;(t&minus;2t<sub>fs</sub>)</div>';
+      s += '<div class="mrow ind">= 2&times;'+f2(tfs)+'&times;'+fp(Lw_ft*12)+' + '+_ngc+'&times;'+GROUT_CELL_LEN+'&times;'+f3(t-2*tfs)+' = '+fp(2*tfs*Lw_ft*12)+' + '+fp(_ngc*GROUT_CELL_LEN*(t-2*tfs))+' = <span class="cval">'+fp(Anv_ip)+' in&sup2;</span> <span style="color:#555;font-size:.85em">(n<sub>gc</sub>='+_ngc+' grouted cells @ '+f1(sOOP)+'&Prime;)</span></div>';
+    }
+    s += '<div class="mrow"><span class="ceq">f<sub>v</sub> = V/A<sub>nv</sub>:</span> '+fp(V_ip_lb)+'/'+fp(Anv_ip)+' = <span class="cval">'+f2(fv_ip)+' psi</span></div>';
     s += '<div class="mrow"><span class="ceq">M/Vd<sub>v</sub>:</span> '+f3(MVdv_i)+' (clamped [0.25, 1.0])</div>';
     s += '<hr class="csep">';
-    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub>:</span> 0.5(4&minus;1.75&times;'+f3(MVdv_i)+')&radic;'+fm+' + 0.25f<sub>a</sub> = <span class="cval">'+f2(Fvm_ip)+' psi</span></div>';
+    s += '<div class="mrow"><span class="ceq">F<sub>vm</sub> (Eq. 8-23):</span> 0.5(4&minus;1.75&times;'+f3(MVdv_i)+')&radic;'+fm+' + 0.20f<sub>a</sub> = <span class="cval">'+f2(Fvm_ip)+' psi</span></div>';
     if (barIP > 0) {
-      s += '<div class="mrow"><span class="ceq">F<sub>vs</sub>:</span> 0.5&times;(A<sub>v</sub>/s)&times;F<sub>s</sub>&times;9.6/A<sub>n</sub> = 0.5&times;'+f4(Av_per_in)+'&times;'+fp(Fs)+'&times;9.6/'+f1(An)+' = <span class="cval">'+f2(Fvs_ip)+' psi</span></div>';
+      s += '<div class="mrow"><span class="ceq">F<sub>vs</sub> (Eq. 8-24):</span> 0.5&times;(A<sub>v</sub>/s)&times;F<sub>s</sub>&times;9.6/A<sub>n</sub> = 0.5&times;'+f4(Av_per_in)+'&times;'+fp(Fs)+'&times;9.6/'+f1(An_fs)+' = <span class="cval">'+f2(Fvs_ip)+' psi</span></div>';
     } else {
       s += '<div class="mrow"><span class="ceq">F<sub>vs</sub>:</span> No horiz. reinf. &rarr; 0 psi</div>';
     }
@@ -1372,7 +1488,7 @@ function runChecks() {
     s += '<hr class="csep">';
     var coeffLabel = mCalcT==='simple'?'5/384':mCalcT==='cantilever'?'1/8':mCalcT==='fixed'?'1/384':'5/384';
     s += '<div class="mrow"><span class="ceq">&delta;:</span> ('+coeffLabel+') &times; (w/12) &times; h<sup>4</sup> / (E<sub>m</sub>&times;I<sub>eff</sub>)</div>';
-    s += '<div class="mrow ind">= '+deflC.toFixed(5)+' &times; ('+f1(w_psf)+'/12) &times; '+f1(h_in)+'<sup>4</sup> / ('+fp(Em)+'&times;'+f1(Ieff)+') = <span class="cval">'+f3(delta_in)+'&Prime;</span></div>';
+    s += '<div class="mrow ind">= '+deflC.toFixed(5)+' &times; ('+f2(w_service)+'/12) &times; '+f1(h_in)+'<sup>4</sup> / ('+fp(Em)+'&times;'+f1(Ieff)+') = <span class="cval">'+f3(delta_in)+'&Prime;</span> <span style="color:#555;font-size:.85em">(w<sub>service</sub>=0.6&times;ult)</span></div>';
     s += '<div class="mrow"><span class="ceq">&delta;<sub>allow</sub>:</span> h/150 = '+f1(h_in)+'/150 = <span class="cval">'+f3(defl_allow)+'&Prime;</span></div>';
     s += '<div class="mrow">D/C = '+fr(f3(delta_in),f3(defl_allow))+' = <span class="cval">'+f3(dc_defl)+'</span>';
     if (Moop_lbin > Mcr_lbin) s += ' &nbsp;<em style="font-size:.9em;color:#78350f">(Branson Ieff — conservative vs. Enercalc Slender Wall Icr-based)</em>';
@@ -1405,16 +1521,18 @@ function runChecks() {
   sb.className = 'summary '+(anyFail?'sum-fail':'sum-pass');
   sb.innerHTML = '<h3>'+(anyFail?'&#10008; FAIL':'&#10004; PASS')+' &mdash; Max D/C = '+f3(maxDC)+'</h3>'+
     '<div style="font-size:.88em">'+size+'&Prime; CMU | '+grout+' grout | '+(rfType==='single'?'Single':'Double')+' Reinforced | f&prime;<sub>m</sub> = '+fm+' psi | Grade '+grade+
-    ' | h = '+f1(h_ft)+'ft | w = '+f1(w_psf)+' psf (service)</div>';
+    ' | h = '+f1(h_ft)+'ft | w = '+f1(w_ult)+' psf ult (&times;0.6&rarr;'+f2(w_service)+' service)</div>';
 
   var propRows = [
     ['Wall size / actual thickness', size+'&Prime; nominal, t = '+f2(t)+'&Prime;'],
     ['Face shell t<sub>fs</sub>', f2(tfs)+'&Prime;'],
     ['Grout', grout==='full'?'Fully Grouted':'Partially Grouted'],
-    ['A<sub>n</sub> (net area)', f1(An)+' in&sup2;/ft'],
+    ['A<sub>n</sub> (net axial area)', f2(An)+' in&sup2;/ft'+(grout==='full'?' (solid)':' (face shell + grouted cells @ '+f1(sOOP)+'&Prime;)')],
     ['I<sub>n</sub> (net inertia)', f1(In)+' in&sup4;/ft'],
-    ['r (radius of gyration)', f3(r_in)+'&Prime;'],
+    ['r (radius of gyration)', f3(r_in)+'&Prime;'+(grout==='full'?'':' (NCMA TEK 14-1B)')],
     ['h/r slenderness', f2(h_r)+(h_r>99?' &gt; 99 (Eq. 8-17)':' &le; 99 (Eq. 8-16)')],
+    ['A<sub>nv</sub> in-plane (net shear)', fp(Anv_ip)+' in&sup2; (L<sub>w</sub>='+f1(Lw_ft)+' ft)'],
+    ['A<sub>nv</sub> out-of-plane', f2(Anv_oop)+' in&sup2;/ft'+(grout==='full'?'':' (grouted cells)')],
     ['E<sub>m</sub>', fp(Em)+' psi'],
     ['n = E<sub>s</sub>/E<sub>m</sub>', f2(n)],
     ['F<sub>b</sub> = 0.45f&prime;<sub>m</sub>', f1(Fb)+' psi'],
@@ -1430,8 +1548,8 @@ function runChecks() {
     ['Gov. IBC ASD Combo', '<strong>'+govCombo.name+'</strong>'+(govCombo.wind?' (w/ wind)':'')],
     ['P<sub>wall</sub> (self-weight)', fp(Math.round(P_wall))+' plf ('+wallWt_psf+' psf &times; '+f1(hTotal_ft)+' ft, e = 0)'],
     ['P<sub>total</sub> (governing)', fp(P_plf)+' lb/ft'+(ecc_in>0?' (applied e = '+f2(ecc_in)+'&Prime;)':'')],
-    ['OOP wind w', f1(w_psf)+' psf (service, unfactored)'],
-    ['M<sub>wind</sub>', f2(Moop_wind_lbft)+' lb&middot;ft/ft'+(govCombo.wind?'':' <em style="color:#9ca3af">(not in gov. combo)</em>')],
+    ['OOP wind w', f1(w_ult)+' psf ult &rarr; &times;0.6 &rarr; '+f2(w_service)+' psf service'],
+    ['M<sub>wind</sub> (service)', f2(Moop_wind_lbft)+' lb&middot;ft/ft'+(govCombo.wind?'':' <em style="color:#9ca3af">(not in gov. combo)</em>')],
     ['M<sub>ecc</sub> = P<sub>app</sub>&times;e', f2(M_ecc_lbft)+' lb&middot;ft/ft'],
     ['M<sub>total</sub> OOP', f2(Moop_total_lbft)+' lb&middot;ft/ft'],
     ['V<sub>oop</sub>', f1(Voop_plf)+' lb/ft'],
@@ -1474,10 +1592,12 @@ function runChecks() {
     '<strong>ASD vs. Strength Design:</strong> This calculator uses ASD (TMS 402-22 Ch. 8). Enercalc\'s "Masonry Slender Wall" uses Strength Design (Ch. 9) with factored loads and &phi; factors — different method, not a bug. For the same wall geometry, ASD and LRFD typically give <em>different numerical results</em>; verify the appropriate method with the project EOR.',
     'All service loads are entered <strong>unfactored</strong>. The calculator applies no load factors internally.',
     'Deflection uses Branson\'s effective moment of inertia (I<sub>eff</sub>). The TMS Ch. 9 Slender Wall method uses I<sub>cr</sub> directly, yielding larger deflections. Verify &delta;<sub>allow</sub> per ASCE 7 or project specs (h/150 used here).',
-    'Axial allowable P<sub>a</sub> includes steel contribution (0.65A<sub>st</sub>F<sub>s</sub>) per Eq. 8-16/17.',
+    'Allowable axial P<sub>a</sub> = 0.30f&prime;<sub>m</sub>A<sub>n</sub>&times;R (TMS 402-22 Eq. 8-16/8-17, §8.3.4.2.1). The 0.65A<sub>st</sub>F<sub>s</sub> steel term is <strong>omitted</strong> because a wall&rsquo;s vertical bars are not laterally tied &mdash; untied compression reinforcement is not counted (MDG REK-03). Conservative.',
+    'Wind: enter the <strong>ultimate</strong> C&amp;C pressure. The ASD factor <strong>&times;0.6</strong> is applied once, internally, to both the OOP moment and axial wind term (RWALL-5). The shown work displays the &times;0.6 step.',
+    'Section properties (A<sub>n</sub>, I<sub>n</sub>, r) for partial grout include the grouted-cell contribution prorated at the vertical bar spacing (NCMA TEK 14-1B / MDG REK-03). A<sub>n</sub> = 2t<sub>fs</sub>b + (12/s)&middot;w<sub>gc</sub>(t&minus;2t<sub>fs</sub>).',
+    'In-plane shear stress f<sub>v</sub> = V/A<sub>nv</sub> uses the partial-grout net shear area A<sub>nv</sub> = 2t<sub>fs</sub>L<sub>w</sub> + n<sub>gc</sub>&middot;s<sub>cell</sub>(t&minus;2t<sub>fs</sub>) (MDG REK-05, TMS Tbl 4.4.5), <strong>not</strong> the full net area. Out-of-plane f<sub>v</sub> = V/[(s<sub>cell</sub>/s)&middot;b&middot;d] (MDG REK-02).',
     'Eccentricity e adds moment M<sub>e</sub> = P&times;e/12 to wind moment for combined OOP demand.',
-    'In-plane F<sub>vs</sub> derived per-foot using d<sub>v</sub> = 0.8&times;12 = 9.6 in (unit-width basis). For full-wall check verify d<sub>v</sub> = 0.8L<sub>w</sub>.',
-    'Partial grout &gamma;<sub>g</sub> = 0.70 reduces allowable shear per TMS 402-22 §8.3.5.',
+    'Allowable shear F<sub>vm</sub> = &frac12;[4&minus;1.75(M/Vd<sub>v</sub>)]&radic;f&prime;<sub>m</sub> + 0.20(P/A<sub>n</sub>) per TMS 402-22 Eq. 8-23; caps 3&radic;f&prime;<sub>m</sub>&gamma;<sub>g</sub> / 2&radic;f&prime;<sub>m</sub>&gamma;<sub>g</sub> (Eq. 8-21/8-22). Partial grout &gamma;<sub>g</sub> = 0.70.',
   ];
   document.getElementById('notesBox').innerHTML = '<strong>Engineering Notes:</strong><ul style="margin-top:6px">'+notes.map(function(n){return '<li>'+n+'</li>';}).join('')+'</ul>';
 
