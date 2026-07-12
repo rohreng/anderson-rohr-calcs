@@ -761,28 +761,60 @@ function drawCMUWallDiagram() {
   // Outer CMU profile (amber — designed member): t wide, 12" tall
   AREDraw.plate(vS, -t / 2, -secH_world / 2, t, secH_world, { highlight: true });
 
-  // Hollow core void (white fill with dashed outline) — face-shell bedding
-  // Core dimensions: full 12" height, width = t - 2*tfs
+  // CMU cells + webs (face-shell bedding basis) — the outer plate above is
+  // drawn solid (amber); cutting TWO cell voids out of it (instead of one
+  // continuous void) leaves the uncut amber strips as the end webs (top/
+  // bottom of this 12" strip) and the interior web (center) that a real CMU
+  // unit uses to connect its two face shells — same technique already used
+  // for the outer face-shell cut, just split so the webs read visually.
+  // Core/cell width: full available width between face shells = t - 2*tfs
+  // Web thickness = face-shell thickness tfs (ASTM C90 Table 1 specifies
+  // equal minimum face-shell and web thickness for 4" & 6" nominal-width
+  // units) — reuses the same sec.tfs value the An/S/I section properties
+  // already key off of, so the drawing matches the An basis. No cells are
+  // drawn if the computed geometry ever collapses (guards only; not a
+  // hardcoded engineering value).
   var coreW = t - 2 * tfs;
-  if (gc === 'hollow' && coreW > 0) {
+  var tw    = tfs;                              // web thickness = tfs (ASTM C90)
+  var cellH = (secH_world - 3 * tw) / 2;         // 2 open cells, 3 webs (2 end + 1 interior)
+  if (coreW > 0 && cellH > 0) {
     var nsv = 'http://www.w3.org/2000/svg';
-    var coreRect = document.createElementNS(nsv, 'rect');
-    coreRect.setAttribute('x', vS.px(-coreW / 2));
-    coreRect.setAttribute('y', vS.py(secH_world / 2));
-    coreRect.setAttribute('width', vS.s(coreW));
-    coreRect.setAttribute('height', vS.s(secH_world));
-    coreRect.setAttribute('fill', 'white');
-    coreRect.setAttribute('stroke', st.dim);
-    coreRect.setAttribute('stroke-width', '1');
-    coreRect.setAttribute('stroke-dasharray', '4,2');
-    dwg.gSteel.appendChild(coreRect);
-    dwg.extend(vS.px(-coreW / 2), vS.py(-secH_world / 2));
-    dwg.extend(vS.px(coreW / 2), vS.py(secH_world / 2));
-    // "hollow core" leader — attachment at right edge of core, label pulled right of section
+    // Cell y-ranges (world in, bottom→top). Gaps between/around these ranges
+    // (at the two ends and at mid-height) are left un-cut amber = the webs.
+    var cellYs = [
+      [-secH_world / 2 + tw, -tw / 2],            // bottom cell
+      [tw / 2, secH_world / 2 - tw]                // top cell
+    ];
+    cellYs.forEach(function (yr) {
+      var y0 = yr[0], y1 = yr[1];
+      var cellRect = document.createElementNS(nsv, 'rect');
+      cellRect.setAttribute('x', vS.px(-coreW / 2));
+      cellRect.setAttribute('y', vS.py(y1));
+      cellRect.setAttribute('width', vS.s(coreW));
+      cellRect.setAttribute('height', vS.s(y1 - y0));
+      if (gc === 'hollow') {
+        // Unreinforced/ungrouted — cell stays OPEN: white void, dashed outline
+        cellRect.setAttribute('fill', 'white');
+        cellRect.setAttribute('stroke', st.dim);
+        cellRect.setAttribute('stroke-width', '1');
+        cellRect.setAttribute('stroke-dasharray', '4,2');
+      } else {
+        // Fully grouted — cell filled (grout hatch), visually distinct from
+        // the open/dashed hollow cell above
+        cellRect.setAttribute('fill', 'url(#' + dwg.hatchPattern(st.hatch) + ')');
+        cellRect.setAttribute('stroke', st.dim);
+        cellRect.setAttribute('stroke-width', '1');
+      }
+      dwg.gSteel.appendChild(cellRect);
+      dwg.extend(vS.px(-coreW / 2), vS.py(y0));
+      dwg.extend(vS.px(coreW / 2), vS.py(y1));
+    });
+    // Cell-condition leader — attachment inside the top cell, label pulled right of section
+    var topCellMidY = (tw / 2 + (secH_world / 2 - tw)) / 2;
     var hcLabXpx = vS.px(t / 2) + 52;
     var hcLabYpx = vS.py(0);
-    AREDraw.calloutLabel(vS, coreW / 2, 0, hcLabXpx, hcLabYpx,
-      'hollow core', { color: st.dim, anchor: 'start' });
+    AREDraw.calloutLabel(vS, coreW / 2, topCellMidY, hcLabXpx, hcLabYpx,
+      (gc === 'hollow' ? 'hollow core' : 'grouted core'), { color: st.dim, anchor: 'start' });
   }
 
   // Centerlines — horizontal (span direction) and vertical (height)
