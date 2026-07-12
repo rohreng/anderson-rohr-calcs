@@ -30,9 +30,20 @@
 
 **Diagram acceptance:** all 10 calcs re-judged post-fix against their checklists from live screenshots (tools/masonry-audit/diagram-review/) — all PASS. `are-draw.js` was NOT modified (all drawing inline per calc), so the 36-consumer smoke requirement does not trigger.
 
-## NEW findings — discovered building the ruling benchmarks (PENDING EOR RULING)
+## NEW findings — discovered building the ruling benchmarks — **ALL RESOLVED 2026-07-11 (EOR: "please fix them")**
 
-Recorded in fixtures (`pending_eor_ruling` / `benchmark_not_drivable`) and the decision register (DR-03). Not fixed this round — wall-calc section-model surgery needs an explicit EOR decision.
+Final strict gate after the wall rework: `AGGREGATE PASS STRICT acknowledged=0 executed=21/21 mismatches=0 diagram_failures=0 harness_errors=0`. REK-02/03/05 and the hand benchmark are now fully drivable, enforced fixtures.
+
+- **RWALL-3 RESOLVED:** partial-grout in-plane Anv includes grouted cells (REK-05 basis: 2·tfs·L + n_cells·8″·(t−2tfs) = 968 in²) → fv = 16.63 vs MDG 16.6 psi. Shear P/An coefficient also corrected 0.25→0.20 per Eq. 8-23.
+- **RWALL-4 RESOLVED:** OOP shear area = (8/s)·b·d per the REK-02 basis → Anv = 7.60 in²/ft exactly; fv = 13.52 at the calc's simple-span V (MDG's 13.95 uses parapet-augmented V=106 — model-scope difference, disclosed).
+- **RWALL-5 RESOLVED:** wWind is now ULTIMATE C&C psf with ×0.6 applied internally exactly once (moment, shear, AND deflection — the deflection path was a follow-on catch), matching the lintel/jamb convention; the ×0.6 step renders in the shown work.
+- **RWALL-6 RESOLVED — WITH A CORRECTION:** the finding's "0.30 vs TMS 0.25" claim was WRONG — TMS 402-22 Eq. 8-16 (verified in the code text) uses 0.30·f'm·An + 0.65·Ast·Fs; the fixture-derivation agent had miscited the equation. The real defects were the section model and the steel term: An/In/r now use partial-grout properties (NCMA TEK 14-1B basis per MDG REK-03, η=0.867 face-shell effectiveness documented in the shown work) and the untied-reinforcement 0.65·Ast·Fs term is excluded per the example's own note (conservative). Pa = 16,357 vs MDG 16,300 (0.35%); An 42.78 / r 2.631 / h/r 72.97 all match the printed values.
+- **RWALL-7 RESOLVED:** f'm = 1,750 psi selectable.
+- **URWALL-3 RESOLVED:** Fb = f'm/3 exactly (500.0 at f'm=1500). Ripple: combined unity moves 0.28→0.27 (correct arithmetic consequence; fixture updated).
+- **URWALL-4 RESOLVED:** new buckling check row — P ≤ ¼Pe (Eq. 8-10) with Pe per Eq. 8-14, e=0 concentric assumption stated; Em=900·f'm added to properties. Formula reproduces MDG Example 11.3-2's printed Pe.
+- **URWALL-5 RESOLVED:** new OOP shear check row — fv = 1.5·V/An (MDG Eq. 11.3-1), Fv = min(1.5√f'm, 120, Table 8.2.6.2 running-bond value), with the simplified-web-treatment disclosure per §8.2.6.3.
+
+Original pre-fix descriptions (for the record):
 
 - **RWALL-3 (CALC ERROR, conservative direction):** in-plane shear area = face shells only (640 in² for REK-05 wall) vs MDG Anv = 968 in² (grouted cells + webs) → fv 25.16 vs 16.6 psi (+52%). Allowable side applies γg to the masonry term rather than only the 2√f'm cap.
 - **RWALL-4 (CALC ERROR, UNCONSERVATIVE):** out-of-plane one-way shear divided by full per-ft net area → fv 3.42 vs MDG 13.95 psi (~4× under-predicted).

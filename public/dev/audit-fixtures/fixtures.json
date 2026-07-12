@@ -1885,8 +1885,8 @@
    "example": "REK-05 ASD (in-plane shear)",
    "page": "19-39"
   },
-  "benchmark_status": "pending_eor_ruling",
-  "note": "MDG f'm=1750 not selectable; fm=2000 used (in-plane fv=v/An is f'm-independent). fv expected=16.6 (MDG, Anv=968in2) vs calc face-shell-only model (~25.16) - NEW FINDING pending EOR ruling. V sanity assertion passes.",
+  "benchmark_status": "benchmark",
+  "note": "RWALL-3 FIXED: partial-grout Anv incl. grouted cells (REK-05 basis, Anv=968 in² at No.4@40). fv f'm-independent so fm=2000 acceptable.",
   "inputs": {
    "wSize": 8,
    "grout": "partial",
@@ -1906,7 +1906,7 @@
    "wWind": 0,
    "mCalcType": "simple",
    "barOOP": 4,
-   "sOOP": 48,
+   "sOOP": 40,
    "dOOP": 3.8,
    "vIP": 754.81,
    "Lwall": 21.33,
@@ -1947,8 +1947,7 @@
    "example": "REK-02 ASD (OOP flexure/shear)",
    "page": "19-19"
   },
-  "benchmark_status": "benchmark_not_drivable",
-  "blocking_value": "#fm select has no 1750 option (harness would throw). Node-transcribed calc values at 1750: M=410.88 ft-lb (MDG 400), Fb=787.5 (MDG 788 PASS), k=0.182 (MDG 0.202), fv_oop=3.42 (MDG 13.95 - calc divides OOP shear by full An, underpredicts ~4x). OOP wind moment NOT x0.6 in 0.6W combo (enter pre-reduced wWind).",
+  "benchmark_status": "benchmark",
   "inputs": {
    "wSize": 8,
    "grout": "partial",
@@ -1965,7 +1964,7 @@
    "pSnow": 0,
    "pWindAxial": 0,
    "ecc": 0,
-   "wWind": 12.84,
+   "wWind": 21.4,
    "mCalcType": "simple",
    "barOOP": 4,
    "sOOP": 48,
@@ -1976,9 +1975,49 @@
    "barIP": 0,
    "sIP": 48
   },
-  "expected": [],
-  "shown_values": [],
-  "shown_work": []
+  "expected": [
+   {
+    "label": "wind x0.6 strip load (MDG 12.84)",
+    "expected_value": 12.84,
+    "actual_pattern": "×0\\.6→([\\d.]+) service",
+    "relative_tolerance_percent": 0.5
+   },
+   {
+    "label": "OOP shear area Anv (MDG 7.6)",
+    "expected_value": 7.6,
+    "actual_pattern": "12×3\\.80 = ([\\d.]+) in",
+    "relative_tolerance_percent": 0.5
+   },
+   {
+    "label": "OOP shear stress fv (calc V basis; MDG 13.95 at V=106)",
+    "expected_value": 13.52,
+    "actual_pattern": "/7\\.60 = ([\\d.]+) psi",
+    "relative_tolerance_percent": 0.5
+   },
+   {
+    "label": "allowable Fb (MDG=788)",
+    "expected_value": 788,
+    "actual_pattern": "[\\d.]+ psi / ([\\d.]+) psi fb / Fb \\(masonry\\)",
+    "relative_tolerance_percent": 0.5
+   },
+   {
+    "label": "total OOP moment (MDG=400; simple-span conservative)",
+    "expected_value": 400,
+    "actual_pattern": "([\\d.]+) lb·ft/ft Total OOP Moment",
+    "relative_tolerance_percent": 3
+   }
+  ],
+  "shown_values": [
+   {
+    "label": "service strip load",
+    "display": "12.84"
+   }
+  ],
+  "shown_work": [
+   "8.3.2",
+   "0.6"
+  ],
+  "note": "RWALL-4/5/7 FIXED. wWind is ULTIMATE C&C (x0.6 internal). M asserted at 3% tol: calc simple-span 410.88 vs MDG 400 (MDG includes parapet reaction relief) - conservative, disclosed. fv asserted at calc V=102.7 basis (13.52); MDG 13.95 uses parapet-augmented V=106; the Anv=7.60 area basis (the finding) reproduces exactly."
  },
  {
   "id": "rek-03-asd-axial",
@@ -1988,8 +2027,7 @@
    "example": "REK-03 ASD (loadbearing axial+flexure)",
    "page": "19-25"
   },
-  "benchmark_status": "benchmark_not_drivable",
-  "blocking_value": "#fm select has no 1750 option. Node-transcribed calc values at 1750: Pa=13,891 lb/ft (MDG 16,300), h/r=59.85 (MDG 73), r=3.208 (MDG 2.63) - face-shell-only An/I/r model vs MDG grouted-cell-inclusive; ALSO calc axial coefficient 0.30f'm vs TMS 0.25 (unconservative). Pending EOR ruling.",
+  "benchmark_status": "benchmark",
   "inputs": {
    "wSize": 8,
    "grout": "partial",
@@ -2017,9 +2055,28 @@
    "barIP": 0,
    "sIP": 48
   },
-  "expected": [],
-  "shown_values": [],
-  "shown_work": []
+  "expected": [
+   {
+    "label": "allowable axial Pa (MDG=16,300)",
+    "expected_value": 16300,
+    "actual_pattern": "Pa = ([\\d,]+) lb/ft",
+    "relative_tolerance_percent": 0.5
+   }
+  ],
+  "shown_values": [
+   {
+    "label": "partial-grout An",
+    "display": "42.78"
+   },
+   {
+    "label": "slenderness h/r",
+    "display": "72.97"
+   }
+  ],
+  "shown_work": [
+   "8-16"
+  ],
+  "note": "RWALL-6 resolved: TMS Eq. 8-16 coefficient IS 0.30 (original finding's 0.25 was a misciting - verified tms_full.txt:7301); real fixes were partial-grout An/In/r (NCMA TEK 14-1B basis, eta=0.867 documented) and dropping untied 0.65AstFs per MDG REK-03. Pa=16357 vs MDG 16300 (0.35%)."
  },
  {
   "id": "urwall-6in-hand",
@@ -2028,8 +2085,8 @@
   "source": {
    "reference": "TMS 402-22 Table 11.3.1 + hand statics (EOR-authorized hand benchmark)"
   },
-  "benchmark_status": "pending_eor_ruling",
-  "note": "6in hollow face-shell, Type S, f'm=1500, h=9ft (calc caps h/t<=20), simply supported; loads at ASD-combo level, windInc=false. Hand-derived: An=24.0,S=46.35,M=253.1,fa=41.67,fb=65.6,fnet=23.9 vs Ft=25 (D/C 0.96),Fa=290.4,unity 0.275. Fb assertion expected=500 (f'm/3) vs calc 495 (0.33 coeff) - NEW FINDING (minor, conservative). Also NEW: no Pe/4 check, no OOP shear check (missing limit states). Pending EOR.",
+  "benchmark_status": "benchmark",
+  "note": "URWALL-3/4/5 FIXED: Fb=f'm/3 (500.0), Pe/4 buckling check (e=0 disclosed), OOP shear check per §8.2.6/MDG 11.3-1. Unity expected moved 0.28->0.27 as the direct arithmetic consequence of correcting Fb (fb/Fb term shrinks).",
   "inputs": {
    "wallSize": "6",
    "groutCond": "hollow",
@@ -2086,9 +2143,27 @@
    },
    {
     "label": "combined compression unity",
-    "expected_value": 0.28,
+    "expected_value": 0.27,
     "actual_pattern": "([\\d.]+) Combined Unity",
     "relative_tolerance_percent": 2
+   },
+   {
+    "label": "buckling quarter-Pe (hand 37,240)",
+    "expected_value": 37239.5,
+    "actual_pattern": "¼Pe = ([\\d,.]+) plf",
+    "relative_tolerance_percent": 0.5
+   },
+   {
+    "label": "OOP shear stress fv (hand 7.0)",
+    "expected_value": 7,
+    "actual_pattern": "fv = ([\\d.]+) psi",
+    "relative_tolerance_percent": 1
+   },
+   {
+    "label": "OOP shear allowable Fv (hand 55.8)",
+    "expected_value": 55.8,
+    "actual_pattern": "psi Fv = ([\\d.]+) psi",
+    "relative_tolerance_percent": 0.5
    }
   ],
   "shown_values": [
@@ -2103,7 +2178,9 @@
   ],
   "shown_work": [
    "8.2.4.3",
-   "8.2.6.2"
+   "8.2.6.2",
+   "8-14",
+   "8.2.6"
   ]
  }
 ]
