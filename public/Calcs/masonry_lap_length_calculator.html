@@ -346,6 +346,9 @@ var barDB = {
 // Wall thickness map (nominal → actual, in)
 var tMap = {4:3.625, 6:5.625, 8:7.625, 10:9.625, 12:11.625, 16:15.625};
 var tDisp = {4:'3.63', 6:'5.63', 8:'7.63', 10:'9.63', 12:'11.63', 16:'15.63'};
+// Minimum face-shell thickness by nominal CMU width (ASTM C90 / TMS 602-22), in.
+// Web thickness is taken equal to the face-shell thickness (typical CMU proportion).
+var tfsMap = {4:0.75, 6:1.0, 8:1.25, 10:1.25, 12:1.25, 16:1.25};
 
 function getGamma(size){
   var n = parseInt(size);
@@ -570,118 +573,131 @@ function drawMasonryDiagrams() {
   var K1val  = pos === 'center' ? (t - db) / 2
                                 : parseFloat(document.getElementById('cover_custom').value || 3.5);
   var K2raw  = parseFloat(document.getElementById('clr_space').value);
-  var K2show = Math.min(K2raw, 2.5 * t); // cap display K2 so second bar fits on canvas
+  var tfs    = tfsMap[t_nom] || 1.25;   // face-shell thickness by nominal wall size (TMS 602-22)
 
   // ────────────────────────────────────────────────────────────────────────────
-  // SVG 1 — HORIZONTAL SECTION: wall cross-section, bar 1 centred, optional
-  // bar 2 at clear spacing K2show. Dimensions: K1 (cover), K2 (clear spacing),
-  // t (wall). K3 noted below as a caption (not overlapping the section).
+  // SVG 1 — HORIZONTAL SECTION: a real CMU plan-cut through the reinforced
+  // course — continuous face shells, webs, an OPEN cell (contrast) and the
+  // GROUTED cell holding bar 1 centred at its true cover K1. When a clear
+  // spacing K2 is entered, bar 2 is shown sharing the same grouted cell at the
+  // true K2 distance (always geometrically valid, however small/large K2 is).
+  // Dimensions: K1 (cover, across the thickness), K2 (clear spacing, along the
+  // wall length), t (wall thickness). K3 = 9db is noted as a caption below.
   // ────────────────────────────────────────────────────────────────────────────
   (function() {
     var svg = document.getElementById('masSectionSvg');
     var NS  = 'http://www.w3.org/2000/svg';
 
-    // Choose scale: wall thickness + bar2 gap must fit in ~180 px
-    var worldW = t + K2show + db * 3;   // generous right margin
-    var sc = AREDraw.fitScale(worldW, 180, { min: 6, max: 22 });
-    var wallH = t * 1.05;               // visual height of the cross-section slice
+    var webT    = tfs;                                   // web ~ face-shell thickness (typical CMU)
+    var cellLen = Math.max(2.6 * tfs, 1.15 * t);          // schematic open-cell length along the wall
 
-    var dwg  = new AREDraw.Drawing(svg, { margin: 20 });
-    // ox/oy: origin at the left wall face, vertically centred in the slice
-    var vS   = new AREDraw.View(dwg, { scale: sc, ox: 18, oy: 120, flipY: true });
+    var hasBar2  = (K2raw < 500);
+    var K2cap    = 3 * t;                                 // sane display cap for very large entries
+    var K2show   = Math.min(K2raw, K2cap);
+    var K2capped = hasBar2 && (K2raw > K2show);
 
-    // ── Wall cross-section block ──────────────────────────────────────────────
-    AREDraw.plate(vS, 0, -wallH / 2, t, wallH, { fill: '#dbe2f0' });
+    // Bar 1: centred across its cell at the true cover K1 (Face 1 → bar surface)
+    var barX  = K1val + db / 2;
+    var bar2Y = hasBar2 ? (db + K2show) : 0;
 
-    // CMU cell dashed outlines (two cells)
-    var cellIn = 0.06 * t;
-    function svgRect(x, y, w, h, attrs) {
-      var px1 = vS.px(x), py1 = vS.py(y + h), px2 = vS.px(x + w), py2 = vS.py(y);
+    // Cell B (grouted): always holds bar 1 at y = 0; elongates upward to hold
+    // bar 2 too (same grouted cell) when K2 is entered — never overlaps cell A
+    // regardless of how small/large K2 is, since it only ever grows from a
+    // fixed lower edge.
+    var cB0 = -cellLen / 2;
+    var cB1 = hasBar2 ? Math.max(cellLen / 2, bar2Y + db * 1.5) : cellLen / 2;
+
+    // Web A|B and Cell A (open, contrast) toward -y
+    var wAB0 = cB0 - webT, wAB1 = cB0;
+    var cA0  = wAB0 - cellLen, cA1 = wAB0;
+
+    var yMin = cA0, yMax = cB1, worldH = yMax - yMin;
+
+    var sc  = AREDraw.fitScale(Math.max(worldH, t * 1.6), 205, { min: 5, max: 18 });
+    var dwg = new AREDraw.Drawing(svg, { margin: 22 });
+    var st  = dwg.style;
+    var vS  = new AREDraw.View(dwg, { scale: sc, ox: 92, oy: 205, flipY: true });
+
+    // ── raw-rect helper (two opposite world corners) ──────────────────────────
+    function wrect(x0, y0, x1, y1, attrs, layer) {
+      var px1 = vS.px(x0), py1 = vS.py(y0), px2 = vS.px(x1), py2 = vS.py(y1);
       var nd = document.createElementNS(NS, 'rect');
-      nd.setAttribute('x', Math.min(px1,px2).toFixed(1));
-      nd.setAttribute('y', Math.min(py1,py2).toFixed(1));
-      nd.setAttribute('width',  Math.abs(px2-px1).toFixed(1));
-      nd.setAttribute('height', Math.abs(py2-py1).toFixed(1));
+      nd.setAttribute('x', Math.min(px1, px2).toFixed(1));
+      nd.setAttribute('y', Math.min(py1, py2).toFixed(1));
+      nd.setAttribute('width',  Math.abs(px2 - px1).toFixed(1));
+      nd.setAttribute('height', Math.abs(py2 - py1).toFixed(1));
       for (var k in attrs) nd.setAttribute(k, attrs[k]);
-      dwg.add(nd, 'steel');
+      dwg.add(nd, layer || 'steel');
+      dwg.extend(px1, py1); dwg.extend(px2, py2);
+      return nd;
     }
-    svgRect(cellIn, -wallH*0.38, t/2 - cellIn * 1.5, wallH*0.76,
-      { fill:'none', stroke:'#9aa6c2', 'stroke-width':'0.8', 'stroke-dasharray':'4 2' });
-    svgRect(t/2 + cellIn*0.5, -wallH*0.38, t/2 - cellIn * 1.5, wallH*0.76,
-      { fill:'none', stroke:'#9aa6c2', 'stroke-width':'0.8', 'stroke-dasharray':'4 2' });
 
-    // ── Bar 1 centred in wall ─────────────────────────────────────────────────
-    var barX = t / 2;
-    var rPx  = Math.max(vS.s(db / 2), 3);
-    function svgCircle(xWorld, yWorld, r, attrs) {
-      var nd = document.createElementNS(NS, 'circle');
-      nd.setAttribute('cx', vS.px(xWorld).toFixed(1));
-      nd.setAttribute('cy', vS.py(yWorld).toFixed(1));
-      nd.setAttribute('r', r.toFixed(1));
-      for (var k in attrs) nd.setAttribute(k, attrs[k]);
-      dwg.add(nd, 'steel');
-      dwg.extend(vS.px(xWorld) - r - 1, vS.py(yWorld) - r - 1);
-      dwg.extend(vS.px(xWorld) + r + 1, vS.py(yWorld) + r + 1);
+    // ── Face shells (continuous solid block material) ─────────────────────────
+    AREDraw.plate(vS, 0,       yMin, tfs, worldH, { fill: st.steelFill });
+    AREDraw.plate(vS, t - tfs, yMin, tfs, worldH, { fill: st.steelFill });
+
+    // ── Web (solid block material, divides the cavity into cells) ─────────────
+    AREDraw.plate(vS, tfs, wAB0, t - 2 * tfs, webT, { fill: st.steelFill });
+
+    // ── Cells: open (hollow, dashed) vs grouted (filled + hatched + labelled) ──
+    var groutBase = '#efe6d5', groutLine = '#9c8358';
+    var groutHatchId = dwg.hatchPattern(groutLine, 4);
+    function cell(y0, y1, grouted) {
+      if (grouted) {
+        wrect(tfs, y0, t - tfs, y1, { fill: groutBase, stroke: groutLine, 'stroke-width': '1' });
+        wrect(tfs, y0, t - tfs, y1, { fill: 'url(#' + groutHatchId + ')', stroke: 'none' });
+      } else {
+        wrect(tfs, y0, t - tfs, y1, { fill: '#ffffff', stroke: st.dim, 'stroke-width': '1', 'stroke-dasharray': '4 2' });
+      }
     }
-    svgCircle(barX, 0, rPx + 1.5, { fill:'#1a2b5f', stroke:'none' });
-    svgCircle(barX, 0, rPx,        { fill:'#dbe2f0', stroke:'none' });
+    cell(cA0, cA1, false);   // open cell — contrast
+    cell(cB0, cB1, true);    // grouted cell — bar 1 (and bar 2, if entered)
 
-    // ── Bar 2 (adjacent, faded) ───────────────────────────────────────────────
-    var bar2X = barX + db + K2show;
-    svgCircle(bar2X, 0, rPx + 1.5, { fill:'#1a2b5f', opacity:'0.30', stroke:'none' });
-    svgCircle(bar2X, 0, rPx,        { fill:'#dbe2f0', opacity:'0.30', stroke:'none' });
-
-    // Centerline through both bar positions
-    AREDraw.centerline(vS, -0.4, 0, bar2X + db, 0);
+    // ── Bar(s) ──────────────────────────────────────────────────────────────
+    var rPx = Math.max(vS.s(db / 2), 3);
+    function drawBar(yW) {
+      var cx = vS.px(barX), cy = vS.py(yW);
+      var o1 = document.createElementNS(NS, 'circle');
+      o1.setAttribute('cx', cx.toFixed(1)); o1.setAttribute('cy', cy.toFixed(1));
+      o1.setAttribute('r', (rPx + 1.5).toFixed(1)); o1.setAttribute('fill', st.steel);
+      dwg.add(o1, 'steel');
+      var o2 = document.createElementNS(NS, 'circle');
+      o2.setAttribute('cx', cx.toFixed(1)); o2.setAttribute('cy', cy.toFixed(1));
+      o2.setAttribute('r', rPx.toFixed(1)); o2.setAttribute('fill', st.steelFill);
+      dwg.add(o2, 'steel');
+      dwg.extend(cx - rPx - 1.5, cy - rPx - 1.5); dwg.extend(cx + rPx + 1.5, cy + rPx + 1.5);
+      AREDraw.centerline(vS, tfs - 0.3, yW, t - tfs + 0.3, yW);
+    }
+    drawBar(0);
+    if (hasBar2) drawBar(bar2Y);
 
     // ── Dimensions ───────────────────────────────────────────────────────────
-    // K1: left wall face → bar left surface  (above the bar centreline)
-    AREDraw.dimLine(vS, 0, wallH*0.28, barX - db/2, wallH*0.28,
-      'K₁ = ' + K1val.toFixed(3) + '"', { off: -20 });
+    // K1: Face 1 → bar 1 surface (inside the grouted cell, above the bar)
+    var k1DimY = Math.min(cellLen / 2 * 0.55, cellLen / 2 - webT * 0.5);
+    AREDraw.dimLine(vS, 0, k1DimY, barX - db / 2, k1DimY,
+      'K₁ = ' + K1val.toFixed(3) + '"', { off: -18 });
 
-    // K2: bar1 right surface → bar2 left surface (only if single bar not selected)
-    if (K2raw < 500) {
-      AREDraw.dimLine(vS, barX + db/2, wallH*0.28, bar2X - db/2, wallH*0.28,
-        'K₂ = ' + K2raw.toFixed(2) + '"', { off: -20 });
+    // K2: bar 1 surface → bar 2 surface (clear spacing, along the wall length)
+    if (hasBar2) {
+      var k2DimX = t + Math.max(1.5, tfs);
+      AREDraw.dimLine(vS, k2DimX, db / 2, k2DimX, bar2Y - db / 2,
+        'K₂ = ' + K2show.toFixed(2) + '"' + (K2capped ? ' (min. shown)' : ''), { off: 18 });
     }
 
-    // t: full wall thickness  (below the centreline)
-    AREDraw.dimLine(vS, 0, -wallH*0.4, t, -wallH*0.4,
-      't = ' + t.toFixed(3) + '"', { off: 20 });
+    // t: full wall thickness (gutter below the open cell)
+    var tDimY = yMin - Math.max(1, webT * 0.8);
+    AREDraw.dimLine(vS, 0, tDimY, t, tDimY, 't = ' + t.toFixed(3) + '"', { off: -18 });
 
-    // ── Leader labels ─────────────────────────────────────────────────────────
-    // Bar 1 label: leader goes right+down into the space below the centreline,
-    // clear of Face 1/Face 2 (above wall) and K1/K2 dims (above centreline)
-    AREDraw.leader(vS, barX, 0, 28, 32, '#' + size + ' bar (centred)', { color: '#1a2b5f' });
-
-    // Bar 2 label (only when spacing is finite and displayable)
-    if (K2raw < 500) {
-      AREDraw.leader(vS, bar2X, 0, 30, -14, 'adj. bar', { color: '#6b7a96' });
+    // ── Callouts ────────────────────────────────────────────────────────────
+    AREDraw.leader(vS, t / 2, (cA0 + cA1) / 2, -46, 0, 'Open cell');
+    AREDraw.leader(vS, t / 2, cB0 * 0.55, -46, 6, 'Grouted cell (reinf.)', { color: groutLine });
+    if (hasBar2) {
+      AREDraw.leader(vS, barX, bar2Y, -46, 8, 'Adj. bar (same cell)', { color: st.dim });
     }
 
-    // ── Face labels (outside wall, above the top dim) ─────────────────────────
-    var facePy = vS.py(wallH / 2) - 14;   // pixel y above the wall block
-    var t1 = document.createElementNS(NS, 'text');
-    t1.setAttribute('x', vS.px(0).toFixed(1));
-    t1.setAttribute('y', facePy.toFixed(1));
-    t1.setAttribute('fill', '#6b7a96');
-    t1.setAttribute('font-size', '10');
-    t1.setAttribute('font-family', "'DM Sans','Segoe UI',system-ui,sans-serif");
-    t1.setAttribute('text-anchor', 'middle');
-    t1.textContent = 'Face 1';
-    dwg.add(t1, 'anno');
-    dwg.extend(vS.px(0) - 22, facePy - 12);
-
-    var t2 = document.createElementNS(NS, 'text');
-    t2.setAttribute('x', vS.px(t).toFixed(1));
-    t2.setAttribute('y', facePy.toFixed(1));
-    t2.setAttribute('fill', '#6b7a96');
-    t2.setAttribute('font-size', '10');
-    t2.setAttribute('font-family', "'DM Sans','Segoe UI',system-ui,sans-serif");
-    t2.setAttribute('text-anchor', 'middle');
-    t2.textContent = 'Face 2';
-    dwg.add(t2, 'anno');
-    dwg.extend(vS.px(t) + 22, facePy - 12);
+    // ── Face labels (above the shells) ─────────────────────────────────────
+    AREDraw.memberLabel(vS, tfs / 2,     yMax + 2.2, 'Face 1', { color: st.dim, size: 10, weight: 400 });
+    AREDraw.memberLabel(vS, t - tfs / 2, yMax + 2.2, 'Face 2', { color: st.dim, size: 10, weight: 400 });
 
     // ── View title (below figure) ─────────────────────────────────────────────
     AREDraw.viewTitle(vS, vS.px(t / 2), dwg.maxY + 20, 'Horizontal Section — K Geometry');
@@ -706,8 +722,11 @@ function drawMasonryDiagrams() {
 
   // ────────────────────────────────────────────────────────────────────────────
   // SVG 2 — ELEVATION: masonry wall above footing, foundation dowel lapping
-  // with wall bar. Lap length ℓd shown as a dimension on the right outside the
-  // wall. Wall thickness t dimensioned at top. Bar leaders pulled clear.
+  // with wall bar. The wall is drawn with continuous face shells and a grouted
+  // cell column (both the dowel and wall bar lie in this reinforced, grouted
+  // cell) plus CMU course lines. Lap length ℓd shown as a dimension on the
+  // right outside the wall. Wall thickness t dimensioned at top. Bar leaders
+  // pulled clear.
   // ────────────────────────────────────────────────────────────────────────────
   (function() {
     var svg  = document.getElementById('masElevSvg');
@@ -745,6 +764,7 @@ function drawMasonryDiagrams() {
     var sc = AREDraw.fitScale(wallShow + footH, 220, { min: 3, max: 12 });
 
     var dwg = new AREDraw.Drawing(svg, { margin: 22 });
+    var st  = dwg.style;
     // ox: leave room left (leaders go left), oy: bottom of footing
     var vE  = new AREDraw.View(dwg, { scale: sc, ox: 110, oy: 240, flipY: true });
 
@@ -752,10 +772,32 @@ function drawMasonryDiagrams() {
     AREDraw.plate(vE, wallXL - 5, -footH, wallW + 10, footH,
       { fill: '#eceae4', hatch: true });
 
-    // ── Wall block ────────────────────────────────────────────────────────────
-    AREDraw.plate(vE, wallXL, 0, wallW, wallShow, { fill: '#dbe2f0' });
+    // ── Wall: face shells + grouted cell column (the reinforced cell) ─────────
+    AREDraw.plate(vE, wallXL,               0, tfs, wallShow, { fill: '#dbe2f0' });
+    AREDraw.plate(vE, wallXL + wallW - tfs, 0, tfs, wallShow, { fill: '#dbe2f0' });
 
-    // CMU course lines (dashed)
+    var groutBaseE = '#efe6d5', groutLineE = '#9c8358';
+    var groutHatchIdE = dwg.hatchPattern(groutLineE, 4);
+    (function() {
+      var x0 = wallXL + tfs, x1 = wallXL + wallW - tfs;
+      var px1 = vE.px(x0), py1 = vE.py(0), px2 = vE.px(x1), py2 = vE.py(wallShow);
+      var rc = document.createElementNS(NS, 'rect');
+      rc.setAttribute('x', Math.min(px1, px2).toFixed(1));
+      rc.setAttribute('y', Math.min(py1, py2).toFixed(1));
+      rc.setAttribute('width',  Math.abs(px2 - px1).toFixed(1));
+      rc.setAttribute('height', Math.abs(py2 - py1).toFixed(1));
+      rc.setAttribute('fill', groutBaseE);
+      rc.setAttribute('stroke', groutLineE);
+      rc.setAttribute('stroke-width', '1');
+      dwg.add(rc, 'steel');
+      var hc = rc.cloneNode();
+      hc.setAttribute('fill', 'url(#' + groutHatchIdE + ')');
+      hc.removeAttribute('stroke');
+      dwg.add(hc, 'steel');
+      dwg.extend(px1, py1); dwg.extend(px2, py2);
+    })();
+
+    // CMU course lines (dashed), drawn over the shells + grouted column
     var courseH = 7.625;
     for (var cy2 = courseH; cy2 < wallShow; cy2 += courseH) {
       var ln2 = document.createElementNS(NS, 'line');
@@ -812,6 +854,8 @@ function drawMasonryDiagrams() {
     AREDraw.leader(vE, dowelX, ld_prac * 0.6, -52, -10, 'Foundation dowel', { color: '#1a2b5f' });
     // Wall bar leader: goes left too (right side occupied by ld dim)
     AREDraw.leader(vE, wallBX, wallShow * 0.7, -52, 8, 'Wall bar', { color: '#6b7a96' });
+    // Grouted-cell leader: goes left, low on the wall (clear of the two above)
+    AREDraw.leader(vE, 0, wallShow * 0.08, -52, 12, 'Grouted cell (reinf.)', { color: groutLineE });
 
     // Foundation label — leader from right face of footing out to clear right margin
     AREDraw.leader(vE, wallW / 2 + 5, -footH * 0.5, 48, 0, 'Foundation / Footing', { color: '#6b7a96' });
