@@ -158,6 +158,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <label>f&prime;<sub>m</sub> &mdash; Masonry Strength <span class="unit">(ksi)</span></label>
       <select id="fm_ksi">
         <option value="1.5">1.5 ksi</option>
+        <option value="1.75">1.75 ksi (1,750 psi)</option>
         <option value="2.0" selected>2.0 ksi</option>
         <option value="2.5">2.5 ksi</option>
         <option value="3.0">3.0 ksi</option>
@@ -218,18 +219,36 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <div class="ig">
       <label>&#981; &mdash; Fastener Diameter <span class="unit">(in)</span></label>
       <select id="phi_in" onchange="autoLbe()">
-        <option value="0.5">1/2&Prime; bolt &mdash; A<sub>b</sub> = 0.196 in&sup2;</option>
-        <option value="0.625">5/8&Prime; bolt &mdash; A<sub>b</sub> = 0.307 in&sup2;</option>
-        <option value="0.75" selected>3/4&Prime; bolt &mdash; A<sub>b</sub> = 0.442 in&sup2;</option>
-        <option value="0.875">7/8&Prime; bolt &mdash; A<sub>b</sub> = 0.601 in&sup2;</option>
-        <option value="1.0">1&Prime; bolt &mdash; A<sub>b</sub> = 0.785 in&sup2;</option>
-        <option value="1.25">1-1/4&Prime; bolt &mdash; A<sub>b</sub> = 1.227 in&sup2;</option>
+        <option value="0.5">1/2&Prime;-13 UNC bolt &mdash; A<sub>b</sub> = 0.142 in&sup2;</option>
+        <option value="0.625">5/8&Prime;-11 UNC bolt &mdash; A<sub>b</sub> = 0.226 in&sup2;</option>
+        <option value="0.75" selected>3/4&Prime;-10 UNC bolt &mdash; A<sub>b</sub> = 0.334 in&sup2;</option>
+        <option value="0.875">7/8&Prime;-9 UNC bolt &mdash; A<sub>b</sub> = 0.462 in&sup2;</option>
+        <option value="1.0">1&Prime;-8 UNC bolt &mdash; A<sub>b</sub> = 0.606 in&sup2;</option>
+        <option value="1.25">1-1/4&Prime;-7 UNC bolt &mdash; A<sub>b</sub> = 0.969 in&sup2;</option>
       </select>
+    </div>
+    <div class="ig">
+      <label>L<sub>b</sub> Entry Mode</label>
+      <select id="lb_mode" onchange="lbModeChange()">
+        <option value="eff" selected>Enter effective L<sub>b</sub> directly</option>
+        <option value="total">Enter total embedment &amp; head thickness</option>
+      </select>
+      <div class="hint">Total mode derives l<sub>b</sub> = emb &minus; t<sub>head</sub> per TMS 402-22 &sect;6.3.4 (MDG Ex. 9.3-2: 5.00 &minus; 11/32 = 4.66&Prime;)</div>
     </div>
     <div class="ig">
       <label>L<sub>b</sub> &mdash; Effective Embedment <span class="unit">(in)</span></label>
       <input type="number" id="Lb" value="5" step="0.5" min="1" oninput="autoLbe()">
       <div class="hint">Measured from the masonry surface to the bearing surface of the anchor head or nut (§6.3.1)</div>
+    </div>
+    <div class="ig" id="embTotalGrp" style="display:none">
+      <label>emb &mdash; Total Embedment <span class="unit">(in)</span></label>
+      <input type="number" id="emb_total" value="5.0" step="0.25" min="1" oninput="deriveLb()">
+      <div class="hint">Depth from the masonry surface to the bottom of the anchor bolt head (MDG Ex. 9.3-2 basis)</div>
+    </div>
+    <div class="ig" id="tHeadGrp" style="display:none">
+      <label>t<sub>head</sub> &mdash; Head / Nut Thickness <span class="unit">(in)</span></label>
+      <input type="number" id="t_head" value="0.34375" step="0.01" min="0" oninput="deriveLb()">
+      <div class="hint">A307/A563 heavy-hex head height: 11/32&Prime; = 0.344 for 1/2&Prime; &middot; 27/64&Prime; = 0.422 for 5/8&Prime; &middot; 1/2&Prime; = 0.500 for 3/4&Prime;</div>
     </div>
     <div class="ig">
       <label>S &mdash; Fastener Spacing <span class="unit">(in)</span></label>
@@ -322,6 +341,22 @@ function getLbe(){
   if(ovr!==''&&ovr!==null&&parseFloat(ovr)>0) return parseFloat(ovr);
   return parseFloat(document.getElementById('Lbe_disp').value)||3.81;
 }
+// Lb entry mode: 'eff' (default — enter effective Lb directly, original behavior)
+// or 'total' (enter total embedment + head thickness; lb = emb − t_head per TMS 402-22 §6.3.4)
+function lbModeChange(){
+  var total=document.getElementById('lb_mode').value==='total';
+  document.getElementById('embTotalGrp').style.display=total?'':'none';
+  document.getElementById('tHeadGrp').style.display=total?'':'none';
+  document.getElementById('Lb').readOnly=total;
+  if(total) deriveLb(); else autoLbe();
+}
+function deriveLb(){
+  if(document.getElementById('lb_mode').value!=='total') return;
+  var emb=parseFloat(document.getElementById('emb_total').value)||0;
+  var th =parseFloat(document.getElementById('t_head').value)||0;
+  document.getElementById('Lb').value=Math.max(emb-th,0).toFixed(2);
+  autoLbe();
+}
 
 // ── ARE Diagram drawing (Section + Plan) ─────────────────────────────────────
 function updatePlanSvg(){ drawMasonryDiagrams(); }
@@ -379,8 +414,16 @@ function drawMasonryDiagrams(){
     flipY: true
   });
 
-  // Masonry wall body (hatched light-navy) from y=0 to y=-b
-  AREDraw.plate(vS, -wallHW, -b, wallHW*2, b, {fill: st.steelFill, hatch:true});
+  // Bond-beam CMU section: two face shells, end webs, and a visibly grouted
+  // anchor cell. Geometry scales with the actual wall thickness b.
+  var shellS=Math.min(1.25,b*0.18), webS=Math.min(1.0,wallHW*0.16);
+  AREDraw.plate(vS,-wallHW,-b,wallHW*2,b,{fill:'#f8fafc'});
+  AREDraw.plate(vS,-wallHW,-shellS,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW,-b,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,wallHW-webS,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW+webS,-b+shellS,wallHW*2-2*webS,b-2*shellS,{fill:st.steelFillHi});
+  AREDraw.memberLabel(vS,-wallHW*0.62,-b/2,'GROUTED CELL',{color:st.dim,size:8});
 
   // Ledger / anchor plate (amber — designed member) y=0..plateH
   AREDraw.plate(vS, -wallHW-phi*0.5, 0, wallHW*2+phi, plateH, {highlight:true});
@@ -476,9 +519,21 @@ function drawMasonryDiagrams(){
     flipY: true
   });
 
-  // Wall body
-  AREDraw.plate(vP, -wallW_plan/2, -b/2, wallW_plan, b,
-    {fill: stp.steelFill, hatch:true});
+  // Running-bond CMU plan: face shells, transverse webs, open cells, and the
+  // two grouted anchor cells. Cell module remains 8 in while end cells trim
+  // parametrically to the displayed wall length.
+  var shellP=Math.min(1.25,b*0.18), webP=Math.min(0.75,b*0.12);
+  AREDraw.plate(vP,-wallW_plan/2,-b/2,wallW_plan,b,{fill:'#f8fafc'});
+  AREDraw.plate(vP,-wallW_plan/2,-b/2,wallW_plan,shellP,{fill:stp.steelFill,hatch:true});
+  AREDraw.plate(vP,-wallW_plan/2,b/2-shellP,wallW_plan,shellP,{fill:stp.steelFill,hatch:true});
+  for(var wx=-wallW_plan/2;wx<=wallW_plan/2+0.01;wx+=8){
+    AREDraw.plate(vP,Math.max(wx-webP/2,-wallW_plan/2),-b/2,webP,b,{fill:stp.steelFill,hatch:true});
+  }
+  [ -S/2, S/2 ].forEach(function(cx){
+    var x0=Math.max(-wallW_plan/2,cx-4), x1=Math.min(wallW_plan/2,cx+4);
+    AREDraw.plate(vP,x0,-b/2+shellP,x1-x0,b-2*shellP,{fill:stp.steelFillHi});
+  });
+  AREDraw.memberLabel(vP,0,b/2-shellP-0.35,'OPEN CELLS / GROUTED ANCHOR CELLS',{color:stp.dim,size:8});
 
   var bx1 = -S/2, bx2 = S/2;
 
@@ -551,7 +606,7 @@ function drawMasonryDiagrams(){
 }
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
-var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override'];
+var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override','lb_mode','emb_total','t_head'];
 function saveInputs(){
   var d={};
   INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
@@ -573,7 +628,7 @@ function loadInputs(){
         var d=JSON.parse(ev.target.result);
         INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
         if(d.windInc!==undefined)document.getElementById('windInc').checked=!!d.windInc;
-        autoLbe();autoFu();
+        lbModeChange();autoLbe();autoFu();
         alert('Inputs loaded.');
       }catch(err){alert('Error: '+err.message);}
     };
@@ -630,6 +685,10 @@ function runCalcs(){
   var bv     =parseFloat(document.getElementById('bv').value)||0;   // kips/ft
   var b      =parseFloat(document.getElementById('b_wall').value);  // in wall thickness
   var phi    =parseFloat(document.getElementById('phi_in').value);  // in diameter
+  var lbMode =document.getElementById('lb_mode').value;             // 'eff' | 'total'
+  var embTot =parseFloat(document.getElementById('emb_total').value)||0; // in (total mode)
+  var tHead  =parseFloat(document.getElementById('t_head').value)||0;    // in (total mode)
+  if(lbMode==='total') document.getElementById('Lb').value=Math.max(embTot-tHead,0).toFixed(2);
   var Lb     =parseFloat(document.getElementById('Lb').value);      // in
   var S_in   =parseFloat(document.getElementById('S_in').value);    // in
   var S_ft   =S_in/12.0;                                            // ft
@@ -643,8 +702,15 @@ function runCalcs(){
   var Lbe_ov  =document.getElementById('Lbe_override').value;
   var Lbe     =(Lbe_ov!==''&&parseFloat(Lbe_ov)>0)?parseFloat(Lbe_ov):Lbe_auto;
   document.getElementById('Lbe_disp').value=Lbe_auto.toFixed(2);
-  var Lbe_far =Math.max(b-Lbe, 0.01);   // edge distance to opposite wall face
-  var Ab      =Math.PI*phi*phi/4.0; // in²
+  // An override at least equal to b denotes the REK-08 remote-edge condition:
+  // do not invent a 0.01-in opposite edge and clip half the tension cone.
+  // Centered/top-wall cases (e.g. MDG 9.3-2) still deduct both wall faces.
+  var remoteEdge=Lbe>=b-0.001;
+  var Lbe_far=remoteEdge?Infinity:Math.max(b-Lbe,0.01);
+  var uncTpi  ={0.5:13,0.625:11,0.75:10,0.875:9,1:8,1.25:7};
+  var nt      =uncTpi[phi];
+  var dStress =phi-0.9743/nt;
+  var Ab      =0.7854*dStress*dStress; // TMS 402-22 Eq. 6-7 threaded area, in²
 
   // Circular-segment helper: area of a circle (radius R) lying beyond a chord at distance d from center
   function circSeg(R,d){
@@ -706,6 +772,11 @@ function runCalcs(){
   var dcA=Lb_min/Lb;
   var chksA=[],pA=true,maxA=dcA;
   var daA='<div class="cref-hdr">TMS 402-22 §6.3.6 &mdash; Minimum Anchor Bolt Embedment</div><div class="cbox">';
+  if(lbMode==='total'){
+    daA+='<div class="mrow"><span class="ceq">l<sub>b</sub> =</span> emb &minus; t<sub>head</sub> = '+f2(embTot)+' &minus; '+f2(tHead)+' = <span class="cval">'+f2(Lb)+'&Prime;</span> (effective embedment = total embedment to bottom of bolt head, less head thickness &mdash; TMS 402-22 §6.3.4; MDG Ex. 9.3-2)</div>';
+  } else {
+    daA+='<div class="mrow"><span class="ceq">l<sub>b</sub> input basis:</span> effective embedment entered directly = <span class="cval">'+f2(Lb)+'&Prime;</span>. Total embedment and head thickness are not deducted in this mode. For MDG Ex. 9.3-2, select total mode to show 5.00&Prime; &minus; 0.344&Prime; = 4.66&Prime;.</div>';
+  }
   daA+='<div class="mrow"><span class="ceq">L<sub>b,min</sub> =</span> MAX[4&#981;, 2&Prime;] = MAX[4&times;'+f2(phi)+', 2] = <span class="cval">'+f2(Lb_min)+'&Prime;</span></div>';
   daA+='<div class="mrow"><span class="ceq">L<sub>b,provided</sub> =</span> <span class="cval">'+f2(Lb)+'&Prime;</span>'+(Lb>=Lb_min?' &ge; L<sub>b,min</sub> &#10003;':' < L<sub>b,min</sub> &#10007;')+'</div>';
   daA+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Lb_min),f2(Lb))+' = <span class="cval">'+f3(dcA)+'</span></div></div>';
@@ -732,11 +803,11 @@ function runCalcs(){
   dbLbe+='<div class="mrow"><span class="ceq">l<sub>be</sub> =</span> b/2 = '+f2(b)+'/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span> (edge of masonry to bolt center, §6.3.7)'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;; far face = '+f2(Lbe_far)+'&Prime;]':'')+'</div>';
   dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;l<sub>b</sub>&sup2; &minus; (area outside masonry) &minus; (overlap with adjacent anchors)</div>';
   dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
-  dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; beyond far face (chord @ '+f2(Lbe_far)+'&Prime;) = '+f2(segFar)+' in&sup2;</div>';
+  dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; opposite edge '+(remoteEdge?'remote (l<sub>be</sub> &ge; b), deduction = 0.00':'chord @ '+f2(Lbe_far)+'&Prime;, deduction = '+f2(segFar))+' in&sup2;</div>';
   dbLbe+='<div class="mrow ind">Overlap per adjacent anchor (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
   dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
   dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6)</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> &pi;&#981;&sup2;/4 = <span class="cval">'+f3(Ab)+' in&sup2;</span></div>';
+  dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7 &mdash; not the gross bolt area)</div>';
   dbLbe+='</div>';
   ckB({n:'Projected Areas A<sub>pt</sub>, A<sub>pv</sub>',r:'TMS 402-22 §6.3.2/§6.3.3',d:'A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>pv</sub> = '+f2(Apv)+' in&sup2;',dc:null,nt:'l<sub>b</sub>='+f2(Lb)+'&Prime;, l<sub>be</sub>='+f2(Lbe)+'&Prime;, S='+f1(S_in)+'&Prime;',pass:true,info:true,det:dbLbe});
 
@@ -748,9 +819,14 @@ function runCalcs(){
   ckB({n:'Tension &mdash; Masonry Breakout',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,mas</sub> = '+f3(Ba_mas)+' kips',dc:dc_Ba_mas,nt:'1.25A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in&sup2;',pass:dc_Ba_mas<=1,info:false,det:dbBmas});
 
   // B: Steel tensile
-  var dbBstl='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 &mdash; Tension: Steel Tensile Failure</div><div class="cbox">';
+  var dbBstl='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 / Eq 8-2 &mdash; Tension: Steel Tensile Failure</div><div class="cbox">';
+  dbBstl+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area per §6.3.8 / Eq 6-7)</div>';
   dbBstl+='<div class="mrow"><span class="ceq">F<sub>u,eff</sub> =</span> min(F<sub>u,input</sub>, 1.9f<sub>y</sub>, 125) = min('+f1(Fu_inp)+', '+f1(1.9*fy_ksi)+', 125) = <span class="cval">'+f1(Fu_ksi)+' ksi</span></div>';
-  dbBstl+='<div class="mrow"><span class="ceq">B<sub>a,steel</sub> =</span> 0.5 A<sub>b</sub> F<sub>u</sub> = 0.5&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Ba_steel)+' kips/fastener</span></div>';
+  dbBstl+='<div class="mrow"><span class="ceq">B<sub>a,steel</sub> =</span> 0.5 A<sub>b</sub> F<sub>u</sub> = 0.5&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Ba_steel)+' kips/fastener</span> (Eq 8-2)</div>';
+  if(Math.abs(phi-0.5)<0.0001){
+    var AbGross=Math.PI*phi*phi/4.0, BaGross=0.5*AbGross*Fu_psi/1000.0;
+    dbBstl+='<div class="mrow" style="color:#92400e"><strong>MDG Ex. 9.3-2 printed comparison:</strong> gross A<sub>b</sub>=&pi;(0.500)&sup2;/4='+f3(AbGross)+' in&sup2; gives 0.5&times;'+f3(AbGross)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(BaGross)+' kips</span> (printed 5.890 kips). This cross-example gross-area value is shown for traceability only; the Eq. 6-7 threaded-area result above governs this calculator.</div>';
+  }
   dbBstl+='<div class="mrow"><span class="ceq">Demand =</span> <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
   dbBstl+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Ta),f3(Ba_steel))+' = <span class="cval">'+f3(dc_Ba_stl)+'</span></div></div>';
   ckB({n:'Tension &mdash; Steel Tensile',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,steel</sub> = '+f3(Ba_steel)+' kips',dc:dc_Ba_stl,nt:'0.5A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in&sup2;',pass:dc_Ba_stl<=1,info:false,det:dbBstl});
@@ -792,8 +868,8 @@ function runCalcs(){
   ckC({n:'Shear &mdash; Pryout B<sub>v3</sub>',r:'TMS 402-22 Eq 8-6',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
 
   // Bv4
-  var dcv4='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 &mdash; Shear: Steel Shear Failure</div><div class="cbox">';
-  dcv4+='<div class="mrow"><span class="ceq">B<sub>v4</sub> =</span> 0.25 A<sub>b</sub> F<sub>u</sub> = 0.25&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Bv4)+' kips</span></div>';
+  var dcv4='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-7 &mdash; Shear: Steel Shear Failure</div><div class="cbox">';
+  dcv4+='<div class="mrow"><span class="ceq">B<sub>v4</sub> =</span> 0.25 A<sub>b</sub> F<sub>u</sub> = 0.25&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Bv4)+' kips</span> (A<sub>b</sub> = '+f3(Ab)+' in&sup2; effective threaded area, §6.3.8 / Eq 6-7)</div>';
   dcv4+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv4))+' = <span class="cval">'+f3(dc_Bv4)+'</span></div></div>';
   ckC({n:'Shear &mdash; Steel Shear B<sub>v4</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v4</sub> = '+f3(Bv4)+' kips',dc:dc_Bv4,nt:'0.25A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in\u00B2',pass:dc_Bv4<=1,info:false,det:dcv4});
 
@@ -866,7 +942,7 @@ function tryDrawMasonry(){
   if(window.AREDraw){ drawMasonryDiagrams(); }
   else { setTimeout(tryDrawMasonry, 80); }
 }
-window.onload=function(){autoLbe();autoFu();tryDrawMasonry();};
+window.onload=function(){lbModeChange();autoLbe();autoFu();tryDrawMasonry();};
 document.addEventListener('change',function(){autoLbe();autoFu();drawMasonryDiagrams();});
 </script>
 <script src="/are-utils-v2.js"></script>
