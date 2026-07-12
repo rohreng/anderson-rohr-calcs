@@ -408,6 +408,8 @@ function areDrawLintelSvg(){
   var b_in  = Math.max(1,   gv('b_width', 7.63));
   var n_top = gv('n_top', 1);
   var ab_top= gv('bar_top', 0.20);
+  var n_bot = gv('n_bot', 1);
+  var ab_bot= gv('bar_bot', 0.44);
   var direct= (document.getElementById('load_mode').value === 'direct');
   var w     = direct ? 0 : gv('w_load', 0);
   var P     = direct ? 0 : gv('P_down', 0);
@@ -494,20 +496,62 @@ function areDrawLintelSvg(){
     });
   })();
 
-  // ── 3. Lintel body (amber, primary member) ────────────────────────────────
-  AREDraw.plate(v, 0, 0, L_in, t_in, { highlight: true });
+  // ── 3. Lintel body — CMU coursing (course shells + continuous grouted core) ──
+  // LINTEL-2 rebuild: render actual 8-in-module CMU courses instead of a filled
+  // band. Courses are sized to fill the full depth exactly (t_in / nCourses, so
+  // a 55" lintel yields 7 real courses, not a rounded-off approximation). Head
+  // joints stagger per running bond, and the grouted core (amber = ARE's
+  // primary/designed-member convention, same token used everywhere else in this
+  // file) reads as a continuous band inset from each course's face shells —
+  // this is a fully grouted bond-beam lintel, so every course is grouted.
+  var nCourses = Math.max(1, Math.round(t_in / 8));    // 8" module, parametric on t_in
+  var courseH  = t_in / nCourses;                       // actual course height (fills t_in exactly)
+  var unitLen  = 16;                                    // nominal CMU unit length (running-bond module)
+  var shellT   = Math.min(1.25, courseH * 0.28);        // face-shell band thickness, top & bottom of course
 
-  // CMU course lines every 8" within lintel (subtle, in steel layer)
-  (function(){
-    for(var yc = 8; yc < t_in - 2; yc += 8){
-      var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-      ln.setAttribute('x1', v.px(0).toFixed(1));    ln.setAttribute('y1', v.py(yc).toFixed(1));
-      ln.setAttribute('x2', v.px(L_in).toFixed(1)); ln.setAttribute('y2', v.py(yc).toFixed(1));
-      ln.setAttribute('stroke', '#c8a000'); ln.setAttribute('stroke-width','0.8');
-      ln.setAttribute('opacity','0.55');
-      dwg.gSteel.appendChild(ln);
+  function coreRect(x, yTop, w, h){
+    var rc = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    var px0 = v.px(x), px1 = v.px(x + w), py0 = v.py(yTop), py1 = v.py(yTop + h);
+    rc.setAttribute('x', Math.min(px0,px1).toFixed(1));
+    rc.setAttribute('y', Math.min(py0,py1).toFixed(1));
+    rc.setAttribute('width',  Math.abs(px1-px0).toFixed(1));
+    rc.setAttribute('height', Math.abs(py1-py0).toFixed(1));
+    rc.setAttribute('fill', st.steelFillHi);
+    dwg.gSteel.appendChild(rc);
+    dwg.extend(px0, py0); dwg.extend(px1, py1);
+  }
+  function jointLine(xw, y1, y2){
+    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', v.px(xw).toFixed(1)); ln.setAttribute('y1', v.py(y1).toFixed(1));
+    ln.setAttribute('x2', v.px(xw).toFixed(1)); ln.setAttribute('y2', v.py(y2).toFixed(1));
+    ln.setAttribute('stroke', st.hatch); ln.setAttribute('stroke-width', '0.8');
+    dwg.gSteel.appendChild(ln);
+  }
+
+  for(var ci = 0; ci < nCourses; ci++){
+    var cy0 = ci * courseH, cy1 = cy0 + courseH;
+
+    // CMU block shell for this course — same gray/hatch treatment already used
+    // for the wall above and the support piers (established masonry convention
+    // in this file), so unit-by-unit block material reads consistently.
+    AREDraw.plate(v, 0, cy0, L_in, courseH, { fill: st.steelFill, hatch: true });
+
+    // Continuous grouted core, inset from the top & bottom face shells of this
+    // course — visually distinct from the hatched block shell (fully grouted).
+    if(courseH - 2*shellT > 0.5){
+      coreRect(0, cy0 + shellT, L_in, courseH - 2*shellT);
     }
-  })();
+
+    // Head joints — running-bond stagger: alternate courses offset by unitLen/2.
+    var jOff = (ci % 2 === 0) ? 0 : unitLen / 2;
+    for(var jx = jOff; jx < L_in - 0.05; jx += unitLen){
+      if(jx <= 0.05) continue;
+      jointLine(jx, cy0, cy1);
+    }
+  }
+
+  // Crisp overall lintel envelope on top of the coursing.
+  AREDraw.plate(v, 0, 0, L_in, t_in, { fill: 'none' });
 
   // ── 4. Bearing zone overlays (dashed outline on lintel ends) ─────────────
   (function(){
@@ -686,15 +730,25 @@ function areDrawLintelSvg(){
     'CMU LINTEL  b×' + t_in.toFixed(0) + '″  (fully grouted)',
     { color: st.steel, anchor: 'start' });
 
-  // ── 14. Rebar indicators ─────────────────────────────────────────────────
-  // Dots stay at their centroid positions inside the lintel.
-  // Leaders run to the LEFT gutter so labels clear the amber fill and the
-  // right-side depth dimension stack.
+  // ── 14. Rebar indicators — bar(s) drawn IN the bottom/top course cell ────
+  // Bar lines run the length of the grouted core at the as-designed depth
+  // (eff_d from the top for bottom steel), so reinforcement reads as embedded
+  // in a specific course rather than a floating dot. Dots stay at their
+  // centroid positions (leader anchor); leaders run to the LEFT gutter so
+  // labels clear the amber core and the right-side depth dimension stack.
   var rebarGutterXpx = v.px(-pierW) - 8;   // left of the left pier
+  var barInsetX = Math.min(1.0, L_in * 0.02);   // small inset from each cut end
 
-  // Bottom steel dot: at (L_in*0.5, d_in).
+  // Bottom steel: bar(s) at y = d_in (effective depth), inside the bottom course.
   (function(){
     var cy = d_in, cx = L_in * 0.5;
+    var x0 = barInsetX, x1 = L_in - barInsetX;
+    var barLn = document.createElementNS('http://www.w3.org/2000/svg','line');
+    barLn.setAttribute('x1', v.px(x0).toFixed(1)); barLn.setAttribute('y1', v.py(cy).toFixed(1));
+    barLn.setAttribute('x2', v.px(x1).toFixed(1)); barLn.setAttribute('y2', v.py(cy).toFixed(1));
+    barLn.setAttribute('stroke', '#c42b2b'); barLn.setAttribute('stroke-width', '2.6');
+    barLn.setAttribute('stroke-linecap', 'round');
+    dwg.gSteel.appendChild(barLn);
     var cxpx = v.px(cx), cypx = v.py(cy);
     var c = document.createElementNS('http://www.w3.org/2000/svg','circle');
     c.setAttribute('cx', cxpx.toFixed(1)); c.setAttribute('cy', cypx.toFixed(1));
@@ -703,15 +757,24 @@ function areDrawLintelSvg(){
     dwg.gSteel.appendChild(c);
     dwg.extend(cxpx - 4, cypx - 4); dwg.extend(cxpx + 4, cypx + 4);
     // calloutLabel: application point on dot, label in left gutter
+    var botLbl = (n_bot > 0 && ab_bot > 0) ? (n_bot + '-#' + barNum(ab_bot) + ' bot.') : 'As, bot.';
     AREDraw.calloutLabel(v, cx, cy, rebarGutterXpx, cypx,
-      'As, bot.', { color:'#c42b2b', anchor:'end' });
+      botLbl, { color:'#c42b2b', anchor:'end' });
   })();
 
-  // Top steel dot: at (L_in*0.5, topCover). Label to the left gutter.
+  // Top steel: bar(s) at topCover (uplift reinforcement), inside the top course.
   if(n_top > 0 && ab_top > 0){
     var topCover2 = t_in - d_in;
     var topCy = topCover2 > 1 ? topCover2 : 2.5/scale;
     var topCx = L_in * 0.5;
+    var tx0 = barInsetX, tx1 = L_in - barInsetX;
+    var tBarLn = document.createElementNS('http://www.w3.org/2000/svg','line');
+    tBarLn.setAttribute('x1', v.px(tx0).toFixed(1)); tBarLn.setAttribute('y1', v.py(topCy).toFixed(1));
+    tBarLn.setAttribute('x2', v.px(tx1).toFixed(1)); tBarLn.setAttribute('y2', v.py(topCy).toFixed(1));
+    tBarLn.setAttribute('stroke', '#15803d'); tBarLn.setAttribute('stroke-width', '2.2');
+    tBarLn.setAttribute('stroke-linecap', 'round');
+    tBarLn.setAttribute('stroke-dasharray', '9 4');
+    dwg.gSteel.appendChild(tBarLn);
     var topCxpx = v.px(topCx), topCypx = v.py(topCy);
     var ct = document.createElementNS('http://www.w3.org/2000/svg','circle');
     ct.setAttribute('cx', topCxpx.toFixed(1)); ct.setAttribute('cy', topCypx.toFixed(1));
@@ -720,8 +783,9 @@ function areDrawLintelSvg(){
     dwg.gSteel.appendChild(ct);
     dwg.extend(topCxpx - 4, topCypx - 4); dwg.extend(topCxpx + 4, topCypx + 4);
     // calloutLabel: application point on dot, label in left gutter (16px above bot label)
+    var topLbl = n_top + '-#' + barNum(ab_top) + ' top';
     AREDraw.calloutLabel(v, topCx, topCy, rebarGutterXpx, topCypx,
-      'As, top', { color:'#15803d', anchor:'end' });
+      topLbl, { color:'#15803d', anchor:'end' });
   }
 
   // ── 15. View title BELOW the figure ──────────────────────────────────────
@@ -848,6 +912,11 @@ function runCalc(){
   // TMS 402-22 §8.3.2 — computed stresses
   var fs_bot = (As_bot>0 && j_b*d>0) ? M_lbin / (As_bot * j_b * d) : 0;
   var fb_bot = (k_b*d>0 && j_b*d>0)  ? 2*M_lbin / (b * k_b*d * j_b*d) : 0;
+  // Required steel — initial sizing per MDG REK-06: assume j ~ 0.9 (steel controls),
+  // then verify with the provided bars via the transformed cracked section below.
+  var j_est  = 0.9;
+  var As_req = (Fs>0 && d>0) ? M_lbin/(Fs*j_est*d) : 0;
+  var Ms_allow = As_bot*Fs*j_b*d;
 
   var rho_t=0, nrho_t=0, k_t=0, j_t=0, fs_top=0, fb_top=0;
   var M_up_abs = Math.abs(M_up_lbin);
@@ -936,12 +1005,18 @@ function runCalc(){
   // --- Check 2: Steel Tensile Stress — Downward ---
   var d2='<div class="cref-hdr">TMS 402-22 §8.3.2.3 &mdash; Steel Tensile Stress (Bottom Bars), Downward</div><div class="cbox">';
   d2+='<div class="mrow"><span class="ceq">Applied moment:</span></div>'+Mdet();
-  d2+='<hr class="csep"><div class="mrow"><span class="ceq">Transformed section (modular ratio method):</span></div>';
+  d2+='<hr class="csep"><div class="mrow"><span class="ceq">Required flexural reinforcement &mdash; initial sizing, assuming steel controls with j &asymp; 0.9 (MDG REK-06):</span></div>';
+  d2+='<div class="mrow ind">A<sub>s,req</sub> = '+fr('M','F<sub>s</sub>&times;j&times;d')+' = '+fr(fc(Math.round(M_lbin))+' lb-in',fc(Fs)+'&times;'+f2(j_est)+'&times;'+f2(d))+' = <span class="cval">'+f2(As_req)+' in&sup2;</span> (REK-06: 0.43 in&sup2;)</div>';
+  d2+='<div class="mrow ind">Provided A<sub>s</sub> = '+f3(As_bot)+' in&sup2; '+(As_bot>=As_req?'&ge; A<sub>s,req</sub> = '+f2(As_req)+' in&sup2; <span style="color:#16a34a">&#10003;</span>':'&lt; A<sub>s,req</sub> = '+f2(As_req)+' in&sup2; <span style="color:#dc2626">&mdash; increase reinforcement</span>')+'</div>';
+  d2+='<hr class="csep"><div class="mrow"><span class="ceq">Verify provided steel &mdash; transformed cracked section (modular ratio method):</span></div>';
   d2+='<div class="mrow ind">n=E<sub>s</sub>/E<sub>m</sub>=29,000,000/(900&times;'+fc(fm)+') = <span class="cval">'+f2(n)+'</span></div>';
   d2+='<div class="mrow ind">&rho;=A<sub>s</sub>/(bd)='+f3(As_bot)+'/('+f2(b)+'&times;'+f2(d)+') = '+f4(rho_b)+'</div>';
   d2+='<div class="mrow ind">n&rho;='+f4(nrho_b)+'</div>';
   d2+='<div class="mrow ind">k='+ov('(n&rho;)&sup2;+2n&rho;')+'&minus;n&rho; = <span class="cval">'+f4(k_b)+'</span> &rarr; kd = <span class="cval">'+f2(k_b*d)+' in.</span></div>';
   d2+='<div class="mrow ind">j=1&minus;k/3 = <span class="cval">'+f4(j_b)+'</span> &rarr; jd = <span class="cval">'+f2(j_b*d)+' in.</span></div>';
+  d2+='<div class="mrow"><span class="ceq">Allowable steel moment (F<sub>s</sub> per TMS 402-22 §8.3.3.1):</span></div>';
+  d2+='<div class="mrow ind">M<sub>s</sub> = A<sub>s</sub>F<sub>s</sub>jd = '+f3(As_bot)+'&times;'+fc(Fs)+'&times;'+f4(j_b)+'&times;'+f2(d)+' = <span class="cval">'+Ms_allow.toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' lb-in</span> (REK-06: 687,572 lb-in)</div>';
+  d2+='<div class="mrow ind">M = '+fc(Math.round(M_lbin))+' lb-in '+(Ms_allow>=M_lbin?'&le; M<sub>s</sub> <span style="color:#16a34a">&#10003;</span>':'&gt; M<sub>s</sub> <span style="color:#dc2626">&mdash; N.G.</span>')+'</div>';
   d2+='<hr class="csep"><div class="mrow"><span class="ceq">Computed steel tensile stress (TMS 402-22 §8.3.2.3):</span></div>';
   d2+='<div class="mrow ind">f<sub>s</sub> = '+fr('M','A<sub>s</sub>&times;j&times;d')+' = '+fr(fc(Math.round(M_lbin)),f3(As_bot)+'&times;'+f4(j_b)+'&times;'+f2(d))+' = <span class="cval">'+fc(Math.round(fs_bot))+' psi</span></div>';
   d2+='<div class="mrow ind">Allowable F<sub>s</sub> = <span class="cval">'+fc(Fs)+' psi</span> (Grade '+(Fs===32000?'60':'40')+')</div>';
