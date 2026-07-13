@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brace Connection at Column-on-Beam Node — AISC 360-22 LRFD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1520px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:26px 32px;text-align:center}
+.header h1{font-size:1.75em;margin-bottom:6px}
+.header p{font-size:.95em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.76em}
+.toolbar{display:flex;gap:10px;padding:12px 28px;background:#f1f5f9;border-bottom:1px solid #dde;flex-wrap:wrap}
+.tbtn{display:flex;align-items:center;gap:6px;padding:7px 15px;border:1px solid #94a3b8;border-radius:6px;background:#fff;color:#334155;font-size:.84em;font-weight:600;cursor:pointer}
+.tbtn:hover{background:#e0e7ff;border-color:#6366f1}
+.content{padding:26px}
+.blk{background:#f8f9fa;padding:18px 20px;border-radius:10px;margin-bottom:16px;border-left:4px solid #2a5298}
+.blk.load-blk{border-left-color:#dc2626}.blk.geom-blk{border-left-color:#d97706}.blk.model-blk{border-left-color:#7c3aed}
+.blk h2{color:#1e3c72;margin-bottom:12px;font-size:1.05em;border-bottom:2px solid #dde;padding-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.blk.load-blk h2{color:#991b1b}.blk.geom-blk h2{color:#92400e}.blk.model-blk h2{color:#5b21b6}
+.badge{font-size:.68em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-red{font-size:.68em;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-amber{font-size:.68em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-purple{font-size:.68em;background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:13px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.84em}
+.ig input,.ig select{padding:8px 10px;border:2px solid #ddd;border-radius:6px;font-size:.9em}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#eef0f3;color:#444}
+.unit{font-size:.74em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.72em;color:#888;margin-top:3px}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:.8em;color:#78350f;margin-bottom:12px}
+.callout.red{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.callout.purple{background:#f5f3ff;border-color:#c4b5fd;color:#5b21b6}
+.radio-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+.radio-row label{font-size:.9em;font-weight:600;color:#333;display:flex;align-items:center;gap:6px;cursor:pointer}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 48px;font-size:1.06em;border-radius:8px;cursor:pointer;display:block;margin:16px auto}
+.calc-btn:hover{box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.overall-banner{padding:16px 20px;border-radius:10px;margin-bottom:18px;font-size:1.08em}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a;color:#14532d}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626;color:#7f1d1d}
+.sum-review{background:#fef3c7;border:2px solid #d97706;color:#7c2d12}
+.expl-watermark{background:repeating-linear-gradient(45deg,#f5f3ff,#f5f3ff 12px,#ede9fe 12px,#ede9fe 24px);border:2px dashed #7c3aed;color:#5b21b6;padding:12px 16px;border-radius:10px;margin-bottom:16px;font-weight:600;font-size:.92em}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.dem-card{background:#fff;border-radius:8px;padding:11px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.28em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.72em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.ok{border-color:#16a34a;background:#f0fdf4}.dem-card.ok .v{color:#166534}
+.dem-card.bad{border-color:#dc2626;background:#fef2f2}.dem-card.bad .v{color:#991b1b}
+.dem-card.warn{border-color:#d97706;background:#fffbeb}.dem-card.warn .v{color:#92400e}
+.chk-table{width:100%;border-collapse:collapse;font-size:.85em;margin-bottom:14px}
+.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left;font-size:.83em}
+.chk-table td{padding:7px 10px;border-bottom:1px solid #eee;vertical-align:top}
+.chk-table tr.pass-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.fail-row td{background:#fef2f2!important;border-left:3px solid #dc2626}
+.chk-table tr.review-row td{background:#fffbeb!important;border-left:3px solid #d97706}
+.chk-table tr.info-row td{background:#f0f9ff!important;border-left:3px solid #0369a1}
+.chk-table tr.na-row td{background:#f3f4f6!important;color:#9ca3af;border-left:3px solid #cbd5e1}
+.chk-table tr.grp-row td{background:#1e3c72!important;color:#fff;font-weight:700;font-size:.9em}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.review{color:#d97706;font-weight:700}.na{color:#9ca3af}
+.dc-cell{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.dc-bar{height:13px;border-radius:7px;background:#e5e7eb;min-width:60px;display:inline-block}
+.dc-fill{height:100%;border-radius:7px;display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.74em;white-space:nowrap}
+.det-btn:hover{background:#dbeafe}
+.calc-det{display:none;background:#f4f7ff;padding:12px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.85em;color:#1a1a1a}
+.calc-det.open{display:block}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #bfdbfe}
+.mrow{margin:3px 0;line-height:1.9}.mrow.ind{padding-left:22px}
+.ceq{font-style:italic;color:#1e3c72}.cval{color:#15803d;font-weight:700}
+.schema-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px}
+@media(max-width:820px){.schema-wrap{grid-template-columns:1fr}}
+.schema-box{background:#fff;border:1px solid #dde;border-radius:8px;padding:12px}
+.schema-box h3{font-size:.82em;color:#1e3c72;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:13px 16px;font-size:.82em;color:#78350f;margin-top:16px}
+.note-box h3{color:#92400e;margin-bottom:7px;font-size:.95em}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.prov{margin-top:16px;padding:12px 16px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;font-size:.76em;color:#475569;font-family:'Consolas',monospace;line-height:1.6}
+.err-box{background:#fef2f2;border:2px solid #dc2626;color:#991b1b;padding:14px 18px;border-radius:8px;margin-bottom:14px;font-size:.9em}
+.err-box ul{margin-top:6px;padding-left:18px}
+#selftest-result{white-space:pre-wrap;font-family:Consolas,monospace;font-size:.8em;background:#0f172a;color:#e2e8f0;padding:14px;border-radius:8px;margin-top:16px}
+@media print{
+  body{background:#fff!important;padding:0}
+  .container{box-shadow:none;border-radius:0}
+  .toolbar,.calc-btn,.det-btn{display:none!important}
+  .calc-det{display:block!important;background:#fff!important;border:1px solid #ccc!important}
+  .results{display:block!important}
+  .header,.overall-banner,.expl-watermark,.dem-card,.grp-row{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dem-card,.note-box,.calc-det{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Brace Connection at Column-on-Beam Node</h1>
+  <p>HSS column bearing on a W-beam with a coincident slotted-HSS brace &middot; AISC 360-22 LRFD</p>
+  <div class="ref-tags">
+    <span class="tag">Chevron Effect &mdash; Fortney &amp; Thornton EJ 2017</span>
+    <span class="tag">DG29 UFM / Whitmore</span>
+    <span class="tag">§D2/D3 Shear Lag</span>
+    <span class="tag">§J4 Block Shear</span>
+    <span class="tag">§J10.2/J10.3 Web</span>
+    <span class="tag">§K1 / DG24 Ch.7</span>
+    <span class="tag">§H1 Beam Interaction</span>
+  </div>
+</div>
+
+<div class="toolbar">
+  <button class="tbtn" onclick="window.print()">&#128424; Print / PDF</button>
+  <button class="tbtn" onclick="saveInputs()">&#128190; Save Inputs</button>
+  <button class="tbtn" onclick="loadInputs()">&#128193; Load Inputs</button>
+</div>
+
+<div class="content">
+
+  <div class="callout purple"><strong>Sibling node calcs:</strong> Column reaction &amp; preliminary stiffener come from
+  <em>HSS Column Bearing on Beam</em> (Calc 1); composite studs from <em>Composite Stud Blockout</em> (Calc 3).
+  Loads are entered manually from RISA-3D. The Node&nbsp;ID + input fingerprint below must match across all three printouts.</div>
+
+  <!-- Node identity -->
+  <div class="blk">
+    <h2>&#9312; Node Identity <span class="badge">shared block</span></h2>
+    <div class="g4">
+      <div class="ig"><label>Node ID</label><input id="nodeId" value="N-1"></div>
+      <div class="ig"><label>Project</label><input id="project" value="ARE-0000"></div>
+      <div class="ig"><label>Revision</label><input id="revision" value="0"></div>
+      <div class="ig"><label>Engineer</label><input id="engineer" value=""></div>
+    </div>
+  </div>
+
+  <!-- Model toggle -->
+  <div class="blk model-blk">
+    <h2>&#9313; Analysis Model <span class="badge-purple">topology-consistent check set</span></h2>
+    <div class="radio-row">
+      <label><input type="radio" name="model" value="a" checked onchange="onModel()"> (a) Gusset-to-beam only &mdash; <strong>DEFAULT / design values</strong></label>
+      <label><input type="radio" name="model" value="b" onchange="onModel()"> (b) UFM with column stub &mdash; <strong>EXPLORATORY</strong></label>
+    </div>
+    <div class="callout">Model (a) is the defensible default: the brace frames into the beam; the column above is a separate
+    axial delivery; the gusset-to-HSS-column interface carries no design load. Model (b) treats a through-plate stub with the
+    UFM and is <strong>exploratory only</strong> &mdash; it requires the through-plate inputs (Block&nbsp;&#9320;) and can never report a plain PASS.</div>
+  </div>
+
+  <!-- Static input geometry legend (visible before calculation) -->
+  <div class="blk geom-blk" id="inputGeometryLegend">
+    <h2>Input Geometry Legend <span class="badge-amber">symbols / not to scale</span></h2>
+    <div class="hint" style="margin-bottom:12px">Fill the inputs against these diagrams; run to get the same sketches annotated with your values.</div>
+    <div class="schema-wrap">
+      <div class="schema-box">
+        <h3>Node overview (elevation)</h3>
+        <svg viewBox="0 0 680 340" role="img" aria-label="Generic node elevation: beam with depth and internal stiffener, gusset block on the top flange, column through the gusset, brace member into the gusset" style="width:100%;height:auto">
+          <defs><marker id="inArr1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e3c72"/></marker><marker id="inRed1" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#b91c1c"/></marker></defs>
+          <!-- beam elevation with depth: web + top flange (green) + bottom flange -->
+          <rect x="45" y="182" width="590" height="106" fill="#f1f5f9" stroke="#334155" stroke-width="2"/>
+          <rect x="45" y="170" width="590" height="12" fill="#86efac" stroke="#166534"/>
+          <rect x="45" y="288" width="590" height="12" fill="#94a3b8" stroke="#334155"/>
+          <text x="50" y="200" font-size="11" fill="#166534">top flange</text>
+          <line x1="45" y1="235" x2="635" y2="235" stroke="#64748b" stroke-dasharray="12 4 3 4"/>
+          <text x="560" y="230" font-size="10" fill="#64748b">beam &#8580;</text>
+          <!-- full-depth stiffener inside the beam at the node -->
+          <rect x="333" y="182" width="14" height="106" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>
+          <line x1="347" y1="265" x2="470" y2="292" stroke="#92400e"/><text x="474" y="296" font-size="11" fill="#92400e">stiffener, full depth (see section)</text>
+          <!-- gusset block on the flange -->
+          <rect x="225" y="110" width="230" height="60" fill="#fde68a" stroke="#92400e" stroke-width="3"/>
+          <text x="380" y="104" font-size="12" fill="#92400e">GUSSET — L_g × t_g</text>
+          <!-- base plate + column through the gusset -->
+          <rect x="306" y="162" width="68" height="8" fill="#7c3aed"/>
+          <line x1="374" y1="166" x2="480" y2="146" stroke="#7c3aed"/><text x="484" y="146" font-size="11" fill="#5b21b6">base plate — bears l_b,col on flange</text>
+          <line x1="306" y1="152" x2="374" y2="152" stroke="#b91c1c" marker-start="url(#inRed1)" marker-end="url(#inRed1)"/><text x="380" y="128" font-size="12" fill="#991b1b">l_b,col</text>
+          <rect x="322" y="16" width="36" height="146" fill="#a5f3fc" stroke="#0e7490" stroke-width="3"/>
+          <line x1="340" y1="4" x2="340" y2="300" stroke="#0e7490" stroke-dasharray="12 4 3 4"/>
+          <line x1="358" y1="34" x2="420" y2="20" stroke="#0e7490"/><text x="424" y="20" font-size="12" fill="#0e7490" font-weight="700">COLUMN (HSS)</text>
+          <line x1="348" y1="26" x2="348" y2="62" stroke="#b91c1c" stroke-width="3" marker-end="url(#inRed1)"/><text x="358" y="52" font-size="12" fill="#991b1b">P_u,col</text>
+          <!-- brace member (outlined) into the gusset; centerline to the w.p. -->
+          <polygon points="68,14 52,36 230,169 246,147" fill="#ffffff" stroke="#334155" stroke-width="3"/>
+          <line x1="60" y1="25" x2="340" y2="235" stroke="#dc2626" stroke-dasharray="10 4 2 4"/>
+          <text x="20" y="62" font-size="12" fill="#991b1b">P_u,brace T / C</text><line x1="96" y1="66" x2="140" y2="99" stroke="#b91c1c" stroke-width="2" marker-end="url(#inRed1)"/>
+          <text x="120" y="12" font-size="12" fill="#334155" font-weight="700">BRACE (slotted HSS)</text>
+          <path d="M 282 235 A 58 58 0 0 1 293 200" fill="none" stroke="#1e3c72"/><text x="262" y="216" font-size="14">θ</text>
+          <circle cx="340" cy="235" r="5" fill="#dc2626"/><text x="349" y="250" font-size="13" fill="#991b1b">w.p.</text>
+          <!-- Δ: gusset interface centroid vs w.p. -->
+          <line x1="340" y1="176" x2="368" y2="176" stroke="#92400e" marker-start="url(#inArr1)" marker-end="url(#inArr1)"/><text x="372" y="181" font-size="12" fill="#92400e">Δ (interface centroid off w.p.)</text>
+          <!-- e_b -->
+          <line x1="590" y1="170" x2="590" y2="235" stroke="#1e3c72" marker-start="url(#inArr1)" marker-end="url(#inArr1)"/><text x="598" y="206" font-size="13">e_b = d/2</text>
+          <!-- supports + x dims -->
+          <path d="M55 300 l-16 24 h32z" fill="#94a3b8" stroke="#334155"/><circle cx="612" cy="310" r="8" fill="#94a3b8" stroke="#334155"/><circle cx="630" cy="310" r="8" fill="#94a3b8" stroke="#334155"/>
+          <line x1="55" y1="308" x2="332" y2="308" stroke="#64748b" marker-start="url(#inArr1)" marker-end="url(#inArr1)"/><text x="150" y="304" font-size="12">x_col (patch centroid)</text>
+          <line x1="55" y1="326" x2="340" y2="326" stroke="#1e3c72" marker-start="url(#inArr1)" marker-end="url(#inArr1)"/><text x="170" y="322" font-size="12">x_wp</text>
+          <line x1="360" y1="326" x2="635" y2="326" stroke="#1e3c72" marker-start="url(#inArr1)" marker-end="url(#inArr1)"/><text x="472" y="322" font-size="13">L = span</text>
+          <!-- model (b) callout -->
+          <text x="470" y="60" font-size="11" fill="#5b21b6">Model (b) through-plate: t_p, t_col,</text><text x="470" y="74" font-size="11" fill="#5b21b6">B_col, H_col, N, Fy/Fu_col, wall state, U</text>
+        </svg>
+        <div class="hint">Symbols &mdash; as-entered values appear on the post-run sketch of the same name.</div>
+      </div>
+      <div class="schema-box">
+        <h3>Slotted brace end (side + section A-A)</h3>
+        <svg viewBox="0 0 680 340" role="img" aria-label="Generic slotted HSS brace end with engagement, slot, weld, gusset and section symbols" style="width:100%;height:auto">
+          <defs><marker id="inArr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e3c72"/></marker></defs>
+          <text x="25" y="22" font-size="12" fill="#475569">Brace: rectangular B × H or round D; A_g, t; Fy_brace, Fu_brace</text>
+          <rect x="40" y="70" width="365" height="128" rx="5" fill="#e2e8f0" stroke="#334155" stroke-width="3"/><text x="58" y="96" font-size="12" fill="#334155" font-weight="700">BRACE (HSS)</text><rect x="248" y="119" width="190" height="28" fill="#fde68a" stroke="#92400e" stroke-width="2"/><line x1="248" y1="112" x2="405" y2="112" stroke="#dc2626" stroke-width="5"/><line x1="248" y1="154" x2="405" y2="154" stroke="#dc2626" stroke-width="5"/>
+          <line x1="248" y1="225" x2="405" y2="225" stroke="#1e3c72" marker-start="url(#inArr2)" marker-end="url(#inArr2)"/><text x="310" y="244" font-size="14">l_w</text><line x1="405" y1="63" x2="405" y2="207" stroke="#64748b" stroke-dasharray="5 4"/><text x="413" y="82" font-size="12">brace tip</text>
+          <line x1="248" y1="262" x2="438" y2="262" stroke="#1e3c72" marker-start="url(#inArr2)" marker-end="url(#inArr2)"/><text x="311" y="280" font-size="13">s_t (to flange)</text><line x1="438" y1="54" x2="438" y2="276" stroke="#92400e" stroke-width="3"/><text x="445" y="60" font-size="12">beam flange face</text>
+          <line x1="292" y1="89" x2="330" y2="112" stroke="#b91c1c"/><text x="188" y="84" font-size="12" fill="#991b1b">w_br — 4 fillet lines</text><line x1="270" y1="175" x2="270" y2="149" stroke="#92400e"/><text x="180" y="188" font-size="12">t_g (gusset)</text><text x="57" y="217" font-size="12">slot cut width (each wall)</text><line x1="180" y1="212" x2="246" y2="142" stroke="#1e3c72"/>
+          <text x="494" y="45" font-size="13" font-weight="700">SECTION A-A</text><rect x="500" y="70" width="125" height="125" rx="8" fill="none" stroke="#334155" stroke-width="12"/><rect x="556" y="55" width="14" height="155" fill="#fde68a" stroke="#92400e"/><text x="519" y="224" font-size="12">B / H (or D if round)</text><line x1="507" y1="150" x2="474" y2="238" stroke="#334155"/><text x="452" y="252" font-size="12">t (wall)</text><line x1="546" y1="80" x2="580" y2="80" stroke="#b91c1c" stroke-width="4"/><line x1="546" y1="185" x2="580" y2="185" stroke="#b91c1c" stroke-width="4"/><line x1="582" y1="185" x2="614" y2="240" stroke="#991b1b"/><line x1="582" y1="82" x2="614" y2="240" stroke="#991b1b"/><text x="560" y="256" font-size="12" fill="#991b1b" font-weight="700">WELDS (4 lines)</text>
+          <text x="28" y="315" font-size="13" fill="#1e3c72">A_n = A_g − 2·t·(slot cut width)</text><text x="388" y="315" font-size="11" fill="#475569">HSS size / rect-or-round topology</text>
+        </svg>
+        <div class="hint">Symbols &mdash; as-entered values appear on the post-run sketch of the same name.</div>
+      </div>
+    </div>
+    <div class="schema-wrap">
+      <div class="schema-box">
+        <h3>Gusset plate</h3>
+        <svg viewBox="0 0 680 340" role="img" aria-label="Generic gusset geometry showing interface, Whitmore width, three buckling lengths and free edge" style="width:100%;height:auto">
+          <defs><marker id="inArr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e3c72"/></marker></defs>
+          <rect x="45" y="262" width="585" height="22" fill="#64748b"/><path d="M170 260 L390 70 L570 260 Z" fill="#fef3c7" stroke="#92400e" stroke-width="3"/><line x1="85" y1="280" x2="545" y2="280" stroke="#1e3c72" marker-start="url(#inArr3)" marker-end="url(#inArr3)"/><text x="294" y="302" font-size="14">L_g</text>
+          <line x1="222" y1="228" x2="390" y2="82" stroke="#475569" stroke-width="30"/><line x1="222" y1="228" x2="390" y2="82" stroke="#e2e8f0" stroke-width="20"/><line x1="321" y1="177" x2="441" y2="177" stroke="#b91c1c" stroke-width="3"/><text x="347" y="168" font-size="13" fill="#991b1b">w_b</text>
+          <line x1="265" y1="136" x2="476" y2="223" stroke="#2563eb" stroke-width="3"/><text x="478" y="225" font-size="12" fill="#1d4ed8">Whitmore section</text><line x1="265" y1="136" x2="198" y2="260" stroke="#2563eb" stroke-dasharray="5 4"/><line x1="476" y1="223" x2="505" y2="260" stroke="#2563eb" stroke-dasharray="5 4"/><text x="263" y="121" font-size="12" fill="#1d4ed8">L_w = w_b + 2·l_w·tan30°</text>
+          <line x1="280" y1="143" x2="230" y2="260" stroke="#7c3aed"/><line x1="365" y1="178" x2="365" y2="260" stroke="#7c3aed"/><line x1="449" y1="213" x2="492" y2="260" stroke="#7c3aed"/><text x="205" y="180" font-size="12" fill="#5b21b6">L1</text><text x="371" y="225" font-size="12" fill="#5b21b6">L2</text><text x="468" y="235" font-size="12" fill="#5b21b6">L3</text><text x="205" y="325" font-size="12" fill="#5b21b6">L_c,avg = (L1+L2+L3)/3; auto from s_t or manual</text>
+          <line x1="391" y1="70" x2="570" y2="260" stroke="#b91c1c" marker-start="url(#inArr3)" marker-end="url(#inArr3)"/><text x="512" y="143" font-size="13" fill="#991b1b">L_fg</text><path d="M175 260 A70 70 0 0 1 226 216" fill="none" stroke="#1e3c72"/><text x="196" y="245" font-size="14">θ</text>
+          <text x="30" y="25" font-size="12" fill="#475569">Plate: t_g, Fy_g, Fu_g; free-edge stability uses selected buckling K</text><text x="447" y="42" font-size="12">Δ locates interface from w.p.</text>
+        </svg>
+        <div class="hint">Symbols &mdash; as-entered values appear on the post-run sketch of the same name.</div>
+      </div>
+      <div class="schema-box">
+        <h3>Stiffener pair section</h3>
+        <svg viewBox="0 0 680 340" role="img" aria-label="Generic beam cross-section showing stiffener pair, fitted bearing area and welds" style="width:100%;height:auto">
+          <defs><marker id="inArr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e3c72"/></marker></defs>
+          <!-- beam cross-section: flanges + web -->
+          <rect x="110" y="62" width="460" height="22" fill="#64748b"/><rect x="326" y="84" width="28" height="212" fill="#64748b"/><rect x="110" y="296" width="460" height="22" fill="#64748b"/>
+          <!-- stiffener pair: full plates, web face to flange tip, full depth -->
+          <rect x="116" y="84" width="210" height="212" fill="#fde047" stroke="#b91c1c" stroke-width="2.5"/>
+          <rect x="354" y="84" width="210" height="212" fill="#fde047" stroke="#b91c1c" stroke-width="2.5"/>
+          <rect x="308" y="84" width="18" height="18" fill="#fff"/><rect x="308" y="278" width="18" height="18" fill="#fff"/>
+          <rect x="354" y="84" width="18" height="18" fill="#fff"/><rect x="354" y="278" width="18" height="18" fill="#fff"/>
+          <line x1="316" y1="96" x2="220" y2="34" stroke="#92400e"/><text x="86" y="30" font-size="12" fill="#92400e">corner clip = 0.75 in (typ. 4)</text>
+          <!-- gusset: thin vertical plate above the flange, in line with the web -->
+          <rect x="333" y="6" width="14" height="56" fill="#a5f3fc" stroke="#0e7490" stroke-width="2"/>
+          <line x1="347" y1="18" x2="420" y2="14" stroke="#0e7490"/><text x="424" y="18" font-size="12" fill="#0e7490" font-weight="700">GUSSET (t_g), in plane of web</text>
+          <polygon points="327,62 333,50 333,62" fill="#dc2626"/><polygon points="353,62 347,50 347,62" fill="#dc2626"/>
+          <line x1="352" y1="52" x2="420" y2="36" stroke="#991b1b"/><text x="424" y="38" font-size="11" fill="#991b1b">gusset-to-beam weld w — 1 or 2 sides; F_EXX</text>
+          <!-- stiffener-to-web welds -->
+          <line x1="322" y1="108" x2="322" y2="272" stroke="#dc2626" stroke-width="4"/><line x1="358" y1="108" x2="358" y2="272" stroke="#dc2626" stroke-width="4"/>
+          <line x1="358" y1="250" x2="470" y2="266" stroke="#991b1b"/><text x="474" y="270" font-size="11" fill="#991b1b">w_st — stiffener-to-web welds</text>
+          <!-- dims -->
+          <line x1="110" y1="44" x2="570" y2="44" stroke="#1e3c72" marker-start="url(#inArr4)" marker-end="url(#inArr4)"/><text x="128" y="56" font-size="12">b_f</text>
+          <line x1="354" y1="200" x2="564" y2="200" stroke="#1e3c72" marker-start="url(#inArr4)" marker-end="url(#inArr4)"/><text x="380" y="192" font-size="12">b_st each = (b_f − t_w)/2</text>
+          <line x1="240" y1="190" x2="322" y2="190" stroke="#1e3c72"/><text x="150" y="194" font-size="12">t_w (web)</text>
+          <text x="116" y="335" font-size="12" fill="#1e3c72">A_pb = 2(b_st − clip)·t_st</text><text x="300" y="335" font-size="12">t_st = plate thickness (into page)</text><text x="520" y="335" font-size="12">Fy = Fy_st</text>
+        </svg>
+        <div class="hint">Symbols &mdash; as-entered values appear on the post-run sketch of the same name.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Beam -->
+  <div class="blk geom-blk">
+    <h2>&#9314; Beam <span class="badge-amber">A992 Fy=50 ksi</span></h2>
+    <div class="g4">
+      <div class="ig"><label>W-Shape</label><select id="wshape" onchange="fillW()"></select></div>
+      <div class="ig"><label>F<sub>y</sub> <span class="unit">ksi</span></label><input id="Fyb" type="number" value="50"></div>
+      <div class="ig"><label>Span L <span class="unit">in</span></label><input id="L" type="number" value="336"></div>
+      <div class="ig"><label>Work-point x from left support <span class="unit">in</span></label><input id="xwp" type="number" value="168"></div>
+      <div class="ig"><label>Global M<sub>u</sub> (RISA) <span class="unit">kip-in</span></label><input id="Mu_g" type="number" value="0"></div>
+      <div class="ig"><label>Global V<sub>u</sub> (RISA) <span class="unit">kips</span></label><input id="Vu_g" type="number" value="0"></div>
+      <div class="ig"><label>Beam max-moment ≈ node?</label><select id="coincident"><option value="1">Yes — combine chevron M with global M</option><option value="0" selected>No — check separately</option></select></div>
+      <div class="ig"><label>Collector P<sub>c</sub> override <span class="unit">kips (0=use φFyAg)</span></label><input id="Pc_ovr" type="number" value="0"></div>
+    </div>
+    <div class="g4" style="margin-top:10px">
+      <div class="ig"><label>A <span class="unit">in²</span></label><input id="Ab" readonly></div>
+      <div class="ig"><label>d <span class="unit">in</span></label><input id="db" readonly></div>
+      <div class="ig"><label>t<sub>w</sub> <span class="unit">in</span></label><input id="twb" readonly></div>
+      <div class="ig"><label>t<sub>f</sub> <span class="unit">in</span></label><input id="tfb" readonly></div>
+      <div class="ig"><label>k<sub>des</sub> <span class="unit">in</span></label><input id="kdes" readonly></div>
+      <div class="ig"><label>Z<sub>x</sub> <span class="unit">in³</span></label><input id="Zxb" readonly></div>
+    </div>
+    <div class="hint" style="margin-top:8px"><b>Collector P<sub>c</sub> override — what it is and where to find it.</b>
+    The §H1 interaction row treats the brace horizontal component as a collector force in the bare beam
+    (P<sub>r</sub> = ΣH<sub>T</sub>). AISC 360-22 §H1.1 defines P<sub>c</sub> as the <i>available axial
+    compressive strength per Chapter E</i> — i.e., including member buckling, not just yield. Because the
+    collector's effective unbraced length is a global property of your model, this calc does not invent a
+    KL/r (logged deviation D-3): with the field at 0 it uses φF<sub>y</sub>A<sub>g</sub> (the yield ceiling)
+    and the H1 row reports REVIEW, never a plain PASS. <b>Source for the override value:</b> RISA-3D member
+    Detail Report → "AISC 360-22 LRFD Code Check" table → <b>"Axial Compression Analysis — Available"</b>
+    (that is RISA's φ<sub>c</sub>P<sub>n</sub> per Chapter E with your L<sub>b</sub>/K settings), or a hand
+    Chapter E calc. Enter it here to convert the H1 row from REVIEW to a design-value check.</div>
+  </div>
+
+  <!-- Column reaction (Calc 1) -->
+  <div class="blk load-blk">
+    <h2>&#9315; Column Reaction (from Calc 1) <span class="badge-red">manual import</span></h2>
+    <div class="g4">
+      <div class="ig"><label>P<sub>u,column</sub> <span class="unit">kips (compression +)</span></label><input id="Pu_col" type="number" value="100"></div>
+      <div class="ig"><label>Bearing length l<sub>b,col</sub> <span class="unit">in</span></label><input id="lb_col" type="number" value="8"></div>
+      <div class="ig"><label>Column patch centroid, x from left support <span class="unit">in</span></label><input id="xcol" type="number" value="168"></div>
+    </div>
+  </div>
+
+  <!-- Brace -->
+  <div class="blk load-blk">
+    <h2>&#9316; Brace &mdash; Slotted HSS welded to gusset <span class="badge-red">A500 (46 rect / 42 round)</span></h2>
+    <div class="radio-row">
+      <label><input type="radio" name="hsstype" value="rect" checked onchange="onHssType()"> Rectangular HSS (Table D3.1 Case 5, 360-22)</label>
+      <label><input type="radio" name="hsstype" value="round" onchange="onHssType()"> Round HSS (Table D3.1 Case 5, 360-22)</label>
+    </div>
+    <div class="g4">
+      <div class="ig"><label>HSS size</label><select id="braceSize" onchange="fillBrace()"></select></div>
+      <div class="ig"><label>F<sub>y,brace</sub> <span class="unit">ksi</span></label><input id="Fyr" type="number" value="46"></div>
+      <div class="ig"><label>F<sub>u,brace</sub> <span class="unit">ksi</span></label><input id="Fur" type="number" value="58"></div>
+      <div class="ig"><label>Brace angle θ <span class="unit">deg from horiz.</span></label><input id="theta" type="number" value="45"></div>
+      <div class="ig"><label>P<sub>u,brace</sub> Tension <span class="unit">kips</span></label><input id="Pu_T" type="number" value="120"></div>
+      <div class="ig"><label>P<sub>u,brace</sub> Compression <span class="unit">kips</span></label><input id="Pu_C" type="number" value="140"></div>
+      <div class="ig"><label>Weld/slot engagement l<sub>w</sub> <span class="unit">in</span></label><input id="lw" type="number" value="10"></div>
+      <div class="ig"><label>Slot cut width (each) <span class="unit">in</span></label><input id="slot_gap" type="number" value="0.625"></div>
+      <div class="ig"><label>Brace-to-gusset fillet weld w<sub>br</sub> <span class="unit">in</span></label><input id="wbr" type="number" value="0.25"></div>
+      <div class="ig"><label>A<sub>g,brace</sub> <span class="unit">in²</span></label><input id="Agr" readonly></div>
+      <div class="ig"><label>Wall t <span class="unit">in</span></label><input id="tr" readonly></div>
+      <div class="ig"><label>B (∥ gusset) <span class="unit">in</span></label><input id="Br" readonly></div>
+      <div class="ig"><label>H (⊥ gusset) / D <span class="unit">in</span></label><input id="Hr" readonly></div>
+    </div>
+  </div>
+
+  <!-- Gusset -->
+  <div class="blk">
+    <h2>&#9317; Gusset Plate <span class="badge">A36 Fy=36 ksi</span></h2>
+    <div class="g4">
+      <div class="ig"><label>t<sub>g</sub> <span class="unit">in</span></label><input id="tg" type="number" value="0.5"></div>
+      <div class="ig"><label>F<sub>y,g</sub> <span class="unit">ksi</span></label><input id="Fyg" type="number" value="36"></div>
+      <div class="ig"><label>F<sub>u,g</sub> <span class="unit">ksi</span></label><input id="Fug" type="number" value="58"></div>
+      <div class="ig"><label>Interface length L<sub>g</sub> <span class="unit">in</span></label><input id="Lg" type="number" value="24"></div>
+      <div class="ig"><label>Brace conn. width w<sub>b</sub> <span class="unit">in</span></label><input id="wb" type="number" value="6"></div>
+      <div class="ig"><label>Brace tip setback s<sub>t</sub> <span class="unit">in, flange face to near end of slot welds, along brace axis</span></label><input id="st_set" type="number" value="3" onchange="autoLcavg()"></div>
+      <div class="ig"><label><input type="checkbox" id="autoLc" checked onchange="onAutoLc()"> Auto-compute L<sub>c,avg</sub> (DG29 3-line)</label><span class="unit" id="LcavgHint"></span></div>
+      <div class="ig"><label>Whitmore avg length L<sub>c,avg</sub> <span class="unit">in (L1+L2+L3)/3</span></label><input id="Lcavg" type="number" value="8"></div>
+      <div class="ig"><label>Buckling K (DG29)</label><select id="Kfac"><option value="0.6" selected>0.6 — two-edge supported</option><option value="1.2">1.2 — extended/free edge</option></select></div>
+      <div class="ig"><label>Free edge length L<sub>fg</sub> <span class="unit">in</span></label><input id="Lfg" type="number" value="10"></div>
+      <div class="ig"><label>Interface offset Δ from w.p. <span class="unit">in</span></label><input id="delta" type="number" value="0"></div>
+    </div>
+    <div class="hint" style="margin-top:8px"><b>Can L<sub>c,avg</sub> be computed? Yes.</b> For this topology the gusset's only
+    supported boundary is the beam flange, so the DG29 three-line construction reduces to straight lines from the
+    Whitmore section to the flange, measured parallel to the brace axis: L2 = s<sub>t</sub> at the brace centerline and
+    L1/L3 = s<sub>t</sub> &#8723; (L<sub>w</sub>/2)·cotθ at the Whitmore ends (clipped at 0 where the fan meets the flange),
+    with L<sub>w</sub> = w<sub>b</sub> + 2·l<sub>w</sub>·tan30°. With "Auto-compute" checked the field is filled from
+    s<sub>t</sub>, θ, w<sub>b</sub>, l<sub>w</sub> and the three lines are printed beside the checkbox and drawn in the
+    gusset sketch below the results. Uncheck to enter a measured value from the detail drawing instead.</div>
+  </div>
+
+  <!-- Weld + stiffener -->
+  <div class="blk">
+    <h2>&#9318; Gusset-to-Beam Weld &amp; Stiffener/Gusset Element <span class="badge">E70XX</span></h2>
+    <div class="g4">
+      <div class="ig"><label>Fillet weld size w <span class="unit">in</span></label><input id="wweld" type="number" value="0.3125"></div>
+      <div class="ig"><label>F<sub>EXX</sub> <span class="unit">ksi</span></label><input id="FEXX" type="number" value="70"></div>
+      <div class="ig"><label>Weld sides</label><select id="wsides"><option value="2" selected>2 (both sides)</option><option value="1">1</option></select></div>
+      <div class="ig"><label>Stiffener width b<sub>st</sub> (each) <span class="unit">in — auto (b<sub>f</sub>−t<sub>w</sub>)/2</span></label><input id="bst" type="number" value="2.5" onchange="autoApb()"></div>
+      <div class="ig"><label>Stiffener thk t<sub>st</sub> <span class="unit">in</span></label><input id="tst" type="number" value="0.5" onchange="autoApb()"></div>
+      <div class="ig"><label>Stiffener F<sub>y</sub> <span class="unit">ksi</span></label><input id="Fyst" type="number" value="36"></div>
+      <div class="ig"><label>Stiffener bearing contact A<sub>pb</sub> <span class="unit">in² — auto 2(b<sub>st</sub>−clip)t<sub>st</sub>, clip 0.75</span></label><input id="Apb" type="number" value="2.0"></div>
+      <div class="ig"><label>Stiffener weld size <span class="unit">in</span></label><input id="wst" type="number" value="0.25"></div>
+    </div>
+    <div class="hint" style="margin-top:8px">b<sub>st</sub> auto-fills to (b<sub>f</sub>−t<sub>w</sub>)/2 when the beam shape changes —
+    the stiffener pair fills the full flange width each side of the web (per the node detail intent; edit to override).
+    A<sub>pb</sub> auto-recalculates as 2·(b<sub>st</sub>−0.75)·t<sub>st</sub> (§J7 fitted contact, two stiffeners, 0.75 in corner
+    clip at the web-flange fillet) whenever b<sub>st</sub> or t<sub>st</sub> change; edit A<sub>pb</sub> last to override.</div>
+  </div>
+
+  <!-- Through plate (model b) -->
+  <div class="blk model-blk" id="thruBlk" style="display:none">
+    <h2>&#9320; Through-Plate to HSS Wall (Model b only) <span class="badge-purple">§K1 / DG24 Ch.7</span></h2>
+    <div class="callout purple">Model (b) is <strong>gated</strong> on all four fields below. Blank or invalid &rarr; model (b) is blocked (no results).
+    DG24 Table 7-2A validity limits are enforced; out-of-range blocks the run.</div>
+    <div class="g4">
+      <div class="ig"><label>Through-plate thk t<sub>p</sub> <span class="unit">in</span></label><input id="tp_thru" type="number" value=""></div>
+      <div class="ig"><label>HSS column wall t <span class="unit">in</span></label><input id="tcol" type="number" value=""></div>
+      <div class="ig"><label>HSS column width B <span class="unit">in</span></label><input id="Bcol" type="number" value=""></div>
+      <div class="ig"><label>HSS column height H <span class="unit">in</span></label><input id="Hcol" type="number" value=""></div>
+      <div class="ig"><label>Plate bearing length N <span class="unit">in</span></label><input id="Nplate" type="number" value=""></div>
+      <div class="ig"><label>F<sub>y,col</sub> <span class="unit">ksi</span></label><input id="Fycol" type="number" value="46"></div>
+      <div class="ig"><label>F<sub>u,col</sub> <span class="unit">ksi</span></label><input id="Fucol" type="number" value="58"></div>
+      <div class="ig"><label>Wall stress state</label><select id="wallState"><option value="ten">Tension (Qf=1.0)</option><option value="comp" selected>Compression (Qf=1−0.3U(1+U), Eq K1-3)</option></select></div>
+      <div class="ig"><label>Chord util U (comp) <span class="unit">0–1</span></label><input id="Uchord" type="number" value="0.3"></div>
+    </div>
+  </div>
+
+  <!-- Transfer force -->
+  <div class="blk">
+    <h2>&#9321; Transfer Force to Beam-End Connections <span class="badge">Dowswell</span></h2>
+    <div class="g4">
+      <div class="ig"><label>Required transfer force (Dowswell) <span class="unit">kips</span></label><input id="Ptransfer" type="number" value="0"></div>
+      <div class="hint" style="grid-column:1/-1"><b>What this is.</b> The transfer force is the axial force that must pass
+      THROUGH the beam and its end connections to keep the brace's horizontal component in equilibrium with the rest of the
+      lateral system (Dowswell, <i>Transfer Forces in Steel Structures</i>, AISC). It is a function of the load path, not of
+      any one member's force diagram, and it is NOT generally equal to the beam axial force your analysis prints.
+      <br><br><b>Rigid-diaphragm caveat — read before trusting a zero.</b> If your RISA model uses a rigid diaphragm, the
+      diaphragm constraint absorbs in-plane axial force at the node instantly, so the beam's axial-force diagram reads ≈0
+      even though the brace is dumping ΣH<sub>T</sub> kips into the steel at this gusset. That zero is an artifact of the
+      idealization: in reality the horizontal component enters the BEAM at the gusset interface and can only leave through
+      the headed studs into the slab over a finite transfer length. Recommended treatment: (1) this calc already takes the
+      §H1 collector demand as P<sub>r</sub> = ΣH<sub>T</sub> in the bare steel, independent of the analysis axial — that is
+      deliberate and stays; (2) enter the transfer force here from a Dowswell-style free-body of the node (a defensible
+      default when the diaphragm takes everything locally is ΣH<sub>T</sub> delivered over the stud group each side, with
+      the beam-end connections seeing whatever your free-body says continues past them); (3) check the stud group for the
+      ADDED shear demand: n<sub>studs</sub> ≥ ΣH<sub>T</sub>/Q<sub>n</sub> over the chosen transfer length, on top of the
+      composite-flexure demand already accounted in Calc 3 — studs inside the blockout do not exist, so the transfer starts
+      outside it. Delivery to the far-end connections remains a REVIEW gate — this calc does not design them.</div>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="runAll()">Run All Checks</button>
+
+  <div class="results" id="results">
+    <div id="errBox"></div>
+    <div id="explWatermark"></div>
+    <div id="overallBanner" class="overall-banner"></div>
+    <div class="dem-grid" id="demCards"></div>
+
+    <div class="schema-wrap">
+      <div class="schema-box"><h3>Elevation — force directions &amp; eccentricity e<sub>b</sub></h3><div id="svgElev"></div></div>
+      <div class="schema-box"><h3>Plan / Section — patch positions</h3><div id="svgPlan"></div></div>
+    </div>
+    <div class="schema-wrap" style="margin-top:12px">
+      <div class="schema-box"><h3>Component 1 — Slotted brace end (side + section)</h3><div id="svgBrace"></div></div>
+      <div class="schema-box"><h3>Component 2 — Gusset plate geometry</h3><div id="svgGusset"></div></div>
+    </div>
+    <div class="schema-wrap" style="margin-top:12px">
+      <div class="schema-box"><h3>Component 3 — Stiffener pair at beam section</h3><div id="svgStiff"></div></div>
+      <div class="schema-box"><h3>Component 4 — Gusset-to-beam interface &amp; offset Δ</h3><div id="svgIface"></div></div>
+    </div>
+
+    <table class="chk-table"><thead><tr>
+      <th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th></th>
+    </tr></thead><tbody id="chkBody"></tbody></table>
+
+    <div class="note-box" id="notes"></div>
+    <div class="prov" id="prov"></div>
+  </div>
+
+</div><!--content-->
+</div><!--container-->
+
+<script>
+"use strict";
+/* ============================ SHAPE DATABASES (AISC v16.0) ============================ */
+// W-shapes: [A, d, tw, bf, tf, kdes, Zx, Sx]
+// Values verbatim from aisc-shapes-database-v16.0.xlsx (same extraction as
+// hss_column_bearing_on_beam_calculator.html — cross-calc J10 equivalence ground truth).
+var W_DB={
+ "W12X26":[7.65,12.2,0.23,6.49,0.38,0.68,37.2,33.4],
+ "W12X50":[14.6,12.2,0.37,8.08,0.64,1.14,71.9,64.2],
+ "W14X90":[26.5,14,0.44,14.5,0.71,1.31,157,143],
+ "W16X40":[11.8,16,0.305,7,0.505,0.907,73,64.7],
+ "W16X57":[16.8,16.4,0.43,7.12,0.715,1.12,105,92.2],
+ "W18X35":[10.3,17.7,0.3,6,0.425,0.827,66.5,57.6],
+ "W18X50":[14.7,18,0.355,7.5,0.57,0.972,101,88.9],
+ "W18X76":[22.3,18.2,0.425,11,0.68,1.08,163,146],
+ "W21X44":[13,20.7,0.35,6.5,0.45,0.95,95.4,81.6],
+ "W21X62":[18.3,21,0.4,8.24,0.615,1.12,144,127],
+ "W21X93":[27.3,21.6,0.58,8.42,0.93,1.43,221,192],
+ "W24X55":[16.2,23.6,0.395,7.01,0.505,1.01,134,114],
+ "W24X76":[22.4,23.9,0.44,8.99,0.68,1.18,200,176],
+ "W24X84":[24.7,24.1,0.47,9.02,0.77,1.27,224,196],
+ "W27X84":[24.7,26.7,0.46,10,0.64,1.24,244,213]
+};
+// Rectangular HSS: [A, H, B, t_des]  (verbatim from v16.0 xlsx)
+var HSSR_DB={
+ "HSS4x4x1/4":[3.37,4,4,0.233],"HSS4x4x3/8":[4.78,4,4,0.349],
+ "HSS5x5x1/4":[4.30,5,5,0.233],"HSS5x5x3/8":[6.18,5,5,0.349],
+ "HSS6x6x5/16":[6.43,6,6,0.291],"HSS6x6x3/8":[7.58,6,6,0.349],"HSS6x6x1/2":[9.74,6,6,0.465],
+ "HSS7x7x3/8":[8.97,7,7,0.349],"HSS8x8x3/8":[10.4,8,8,0.349],"HSS8x8x1/2":[13.5,8,8,0.465],
+ "HSS6x4x3/8":[6.18,6,4,0.349],"HSS8x6x3/8":[8.97,8,6,0.349]
+};
+// Round HSS: [A, OD, t_des]  (verbatim from v16.0 xlsx — OD as tabulated: 6.63, 8.63)
+var HSSC_DB={
+ "HSS4.000x0.250":[2.76,4,0.233],"HSS5.000x0.250":[3.49,5,0.233],
+ "HSS5.500x0.375":[5.65,5.5,0.349],"HSS6.000x0.375":[6.20,6,0.349],
+ "HSS6.625x0.250":[4.68,6.63,0.233],"HSS6.625x0.375":[6.88,6.63,0.349],
+ "HSS8.625x0.500":[11.9,8.63,0.465]
+};
+var E=29000;
+
+/* ============================ SMALL HELPERS ============================ */
+function f1(x){return (Math.round(x*10)/10).toFixed(1);}
+function f2(x){return (Math.round(x*100)/100).toFixed(2);}
+function f3(x){return (Math.round(x*1000)/1000).toFixed(3);}
+function num(id){return parseFloat(document.getElementById(id).value);}
+function val(id){return document.getElementById(id).value;}
+function fin(x){return typeof x==='number'&&isFinite(x);}
+function fnv1a(str){var h=0x811c9dc5;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=(h+((h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24)))>>>0;}return ('00000000'+h.toString(16)).slice(-8);}
+function modelSel(){var r=document.getElementsByName('model');for(var i=0;i<r.length;i++)if(r[i].checked)return r[i].value;return 'a';}
+function hssType(){var r=document.getElementsByName('hsstype');for(var i=0;i<r.length;i++)if(r[i].checked)return r[i].value;return 'rect';}
+
+/* ============================ DROPDOWNS ============================ */
+(function(){
+  var w=document.getElementById('wshape');
+  Object.keys(W_DB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;w.appendChild(o);});
+  w.value="W18X50";fillW();
+  onHssType();
+})();
+function fillW(){var r=W_DB[val('wshape')];if(!r)return;
+  document.getElementById('Ab').value=r[0];document.getElementById('db').value=r[1];
+  document.getElementById('twb').value=r[2];document.getElementById('tfb').value=r[4];
+  document.getElementById('kdes').value=r[5];document.getElementById('Zxb').value=r[6];
+  autoStiff();}
+function onHssType(){
+  var t=hssType(),sel=document.getElementById('braceSize');sel.innerHTML='';
+  var db=(t==='rect')?HSSR_DB:HSSC_DB;
+  Object.keys(db).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;sel.appendChild(o);});
+  document.getElementById('Fyr').value=(t==='rect')?46:42;
+  sel.value=(t==='rect')?"HSS6x6x3/8":"HSS6.625x0.375";fillBrace();
+}
+function fillBrace(){
+  var t=hssType(),k=val('braceSize');
+  if(t==='rect'){var r=HSSR_DB[k];if(!r)return;
+    document.getElementById('Agr').value=r[0];document.getElementById('tr').value=r[3];
+    document.getElementById('Br').value=r[2];document.getElementById('Hr').value=r[1];
+  }else{var c=HSSC_DB[k];if(!c)return;
+    document.getElementById('Agr').value=c[0];document.getElementById('tr').value=c[2];
+    document.getElementById('Br').value=c[1];document.getElementById('Hr').value=c[1];}
+}
+function onModel(){document.getElementById('thruBlk').style.display=(modelSel()==='b')?'block':'none';}
+
+/* ============================ UI AUTO-FILLS (display defaults only — computeAll() always
+   uses the field values, so overrides and selftest fixtures are unaffected) ============================ */
+// Stiffener width: pair fills the flange width — b_st = (bf − tw)/2 each side (user detail intent).
+function autoStiff(){
+  var r=W_DB[val('wshape')]; if(!r) return;
+  var bst=(r[3]-r[2])/2; // (bf − tw)/2
+  document.getElementById('bst').value=Math.round(bst*100)/100;
+  autoApb();
+}
+// Bearing contact: A_pb = 2·(b_st − clip)·t_st, clip = 0.75 in corner clip at the web-flange fillet (§J7 fitted).
+function autoApb(){
+  var bst=num('bst'), tst=num('tst');
+  if(bst>0&&tst>0) document.getElementById('Apb').value=Math.round(2*Math.max(bst-0.75,0)*tst*1000)/1000;
+}
+// DG29 three-line Whitmore buckling length for the single-beam-boundary topology:
+// L2 = s_t at the brace centerline; L1/L3 = s_t ∓ (Lw/2)·cotθ at the Whitmore ends, clipped ≥ 0.
+function autoLcavg(){
+  var auto=document.getElementById('autoLc');
+  if(!auto||!auto.checked) return;
+  var wb=num('wb'), lw=num('lw'), thd=num('theta'), st=num('st_set');
+  if(!(wb>0&&lw>0&&thd>0&&thd<90&&st>=0)) return;
+  var th=thd*Math.PI/180;
+  var Lw=wb+2*lw*Math.tan(30*Math.PI/180);
+  var cot=1/Math.tan(th);
+  var L2=st, L1=Math.max(st-(Lw/2)*cot,0), L3=Math.max(st+(Lw/2)*cot,0);
+  var avg=(L1+L2+L3)/3;
+  document.getElementById('Lcavg').value=Math.round(avg*100)/100;
+  var hint=document.getElementById('LcavgHint');
+  if(hint) hint.textContent=' auto: L1='+f2(L1)+' L2='+f2(L2)+' L3='+f2(L3)+' in';
+}
+function onAutoLc(){
+  var on=document.getElementById('autoLc').checked;
+  document.getElementById('Lcavg').readOnly=on;
+  if(on) autoLcavg(); else { var hint=document.getElementById('LcavgHint'); if(hint) hint.textContent=''; }
+}
+
+/* ============================ CORE MECHANICS (pure functions) ============================ */
+// Chevron symbiotic method — IDENTICAL to docs/steel-node/validate-calc2-chevron.mjs
+function chevron(o){
+  var L=o.L,a=o.a,Lg=o.Lg,eb=o.eb,dlt=o.dlt,SVt=o.SVt,SVb=o.SVb,SHt=o.SHt,SHb=o.SHb;
+  var b=L-a, aP=a-Lg/2;
+  var Maat=SHt*eb+SVt*dlt, Maab=SVb*dlt-SHb*eb, MT=Maat+Maab, SVT=SVt+SVb;
+  var q=(SHt-SHb)*eb/Lg;
+  var wl=-4*Maat/(Lg*Lg)-4*Maab/(Lg*Lg)+SVt/Lg+SVb/Lg;
+  var wr= 4*Maat/(Lg*Lg)+4*Maab/(Lg*Lg)+SVt/Lg+SVb/Lg;
+  var R1=-SVT*b/L;
+  var x1=(-R1-q)/wl, x2=-(R1+0.5*wl*Lg+q)/wr;
+  function Ml(x){return R1*aP+(R1+q)*x+0.5*wl*x*x;}
+  function Mr(x){return 0.5*wr*x*x+(R1+0.5*wl*Lg+q)*x+(R1*(aP+0.5*Lg)+0.125*wl*Lg*Lg+0.5*q*Lg);}
+  var c=[];
+  if(x1>=0&&x1<=Lg/2)c.push(Ml(x1));c.push(Ml(0),Ml(Lg/2));
+  if(x2>=0&&x2<=Lg/2)c.push(Mr(x2));c.push(Mr(0),Mr(Lg/2));
+  var Mmax=c[0];for(var i=0;i<c.length;i++)if(Math.abs(c[i])>Math.abs(Mmax))Mmax=c[i];
+  var Vmax=R1+0.5*wl*Lg;
+  var bl=b/L, Lgeq=(SVT!==0)?(MT/SVT)*((bl-Math.sqrt(bl))/(bl-bl*bl)):Infinity;
+  return {Maat:Maat,Maab:Maab,MT:MT,SVT:SVT,q:q,wl:wl,wr:wr,R1:R1,x1:x1,Mmax:Mmax,Vmax:Vmax,Lgeq:Lgeq,
+          Vconn:2*MT/Lg, Mconn:MT/2};
+}
+// J10.2 web local yielding. Spec (360-22 p.16.1-219): interior branch only when x is
+// GREATER than d; x = d exactly takes the end (2.5k) equation. Matches Calc 1's j102
+// strictly (byte-identity drift guard incl. boundary fixture J10-EQ-5).
+function j102(S,Fy,x,lb){
+  var d=S[1],tw=S[2],kd=S[5];var C=(x>d)?5:2.5;
+  return {phiRn:1.00*Fy*tw*(C*kd+lb), branch:(x>d?'interior':'end'), C:C};
+}
+// J10.3 web local crippling
+function j103(S,Fy,x,lb){
+  var d=S[1],tw=S[2],tf=S[4];var interior=(x>=d/2);
+  var root=Math.sqrt(E*Fy*tf/tw), r15=Math.pow(tw/tf,1.5), lbd=lb/d, Rn;
+  if(interior){Rn=0.80*tw*tw*(1+3*lbd*r15)*root;}
+  else if(lbd<=0.2){Rn=0.40*tw*tw*(1+3*lbd*r15)*root;}
+  else{Rn=0.40*tw*tw*(1+(4*lbd-0.2)*r15)*root;}
+  return {phiRn:0.75*Rn, branch:(interior?'interior':'end')};
+}
+// Shear lag U — AISC 360-22 Table D3.1 Case 5 (single concentric gusset through slotted
+// round OR rectangular HSS; p.16.1-34). 360-22's Case 6 (two side gussets) is NOT this detail.
+// Args: type 'rect'|'round'; B = HSS dim IN plane of connection (UI Br, "∥ gusset") = table H_t;
+// H = dim perpendicular (UI Hr) = table B_t; D = OD (round); lw = weld/slot engagement;
+// t = HSS design wall; tg = gusset thickness; slot_gap = slot cut width (each).
+// returns {U, xbar, tag, ok, msg}
+function shearLagU(type,B,H,D,lw,t,tg,slot_gap){
+  var xb,U;
+  if(type==='rect'){
+    // x̄ = b − (2b² + t·H_t − 2t²)/(2·H_t + 4b − 4t),  b = B_t/2 (concentric gusset),  U = 1 − x̄/l
+    var Ht=B, b=H/2;
+    xb=b-(2*b*b+t*Ht-2*t*t)/(2*Ht+4*b-4*t);
+    U=1-xb/lw;
+    if(!(fin(xb)&&fin(U)&&xb>=0&&U>0&&U<=1))
+      return {U:NaN,xbar:xb,tag:'Case5-rect-reject',ok:false,msg:'Rect HSS Table D3.1 Case 5 (360-22): computed U/x̄ outside 0<U≤1, x̄≥0 — unsupported arrangement, rejected.'};
+    return {U:U,xbar:xb,tag:'Case5-rect',ok:true};
+  }
+  // round: conservative SCOPE retention (not a Case-5 rule): reject lw < D
+  if(lw<D)return {U:NaN,xbar:NaN,tag:'Case5-round-reject',ok:false,
+    msg:'Round HSS slot lw < D — outside this calculator’s scope (conservative scope retention); arrangement rejected.'};
+  if(!(slot_gap>0&&slot_gap<D))
+    return {U:NaN,xbar:NaN,tag:'Case5-round-reject',ok:false,msg:'Round HSS Case 5 (360-22): slot cut width must satisfy 0 < slot < D.'};
+  // θ = half-arc of each connected shell segment; x̄ = R·sinθ/θ − t_p/2 (t_p = gusset tg);
+  // U = [1 + (x̄/l)^3.2]^(−10)  — NO U=1.0 shortcut at l ≥ 1.3D in 360-22.
+  var th=(Math.PI-2*Math.asin(slot_gap/D))/2, R=D/2;
+  xb=R*Math.sin(th)/th-tg/2;
+  U=Math.pow(1+Math.pow(xb/lw,3.2),-10);
+  if(!(fin(xb)&&fin(U)&&xb>=0&&U>0&&U<=1))
+    return {U:NaN,xbar:xb,tag:'Case5-round-reject',ok:false,msg:'Round HSS Table D3.1 Case 5 (360-22): computed U/x̄ outside 0<U≤1, x̄≥0 — unsupported arrangement, rejected.'};
+  return {U:U,xbar:xb,tag:'Case5-round',ok:true,theta:th};
+}
+// §E3 Fcr
+function fcrE3(Fy,KLr){if(KLr<1e-6)return Fy;var Fe=Math.PI*Math.PI*E/(KLr*KLr);
+  return (Fy/Fe<=2.25)?Math.pow(0.658,Fy/Fe)*Fy:0.877*Fe;}
+
+/* ============================ CHECK ASSEMBLY ============================ */
+// status: 'pass'|'fail'|'review'|'info'|'na'
+function computeAll(P){
+  var checks=[], notes=[], errors=[], expl=(P.model==='b');
+  function add(o){checks.push(o);}
+  function guard(v,name){if(!fin(v)){errors.push('Non-finite value: '+name);return false;}return true;}
+
+  // ---- input validation (hard sweep: finite, positivity, geometric domain) ----
+  if(!P.W){errors.push('W-shape not found.');return {checks:checks,notes:notes,errors:errors,expl:expl};}
+  // every gathered numeric used by model (a) must be finite (model-b fields are gated in the model-b block)
+  [['L',P.L],['xwp',P.xwp],['Mu_g',P.Mu_g],['Vu_g',P.Vu_g],['Pc_ovr',P.Pc_ovr],['Fyb',P.Fyb],
+   ['Pu_col',P.Pu_col],['lb_col',P.lb_col],['xcol',P.xcol],['Fyr',P.Fyr],['Fur',P.Fur],
+   ['theta',P.theta],['Pu_T',P.Pu_T],['Pu_C',P.Pu_C],['lw',P.lw],['slot_gap',P.slot_gap],
+   ['Agr',P.Agr],['tr',P.tr],['Br',P.Br],['Hr',P.Hr],['tg',P.tg],['Fyg',P.Fyg],['Fug',P.Fug],
+   ['Lg',P.Lg],['wb',P.wb],['Lcavg',P.Lcavg],['Kfac',P.Kfac],['Lfg',P.Lfg],['delta',P.delta],
+   ['wweld',P.wweld],['FEXX',P.FEXX],['wsides',P.wsides],['bst',P.bst],['tst',P.tst],
+   ['Fyst',P.Fyst],['Apb',P.Apb],['wst',P.wst],['wbr',P.wbr],['Ptransfer',P.Ptransfer]
+  ].forEach(function(x){guard(x[1],x[0]);});
+  // positivity where physically required
+  [['tg',P.tg],['Lg',P.Lg],['lw',P.lw],['lb_col',P.lb_col],['tst',P.tst],['bst',P.bst],
+   ['Apb',P.Apb],['wweld',P.wweld],['wbr',P.wbr],['wst',P.wst],['FEXX',P.FEXX],
+   ['Fyb',P.Fyb],['Fyr',P.Fyr],['Fyg',P.Fyg],['Fyst',P.Fyst],['Fur',P.Fur],['Fug',P.Fug],
+   ['Agr',P.Agr],['tr',P.tr],['Br',P.Br],['Hr',P.Hr],['wb',P.wb],['Lcavg',P.Lcavg]
+  ].forEach(function(x){if(fin(x[1])&&!(x[1]>0))errors.push(x[0]+' must be > 0.');});
+  if(!(P.L>0))errors.push('Span L must be > 0.');
+  if(!(P.xwp>0&&P.xwp<P.L))errors.push('Work point x must be within 0 < x < L.');
+  if(fin(P.xcol)&&!(P.xcol>=0&&P.xcol<=P.L))errors.push('Column patch centroid xcol must be within 0 ≤ x ≤ L.');
+  if(fin(P.theta)&&!(P.theta>0&&P.theta<90))errors.push('Brace angle θ must satisfy 0° < θ < 90°.');
+  if(fin(P.Lfg)&&!(P.Lfg>=0))errors.push('Free edge length Lfg must be ≥ 0.');
+  if(fin(P.slot_gap)&&fin(P.tg)&&!(P.slot_gap>=P.tg))errors.push('Slot cut width must be ≥ tg (slot must clear the gusset).');
+  if(fin(P.slot_gap)&&fin(P.Br)&&!(P.slot_gap<P.Br/2))errors.push('Slot cut width must be < B/2 of the brace.');
+  if(P.Pu_T<0||P.Pu_C<0)errors.push('Brace forces are entered as magnitudes (≥0); sign is applied by case.');
+  // shear-lag domain (Table D3.1 Case 5, 360-22) — reject unsupported arrangements, never a negative capacity
+  var slu=null;
+  if(!errors.length){
+    slu=shearLagU(P.hsstype,P.Br,P.Hr,P.Hr,P.lw,P.tr,P.tg,P.slot_gap);
+    if(!slu.ok)errors.push(slu.msg);
+  }
+
+  var S=P.W, d=S[1], eb=d/2;
+  var thetaR=P.theta*Math.PI/180, cth=Math.cos(thetaR), sth=Math.sin(thetaR);
+
+  // brace component signs per case: Tension pulls up/out, Compression pushes down/in (top gusset)
+  // case 'T': H=+Pu_T*cos, V=+Pu_T*sin (upward, relieves web);  case 'C': H=-Pu_C*cos, V=-Pu_C*sin (down, adds to web)
+  var CASES=[
+    {id:'T', P:P.Pu_T, SHt:P.Pu_T*cth, SVt:P.Pu_T*sth},
+    {id:'C', P:P.Pu_C, SHt:-P.Pu_C*cth, SVt:-P.Pu_C*sth}
+  ];
+
+  if(errors.length)return {checks:checks,notes:notes,errors:errors,expl:expl};
+
+  /* ---------- GROUP: BRACE SIDE ---------- */
+  add({grp:'Brace Side — Slotted HSS (§D2, §D3, §J4)'});
+  var Pmax=Math.max(P.Pu_T,P.Pu_C);
+  // D2 gross yielding
+  var phiPy=0.90*P.Fyr*P.Agr;
+  add({n:'Brace gross yielding',nt:'§D2(a)',r:'AISC 360-22 §D2',
+    dem:Pmax,cap:phiPy,dc:Pmax/phiPy,status:Pmax<=phiPy?'pass':'fail',
+    det:eq('φP_n = φ·F_y·A_g','0.90 · '+P.Fyr+' · '+f2(P.Agr),f1(phiPy)+' kips',Pmax/phiPy)});
+  // D3 net rupture w/ shear lag — Table D3.1 Case 5 (360-22), rect and round (slu validated above)
+  var An=P.Agr-2*(P.tr*P.slot_gap), Ae=An*slu.U, phiPr=0.75*P.Fur*Ae;
+  add({n:'Brace net rupture (shear lag)',nt:'§D3 Table D3.1 Case 5 (360-22)',r:'AISC 360-22 §D2(b)/§D3',
+    dem:Pmax,cap:phiPr,dc:Pmax/phiPr,status:Pmax<=phiPr?'pass':'fail',
+    dat:{U:slu.U,xbar:slu.xbar},
+    det:eq2([
+      (P.hsstype==='rect'
+        ?['x̄ = b − (2b²+t·H_t−2t²)/(2H_t+4b−4t), b=B_t/2', f3(slu.xbar)+' in']
+        :['x̄ = R·sinθ/θ − t_p/2, θ=(π−2·asin(slot/D))/2', f3(slu.xbar)+' in']),
+      (P.hsstype==='rect'
+        ?['U = 1 − x̄/l_w  [Case 5, 360-22]', f3(slu.U)]
+        :['U = [1+(x̄/l_w)^3.2]^(−10)  [Case 5, 360-22 — no U=1.0 shortcut at l≥1.3D]', f3(slu.U)]),
+      ['A_n = A_g − 2·t·slot', f3(An)+' in²'],
+      ['A_e = A_n·U', f3(Ae)+' in²'],
+      ['φP_n = 0.75·F_u·A_e', f1(phiPr)+' kips']
+    ],Pmax/phiPr)});
+  // block shear on brace wall (weld lines)
+  var Agv=2*P.lw*P.tr, Ant=P.tr*Math.max(P.Br-2*P.slot_gap,0.1);
+  var bsB=Math.min(0.60*P.Fur*Agv,0.60*P.Fyr*Agv)+1.0*P.Fur*Ant, phiBSb=0.75*bsB;
+  add({n:'Brace-wall block shear',nt:'§J4.3',r:'AISC 360-22 §J4.3',
+    dem:Pmax,cap:phiBSb,dc:Pmax/phiBSb,status:Pmax<=phiBSb?'pass':'fail',
+    det:eq2([['A_gv = 2·l_w·t',f3(Agv)+' in²'],['A_nt = t·(B−2·slot)',f3(Ant)+' in²'],
+      ['φR_n = 0.75[0.6F_u A_gv + U_bs F_u A_nt]',f1(phiBSb)+' kips']],Pmax/phiBSb)});
+  // brace-to-gusset weld group (§J2.4): 4 longitudinal fillet lines × lw (slotted HSS over
+  // gusset — both walls, both faces). Longitudinal → NO directional increase (kD = 1.0).
+  var perinBW=0.75*0.60*P.FEXX*(0.707*P.wbr), capBW=4*P.lw*perinBW;
+  add({n:'Brace-to-gusset weld group',nt:'§J2.4 (longitudinal, kD=1.0)',r:'AISC 360-22 §J2.4',
+    dem:Pmax,cap:capBW,dc:Pmax/capBW,status:Pmax<=capBW?'pass':'fail',
+    dat:{perin:perinBW,cap:capBW},
+    det:eq2([['φr_n = 0.75·0.6·F_EXX·0.707·w_br (per line-inch)',f2(perinBW)+' k/in'],
+      ['φR_n = 4·l_w·φr_n',f1(capBW)+' kips'],
+      ['concentric slotted detail — no weld-group eccentricity; e ≠ 0 arrangements out of scope','']],Pmax/capBW)});
+
+  /* ---------- GROUP: GUSSET ---------- */
+  add({grp:'Gusset Plate (§J4, DG29 Whitmore)'});
+  // Whitmore width: 30° spread over the CONNECTION length lw (NOT the DG29 buckling-length
+  // average Lcavg — that stays only in KL/r below).
+  var Lw=P.wb+2*P.lw*Math.tan(30*Math.PI/180), Aw=Lw*P.tg;
+  var phiWy=0.90*P.Fyg*Aw;
+  notes.push('Whitmore width not truncated at gusset free edges — verify the fan fits the plate (geometry not modeled).');
+  add({n:'Whitmore yielding',nt:'§J4.1',r:'AISC 360-22 §J4.1',
+    dem:Pmax,cap:phiWy,dc:Pmax/phiWy,status:Pmax<=phiWy?'pass':'fail',
+    dat:{Lw:Lw,Aw:Aw,phiWy:phiWy},
+    det:eq2([['L_w = w_b + 2·l_w·tan30°',f3(Lw)+' in'],['A_w = L_w·t_g',f3(Aw)+' in²'],
+      ['φR_n = 0.90·F_y·A_w',f1(phiWy)+' kips'],
+      ['Whitmore width not truncated at gusset free edges — verify the fan fits the plate (geometry not modeled)','']],Pmax/phiWy)});
+  // Whitmore buckling (compression brace only): KL/r ≤ 25 → §J4.4 (φPn = 0.90·Fy·Aw, no
+  // buckling reduction); else §E3. Lcavg (DG29 three-line average) used ONLY here.
+  var rg=P.tg/Math.sqrt(12), KLr=P.Kfac*P.Lcavg/rg;
+  var wbJ44=(KLr<=25), Fcr=wbJ44?P.Fyg:fcrE3(P.Fyg,KLr), phiWb=0.90*Fcr*Aw;
+  add({n:'Whitmore buckling (compression)',nt:wbJ44?'§J4.4 (KL/r≤25)':'DG29 / §E3',r:wbJ44?'AISC 360-22 §J4.4':'AISC DG29 · §E3',
+    dem:P.Pu_C,cap:phiWb,dc:P.Pu_C/phiWb,status:P.Pu_C<=phiWb?'pass':'fail',
+    dat:{KLr:KLr,phiWb:phiWb,branch:wbJ44?'J4.4':'E3'},
+    det:eq2([['r = t_g/√12',f3(rg)+' in'],['KL/r = '+P.Kfac+'·L_c,avg/r',f2(KLr)],
+      wbJ44?['KL/r ≤ 25 ⇒ §J4.4: φP_n = 0.90·F_y·A_w (no buckling reduction)','']:['F_cr (§E3)',f2(Fcr)+' ksi'],
+      ['φP_n = 0.90·'+(wbJ44?'F_y':'F_cr')+'·A_w',f1(phiWb)+' kips']],P.Pu_C/phiWb)});
+  // gusset block shear (§J4.3): two shear planes along the weld lines + tension between them
+  var AgvG=2*P.lw*P.tg, AnvG=AgvG, AntG=P.wb*P.tg, UbsG=1.0;
+  var RnG=Math.min(0.60*P.Fug*AnvG,0.60*P.Fyg*AgvG)+UbsG*P.Fug*AntG, phiBSg=0.75*RnG;
+  add({n:'Gusset block shear',nt:'§J4.3',r:'AISC 360-22 §J4.3',
+    dem:Pmax,cap:phiBSg,dc:Pmax/phiBSg,status:Pmax<=phiBSg?'pass':'fail',
+    dat:{Agv:AgvG,Ant:AntG,phiRn:phiBSg},
+    det:eq2([['A_gv = A_nv = 2·l_w·t_g',f3(AgvG)+' in²'],['A_nt = w_b·t_g',f3(AntG)+' in²'],
+      ['φR_n = 0.75[min(0.6F_u A_nv, 0.6F_y A_gv) + U_bs F_u A_nt], U_bs=1.0',f1(phiBSg)+' kips']],Pmax/phiBSg)});
+  // gusset free-edge: classical unstiffened-edge criterion (Astaneh) — DG29 has no such
+  // length limit (DG29 App. C uses the AFMM, not modeled). REVIEW-on-exceed, not FAIL.
+  var feLim=0.75*Math.sqrt(E/P.Fyg)*P.tg;
+  add({n:'Gusset free-edge stability',nt:'unstiffened-edge (Astaneh)',r:'Astaneh free-edge criterion',
+    dem:P.Lfg,cap:feLim,dc:P.Lfg/feLim,status:P.Lfg<=feLim?'pass':'review',
+    dat:{lim:feLim},
+    det:eq2([['L_fg',f2(P.Lfg)+' in'],['limit 0.75√(E/F_y)·t_g',f2(feLim)+' in'],
+      ['classical unstiffened-edge criterion (Astaneh); DG29 App. C AFMM not modeled',''],
+      [P.Lfg<=feLim?'free edge OK':'EXCEEDS — edge stiffener required (REVIEW)','']],P.Lfg/feLim)});
+
+  /* ---------- GROUP: GUSSET-TO-BEAM WELD ---------- */
+  add({grp:'Gusset-to-Beam Weld (DG29 ductility factor, §J2.4)'});
+  var wchk=CASES.map(function(cs){
+    var cv=chevron({L:P.L,a:P.xwp,Lg:P.Lg,eb:eb,dlt:P.delta,SVt:cs.SVt,SVb:0,SHt:cs.SHt,SHb:0});
+    var fh=Math.abs(cs.SHt)/P.Lg, fv=Math.abs(cs.SVt)/P.Lg, fm=6*Math.abs(cv.Maat)/(P.Lg*P.Lg);
+    var fr=Math.sqrt((fv+fm)*(fv+fm)+fh*fh); return {id:cs.id,fr:fr,fh:fh,fv:fv,fm:fm,cv:cv};});
+  var gw=wchk[0].fr>=wchk[1].fr?wchk[0]:wchk[1];
+  var frd=1.25*gw.fr;
+  // directional strength increase per the ACTUAL resultant angle to the weld axis (build-spec §5):
+  // θw = atan2(fv+fm, fh); capacity factor kD = 1 + 0.5·sin^1.5(θw)
+  var thetaW=Math.atan2(gw.fv+gw.fm,gw.fh);
+  var kDw=1+0.5*Math.pow(Math.sin(thetaW),1.5);
+  var phirn=P.wsides*0.75*0.60*P.FEXX*kDw*(0.707*P.wweld);
+  add({n:'Gusset-to-beam weld (×1.25 ductility)',nt:'§J2.4 · DG29',r:'AISC DG29 · §J2.4',
+    dem:frd,cap:phirn,dc:frd/phirn,status:frd<=phirn?'pass':'fail',
+    dat:{fh:gw.fh,fv:gw.fv,fm:gw.fm,fr:gw.fr,frd:frd,thetaW:thetaW*180/Math.PI,kD:kDw,phirn:phirn},
+    det:eq2([['f_h = ΣH/L_g ; f_v = ΣV/L_g ; f_m = 6M_a-a/L_g²',f2(gw.fh)+' / '+f2(gw.fv)+' / '+f2(gw.fm)+' k/in'],
+      ['f_r (elastic vector, gov case '+gw.id+')',f2(gw.fr)+' k/in'],
+      ['f_rd = 1.25·f_r (DG29, once)',f2(frd)+' k/in'],
+      ['θ_w = atan2(f_v+f_m, f_h)',f2(thetaW*180/Math.PI)+'°'],
+      ['k_D = 1 + 0.5·sin^1.5 θ_w',f3(kDw)],
+      ['φr_n = n·0.75·0.6·F_EXX·k_D·0.707w',f2(phirn)+' k/in']],frd/phirn)});
+
+  /* ---------- GROUP: CHEVRON EFFECT ---------- */
+  add({grp:'Chevron Effect — local web shear &amp; moment (Fortney &amp; Thornton EJ 2017)'});
+  var chE=CASES.map(function(cs){return {id:cs.id,cv:chevron({L:P.L,a:P.xwp,Lg:P.Lg,eb:eb,dlt:P.delta,SVt:cs.SVt,SVb:0,SHt:cs.SHt,SHb:0})};});
+  var gV=chE[0],gM=chE[0];
+  chE.forEach(function(e){if(Math.abs(e.cv.Vmax)>Math.abs(gV.cv.Vmax))gV=e;if(Math.abs(e.cv.Mmax)>Math.abs(gM.cv.Mmax))gM=e;});
+  // capacity: web shear per G2  phiVn=1.0*0.6*Fyw*(d*tw)  (local region)
+  var phiVn=1.00*0.60*P.Fyb*(d*P.twb);
+  add({n:'Chevron local web shear V_max',nt:'Eq 33 · §G2',r:'F&amp;T EJ 2017 · §G2.1',
+    dem:Math.abs(gV.cv.Vmax),cap:phiVn,dc:Math.abs(gV.cv.Vmax)/phiVn,status:Math.abs(gV.cv.Vmax)<=phiVn?'pass':'fail',
+    det:eq2([['gov case',gV.id],['R1 = −ΣV_T·b/L',f2(gV.cv.R1)+' k'],['w_l',f3(gV.cv.wl)+' k/in'],
+      ['V_max = R1 + 0.5·w_l·L_g',f1(gV.cv.Vmax)+' k'],['φV_n = 1.0·0.6·F_y·d·t_w',f1(phiVn)+' k'],
+      ['L_g,eq (dominance, Δ=0)',fin(gV.cv.Lgeq)?f1(gV.cv.Lgeq)+' in':'—'],
+      ['conn-designer V = 2M_T/L_g',f1(gV.cv.Vconn)+' k'] ],Math.abs(gV.cv.Vmax)/phiVn)});
+  // local moment: reported as info/demand feeding H1; check against local web bending phiMn=0.9*Fy*(tw*(Lg)^2/6) region strip -- conservative, use as info
+  add({n:'Chevron local web moment M_max',nt:'Eq 30/34',r:'F&amp;T EJ 2017',info:true,
+    dem:Math.abs(gM.cv.Mmax),cap:null,dc:null,status:'info',
+    det:eq2([['gov case',gM.id],['x1 (Eq 28)',f2(gM.cv.x1)+' in'],['M_T = (M_a-a)t+(M_a-a)b',f1(gM.cv.MT)+' k-in'],
+      ['M_max (local, Eq 30/34)',f1(gM.cv.Mmax)+' k-in'],
+      ['→ combined with global M in §H1 below'+(P.coincident?' (coincident)':' (checked separately)'),''] ],null)});
+
+  /* ---------- GROUP: COMBINED WEB J10 ---------- */
+  add({grp:'Combined Web Region — column P_u + brace V (§J10.2/§J10.3, conservative rule)'});
+  // demand each case = Pu_col (comp+) + brace vertical component on web (down=+adds)
+  var j10cases=CASES.map(function(cs){
+    var Vweb=-cs.SVt; // downward brace vertical adds to web compression; SVt up(+) relieves
+    return {id:cs.id, dem:P.Pu_col+Vweb};});
+  var jgov=j10cases[0].dem>=j10cases[1].dem?j10cases[0]:j10cases[1];
+  // coincident ⇔ same centroid AND same footprint (plan: "concentric/fully coincident"):
+  // |xcol − xwp| ≤ 0.5 in AND |Lg − lb_col| ≤ 0.5 in. Everything else → conservative bound + REVIEW.
+  var coincident=(Math.abs(P.xcol-P.xwp)<=0.5)&&(Math.abs(P.Lg-P.lb_col)<=0.5);
+  var y102col=j102(S,P.Fyb,P.xcol,P.lb_col), y103col=j103(S,P.Fyb,P.xcol,P.lb_col); // single-patch caps at the column location (feed §J10.8 stiffener weld demand)
+  // weakest single-patch (adverse): use end-branch capacities if any patch near end OR force end branch conservatively when not coincident
+  var xForCap=coincident?P.xcol:Math.min(P.xcol,d*0.4); // adverse position when not coincident
+  var lbForCap=coincident?P.lb_col:Math.min(P.lb_col,P.Lg); // smallest N
+  var y102=j102(S,P.Fyb,xForCap,lbForCap), y103=j103(S,P.Fyb,xForCap,lbForCap);
+  var revNote=coincident?'':' — REVIEW: patches NOT coincident; AISC J10 gives no interaction rule, conservative bound used.';
+  add({n:'Combined web local yielding',nt:'§J10.2 '+y102.branch,r:'AISC 360-22 §J10.2',
+    dem:jgov.dem,cap:y102.phiRn,dc:jgov.dem/y102.phiRn,status:(jgov.dem<=y102.phiRn)?(coincident?'pass':'review'):'fail',
+    det:eq2([['gov case',jgov.id],['ΣP = P_u,col + V_brace,web',f1(jgov.dem)+' k'],
+      ['C = '+y102.C+' ('+y102.branch+'), l_b='+f2(lbForCap),''],
+      ['φR_n = 1.0·F_yw·t_w·(C·k_des + l_b)',f1(y102.phiRn)+' k'+revNote]],jgov.dem/y102.phiRn)});
+  add({n:'Combined web local crippling',nt:'§J10.3 '+y103.branch,r:'AISC 360-22 §J10.3',
+    dem:jgov.dem,cap:y103.phiRn,dc:jgov.dem/y103.phiRn,status:(jgov.dem<=y103.phiRn)?(coincident?'pass':'review'):'fail',
+    det:eq2([['gov case',jgov.id],['ΣP',f1(jgov.dem)+' k'],['branch',y103.branch],
+      ['φR_n = 0.75·R_n(§J10.3)',f1(y103.phiRn)+' k'+revNote]],jgov.dem/y103.phiRn)});
+
+  /* ---------- GROUP: BEAM AXIAL + FLEXURE ---------- */
+  add({grp:'Beam Axial + Flexure (§H1, bare steel collector)'});
+  var SHT_gov=Math.max(Math.abs(P.Pu_T*cth),Math.abs(P.Pu_C*cth));
+  var Pc=(P.Pc_ovr>0)?P.Pc_ovr:0.90*P.Fyb*S[0];
+  var Mloc=Math.abs(gM.cv.Mmax);
+  var Mr=P.coincident?(Math.abs(P.Mu_g)+Mloc):Math.max(Math.abs(P.Mu_g),Mloc);
+  var Mc=0.90*P.Fyb*S[6];
+  var ratio=(SHT_gov/Pc>=0.2)?(SHT_gov/Pc+8/9*(Mr/Mc)):(SHT_gov/(2*Pc)+Mr/Mc);
+  // Pc default = 0.90FyAg is a YIELD value, not a Chapter E compression capacity (deviation D-3).
+  // Collector envelopes a compression case → a passing ratio with the defaulted Pc is REVIEW, not PASS.
+  var h1st=(ratio<=1.0)?((P.Pc_ovr>0)?'pass':'review'):'fail';
+  add({n:'Beam axial + flexure interaction',nt:'§H1-1'+(SHT_gov/Pc>=0.2?'a':'b'),r:'AISC 360-22 §H1.1',
+    dem:ratio,cap:1.0,dc:ratio,status:h1st,
+    det:eq2([['P_r = ΣH_T (collector, bare steel)',f1(SHT_gov)+' k'],['P_c = φF_y A_g'+(P.Pc_ovr>0?' (override)':''),f1(Pc)+' k'],
+      ['M_r = M_global '+(P.coincident?'+':'/')+' M_chevron',f1(Mr)+' k-in'],['M_c = 0.90·F_y·Z_x',f1(Mc)+' k-in'],
+      ['interaction',f3(ratio)],
+      (P.Pc_ovr>0?['P_c from RISA/Ch.E override','']:['REVIEW: Pc defaulted to φFyAg (yield); enter RISA/Ch.E Pc for a design value',''])],ratio)});
+
+  /* ---------- GROUP: STIFFENER / GUSSET DUAL-PURPOSE ELEMENT ---------- */
+  add({grp:'Stiffener / Gusset — final single-element design (§J10.8, §J7, §J2 + dual-purpose)'});
+  notes.push('This stiffener/gusset element — not Calc 1’s preliminary sizing — is the final detail for the node.');
+  // J10.8 cruciform column — web strip 12tw at member ends (spec p.16.1-223), 25tw interior.
+  // Near-end convention: xcol < d/2 → end (12tw); else interior (25tw).
+  var h=d-2*S[5];
+  var crEnd=(P.xcol<d/2), strip=crEnd?12:25;
+  var Ast=2*(P.bst*P.tst)+ (strip*P.twb)*P.twb; // two stiffeners + web strip
+  var Ist=(P.tst*Math.pow(2*P.bst+P.twb,3))/12;
+  var rst=Math.sqrt(Ist/Ast), KLr8=0.75*h/rst, Fcr8=fcrE3(P.Fyst,KLr8), phiPn8=0.90*Fcr8*Ast;
+  add({n:'Stiffener cruciform column',nt:'§J10.8 (0.75h, '+strip+'t_w '+(crEnd?'end':'interior')+')',r:'AISC 360-22 §J10.8',
+    dem:jgov.dem,cap:phiPn8,dc:jgov.dem/phiPn8,status:jgov.dem<=phiPn8?'pass':'fail',
+    dat:{Ast:Ast,strip:strip,phiPn:phiPn8},
+    det:eq2([['effective length 0.75h','0.75·'+f2(h)+' = '+f2(0.75*h)+' in'],
+      ['web strip = '+strip+'t_w ('+(crEnd?'x_col < d/2 → member end, 12t_w':'x_col ≥ d/2 → interior, 25t_w')+')',''],
+      ['A_st (2 stiff + '+strip+'t_w web)',f2(Ast)+' in²'],
+      ['KL/r',f2(KLr8)],['F_cr',f2(Fcr8)+' ksi'],['φP_n',f1(phiPn8)+' k']],jgov.dem/phiPn8)});
+  // J7 bearing
+  var phiBr=0.75*1.8*P.Fyst*P.Apb;
+  add({n:'Stiffener bearing',nt:'§J7',r:'AISC 360-22 §J7',
+    dem:jgov.dem,cap:phiBr,dc:jgov.dem/phiBr,status:jgov.dem<=phiBr?'pass':'fail',
+    det:eq2([['φR_n = 0.75·1.8·F_y·A_pb','0.75·1.8·'+P.Fyst+'·'+f2(P.Apb)],['',f1(phiBr)+' k']],jgov.dem/phiBr)});
+  // width-thickness
+  var wtLim=0.56*Math.sqrt(E/P.Fyst), wtAct=P.bst/P.tst;
+  add({n:'Stiffener width-thickness',nt:'Table B4.1 / §J10.8',r:'AISC 360-22 B4.1',
+    dem:wtAct,cap:wtLim,dc:wtAct/wtLim,status:wtAct<=wtLim?'pass':'fail',
+    det:eq2([['b_st/t_st',f2(wtAct)],['0.56√(E/F_y)',f2(wtLim)]],wtAct/wtLim)});
+  // dual-purpose combined von Mises
+  var sGus=Math.abs(SHT_gov)/(P.tg*P.Lg)+6*Math.abs(gM.cv.Maat)/(P.tg*P.Lg*P.Lg);
+  var tauG=Math.abs(jgov.dem-P.Pu_col)/(P.tg*P.Lg); // brace vertical shear on element
+  var sBear=P.Pu_col/(P.tg*Math.max(P.lb_col,0.1));
+  function vm(sx,sy,t){return Math.sqrt(sx*sx-sx*sy+sy*sy+3*t*t);}
+  var svm=Math.max(vm(sGus,sBear,tauG),vm(sGus,-sBear,tauG)), phiFyv=0.90*P.Fyg;
+  add({n:'Dual-purpose combined stress (von Mises)',nt:'build-spec §8.1',r:'§J4 · §J7 interaction',
+    dem:svm,cap:phiFyv,dc:svm/phiFyv,status:svm<=phiFyv?'pass':'fail',
+    det:eq2([['σ_gusset = ΣH/(t_g L_g)+6M_a-a/(t_g L_g²)',f2(sGus)+' ksi'],
+      ['σ_bearing = P_col/(t_g·l_b)',f2(sBear)+' ksi'],['τ = V/(t_g L_g)',f2(tauG)+' ksi'],
+      ['σ_vm (worse of ± assembly)',f2(svm)+' ksi'],['φ·F_y = 0.90·F_y',f2(phiFyv)+' ksi']],svm/phiFyv)});
+  // stiffener-to-web weld (§J2.4 / §J10.8): two-sided fillets on two stiffeners, length 0.9h
+  // each side per stiffener → 4 lines × 0.9h. Demand = transmitted difference per §J10.8:
+  // the force the web CANNOT take at the column patch (jgov − min single-patch J10 capacity).
+  var perinST=0.75*0.60*P.FEXX*(0.707*P.wst); // kD = 1.0 (transverse conservatism omitted — conservative)
+  var Lstw=0.9*h, capSTW=4*Lstw*perinST;
+  var demSTW=Math.max(0,jgov.dem-Math.min(y102col.phiRn,y103col.phiRn));
+  add({n:'Stiffener-to-web weld',nt:'§J2.4 · §J10.8 (kD=1.0)',r:'AISC 360-22 §J2.4 · §J10.8',
+    dem:demSTW,cap:capSTW,dc:demSTW/capSTW,status:demSTW<=capSTW?'pass':'fail',
+    dat:{dem:demSTW,cap:capSTW,perin:perinST,Lstw:Lstw},
+    det:eq2([['weld length = 4 lines × 0.9h','4 × '+f2(Lstw)+' = '+f2(4*Lstw)+' in'],
+      ['φr_n = 0.75·0.6·F_EXX·0.707·w_st (k_D=1.0, transverse increase conservatively omitted)',f2(perinST)+' k/in'],
+      ['φR_n = 4·0.9h·φr_n',f1(capSTW)+' k'],
+      ['demand = max(0, ΣP − min(φR_n,J10.2, φR_n,J10.3) at column patch) per §J10.8',f1(demSTW)+' k']],demSTW/capSTW)});
+  // stiffener-to-flange weld (§J2.4): 4 lines × bst; demand = full ΣP (conservative)
+  var capSTF=4*P.bst*perinST;
+  add({n:'Stiffener-to-flange weld',nt:'§J2.4 (kD=1.0)',r:'AISC 360-22 §J2.4',
+    dem:jgov.dem,cap:capSTF,dc:jgov.dem/capSTF,status:jgov.dem<=capSTF?'pass':'fail',
+    dat:{dem:jgov.dem,cap:capSTF},
+    det:eq2([['weld length = 4 lines × b_st','4 × '+f2(P.bst)+' = '+f2(4*P.bst)+' in'],
+      ['φr_n (k_D=1.0, transverse increase conservatively omitted)',f2(perinST)+' k/in'],
+      ['φR_n = 4·b_st·φr_n',f1(capSTF)+' k'],
+      ['demand = ΣP (full delivered concentrated force — conservative)',f1(jgov.dem)+' k']],jgov.dem/capSTF)});
+  // shared weld line (build-spec §8.1) — NUMERIC: vector-sum the gusset-to-beam per-inch
+  // resultant and the stiffener-to-web per-inch demand on the shared line, check vs §J2.4.
+  var fvStiff=demSTW/(4*Lstw);
+  var frShared=Math.sqrt((gw.fv+gw.fm+fvStiff)*(gw.fv+gw.fm+fvStiff)+gw.fh*gw.fh);
+  var frdShared=1.25*frShared;
+  var thWs=Math.atan2(gw.fv+gw.fm+fvStiff,gw.fh), kDs=1+0.5*Math.pow(Math.sin(thWs),1.5);
+  var capShared=P.wsides*0.75*0.60*P.FEXX*kDs*(0.707*P.wweld);
+  add({n:'Shared stiffener/gusset weld line',nt:'§J2.4 vector sum',r:'AISC 360-22 §J2.4 · build-spec §8.1',
+    dem:frdShared,cap:capShared,dc:frdShared/capShared,status:frdShared<=capShared?'pass':'fail',
+    dat:{frd:frdShared,cap:capShared,fvStiff:fvStiff},
+    det:eq2([['f_v,stiff = stiffener-to-web demand / weld length',f3(fvStiff)+' k/in'],
+      ['f_r,shared = √((f_v,gus+f_m+f_v,stiff)² + f_h²)',f2(frShared)+' k/in'],
+      ['f_rd = 1.25·f_r,shared (DG29, once)',f2(frdShared)+' k/in'],
+      ['φr_n (k_D at resultant angle '+f2(thWs*180/Math.PI)+'°)',f2(capShared)+' k/in'],
+      ['shared line not double-counted: gusset + stiffener per-inch demands vector-summed (build-spec §8.1)','']],frdShared/capShared)});
+
+  /* ---------- GROUP: MODEL (b) — through-plate to HSS ---------- */
+  if(P.model==='b'){
+    add({grp:'Model (b) — Through-Plate to HSS Column [EXPLORATORY — NOT DESIGN VALUES]'});
+    // gate: complete inputs?
+    var need=[['tp_thru',P.tp_thru],['tcol',P.tcol],['Bcol',P.Bcol],['Nplate',P.Nplate]];
+    var missing=need.filter(function(x){return !(x[1]>0);}).map(function(x){return x[0];});
+    if(missing.length){errors.push('Model (b) BLOCKED — through-plate inputs incomplete: '+missing.join(', ')+'.');
+      return {checks:checks,notes:notes,errors:errors,expl:expl,blockedB:true};}
+    // validity limits DG24 Table 7-2A
+    var Bt=P.Bcol/P.tcol, Ht=(P.Hcol>0?P.Hcol:P.Bcol)/P.tcol;
+    var vio=[];
+    if(P.theta<30)vio.push('θ<30°'); if(Bt>40)vio.push('B/t>40'); if(Ht>40)vio.push('H/t>40');
+    if(P.Fycol>52)vio.push('Fy>52 ksi'); if(P.Fycol/P.Fucol>0.8)vio.push('Fy/Fu>0.8');
+    if(vio.length){errors.push('Model (b) BLOCKED — DG24 Table 7-2A validity exceeded: '+vio.join(', ')+'.');
+      return {checks:checks,notes:notes,errors:errors,expl:expl,blockedB:true};}
+    // Qf per AISC 360-22 Eq K1-3 (longitudinal plate, chord wall in compression):
+    // Qf = 1 − 0.3·U·(1+U) ≤ 1.0
+    var Qf=(P.wallState==='ten')?1.0:Math.min(1.0,Math.max(0,1-0.3*P.Uchord*(1+P.Uchord)));
+    var tp=P.tp_thru,t=P.tcol,B=P.Bcol,N=P.Nplate,sthc=Math.sin(P.theta*Math.PI/180);
+    // wall plastification (through-plate ×2)
+    var Rn_wp=(2*P.Fycol*t*t/(1-tp/B))*(2*N/B+4*Math.sqrt(1-tp/B))*Qf;
+    var phi_wp=1.00*Rn_wp/sthc;
+    add({n:'HSS wall plastification (through-plate)',nt:'§K1 · DG24 T7-2',r:'AISC 360-22 §K1',expl:true,
+      dem:Pmax,cap:phi_wp,dc:Pmax/phi_wp,status:Pmax<=phi_wp?'review':'fail',
+      dat:{Qf:Qf,cap:phi_wp},
+      det:eq2([['Q_f = 1 − 0.3·U·(1+U) ≤ 1.0 (Eq K1-3; =1.0 wall in tension)',f3(Qf)],
+        ['R_n·sinθ = 2F_y t²/(1−t_p/B)·(2N/B+4√(1−t_p/B))·Q_f',''],
+        ['φR_n = 1.00·R_n/sinθ',f1(phi_wp)+' k [EXPLORATORY]']],Pmax/phi_wp)});
+    // sidewall local yielding
+    var Rn_sw=(5*tp+N<B)?2*P.Fycol*t*(5*tp+N):P.Fycol*(2*(P.Hcol>0?P.Hcol:B)*t);
+    var phi_sw=1.00*Rn_sw/sthc;
+    add({n:'HSS sidewall local yielding',nt:'§K1.6',r:'AISC 360-22 §K1',expl:true,
+      dem:Pmax,cap:phi_sw,dc:Pmax/phi_sw,status:Pmax<=phi_sw?'review':'fail',
+      det:eq2([['φR_n = 2F_y t(5t_p+N)/sinθ',f1(phi_sw)+' k [EXPLORATORY]']],Pmax/phi_sw)});
+    // punching shear — perimeter model (DG24 Ch.7), NOT a line-item §K1 equation
+    var Rn_ps=0.60*P.Fycol*t*(2*N+2*tp), phi_ps=0.75*Rn_ps/sthc;
+    add({n:'HSS wall punching shear (perimeter model)',nt:'DG24 Ch.7 perimeter',r:'DG24 Ch.7 perimeter model (exploratory)',expl:true,
+      dem:Pmax,cap:phi_ps,dc:Pmax/phi_ps,status:Pmax<=phi_ps?'review':'fail',
+      det:eq2([['φR_n = 0.75·0.6F_y t(2N+2t_p)/sinθ',f1(phi_ps)+' k [EXPLORATORY]'],
+        ['perimeter shear model per DG24 Ch.7 — not a line-item §K1 equation; applicability limited to non-slender walls (§B4.1) and plate-thickness limits per K1-10 — engineer to verify','']],Pmax/phi_ps)});
+    notes.push('MODEL (b) is EXPLORATORY: the UFM force distribution assumes a continuous column; its extension to a terminating stub is an engineering model, not validated mechanics. All model (b) rows are NOT design values — engineer judgment governs.');
+  } else {
+    add({grp:'Gusset-to-HSS-Column Interface'});
+    add({n:'Gusset-to-HSS-column checks',nt:'omitted with reason',r:'model (a)',status:'na',dem:null,cap:null,dc:null,
+      det:'<div class="mrow">Model (a): the brace frames into the beam; no design load is assigned to the gusset-to-HSS-column interface. Any physical clip to the column is detailed non-load-bearing. Select model (b) to design a through-plate load path (exploratory).</div>'});
+  }
+
+  /* ---------- REVIEW gates ---------- */
+  add({grp:'Judgment Items (REVIEW gates)'});
+  add({n:'Transfer force to beam-end connections',nt:'Dowswell',r:'Dowswell (AISC)',status:'review',
+    dem:P.Ptransfer,cap:null,dc:null,
+    det:eq2([['Required transfer force',f1(P.Ptransfer)+' k'],['Delivery to far-end connections is a REVIEW gate (not designed here).','']],null)});
+  add({n:'Web sidesway / flange restraint at node',nt:'§J10.4',r:'AISC 360-22 §J10.4',status:'review',
+    dem:null,cap:null,dc:null,
+    det:'<div class="mrow">Slab blockout removes top-flange restraint at the load point; lateral restraint must be verified by the engineer (kicker/brace designed for the bracing force). REVIEW.</div>'});
+
+  return {checks:checks,notes:notes,errors:errors,expl:(P.model==='b')};
+}
+
+/* ---- detail-panel builders ---- */
+function eq(sym,sub,res,dc){
+  return '<div class="mrow"><span class="ceq">'+sym+'</span></div>'+
+    '<div class="mrow ind">= '+sub+' = <span class="cval">'+res+'</span></div>';
+}
+function eq2(rows,dc){
+  var s='';rows.forEach(function(r){s+='<div class="mrow"><span class="ceq">'+r[0]+'</span>'+(r[1]?' &nbsp;=&nbsp; <span class="cval">'+r[1]+'</span>':'')+'</div>';});
+  return s;
+}
+
+/* ============================ GATHER INPUTS ============================ */
+function gather(){
+  var t=hssType();
+  return {
+    model:modelSel(), hsstype:t,
+    W:W_DB[val('wshape')], Fyb:num('Fyb'), L:num('L'), xwp:num('xwp'),
+    Mu_g:num('Mu_g'), Vu_g:num('Vu_g'), coincident:val('coincident')==='1', Pc_ovr:num('Pc_ovr'),
+    twb:W_DB[val('wshape')][2],
+    Pu_col:num('Pu_col'), lb_col:num('lb_col'), xcol:num('xcol'),
+    Fyr:num('Fyr'), Fur:num('Fur'), theta:num('theta'), Pu_T:num('Pu_T'), Pu_C:num('Pu_C'),
+    lw:num('lw'), slot_gap:num('slot_gap'), wbr:num('wbr'), Agr:num('Agr'), tr:num('tr'), Br:num('Br'), Hr:num('Hr'),
+    tg:num('tg'), Fyg:num('Fyg'), Fug:num('Fug'), Lg:num('Lg'), wb:num('wb'),
+    Lcavg:num('Lcavg'), Kfac:parseFloat(val('Kfac')), Lfg:num('Lfg'), delta:num('delta'),
+    wweld:num('wweld'), FEXX:num('FEXX'), wsides:parseInt(val('wsides')),
+    bst:num('bst'), tst:num('tst'), Fyst:num('Fyst'), Apb:num('Apb'), wst:num('wst'),
+    tp_thru:num('tp_thru'), tcol:num('tcol'), Bcol:num('Bcol'), Hcol:num('Hcol'), Nplate:num('Nplate'),
+    Fycol:num('Fycol'), Fucol:num('Fucol'), wallState:val('wallState'), Uchord:num('Uchord'),
+    Ptransfer:num('Ptransfer')
+  };
+}
+function fingerprint(P){
+  var s=[P.nodeId,val('wshape'),P.Fyb,P.L,P.xwp,P.Pu_col,val('braceSize'),P.Pu_T,P.Pu_C,P.theta,P.tg,P.Lg,P.model].join('|');
+  return fnv1a(s);
+}
+// Shared-node fingerprint — IDENTICAL algorithm+field set in Calcs 1/2/3 (FNV-1a 32-bit,
+// lowercase 8-hex over 'SNFP|nodeId|project|rev|Wshape|Fy_beam|L_in|x_node_in|Pu_col').
+// Node station = work point x; column load = Pu_col. Fixture: C2-FP-1.
+function sharedFingerprint(nodeId,proj,rv,wshape,Fy,L_in,x_in,Pu){
+  var nn=function(v){var x=parseFloat(v);return isFinite(x)?String(x):'';};
+  var s=['SNFP',String(nodeId).trim(),String(proj).trim(),String(rv).trim(),String(wshape).trim(),nn(Fy),nn(L_in),nn(x_in),nn(Pu)].join('|');
+  return fnv1a(s);
+}
+
+/* ============================ RENDER ============================ */
+var detCtr=0;
+function toggleDet(id){var r=document.getElementById(id);r.classList.toggle('open');}
+function statusCell(st){
+  if(st==='pass')return '<span class="pass">PASS</span>';
+  if(st==='fail')return '<span class="fail">FAIL</span>';
+  if(st==='review')return '<span class="review">REVIEW</span>';
+  if(st==='na')return '<span class="na">N/A</span>';
+  return '<span class="na">Info</span>';
+}
+function render(P,res){
+  var body=document.getElementById('chkBody');body.innerHTML='';detCtr=0;
+  var errBox=document.getElementById('errBox');errBox.innerHTML='';
+  if(res.errors&&res.errors.length){
+    errBox.innerHTML='<div class="err-box"><strong>&#9888; Blocking input errors — no results:</strong><ul>'+
+      res.errors.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul></div>';
+  }
+  var maxDC=0, anyFail=false, reviewCount=0;
+  res.checks.forEach(function(c){
+    if(c.grp){body.innerHTML+='<tr class="grp-row"><td colspan="7">'+c.grp+'</td></tr>';return;}
+    var st=c.status;
+    if(st==='fail')anyFail=true; if(st==='review')reviewCount++;
+    if(c.dc!=null&&fin(c.dc))maxDC=Math.max(maxDC,c.dc); // ALL finite D/C values count toward the banner max (incl. REVIEW/info rows)
+    var rowc=(st==='fail')?'fail-row':(st==='pass')?'pass-row':(st==='review')?'review-row':(st==='na')?'na-row':'info-row';
+    var dc=c.dc, col=(dc==null||!fin(dc))?'#9ca3af':dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
+    var dct=(dc==null||!fin(dc))?'<span class="na">&mdash;</span>':'<span style="color:'+col+';font-weight:700">'+f3(dc)+'</span>';
+    var bar=(dc==null||!fin(dc))?'':'<div class="dc-bar"><div class="dc-fill" style="width:'+Math.min(dc*100,150)+'%;background:'+col+'"></div></div>';
+    var id='d'+(detCtr++);
+    var expl=c.expl?' <span class="badge-purple">EXPLORATORY</span>':'';
+    body.innerHTML+='<tr class="'+rowc+'"><td><strong>'+c.n+'</strong>'+expl+'</td>'+
+      '<td style="font-size:.8em"><code style="background:#eef2ff;padding:1px 5px;border-radius:3px;color:#3730a3">'+c.r+'</code></td>'+
+      '<td>'+(c.dem==null?'&mdash;':f1(c.dem))+'</td><td>'+(c.cap==null?'&mdash;':f1(c.cap))+'</td>'+
+      '<td><div class="dc-cell">'+dct+bar+'</div></td><td>'+statusCell(st)+'</td>'+
+      '<td>'+(c.det?'<button class="det-btn" onclick="toggleDet(\''+id+'\')">&#9654; Calc</button>':'')+'</td></tr>'+
+      (c.det?'<tr class="det-row"><td colspan="7"><div class="calc-det" id="'+id+'"><div class="cref-hdr">'+c.n+' &mdash; '+c.r+'</div>'+c.det+'</div></td></tr>':'');
+  });
+
+  // banner (three-state)
+  var ob=document.getElementById('overallBanner');
+  var blocked=res.errors&&res.errors.length;
+  if(blocked){ob.className='overall-banner sum-fail';ob.innerHTML='<strong>&#9888; BLOCKED</strong> &mdash; fix input errors above.';}
+  else if(anyFail){ob.className='overall-banner sum-fail';ob.innerHTML='<strong>&#10007; FAIL</strong> &mdash; one or more limit states exceeded &middot; Max D/C = <strong>'+f2(maxDC)+'</strong>';}
+  else if(reviewCount>0||res.expl){ob.className='overall-banner sum-review';ob.innerHTML='<strong>&#9888; REVIEW REQUIRED ('+(reviewCount)+' item'+(reviewCount===1?'':'s')+')</strong> &mdash; no FAIL, but engineer judgment items are open &middot; Max D/C = <strong>'+f2(maxDC)+'</strong>';}
+  else{ob.className='overall-banner sum-pass';ob.innerHTML='<strong>&#10003; PASS</strong> &mdash; all checks satisfied &middot; Max D/C = <strong>'+f2(maxDC)+'</strong>';}
+
+  // exploratory watermark
+  var ew=document.getElementById('explWatermark');
+  ew.innerHTML=res.expl?'<div class="expl-watermark">MODEL (b) ACTIVE &mdash; EXPLORATORY, NOT DESIGN VALUES. The banner can never read plain PASS under model (b); validity of the UFM extension to a terminating column rests with the engineer.</div>':'';
+
+  // demand cards
+  var dg=document.getElementById('demCards');dg.innerHTML='';
+  var cards=[
+    {v:f1(Math.max(P.Pu_T,P.Pu_C)),l:'Brace P_u (gov)\nkips'},
+    {v:f1(P.Pu_col),l:'Column P_u\nkips'},
+    {v:P.theta+'&deg;',l:'Brace angle θ'},
+    {v:maxDC>0?f2(maxDC):'—',l:'Max D/C',cls:maxDC>1?'bad':maxDC>0.8?'warn':'ok'},
+    {v:reviewCount,l:'REVIEW items',cls:reviewCount>0?'warn':'ok'}
+  ];
+  cards.forEach(function(c){dg.innerHTML+='<div class="dem-card '+(c.cls||'')+'"><div class="v">'+c.v+'</div><div class="l">'+c.l.replace(/\n/g,'<br>')+'</div></div>';});
+
+  // notes
+  var nb=document.getElementById('notes');
+  nb.innerHTML='<h3>Engineering Notes &amp; Assumptions</h3><ul>'+
+    ['Model (a) [gusset-to-beam only] is the defensible default and the only model whose outputs are design values.',
+     'Chevron local web shear/moment per Fortney &amp; Thornton EJ 2017 — validated to the paper’s Example 1 within 1% (see docs/steel-node/validate-calc2-chevron.mjs).',
+     'Collector force taken in the BARE steel section (slab blocked out at the node) — conservative, per plan.',
+     'Combined J10: only concentric/coincident patches sum against a single-patch capacity; all other configurations get a conservative bound + REVIEW (AISC J10 has no multi-patch interaction rule).',
+     'This stiffener/gusset element is the FINAL detail; Calc 1’s sizing is preliminary.',
+     'Brace T and C entered as separate signed cases; every limit state enveloped over both.'
+    ].concat(res.notes||[]).map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul>';
+
+  // provenance
+  var fp=fingerprint(Object.assign({nodeId:val('nodeId')},P));
+  var fpShared=sharedFingerprint(val('nodeId'),val('project'),val('revision'),val('wshape'),P.Fyb,P.L,P.xwp,P.Pu_col);
+  document.getElementById('prov').innerHTML=
+    'Brace Connection at Column-on-Beam Node v1.0.0 | AISC 360-22 LRFD | AISC Shapes v16.0 | SHA-256: 4630ad2f9937ce9f15b131aa117d28537fc808ebce202862e52dde7a8741d01e<br>'+
+    'Date: '+new Date().toISOString().slice(0,10)+' | Node ID: '+val('nodeId')+' | Project: '+val('project')+' Rev '+val('revision')+
+    ' | Shared-node fingerprint: '+fpShared+' (must match Calcs 1/3) | Calc-local fingerprint: '+fp+' (Calc 2 only)<br>'+
+    'Assumptions: model '+P.model+' ; brace '+P.hsstype+' HSS ; θ='+P.theta+'&deg; ; collector in bare steel ; units kip-in-ksi-deg.';
+
+  drawSchematic(P,res);
+  document.getElementById('results').classList.add('show');
+  return {maxDC:maxDC,anyFail:anyFail,reviewCount:reviewCount,blocked:blocked,banner:blocked?'BLOCKED':anyFail?'FAIL':(reviewCount>0||res.expl)?'REVIEW':'PASS'};
+}
+
+/* ============================ SCHEMATIC ============================ */
+function drawSchematic(P,res){
+  var d=P.W[1];
+  var elev='<svg viewBox="0 0 400 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<line x1="20" y1="120" x2="380" y2="120" stroke="#1e3c72" stroke-width="3"/>'+
+    '<text x="200" y="112" font-size="10" text-anchor="middle" fill="#1e3c72">Beam '+val('wshape')+'  (span L='+P.L+'")</text>'+
+    '<rect x="175" y="70" width="50" height="50" fill="#dbeafe" stroke="#2a5298"/>'+
+    '<text x="200" y="60" font-size="9" text-anchor="middle" fill="#2a5298">HSS column P_u='+f1(P.Pu_col)+'k</text>'+
+    '<line x1="200" y1="70" x2="200" y2="30" stroke="#dc2626" stroke-width="2"/><polygon points="196,40 204,40 200,30" fill="#dc2626"/>'+
+    // brace
+    '<line x1="200" y1="120" x2="140" y2="180" stroke="#d97706" stroke-width="3"/>'+
+    '<text x="150" y="176" font-size="9" fill="#d97706">brace θ='+P.theta+'&deg;</text>'+
+    // gusset
+    '<polygon points="175,120 225,120 235,150 165,150" fill="#fef3c7" stroke="#d97706"/>'+
+    '<text x="200" y="140" font-size="8" text-anchor="middle" fill="#92400e">gusset L_g='+P.Lg+'"</text>'+
+    // eb arrow
+    '<line x1="300" y1="120" x2="300" y2="150" stroke="#7c3aed" stroke-width="1.5"/>'+
+    '<text x="305" y="140" font-size="9" fill="#7c3aed">e_b=d/2='+f1(d/2)+'"</text>'+
+    '<text x="30" y="135" font-size="9" fill="#1e3c72">R1</text><text x="360" y="135" font-size="9" fill="#1e3c72">R2</text>'+
+    '<text x="200" y="205" font-size="8" text-anchor="middle" fill="#555">+ up / right &amp; CW moment (F&amp;T sign convention)</text>'+
+    '</svg>';
+  var plan='<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<line x1="200" y1="20" x2="200" y2="180" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4"/>'+
+    '<text x="205" y="30" font-size="8" fill="#64748b">beam web line</text>'+
+    '<rect x="170" y="80" width="60" height="'+Math.max(P.lb_col*4,20)+'" fill="#dbeafe" stroke="#2a5298"/>'+
+    '<text x="200" y="76" font-size="8" text-anchor="middle" fill="#2a5298">column patch l_b='+P.lb_col+'"</text>'+
+    '<rect x="160" y="120" width="80" height="14" fill="#fef3c7" stroke="#d97706"/>'+
+    '<text x="200" y="150" font-size="8" text-anchor="middle" fill="#92400e">gusset patch L_g='+P.Lg+'"</text>'+
+    '<text x="200" y="195" font-size="8" text-anchor="middle" fill="#555">column x='+P.xcol+'"  ·  w.p. x='+P.xwp+'"</text>'+
+    '</svg>';
+  document.getElementById('svgElev').innerHTML=elev;
+  document.getElementById('svgPlan').innerHTML=plan;
+
+  /* ---- Component sketches (separate boxes so dimensions never overlap) ---- */
+  var st_set=num('st_set'), bst=P.bst, tst=P.tst, tw=P.twb, bf=P.W[3], tg=P.tg;
+  var Lw_w=P.wb+2*P.lw*Math.tan(30*Math.PI/180);
+
+  // Component 1 — slotted brace end: SIDE view (lw, wbr, tip setback) + SECTION (slot width vs tg, wall t)
+  var braceSvg='<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<text x="10" y="16" font-size="10" font-weight="bold" fill="#1e3c72">SIDE VIEW (along gusset plane)</text>'+
+    // gusset plate strip
+    '<rect x="20" y="108" width="200" height="12" fill="#fef3c7" stroke="#d97706"/>'+
+    '<text x="24" y="134" font-size="8" fill="#92400e">gusset t_g='+f2(tg)+'"</text>'+
+    // HSS brace over the plate (slot region dashed)
+    '<rect x="80" y="78" width="130" height="72" fill="#e0e7ff" fill-opacity="0.75" stroke="#4338ca" stroke-width="2"/>'+
+    '<line x1="80" y1="108" x2="210" y2="108" stroke="#4338ca" stroke-dasharray="3,2"/>'+
+    '<line x1="80" y1="120" x2="210" y2="120" stroke="#4338ca" stroke-dasharray="3,2"/>'+
+    '<text x="88" y="72" font-size="9" fill="#4338ca">HSS brace (slot over gusset)</text>'+
+    // 4 weld marks at slot edges
+    '<polygon points="80,104 92,104 80,96" fill="#dc2626"/><polygon points="80,124 92,124 80,132" fill="#dc2626"/>'+
+    '<polygon points="210,104 198,104 210,96" fill="#dc2626"/><polygon points="210,124 198,124 210,132" fill="#dc2626"/>'+
+    '<text x="96" y="94" font-size="8" fill="#dc2626">4 fillet lines w_br='+f2(P.wbr)+'"</text>'+
+    // dims: lw and setback
+    '<line x1="80" y1="170" x2="210" y2="170" stroke="#333"/><line x1="80" y1="164" x2="80" y2="176" stroke="#333"/><line x1="210" y1="164" x2="210" y2="176" stroke="#333"/>'+
+    '<text x="145" y="184" font-size="9" text-anchor="middle">l_w = '+f2(P.lw)+'" (weld/slot engagement)</text>'+
+    '<line x1="20" y1="196" x2="80" y2="196" stroke="#7c3aed"/><line x1="20" y1="190" x2="20" y2="202" stroke="#7c3aed"/><line x1="80" y1="190" x2="80" y2="202" stroke="#7c3aed"/>'+
+    '<text x="22" y="212" font-size="9" fill="#7c3aed">s_t = '+f2(st_set)+'" (to flange, along axis)</text>'+
+    // SECTION A-A
+    '<text x="290" y="16" font-size="10" font-weight="bold" fill="#1e3c72">SECTION A-A</text>'+
+    '<rect x="290" y="60" width="110" height="110" fill="none" stroke="#4338ca" stroke-width="6"/>'+
+    '<rect x="290" y="106" width="110" height="18" fill="#fff" stroke="none"/>'+ // slot cuts through both walls
+    '<rect x="284" y="110" width="122" height="10" fill="#fef3c7" stroke="#d97706"/>'+ // gusset passing through
+    '<text x="292" y="52" font-size="8" fill="#4338ca">wall t='+f2(P.tr)+'"  B='+f2(P.Br)+'"  H/D='+f2(P.Hr)+'"</text>'+
+    '<line x1="416" y1="106" x2="416" y2="124" stroke="#333"/><line x1="410" y1="106" x2="422" y2="106" stroke="#333"/><line x1="410" y1="124" x2="422" y2="124" stroke="#333"/>'+
+    '<text x="290" y="188" font-size="9">slot cut = '+f2(P.slot_gap)+'" (each wall) ≥ t_g</text>'+
+    '<text x="290" y="204" font-size="8" fill="#555">A_n = A_g − 2·t·slot = '+f2(P.Agr)+' − 2·'+f2(P.tr)+'·'+f2(P.slot_gap)+'</text>'+
+    '</svg>';
+  document.getElementById('svgBrace').innerHTML=braceSvg;
+
+  // Component 2 — gusset plate geometry: Whitmore spread, L1/L2/L3, free edge, wb
+  var thg=P.theta*Math.PI/180;
+  var gx=340,gy=196; // point where brace centerline meets the flange line (y=196)
+  var ux=-Math.cos(thg),uy=-Math.sin(thg); // unit vector up the brace (toward tip, up-left)
+  var scl=6; // px per inch (schematic)
+  function bpt(s,t2){return [gx+ (s*ux) * scl + (-uy)*t2*scl, gy + (s*uy)*scl + (ux)*t2*scl];}
+  var w0=bpt(st_set,0), w1=bpt(st_set,-Lw_w/2), w2=bpt(st_set,Lw_w/2); // Whitmore line at s_t
+  var c0=bpt(st_set,-P.wb/2), c1=bpt(st_set,P.wb/2), c2=bpt(st_set+P.lw,P.wb/2), c3=bpt(st_set+P.lw,-P.wb/2);
+  var gusSvg='<svg viewBox="0 0 460 250" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<line x1="20" y1="196" x2="440" y2="196" stroke="#1e3c72" stroke-width="4"/>'+
+    '<text x="24" y="210" font-size="8" fill="#1e3c72">beam top flange (supported edge)</text>'+
+    // gusset outline (schematic trapezoid over Lg)
+    '<polygon points="'+(gx-P.Lg/2*scl)+',196 '+(gx+P.Lg/2*scl)+',196 '+(gx+P.Lg/6*scl)+',60 '+(gx-P.Lg/2*scl)+',60" fill="#fef3c7" fill-opacity="0.55" stroke="#d97706"/>'+
+    '<line x1="'+(gx-P.Lg/2*scl)+'" y1="218" x2="'+(gx+P.Lg/2*scl)+'" y2="218" stroke="#333"/>'+
+    '<text x="'+gx+'" y="232" font-size="9" text-anchor="middle">interface length L_g = '+f2(P.Lg)+'"</text>'+
+    // brace connection strip + Whitmore
+    '<polygon points="'+c0+' '+c1+' '+c2+' '+c3+'" fill="#e0e7ff" fill-opacity="0.8" stroke="#4338ca"/>'+
+    '<line x1="'+w1[0]+'" y1="'+w1[1]+'" x2="'+w2[0]+'" y2="'+w2[1]+'" stroke="#16a34a" stroke-width="2"/>'+
+    '<text x="'+Math.min(w2[0]+4,330)+'" y="'+(w2[1]-6)+'" font-size="8" fill="#16a34a">Whitmore L_w='+f2(Lw_w)+'"</text>'+
+    '<text x="'+Math.min(w2[0]+4,330)+'" y="'+(w2[1]+4)+'" font-size="8" fill="#16a34a">(w_b+2·l_w·tan30°)</text>'+
+    '<text x="'+(c2[0]+4)+'" y="'+(c2[1]-4)+'" font-size="8" fill="#4338ca">conn width w_b='+f2(P.wb)+'"</text>'+
+    // L1/L2/L3 lines to flange
+    '<line x1="'+w1[0]+'" y1="'+w1[1]+'" x2="'+(w1[0]+ (196-w1[1])/Math.tan(thg))+'" y2="196" stroke="#16a34a" stroke-dasharray="4,3"/>'+
+    '<line x1="'+w0[0]+'" y1="'+w0[1]+'" x2="'+(w0[0]+ (196-w0[1])/Math.tan(thg))+'" y2="196" stroke="#16a34a" stroke-dasharray="4,3"/>'+
+    '<line x1="'+w2[0]+'" y1="'+w2[1]+'" x2="'+(w2[0]+ (196-w2[1])/Math.tan(thg))+'" y2="196" stroke="#16a34a" stroke-dasharray="4,3"/>'+
+    '<text x="'+(w0[0]-120)+'" y="'+(w0[1]+26)+'" font-size="9" fill="#16a34a">L1/L2/L3 ∥ brace axis → L_c,avg='+f2(num('Lcavg'))+'"</text>'+
+    // free edge
+    '<text x="'+(gx-P.Lg/2*scl-4)+'" y="120" font-size="8" fill="#b45309" transform="rotate(-90 '+(gx-P.Lg/2*scl-4)+',120)">free edge L_fg='+f2(P.Lfg)+'"</text>'+
+    '<text x="30" y="30" font-size="9" fill="#555">brace axis θ='+P.theta+'° from horizontal</text>'+
+    '</svg>';
+  document.getElementById('svgGusset').innerHTML=gusSvg;
+
+  // Component 3 — stiffener pair at the beam cross-section
+  var sscl=Math.min(160/bf, 24); // px/in
+  var cxs=140, topY=60;
+  var stiffSvg='<svg viewBox="0 0 460 240" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<rect x="'+(cxs-bf/2*sscl)+'" y="'+topY+'" width="'+(bf*sscl)+'" height="10" fill="#dbeafe" stroke="#2a5298"/>'+ // top flange
+    '<rect x="'+(cxs-tw/2*sscl)+'" y="'+(topY+10)+'" width="'+(tw*sscl)+'" height="120" fill="#dbeafe" stroke="#2a5298"/>'+ // web
+    '<rect x="'+(cxs-bf/2*sscl)+'" y="'+(topY+130)+'" width="'+(bf*sscl)+'" height="10" fill="#dbeafe" stroke="#2a5298"/>'+ // bot flange
+    // stiffener pair
+    '<rect x="'+(cxs-tw/2*sscl-bst*sscl)+'" y="'+(topY+14)+'" width="'+(bst*sscl)+'" height="112" fill="#fecaca" fill-opacity="0.7" stroke="#b91c1c"/>'+
+    '<rect x="'+(cxs+tw/2*sscl)+'" y="'+(topY+14)+'" width="'+(bst*sscl)+'" height="112" fill="#fecaca" fill-opacity="0.7" stroke="#b91c1c"/>'+
+    // dims
+    '<line x1="'+(cxs-bf/2*sscl)+'" y1="44" x2="'+(cxs+bf/2*sscl)+'" y2="44" stroke="#333"/>'+
+    '<text x="'+cxs+'" y="38" font-size="9" text-anchor="middle">b_f = '+f2(bf)+'"</text>'+
+    '<text x="'+cxs+'" y="'+(topY+156)+'" font-size="9" text-anchor="middle">t_w = '+f2(tw)+'"</text>'+
+    '<line x1="'+(cxs+tw/2*sscl)+'" y1="'+(topY+186)+'" x2="'+(cxs+tw/2*sscl+bst*sscl)+'" y2="'+(topY+186)+'" stroke="#b91c1c"/>'+
+    '<text x="'+(cxs+tw/2*sscl+bst*sscl/2)+'" y="'+(topY+178)+'" font-size="9" text-anchor="middle" fill="#b91c1c">b_st='+f2(bst)+'" each</text>'+
+    '<text x="290" y="70" font-size="10" fill="#b91c1c" font-weight="bold">Stiffener pair (final element)</text>'+
+    '<text x="290" y="90" font-size="9">b_st = (b_f − t_w)/2</text>'+
+    '<text x="290" y="104" font-size="9">= ('+f2(bf)+'−'+f2(tw)+')/2 = '+f2((bf-tw)/2)+'"</text>'+
+    '<text x="290" y="120" font-size="9">t_st = '+f2(tst)+'"  ·  corner clip 0.75"</text>'+
+    '<text x="290" y="136" font-size="9">A_pb = 2(b_st−0.75)·t_st = '+f2(2*Math.max(bst-0.75,0)*tst)+' in²</text>'+
+    '<text x="290" y="152" font-size="8" fill="#555">(§J7 fitted bearing contact, auto-filled)</text>'+
+    '</svg>';
+  document.getElementById('svgStiff').innerHTML=stiffSvg;
+
+  // Component 4 — interface elevation: Lg, Δ offset, e_b, work point
+  var ifSvg='<svg viewBox="0 0 460 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto">'+
+    '<line x1="20" y1="120" x2="440" y2="120" stroke="#1e3c72" stroke-width="4"/>'+
+    '<text x="24" y="112" font-size="8" fill="#1e3c72">beam top flange</text>'+
+    '<line x1="20" y1="160" x2="440" y2="160" stroke="#94a3b8" stroke-dasharray="5,4"/>'+
+    '<text x="24" y="172" font-size="8" fill="#64748b">beam centerline (work-point line)</text>'+
+    // work point
+    '<circle cx="230" cy="160" r="4" fill="#7c3aed"/><text x="238" y="164" font-size="9" fill="#7c3aed">w.p.</text>'+
+    // gusset interface bar centered at wp + delta
+    '<rect x="'+(230+P.delta*scl-P.Lg/2*scl)+'" y="106" width="'+(P.Lg*scl)+'" height="14" fill="#fef3c7" stroke="#d97706"/>'+
+    '<text x="'+(230+P.delta*scl)+'" y="100" font-size="9" text-anchor="middle" fill="#92400e">gusset interface L_g='+f2(P.Lg)+'" (centroid marked)</text>'+
+    '<line x1="'+(230+P.delta*scl)+'" y1="106" x2="'+(230+P.delta*scl)+'" y2="130" stroke="#d97706" stroke-dasharray="2,2"/>'+
+    // delta dim
+    '<line x1="230" y1="188" x2="'+(230+Math.max(P.delta*scl,14))+'" y2="188" stroke="#7c3aed"/>'+
+    '<text x="'+(230+Math.max(P.delta*scl,14)+6)+'" y="192" font-size="9" fill="#7c3aed">Δ = '+f2(P.delta)+'" (interface centroid offset from w.p.)</text>'+
+    // e_b dim
+    '<line x1="60" y1="120" x2="60" y2="160" stroke="#16a34a"/><line x1="54" y1="120" x2="66" y2="120" stroke="#16a34a"/><line x1="54" y1="160" x2="66" y2="160" stroke="#16a34a"/>'+
+    '<text x="70" y="144" font-size="9" fill="#16a34a">e_b = d/2 = '+f1(P.W[1]/2)+'"</text>'+
+    '<text x="24" y="24" font-size="8" fill="#555">Interface forces H, V act at the flange face, eccentric e_b from the beam N.A.;</text>'+
+    '<text x="24" y="36" font-size="8" fill="#555">Δ shifts the interface centroid off the work point (both feed M_a-a).</text>'+
+    '</svg>';
+  document.getElementById('svgIface').innerHTML=ifSvg;
+}
+
+/* ============================ RUN ============================ */
+function runAll(){
+  var P=gather();
+  var res=computeAll(P);
+  return render(P,res);
+}
+
+/* ============================ SAVE / LOAD ============================ */
+var INPUT_IDS=['nodeId','project','revision','engineer','wshape','Fyb','L','xwp','Mu_g','Vu_g','coincident','Pc_ovr',
+ 'Pu_col','lb_col','xcol','braceSize','Fyr','Fur','theta','Pu_T','Pu_C','lw','slot_gap','wbr','tg','Fyg','Fug','Lg','wb',
+ 'Lcavg','st_set','Kfac','Lfg','delta','wweld','FEXX','wsides','bst','tst','Fyst','Apb','wst','tp_thru','tcol','Bcol','Hcol',
+ 'Nplate','Fycol','Fucol','wallState','Uchord','Ptransfer'];
+function saveInputs(){var d={};INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
+  d._model=modelSel();d._hss=hssType();
+  var a=document.createElement('a');a.href='data:application/json,'+encodeURIComponent(JSON.stringify(d,null,2));
+  a.download='node-'+val('nodeId')+'.json';a.click();}
+function loadInputs(){var inp=document.createElement('input');inp.type='file';inp.accept='.json';
+  inp.onchange=function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(ev){try{var d=JSON.parse(ev.target.result);
+      INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
+      if(d._hss){document.getElementsByName('hsstype').forEach(function(x){x.checked=(x.value===d._hss);});onHssType();}
+      if(d._model){document.getElementsByName('model').forEach(function(x){x.checked=(x.value===d._model);});onModel();}
+      INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
+      fillW();fillBrace();alert('Inputs loaded.');}catch(err){alert('Error: '+err.message);}};
+    r.readAsText(f);};inp.click();}
+
+/* ============================ SELFTEST ============================ */
+function baseParams(){
+  return {model:'a',hsstype:'rect',W:W_DB['W18X50'],Fyb:50,L:336,xwp:168,Mu_g:0,Vu_g:0,coincident:false,Pc_ovr:0,twb:0.355,
+   Pu_col:100,lb_col:8,xcol:168,Fyr:46,Fur:58,theta:45,Pu_T:120,Pu_C:140,lw:10,slot_gap:0.625,wbr:0.25,
+   Agr:7.58,tr:0.349,Br:6,Hr:6,tg:0.5,Fyg:36,Fug:58,Lg:24,wb:6,Lcavg:8,Kfac:0.6,Lfg:10,delta:0,
+   wweld:0.3125,FEXX:70,wsides:2,bst:2.5,tst:0.5,Fyst:36,Apb:2,wst:0.25,
+   tp_thru:0,tcol:0,Bcol:0,Hcol:0,Nplate:0,Fycol:46,Fucol:58,wallState:'comp',Uchord:0.3,Ptransfer:0};
+}
+function runSelftest(){
+  var lines=[], pass=0, total=0;
+  function rec(id,ok,detail){total++;if(ok)pass++;lines.push(id+' '+(ok?'PASS':'FAIL')+' '+detail);}
+
+  // (A) J10 equivalence set — exact output format
+  var EQ=[
+    ['J10-EQ-1','W18X50',50,120,8.00],
+    ['J10-EQ-2','W18X50',50,6.00,6.00],
+    ['J10-EQ-3','W24X55',50,150,10.00],
+    ['J10-EQ-4','W12X26',50,4.00,4.50],
+    ['J10-EQ-5','W18X50',50,18.00,7.00] // x = d exactly: spec boundary -> END branch (drift guard vs Calc 1)
+  ];
+  // round-half-away-from-zero at 2 decimals (cross-calc equivalence convention;
+  // avoids IEEE-754 tie behavior of toFixed at e.g. 228.265)
+  function r2(x){return (Math.round(x*100)/100).toFixed(2);}
+  EQ.forEach(function(e){
+    var S=W_DB[e[1]], a=j102(S,e[2],e[3],e[4]), b=j103(S,e[2],e[3],e[4]);
+    var branch=(e[3]>S[1])?'interior':'end';
+    var ok=fin(a.phiRn)&&a.phiRn>0&&fin(b.phiRn)&&b.phiRn>0;
+    lines.push(e[0]+' phiRnJ102='+r2(a.phiRn)+' phiRnJ103='+r2(b.phiRn)+' branch='+branch);
+    total++;if(ok)pass++;
+  });
+
+  // (B) C2-CHEV-1 — reproduce EJ2017 Part1 post-buckling Mmax=9130 within 1%
+  var cv=chevron({L:336,a:168,Lg:56.0,eb:10.5,dlt:0,SVt:197.9,SVb:-307.5,SHt:238.1,SHb:-410.5});
+  var dMoment=Math.abs(Math.abs(cv.Mmax)-9130)/9130*100;
+  rec('C2-CHEV-1',dMoment<=1.0,'Mmax='+cv.Mmax.toFixed(0)+' k-in vs paper 9130 (d='+dMoment.toFixed(2)+'%)');
+
+  // (C) C2-GATE-1 — model (b) without through-plate inputs -> blocked, no results
+  var pb=baseParams();pb.model='b'; // tp_thru etc = 0
+  var rb=computeAll(pb);
+  var blocked=(rb.errors&&rb.errors.length>0&&rb.blockedB===true);
+  rec('C2-GATE-1',blocked,'model(b) incomplete -> blocked='+(!!blocked)+' ('+(rb.errors[0]||'')+')');
+
+  // (D) C2-GATE-2 — model (b) complete, all numbers pass -> banner is REVIEW (never plain PASS), exploratory labels present
+  // wst=7/16 (was default 1/4): the Act4-9 stiffener-to-flange weld check needs 4·bst·φrn ≥ ΣP=89.5 k
+  // at these loads; GATE-2 isolates the model-b banner gate, not weld sizing.
+  var pd=baseParams();pd.model='b';pd.Pu_col=40;pd.Pu_T=60;pd.Pu_C=70;pd.wst=0.4375;pd.tp_thru=0.375;pd.tcol=0.581;pd.Bcol=8;pd.Hcol=8;pd.Nplate=8;pd.Fycol=46;pd.Fucol=58;
+  var rd=computeAll(pd);
+  var hasExpl=rd.checks.some(function(c){return c.expl===true;});
+  var bnr=render(pd,rd).banner;
+  rec('C2-GATE-2',bnr==='REVIEW'&&hasExpl&&rd.expl===true,'banner='+bnr+' (never PASS) expl='+rd.expl+' explRows='+hasExpl);
+
+  // (E) C2-U-1 / C2-U-2 — 360-22 Table D3.1 Case 5: rect vs round DISTINCT expressions.
+  // Hand: rect HSS6x6x3/8 (t=0.349, Ht=Br=6, b=Hr/2=3), lw=8:
+  //   x̄ = 3 − (18 + 0.349·6 − 2·0.349²)/(12+12−1.396) = 3 − 19.850398/22.604 = 2.121819
+  //   U = 1 − 2.121819/8 = 0.734773
+  // round HSS6.625x0.375 (D=6.63, tg=0.5, slot=0.625), lw=8:
+  //   θ = (π−2·asin(0.625/6.63))/2 = 1.476388 rad; x̄ = 3.315·sin θ/θ − 0.25 = 1.985346
+  //   U = [1+(x̄/8)^3.2]^(−10) = 0.891368
+  var u1=shearLagU('rect',6,6,6,8,0.349,0.5,0.625);
+  var u2=shearLagU('round',6.63,6.63,6.63,8,0.349,0.5,0.625);
+  rec('C2-U-1',u1.tag==='Case5-rect'&&Math.abs(u1.xbar-2.121819)<1e-4&&Math.abs(u1.U-0.734773)<1e-4,
+    'rect U='+u1.U.toFixed(4)+' xbar='+u1.xbar.toFixed(4)+' ('+u1.tag+')');
+  rec('C2-U-2',u2.tag==='Case5-round'&&Math.abs(u2.xbar-1.985346)<1e-4&&Math.abs(u2.U-0.891368)<1e-3&&Math.abs(u1.U-u2.U)>1e-3,
+    'round U='+u2.U.toFixed(4)+' xbar='+u2.xbar.toFixed(4)+' ('+u2.tag+') distinct-from-rect='+(Math.abs(u1.U-u2.U)>1e-3));
+
+  // (E2) C2-U-3 / C2-U-4 — Act4-1 pinned values at lw=10 (hand-derived, see Act4 fix list)
+  // rect HSS6x6x3/8, tg=0.5, lw=10 → x̄=2.121810, U=0.787819 (±1e-4)
+  var u3=shearLagU('rect',6,6,6,10,0.349,0.5,0.625);
+  rec('C2-U-3',u3.ok&&Math.abs(u3.U-0.787819)<1e-4,'rect lw=10 U='+u3.U.toFixed(6)+' vs 0.787819 (tol 1e-4)');
+  // round HSS6.625x0.375 (D=6.63), tg=0.5, slot=0.625, lw=10 → θ=1.476388, x̄=1.985345, U=0.94515 (±1e-3)
+  var u4=shearLagU('round',6.63,6.63,6.63,10,0.349,0.5,0.625);
+  rec('C2-U-4',u4.ok&&Math.abs(u4.U-0.94515)<1e-3&&Math.abs(u4.xbar-1.985345)<1e-4,
+    'round lw=10 U='+u4.U.toFixed(6)+' vs 0.94515 (tol 1e-3), xbar='+u4.xbar.toFixed(6));
+
+  // (F) C2-ENV-1 — compression governs combined-J10 where tension does not
+  var pe=baseParams();pe.Pu_col=100;pe.Pu_T=120;pe.Pu_C=140;pe.theta=45;
+  // tension case brace vertical is UP (relieves), compression DOWN (adds) -> compression governs
+  var cth=Math.cos(45*Math.PI/180),sth=Math.sin(45*Math.PI/180);
+  var demT=pe.Pu_col+(-(pe.Pu_T*sth)); // tension: SVt=+ -> Vweb=-SVt (up relieves)
+  var demC=pe.Pu_col+(-(-(pe.Pu_C*sth))); // comp: SVt=- -> Vweb=+adds
+  var re=computeAll(pe);
+  var jrow=re.checks.filter(function(c){return c.n&&c.n.indexOf('Combined web local yielding')===0;})[0];
+  var govC=(demC>demT)&&jrow&&Math.abs(jrow.dem-demC)<0.5;
+  rec('C2-ENV-1',govC,'demT='+demT.toFixed(1)+' demC='+demC.toFixed(1)+' gov='+(jrow?jrow.dem.toFixed(1):'?')+' -> compression governs');
+
+  // (G) baseline model(a) computes without error
+  var rg=computeAll(baseParams());
+  rec('C2-BASE-1',(!rg.errors||rg.errors.length===0),'model(a) baseline errors='+((rg.errors||[]).length));
+
+  // helper: find a check row by exact name
+  function row(res,name){return res.checks.filter(function(c){return c.n===name;})[0];}
+
+  // (H) C2-GBS-1 — gusset block shear §J4.3 (Act4-2). Hand (defaults lw=10, tg=0.5, wb=6,
+  // Fyg=36, Fug=58): Agv=Anv=10 in², Ant=3 in², Rn=min(0.6·58·10, 0.6·36·10)+58·3
+  // = min(348,216)+174 = 390 → φRn = 0.75·390 = 292.5 kips
+  var gbs=row(rg,'Gusset block shear');
+  rec('C2-GBS-1',gbs&&Math.abs(gbs.cap-292.5)<0.1&&Math.abs(gbs.dat.Agv-10)<1e-9&&Math.abs(gbs.dat.Ant-3)<1e-9,
+    'phiRn='+(gbs?gbs.cap.toFixed(2):'?')+' vs 292.5 (tol 0.1)');
+
+  // (I) C2-WLD-1 — gusset-to-beam weld directional angle (Act4-3). Hand (defaults, gov case C
+  // =140 k, θ=45°, Lg=24, eb=9, Δ=0): fh=fv=98.9949/24=4.12479; Maat=−890.954 → fm=9.28078;
+  // fr=√(13.40556²+4.12479²)=14.02580; frd=17.53225; θw=atan2(13.40556,4.12479)=72.897°;
+  // kD=1+0.5·sin^1.5θw=1.46720; φrn=2·0.75·0.6·70·kD·0.707·0.3125=20.4221 k/in; D/C=0.85849
+  var wld=row(rg,'Gusset-to-beam weld (×1.25 ductility)');
+  rec('C2-WLD-1',wld&&Math.abs(wld.dat.phirn-20.423)<0.02&&Math.abs(wld.dc-0.8585)<0.001&&
+    Math.abs(wld.dat.thetaW-72.90)<0.05&&Math.abs(wld.dat.kD-1.4672)<0.001,
+    'phirn='+(wld?wld.dat.phirn.toFixed(4):'?')+' k/in (vs 20.423±0.02), D/C='+(wld?wld.dc.toFixed(4):'?')+' (vs 0.8585±0.001), thetaW='+(wld?wld.dat.thetaW.toFixed(2):'?')+'°');
+
+  // (J) C2-BW-1 — brace-to-gusset weld group (Act4-4). Hand (defaults wbr=0.25, lw=10, FEXX=70):
+  // φrn/in = 0.75·0.6·70·0.707·0.25 = 5.56763 k/in; φRn = 4·10·5.56763 = 222.705 kips;
+  // D/C at Pmax=140 → 0.62863
+  var bw=row(rg,'Brace-to-gusset weld group');
+  rec('C2-BW-1',bw&&Math.abs(bw.cap-222.7)<0.2&&Math.abs(bw.dc-0.6287)<0.001,
+    'cap='+(bw?bw.cap.toFixed(3):'?')+' kips (vs 222.7±0.2), D/C='+(bw?bw.dc.toFixed(4):'?'));
+
+  // (K) C2-VAL-1 / C2-VAL-2 — hard-validation sweep (Act4-5)
+  var pv1=baseParams();pv1.slot_gap=-0.5;var rv1=computeAll(pv1);
+  var slotErr=(rv1.errors||[]).some(function(e){return e.toLowerCase().indexOf('slot')>=0;});
+  rec('C2-VAL-1',rv1.errors.length>0&&slotErr,'slot_gap=-0.5 blocked; slot-mentioning error='+slotErr);
+  var pv2=baseParams();pv2.theta=0;var rv2=computeAll(pv2);
+  rec('C2-VAL-2',rv2.errors.length>0,'theta=0 blocked; errors='+rv2.errors.length);
+
+  // (L) C2-J10C-1 — coincidence rule (Act4-6): coincident ⇔ |xcol−xwp|≤0.5 AND |Lg−lb_col|≤0.5.
+  // Defaults (Lg=24 vs lb_col=8, dem=198.99 k): NOT coincident → conservative bound
+  // (end-branch x=0.4d, lb=8 → caps 185.1/102.4 k) is EXCEEDED → FAIL (never a plain PASS;
+  // REVIEW only applies when the bound covers the demand). At reduced loads (Pu_col=50,
+  // Pu_C=60 → dem=92.43 k ≤ 102.4) the non-coincident branch reads REVIEW as planned.
+  // Coincident (Lg=8, lb_col=8, xcol=xwp): clean branch — yielding 198.99 ≤ 228.27 → pass;
+  // crippling 198.99 > 190.99 → fail.
+  var jy0=row(rg,'Combined web local yielding'), jc0=row(rg,'Combined web local crippling');
+  var pjr=baseParams();pjr.Pu_col=50;pjr.Pu_T=50;pjr.Pu_C=60;var rjr=computeAll(pjr);
+  var jyR=row(rjr,'Combined web local yielding'), jcR=row(rjr,'Combined web local crippling');
+  var pj=baseParams();pj.Lg=8;pj.lb_col=8;pj.xcol=168;var rj=computeAll(pj);
+  var jy1=row(rj,'Combined web local yielding'), jc1=row(rj,'Combined web local crippling');
+  rec('C2-J10C-1',jy0.status==='fail'&&jc0.status==='fail'&&jyR.status==='review'&&jcR.status==='review'&&jy1.status==='pass'&&jc1.status==='fail',
+    'defaults(bound exceeded): '+jy0.status+'/'+jc0.status+' (want fail/fail); reduced 50/60k: '+jyR.status+'/'+jcR.status+' (want review/review); coincident Lg=lb=8: '+jy1.status+'/'+jc1.status+' (want pass/fail)');
+
+  // (M) C2-QF-1 — Eq K1-3 Qf (Act4-7). Uchord=0.3 → Qf = 1−0.3·0.3·(1.3) = 0.883.
+  // Engine check: model-b wall plastification capacity ratio comp/ten = Qf.
+  var pq1=Object.assign({},pd);pq1.wallState='comp';pq1.Uchord=0.3;var rq1=computeAll(pq1);
+  var pq2=Object.assign({},pd);pq2.wallState='ten';var rq2=computeAll(pq2);
+  var wp1=row(rq1,'HSS wall plastification (through-plate)'), wp2=row(rq2,'HSS wall plastification (through-plate)');
+  var qfRatio=wp1.cap/wp2.cap;
+  rec('C2-QF-1',Math.abs(wp1.dat.Qf-0.883)<1e-3&&Math.abs(qfRatio-0.883)<1e-3,
+    'Qf='+wp1.dat.Qf.toFixed(4)+' (want 0.883±1e-3); cap_comp/cap_ten='+qfRatio.toFixed(4));
+
+  // (N) C2-WM-1 — Whitmore over CONNECTION length lw (Act4-8) + §J4.4 branch (Act4-13b).
+  // Hand (defaults wb=6, lw=10, tg=0.5, Fyg=36): Lw = 6+2·10·tan30° = 17.54701 in;
+  // Aw = 8.77350 in²; φRn,yield = 0.90·36·8.77350 = 284.261 kips.
+  // With Lcavg=4: KL/r = 0.6·4/(0.5/√12) = 16.63 ≤ 25 → §J4.4: φPn = 0.90·36·Aw = 284.261.
+  // (defaults Lcavg=8: KL/r = 33.26 > 25 → §E3 path unchanged)
+  var wm=row(rg,'Whitmore yielding');
+  var pw=baseParams();pw.Lcavg=4;var rw=computeAll(pw);
+  var wbk=row(rw,'Whitmore buckling (compression)');
+  var wbk0=row(rg,'Whitmore buckling (compression)');
+  rec('C2-WM-1',wm&&Math.abs(wm.dat.Lw-17.5470)<1e-3&&Math.abs(wm.cap-284.26)<0.2&&
+    wbk.dat.branch==='J4.4'&&Math.abs(wbk.cap-284.261)<0.2&&wbk0.dat.branch==='E3',
+    'Lw='+(wm?wm.dat.Lw.toFixed(4):'?')+' (vs 17.5470), phiWy='+(wm?wm.cap.toFixed(2):'?')+' (vs 284.26±0.2); Lcavg=4: branch='+wbk.dat.branch+' phiPn='+wbk.cap.toFixed(2)+'; defaults branch='+wbk0.dat.branch);
+
+  // (O) C2-STW-1 — stiffener/gusset element welds (Act4-9), defaults, tol ±0.5%. Hand:
+  // jgov = 100+140·sin45° = 198.9949 k; single-patch caps at column loc (W18X50, x=168, lb=8):
+  // φRnJ10.2=228.265, φRnJ10.3=190.9868 → min=190.9868;
+  // (a) stiff-to-web: dem = 198.9949−190.9868 = 8.0082 k; h=18−2·0.972=16.056, 0.9h=14.4504;
+  //     φrn/in(wst=0.25)=0.75·0.6·70·0.707·0.25=5.56763 → cap=4·14.4504·5.56763=321.818 k
+  // (b) stiff-to-flange: cap = 4·2.5·5.56763 = 55.676 k; dem = 198.9949 k
+  // (c) shared line: fv_gus+fm = 13.40556, fv_stiff = 8.0082/57.8016 = 0.13855;
+  //     fr = √(13.54411²+4.12479²) = 14.15828; frd = 1.25·fr = 17.69785;
+  //     θw=73.06°, kD=1.46782 → cap = 2·0.75·0.6·70·kD·0.707·0.3125 = 20.4307 k/in; D/C=0.86624
+  var stw=row(rg,'Stiffener-to-web weld'), stf=row(rg,'Stiffener-to-flange weld'), shw=row(rg,'Shared stiffener/gusset weld line');
+  function relok(got,want){return Math.abs(got-want)<=0.005*Math.abs(want);}
+  rec('C2-STW-1',stw&&stf&&shw&&relok(stw.dem,8.0082)&&relok(stw.cap,321.818)&&
+    relok(stf.cap,55.676)&&relok(stf.dem,198.9949)&&
+    relok(shw.dem,17.69785)&&relok(shw.cap,20.4307)&&relok(shw.dc,0.86624),
+    'web dem/cap='+(stw?stw.dem.toFixed(3)+'/'+stw.cap.toFixed(2):'?')+' (want 8.008/321.82); flg cap='+(stf?stf.cap.toFixed(2):'?')+' (want 55.68); shared frd/cap='+(shw?shw.dem.toFixed(3)+'/'+shw.cap.toFixed(3):'?')+' (want 17.698/20.431)');
+
+  // (P) C2-CR-1 — cruciform web strip 12tw at member end (Act4-12). xcol=4 < d/2=9 → end:
+  // Ast = 2·(2.5·0.5)+12·0.355² = 2.5+1.51230 = 4.01230 in² (hand); φPn = 129.378 k
+  var pc=baseParams();pc.xcol=4;var rc=computeAll(pc);
+  var cru=row(rc,'Stiffener cruciform column'), cru0=row(rg,'Stiffener cruciform column');
+  rec('C2-CR-1',cru.dat.strip===12&&Math.abs(cru.dat.Ast-4.0123)<1e-3&&Math.abs(cru.cap-129.378)<0.5&&cru0.dat.strip===25,
+    'end: strip='+cru.dat.strip+' Ast='+cru.dat.Ast.toFixed(4)+' (want 4.0123) phiPn='+cru.cap.toFixed(2)+'; defaults strip='+cru0.dat.strip);
+
+  // (Q) C2-H1-1 — §H1 Pc-default review gate (Act4-10). NOTE: at page defaults the H1 ratio is
+  // 1.854 (Mloc=8085 k-in vs Mc=4545) → FAIL, and FAIL stays FAIL (pre-existing, load-driven).
+  // The review gate is exercised at half loads (Pu_T=60, Pu_C=70): Mloc=4042.7, ΣH=49.4975,
+  // Pc=φFyAg=661.5 → ratio=0.9269 ≤ 1 & Pc_ovr=0 → REVIEW; with Pc_ovr=500 → ratio=0.9390 → PASS.
+  var h1d=row(rg,'Beam axial + flexure interaction');
+  var ph=baseParams();ph.Pu_T=60;ph.Pu_C=70;var rh=computeAll(ph);
+  var h1a=row(rh,'Beam axial + flexure interaction');
+  ph.Pc_ovr=500;var rh2=computeAll(ph);
+  var h1b=row(rh2,'Beam axial + flexure interaction');
+  rec('C2-H1-1',h1d.status==='fail'&&h1a.status==='review'&&Math.abs(h1a.dc-0.9269)<0.002&&h1b.status==='pass'&&Math.abs(h1b.dc-0.9390)<0.002,
+    'defaults='+h1d.status+' (fail stays fail); 60/70 k Pc_ovr=0: '+h1a.status+' ratio='+h1a.dc.toFixed(4)+' (want review 0.9269); Pc_ovr=500: '+h1b.status+' ratio='+h1b.dc.toFixed(4)+' (want pass 0.9390)');
+
+  // (R) C2-FE-1 — free-edge criterion 0.75√(E/Fy)·tg (Act4-11). Hand (tg=0.5, Fy=36):
+  // limit = 0.75·√(29000/36)·0.5 = 10.6434 in. Defaults Lfg=10 → pass; Lfg=12 → REVIEW.
+  var fe0=row(rg,'Gusset free-edge stability');
+  var pf=baseParams();pf.Lfg=12;var rf=computeAll(pf);
+  var fe1=row(rf,'Gusset free-edge stability');
+  rec('C2-FE-1',Math.abs(fe0.dat.lim-10.643)<0.01&&fe0.status==='pass'&&fe1.status==='review',
+    'limit='+fe0.dat.lim.toFixed(4)+' (want 10.643±0.01); Lfg=10→'+fe0.status+', Lfg=12→'+fe1.status);
+
+  // (S) C2-FP-1 — cross-calc shared-node fingerprint (identical algorithm/fields/hex in Calcs 1/2/3)
+  (function(){
+    var expected='5eae5f7c'; // FNV-1a of 'SNFP|N-1|SELFTEST|A|W18X50|50|360|120|100', pinned by node hand-run
+    var got=sharedFingerprint('N-1','SELFTEST','A','W18X50',50,360,120,100);
+    rec('C2-FP-1',got===expected,'sharedFingerprint='+got+' expected='+expected+' (must equal C1-FP-1/C3-FP-1)');
+  })();
+
+  // (T) C2-EQ5-1 — J10.2 boundary regression: x = d exactly -> END branch (spec: interior only when x > d)
+  (function(){
+    var S=W_DB['W18X50'];
+    var a=j102(S,50,18.00,7.00), b=j103(S,50,18.00,7.00);
+    var ok=a.branch==='end'&&r2(a.phiRn)==='167.38'&&r2(b.phiRn)==='181.54';
+    rec('C2-EQ5-1',ok,'x=d boundary: branch='+a.branch+' phiRnJ102='+r2(a.phiRn)+' (exp 167.38) phiRnJ103='+r2(b.phiRn)+' (exp 181.54)');
+  })();
+
+  // finalize
+  var allPass=(pass===total);
+  document.title='SELFTEST '+(allPass?'PASS':'FAIL')+' '+pass+'/'+total;
+  var pre=document.createElement('pre');pre.id='selftest-result';
+  pre.textContent='SELFTEST '+(allPass?'PASS':'FAIL')+' '+pass+'/'+total+'\n'+lines.join('\n');
+  document.body.appendChild(pre);
+}
+// auto-fill wiring: brace angle / weld engagement / connection width drive the DG29 Lc,avg construction
+['theta','lw','wb'].forEach(function(id){var el=document.getElementById(id);if(el)el.addEventListener('change',autoLcavg);});
+autoStiff(); onAutoLc();
+
+// dev aid: ?autorun=1 runs the full DOM gather()->runAll() path on load (interactive smoke test)
+if(/[?&]autorun=1/.test(location.search)){
+  window.addEventListener('load',function(){try{runAll();}catch(err){var p=document.createElement('pre');p.id='autorun-error';p.textContent='AUTORUN EXCEPTION '+err.message+'\n'+err.stack;document.body.appendChild(p);}});
+}
+// auto-run on ?selftest=1
+if(/[?&]selftest=1/.test(location.search)){
+  window.addEventListener('load',function(){try{runSelftest();}catch(err){document.title='SELFTEST FAIL 0/0';var p=document.createElement('pre');p.id='selftest-result';p.textContent='SELFTEST FAIL 0/0\nEXCEPTION '+err.message+'\n'+err.stack;document.body.appendChild(p);}});
+}
+</script>
+</body>
+</html>
