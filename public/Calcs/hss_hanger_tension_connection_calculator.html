@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSS Hanger &mdash; Tension Connection at Beam Bottom Flange</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.info-row td{background:#eff6ff!important;border-left:3px solid #2563eb}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.warn-callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+@page{size:letter portrait;margin:.45in .5in .45in .5in}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  html,body{background:#fff!important;width:100%!important;margin:0!important;padding:0!important}
+  .container{max-width:100%!important;width:100%!important;box-shadow:none!important;border-radius:0!important;margin:0!important;padding:0!important}
+  .blk,.dem-card,.sum-pass,.sum-fail,.note-box{border-radius:0!important;box-shadow:none!important}
+  button.det-btn,#printBtn{display:none!important}
+  .calc-det{display:block!important;max-height:none!important;overflow:visible!important}
+  .blk,.chk-table,.dem-grid{break-inside:avoid;page-break-inside:avoid}
+  #results{display:block!important}
+}
+</style>
+<link rel="stylesheet" href="./are-calc.css">
+</head>
+<body>
+<button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
+  style="position:fixed;top:16px;right:16px;z-index:9999;background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;gap:6px;white-space:nowrap">
+  &#x1F5A8;&nbsp;Print / PDF
+</button>
+
+<div class="container">
+<div class="header">
+  <h1>HSS Hanger &mdash; Tension Connection at Beam Bottom Flange</h1>
+  <p>HSS tension member hangs from a plate welded to the underside of a supporting W-shape beam's bottom flange</p>
+  <div class="ref-tags">
+    <span class="tag">AISC 360-22</span><span class="tag">LRFD</span>
+    <span class="tag">J2.4 Welds</span><span class="tag">D2/D3 Tension Members</span>
+    <span class="tag">J4 Connecting Elements</span><span class="tag">Table D3.1 Shear Lag</span>
+    <span class="tag">J10.1 Flange Local Bending</span><span class="tag">J10.2 Web Local Yielding</span>
+  </div>
+</div>
+
+<div class="content">
+
+<script src="/are-draw.js"></script>
+<div class="schema-wrap">
+  <div style="display:flex;justify-content:center">
+    <svg id="svgHang" xmlns="http://www.w3.org/2000/svg" style="max-width:520px;width:100%"></svg>
+  </div>
+  <div class="warn-callout" style="margin-top:8px">
+    <strong>Load path:</strong> T<sub>u</sub> pulls straight down on the HSS &rarr; two longitudinal fillet welds
+    transfer load into the plate &rarr; the plate is welded to the underside of the beam's bottom flange &rarr;
+    the beam flange (and, informationally, the web) resists the concentrated tensile pull-through. This tool assumes the
+    HSS is <strong>slotted over the plate</strong> (plate passes through slots cut in the two HSS walls parallel to the
+    load line), consistent with AISC 360-22 Table D3.1 Case 5 (single concentric gusset through a slotted HSS). If your
+    detail instead butts the HSS end against one plate face, the HSS shear-lag check does not apply as modeled &mdash;
+    treat that case separately.
+  </div>
+</div>
+
+<!-- 1. MEMBERS & MATERIAL -->
+<div class="blk">
+  <h2>1. Members &amp; Material</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Supporting Beam (W-Shape)</label>
+      <select id="wsec" onchange="fillHints();drawSchematic()">
+        <option value="">&#8212; Select &#8212;</option>
+      </select>
+      <span class="hint" id="wHint"></span>
+    </div>
+    <div class="ig">
+      <label>Beam F<sub>y</sub> <span class="unit">(ksi)</span></label>
+      <select id="Fyb"><option value="50" selected>50 &ndash; A992</option><option value="36">36 &ndash; A36</option></select>
+    </div>
+    <div class="ig">
+      <label>HSS Hanger (Square)</label>
+      <select id="hsec" onchange="fillHints();drawSchematic()">
+        <option value="">&#8212; Select &#8212;</option>
+      </select>
+      <span class="hint" id="hHint"></span>
+    </div>
+    <div class="ig">
+      <label>HSS Grade</label>
+      <select id="hssGrade" onchange="setHssGrade()">
+        <option value="C" selected>ASTM A500 Gr. C &mdash; F<sub>y</sub>=50, F<sub>u</sub>=62 ksi</option>
+        <option value="B">ASTM A500 Gr. B &mdash; F<sub>y</sub>=46, F<sub>u</sub>=58 ksi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Plate Material</label>
+      <select id="plateGrade">
+        <option value="50" selected>A572 Gr. 50 &mdash; F<sub>y</sub>=50, F<sub>u</sub>=65 ksi</option>
+        <option value="36">A36 &mdash; F<sub>y</sub>=36, F<sub>u</sub>=58 ksi</option>
+      </select>
+    </div>
+    <div class="ig">
+      <label>Weld Electrode</label>
+      <select id="FEXX"><option value="70" selected>E70XX &mdash; F<sub>EXX</sub>=70 ksi</option><option value="80">E80XX &mdash; F<sub>EXX</sub>=80 ksi</option></select>
+    </div>
+  </div>
+</div>
+
+<!-- 2. DEMAND -->
+<div class="blk">
+  <h2>2. Factored Demand <span class="badge">From Analysis</span></h2>
+  <div class="g3">
+    <div class="ig">
+      <label>T<sub>u</sub> &mdash; Factored Tension <span class="unit">(kips, applied straight down)</span></label>
+      <input type="number" id="Tu" value="12" step="0.5" min="0">
+    </div>
+    <div class="ig">
+      <label>Connection Eccentricity <span class="unit">(in, plate/HSS centerline offset from beam web)</span></label>
+      <input type="number" id="ecc" value="0" step="0.125" min="0">
+      <span class="hint">Nonzero offset twists the beam &mdash; torsion is flagged but not designed here</span>
+    </div>
+    <div class="ig">
+      <label>Connection Location</label>
+      <select id="nearEnd">
+        <option value="no" selected>Away from beam end (&gt; 10&middot;t<sub>f</sub> from end)</option>
+        <option value="yes">Near beam end (&le; 10&middot;t<sub>f</sub> from end)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- 3. PLATE GEOMETRY -->
+<div class="blk">
+  <h2>3. Plate Geometry</h2>
+  <div class="g3">
+    <div class="ig">
+      <label>Plate Thickness t<sub>p</sub> <span class="unit">(in)</span></label>
+      <input type="number" id="tp" value="0.375" step="0.0625" min="0.1875">
+    </div>
+    <div class="ig">
+      <label>Plate Width w<sub>p</sub> <span class="unit">(in, at the HSS connection)</span></label>
+      <input type="number" id="wp" value="3.5" step="0.25" min="1">
+    </div>
+    <div class="ig">
+      <label>Slot Cut Width <span class="unit">(in, each side &mdash; default = t<sub>p</sub> snug fit)</span></label>
+      <input type="number" id="slotGap" value="" step="0.0625" placeholder="Auto = tp">
+    </div>
+  </div>
+</div>
+
+<!-- 4. WELDS -->
+<div class="blk">
+  <h2>4. Weld Groups</h2>
+  <div class="sub-head">HSS-to-Plate Weld (longitudinal, along the slot, each side)</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Weld Size D<sub>1</sub> <span class="unit">(sixteenths of an inch)</span></label>
+      <input type="number" id="D1" value="3" step="1" min="2">
+    </div>
+    <div class="ig">
+      <label>Weld / Engagement Length L<sub>w</sub> <span class="unit">(in, per side)</span></label>
+      <input type="number" id="Lw" value="3" step="0.25" min="0.5">
+      <span class="hint">Also used as the shear-lag length (D3.1 Case 5)</span>
+    </div>
+    <div class="ig">
+      <label>Number of Weld Lines</label>
+      <select id="nLines"><option value="2" selected>2 (each side, single slot)</option><option value="4">4 (both HSS walls slotted)</option></select>
+    </div>
+  </div>
+  <hr class="sep">
+  <div class="sub-head">Plate-to-Beam-Flange Weld (transverse, along the flange underside)</div>
+  <div class="g3">
+    <div class="ig">
+      <label>Weld Size D<sub>2</sub> <span class="unit">(sixteenths of an inch)</span></label>
+      <input type="number" id="D2" value="3" step="1" min="2">
+    </div>
+    <div class="ig">
+      <label>Directional Strength Increase?</label>
+      <select id="kDS"><option value="1.0" selected>No &mdash; k<sub>DS</sub>=1.0 (conservative)</option><option value="1.5">Yes &mdash; k<sub>DS</sub>=1.5 (pure transverse, &sect;J2.4)</option></select>
+    </div>
+  </div>
+</div>
+
+<button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+<div id="results" class="results">
+  <div id="sumBox" class="summary"></div>
+  <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
+  <div class="blk"><h2>Design Demands</h2><div id="demOut"></div></div>
+  <div class="blk">
+    <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">&nbsp;&mdash; click &ldquo;&#9656; Calc&rdquo; to expand</span></h2>
+    <table class="chk-table">
+      <thead><tr><th style="width:26%">Check</th><th>Code Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
+      <tbody id="chkTb"></tbody>
+    </table>
+  </div>
+  <div class="note-box">
+    <strong>Engineering Notes:</strong>
+    <ul>
+      <li><strong>Geometry assumption:</strong> the HSS is modeled as slotted over a single concentric plate (AISC 360-22 Table D3.1 Case 5). If the HSS instead butts against one face of the plate, the HSS wall shear-lag/rupture check is not applicable as computed &mdash; treat as a lap weld to a plate face and check the HSS wall in bearing/tearout separately.</li>
+      <li><strong>Beam flange local bending (&sect;J10.1)</strong> assumes the connection engages the flange near its centerline (over the web). If the plate/weld only reaches the flange <em>tips</em> (as a hand sketch may show), the force is delivered further from the web than the J10.1 model assumes &mdash; this is <em>more conservative than J10.1 predicts</em>, and a yield-line check of the flange overhang should be considered by the engineer of record.</li>
+      <li><strong>Web local yielding (&sect;J10.2)</strong> is written for concentrated compressive forces; it is reported here as an informational screening check only for the tensile force delivered into the web through the flange-to-web fillet. Engineering judgment required &mdash; not a pass/fail limit state per the letter of the spec.</li>
+      <li>If the connection eccentricity input above is nonzero, the beam is subject to torsion from the offset load &mdash; this calculator flags it but does not design for it.</li>
+      <li>Beam flexure/shear under the added concentrated load, and overall HSS member design (L/r, KL/r, etc.), are by others.</li>
+      <li><strong>This is a design aid &mdash; results must be reviewed and stamped by a licensed structural engineer.</strong></li>
+    </ul>
+  </div>
+</div>
+
+</div></div>
+
+<script>
+// ── Embedded section databases (AISC Steel Construction Manual, 15th/16th Ed.) ──
+// W: [d, bf, tf, tw, A]
+const WDB={
+  "W8X10": [7.89,3.94,0.205,0.170,2.96],
+  "W8X13": [7.99,4.00,0.255,0.230,3.84],
+  "W8X15": [8.11,4.02,0.315,0.245,4.44],
+  "W8X18": [8.14,5.25,0.330,0.230,5.26],
+  "W10X12":[9.87,3.96,0.210,0.190,3.54],
+  "W10X15":[9.99,4.00,0.270,0.230,4.41],
+  "W10X17":[10.1,4.01,0.330,0.240,4.99],
+  "W10X19":[10.2,4.02,0.395,0.250,5.62],
+  "W10X22":[10.2,5.75,0.360,0.240,6.49],
+  "W12X14":[11.9,3.97,0.225,0.200,4.16],
+  "W12X16":[12.0,3.99,0.265,0.220,4.71],
+  "W12X19":[12.2,4.01,0.350,0.235,5.57],
+  "W12X22":[12.3,4.03,0.425,0.260,6.48],
+  "W12X26":[12.2,6.49,0.380,0.230,7.65],
+  "W14X22":[13.7,5.00,0.335,0.230,6.49],
+  "W14X26":[13.9,5.03,0.420,0.255,7.69],
+  "W14X30":[13.8,6.73,0.385,0.270,8.85],
+  "W16X26":[15.7,5.50,0.345,0.250,7.68],
+  "W16X31":[15.9,5.53,0.440,0.275,9.13],
+  "W16X36":[15.9,6.99,0.430,0.295,10.6],
+  "W18X35":[17.7,6.00,0.425,0.300,10.3],
+  "W18X40":[17.9,6.02,0.525,0.315,11.8]
+};
+// HSS square: [B(=H), tnom, tdes, A]  (tdes = 0.93*tnom per AISC)
+// Areas verified against AISC-published values embedded in this repo's other
+// vetted HSS calcs (hss_column_bearing_on_beam_calculator.html,
+// hss_connection_complete_calculator.html: HSS4X4X1/4=3.37, HSS4X4X5/16=4.10,
+// HSS5X5X1/4=4.29-4.30, HSS5X5X5/16=5.26, HSS6X6X3/8=7.58) and computed for
+// sizes not embedded elsewhere via A=4t(B-t)-3(4-pi)t^2, which reproduces
+// every one of those reference values to 3 sig figs.
+const HDB={
+  "HSS2X2X1/8":  [2.00,0.125,0.116,0.840],
+  "HSS2X2X3/16": [2.00,0.1875,0.174,1.19],
+  "HSS2.5X2.5X3/16":[2.50,0.1875,0.174,1.54],
+  "HSS3X3X3/16": [3.00,0.1875,0.174,1.89],
+  "HSS3X3X1/4":  [3.00,0.250,0.233,2.44],
+  "HSS3.5X3.5X1/4":[3.50,0.250,0.233,2.91],
+  "HSS4X4X1/4":  [4.00,0.250,0.233,3.37],
+  "HSS4X4X5/16": [4.00,0.3125,0.291,4.10],
+  "HSS5X5X1/4":  [5.00,0.250,0.233,4.30],
+  "HSS5X5X5/16": [5.00,0.3125,0.291,5.26],
+  "HSS6X6X1/4":  [6.00,0.250,0.233,5.23],
+  "HSS6X6X3/8":  [6.00,0.375,0.349,7.58]
+};
+(function populateSelects(){
+  var ws=document.getElementById('wsec'), hs=document.getElementById('hsec');
+  Object.keys(WDB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;if(k==='W12X19')o.selected=true;ws.appendChild(o);});
+  Object.keys(HDB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;if(k==='HSS3X3X1/4')o.selected=true;hs.appendChild(o);});
+})();
+function fillHints(){
+  var w=WDB[document.getElementById('wsec').value];
+  document.getElementById('wHint').textContent=w?('d='+w[0]+'"  bf='+w[1]+'"  tf='+w[2]+'"  tw='+w[3]+'"  A='+w[4]+' in²'):'';
+  var h=HDB[document.getElementById('hsec').value];
+  document.getElementById('hHint').textContent=h?('B=H='+h[0]+'"  t_des='+h[2]+'"  A='+h[3]+' in²'):'';
+}
+function setHssGrade(){ /* handled at calc time */ }
+
+// Math helpers
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'▾ Calc':'▶ Calc';
+}
+function f1(x){return (+x).toFixed(1);}
+function f2(x){return (+x).toFixed(2);}
+function f3(x){return (+x).toFixed(3);}
+function f4(x){return (+x).toFixed(4);}
+
+// Table D3.1 Case 5 (360-22): single concentric plate through a slotted rectangular HSS
+// x̄ = b − (2b²+t·Ht−2t²)/(2Ht+4b−4t), b=B/2 (square HSS: Ht=B); U = 1 − x̄/l
+function shearLagCase5(B,t,lw){
+  var Ht=B, b=B/2;
+  var xb=b-(2*b*b+t*Ht-2*t*t)/(2*Ht+4*b-4*t);
+  var U=1-xb/lw;
+  U=Math.max(0,Math.min(1,U));
+  return {xbar:xb,U:U};
+}
+// Classic Table D3.1 Case 4 (plates connected by longitudinal welds along both edges)
+function shearLagCase4(lw,wpl){
+  var ratio=lw/wpl, U;
+  if(ratio>=2) U=1.0;
+  else if(ratio>=1.5) U=0.87;
+  else if(ratio>=1.0) U=0.75;
+  else U=NaN;
+  return {U:U,ratio:ratio};
+}
+
+function runCalc(){
+  var wk=document.getElementById('wsec').value, hk=document.getElementById('hsec').value;
+  if(!wk||!hk){alert('Select both the beam and HSS sections.');return;}
+  var W=WDB[wk], H=HDB[hk];
+  var d=W[0],bf=W[1],tf=W[2],tw=W[3];
+  var B=H[0],tnom=H[1],tdes=H[2],Ahss=H[3];
+
+  var Fyb=+document.getElementById('Fyb').value;
+  var grade=document.getElementById('hssGrade').value;
+  var FyHSS=grade==='C'?50:46, FuHSS=grade==='C'?62:58;
+  var Fyp=+document.getElementById('plateGrade').value;
+  var Fup=Fyp===50?65:58;
+  var FEXX=+document.getElementById('FEXX').value;
+
+  var Tu=+document.getElementById('Tu').value;
+  var ecc=+document.getElementById('ecc').value;
+  var nearEnd=document.getElementById('nearEnd').value==='yes';
+
+  var tp=+document.getElementById('tp').value;
+  var wp=+document.getElementById('wp').value;
+  var slotIn=document.getElementById('slotGap').value.trim();
+  var slotGap=slotIn!==''?+slotIn:tp;
+
+  var D1=+document.getElementById('D1').value;
+  var Lw=+document.getElementById('Lw').value;
+  var nLines=+document.getElementById('nLines').value;
+  var D2=+document.getElementById('D2').value;
+  var kDS=+document.getElementById('kDS').value;
+
+  var w70=1.392*(FEXX/70); // kips/in per sixteenth of leg, per E-electrode strength (0.75*0.6*FEXX*0.707/16)
+
+  var chks=[];
+  function add(o){chks.push(o);}
+
+  // ── 1. HSS-to-plate weld ──
+  var perIn1=w70*D1;
+  var phiRw1=nLines*Lw*perIn1;
+  var d1='<div class="cref-hdr">AISC 360-22 &sect;J2.4 &mdash; HSS-to-Plate Fillet Weld (longitudinal)</div><div class="cbox">';
+  d1+='<div class="mrow"><span class="ceq">Eq. J2-4 (per sixteenth, E'+FEXX+'XX, longitudinal k<sub>DS</sub>=1.0):</span></div>';
+  d1+='<div class="mrow">&phi;r<sub>n</sub> = 0.75 &times; 0.6 &times; F<sub>EXX</sub> &times; 0.707 &times; (D/16) = '+f3(w70)+' &times; D (kips/in)</div>';
+  d1+='<div class="mrow ind">= '+f3(w70)+' &times; '+D1+' = <span class="cval">'+f3(perIn1)+' kips/in</span></div>';
+  d1+='<div class="mrow">&phi;R<sub>n</sub> = n<sub>lines</sub> &times; L<sub>w</sub> &times; &phi;r<sub>n</sub> = '+nLines+' &times; '+f2(Lw)+' &times; '+f3(perIn1)+' = <span class="cval">'+f2(phiRw1)+' kips</span></div>';
+  d1+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiRw1))+' = <span class="cval">'+f3(Tu/phiRw1)+'</span></div></div>';
+  add({n:'HSS-to-Plate Weld',r:'AISC 360-22 &sect;J2.4',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiRw1)+' k',dc:Tu/phiRw1,nt:D1+'/16" fillet &times; '+nLines+' lines',det:d1});
+
+  // ── 2. HSS wall tensile yielding ──
+  var phiPy=0.90*FyHSS*Ahss;
+  var d2='<div class="cref-hdr">AISC 360-22 &sect;D2(a) &mdash; HSS Tensile Yielding</div><div class="cbox">';
+  d2+='<div class="mrow"><span class="ceq">Eq. D2-1: &phi;P<sub>n</sub> = &phi; &middot; F<sub>y</sub> &middot; A<sub>g</sub></span></div>';
+  d2+='<div class="mrow ind">= 0.90 &times; '+FyHSS+' &times; '+f2(Ahss)+' = <span class="cval">'+f2(phiPy)+' kips</span></div>';
+  d2+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiPy))+' = <span class="cval">'+f3(Tu/phiPy)+'</span></div></div>';
+  add({n:'HSS Tensile Yielding',r:'AISC 360-22 &sect;D2(a)',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;P<sub>n</sub> = '+f2(phiPy)+' k',dc:Tu/phiPy,nt:'A500 Gr. '+grade,det:d2});
+
+  // ── 3. HSS wall tensile rupture (shear lag, Table D3.1 Case 5, 2022) ──
+  var sl5=shearLagCase5(B,tdes,Lw);
+  var An3=Ahss-2*tdes*slotGap;
+  var Ae3=An3*sl5.U;
+  var phiPr=0.75*FuHSS*Ae3;
+  var d3='<div class="cref-hdr">AISC 360-22 &sect;D2(b)/&sect;D3, Table D3.1 Case 5 &mdash; HSS Tensile Rupture (Shear Lag)</div><div class="cbox">';
+  d3+='<div class="mrow"><span class="ceq">x&#772; = b &minus; '+fr('2b&sup2;+t&middot;H<sub>t</sub>&minus;2t&sup2;','2H<sub>t</sub>+4b&minus;4t')+' , &nbsp; b = B/2 = '+f3(B/2)+'"</span></div>';
+  d3+='<div class="mrow ind">x&#772; = <span class="cval">'+f3(sl5.xbar)+'"</span></div>';
+  d3+='<div class="mrow"><span class="ceq">U = 1 &minus; x&#772;/L<sub>w</sub> = 1 &minus; '+f3(sl5.xbar)+'/'+f2(Lw)+' = <span class="cval">'+f3(sl5.U)+'</span></span></div>';
+  d3+='<div class="mrow">A<sub>n</sub> = A<sub>g</sub> &minus; 2&middot;t<sub>des</sub>&middot;slot = '+f2(Ahss)+' &minus; 2('+f3(tdes)+')('+f3(slotGap)+') = <span class="cval">'+f3(An3)+' in&sup2;</span></div>';
+  d3+='<div class="mrow">A<sub>e</sub> = A<sub>n</sub>&middot;U = '+f3(An3)+' &times; '+f3(sl5.U)+' = <span class="cval">'+f3(Ae3)+' in&sup2;</span></div>';
+  d3+='<div class="mrow">&phi;P<sub>n</sub> = 0.75 &times; F<sub>u</sub> &times; A<sub>e</sub> = 0.75 &times; '+FuHSS+' &times; '+f3(Ae3)+' = <span class="cval">'+f2(phiPr)+' kips</span></div>';
+  d3+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiPr))+' = <span class="cval">'+f3(Tu/phiPr)+'</span></div></div>';
+  add({n:'HSS Tensile Rupture (Shear Lag)',r:'AISC 360-22 Table D3.1 Case 5',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;P<sub>n</sub> = '+f2(phiPr)+' k',dc:Tu/phiPr,nt:'U='+f3(sl5.U),det:d3});
+
+  // ── 4. HSS wall block shear at slot ──
+  var Agv4=2*Lw*tdes, Ant4=tdes*Math.max(B-2*slotGap,0.1);
+  var bs4raw=Math.min(0.60*FuHSS*Agv4,0.60*FyHSS*Agv4)+1.0*FuHSS*Ant4;
+  var phiBs4=0.75*bs4raw;
+  var d4='<div class="cref-hdr">AISC 360-22 &sect;J4.3 &mdash; HSS Wall Block Shear at Slot</div><div class="cbox">';
+  d4+='<div class="mrow">A<sub>gv</sub> = 2&middot;L<sub>w</sub>&middot;t<sub>des</sub> = 2 &times; '+f2(Lw)+' &times; '+f3(tdes)+' = <span class="cval">'+f3(Agv4)+' in&sup2;</span></div>';
+  d4+='<div class="mrow">A<sub>nt</sub> = t<sub>des</sub>&middot;(B&minus;2&middot;slot) = '+f3(tdes)+' &times; ('+f2(B)+'&minus;2&times;'+f3(slotGap)+') = <span class="cval">'+f3(Ant4)+' in&sup2;</span></div>';
+  d4+='<div class="mrow">&phi;R<sub>n</sub> = 0.75[min(0.6F<sub>u</sub>A<sub>gv</sub>, 0.6F<sub>y</sub>A<sub>gv</sub>) + U<sub>bs</sub>F<sub>u</sub>A<sub>nt</sub>], U<sub>bs</sub>=1.0</div>';
+  d4+='<div class="mrow ind">= <span class="cval">'+f2(phiBs4)+' kips</span></div>';
+  d4+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiBs4))+' = <span class="cval">'+f3(Tu/phiBs4)+'</span></div></div>';
+  add({n:'HSS Wall Block Shear',r:'AISC 360-22 &sect;J4.3',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiBs4)+' k',dc:Tu/phiBs4,nt:'',det:d4});
+
+  // ── 5. Plate tensile yielding ──
+  var Agp=tp*wp;
+  var phiPyp=0.90*Fyp*Agp;
+  var d5='<div class="cref-hdr">AISC 360-22 &sect;J4.1 &mdash; Plate Tensile Yielding</div><div class="cbox">';
+  d5+='<div class="mrow"><span class="ceq">Eq. J4-1: &phi;R<sub>n</sub> = &phi; &middot; F<sub>y</sub> &middot; A<sub>g</sub></span></div>';
+  d5+='<div class="mrow">A<sub>g</sub> = t<sub>p</sub>&middot;w<sub>p</sub> = '+f3(tp)+' &times; '+f2(wp)+' = <span class="cval">'+f3(Agp)+' in&sup2;</span></div>';
+  d5+='<div class="mrow ind">= 0.90 &times; '+Fyp+' &times; '+f3(Agp)+' = <span class="cval">'+f2(phiPyp)+' kips</span></div>';
+  d5+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiPyp))+' = <span class="cval">'+f3(Tu/phiPyp)+'</span></div></div>';
+  add({n:'Plate Tensile Yielding',r:'AISC 360-22 &sect;J4.1',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiPyp)+' k',dc:Tu/phiPyp,nt:'',det:d5});
+
+  // ── 6. Plate tensile rupture (Table D3.1 Case 4) ──
+  var sl4=shearLagCase4(Lw,wp);
+  var An6=Agp;
+  var validCase4=isFinite(sl4.U);
+  var Ue=validCase4?sl4.U:0.75;
+  var Ae6=An6*Ue;
+  var phiPrp=0.75*Fup*Ae6;
+  var d6='<div class="cref-hdr">AISC 360-22 &sect;J4.2, Table D3.1 Case 4 &mdash; Plate Tensile Rupture</div><div class="cbox">';
+  d6+='<div class="mrow">L<sub>w</sub>/w<sub>p</sub> = '+f2(Lw)+'/'+f2(wp)+' = '+f3(sl4.ratio)+'</div>';
+  d6+='<div class="mrow">U (Case 4: l&ge;2w&rarr;1.0, 2w&gt;l&ge;1.5w&rarr;0.87, 1.5w&gt;l&ge;w&rarr;0.75) = <span class="cval">'+f3(Ue)+'</span>'+(validCase4?'':' &mdash; <strong>L<sub>w</sub>&lt;w<sub>p</sub>, outside Case 4 domain; U=0.75 used conservatively, verify weld layout</strong>')+'</div>';
+  d6+='<div class="mrow">A<sub>e</sub> = A<sub>n</sub>&middot;U = '+f3(An6)+' &times; '+f3(Ue)+' = <span class="cval">'+f3(Ae6)+' in&sup2;</span></div>';
+  d6+='<div class="mrow">&phi;R<sub>n</sub> = 0.75 &times; F<sub>u</sub> &times; A<sub>e</sub> = 0.75 &times; '+Fup+' &times; '+f3(Ae6)+' = <span class="cval">'+f2(phiPrp)+' kips</span></div>';
+  d6+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiPrp))+' = <span class="cval">'+f3(Tu/phiPrp)+'</span></div></div>';
+  add({n:'Plate Tensile Rupture (Shear Lag)',r:'AISC 360-22 Table D3.1 Case 4',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiPrp)+' k',dc:Tu/phiPrp,nt:'U='+f3(Ue),det:d6});
+
+  // ── 7. Plate-to-flange weld ──
+  var perIn2=w70*D2*kDS;
+  var phiRw2=2*wp*perIn2;
+  var d7='<div class="cref-hdr">AISC 360-22 &sect;J2.4 &mdash; Plate-to-Beam-Flange Weld</div><div class="cbox">';
+  d7+='<div class="mrow"><span class="ceq">&phi;r<sub>n</sub> = 0.75 &times; 0.6 &times; F<sub>EXX</sub> &times; 0.707 &times; (D/16) &times; k<sub>DS</sub></span></div>';
+  d7+='<div class="mrow ind">= '+f3(w70)+' &times; '+D2+' &times; '+kDS+' = <span class="cval">'+f3(perIn2)+' kips/in</span></div>';
+  d7+='<div class="mrow">&phi;R<sub>n</sub> = 2 &times; w<sub>p</sub> &times; &phi;r<sub>n</sub> = 2 &times; '+f2(wp)+' &times; '+f3(perIn2)+' = <span class="cval">'+f2(phiRw2)+' kips</span></div>';
+  d7+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiRw2))+' = <span class="cval">'+f3(Tu/phiRw2)+'</span></div></div>';
+  add({n:'Plate-to-Flange Weld',r:'AISC 360-22 &sect;J2.4',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiRw2)+' k',dc:Tu/phiRw2,nt:D2+'/16" fillet, k<sub>DS</sub>='+kDS,det:d7});
+
+  // ── 8. Beam flange local bending (J10.1) ──
+  var redFac=nearEnd?0.5:1.0;
+  var Rn8=6.25*tf*tf*Fyb*redFac;
+  var phiRn8=0.90*Rn8;
+  var d8='<div class="cref-hdr">AISC 360-22 &sect;J10.1 &mdash; Flange Local Bending</div><div class="cbox">';
+  d8+='<div class="mrow"><span class="ceq">Eq. J10-1: &phi;R<sub>n</sub> = &phi; &middot; 6.25 &middot; t<sub>f</sub>&sup2; &middot; F<sub>yf</sub></span>'+(nearEnd?' &times; 0.5 (near end)':'')+'</div>';
+  d8+='<div class="mrow ind">= 0.90 &times; 6.25 &times; '+f3(tf)+'&sup2; &times; '+Fyb+(nearEnd?' &times; 0.5':'')+' = <span class="cval">'+f2(phiRn8)+' kips</span></div>';
+  d8+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiRn8))+' = <span class="cval">'+f3(Tu/phiRn8)+'</span></div></div>';
+  add({n:'Beam Flange Local Bending',r:'AISC 360-22 &sect;J10.1',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiRn8)+' k',dc:Tu/phiRn8,nt:nearEnd?'0.5&times; end reduction applied':'',det:d8});
+
+  // ── 9. Beam web local yielding (informational, J10.2 extended to tension) ──
+  var N9=Math.min(wp,bf);
+  var Rn9=nearEnd?(2.5+N9/d)*tw*Fyb:(5+N9/d)*tw*Fyb;
+  var phiRn9=1.00*Rn9;
+  var d9='<div class="cref-hdr">AISC 360-22 &sect;J10.2 &mdash; Web Local Yielding (informational, extended to tension)</div><div class="cbox">';
+  d9+='<div class="mrow">N (bearing length, taken as min(w<sub>p</sub>,b<sub>f</sub>)) = '+f2(N9)+'"</div>';
+  d9+='<div class="mrow"><span class="ceq">&phi;R<sub>n</sub> = &phi;('+(nearEnd?'2.5':'5')+' + N/d)&middot;t<sub>w</sub>&middot;F<sub>y</sub></span></div>';
+  d9+='<div class="mrow ind">= 1.00 &times; ('+(nearEnd?'2.5':'5')+' + '+f2(N9)+'/'+f2(d)+') &times; '+f3(tw)+' &times; '+Fyb+' = <span class="cval">'+f2(phiRn9)+' kips</span></div>';
+  d9+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Tu),f2(phiRn9))+' = <span class="cval">'+f3(Tu/phiRn9)+'</span></div>';
+  d9+='<div class="mrow" style="color:#b45309"><em>J10.2 is written for concentrated compressive forces; applying it to a tensile pull-through at the flange-web junction is an engineering-judgment extension, not a literal code check.</em></div></div>';
+  add({n:'Web Local Yielding (informational)',r:'AISC 360-22 &sect;J10.2',d:'T<sub>u</sub> = '+f2(Tu)+' k',c:'&phi;R<sub>n</sub> = '+f2(phiRn9)+' k',dc:Tu/phiRn9,nt:'Informational / engineering judgment',info:true,det:d9});
+
+  // ── 10. Weld size limits ──
+  var tThin=Math.min(tp,tdes);
+  var minW=tThin<=0.25?0.125:(tThin<=0.5?0.1875:(tThin<=0.75?0.25:0.3125));
+  var maxEdge1=tdes<0.25?tdes:(tdes-1/16);
+  var d10='<div class="cref-hdr">AISC 360-22 Table J2.4 &amp; &sect;J2.2b &mdash; Weld Size Limits</div><div class="cbox">';
+  d10+='<div class="mrow">Min. fillet size (thinner part = '+f3(tThin)+'") per Table J2.4: <span class="cval">'+f3(minW)+'"</span> &mdash; D<sub>1</sub>='+f3(D1/16)+'" '+(D1/16>=minW?'OK':'<strong>BELOW MIN</strong>')+', D<sub>2</sub>='+f3(D2/16)+'" '+(D2/16>=minW?'OK':'<strong>BELOW MIN</strong>')+'</div>';
+  d10+='<div class="mrow">Max. fillet along HSS wall edge (t<sub>des</sub>='+f3(tdes)+'"): <span class="cval">'+f3(maxEdge1)+'"</span> &mdash; D<sub>1</sub>='+f3(D1/16)+'" '+(D1/16<=maxEdge1?'OK':'<strong>EXCEEDS MAX</strong>')+'</div>';
+  d10+='<div class="mrow">Min. effective weld length &sect;J2.2b: L<sub>w</sub> &ge; 4&times;D &rarr; 4&times;'+f3(D1/16)+'=<span class="cval">'+f3(4*D1/16)+'"</span> &mdash; L<sub>w</sub>='+f2(Lw)+'" '+(Lw>=4*D1/16?'OK':'<strong>TOO SHORT</strong>')+'</div></div>';
+  add({n:'Weld Size / Length Limits',r:'Table J2.4 / &sect;J2.2b',d:'&mdash;',c:'&mdash;',dc:null,nt:'Geometric limits, not strength',info:true,det:d10});
+
+  // Governing (exclude informational rows from PASS/FAIL summary)
+  var strength=chks.filter(function(c){return c.dc!==null && !c.info;});
+  var maxDC=Math.max.apply(null,strength.map(function(c){return c.dc;}));
+  var allPass=strength.every(function(c){return c.dc<=1.0;});
+
+  var sum=document.getElementById('sumBox');
+  sum.className='summary '+(allPass?'sum-pass':'sum-fail');
+  sum.innerHTML='<h3>'+(allPass?'&#10003; PASS':'&#10007; FAIL')+' &mdash; Governing D/C = '+f3(maxDC)+'</h3>'+
+    '<div style="font-size:.88em">'+strength.length+' strength checks evaluated'+(ecc>0?' &mdash; <strong>eccentricity = '+f3(ecc)+'" input: torsion in the beam is NOT designed by this tool</strong>':'')+'</div>';
+
+  document.getElementById('propOut').innerHTML=
+    '<table class="prop-table"><tr><th>Member</th><th>Section</th><th>Key Properties</th></tr>'+
+    '<tr><td>Beam</td><td>'+wk+'</td><td>d='+d+'", bf='+bf+'", tf='+tf+'", tw='+tw+'", Fy='+Fyb+' ksi</td></tr>'+
+    '<tr><td>HSS Hanger</td><td>'+hk+'</td><td>B=H='+B+'", t<sub>des</sub>='+f3(tdes)+'", A='+Ahss+' in&sup2;, Fy='+FyHSS+'/Fu='+FuHSS+' ksi</td></tr>'+
+    '<tr><td>Plate</td><td>PL'+f3(tp)+'x'+f2(wp)+'</td><td>Fy='+Fyp+'/Fu='+Fup+' ksi</td></tr></table>';
+
+  document.getElementById('demOut').innerHTML=
+    '<div class="dem-grid">'+
+    '<div class="dem-card"><div class="v">'+f2(Tu)+' k</div><div class="l">T<sub>u</sub><br>Factored Tension</div></div>'+
+    '<div class="dem-card"><div class="v">'+f3(maxDC)+'</div><div class="l">Governing D/C</div></div>'+
+    '</div>';
+
+  var tb=document.getElementById('chkTb'); tb.innerHTML='';
+  chks.forEach(function(c,i){
+    var status = c.dc===null ? '<span class="na">&mdash;</span>' : (c.info ? '<span class="na">INFO</span>' : (c.dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>'));
+    var barPct = c.dc===null?0:Math.min(100,c.dc*100);
+    var barColor = c.dc===null?'#9ca3af':(c.dc<=1.0?'#16a34a':'#dc2626');
+    var dcCell = c.dc===null ? '&mdash;' : '<div class="dc-cell"><div class="dc-bar"><div class="dc-fill" style="width:'+barPct+'%;background:'+barColor+'"></div></div>'+f3(c.dc)+'</div>';
+    var row='<tr'+(c.info?' class="info-row"':'')+'><td><strong>'+c.n+'</strong>'+(c.nt?'<div style="font-size:.78em;color:#666">'+c.nt+'</div>':'')+'</td>'+
+      '<td>'+c.r+'</td><td>'+c.d+'</td><td>'+c.c+'</td><td>'+dcCell+'</td><td>'+status+'</td>'+
+      '<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">&#9656; Calc</button></td></tr>';
+    row+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+    tb.innerHTML+=row;
+  });
+
+  document.getElementById('results').classList.add('show');
+  drawSchematic();
+}
+
+// ── Schematic (custom, using AREDraw primitives — no changes to are-draw.js) ──
+function drawSchematic(){
+  var svg=document.getElementById('svgHang');
+  if(!svg||!window.AREDraw) return;
+  var wk=document.getElementById('wsec').value, hk=document.getElementById('hsec').value;
+  var W=WDB[wk]||[12.2,4.01,0.350,0.235,5.57];
+  var H=HDB[hk]||[3.0,0.25,0.233,2.21];
+  var d=W[0], bf=W[1], tf=W[2];
+  var B=H[0];
+  var wp=+((document.getElementById('wp')||{}).value)||3.5;
+  var tp=+((document.getElementById('tp')||{}).value)||0.375;
+  var Lw=+((document.getElementById('Lw')||{}).value)||3;
+  var Tu=+((document.getElementById('Tu')||{}).value)||12;
+
+  var dwg=new AREDraw.Drawing(svg,{margin:22});
+  var ST=dwg.style;
+  var beamLen=Math.max(24, bf*3);
+  var plateLen=Lw+2, hssLen=B+2*Lw;
+  var totalH=d+plateLen+hssLen+6;
+  var scale=AREDraw.fitScale(Math.max(beamLen,totalH),300,{min:8,max:22});
+  var ox=150, oy=40;
+  var v=new AREDraw.View(dwg,{scale:scale,ox:ox,oy:oy,flipY:true});
+
+  // Beam elevation (short segment), centroid at y = topY - d/2
+  var topY=0;
+  AREDraw.wElevation(v,-beamLen/2,topY-d/2,beamLen,{d:d,tf:tf},{highlight:true});
+  AREDraw.centerline(v,-beamLen/2-1,topY-d/2,beamLen/2+1,topY-d/2);
+
+  // Plate hanging from underside of bottom flange
+  var flangeBotY=topY-d;
+  AREDraw.plate(v,-wp/2,flangeBotY-plateLen,wp,plateLen,{hatch:true});
+
+  // HSS elevation hanging below the plate (drawn as a tube elevation, vertical → build via plate calls)
+  var hssTopY=flangeBotY-plateLen+1.0; // overlap onto plate for the slotted portion
+  var hssBotY=hssTopY-hssLen;
+  AREDraw.plate(v,-B/2,hssBotY,B,hssLen,{highlight:true});
+
+  // Weld marks "EACH SIDE" at HSS-to-plate slot (small ticks)
+  function tick(x,y1,y2){
+    var n=document.createElementNS('http://www.w3.org/2000/svg','line');
+    n.setAttribute('x1',v.px(x));n.setAttribute('y1',v.py(y1));
+    n.setAttribute('x2',v.px(x));n.setAttribute('y2',v.py(y2));
+    n.setAttribute('stroke',ST.force);n.setAttribute('stroke-width',2);
+    dwg.gAnno.appendChild(n);
+  }
+  var slotTop=flangeBotY-plateLen+1.0+Lw, slotBot=flangeBotY-plateLen+1.0;
+  tick(-B/2,slotTop,slotBot); tick(B/2,slotTop,slotBot);
+  AREDraw.calloutLabel(v,B/2,(slotTop+slotBot)/2, v.px(B/2)+70, v.py((slotTop+slotBot)/2), 'EACH SIDE weld', {color:ST.force,anchor:'start'});
+
+  // Weld marks at flange tips (plate-to-flange)
+  tick(-bf/2,topY-d,topY-d-0.6); tick(bf/2,topY-d,topY-d-0.6);
+
+  // Tu arrow pointing down from bottom of HSS
+  AREDraw.forceArrow(v,0,hssBotY,0,-1,v.s(2.2),'',{color:ST.force});
+  AREDraw.calloutLabel(v,0,hssBotY-2.2, v.px(0)+14, v.py(hssBotY-2.6), 'T_u = '+f2(Tu)+' k', {color:ST.force,anchor:'start'});
+
+  // Dimension: plate width
+  AREDraw.dimLine(v,-wp/2,flangeBotY-plateLen-0.4,wp/2,flangeBotY-plateLen-0.4,'w_p = '+f2(wp)+'"',{off:-16});
+
+  // Labels
+  AREDraw.viewTitle(v, v.px(0), v.py(topY-d)+70, (wk||'W12X19')+' &mdash; '+(hk||'HSS3X3X1/4')+' Hanger');
+  dwg.extend(v.px(-beamLen/2)-14, v.py(topY+d/2)-14);
+  dwg.extend(v.px(beamLen/2)+14, v.py(hssBotY-3)+14);
+
+  dwg.commit();
+}
+(function(){
+  function tryDraw(){ if(window.AREDraw){ fillHints(); drawSchematic(); } else setTimeout(tryDraw,80); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',tryDraw); else tryDraw();
+  ['wsec','hsec','wp','tp','Lw','Tu'].forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    el.addEventListener('change',drawSchematic);
+    if(el.tagName==='INPUT') el.addEventListener('input',drawSchematic);
+  });
+})();
+</script>
+</body>
+</html>
