@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cantilever Plate Strip — Weak-Axis Bending &amp; Deflection</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.loadtype-toggle{display:flex;gap:10px;margin-bottom:14px}
+.loadtype-toggle label{display:flex;align-items:center;gap:6px;font-weight:600;font-size:.9em;color:#333;cursor:pointer}
+</style>
+  <link rel="stylesheet" href="./are-calc.css">
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Cantilever Plate Strip — Weak-Axis Bending &amp; Deflection</h1>
+    <p>One-way bending-strip model for a rectangular plate cantilevering from a fixed support (e.g. a steel shelf/ledger plate supporting brick veneer)</p>
+    <div class="ref-tags">
+      <span class="tag">AISC 360-22 §F11</span>
+      <span class="tag">Serviceability — Deflection</span>
+      <span class="tag">LRFD Strength + Service Deflection</span>
+      <span class="tag">Companion to F11 Plate Bending Calc</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Schematic -->
+    <div class="schema-wrap">
+      <svg id="cpDiaSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <script src="/are-draw.js"></script>
+    <script>
+    /* ── Cantilever Plate Strip Diagram ────────────────────────────────────────
+     * Single-panel AREDraw elevation:
+     *   Hatched wall block at x<0, plate cantilevering 0..L, fixed-support
+     *   hatch marks along the wall face, load shown per selected type
+     *   (point arrow at x=a, or distributed arrows over the full span).
+     * ──────────────────────────────────────────────────────────────────────── */
+    function drawCPDiagram() {
+      var svg = document.getElementById('cpDiaSvg');
+      if (!svg || !window.AREDraw) return;
+
+      var t  = Math.max(parseFloat((document.getElementById('t') ||{}).value)||0.5, 0.01);
+      var L  = Math.max(parseFloat((document.getElementById('L') ||{}).value)||8,   0.1);
+      var loadType = ((document.getElementById('loadType')||{}).value)||'point';
+      var a  = Math.max(Math.min(parseFloat((document.getElementById('a')||{}).value)||L, L), 0);
+
+      var dwg = new AREDraw.Drawing(svg, { margin: 24 });
+      var ST  = dwg.style;
+
+      var scElv = AREDraw.fitScale(L, 260, { min: 4, max: 40 });
+      var elvHalf = Math.max(t * scElv, 14);
+      var OY = elvHalf + 70;
+      var ELV_OX = 70;
+
+      var vElv = new AREDraw.View(dwg, { scale: scElv, ox: ELV_OX, oy: OY, flipY: true });
+
+      // Wall block (hatched) to the left of the fixed support
+      var wallDepthPx = Math.max(elvHalf * 2 + 40, 90);
+      var wallWorldW = wallDepthPx / scElv;
+      AREDraw.plate(vElv, -wallWorldW, -(wallDepthPx/2)/scElv, wallWorldW, wallDepthPx/scElv, { hatch: true, fill: '#eceae4' });
+
+      // Cantilevering plate
+      AREDraw.plate(vElv, 0, -t/2, L, t, { highlight: true });
+      AREDraw.centerline(vElv, -6/scElv, 0, L + 6/scElv, 0);
+
+      // Fixed-support hatch marks along the wall face (x = 0)
+      (function(){
+        var fx = vElv.px(0);
+        var yTop = vElv.py(elvHalf/scElv + 10/scElv);
+        var yBot = vElv.py(-(elvHalf/scElv + 10/scElv));
+        dwg.gAnno.appendChild((function(){
+          var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+          ln.setAttribute('x1', fx); ln.setAttribute('y1', yTop);
+          ln.setAttribute('x2', fx); ln.setAttribute('y2', yBot);
+          ln.setAttribute('stroke', ST.steel); ln.setAttribute('stroke-width', 2.5);
+          return ln;
+        })());
+        dwg.extend(fx, yTop); dwg.extend(fx, yBot);
+      })();
+
+      // Load
+      if (loadType === 'uniform') {
+        AREDraw.distLoad(vElv, 0, L, t/2, 34, 'w', { color: ST.force });
+      } else {
+        var apx = vElv.px(a), atopy = vElv.py(t/2 + 30/scElv), atipy = vElv.py(t/2);
+        var arr = document.createElementNS('http://www.w3.org/2000/svg','line');
+        arr.setAttribute('x1', apx); arr.setAttribute('y1', atopy);
+        arr.setAttribute('x2', apx); arr.setAttribute('y2', atipy);
+        arr.setAttribute('stroke', ST.force); arr.setAttribute('stroke-width', 2);
+        arr.setAttribute('marker-end', 'url(#areArrForce)');
+        dwg.gAnno.appendChild(arr);
+        dwg.extend(apx, atopy);
+        AREDraw.calloutLabel(vElv, a, t/2, apx + 26, atopy - 10, 'P', { color: ST.force, anchor: 'start' });
+      }
+
+      // Dimensions
+      AREDraw.dimLine(vElv, 0, -t/2, L, -t/2, 'L = ' + L + '"', { off: -46 });
+      if (loadType === 'point' && a < L) {
+        AREDraw.dimLine(vElv, 0, -t/2, a, -t/2, 'a = ' + a + '"', { off: -22 });
+      }
+
+      AREDraw.viewTitle(vElv, ELV_OX + (L*scElv)/2, OY + elvHalf + 54, 'CANTILEVER ELEVATION');
+
+      dwg.commit();
+    }
+
+    (function() {
+      var ids = ['t', 'L', 'a', 'loadType'];
+      function tryDraw() {
+        if (window.AREDraw) { drawCPDiagram(); }
+        else { setTimeout(tryDraw, 40); }
+      }
+      tryDraw();
+      ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', function(){ if (window.AREDraw) drawCPDiagram(); });
+      });
+    })();
+    </script>
+
+    <!-- Block 1: Material -->
+    <div class="blk">
+      <h2>1 — Material Properties</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>F<sub>y</sub> <span class="unit">(ksi)</span></label>
+          <select id="Fy">
+            <option value="36" selected>36 — A36</option>
+            <option value="50">50 — A572 Gr. 50 / A992</option>
+            <option value="46">46 — A572 Gr. 46</option>
+            <option value="60">60 — A572 Gr. 60</option>
+            <option value="65">65 — A514 / A572 Gr. 65</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>E <span class="unit">(ksi)</span></label>
+          <input type="number" id="Es" value="29000">
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 2: Plate Geometry -->
+    <div class="blk">
+      <h2>2 — Plate Geometry</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Width, b <span class="unit">(in)</span></label>
+          <input type="number" id="b" value="12" step="0.25">
+          <div class="hint">Trib width along the wall (out-of-plane direction)</div>
+        </div>
+        <div class="ig">
+          <label>Thickness, t <span class="unit">(in)</span></label>
+          <input type="number" id="t" value="1.0" step="0.0625">
+          <div class="hint">Bending direction — plate spans in weak axis through its thickness</div>
+        </div>
+        <div class="ig">
+          <label>Cantilever Length, L <span class="unit">(in)</span></label>
+          <input type="number" id="L" value="7.75" step="0.125">
+        </div>
+      </div>
+      <div id="geomHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
+    </div>
+
+    <!-- Block 3: Load Type & Demands -->
+    <div class="blk alt-blk">
+      <h2>3 — Load Type &amp; Demands <span class="badge-green">From Analysis</span></h2>
+      <div class="loadtype-toggle">
+        <label><input type="radio" name="loadTypeR" value="point" checked onclick="setLoadType('point')"> Point Load</label>
+        <label><input type="radio" name="loadTypeR" value="uniform" onclick="setLoadType('uniform')"> Uniform Load</label>
+        <input type="hidden" id="loadType" value="point">
+      </div>
+
+      <div id="pointInputs" class="g3">
+        <div class="ig">
+          <label>Load Location, a <span class="unit">(in from fixed support)</span></label>
+          <input type="number" id="a" value="6.125" step="0.0625">
+          <div class="hint">Exact for a true concentrated load. If approximating a non-uniform bearing distribution with an equivalent resultant, the moment is exact but the deflection is only an approximation.</div>
+        </div>
+        <div class="ig">
+          <label>P<sub>service</sub> — Service Load <span class="unit">(kips)</span></label>
+          <input type="number" id="Pservice" value="0.625" step="0.001">
+          <div class="hint">Unfactored load — used only for the deflection check</div>
+        </div>
+        <div class="ig">
+          <label>P<sub>u</sub> — Factored (LRFD) Load <span class="unit">(kips)</span></label>
+          <input type="number" id="Pu" value="1.0" step="0.001">
+          <div class="hint">Factored load — used only for the strength check</div>
+        </div>
+      </div>
+
+      <div id="uniformInputs" class="g3" style="display:none">
+        <div class="ig">
+          <label>w<sub>service</sub> — Service Load <span class="unit">(kip/in)</span></label>
+          <input type="number" id="wservice" value="0.05" step="0.001">
+          <div class="hint">Bearing load per inch of cantilever projection, already integrated across trib width b — assumes bearing pressure is uniform across the full plate top surface from support to tip. A wall line load in plf is NOT directly usable here; convert your actual bearing geometry first, or use Point Load with the true resultant location if pressure is non-uniform.</div>
+        </div>
+        <div class="ig">
+          <label>w<sub>u</sub> — Factored (LRFD) Load <span class="unit">(kip/in)</span></label>
+          <input type="number" id="wu" value="0.08" step="0.001">
+          <div class="hint">Factored load — used only for the strength check</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 4: Deflection Limit -->
+    <div class="blk">
+      <h2>4 — Deflection Limit</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Allowable Basis</label>
+          <select id="defBasis" onchange="toggleDefBasis()">
+            <option value="abs" selected>Project/Engineer Specified (absolute)</option>
+            <option value="ratio">L / ratio (reference preset)</option>
+          </select>
+        </div>
+        <div class="ig" id="absWrap">
+          <label>&Delta;<sub>allow</sub> <span class="unit">(in)</span></label>
+          <input type="number" id="defAbs" value="" step="0.001" placeholder="Enter allowable deflection">
+        </div>
+        <div class="ig" id="ratioWrap" style="display:none">
+          <label>Ratio</label>
+          <select id="defRatio">
+            <option value="180">L/180</option>
+            <option value="240">L/240</option>
+            <option value="360">L/360</option>
+            <option value="600">L/600</option>
+          </select>
+          <div class="hint">Reference preset only — verify applicability and adopted code edition before use.</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run Checks</button>
+
+    <!-- Results -->
+    <div id="results" class="results">
+
+      <div id="sumBox" class="summary"></div>
+
+      <div class="blk">
+        <h2>Section Properties</h2>
+        <div id="propOut"></div>
+      </div>
+
+      <div class="blk">
+        <h2>Design Demands</h2>
+        <div id="demOut"></div>
+      </div>
+
+      <div class="blk">
+        <h2>Check Results
+          <span style="font-size:.75em;font-weight:400;color:#555">&mdash; click &ldquo;&#9656; Calc&rdquo; to expand any check</span>
+        </h2>
+        <table class="chk-table">
+          <thead>
+            <tr>
+              <th style="width:28%">Check</th>
+              <th>Code Reference</th>
+              <th>Demand</th>
+              <th>Capacity</th>
+              <th>D/C</th>
+              <th>Status</th>
+              <th style="width:70px">Detail</th>
+            </tr>
+          </thead>
+          <tbody id="chkTb"></tbody>
+        </table>
+      </div>
+
+      <div class="note-box">
+        <strong>Engineering Notes:</strong>
+        <ul>
+          <li>This is a one-way beam-strip model of the plate (I = b&middot;t&sup3;/12 through the thickness). It does not capture 2-way plate action, Poisson effects, or partial edge restraint — treat results as an approximation for a plate whose width b is not small compared to its span L.</li>
+          <li>Weak-axis flexure assumes bending about the plate's minor axis; lateral-torsional buckling does not apply (consistent with AISC 360-22 §F11 for weak-axis bending of rectangular bars/plates) — yielding always governs.</li>
+          <li>Strength check uses the factored (LRFD) demand; deflection check uses the service-level demand. Enter both from your own analysis — this calculator does not compute demand or apply load factors.</li>
+          <li>Uniform Load case assumes bearing pressure is constant across the full top surface of the plate, support to tip. If your actual bearing pressure is non-uniform along the projection, use Point Load with the true resultant location instead — recognize that an equivalent point load reproduces the exact support moment but only approximates true deflection when the real distribution isn't a point load.</li>
+          <li>No shear, bearing, weld, or connection checks are included.</li>
+        </ul>
+      </div>
+
+    </div><!-- /results -->
+
+  </div><!-- /content -->
+</div><!-- /container -->
+
+<script>
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
+
+function fr(n,d){
+  return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';
+}
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'▾ Calc':'▶ Calc';
+}
+
+function setLoadType(v){
+  document.getElementById('loadType').value = v;
+  document.getElementById('pointInputs').style.display = (v==='point') ? '' : 'none';
+  document.getElementById('uniformInputs').style.display = (v==='uniform') ? '' : 'none';
+  if (window.AREDraw) drawCPDiagram();
+}
+
+function toggleDefBasis(){
+  var basis = document.getElementById('defBasis').value;
+  document.getElementById('absWrap').style.display = (basis==='abs') ? '' : 'none';
+  document.getElementById('ratioWrap').style.display = (basis==='ratio') ? '' : 'none';
+}
+
+(function(){
+  ['b','t','Es','Fy'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('input', updateGeomHint);
+  });
+})();
+
+function updateGeomHint(){
+  var b=+document.getElementById('b').value;
+  var t=+document.getElementById('t').value;
+  var Fy=+document.getElementById('Fy').value;
+  var E=+document.getElementById('Es').value;
+  if(!b||!t||!Fy||!E) return;
+  var A=b*t;
+  var S=b*t*t/6;
+  var Z=b*t*t/4;
+  var I=b*Math.pow(t,3)/12;
+  document.getElementById('geomHint').textContent =
+    'A = '+f3(A)+' in²  |  S = '+f3(S)+' in³  |  Z = '+f3(Z)+' in³  |  I = '+f4(I)+' in⁴';
+}
+
+function getAllowableDeflection(L){
+  var basis = document.getElementById('defBasis').value;
+  if (basis === 'ratio') {
+    var ratio = +document.getElementById('defRatio').value;
+    return ratio > 0 ? L / ratio : null;
+  }
+  var v = document.getElementById('defAbs').value;
+  return (v === '' || v === null) ? null : +v;
+}
+
+function runCalc(){
+  var Fy = +document.getElementById('Fy').value;
+  var E  = +document.getElementById('Es').value;
+  var b  = +document.getElementById('b').value;
+  var t  = +document.getElementById('t').value;
+  var L  = +document.getElementById('L').value;
+  var loadType = document.getElementById('loadType').value;
+
+  if(!b||!t||!L){alert('Enter plate width, thickness, and cantilever length.'); return;}
+
+  var A = b*t;
+  var S = b*t*t/6;
+  var Z = b*t*t/4;
+  var I = b*Math.pow(t,3)/12;
+
+  var My = Fy*S;
+  var Mp = Math.min(Fy*Z, 1.6*My);
+  var phiMn = 0.90*Mp;
+
+  var Mu, deltaTip, demandLabel, loadNote;
+  if (loadType === 'uniform') {
+    var wservice = +document.getElementById('wservice').value;
+    var wu = +document.getElementById('wu').value;
+    Mu = wu * L * L / 2;
+    deltaTip = wservice * Math.pow(L,4) / (8*E*I);
+    demandLabel = 'M<sub>u</sub> = w<sub>u</sub>&middot;L&sup2;/2 = '+f4(wu)+'&times;'+f2(L)+'&sup2;/2 = <span class="cval">'+f3(Mu)+'</span> kip-in';
+    loadNote = 'Uniform load, w<sub>service</sub> = '+f4(wservice)+' kip/in, w<sub>u</sub> = '+f4(wu)+' kip/in over full span L';
+  } else {
+    var a = Math.min(+document.getElementById('a').value, L);
+    var Pservice = +document.getElementById('Pservice').value;
+    var Pu = +document.getElementById('Pu').value;
+    Mu = Pu * a;
+    deltaTip = Pservice * a*a * (3*L - a) / (6*E*I);
+    demandLabel = 'M<sub>u</sub> = P<sub>u</sub>&middot;a = '+f4(Pu)+'&times;'+f3(a)+' = <span class="cval">'+f3(Mu)+'</span> kip-in';
+    loadNote = 'Point load, P<sub>service</sub> = '+f4(Pservice)+' kips, P<sub>u</sub> = '+f4(Pu)+' kips at a = '+f3(a)+'" from support';
+  }
+
+  var deltaAllow = getAllowableDeflection(L);
+  var dcDefl = (deltaAllow && deltaAllow > 0) ? deltaTip/deltaAllow : null;
+  var dcFlex = (Mu > 0 && phiMn > 0) ? Mu/phiMn : null;
+
+  var chks = [];
+
+  // Check 1: Weak-axis flexure
+  var det1 = '';
+  det1 += '<div class="cref-hdr">AISC 360-22 &sect;F11 &mdash; Rectangular Plate, Weak-Axis (Through-Thickness) Bending</div>';
+  det1 += '<div class="cbox">';
+  det1 += '<div class="mrow"><b>Section properties:</b></div>';
+  det1 += '<div class="mrow ind">S = '+fr('b&middot;t<sup>2</sup>','6')+' = '+fr(f3(b)+'&times;'+f3(t)+'<sup>2</sup>','6')+' = <span class="cval">'+f3(S)+'</span> in&sup3;</div>';
+  det1 += '<div class="mrow ind">Z = '+fr('b&middot;t<sup>2</sup>','4')+' = '+fr(f3(b)+'&times;'+f3(t)+'<sup>2</sup>','4')+' = <span class="cval">'+f3(Z)+'</span> in&sup3;</div>';
+  det1 += '<div class="mrow ind">M<sub>y</sub> = F<sub>y</sub>&middot;S = '+f2(Fy)+'&times;'+f3(S)+' = <span class="cval">'+f2(My)+'</span> kip-in</div>';
+  det1 += '<div class="mrow ind">M<sub>p</sub> = min(F<sub>y</sub>&middot;Z, 1.6&middot;M<sub>y</sub>) = <span class="cval">'+f2(Mp)+'</span> kip-in</div>';
+  det1 += '<div class="mrow ind">Yielding governs for weak-axis bending of plates; LTB is not applicable.</div>';
+  det1 += '<hr class="csep">';
+  det1 += '<div class="mrow">&phi;M<sub>n</sub> = 0.90 &times; '+f2(Mp)+' = <span class="cval">'+f2(phiMn)+'</span> kip-in</div>';
+  det1 += '<div class="mrow">'+demandLabel+'</div>';
+  if (dcFlex !== null) {
+    det1 += '<div class="mrow">D/C = '+fr('M<sub>u</sub>','&phi;M<sub>n</sub>')+' = '+fr(f2(Mu), f2(phiMn))+' = <span class="cval">'+f3(dcFlex)+'</span></div>';
+  }
+  det1 += '</div>';
+
+  chks.push({
+    n: 'Weak-Axis Flexure (F11)',
+    r: 'AISC 360-22 §F11',
+    d: dcFlex !== null ? 'M<sub>u</sub> = '+f3(Mu)+' kip-in' : '&mdash;',
+    c: '&phi;M<sub>n</sub> = '+f2(phiMn)+' kip-in',
+    dc: dcFlex,
+    nt: loadNote,
+    stiff: false,
+    det: det1
+  });
+
+  // Check 2: Deflection
+  var det2 = '';
+  det2 += '<div class="cref-hdr">Cantilever Tip Deflection &mdash; Service Load</div>';
+  det2 += '<div class="cbox">';
+  det2 += '<div class="mrow ind">I = b&middot;t&sup3;/12 = '+f3(b)+'&times;'+f3(t)+'&sup3;/12 = <span class="cval">'+f4(I)+'</span> in&sup4;</div>';
+  if (loadType === 'uniform') {
+    det2 += '<div class="mrow"><span class="ceq">&delta;<sub>tip</sub> = w<sub>service</sub>&middot;L<sup>4</sup>/(8EI)</span></div>';
+    det2 += '<div class="mrow ind">= '+f4(+document.getElementById('wservice').value)+'&times;'+f2(L)+'<sup>4</sup>/(8&times;'+f1(E)+'&times;'+f4(I)+') = <span class="cval">'+f4(deltaTip)+'</span> in</div>';
+  } else {
+    var a2 = Math.min(+document.getElementById('a').value, L);
+    det2 += '<div class="mrow"><span class="ceq">&delta;<sub>tip</sub> = P<sub>service</sub>&middot;a<sup>2</sup>&middot;(3L&minus;a)/(6EI)</span></div>';
+    det2 += '<div class="mrow ind">= '+f4(+document.getElementById('Pservice').value)+'&times;'+f3(a2)+'<sup>2</sup>&times;(3&times;'+f2(L)+'&minus;'+f3(a2)+')/(6&times;'+f1(E)+'&times;'+f4(I)+') = <span class="cval">'+f4(deltaTip)+'</span> in</div>';
+  }
+  if (deltaAllow !== null) {
+    det2 += '<hr class="csep">';
+    det2 += '<div class="mrow">&Delta;<sub>allow</sub> = <span class="cval">'+f4(deltaAllow)+'</span> in</div>';
+    det2 += '<div class="mrow">D/C = '+fr('&delta;<sub>tip</sub>','&Delta;<sub>allow</sub>')+' = '+fr(f4(deltaTip), f4(deltaAllow))+' = <span class="cval">'+f3(dcDefl)+'</span></div>';
+  } else {
+    det2 += '<div class="mrow" style="color:#888">No allowable deflection entered &mdash; deflection shown only.</div>';
+  }
+  det2 += '</div>';
+
+  chks.push({
+    n: 'Tip Deflection',
+    r: 'Serviceability',
+    d: '&delta;<sub>tip</sub> = '+f4(deltaTip)+' in',
+    c: deltaAllow !== null ? '&Delta;<sub>allow</sub> = '+f4(deltaAllow)+' in' : '&mdash;',
+    dc: dcDefl,
+    nt: '',
+    stiff: true,
+    det: det2
+  });
+
+  // Section properties table
+  var propRows = [
+    ['Plate Width, b', f3(b), 'in'],
+    ['Plate Thickness, t', f3(t), 'in'],
+    ['Cantilever Length, L', f3(L), 'in'],
+    ['Cross-Section Area, A', f3(A), 'in²'],
+    ['Section Modulus, S', f3(S), 'in³'],
+    ['Plastic Modulus, Z', f3(Z), 'in³'],
+    ['Moment of Inertia, I', f4(I), 'in⁴'],
+  ];
+  var propHtml = '<table class="prop-table"><thead><tr><th>Property</th><th>Value</th><th>Unit</th></tr></thead><tbody>';
+  propRows.forEach(function(r){ propHtml += '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>'; });
+  propHtml += '</tbody></table>';
+  document.getElementById('propOut').innerHTML = propHtml;
+
+  var demHtml = '<div class="dem-grid">';
+  demHtml += '<div class="dem-card"><div class="v">'+f3(Mu)+'</div><div class="l">M<sub>u</sub><br>kip-in (demand)</div></div>';
+  demHtml += '<div class="dem-card alt"><div class="v">'+f2(phiMn)+'</div><div class="l">&phi;M<sub>n</sub><br>kip-in (capacity)</div></div>';
+  demHtml += '<div class="dem-card"><div class="v">'+f4(deltaTip)+'</div><div class="l">&delta;<sub>tip</sub><br>in (service)</div></div>';
+  demHtml += '<div class="dem-card alt"><div class="v">'+(deltaAllow!==null?f4(deltaAllow):'&mdash;')+'</div><div class="l">&Delta;<sub>allow</sub><br>in</div></div>';
+  demHtml += '</div>';
+  document.getElementById('demOut').innerHTML = demHtml;
+
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c, i){
+    var dc_v = (c.dc !== null && isFinite(c.dc) && c.dc >= 0) ? c.dc : null;
+    var pct  = dc_v !== null ? Math.min(dc_v * 100, 150) : 0;
+    var col  = dc_v === null ? '#9ca3af' : dc_v <= 0.8 ? '#16a34a' : dc_v <= 1.0 ? '#d97706' : '#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>'
+             : dc_v <= 1.0   ? '<span class="pass">PASS</span>'
+                             : '<span class="fail">FAIL</span>';
+    var dtxt = dc_v !== null ? f3(dc_v) : '&mdash;';
+    var rowCls = c.stiff ? 'class="alt-row"' : '';
+
+    tb.innerHTML +=
+      '<tr '+rowCls+'>'
+      + '<td><strong>'+c.n+'</strong>'
+      + (c.nt ? '<br><small style="color:#555">'+c.nt+'</small>' : '')+'</td>'
+      + '<td><code>'+c.r+'</code></td>'
+      + '<td>'+c.d+'</td>'
+      + '<td>'+c.c+'</td>'
+      + '<td><div class="dc-cell"><span style="color:'+col+';font-weight:700">'+dtxt+'</span>'
+      + (dc_v !== null
+          ? '<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'
+          : '')
+      + '</div></td>'
+      + '<td>'+stxt+'</td>'
+      + '<td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">&#9654; Calc</button></td>'
+      + '</tr>'
+      + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
+  });
+
+  var dcs = chks.map(function(c){return c.dc;}).filter(function(v){return isFinite(v)&&v!==null&&v>=0;});
+  var maxDC = dcs.length ? Math.max.apply(null,dcs) : 0;
+  var pass  = dcs.length ? maxDC <= 1.0 : true;
+  var plateLbl = b+'"&times;'+t+'" plate, L='+L+'", Fy='+Fy+' ksi';
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary ' + (pass ? 'sum-pass' : 'sum-fail');
+  sb.innerHTML = '<h3>'+(pass?'&#10004; All Checks Pass':'&#10008; One or More Checks Fail')+'</h3>'
+    +'<p>Max D/C = <strong>'+(dcs.length?f3(maxDC):'&mdash;')+'</strong> &nbsp;|&nbsp; '+plateLbl+'</p>';
+
+  var res = document.getElementById('results');
+  res.className = 'results show';
+  res.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function runCalcs(){ runCalc(); }
+
+window.addEventListener('load', updateGeomHint);
+</script>
+<script src="/are-utils-v2.js"></script>
+</body>
+</html>
