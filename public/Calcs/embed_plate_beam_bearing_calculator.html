@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Embed Plate — Beam Bearing at CMU Face — ASD | TMS 402-22 §8.1.4.3 · AISC 360-22 §F11</title>
-<!-- ANCHOR GRID: rows(1-2) x cols(1-3), preset picker, all-pairs projected areas, per-strip plate bending. v:2 save format. -->
+<!-- ANCHOR GRID: rows(1-3) x cols(1-3), preset picker, all-pairs projected areas, per-strip plate bending, extreme-row couple statics. v:2 save format. -->
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -187,6 +187,9 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <circle id="rodTopNear" r="5" fill="#1f2937"/>
       <text id="rodTopLbl" text-anchor="middle" font-size="6.6" fill="#4b5563"></text>
 
+      <!-- Middle anchor row (3-row layouts only; built in JS) -->
+      <g id="rodMidG"></g>
+
       <!-- Bottom anchor row -->
       <line id="rodBotLine" stroke="#374151" stroke-width="3"/>
       <circle id="rodBotFar" r="5" fill="none" stroke="#374151" stroke-width="1.1" stroke-dasharray="2.5,2"/>
@@ -260,6 +263,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <defs>
         <marker id="rDimR" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0,0L0,6L7,3z" fill="#ca8a04"/></marker>
         <marker id="rDimL" markerWidth="7" markerHeight="7" refX="1" refY="3" orient="auto"><path d="M7,0L7,6L0,3z" fill="#ca8a04"/></marker>
+        <marker id="rVArr" markerWidth="8" markerHeight="8" refX="6" refY="3.5" orient="auto"><path d="M0,0L7,3.5L0,7z" fill="#2563eb"/></marker>
         <pattern id="coneHatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
           <rect width="8" height="8" fill="#dbeafe"/>
           <line x1="0" y1="0" x2="0" y2="8" stroke="#93c5fd" stroke-width="1.5"/>
@@ -341,57 +345,77 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <h2>&#9632; 2. Anchor &amp; Plate Geometry <span class="badge-amber">TMS 402-22 §6.3 · AISC 360-22 §F11</span></h2>
   <div class="layout-picker" id="layoutPicker">
     <span class="lp-label">Preset Layout:</span>
+    <!-- Thumbnails are a WALL-FACE (front) view: V = gravity, drawn DOWN.
+         P = out-of-plane tension toward the viewer, drawn as the standard
+         out-of-page symbol (circle-dot), NOT a sideways arrow (no horizontal
+         shear exists in this calc). -->
     <button type="button" class="lp-btn" id="lp_1" onclick="applyPreset(1,1)" title="1 anchor">
       <svg viewBox="0 0 40 40" width="34" height="34">
-        <circle cx="20" cy="17" r="3.5" fill="#1e3c72"/>
-        <line x1="32" y1="10" x2="32" y2="24" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
-        <line x1="6" y1="34" x2="18" y2="34" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#lpP)"/>
+        <circle cx="18" cy="15" r="3.5" fill="#1e3c72"/>
+        <line x1="33" y1="6" x2="33" y2="22" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
+        <text x="33" y="31" text-anchor="middle" font-size="7" fill="#2563eb" font-weight="700">V</text>
+        <circle cx="8" cy="33" r="3.4" fill="none" stroke="#7c3aed" stroke-width="1.3"/>
+        <circle cx="8" cy="33" r="1.1" fill="#7c3aed"/>
+        <text x="16" y="36" font-size="7" fill="#7c3aed" font-weight="700">P</text>
       </svg><span>1</span>
     </button>
     <button type="button" class="lp-btn" id="lp_2v" onclick="applyPreset(2,1)" title="2 rows x 1 column">
       <svg viewBox="0 0 40 40" width="34" height="34">
-        <circle cx="20" cy="11" r="3.5" fill="#1e3c72"/><circle cx="20" cy="23" r="3.5" fill="#1e3c72"/>
-        <line x1="32" y1="6" x2="32" y2="28" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
-        <line x1="6" y1="34" x2="18" y2="34" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#lpP)"/>
+        <circle cx="18" cy="9" r="3.5" fill="#1e3c72"/><circle cx="18" cy="21" r="3.5" fill="#1e3c72"/>
+        <line x1="33" y1="6" x2="33" y2="22" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
+        <text x="33" y="31" text-anchor="middle" font-size="7" fill="#2563eb" font-weight="700">V</text>
+        <circle cx="8" cy="33" r="3.4" fill="none" stroke="#7c3aed" stroke-width="1.3"/>
+        <circle cx="8" cy="33" r="1.1" fill="#7c3aed"/>
+        <text x="16" y="36" font-size="7" fill="#7c3aed" font-weight="700">P</text>
       </svg><span>2V</span>
     </button>
     <button type="button" class="lp-btn" id="lp_2h" onclick="applyPreset(1,2)" title="1 row x 2 columns">
       <svg viewBox="0 0 40 40" width="34" height="34">
-        <circle cx="13" cy="17" r="3.5" fill="#1e3c72"/><circle cx="27" cy="17" r="3.5" fill="#1e3c72"/>
-        <line x1="34" y1="10" x2="34" y2="24" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
-        <line x1="4" y1="34" x2="16" y2="34" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#lpP)"/>
+        <circle cx="11" cy="15" r="3.5" fill="#1e3c72"/><circle cx="25" cy="15" r="3.5" fill="#1e3c72"/>
+        <line x1="35" y1="6" x2="35" y2="22" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
+        <text x="35" y="31" text-anchor="middle" font-size="7" fill="#2563eb" font-weight="700">V</text>
+        <circle cx="8" cy="33" r="3.4" fill="none" stroke="#7c3aed" stroke-width="1.3"/>
+        <circle cx="8" cy="33" r="1.1" fill="#7c3aed"/>
+        <text x="16" y="36" font-size="7" fill="#7c3aed" font-weight="700">P</text>
       </svg><span>2H</span>
     </button>
     <button type="button" class="lp-btn" id="lp_2x2" onclick="applyPreset(2,2)" title="2 rows x 2 columns (default)">
       <svg viewBox="0 0 40 40" width="34" height="34">
-        <circle cx="13" cy="11" r="3.5" fill="#1e3c72"/><circle cx="27" cy="11" r="3.5" fill="#1e3c72"/>
-        <circle cx="13" cy="23" r="3.5" fill="#1e3c72"/><circle cx="27" cy="23" r="3.5" fill="#1e3c72"/>
-        <line x1="34" y1="6" x2="34" y2="28" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
-        <line x1="4" y1="34" x2="16" y2="34" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#lpP)"/>
+        <circle cx="11" cy="9" r="3.5" fill="#1e3c72"/><circle cx="25" cy="9" r="3.5" fill="#1e3c72"/>
+        <circle cx="11" cy="21" r="3.5" fill="#1e3c72"/><circle cx="25" cy="21" r="3.5" fill="#1e3c72"/>
+        <line x1="35" y1="6" x2="35" y2="22" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
+        <text x="35" y="31" text-anchor="middle" font-size="7" fill="#2563eb" font-weight="700">V</text>
+        <circle cx="8" cy="33" r="3.4" fill="none" stroke="#7c3aed" stroke-width="1.3"/>
+        <circle cx="8" cy="33" r="1.1" fill="#7c3aed"/>
+        <text x="16" y="36" font-size="7" fill="#7c3aed" font-weight="700">P</text>
       </svg><span>2&times;2</span>
     </button>
-    <button type="button" class="lp-btn" id="lp_2x3" onclick="applyPreset(2,3)" title="2 rows x 3 columns">
+    <button type="button" class="lp-btn" id="lp_3x2" onclick="applyPreset(3,2)" title="3 rows x 2 columns (tall plate / deep beam)">
       <svg viewBox="0 0 40 40" width="34" height="34">
-        <circle cx="9" cy="11" r="3.2" fill="#1e3c72"/><circle cx="20" cy="11" r="3.2" fill="#1e3c72"/><circle cx="31" cy="11" r="3.2" fill="#1e3c72"/>
-        <circle cx="9" cy="23" r="3.2" fill="#1e3c72"/><circle cx="20" cy="23" r="3.2" fill="#1e3c72"/><circle cx="31" cy="23" r="3.2" fill="#1e3c72"/>
-        <line x1="37" y1="6" x2="37" y2="28" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
-        <line x1="2" y1="34" x2="14" y2="34" stroke="#7c3aed" stroke-width="1.6" marker-end="url(#lpP)"/>
-      </svg><span>2&times;3</span>
+        <circle cx="11" cy="6" r="3.2" fill="#1e3c72"/><circle cx="25" cy="6" r="3.2" fill="#1e3c72"/>
+        <circle cx="11" cy="15" r="3.2" fill="#1e3c72"/><circle cx="25" cy="15" r="3.2" fill="#1e3c72"/>
+        <circle cx="11" cy="24" r="3.2" fill="#1e3c72"/><circle cx="25" cy="24" r="3.2" fill="#1e3c72"/>
+        <line x1="35" y1="5" x2="35" y2="23" stroke="#2563eb" stroke-width="1.6" marker-end="url(#lpV)"/>
+        <text x="35" y="32" text-anchor="middle" font-size="7" fill="#2563eb" font-weight="700">V</text>
+        <circle cx="8" cy="33" r="3.4" fill="none" stroke="#7c3aed" stroke-width="1.3"/>
+        <circle cx="8" cy="33" r="1.1" fill="#7c3aed"/>
+        <text x="16" y="36" font-size="7" fill="#7c3aed" font-weight="700">P</text>
+      </svg><span>3&times;2</span>
     </button>
     <svg width="0" height="0" style="position:absolute"><defs>
-      <marker id="lpV" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto"><path d="M0,0L6,0L3,6z" fill="#2563eb"/></marker>
-      <marker id="lpP" markerWidth="7" markerHeight="7" refX="3" refY="3" orient="auto"><path d="M0,0L6,3L0,6z" fill="#7c3aed"/></marker>
+      <marker id="lpV" markerWidth="8" markerHeight="8" refX="6" refY="3.5" orient="auto"><path d="M0,0L7,3.5L0,7z" fill="#2563eb"/></marker>
     </defs></svg>
-    <span style="font-size:.76em;color:#78350f;margin-left:4px">Sets Rows &times; Columns below (still editable). Columns = wall-horizontal (S<sub>x</sub>); Rows = wall-vertical (d). V/P arrows shown for orientation.</span>
+    <span style="font-size:.76em;color:#78350f;margin-left:4px">Sets Rows &times; Columns below (still editable). Columns = wall-horizontal (S<sub>x</sub>); Rows = wall-vertical spacing r. Wall-face view: V = gravity (&darr;), P = out-of-plane tension (&#8857; toward viewer).</span>
   </div>
   <div class="g3">
     <div class="ig">
-      <label>Rows <span class="unit">(1&ndash;2, wall-vertical)</span></label>
+      <label>Rows <span class="unit">(1&ndash;3, wall-vertical)</span></label>
       <select id="rows_n" onchange="onGridChange()">
         <option value="1">1 row</option>
         <option value="2" selected>2 rows</option>
+        <option value="3">3 rows</option>
       </select>
-      <div class="hint">Anchor rows across the plate height. 2 rows &rarr; H<sub>p</sub>, e<sub>t</sub>, e<sub>b</sub> are independent (d derived). 1 row &rarr; H<sub>p</sub>, e<sub>t</sub> are independent (e<sub>b</sub> derived).</div>
+      <div class="hint">Anchor rows across the plate height, uniformly spaced. 2+ rows &rarr; H<sub>p</sub>, e<sub>t</sub>, e<sub>b</sub> are independent (row spacing r = (H<sub>p</sub>&minus;e<sub>t</sub>&minus;e<sub>b</sub>)/(rows&minus;1) derived). 1 row &rarr; H<sub>p</sub>, e<sub>t</sub> are independent (e<sub>b</sub> derived).</div>
     </div>
     <div class="ig">
       <label>Columns <span class="unit">(1&ndash;3, wall-horizontal)</span></label>
@@ -609,18 +633,23 @@ function applyPreset(r,c){
   // inherit a stale et/eb/Sx/Wp value left over from a different layout
   // (e.g. eb derived under 1-row mode is meaningless once switched to 2-row).
   // 2x2 restores the exact deployed baseline (Sx=5, Wp=8, Hp=12, et=eb=1.5).
-  document.getElementById('Hp').value='12';
-  document.getElementById('et').value='1.5';
-  if(r===2) document.getElementById('eb').value='1.5';
-  if(r===2&&c===2){
+  // 3x2 (tall plate / deep beam) uses Hp=16, et=eb=2 -> r=6 so the default
+  // Lb=6 breakout areas stay positive with 6 anchors.
+  if(r===3){
+    document.getElementById('Hp').value='16';
+    document.getElementById('et').value='2';
+    document.getElementById('eb').value='2';
+  } else {
+    document.getElementById('Hp').value='12';
+    document.getElementById('et').value='1.5';
+    if(r===2) document.getElementById('eb').value='1.5';
+  }
+  if(c===2){
     document.getElementById('Sx').value='5';
     document.getElementById('Wp').value='8';
   } else if(c===3){
     document.getElementById('Sx').value='3.5';
     document.getElementById('Wp').value='11';
-  } else if(c===2){
-    document.getElementById('Sx').value='5';
-    document.getElementById('Wp').value='8';
   } else if(c===1){
     document.getElementById('Wp').value='6';
   }
@@ -629,24 +658,27 @@ function applyPreset(r,c){
 
 function updateLayoutPickerHighlight(){
   var r=getRows(),c=getCols();
-  var map={lp_1:[1,1],lp_2v:[2,1],lp_2h:[1,2],lp_2x2:[2,2],lp_2x3:[2,3]};
+  var map={lp_1:[1,1],lp_2v:[2,1],lp_2h:[1,2],lp_2x2:[2,2],lp_3x2:[3,2]};
   Object.keys(map).forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     el.classList.toggle('active', map[id][0]===r && map[id][1]===c);
   });
 }
 
-// Toggle field ownership per layout: 2-row -> Hp,et,eb independent, d derived;
-// 1-row -> Hp,et independent, eb derived. Sx hidden/ignored for 1 column.
+// Toggle field ownership per layout: 2/3-row -> Hp,et,eb independent, row
+// spacing r = (Hp−et−eb)/(rows−1) derived; 1-row -> Hp,et independent, eb
+// derived. Sx hidden/ignored for 1 column.
 function updateFieldVisibility(){
   var rows=getRows(), cols=getCols();
   var ebEl=document.getElementById('eb');
   var ebHint=document.getElementById('ebHint');
   var dHint=document.getElementById('dHint');
-  if(rows===2){
+  if(rows>=2){
     ebEl.removeAttribute('readonly');
-    ebHint.innerHTML='Bottom plate edge to bottom anchor row (independent input for 2-row layouts).';
-    dHint.innerHTML='= H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub> (vertical gauge between the two anchor rows). Min gauge 2&Prime; (hard error below).';
+    ebHint.innerHTML='Bottom plate edge to bottom anchor row (independent input for multi-row layouts).';
+    dHint.innerHTML=(rows===2)
+      ?'= H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub> (vertical gauge between the two anchor rows). Min gauge 2&Prime; (hard error below).'
+      :'Row spacing r = (H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub>)/(rows&minus;1) &mdash; rows uniformly spaced. Min spacing 2&Prime; (hard error below).';
   } else {
     ebEl.setAttribute('readonly','readonly');
     ebHint.innerHTML='DERIVED for 1-row layouts: e<sub>b</sub> = H<sub>p</sub> &minus; e<sub>t</sub> (display only).';
@@ -662,11 +694,11 @@ function updateFieldVisibility(){
   });
   var c1b=document.getElementById('c1Badge'), c2b=document.getElementById('c2Badge');
   var c1c=document.getElementById('c1Callout'), c2c=document.getElementById('c2Callout');
-  if(rows===2){
+  if(rows>=2){
     if(c1b)c1b.textContent='Top row tension · bottom edge bearing';
     if(c2b)c2b.textContent='Bottom row tension · top edge bearing';
-    if(c1c)c1c.innerHTML='Enter ASD service-level loads. For gravity/down, the beam reaction V acts downward at standoff e, putting the TOP anchor row in couple tension and bearing at the BOTTOM plate edge.';
-    if(c2c)c2c.innerHTML='Enter ASD service-level loads for the reversed case. The reversed reaction puts the BOTTOM anchor row in couple tension and bearing at the TOP plate edge. Do NOT pre-reduce wind by 0.6 here &mdash; use the &#x2153; increase checkbox instead.';
+    if(c1c)c1c.innerHTML='Enter ASD service-level loads. For gravity/down, the beam reaction V acts downward at standoff e, putting the TOP anchor row in couple tension and bearing at the BOTTOM plate edge.'+(rows===3?' Middle-row anchors carry P/N tension only (no couple credit &mdash; conservative).':'');
+    if(c2c)c2c.innerHTML='Enter ASD service-level loads for the reversed case. The reversed reaction puts the BOTTOM anchor row in couple tension and bearing at the TOP plate edge. Do NOT pre-reduce wind by 0.6 here &mdash; use the &#x2153; increase checkbox instead.'+(rows===3?' Middle-row anchors carry P/N tension only (no couple credit).':'');
   } else {
     if(c1b)c1b.textContent='Anchor row tension · bottom edge bearing';
     if(c2b)c2b.textContent='Anchor row tension · top edge bearing';
@@ -687,9 +719,9 @@ function updateD(){
   var rows=getRows();
   var Hp=parseFloat(document.getElementById('Hp').value)||0;
   var et=parseFloat(document.getElementById('et').value)||0;
-  if(rows===2){
+  if(rows>=2){
     var eb=parseFloat(document.getElementById('eb').value)||0;
-    document.getElementById('d_disp').value=(Hp-et-eb).toFixed(2);
+    document.getElementById('d_disp').value=((Hp-et-eb)/(rows-1)).toFixed(2);
   } else {
     var ebDerived=Hp-et;
     document.getElementById('eb').value=ebDerived.toFixed(2);
@@ -706,18 +738,18 @@ function circSeg(R,d){
 
 // ── Anchor grid geometry (shared by calc + both diagrams) ──────────────────
 // Local coordinate frame: x = wall-horizontal (columns, +right), y = wall-vertical
-// (rows, +down from the top row). Columns centered on Wp; row 0 = top row (y=0),
-// row 1 (if rows=2) = bottom row (y=d).
+// (rows, +down from the top row). Columns centered on Wp; rows uniformly spaced
+// at pitch rPitch: row 0 = top row (y=0), row i at y = i*rPitch. For rows=2 the
+// pitch equals the legacy gauge d, so legacy geometry is unchanged.
 function columnXs(cols,Sx){
   var xs=[];
   for(var c=0;c<cols;c++) xs.push(cols===1?0:(c-(cols-1)/2)*Sx);
   return xs;
 }
-function buildAnchorGrid(rows,cols,Sx,d){
+function buildAnchorGrid(rows,cols,Sx,rPitch){
   var xs=columnXs(cols,Sx);
-  var ys=(rows===1)?[0]:[0,d];
   var anchors=[];
-  for(var r=0;r<rows;r++) for(var c=0;c<cols;c++) anchors.push({row:r,col:c,x:xs[c],y:ys[r]});
+  for(var r=0;r<rows;r++) for(var c=0;c<cols;c++) anchors.push({row:r,col:c,x:xs[c],y:r*rPitch});
   return anchors;
 }
 // Per-anchor Apt: pi*Lb^2 - segEdge (constant, single named free edge, all anchors)
@@ -766,7 +798,11 @@ function stripWidths(cols,Sx,Wp){
 }
 var COL_LBL=['A','B','C'];
 function anchorLabel(a,rows){
-  var rowLbl=(rows===1)?'Row':(a.row===0?'Top row':'Bottom row');
+  var rowLbl;
+  if(rows===1) rowLbl='Row';
+  else if(a.row===0) rowLbl='Top row';
+  else if(a.row===rows-1) rowLbl='Bottom row';
+  else rowLbl='Middle row';
   return rowLbl+' · Col '+COL_LBL[a.col];
 }
 
@@ -850,22 +886,26 @@ function liveGeometryCheck(){
   var Wp=parseFloat(document.getElementById('Wp').value); if(!(Wp>0))Wp=8;
   var Hp=parseFloat(document.getElementById('Hp').value); if(!(Hp>0))Hp=12;
   var et=parseFloat(document.getElementById('et').value); if(!(et>0))et=1.5;
-  var eb=(rows===2)?parseFloat(document.getElementById('eb').value):(Hp-et);
+  var eb=(rows>=2)?parseFloat(document.getElementById('eb').value):(Hp-et);
   if(!isFinite(eb))eb=1.5;
   var ac=parseFloat(document.getElementById('ac_in').value); if(!(ac>0))ac=1;
   var lbe=parseFloat(document.getElementById('lbe_shear').value); if(!(lbe>0))lbe=12;
   var phi=parseFloat(document.getElementById('phi_in').value); if(!(phi>0))phi=0.75;
   var reasons=[];
-  var d=(rows===2)?(Hp-et-eb):0;
-  if(rows===2 && !(d>2)) reasons.push('gauge d = '+f2(d)+'" ≤ 2" minimum');
-  var y1=(rows===2)?(d+eb-ac/2):(eb-ac/2);
-  var y2=(rows===2)?(d+et-ac/2):(et-ac/2);
+  // Uniform row spacing r = (Hp−et−eb)/(rows−1); span = (rows−1)·r.
+  // Unified couple arm y = span + e_edge − ac/2 (reduces to d+e−ac/2 for rows=2
+  // and e−ac/2 for rows=1).
+  var span=(rows>=2)?(Hp-et-eb):0;
+  var rPitch=(rows>=2)?span/(rows-1):0;
+  if(rows>=2 && !(rPitch>2)) reasons.push('row spacing r = '+f2(rPitch)+'" ≤ 2" minimum');
+  var y1=span+eb-ac/2;
+  var y2=span+et-ac/2;
   if(!(y1>0)) reasons.push('Case 1 couple arm ≤ 0');
   if(!(y2>0)) reasons.push('Case 2 couple arm ≤ 0');
   var boltEdgeReq=0.5+1.1*phi; // documented assumption — see notes
   var fitReq=(cols-1)*Sx+2*boltEdgeReq;
   if(cols>1 && !(fitReq<=Wp)) reasons.push('(cols-1)·Sx+2·edge = '+f2(fitReq)+'" > Wp = '+f2(Wp)+'"');
-  var anchors=buildAnchorGrid(rows,cols,Sx,d);
+  var anchors=buildAnchorGrid(rows,cols,Sx,rPitch);
   var segEdge=circSeg(Lb,lbe);
   var apts=perAnchorApt(anchors,Lb,segEdge);
   var minApt=Math.min.apply(null,apts.map(function(x){return x.area;}));
@@ -874,7 +914,7 @@ function liveGeometryCheck(){
   var minApv=apvs.reduce(function(m,x){return x.area<m.area?x:m;},apvs[0]);
   var minAptEntry=apts.reduce(function(m,x){return x.area<m.area?x:m;},apts[0]);
   return {valid:reasons.length===0,reasons:reasons,rows:rows,cols:cols,Lb:Lb,Sx:Sx,Wp:Wp,Hp:Hp,et:et,eb:eb,ac:ac,lbe:lbe,phi:phi,
-    d:d,y1:y1,y2:y2,anchors:anchors,apts:apts,apvs:apvs,minApt:minAptEntry,minApv:minApv,segEdge:segEdge};
+    span:span,r:rPitch,y1:y1,y2:y2,anchors:anchors,apts:apts,apvs:apvs,minApt:minAptEntry,minApv:minApv,segEdge:segEdge};
 }
 
 // ── Wall-face SVG dynamic update — all anchors, all-pairs overlap lenses,
@@ -900,8 +940,8 @@ function updateRowSvg(){
   } else {
     errG.style.display='none';
   }
-  var rows=gc.rows, cols=gc.cols, Lb=gc.Lb, Sx=gc.Sx, d=gc.d;
-  var dSpan=(rows===2)?d:0, sxSpan=(cols>1)?Sx*(cols-1):0;
+  var rows=gc.rows, cols=gc.cols, Lb=gc.Lb, Sx=gc.Sx;
+  var dSpan=gc.span, sxSpan=(cols>1)?Sx*(cols-1):0;
   var s=Math.min(170/(dSpan+2*Lb), 300/(sxSpan+2*Lb+4));
   s=Math.max(Math.min(s,18),1.2);
   var cxm=180, cym=140, r=Lb*s;
@@ -945,6 +985,15 @@ function updateRowSvg(){
       html+='<text x="'+p.cx+'" y="'+(p.cy-12)+'" text-anchor="middle" font-size="7" fill="#92400e" font-weight="700">GOV V</text>';
     }
   });
+  // ── Load-direction annotation (wall-face/front view): V = gravity, drawn DOWN;
+  //    P = out-of-plane tension toward the viewer, drawn as the ⊙ out-of-page
+  //    symbol (a sideways arrow would falsely read as horizontal shear). ──
+  html+='<line x1="336" y1="42" x2="336" y2="66" stroke="#2563eb" stroke-width="2" marker-end="url(#rVArr)"/>';
+  html+='<text x="336" y="78" text-anchor="middle" font-size="8.5" fill="#2563eb" font-weight="700">V</text>';
+  html+='<circle cx="336" cy="94" r="5" fill="none" stroke="#7c3aed" stroke-width="1.5"/>';
+  html+='<circle cx="336" cy="94" r="1.5" fill="#7c3aed"/>';
+  html+='<text x="336" y="110" text-anchor="middle" font-size="8" fill="#7c3aed" font-weight="700">P</text>';
+  html+='<text x="336" y="119" text-anchor="middle" font-size="5.6" fill="#7c3aed">(out)</text>';
   document.getElementById('rDynamic').innerHTML=html;
 
   // Lb radius line — on the governing-tension anchor's cone
@@ -964,13 +1013,18 @@ function updateRowSvg(){
     sl.style.display='';sxl.style.display='';
     sxl.setAttribute('x',(xMin+xMax)/2);sxl.setAttribute('y',yMax+r+20);
   } else { sl.style.display='none'; sxl.style.display='none'; }
-  // d dimension (left of the group), only if rows>1
+  // Row-spacing dimension (left of the group), only if rows>1. For 3 rows the
+  // dim spans one pitch (top row to middle row) labeled "r"; for 2 rows the
+  // full gauge labeled "d" (same value as the pitch).
   var dl=document.getElementById('rDLine'), dlb=document.getElementById('rDLbl');
   if(rows>1){
-    dl.setAttribute('x1',xMin-r-8);dl.setAttribute('x2',xMin-r-8);dl.setAttribute('y1',yMin);dl.setAttribute('y2',yMax);
+    var dimY2=(rows===2)?yMax:(yMin+(yMax-yMin)/(rows-1));
+    dl.setAttribute('x1',xMin-r-8);dl.setAttribute('x2',xMin-r-8);dl.setAttribute('y1',yMin);dl.setAttribute('y2',dimY2);
     dl.style.display='';dlb.style.display='';
-    var ddx=xMin-r-16; dlb.setAttribute('x',ddx);dlb.setAttribute('y',(yMin+yMax)/2);
-    dlb.setAttribute('transform','rotate(-90,'+ddx+','+((yMin+yMax)/2)+')');
+    var ddx=xMin-r-16, ddy=(yMin+dimY2)/2;
+    dlb.setAttribute('x',ddx);dlb.setAttribute('y',ddy);
+    dlb.setAttribute('transform','rotate(-90,'+ddx+','+ddy+')');
+    dlb.textContent=(rows===2)?'d':'r';
   } else { dl.style.display='none'; dlb.style.display='none'; }
 
   document.getElementById('rowSvgTitle').innerHTML='Wall-Face View &mdash; '+rows+'&times;'+cols+' Anchor Group A<sub>pt</sub>';
@@ -992,9 +1046,10 @@ function updateElevSvg(){
   function pf(id,def){var v=parseFloat(document.getElementById(id).value);return isFinite(v)&&v>0?v:def;}
   var rows=getRows(), cols=getCols();
   var Lb=pf('Lb',6), Sx=pf('Sx',5), Wp=pf('Wp',8), Hp=pf('Hp',12);
-  var et=pf('et',1.5), eb=(rows===2)?pf('eb',1.5):(Hp-et), e_in=pf('e_in',2), a_c=pf('ac_in',1);
+  var et=pf('et',1.5), eb=(rows>=2)?pf('eb',1.5):(Hp-et), e_in=pf('e_in',2), a_c=pf('ac_in',1);
   var t_in=pf('t_in',0.5), b_wall=pf('b_wall',7.625);
-  var d=Hp-et-eb; if(!isFinite(d)||d<=0.1) d=Math.max(Hp*0.4,1);
+  var d=Hp-et-eb; if(!isFinite(d)||d<=0.1) d=Math.max(Hp*0.4,1);   // total cross-row span
+  var rElev=(rows>=2)?d/(rows-1):0;                                 // uniform row spacing r
   var bLbl=CMU_LBL[b_wall]||'';
   var gc=liveGeometryCheck();
   var eErrG=document.getElementById('eErrGroup');
@@ -1035,8 +1090,12 @@ function updateElevSvg(){
   for(var wy=wallY0+coursePx/2; wy<wallY1; wy+=coursePx){
     wallHtml+='<line x1="'+coreX+'" y1="'+(wy-coursePx*0.28)+'" x2="'+coreX+'" y2="'+(wy+coursePx*0.28)+'" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2,2"/>';
   }
-  // grouted cells at the two anchor rows — solid hatch fill across the full thickness, distinct from the open/hollow cells elsewhere
-  [yTop,yBot].forEach(function(yc){
+  // grouted cells at every anchor row (1-3 rows, uniformly spaced) — solid hatch
+  // fill across the full thickness, distinct from the open/hollow cells elsewhere
+  var rowYs=[];
+  if(rows===1) rowYs=[yTop];
+  else { for(var ri=0;ri<rows;ri++) rowYs.push(yTop+ri*(yBot-yTop)/(rows-1)); }
+  rowYs.forEach(function(yc){
     wallHtml+='<rect x="'+xWallL+'" y="'+(yc-bandH/2)+'" width="'+(xWallR-xWallL)+'" height="'+bandH+'" fill="url(#groutHatch)" stroke="#78716c" stroke-width="1"/>';
   });
   document.getElementById('wallDynamic').innerHTML=wallHtml;
@@ -1075,9 +1134,9 @@ function updateElevSvg(){
   evAttr('rodTopNear',{cx:xPlateL,cy:yTop});
   evAttr('rodTopLbl',{x:(xPlateL+xRodTip)/2,y:yTop-9,text:colTxt});
 
-  // ── Rods: bottom row (only for 2-row layouts) ──
+  // ── Rods: bottom row (only for multi-row layouts) ──
   var rowElems=['rodBotLine','rodBotFar','rodBotNear','rodBotLbl'];
-  if(rows===2){
+  if(rows>=2){
     rowElems.forEach(function(id){document.getElementById(id).style.display='';});
     evAttr('rodBotLine',{x1:xPlateL,y1:yBot,x2:xRodTip,y2:yBot});
     evAttr('rodBotFar',{cx:xPlateL+5,cy:yBot+5});
@@ -1087,6 +1146,17 @@ function updateElevSvg(){
   } else {
     rowElems.forEach(function(id){document.getElementById(id).style.display='none';});
   }
+
+  // ── Rods: middle row (3-row layouts) — built dynamically ──
+  var midHtml='';
+  if(rows===3){
+    var yMid=(yTop+yBot)/2;
+    midHtml+='<line x1="'+xPlateL+'" y1="'+yMid+'" x2="'+xRodTip+'" y2="'+yMid+'" stroke="#374151" stroke-width="3"/>';
+    if(cols>1) midHtml+='<circle cx="'+(xPlateL+5)+'" cy="'+(yMid+5)+'" r="5" fill="none" stroke="#374151" stroke-width="1.1" stroke-dasharray="2.5,2"/>';
+    midHtml+='<circle cx="'+xPlateL+'" cy="'+yMid+'" r="5" fill="#1f2937"/>';
+    midHtml+='<text x="'+((xPlateL+xRodTip)/2)+'" y="'+(yMid-9)+'" text-anchor="middle" font-size="6.6" fill="#4b5563">middle row (P/N only)</text>';
+  }
+  document.getElementById('rodMidG').innerHTML=midHtml;
 
   evAttr('lbDimLbl',{x:(xPlateL+xRodTip)/2,y:yTop+11,text:'Lb = '+f2(Lb)+'"'});
 
@@ -1129,13 +1199,16 @@ function updateElevSvg(){
   evAttr('hpDimLine',{x1:xHp,y1:y0,x2:xHp,y2:y1});
   evAttr('hpDimLbl',{x:xHp+6,y:(y0+y1)/2,transform:'rotate(90,'+(xHp+6)+','+((y0+y1)/2)+')',text:'Hp = '+f2(Hp)+'"'});
 
-  // ── d (row spacing) — only meaningful for 2-row layouts ──
-  document.getElementById('dDimLine').style.display=(rows===2)?'':'none';
-  document.getElementById('dDimLbl').style.display=(rows===2)?'':'none';
-  if(rows===2){
+  // ── Row-spacing dimension — d for 2 rows (full gauge), r typ. for 3 rows
+  //    (one pitch, top row to middle row) ──
+  document.getElementById('dDimLine').style.display=(rows>=2)?'':'none';
+  document.getElementById('dDimLbl').style.display=(rows>=2)?'':'none';
+  if(rows>=2){
     var xD=Math.max(xWallL+8,xPlateL-26);
-    evAttr('dDimLine',{x1:xD,y1:yTop,x2:xD,y2:yBot});
-    evAttr('dDimLbl',{x:xD+6,y:(yTop+yBot)/2,transform:'rotate(90,'+(xD+6)+','+((yTop+yBot)/2)+')',text:'d = '+f2(d)+'"'});
+    var dimYEnd=(rows===2)?yBot:(yTop+(yBot-yTop)/(rows-1));
+    var dimTxt=(rows===2)?('d = '+f2(d)+'"'):('r = '+f2(rElev)+'" typ.');
+    evAttr('dDimLine',{x1:xD,y1:yTop,x2:xD,y2:dimYEnd});
+    evAttr('dDimLbl',{x:xD+6,y:(yTop+dimYEnd)/2,transform:'rotate(90,'+(xD+6)+','+((yTop+dimYEnd)/2)+')',text:dimTxt});
   }
 
   // ── et / eb ──
@@ -1163,8 +1236,8 @@ function updateElevSvg(){
     +'<text x="'+lx+'" y="'+ly+'" font-size="7.2" font-weight="700" fill="#1e3c72">PLATE / ANCHOR DATA</text>'
     +tsp(lx,ly+16,'Wp x Hp x t')
     +tsp(lx,ly+29,'= '+f2(Wp)+' x '+f2(Hp)+' x '+f2(t_in)+'"')
-    +tsp(lx,ly+44,'Anchors: '+rows+'x'+cols+', Sx x d')
-    +tsp(lx,ly+57,'= '+(cols>1?f2(Sx):'—')+' x '+(rows>1?f2(d):'—')+'"')
+    +tsp(lx,ly+44,'Anchors: '+rows+'x'+cols+', Sx x r')
+    +tsp(lx,ly+57,'= '+(cols>1?f2(Sx):'—')+' x '+(rows>1?f2(rElev):'—')+'"')
     +tsp(lx,ly+72,'Lb (embed) = '+f2(Lb)+'"')
     +tsp(lx,ly+85,'e (standoff) = '+f2(e_in)+'"')
     +tsp(lx,ly+100,'Wall: '+bLbl)
@@ -1219,36 +1292,42 @@ function runCalcs(){
 
   // ── Rows x Columns grid + field ownership ───────────────────────────────
   var rows=getRows(), cols=getCols(), N=rows*cols;
-  var eb; // bottom edge distance — independent input (2-row) or derived (1-row)
-  if(rows===2){
+  var eb; // bottom edge distance — independent input (multi-row) or derived (1-row)
+  if(rows>=2){
     eb=parseFloat(document.getElementById('eb').value);
   } else {
     eb=Hp-et;
     document.getElementById('eb').value=isFinite(eb)?eb.toFixed(2):'';
   }
-  var d=(rows===2)?(Hp-et-eb):0;   // cross-row gauge; 0 for 1-row (single-row FBD, see below)
-  document.getElementById('d_disp').value=(rows===2)?(isFinite(d)?d.toFixed(2):''):'—';
+  // Uniform row spacing r = (Hp − et − eb)/(rows − 1); cross-row span = (rows−1)·r.
+  // For rows=2 r equals the legacy gauge d; for rows=1 both are 0.
+  var span=(rows>=2)?(Hp-et-eb):0;
+  var rSp=(rows>=2)?span/(rows-1):0;
+  document.getElementById('d_disp').value=(rows>=2)?(isFinite(rSp)?rSp.toFixed(2):''):'—';
 
   // ── Net threaded diameter & area (Eq 6-7) ──
   var dNet   =phi-0.9743/nt;
   var Ab     =(Math.PI/4.0)*dNet*dNet;   // in² (net threaded)
 
-  // ── Case couple arms — SAME formula for both row counts (d=0 collapses the
-  // 2-row couple-statics formula to the 1-row independently-derived FBD: the
-  // single row IS the tension element, and y is its distance to the bearing-
-  // block centroid at the far edge — algebraically identical to d+edge-ac/2
-  // with d=0). Equilibrium: Tc·y = M = V·e. ──
-  var y1     =d+eb-a_c/2.0;   // Case 1 bearing at bottom edge
-  var y2     =d+et-a_c/2.0;   // Case 2 bearing at top edge
+  // ── Case couple arms — ONE unified formula for every row count:
+  //     y = (rows−1)·r + e_edge − a_c/2 = span + e_edge − a_c/2.
+  // The tension element is the EXTREME row farthest from the bearing edge
+  // (Case 1: top row; Case 2: bottom row); middle-row anchors are credited
+  // with no couple tension (conservative — couple resisted by extreme row +
+  // bearing block; anchors carry no compression). Reduces exactly to the
+  // deployed d + e_edge − a_c/2 for rows=2 and e_edge − a_c/2 for rows=1.
+  // Equilibrium: Tc·y = M = V·e. ──
+  var y1     =span+eb-a_c/2.0;   // Case 1 bearing at bottom edge
+  var y2     =span+et-a_c/2.0;   // Case 2 bearing at top edge
 
   // ── Plate bending lever arm + restraint coefficient per layout ──
-  // Two rows: a = governing tension row to plate centroid, K=0.5 (fixed-fixed —
-  // both anchor rows fix the plate, cantilevers to center from each way).
+  // Multi-row: a = governing (extreme) tension row to plate centroid, K=0.5
+  // (fixed-fixed — the anchor rows fix the plate, cantilevers to center).
   // One row: a = row line to the bearing-block centroid (same value as y — the
   // compression contact zone clamps the plate; the strip cantilevers from that
   // clamped zone, pulled by the anchor row at its tip), K=1.0 (cantilever).
   var a1,a2,Kfix;
-  if(rows===2){
+  if(rows>=2){
     a1=Hp/2.0-et;      // Case 1: top row to plate centroid
     a2=Hp/2.0-eb;      // Case 2: bottom row to plate centroid
     Kfix=0.5;
@@ -1268,15 +1347,15 @@ function runCalcs(){
   if(cols>1&&!posFin(Sx)) errs.push("Column spacing S<sub>x</sub> must be positive for a "+cols+"-column layout.");
   if(!posFin(Wp))     errs.push("Plate width W<sub>p</sub> must be positive.");
   if(!posFin(Hp))     errs.push("Plate height H<sub>p</sub> must be positive.");
-  if(!posFin(et)||!posFin(eb)) errs.push("Edge distances e<sub>t</sub>, e<sub>b</sub> must be positive ("+(rows===1?'e<sub>b</sub> is derived = H<sub>p</sub> &minus; e<sub>t</sub>':'both independent for 2-row layouts')+").");
+  if(!posFin(et)||!posFin(eb)) errs.push("Edge distances e<sub>t</sub>, e<sub>b</sub> must be positive ("+(rows===1?'e<sub>b</sub> is derived = H<sub>p</sub> &minus; e<sub>t</sub>':'both independent for multi-row layouts')+").");
   if(!posFin(e_in))   errs.push("Eccentricity e must be positive.");
   if(!posFin(a_c))    errs.push("Bearing block depth a<sub>c</sub> must be positive.");
   if(!posFin(t_in))   errs.push("Plate thickness t must be positive.");
   if(!posFin(Fyp))    errs.push("Plate yield F<sub>y,plate</sub> must be positive.");
   if(!posFin(lbe_shear)) errs.push("Free-edge distance l<sub>be,shear</sub> must be a positive number (default 12&Prime;).");
-  if(rows===2){
-    if(!(d>0))          errs.push("Row gauge d = H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub> = "+f2(d)+"&Prime; must be &gt; 0.");
-    else if(!(d>2))     errs.push("Row gauge d = "+f2(d)+"&Prime; must be &gt; 2&Prime; minimum anchor gauge.");
+  if(rows>=2){
+    if(!(span>0))       errs.push("Cross-row span H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub> = "+f2(span)+"&Prime; must be &gt; 0.");
+    else if(!(rSp>2))   errs.push("Row spacing r = (H<sub>p</sub> &minus; e<sub>t</sub> &minus; e<sub>b</sub>)/"+(rows-1)+" = "+f2(rSp)+"&Prime; must be &gt; 2&Prime; minimum anchor gauge.");
     if(!((et+eb)<Hp))   errs.push("e<sub>t</sub> + e<sub>b</sub> ("+f2(et+eb)+"&Prime;) must be &lt; H<sub>p</sub> ("+f2(Hp)+"&Prime;).");
   } else {
     if(!(et<Hp))        errs.push("e<sub>t</sub> ("+f2(et)+"&Prime;) must be &lt; H<sub>p</sub> ("+f2(Hp)+"&Prime;) so the derived e<sub>b</sub> = H<sub>p</sub> &minus; e<sub>t</sub> &gt; 0.");
@@ -1284,9 +1363,9 @@ function runCalcs(){
   var boltEdgeReq=0.5+1.1*phi; // documented assumption: 0.5" min standoff + 1.1φ head clearance (see notes)
   var fitReq=(cols-1)*Sx+2*boltEdgeReq;
   if(cols>1 && !(fitReq<=Wp)) errs.push("Column fit: (cols&minus;1)&middot;S<sub>x</sub> + 2&times;(edge dist. + 1.1&#981; head clearance) = "+f2(fitReq)+"&Prime; must be &le; W<sub>p</sub> ("+f2(Wp)+"&Prime;) &mdash; reduce S<sub>x</sub>/columns or widen W<sub>p</sub>.");
-  if(!(y1>0))         errs.push("Case 1 couple arm y = "+f2(y1)+"&Prime; must be &gt; 0 ("+(rows===2?'check d, e<sub>b</sub>, a<sub>c</sub>':'mechanism — anchor row must be farther from the bottom bearing edge; check e<sub>b</sub>, a<sub>c</sub>')+").");
-  if(!(y2>0))         errs.push("Case 2 couple arm y = "+f2(y2)+"&Prime; must be &gt; 0 ("+(rows===2?'check d, e<sub>t</sub>, a<sub>c</sub>':'mechanism — anchor row must be farther from the top bearing edge; check e<sub>t</sub>, a<sub>c</sub>')+").");
-  if(rows===2){
+  if(!(y1>0))         errs.push("Case 1 couple arm y = (rows&minus;1)&middot;r + e<sub>b</sub> &minus; a<sub>c</sub>/2 = "+f2(y1)+"&Prime; must be &gt; 0 ("+(rows>=2?'check r, e<sub>b</sub>, a<sub>c</sub>':'mechanism — anchor row must be farther from the bottom bearing edge; check e<sub>b</sub>, a<sub>c</sub>')+").");
+  if(!(y2>0))         errs.push("Case 2 couple arm y = (rows&minus;1)&middot;r + e<sub>t</sub> &minus; a<sub>c</sub>/2 = "+f2(y2)+"&Prime; must be &gt; 0 ("+(rows>=2?'check r, e<sub>t</sub>, a<sub>c</sub>':'mechanism — anchor row must be farther from the top bearing edge; check e<sub>t</sub>, a<sub>c</sub>')+").");
+  if(rows>=2){
     if(!(a1>0)) errs.push("Case 1 plate lever arm a = H<sub>p</sub>/2 &minus; e<sub>t</sub> = "+f2(a1)+"&Prime; must be &gt; 0 (top tension row must lie above the plate centroid; reduce e<sub>t</sub> or increase H<sub>p</sub>).");
     if(!(a2>0)) errs.push("Case 2 plate lever arm a = H<sub>p</sub>/2 &minus; e<sub>b</sub> = "+f2(a2)+"&Prime; must be &gt; 0 (bottom tension row must lie below the plate centroid; reduce e<sub>b</sub> or increase H<sub>p</sub>).");
   }
@@ -1297,7 +1376,7 @@ function runCalcs(){
   //     deducts one FULL lens circSeg(Lb, c_ij/2) for EVERY other anchor j at
   //     actual center distance c_ij < 2Lb (not just immediate neighbors) plus
   //     the single named free-edge segment. Governing anchor = minimum area. ──
-  var anchors=buildAnchorGrid(rows,cols,Sx,d);
+  var anchors=buildAnchorGrid(rows,cols,Sx,rSp);
   var segEdge=circSeg(Lb, lbe_shear);
   var aptResults=perAnchorApt(anchors,Lb,segEdge);
   var govAptIdx=0; for(var ii=1;ii<aptResults.length;ii++) if(aptResults[ii].area<aptResults[govAptIdx].area) govAptIdx=ii;
@@ -1356,14 +1435,19 @@ function runCalcs(){
 
   // ── Per-case statics (parameter = which edge bears). P applied at the plate
   // centroid (concentric axial) — no applied moment; equal-share rigid group. ──
-  // Two rows: tension-row Case 1 = top row / Case 2 = bottom row, arm y1/y2.
+  // Multi-row: the couple tension row is the EXTREME row farthest from the
+  // bearing edge (Case 1 = top row, Case 2 = bottom row). All other rows —
+  // including the MIDDLE row of a 3-row layout — carry P/N tension only: no
+  // couple tension is credited to intermediate rows (conservative
+  // simplification; couple resisted by extreme row + bearing block, anchors
+  // carry no compression).
   // One row: the single row is the tension element for BOTH cases (only the
   // bearing edge — and therefore the arm — flips between cases).
   function statics(V,P,y){
     var M=V*e_in;
     var Tc=M/y;
     var Tten=P/N + Tc/cols;    // tension-row per-bolt (P/N direct share + Tc/cols couple share)
-    var Toth=Math.max(P/N, 0); // other-row per-bolt (2-row only — shear-only row)
+    var Toth=Math.max(P/N, 0); // per-bolt in every non-tension row (middle + opposite extreme)
     var v=V/N;                 // per anchor, all N anchors
     var C=Tc;                  // bearing reaction, recomputed from this case's FBD
     return {M:M,Tc:Tc,Tten:Tten,Toth:Toth,v:v,C:C};
@@ -1461,7 +1545,7 @@ function runCalcs(){
     {v:f4(Ab)+' in&sup2;',l:'Net Area Aₔ\n(Eq 6-7)',cls:'dem-card'},
     {v:f2(Lb)+'&Prime;',l:'Embedment Lᵦ\nprovided',cls:'dem-card'},
     {v:f2(Lb_min)+'&Prime;',l:'Lᵦ,min = max(4&#981;,2&Prime;)',cls:Lb>=Lb_min?'dem-card ok':'dem-card bad'},
-    {v:rows===2?(f2(d)+'&Prime;'):'—',l:'Row Gauge d\n= Hₚ-eₜ-eᵇ',cls:'dem-card'},
+    {v:rows>=2?(f2(rSp)+'&Prime;'):'—',l:'Row Spacing r\n= (Hₚ-eₜ-eᵇ)/(rows-1)',cls:'dem-card'},
     {v:f2(Apt)+' in&sup2;',l:'A₝t governing\n('+N+' anchors)',cls:'dem-card'},
   ]);
   chksA.forEach(function(c){buildRow(c,'chkA','');});
@@ -1485,7 +1569,11 @@ function runCalcs(){
     // B — tension-row: check vs Ba (governing). Also show masonry & steel modes in detail.
     var dcB_ten=kTten/Ba;
     var dB=refhdr('TMS 402-22 §8.1.4.3.1 &mdash; Anchor Tension ('+caseLabel+' &middot; '+tenRowLabel+')');
+    var eEdgeSym=(caseLabel.indexOf('Case 1')===0)?'e<sub>b</sub>':'e<sub>t</sub>';
+    var eEdgeVal=(caseLabel.indexOf('Case 1')===0)?eb:et;
+    dB+='<div class="mrow"><span class="ceq">y =</span> (rows&minus;1)&middot;r + '+eEdgeSym+' &minus; a<sub>c</sub>/2 = '+(rows-1)+'&times;'+f2(rSp)+' + '+f2(eEdgeVal)+' &minus; '+f2(a_c)+'/2 = <span class="cval">'+f2(y)+'&Prime;</span> (extreme tension row to the '+edgeLabel+' bearing-block centroid'+(rows===2?' &mdash; identical to the legacy d + '+eEdgeSym+' &minus; a<sub>c</sub>/2':'')+')</div>';
     dB+='<div class="mrow"><span class="ceq">M =</span> V&middot;e = '+f2(V)+'&times;'+f2(e_in)+' = '+f2(cs.M)+' k-in &nbsp; ; &nbsp; T<sub>couple</sub> = M/y = '+f2(cs.M)+'/'+f2(y)+' = '+f3(cs.Tc)+' k</div>';
+    if(rows===3) dB+='<div class="mrow" style="font-size:.88em;color:#555"><strong>3-row model (conservative):</strong> the entire couple is resisted by the extreme row farthest from the bearing edge ('+tenRowLabel+') + the bearing block. The middle row is credited with NO couple tension (P/N only) and anchors carry no compression &mdash; a conservative simplification of the true multi-row distribution.</div>';
     dB+='<div class="mrow"><span class="ceq">T =</span> P/N + T<sub>couple</sub>/cols = '+f2(P)+'/'+N+' + '+f3(cs.Tc)+'/'+cols+' = <span class="cval">'+f3(cs.Tten)+' k/bolt</span> (raw)</div>';
     dB+='<div class="mrow"><span class="ceq">k&middot;T =</span> '+f2(k)+'&times;'+f3(cs.Tten)+' = <span class="cval">'+f3(kTten)+' k</span> (demand)'+kNote(k,inc)+'</div>';
     dB+='<div class="mrow"><span class="ceq">B<sub>a,mas</sub> =</span> 1.25 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+'/1000 = '+f3(Ba_mas)+' k</div>';
@@ -1494,12 +1582,12 @@ function runCalcs(){
     ckB({n:'Tension &mdash; '+tenRowLabel+' <span style="font-weight:400;font-size:.85em">('+caseLabel+')</span>',r:'TMS 402-22 §8.1.4.3.1',d:'k&middot;T = '+f3(kTten)+' k',c:'B<sub>a</sub> = '+f3(Ba)+' k',dc:dcB_ten,nt:'T<sub>couple</sub>='+f3(cs.Tc)+' k; A<sub>pt</sub>='+f2(Apt)+' in&sup2;',pass:dcB_ten<=1,info:false,det:dB});
     track(dcB_ten,'Part B Tension — '+caseLabel+' · '+tenRowLabel,dcB_ten<=1);
 
-    // B — other-row (2-row layouts only — zero-demand shown honestly)
+    // B — other rows (multi-row layouts — middle + opposite extreme; zero-demand shown honestly)
     var dcB_oth=null;
     if(hasOtherRow){
       dcB_oth=kToth>0?(kToth/Ba):0;
-      var dBo=refhdr('TMS 402-22 §8.1.4.3.1 &mdash; Anchor Tension ('+caseLabel+' &middot; '+othRowLabel+', shear-side row)');
-      dBo+='<div class="mrow"><span class="ceq">T<sub>o</sub> =</span> max(P/N, 0) = max('+f2(P)+'/'+N+', 0) = <span class="cval">'+f3(cs.Toth)+' k/bolt</span> (no couple tension in this row)</div>';
+      var dBo=refhdr('TMS 402-22 §8.1.4.3.1 &mdash; Anchor Tension ('+caseLabel+' &middot; '+othRowLabel+', shear-side row'+(rows===3?'s':'')+')');
+      dBo+='<div class="mrow"><span class="ceq">T<sub>o</sub> =</span> max(P/N, 0) = max('+f2(P)+'/'+N+', 0) = <span class="cval">'+f3(cs.Toth)+' k/bolt</span> (no couple tension credited to '+(rows===3?'these rows':'this row')+')</div>';
       dBo+='<div class="mrow"><span class="ceq">k&middot;T<sub>o</sub> =</span> '+f2(k)+'&times;'+f3(cs.Toth)+' = <span class="cval">'+f3(kToth)+' k</span></div>';
       dBo+=(kToth>0?dcrow(kToth,Ba):'<hr class="csep"><div class="mrow">Demand = 0 &rArr; D/C = <span class="cval">0.000</span> (row carries shear only; shown for completeness)</div></div>');
       ckB({n:'Tension &mdash; '+othRowLabel+' <span style="font-weight:400;font-size:.85em">('+caseLabel+')</span>',r:'TMS 402-22 §8.1.4.3.1',d:'k&middot;T<sub>o</sub> = '+f3(kToth)+' k',c:'B<sub>a</sub> = '+f3(Ba)+' k',dc:dcB_oth,nt:'P/N only'+(P<=0?' (P=0)':''),pass:dcB_oth<=1,info:false,det:dBo});
@@ -1530,7 +1618,7 @@ function runCalcs(){
     ckD({n:'Interaction &mdash; '+tenRowLabel+' <span style="font-weight:400;font-size:.85em">('+caseLabel+')</span>',r:'TMS 402-22 Eq 8-8',d:'(kT/B<sub>a</sub>)<sup>5/3</sup>+(kv/B<sub>v</sub>)<sup>5/3</sup> = '+f3(isum),c:'&le; 1.0',dc:isum,nt:'B<sub>a</sub>='+f3(Ba)+' k, B<sub>v</sub>='+f3(Bv)+' k',pass:isum<=1,info:false,det:dD});
     track(isum,'Part D Interaction — '+caseLabel+' · '+tenRowLabel,isum<=1);
 
-    // D — other row (2-row layouts only): shown when it carries net tension (P>0).
+    // D — other rows (multi-row layouts): shown when they carry net tension (P>0).
     // With equal shear and less tension it never governs over the tension row;
     // when P=0 its interaction reduces to the pure-shear check already in Part C.
     if(hasOtherRow && cs.Toth>0){
@@ -1615,10 +1703,12 @@ function runCalcs(){
     return {fbr:fbr,Fbr:Fbr,fb:fb,Fb:Fb,fv:fv,Fv:Fv,dcE:dcE,dcF_b:dcF_b,dcF_v:dcF_v,dcC:dcC,dcB_ten:dcB_ten,isum:isum,kTten:kTten,kv:kv,kC:kC,Ti:Ti,aArm:aArm,Mpl:Mpl,Vsh:Vsh};
   }
 
-  var tenLbl1=(rows===2)?'Top Row':'Anchor Row', othLbl1=(rows===2)?'Bottom Row':'';
-  var tenLbl2=(rows===2)?'Bottom Row':'Anchor Row', othLbl2=(rows===2)?'Top Row':'';
-  var r1=renderCase(s1,V1,P1,k1,inc1,y1,a1,'bottom edge',tenLbl1,othLbl1,'Case 1 &mdash; Gravity',rows===2);
-  var r2=renderCase(s2,V2,P2,k2,inc2,y2,a2,'top edge',tenLbl2,othLbl2,'Case 2 &mdash; Reversal',rows===2);
+  var tenLbl1=(rows>=2)?'Top Row':'Anchor Row';
+  var othLbl1=(rows===2)?'Bottom Row':(rows===3?'Middle &amp; Bottom Rows':'');
+  var tenLbl2=(rows>=2)?'Bottom Row':'Anchor Row';
+  var othLbl2=(rows===2)?'Top Row':(rows===3?'Middle &amp; Top Rows':'');
+  var r1=renderCase(s1,V1,P1,k1,inc1,y1,a1,'bottom edge',tenLbl1,othLbl1,'Case 1 &mdash; Gravity',rows>=2);
+  var r2=renderCase(s2,V2,P2,k2,inc2,y2,a2,'top edge',tenLbl2,othLbl2,'Case 2 &mdash; Reversal',rows>=2);
 
   // ── Summaries & cards for B–F ──
   setSummary('sumB',pB,maxB,'Anchor Tension (governing B<sub>a</sub> = '+f3(Ba)+' k)');
@@ -1684,7 +1774,7 @@ function runCalcs(){
   ob.className='overall-banner '+(all_pass?'sum-pass':'sum-fail');
   ob.innerHTML='<strong style="font-size:1.1em">'+(all_pass?'&#10003; EMBED PLATE DESIGN ADEQUATE':'&#10007; ONE OR MORE CHECKS FAIL')+'</strong>'
     +'<br>Max D/C = <strong>'+f3(gov.dc)+'</strong> &nbsp;&mdash;&nbsp; governs: <strong>'+gov.label+'</strong>'
-    +'<br>Layout: <strong>'+rows+'&times;'+cols+'</strong> ('+N+' anchors) &middot; f&prime;<sub>m</sub> = '+f1(fm_ksi)+' ksi &middot; &#981; = '+f2(phi)+'&Prime; &middot; L<sub>b</sub> = '+f2(Lb)+'&Prime; &middot; S<sub>x</sub> = '+(cols>1?f1(Sx)+'&Prime;':'—')+' &middot; d = '+(rows>1?f2(d)+'&Prime;':'—')
+    +'<br>Layout: <strong>'+rows+'&times;'+cols+'</strong> ('+N+' anchors) &middot; f&prime;<sub>m</sub> = '+f1(fm_ksi)+' ksi &middot; &#981; = '+f2(phi)+'&Prime; &middot; L<sub>b</sub> = '+f2(Lb)+'&Prime; &middot; S<sub>x</sub> = '+(cols>1?f1(Sx)+'&Prime;':'—')+' &middot; r = '+(rows>1?f2(rSp)+'&Prime;':'—')
     +' &middot; B<sub>a</sub> = '+f3(Ba)+' k (A<sub>pt</sub> @ '+anchorLabel(govApt.anchor,rows)+') &middot; B<sub>v</sub> = '+f3(Bv)+' k ('+BvMode+', A<sub>pv</sub> @ Col '+COL_LBL[govApvCol]+')'
     +(inc1||inc2?' &middot; &#x2153; increase: '+(inc1?'C1':'')+(inc1&&inc2?' &amp; ':'')+(inc2?'C2':''):'')
     +(warns.length?'<br><span style="color:#92400e;font-weight:600">&#9888; '+warns.length+' warning(s) &mdash; see notes.</span>':'');
@@ -1692,17 +1782,18 @@ function runCalcs(){
   // ── NOTES ──
   var nl=document.getElementById('notesList');nl.innerHTML='';
   var notes=[
-    '<strong>Design basis:</strong> ASD per TMS 402-22 §8.1.4.3 (anchorage), §8.1.6/§4.4.4 (bearing), and AISC 360-22 §F11/§G (plate). Rows (1&ndash;2) &times; Columns (1&ndash;3) anchor grid, current layout '+rows+'&times;'+cols+' = '+N+' anchors; anchors embedded horizontally into the wall face. Columns are centered on the plate width W<sub>p</sub>.',
-    '<strong>Statics (rigid, equal-share group; P concentric):</strong> V splits equally to all '+N+' anchors (v = V/N). Axial P is applied at the plate centroid (concentric) &mdash; no applied moment &mdash; and is shared P/N to every anchor. The V&middot;e moment is resisted by a couple: '+(rows===2?'one tension anchor row + direct plate bearing at the opposite edge (2-row layouts, current model unchanged)':'the single anchor row + direct plate bearing at the opposite edge, from an independently-derived 1-row FBD (equilibrium T<sub>couple</sub>&middot;y = V&middot;e)')+'; anchors carry no compression. Tension-row per-bolt T = P/N + T<sub>couple</sub>/cols (couple split evenly across the tension row&rsquo;s columns).',
-    '<strong>Two cases:</strong> Case 1 (Gravity/Down) &mdash; tension row = TOP row (2-row) or the single row (1-row), bearing at bottom edge, y<sub>1</sub> = d + e<sub>b</sub> &minus; a<sub>c</sub>/2 (d = 0 for 1-row, collapsing to y<sub>1</sub> = e<sub>b</sub> &minus; a<sub>c</sub>/2). Case 2 (Wind/Seismic Reversal) &mdash; tension row = BOTTOM row or the single row, bearing at top edge, y<sub>2</sub> = d + e<sub>t</sub> &minus; a<sub>c</sub>/2. 1-row layouts hard-error ("mechanism") if the applicable arm &le; 0.',
+    '<strong>Design basis:</strong> ASD per TMS 402-22 §8.1.4.3 (anchorage), §8.1.6/§4.4.4 (bearing), and AISC 360-22 §F11/§G (plate). Rows (1&ndash;3, uniformly spaced at r = (H<sub>p</sub>&minus;e<sub>t</sub>&minus;e<sub>b</sub>)/(rows&minus;1)) &times; Columns (1&ndash;3) anchor grid, current layout '+rows+'&times;'+cols+' = '+N+' anchors; anchors embedded horizontally into the wall face. Columns are centered on the plate width W<sub>p</sub>.',
+    '<strong>Statics (rigid, equal-share group; P concentric):</strong> V splits equally to all '+N+' anchors (v = V/N). Axial P is applied at the plate centroid (concentric) &mdash; no applied moment &mdash; and is shared P/N to every anchor. The V&middot;e moment is resisted by a couple: '+(rows>=2?'the EXTREME tension row farthest from the bearing edge + direct plate bearing at the opposite edge'+(rows===3?' &mdash; middle-row anchors are credited with NO couple tension (P/N only), a conservative simplification':' (2-row layouts, deployed model unchanged)'):'the single anchor row + direct plate bearing at the opposite edge, from an independently-derived 1-row FBD (equilibrium T<sub>couple</sub>&middot;y = V&middot;e)')+'; anchors carry no compression. Tension-row per-bolt T = P/N + T<sub>couple</sub>/cols (couple split evenly across the tension row&rsquo;s columns).',
+    '<strong>Two cases, one unified arm formula:</strong> y = (rows&minus;1)&middot;r + e<sub>edge</sub> &minus; a<sub>c</sub>/2. Case 1 (Gravity/Down) &mdash; tension row = TOP (extreme) row, bearing at bottom edge, y<sub>1</sub> = (rows&minus;1)&middot;r + e<sub>b</sub> &minus; a<sub>c</sub>/2 &mdash; reduces exactly to the legacy d + e<sub>b</sub> &minus; a<sub>c</sub>/2 for 2 rows and e<sub>b</sub> &minus; a<sub>c</sub>/2 for 1 row. Case 2 (Wind/Seismic Reversal) &mdash; tension row = BOTTOM (extreme) row, bearing at top edge, y<sub>2</sub> = (rows&minus;1)&middot;r + e<sub>t</sub> &minus; a<sub>c</sub>/2. Hard error ("mechanism") if the applicable arm &le; 0.',
     '<strong>Net threaded area:</strong> A<sub>b</sub> = (&pi;/4)(&#981; &minus; 0.9743/n<sub>t</sub>)&sup2; per Eq 6-7 (§6.3.8) &mdash; deliberately more conservative than gross &pi;&#981;&sup2;/4.',
     '<strong>Projected areas (wall-face plane, all-pairs enumeration):</strong> A<sub>pt,i</sub> = &pi;L<sub>b</sub>&sup2; minus one FULL lens circSeg(L<sub>b</sub>, c<sub>ij</sub>/2) for <strong>every other anchor j at actual center distance c<sub>ij</sub> &lt; 2L<sub>b</sub></strong> (not just immediately adjacent neighbors &mdash; e.g. in a 1&times;3 row the two end anchors are 2S<sub>x</sub> apart and still deduct if 2S<sub>x</sub> &lt; 2L<sub>b</sub>), plus one named free-edge segment circSeg(L<sub>b</sub>, l<sub>be,shear</sub>) applied identically to every anchor (single free edge, same basis as the deployed calc). Governing anchor = minimum A<sub>pt,i</sub> over all '+N+'; every anchor is enumerated and shown in the per-anchor table. <strong>Conservatism:</strong> deducted lenses may mutually overlap in dense layouts, so pairwise subtraction is a conservative lower bound on the true tributary area &mdash; never unconservative. No auto-deduction for top-of-wall, control joints, or openings; <strong>wall ends/openings/orthogonal edges are assumed remote</strong> (&ge; 2L<sub>b</sub>) and the <strong>masonry is assumed grouted throughout the projected breakout region</strong>.',
     '<strong>Tension (B<sub>a</sub>):</strong> min of masonry breakout 1.25A<sub>pt</sub>&radic;f&prime;<sub>m</sub> (governing/minimum A<sub>pt</sub>) and steel 0.5A<sub>b</sub>F<sub>u</sub>. F<sub>u</sub> capped at min(1.9f<sub>y</sub>, 125 ksi).',
     '<strong>Shear (B<sub>v</sub>):</strong> min of masonry breakout B<sub>v1</sub> = 1.25A<sub>pv</sub>&radic;f&prime;<sub>m</sub> (Eq 8-4, governing/minimum A<sub>pv</sub> over columns), crushing 580(A<sub>b</sub>f&prime;<sub>m</sub>)<sup>0.25</sup> (Eq 8-5), pryout 2.5A<sub>pt</sub>&radic;f&prime;<sub>m</sub> (Eq 8-6), and steel 0.25A<sub>b</sub>F<sub>u</sub>. A<sub>pv,col</sub> = &pi;l<sub>be</sub>&sup2;/2 &minus; &Sigma;0.5&middot;circSeg(l<sub>be</sub>, s<sub>ij</sub>/2) over same-row (in-row) neighbors at actual spacing &lt; 2l<sub>be</sub> &mdash; identical for every row by column symmetry. <strong>Cross-row shear-cone interaction is not deducted:</strong> the row nearest the free edge governs, and the far row&rsquo;s larger cone envelops it. With a remote edge (&ge; ~2&middot;l<sub>be</sub> from anchors) breakout will not govern; verify when a close edge or opening exists. Single named shear direction only.',
-    '<strong>Interaction (Eq 8-8):</strong> (kT/B<sub>a</sub>)<sup>5/3</sup> + (kv/B<sub>v</sub>)<sup>5/3</sup> &le; 1.0, evaluated on the tension row of each case, plus the opposite row when P &gt; 0 puts it in net tension (2-row layouts only). When P = 0 the opposite row sees equal shear and zero tension, so its interaction reduces to the Part C shear check and can never govern.',
+    '<strong>Interaction (Eq 8-8):</strong> (kT/B<sub>a</sub>)<sup>5/3</sup> + (kv/B<sub>v</sub>)<sup>5/3</sup> &le; 1.0, evaluated on the tension row of each case, plus the non-tension rows (middle + opposite extreme) when P &gt; 0 puts them in net tension (multi-row layouts). When P = 0 the non-tension rows see equal shear and zero tension, so their interaction reduces to the Part C shear check and can never govern.',
     '<strong>Bearing:</strong> f<sub>br</sub> = k&middot;C/(W<sub>p</sub>&middot;a<sub>c</sub>) &le; F<sub>br</sub> = 0.33f&prime;<sub>m</sub> at the compression edge; a<sub>c</sub> is an assumed bearing-block depth; C = T<sub>couple</sub> is always recomputed from the active layout&rsquo;s FBD.',
-    '<strong>Plate bending &mdash; per-tributary-strip model (per EOR direction, generalizes the deployed M = K&middot;T&middot;a form):</strong> each column owns a vertical strip bounded by midpoints to adjacent columns and the plate edges (widths sum to W<sub>p</sub>; 1 column = full-width strip). Per strip, M<sub>i</sub> = K&middot;T<sub>i</sub>&middot;a with T<sub>i</sub> = that column&rsquo;s tension-row anchor force (P/N + T<sub>couple</sub>/cols, EQUAL for every column under the equal-share model), checked on S<sub>i</sub> = w<sub>i</sub>t&sup2;/6; the narrowest strip governs. 2-row: a = governing tension row to plate centroid, K = 0.5 (both rows fix the plate; each strip cantilevers to mid-depth). 1-row: a = row line to the bearing-block centroid (a<sub>c</sub>/2 from the compression edge — the SAME value as the couple arm y), K = 1.0 (the compression contact zone clamps the plate; the strip cantilevers from that clamp, pulled by the anchor row). f<sub>b</sub> = k&middot;M<sub>pl</sub>/S<sub>gov</sub> &le; 0.60F<sub>y</sub>. Plate shear uses the same governing-strip width for area (f<sub>v</sub> = k&middot;max(V/cols, T<sub>i</sub>)/(w<sub>gov</sub>t) &le; 0.40F<sub>y</sub>) &mdash; algebraically identical to the deployed full-width 2&times;2 formula for symmetric 2 columns (verified in the Node harness). §F11 LTB applies to major-axis bar bending only &mdash; not applicable to this weak-axis model; F<sub>b</sub> = 0.60F<sub>y</sub> on S is conservative vs M<sub>n</sub> = M<sub>p</sub>.',
+    '<strong>Plate bending &mdash; per-tributary-strip model (per EOR direction, generalizes the deployed M = K&middot;T&middot;a form):</strong> each column owns a vertical strip bounded by midpoints to adjacent columns and the plate edges (widths sum to W<sub>p</sub>; 1 column = full-width strip). Per strip, M<sub>i</sub> = K&middot;T<sub>i</sub>&middot;a with T<sub>i</sub> = that column&rsquo;s tension-row anchor force (P/N + T<sub>couple</sub>/cols, EQUAL for every column under the equal-share model), checked on S<sub>i</sub> = w<sub>i</sub>t&sup2;/6; the narrowest strip governs. Multi-row (2 or 3): a = governing EXTREME tension row to plate centroid, K = 0.5 (the anchor rows fix the plate; each strip cantilevers to mid-depth). T<sub>i</sub> is the tension-row anchor force even for 3-row layouts (middle-row P/N tension never exceeds it). 1-row: a = row line to the bearing-block centroid (a<sub>c</sub>/2 from the compression edge — the SAME value as the couple arm y), K = 1.0 (the compression contact zone clamps the plate; the strip cantilevers from that clamp, pulled by the anchor row). f<sub>b</sub> = k&middot;M<sub>pl</sub>/S<sub>gov</sub> &le; 0.60F<sub>y</sub>. Plate shear uses the same governing-strip width for area (f<sub>v</sub> = k&middot;max(V/cols, T<sub>i</sub>)/(w<sub>gov</sub>t) &le; 0.40F<sub>y</sub>) &mdash; algebraically identical to the deployed full-width 2&times;2 formula for symmetric 2 columns (verified in the Node harness). §F11 LTB applies to major-axis bar bending only &mdash; not applicable to this weak-axis model; F<sub>b</sub> = 0.60F<sub>y</sub> on S is conservative vs M<sub>n</sub> = M<sub>p</sub>.',
     '<strong>Column fit guard:</strong> (cols&minus;1)&middot;S<sub>x</sub> + 2&times;(bolt edge distance + 1.1&#981; head clearance) &le; W<sub>p</sub> is enforced as a hard error. The bolt edge distance term is taken as a documented 0.5&Prime; minimum standoff (engineering assumption pending EOR-specified plate edge distance) plus a 1.1&#981; head/washer clearance allowance &mdash; verify against the actual hardware and increase W<sub>p</sub> or reduce S<sub>x</sub>/columns if tighter.',
+    '<strong>Diagram load-arrow conventions:</strong> the wall-face (front) view and the preset thumbnails draw V as GRAVITY (&darr; down the wall face) and P as OUT-OF-PLANE tension toward the viewer (&#8857; out-of-page symbol &mdash; a sideways arrow would falsely suggest a horizontal in-plane shear, which this calc does not model). The elevation/section draws Case 1 gravity: V &darr; at the beam bearing line at standoff e, P &rarr; horizontally away from the wall face; Case 2 arrows reverse (not separately drawn &mdash; the elevation is labeled Case 1).',
     '<strong>Anchor-couple statics unchanged in kind:</strong> e remains the anchor-couple eccentricity only &mdash; it drives M = V&middot;e and the couple tension T<sub>couple</sub> = M/y, but no longer serves as a plate cantilever length. Weld design is out of scope.',
     '<strong>&#x2153; stress increase (IBC 1605.2):</strong> applied per case as k = 3/4 on the DEMAND side of every check (tension, shear, interaction, bearing, plate) &mdash; capacities unchanged. Applies only when the alternative basic load combinations of IBC 1605.2 are used (including for the steel plate allowables); engineer must verify eligibility.'
   ];

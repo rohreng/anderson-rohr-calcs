@@ -84,27 +84,38 @@ user-approved change — never silent).
    group capacity.
 
 ### Phase 2 — Embed Plate calc: rows × columns grid
-6. Replace the fixed 2×2 with **rows (1–2) × columns (1–3)** selectors plus a preset layout picker
-   (thumbnail buttons): 1, 2-vertical, 2-horizontal, 2×2 (default), 2×3. Preset sets rows/cols;
-   number inputs stay editable (picker highlights only when it matches current values). Axes
-   labeled unambiguously everywhere (UI, equations, thumbnails): columns = wall-horizontal
-   spacing Sx; rows = wall-vertical gauge d. Thumbnails show V/P arrows.
+6. Replace the fixed 2×2 with **rows (1–3) × columns (1–3)** selectors plus a preset layout picker
+   (thumbnail buttons): 1, 2-vertical, 2-horizontal, 2×2 (default), **3×2 (3 rows × 2 columns —
+   the 6-anchor preset is VERTICAL: tall plate / deep beam)**. Preset sets rows/cols; number
+   inputs stay editable (picker highlights only when it matches current values). Axes labeled
+   unambiguously everywhere (UI, equations, thumbnails): columns = wall-horizontal spacing Sx;
+   rows = wall-vertical, uniformly spaced at r = (Hp − e_t − e_b)/(rows − 1). Thumbnails are a
+   wall-face (front) view: V drawn DOWN (gravity); P drawn as the ⊙ out-of-page symbol
+   (out-of-plane tension toward the viewer — never a sideways arrow, which would read as a
+   horizontal shear this calc does not model).
 7. Statics generalization — each layout gets its own free body, both load cases:
    - Shear: v = V/N per anchor (rigid group), N = rows × cols.
-   - **Two rows:** anchor-couple statics are today's model — M = V·e, Tc = M/y,
-     y₁ = d + e_b − a_c/2 (gravity, bottom bearing), y₂ = d + e_t − a_c/2 (reversal, top
-     bearing); tension-row per-bolt T = P/N + Tc/cols; bearing C = Tc.
+   - **Unified couple arm (all row counts):** y = (rows−1)·r + e_edge − a_c/2 — reduces exactly
+     to the deployed d + e_edge − a_c/2 for rows=2 and to e_edge − a_c/2 for rows=1. Implemented
+     as ONE formula; rows=1/2 regressions must be bit-identical.
+   - **Extreme-row couple rule:** the couple tension row is the EXTREME row farthest from the
+     bearing edge (Case 1 gravity: top row, bottom-edge bearing; Case 2 reversal: bottom row,
+     top-edge bearing). Tension-row per-bolt T = P/N + Tc/cols; bearing C = Tc. **Middle-row
+     anchors (3-row layouts) carry T = P/N only — no couple tension credited to intermediate
+     rows** (conservative simplification: couple resisted by extreme row + bearing block,
+     anchors carry no compression; stated explicitly in shown work + notes).
    - **One row:** independently derived FBD, documented in the calc's shown work with the
-     equilibrium check: row at distance e_t from top edge, e_b from bottom. Gravity case —
-     bearing block at bottom edge, arm y₁ = e_b − a_c/2; reversal — bearing at top,
-     y₂ = e_t − a_c/2; hard error if the applicable arm ≤ 0 (mechanism). Tc = M/y resisted by
-     the single row (per-bolt T = P/N + Tc/cols); bearing C = Tc from this FBD (recomputed, not
-     carried over).
+     equilibrium check; hard error if the applicable arm ≤ 0 (mechanism). Tc = M/y resisted by
+     the single row; bearing C = Tc from this FBD (recomputed, not carried over).
+   - Plate-bending strip force T_i uses the tension-row anchor force; the per-anchor info table
+     lists middle-row anchors with their P/N tension.
    - P is applied at the plate centroid (concentric axial) — same assumption as the deployed 2×2
      calc, now stated explicitly in the notes; no direct applied-moment input this round.
-8. Areas per the shared method (side Sx, cross-row d, diagonal √(Sx²+d²), free-edge segment);
-   2×2 must reproduce current deployed numbers (they use the same pairwise convention — any
-   discrepancy found is flagged to Nick as an engineering change, not silently reconciled).
+8. Areas per the shared method — all-pairs enumeration over actual grid coordinates (side
+   |Δcol|·Sx, cross-row |Δrow|·r, diagonal √((Δcol·Sx)² + (Δrow·r)²), free-edge segment) —
+   generic in the row count; 2×2 must reproduce current deployed numbers (they use the same
+   pairwise convention — any discrepancy found is flagged to Nick as an engineering change, not
+   silently reconciled). Guards (min spacing, fit, arm > 0, Apt > 0) cover rows = 3.
 9. **Plate bending — legacy formula applied per tributary strip, decided now (not deferred):**
    - The check keeps the deployed calc's simplified bending form **M = K·T·a** — it does NOT
      introduce a new strip free-body diagram, claims no strip-level ΣF/ΣM equilibrium, and
@@ -126,7 +137,7 @@ user-approved change — never silent).
      so legacy stress = K·Trow·a / (Wp·t²/6) and strip stress = K·(Trow/2)·a / ((Wp/2)·t²/6)
      are algebraically identical for symmetric 2 columns at equal share — same K, same a, halved
      force and width. Verified in the harness and documented as a worked 2×2 legacy-vs-strip
-     benchmark in the hand-check doc. Non-uniform strips (2×3 interior, tight end distances) are
+     benchmark in the hand-check doc. Non-uniform strips (multi-column interior, tight end distances) are
      where the per-strip check intentionally departs from a naive full-width check.
 10. Fit guards: (cols−1)·Sx + 2×(bolt edge distance + hole/head clearance) ≤ Wp horizontally.
     Vertical inputs — ownership designated explicitly per layout: **two-row independents are
@@ -172,13 +183,13 @@ user-approved change — never silent).
     Evidence saved per the repo's existing convention (`public/dev/audit-evidence/`, consistent
     with the July audit).
 17. Smoke matrix — presets AND boundaries: TOW plf; TOW discrete 1×1, 1×4, 2×4; embed 1, 2V, 2H,
-    2×2, 2×3; SD N=1, N=2, N=4; plus s = 2·lb exactly (zero lens), s just under 2·lb, g at the
+    2×2, 3×2; SD N=1, N=2, N=4; plus s = 2·lb exactly (zero lens), s just under 2·lb, g at the
     head-clearance limit, T-only, V-only, zero loads, reversal-only, and a case straddling a
     governing-mode transition. Each case: no console errors, banner renders, diagram paints, and
     `Apt_pairwise ≤ Apt_exact` (numeric integration) holds.
 18. Written hand-check doc (pattern of `docs/embed-plate-hand-check-2026-07.md`): full paper chain
     for the brace case TOW 1×4 @ 8″ OC, T = V = 13 kips; area-level hand checks for TOW 2×4,
-    embed 1×1, 2H, 2×3 (triple-overlap), and SD 4-bolt Apt/Apv; equilibrium check of the 1-row
+    embed 1×1, 2H, 3×2 (triple-overlap), and SD 4-bolt Apt/Apv; equilibrium check of the 1-row
     embed FBD for both load cases (anchor-couple equilibrium — a genuine FBD check); and,
     separately, the worked embed 2×2 legacy-vs-strip plate-bending benchmark (a formula-level
     hand check — the per-strip bending model intentionally claims no strip equilibrium) showing
@@ -210,9 +221,9 @@ user-approved change — never silent).
 - 2-row TOW breakout on an 8″ wall: with realistic g, cones clip both faces heavily; the guards +
   named-deduction error must steer the user to single-row before Apt→0 surprises them.
 - Per-strip bending checks are analytically identical to legacy for symmetric 2×2, but the
-  1-row and 2×3 applications are new engineering — the hand-check formula verifications (and the
+  1-row and 3-row/multi-column applications are new engineering — the hand-check formula verifications (and the
   one-row anchor-couple equilibrium check) are the gate before any of it ships.
-- Pairwise-vs-exact conservatism margin in dense 2×3 layouts may be large (over-conservative
+- Pairwise-vs-exact conservatism margin in dense 3×2 layouts may be large (over-conservative
   designs); harness reports the margin so Nick can judge whether exact-method runtime work is
   worth a future round.
 - MDG has no worked multi-anchor-group example to pin numbers to; hand-check doc is the anchor.
