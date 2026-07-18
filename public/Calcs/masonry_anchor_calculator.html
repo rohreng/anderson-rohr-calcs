@@ -188,9 +188,17 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 </div>
 
 <div class="blk load-blk">
-  <h2>&#9632; 2. Service Loads (ASD &mdash; per unit length of wall)</h2>
+  <h2>&#9632; 2. Service Loads (ASD)</h2>
+  <div class="ig" style="max-width:420px;margin-bottom:14px">
+    <label>Design Basis</label>
+    <select id="basisMode" onchange="basisChange()">
+      <option value="plf" selected>Continuous (plf) &mdash; load per linear foot of wall</option>
+      <option value="discrete">Discrete group (total kips) &mdash; N anchors, total T &amp; V</option>
+    </select>
+    <div class="hint">Continuous: enter b<sub>a</sub>, b<sub>v</sub> per foot and fastener spacing S (§3). Discrete: enter total group tension/shear and the anchor layout (rows &times; columns, §3).</div>
+  </div>
   <div class="callout red">Enter service loads (D, L, or D+L). For wind-governed loads, enter the ASD service-level values and use the ⅓ allowable stress increase checkbox below. Do NOT reduce wind loads by 0.6 here.</div>
-  <div class="g3">
+  <div class="g3" id="plfLoadGrp">
     <div class="ig">
       <label>b<sub>a</sub> &mdash; Tension Load <span class="unit">(kips/ft)</span></label>
       <input type="number" id="ba" value="1.09" step="0.01" min="0">
@@ -200,6 +208,18 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <label>b<sub>v</sub> &mdash; Shear Load <span class="unit">(kips/ft)</span></label>
       <input type="number" id="bv" value="0.09" step="0.01" min="0">
       <div class="hint">Service shear perpendicular to bolt axis (parallel to wall face, e.g. gravity reaction or in-plane shear)</div>
+    </div>
+  </div>
+  <div class="g3" id="discreteLoadGrp" style="display:none">
+    <div class="ig">
+      <label>T &mdash; Total Service Tension <span class="unit">(kips)</span></label>
+      <input type="number" id="T_kips" value="4.36" step="0.1" min="0">
+      <div class="hint">Total service tension for the ENTIRE anchor group (all rows &times; columns), before the &#x2153; increase.</div>
+    </div>
+    <div class="ig">
+      <label>V &mdash; Total Service Shear <span class="unit">(kips)</span></label>
+      <input type="number" id="V_kips" value="0.36" step="0.1" min="0">
+      <div class="hint">Total service shear for the ENTIRE anchor group, applied toward the near (loaded) face for every anchor (single named direction).</div>
     </div>
   </div>
 </div>
@@ -250,11 +270,14 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <input type="number" id="t_head" value="0.34375" step="0.01" min="0" oninput="deriveLb()">
       <div class="hint">A307/A563 heavy-hex head height: 11/32&Prime; = 0.344 for 1/2&Prime; &middot; 27/64&Prime; = 0.422 for 5/8&Prime; &middot; 1/2&Prime; = 0.500 for 3/4&Prime;</div>
     </div>
-    <div class="ig">
+    <div id="plfSGrp" style="display:contents">
+      <div class="ig">
       <label>S &mdash; Fastener Spacing <span class="unit">(in)</span></label>
       <input type="number" id="S_in" value="16" step="2" min="4" oninput="autoLbe()">
       <div class="hint">Center-to-center spacing along wall length</div>
+      </div>
     </div>
+    <div id="lbeGrp" style="display:contents">
     <div class="ig">
       <label>l<sub>be</sub> &mdash; Edge Distance <span class="unit">(in, auto)</span></label>
       <input type="number" id="Lbe_disp" value="3.81" readonly>
@@ -263,8 +286,50 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <div class="ig">
       <label>l<sub>be</sub> Override <span class="unit">(in)</span></label>
       <input type="number" id="Lbe_override" value="" step="0.25" min="0" placeholder="Leave blank to use auto" oninput="autoLbe()">
-      <div class="hint">If blank, auto = b/2 (centered bolt). Enter the edge-to-bolt-center distance if the bolt is not centered.</div>
+      <div class="hint">If blank, auto = b/2 (centered bolt). Enter the edge-to-bolt-center distance if the bolt is not centered. Not used in 2-row discrete mode.</div>
     </div>
+    </div>
+  </div>
+  <div class="g3" id="discreteGeomGrp" style="display:none;margin-top:14px">
+    <div class="ig">
+      <label>N<sub>cols</sub> &mdash; Columns <span class="unit">(1&ndash;6)</span></label>
+      <select id="cols_n" onchange="rowsColsChange()">
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+      </select>
+      <div class="hint">Number of anchor columns spaced along the wall length.</div>
+    </div>
+    <div class="ig">
+      <label>s &mdash; Column Spacing <span class="unit">(in)</span></label>
+      <input type="number" id="s_in" value="8" step="0.5" min="1" oninput="rowsColsChange()">
+      <div class="hint">Center-to-center spacing between adjacent columns along the wall length.</div>
+    </div>
+    <div class="ig">
+      <label>Rows <span class="unit">(across wall thickness)</span></label>
+      <select id="rows_n" onchange="rowsColsChange()">
+        <option value="1" selected>1 (centered / l_be override)</option>
+        <option value="2">2 (staggered across thickness)</option>
+      </select>
+      <div class="hint">1 row: uses l<sub>be</sub> auto (b/2) or override above. 2 rows: enter o<sub>1</sub> &amp; g below (l<sub>be</sub> override not used).</div>
+    </div>
+    <div class="ig" id="o1Grp" style="display:none">
+      <label>o<sub>1</sub> &mdash; Row 1 Offset from Near Face <span class="unit">(in)</span></label>
+      <input type="number" id="o1_in" value="2" step="0.25" min="0.1" oninput="rowsColsChange()">
+      <div class="hint">Distance from the near (loaded) face to the row-1 bolt centerline.</div>
+    </div>
+    <div class="ig" id="gGrp" style="display:none">
+      <label>g &mdash; Gauge Between Rows <span class="unit">(in)</span></label>
+      <input type="number" id="g_in" value="3.625" step="0.25" min="0.1" oninput="rowsColsChange()">
+      <div class="hint">Center-to-center distance from row 1 to row 2 across the wall thickness. Row-2 near-face distance = o<sub>1</sub> + g.</div>
+    </div>
+  </div>
+  <div class="chk-row" id="gateRow" style="display:none">
+    <input type="checkbox" id="discreteGate">
+    <label for="discreteGate">I confirm this connection is a <strong>rigid attachment</strong> (plate or HSS base) delivering load through the <strong>group centroid</strong>, with <strong>no group moment or torsion</strong>. Eccentric anchor groups are OUT OF SCOPE for this discrete-group model &mdash; if eccentric, perform a separate analysis.</label>
   </div>
   <div class="chk-row">
     <input type="checkbox" id="windInc" checked>
@@ -276,6 +341,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <div id="results" class="results">
   <div id="overallBanner" class="overall-banner"></div>
+  <div id="anchorTableWrap" style="display:none"></div>
 
   <div class="part-hdr part-hdr-A">&#9646; CHECK A &nbsp;&mdash;&nbsp; Minimum Embedment &nbsp;&middot;&nbsp; TMS 402-22 §6.3.6</div>
   <div id="sumA" class="summary"></div>
@@ -322,6 +388,14 @@ function toggleDet(id){
   btn.textContent=op?'\u25BE Calc':'\u25B6 Calc';
 }
 
+// Circular-segment helper: area of a circle (radius R) lying beyond a chord at
+// distance d from center. Shared by the plf per-fastener math (runCalcs) and
+// the discrete-group per-anchor enumeration (computeDiscreteGeometry / draw).
+function circSeg(R,d){
+  if(d>=R||R<=0) return 0;
+  return R*R*Math.acos(d/R) - d*Math.sqrt(R*R-d*d);
+}
+
 // ── UI Helpers ────────────────────────────────────────────────────────────────
 function autoLbe(){
   var b=parseFloat(document.getElementById('b_wall').value)||7.625;
@@ -358,10 +432,42 @@ function deriveLb(){
   autoLbe();
 }
 
+// Design-basis toggle: 'plf' (continuous, default) or 'discrete' (group).
+function basisChange(){
+  var mode=document.getElementById('basisMode').value;
+  var disc=mode==='discrete';
+  document.getElementById('plfLoadGrp').style.display=disc?'none':'';
+  document.getElementById('discreteLoadGrp').style.display=disc?'':'none';
+  document.getElementById('plfSGrp').style.display=disc?'none':'contents';
+  document.getElementById('discreteGeomGrp').style.display=disc?'':'none';
+  document.getElementById('gateRow').style.display=disc?'':'none';
+  rowsColsChange();
+}
+function rowsColsChange(){
+  var mode=document.getElementById('basisMode').value;
+  var rows2=mode==='discrete'&&document.getElementById('rows_n').value==='2';
+  document.getElementById('o1Grp').style.display=rows2?'':'none';
+  document.getElementById('gGrp').style.display=rows2?'':'none';
+  var lbeGrp=document.getElementById('lbeGrp');
+  if(lbeGrp) lbeGrp.style.display=rows2?'none':'contents';
+  drawMasonryDiagrams();
+}
+
 // ── ARE Diagram drawing (Section + Plan) ─────────────────────────────────────
 function updatePlanSvg(){ drawMasonryDiagrams(); }
 
+// Dispatcher: plf mode keeps the original 2-anchor continuous drawing;
+// discrete mode draws the full anchor group (rows x cols) with per-anchor
+// breakout cones/lenses, or a red error overlay if the geometry is invalid.
 function drawMasonryDiagrams(){
+  if(!window.AREDraw) return;
+  var basisEl=document.getElementById('basisMode');
+  var mode=basisEl?basisEl.value:'plf';
+  if(mode==='discrete') drawDiscreteDiagrams();
+  else drawPlfDiagrams();
+}
+
+function drawPlfDiagrams(){
   if(!window.AREDraw) return;
   var b    = parseFloat(document.getElementById('b_wall').value)||7.625;
   var phi  = parseFloat(document.getElementById('phi_in').value)||0.75;
@@ -605,12 +711,327 @@ function drawMasonryDiagrams(){
   dwgPlan.commit();
 }
 
+// ── DISCRETE-GROUP geometry (shared by runCalcs + diagrams) ───────────────────
+// Enumerates every anchor in the rows x cols group, derives its near/far face
+// distances, and computes its own Apt_i / Apv_i by full pairwise enumeration
+// of side / cross-row / diagonal neighbor lenses (no "interior governs"
+// shortcut). Returns {ok:false, error} on any geometry-guard failure.
+function computeDiscreteGeometry(){
+  var b     = parseFloat(document.getElementById('b_wall').value)||7.625;
+  var phi   = parseFloat(document.getElementById('phi_in').value)||0.75;
+  var Lb    = parseFloat(document.getElementById('Lb').value)||5;
+  var cols  = parseInt(document.getElementById('cols_n').value,10)||1;
+  var s     = parseFloat(document.getElementById('s_in').value)||8;
+  var rowsN = parseInt(document.getElementById('rows_n').value,10)||1;
+  var o1in  = parseFloat(document.getElementById('o1_in').value)||0;
+  var gin   = parseFloat(document.getElementById('g_in').value)||0;
+  var T_kips= parseFloat(document.getElementById('T_kips').value)||0;
+  var V_kips= parseFloat(document.getElementById('V_kips').value)||0;
+  var hr    = 0.9*phi;      // approx across-flats hex-head radius
+  var minCov= 0.5;          // required cover beyond the head, in
+
+  var rows=[], o1=null, g=null;
+  if(rowsN===1){
+    var LbeOv=document.getElementById('Lbe_override').value;
+    var LbeAuto=Math.max(b/2.0,0.01);
+    var Lbe1=(LbeOv!==''&&parseFloat(LbeOv)>0)?parseFloat(LbeOv):LbeAuto;
+    var remote1=Lbe1>=b-0.001;
+    var far1=remote1?Infinity:Math.max(b-Lbe1,0.01);
+    rows.push({near:Lbe1, far:far1});
+  } else {
+    o1=o1in; g=gin;
+    if(!(g>0)||g>=b){
+      return {ok:false, error:'Row gauge g must be greater than 0 and less than the wall thickness b ('+f2(b)+'″). g = '+f2(g)+'″ is invalid — reduce g or switch to single-row mode.'};
+    }
+    var near1=o1, near2=o1+g;
+    rows.push({near:near1, far:b-near1});
+    rows.push({near:near2, far:b-near2});
+  }
+
+  for(var r=0;r<rows.length;r++){
+    var rr=rows[r];
+    if(isFinite(rr.near) && rr.near<hr+minCov){
+      return {ok:false, error:'Row '+(r+1)+' near-face distance ('+f3(rr.near)+'″) is less than the required head clearance = 0.9×φ + 0.5″ cover = '+f3(hr+minCov)+'″. Increase o1 (or the l_be override), or use a smaller bolt diameter.'};
+    }
+    if(isFinite(rr.far) && rr.far<hr+minCov){
+      return {ok:false, error:'Row '+(r+1)+' far-face distance ('+f3(rr.far)+'″) is less than the required head clearance = 0.9×φ + 0.5″ cover = '+f3(hr+minCov)+'″. Move the row toward the wall centerline, use a thicker wall, or use a smaller bolt diameter.'};
+    }
+  }
+
+  if(cols>=2){
+    var sMin=Math.max(4*phi, 1.8*phi+0.5);
+    if(s<sMin){
+      return {ok:false, error:'Column spacing s = '+f3(s)+'″ is less than the minimum s_min = max(4φ, 1.8φ+0.5″) = '+f3(sMin)+'″. Increase column spacing or reduce the number of columns.'};
+    }
+  }
+
+  var anchors=[];
+  for(var ri=0; ri<rows.length; ri++){
+    for(var ci=0; ci<cols; ci++){
+      anchors.push({row:ri+1, col:ci+1, x:(ci-(cols-1)/2)*s, near:rows[ri].near, far:rows[ri].far});
+    }
+  }
+  function findAnchor(row,col){
+    for(var i=0;i<anchors.length;i++){ if(anchors[i].row===row&&anchors[i].col===col) return anchors[i]; }
+    return null;
+  }
+  var diag=Math.sqrt(s*s+(g||0)*(g||0));
+
+  anchors.forEach(function(a){
+    var neighbors=[];
+    var left=findAnchor(a.row,a.col-1), right=findAnchor(a.row,a.col+1);
+    if(left)  neighbors.push({dist:s, type:'side', other:left});
+    if(right) neighbors.push({dist:s, type:'side', other:right});
+    if(rowsN===2){
+      var otherRow=a.row===1?2:1;
+      var crossSame=findAnchor(otherRow,a.col);
+      if(crossSame) neighbors.push({dist:g, type:'cross-row', other:crossSame});
+      var crossL=findAnchor(otherRow,a.col-1), crossR=findAnchor(otherRow,a.col+1);
+      if(crossL) neighbors.push({dist:diag, type:'diagonal', other:crossL});
+      if(crossR) neighbors.push({dist:diag, type:'diagonal', other:crossR});
+    }
+    a.neighbors=neighbors;
+
+    var segNear=circSeg(Lb,a.near), segFar=circSeg(Lb,a.far);
+    var lensTerms=[], lensTotal=0;
+    neighbors.forEach(function(nb){
+      var lens=(nb.dist<2*Lb)?circSeg(Lb,nb.dist/2):0;
+      lensTotal+=lens;
+      lensTerms.push({type:nb.type, dist:nb.dist, lens:lens, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+    });
+    a.segNear=segNear; a.segFar=segFar; a.lensTerms=lensTerms;
+    a.Apt=Math.PI*Lb*Lb - segNear - segFar - lensTotal;
+
+    var lbe_i=a.near;
+    var avTerms=[], avTotal=0;
+    neighbors.filter(function(nb){return nb.type==='side';}).forEach(function(nb){
+      var half=0.5*circSeg(lbe_i, nb.dist/2);
+      avTotal+=half;
+      avTerms.push({dist:nb.dist, half:half, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+    });
+    a.lbe_i=lbe_i; a.avTerms=avTerms;
+    a.Apv=Math.PI*lbe_i*lbe_i/2.0 - avTotal;
+  });
+
+  var bad=null;
+  anchors.forEach(function(a){ if(a.Apt<=0 && !bad) bad=a; });
+  if(bad){
+    return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected tension area (A_pt = '+f3(bad.Apt)+' in²) after face and overlap deductions. Increase column spacing s, reduce the number of rows, or use a single row.'};
+  }
+
+  var govT=anchors[0], govV=anchors[0];
+  anchors.forEach(function(a){ if(a.Apt<govT.Apt) govT=a; if(a.Apv<govV.Apv) govV=a; });
+
+  return {ok:true, b:b, phi:phi, Lb:Lb, cols:cols, s:s, rowsN:rowsN, o1:o1, g:g,
+          rows:rows, anchors:anchors, govT:govT, govV:govV, N_total:anchors.length,
+          hr:hr, T_kips:T_kips, V_kips:V_kips};
+}
+
+function renderDiagramError(svgEl, msg){
+  if(!window.AREDraw){ while(svgEl.firstChild) svgEl.removeChild(svgEl.firstChild); return; }
+  var dwg=new AREDraw.Drawing(svgEl, {});
+  var words=msg.split(' '), lines=[], cur='';
+  words.forEach(function(w){ if((cur+' '+w).length>46){lines.push(cur);cur=w;} else {cur=(cur?cur+' ':'')+w;} });
+  if(cur) lines.push(cur);
+  var SVGNS='http://www.w3.org/2000/svg';
+  var t0=document.createElementNS(SVGNS,'text');
+  t0.setAttribute('x',10); t0.setAttribute('y',22);
+  t0.setAttribute('fill','#dc2626'); t0.setAttribute('font-size','15'); t0.setAttribute('font-weight','700');
+  t0.textContent='⚠ Geometry Error — Sketch Not Shown';
+  dwg.gAnno.appendChild(t0);
+  dwg.extend(10,10); dwg.extend(340,22);
+  lines.forEach(function(ln,i){
+    var t=document.createElementNS(SVGNS,'text');
+    t.setAttribute('x',10); t.setAttribute('y',48+i*18);
+    t.setAttribute('fill','#991b1b'); t.setAttribute('font-size','12');
+    t.textContent=ln;
+    dwg.gAnno.appendChild(t);
+    dwg.extend(10,48+i*18); dwg.extend(10+ln.length*6.3,48+i*18);
+  });
+  dwg.commit();
+}
+
+function drawDiscreteDiagrams(){
+  var geo=computeDiscreteGeometry();
+  var svgSec=document.getElementById('secSvg'), svgPlan=document.getElementById('planSvg');
+  if(!geo.ok){
+    renderDiagramError(svgSec, geo.error);
+    renderDiagramError(svgPlan, geo.error);
+    return;
+  }
+  drawDiscreteSection(geo);
+  drawDiscretePlan(geo);
+}
+
+// ── DISCRETE section view: 1 or 2 anchors across wall thickness ───────────────
+function drawDiscreteSection(geo){
+  var svgSec=document.getElementById('secSvg');
+  var dwgSec=new AREDraw.Drawing(svgSec, {});
+  var st=dwgSec.style;
+  var b=geo.b, phi=geo.phi;
+  var secScale=AREDraw.fitScale(b, 180, {min:14, max:40});
+  var wallHW=Math.max(b*0.6, 4);
+  var plateH=phi*2.5, boltW=phi*1.1;
+  var vS=new AREDraw.View(dwgSec, {scale:secScale, ox:95+wallHW*secScale, oy:80+plateH*secScale, flipY:true});
+
+  var shellS=Math.min(1.25,b*0.18), webS=Math.min(1.0,wallHW*0.16);
+  AREDraw.plate(vS,-wallHW,-b,wallHW*2,b,{fill:'#f8fafc'});
+  AREDraw.plate(vS,-wallHW,-shellS,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW,-b,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,wallHW-webS,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
+  AREDraw.plate(vS,-wallHW+webS,-b+shellS,wallHW*2-2*webS,b-2*shellS,{fill:st.steelFillHi});
+  AREDraw.memberLabel(vS,-wallHW*0.62,-b/2,'GROUTED CELL',{color:st.dim,size:8});
+  AREDraw.plate(vS, -wallHW-phi*0.5, 0, wallHW*2+phi, plateH, {highlight:true});
+
+  var rowDepths = geo.rowsN===2 ? [geo.rows[0].near, geo.rows[1].near] : [geo.rows[0].near];
+  var xOff = geo.rowsN===2 ? [-boltW*2.2, boltW*2.2] : [0];
+  rowDepths.forEach(function(depth, idx){
+    var x0=xOff[idx];
+    AREDraw.plate(vS, x0-boltW/2, plateH, boltW, -(depth+plateH), {fill: st.steel});
+    AREDraw.bolt(vS, x0, -depth, phi, {cross:true});
+  });
+  AREDraw.centerline(vS, 0, plateH+0.5, 0, -(b+1.0));
+
+  AREDraw.forceArrow(vS, 0, plateH+0.3, 0, 1, 40, '', {color: st.force});
+  AREDraw.calloutLabel(vS, 0, plateH+1.5, vS.px(-wallHW)-52, vS.py(plateH+1.5),
+    'T = '+f2(geo.T_kips)+' kips (total)', {color: st.force, anchor:'end'});
+  var bvTailX=wallHW+2.8;
+  AREDraw.forceArrow(vS, bvTailX, plateH*0.45, -1, 0, 44, '', {color: st.force});
+  AREDraw.calloutLabel(vS, bvTailX, plateH*0.45, vS.px(bvTailX)+10, vS.py(plateH*0.45),
+    'V = '+f2(geo.V_kips)+' kips (total)', {color: st.force, anchor:'start'});
+
+  AREDraw.dimLine(vS, wallHW+0.5, 0, wallHW+0.5, -b, 'b = '+b.toFixed(3)+'″', {off:-34, color: st.dim});
+  if(geo.rowsN===2){
+    AREDraw.dimLine(vS, -wallHW-0.5, 0, -wallHW-0.5, -geo.o1, 'o1 = '+geo.o1.toFixed(2)+'″', {off:34, color: st.dim});
+    AREDraw.dimLine(vS, -wallHW-0.5, -geo.o1, -wallHW-0.5, -(geo.o1+geo.g), 'g = '+geo.g.toFixed(2)+'″', {off:34, color: st.dim});
+  } else {
+    AREDraw.leader(vS, wallHW, -geo.rows[0].near*0.55, 72, 28, 'lbe = '+geo.rows[0].near.toFixed(2)+'″', {color: st.dim, anchor:'start'});
+  }
+  AREDraw.leader(vS, wallHW, 0, 68, -24, 'Near face', {color: st.dim, anchor:'start'});
+  AREDraw.memberLabel(vS, 0, -b-0.9, 'Far face', {color: st.dim, size:9});
+  AREDraw.calloutLabel(vS, -wallHW, plateH*0.5, vS.px(-wallHW)-6, vS.py(plateH+3.2),
+    'Ledger / Anchor Plate', {color: st.steel, anchor:'end'});
+  AREDraw.viewTitle(vS, vS.px(0), dwgSec.maxY+20,
+    'Section — Anchor Group ('+geo.rowsN+' row'+(geo.rowsN>1?'s':'')+' across thickness)');
+  dwgSec.commit();
+}
+
+// ── DISCRETE plan view: full rows x cols grid with per-anchor cones/lenses ────
+function drawDiscretePlan(geo){
+  var svgPlan=document.getElementById('planSvg');
+  var dwgPlan=new AREDraw.Drawing(svgPlan, {});
+  var stp=dwgPlan.style;
+  var b=geo.b, phi=geo.phi, Lb=geo.Lb, s=geo.s, cols=geo.cols, rowsN=geo.rowsN;
+  var SVGNS='http://www.w3.org/2000/svg';
+
+  geo.anchors.forEach(function(a){
+    var farClip=isFinite(a.far)?a.far:Lb;
+    a.Lvis=Math.max(Math.min(Lb, a.near, farClip), Lb*0.15);
+  });
+  var maxLvis=0; geo.anchors.forEach(function(a){ if(a.Lvis>maxLvis) maxLvis=a.Lvis; });
+  var spanX=(cols-1)*s + 2*maxLvis;
+  var planScale=AREDraw.fitScale(Math.max(spanX,4), 300, {min:3, max:22});
+  var wallW_plan=spanX+6;
+
+  var vP=new AREDraw.View(dwgPlan, {
+    scale: planScale,
+    ox: 90 + wallW_plan/2*planScale,
+    oy: 120 + b/2*planScale,
+    flipY: true
+  });
+
+  var shellP=Math.min(1.25,b*0.18), webP=Math.min(0.75,b*0.12);
+  AREDraw.plate(vP,-wallW_plan/2,-b/2,wallW_plan,b,{fill:'#f8fafc'});
+  AREDraw.plate(vP,-wallW_plan/2,-b/2,wallW_plan,shellP,{fill:stp.steelFill,hatch:true});
+  AREDraw.plate(vP,-wallW_plan/2,b/2-shellP,wallW_plan,shellP,{fill:stp.steelFill,hatch:true});
+  for(var wx=-wallW_plan/2; wx<=wallW_plan/2+0.01; wx+=8){
+    AREDraw.plate(vP, Math.max(wx-webP/2,-wallW_plan/2), -b/2, webP, b, {fill:stp.steelFill,hatch:true});
+  }
+  geo.anchors.forEach(function(a){
+    var x0=Math.max(-wallW_plan/2,a.x-4), x1=Math.min(wallW_plan/2,a.x+4);
+    AREDraw.plate(vP,x0,-b/2+shellP,x1-x0,b-2*shellP,{fill:stp.steelFillHi});
+  });
+
+  function rowY(a){ return b/2 - a.near; }
+  function addCircle(cx,cy,R,fill,dashArr,stroke){
+    var c=document.createElementNS(SVGNS,'circle');
+    c.setAttribute('cx',vP.px(cx)); c.setAttribute('cy',vP.py(cy));
+    c.setAttribute('r',vP.s(R));
+    c.setAttribute('fill',fill);
+    c.setAttribute('stroke',stroke||stp.dim);
+    c.setAttribute('stroke-width','1.3');
+    if(dashArr) c.setAttribute('stroke-dasharray',dashArr);
+    dwgPlan.gSteel.appendChild(c);
+    dwgPlan.extend(vP.px(cx)-vP.s(R), vP.py(cy)-vP.s(R));
+    dwgPlan.extend(vP.px(cx)+vP.s(R), vP.py(cy)+vP.s(R));
+  }
+
+  geo.anchors.forEach(function(a){
+    var isGov=(a===geo.govT);
+    addCircle(a.x, rowY(a), a.Lvis, isGov?'rgba(248,113,113,0.30)':'rgba(219,226,240,0.45)', '5,3', isGov?'#dc2626':stp.dim);
+  });
+
+  var drawn={};
+  geo.anchors.forEach(function(a){
+    a.neighbors.forEach(function(nb){
+      var other=nb.other;
+      var kA=a.row*100+a.col, kB=other.row*100+other.col;
+      var key=Math.min(kA,kB)+'-'+Math.max(kA,kB);
+      if(drawn[key]) return; drawn[key]=true;
+      var R=Math.min(a.Lvis, other.Lvis);
+      var d=nb.dist;
+      if(d>=2*R) return;
+      var x1=a.x,y1=rowY(a), x2=other.x, y2=rowY(other);
+      var mx=(x1+x2)/2, my=(y1+y2)/2;
+      var ang=Math.atan2(y2-y1,x2-x1);
+      var half=Math.sqrt(Math.max(0,R*R-(d/2)*(d/2)));
+      var perpX=-Math.sin(ang), perpY=Math.cos(ang);
+      var p1x=mx+perpX*half, p1y=my+perpY*half;
+      var p2x=mx-perpX*half, p2y=my-perpY*half;
+      var Rpx=vP.s(R);
+      var pth=document.createElementNS(SVGNS,'path');
+      pth.setAttribute('d','M'+vP.px(p1x)+' '+vP.py(p1y)+' A'+Rpx+' '+Rpx+' 0 0 1 '+vP.px(p2x)+' '+vP.py(p2y)+' A'+Rpx+' '+Rpx+' 0 0 1 '+vP.px(p1x)+' '+vP.py(p1y)+' Z');
+      pth.setAttribute('fill','rgba(107,122,150,0.24)');
+      pth.setAttribute('stroke',stp.dim); pth.setAttribute('stroke-width','0.8'); pth.setAttribute('stroke-dasharray','3,2');
+      dwgPlan.gSteel.appendChild(pth);
+    });
+  });
+
+  geo.anchors.forEach(function(a){ AREDraw.bolt(vP, a.x, rowY(a), phi, {cross:true}); });
+
+  var gx=geo.govT.x, gy=rowY(geo.govT);
+  AREDraw.calloutLabel(vP, gx, gy, vP.px(gx)+(gx>=0?46:-46), vP.py(gy)-vP.s(geo.govT.Lvis)-18,
+    'GOVERNING (R'+geo.govT.row+'C'+geo.govT.col+')', {color:'#dc2626', anchor: gx>=0?'start':'end'});
+
+  if(cols>=2){
+    var row1=geo.anchors.filter(function(a){return a.row===1;});
+    AREDraw.dimLine(vP, row1[0].x, -b/2, row1[1].x, -b/2, 's = '+s.toFixed(2)+'″', {off:28, color:stp.dim});
+  }
+  if(rowsN===2){
+    var c1r1=geo.anchors.filter(function(a){return a.col===1&&a.row===1;})[0];
+    var c1r2=geo.anchors.filter(function(a){return a.col===1&&a.row===2;})[0];
+    AREDraw.dimLine(vP, -wallW_plan/2-0.3, rowY(c1r1), -wallW_plan/2-0.3, rowY(c1r2), 'g = '+geo.g.toFixed(2)+'″', {off:-24, color:stp.dim});
+    AREDraw.dimLine(vP, -wallW_plan/2-0.3, b/2, -wallW_plan/2-0.3, rowY(c1r1), 'o1 = '+geo.o1.toFixed(2)+'″', {off:-24, color:stp.dim});
+  }
+  AREDraw.dimLine(vP, wallW_plan/2+0.3, -b/2, wallW_plan/2+0.3, b/2, 'b = '+b.toFixed(3)+'″', {off:28, color:stp.dim});
+  AREDraw.memberLabel(vP, 0, b/2+0.5, 'Near face', {color:stp.dim, size:9});
+  AREDraw.memberLabel(vP, 0, -b/2-0.5, 'Far face', {color:stp.dim, size:9});
+
+  AREDraw.viewTitle(vP, vP.px(0), dwgPlan.maxY+26,
+    'Plan — Discrete Group ('+geo.rowsN+'×'+geo.cols+' = '+geo.N_total+' anchors) · T='+f2(geo.T_kips)+' kips, V='+f2(geo.V_kips)+' kips');
+
+  dwgPlan.commit();
+}
+
 // ── Save / Load ───────────────────────────────────────────────────────────────
-var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override','lb_mode','emb_total','t_head'];
+var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override','lb_mode','emb_total','t_head',
+  'basisMode','T_kips','V_kips','cols_n','s_in','rows_n','o1_in','g_in'];
 function saveInputs(){
-  var d={};
+  var d={v:2};
   INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
   d.windInc=document.getElementById('windInc').checked;
+  d.discreteGate=document.getElementById('discreteGate').checked;
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -628,7 +1049,10 @@ function loadInputs(){
         var d=JSON.parse(ev.target.result);
         INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
         if(d.windInc!==undefined)document.getElementById('windInc').checked=!!d.windInc;
-        lbModeChange();autoLbe();autoFu();
+        if(d.discreteGate!==undefined)document.getElementById('discreteGate').checked=!!d.discreteGate;
+        // Legacy files (no version key) always land in plf mode — today's behavior.
+        if(d.v===undefined) document.getElementById('basisMode').value='plf';
+        lbModeChange();autoLbe();autoFu();basisChange();
         alert('Inputs loaded.');
       }catch(err){alert('Error: '+err.message);}
     };
@@ -666,10 +1090,44 @@ function setCards(id,cards){
   cards.forEach(function(c){g.innerHTML+='<div class="dem-card '+c.cls+'"><div class="v">'+c.v+'</div><div class="l">'+c.l.replace(/\n/g,'<br>')+'</div></div>';});
 }
 
+// ── Discrete-group error / per-anchor table helpers ────────────────────────────
+function showDiscreteError(msg){
+  ['chkA','chkB','chkC','chkD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+  ['demA','demB','demC','demD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+  ['sumA','sumB','sumC','sumD'].forEach(function(id){var e=document.getElementById(id);e.innerHTML='';e.className='summary';});
+  document.getElementById('notesList').innerHTML='';
+  document.getElementById('anchorTableWrap').style.display='none';
+  document.getElementById('anchorTableWrap').innerHTML='';
+  var ob=document.getElementById('overallBanner');
+  ob.className='overall-banner sum-fail';
+  ob.innerHTML='<strong style="font-size:1.1em">&#10007; DISCRETE-GROUP INPUT ERROR &mdash; RESULTS NOT SHOWN</strong><br>'+msg;
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+  drawMasonryDiagrams();
+}
+function buildAnchorTable(geo, N_total, Ba){
+  var html='<div class="blk" style="border-left-color:#7c3aed"><h2>&#9632; Per-Anchor Areas &mdash; Discrete Group <span class="badge">'+geo.rowsN+'&times;'+geo.cols+' = '+N_total+' anchors</span></h2>';
+  html+='<table class="chk-table"><thead><tr><th>Row</th><th>Col</th><th>x (in)</th><th>Near (in)</th><th>Far (in)</th><th>A<sub>pt,i</sub> (in&sup2;)</th><th>A<sub>pv,i</sub> (in&sup2;)</th><th>Governing</th></tr></thead><tbody>';
+  geo.anchors.forEach(function(a){
+    var flags=[];
+    if(a===geo.govT) flags.push('<span class="badge-red">A<sub>pt</sub> governs</span>');
+    if(a===geo.govV) flags.push('<span class="badge-amber">A<sub>pv</sub> governs</span>');
+    html+='<tr'+(flags.length?' style="background:#fef9f0"':'')+'><td>'+a.row+'</td><td>'+a.col+'</td><td>'+f2(a.x)+'</td><td>'+f3(a.near)+'</td><td>'+(isFinite(a.far)?f3(a.far):'remote')+'</td><td>'+f3(a.Apt)+'</td><td>'+f3(a.Apv)+'</td><td>'+(flags.length?flags.join(' '):'&mdash;')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  html+='<div class="hint" style="margin-top:8px">A<sub>pt,i</sub>/A<sub>pv,i</sub> deductions are computed pairwise (lens-by-lens); where 3+ breakout cones mutually overlap the same region this over-deducts it, so these areas are a conservative LOWER BOUND on the exact tributary area &mdash; never unconservative.</div>';
+  html+='<div class="hint" style="margin-top:4px"><strong>Equal-share comparison:</strong> N &times; governing B<sub>a</sub> = '+N_total+' &times; '+f3(Ba)+' = <strong>'+f3(N_total*Ba)+' kips</strong> &mdash; per-anchor equal-share comparison only, NOT a TMS group capacity.</div>';
+  html+='</div>';
+  document.getElementById('anchorTableWrap').innerHTML=html;
+  document.getElementById('anchorTableWrap').style.display='';
+}
+
 // ── MAIN CALCULATION ──────────────────────────────────────────────────────────
 function runCalcs(){
   chkCtr=0;
   ['chkA','chkB','chkC','chkD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+  document.getElementById('anchorTableWrap').style.display='none';
+  document.getElementById('anchorTableWrap').innerHTML='';
 
   // ── Inputs ──
   var fm_psi =parseFloat(document.getElementById('fm_ksi').value)*1000; // psi
@@ -695,6 +1153,25 @@ function runCalcs(){
   var windInc=document.getElementById('windInc').checked;
   var k_ASD  =windInc?3.0/4.0:1.0;  // load factor (3/4 when 1/3 increase applies)
   var combo_limit=1.0;              // TMS 402-22 Eq 8-8 limit; 1/3 increase handled via k on demands
+
+  // ── Design basis (plf vs discrete group) ──
+  var basisEl=document.getElementById('basisMode');
+  var mode   =basisEl?basisEl.value:'plf';
+  var geo=null, N_total=1, T_kips=0, V_kips=0;
+  if(mode==='discrete'){
+    var gateOK=document.getElementById('discreteGate').checked;
+    geo=computeDiscreteGeometry();
+    if(!gateOK||!geo.ok){
+      var errMsg = !gateOK
+        ? 'Discrete-group applicability gate is not confirmed. This model assumes a rigid attachment (plate or HSS base) that delivers load through the group centroid with no group moment or torsion. Eccentric anchor groups are OUT OF SCOPE for this calculator — check the applicability box in Section 3 to proceed, or use continuous (plf) mode with a separate eccentricity analysis.'
+        : geo.error;
+      showDiscreteError(errMsg);
+      return;
+    }
+    T_kips=parseFloat(document.getElementById('T_kips').value)||0;
+    V_kips=parseFloat(document.getElementById('V_kips').value)||0;
+    N_total=geo.N_total;
+  }
 
   // ── Geometry ──
   // TMS 402-22 §6.3.7: lbe measured from edge of masonry to CENTER of bolt
@@ -732,6 +1209,17 @@ function runCalcs(){
   var AsegV   =0.5*circSeg(Lbe, halfS); // per-neighbor overlap of adjacent semicircular cones
   var Apv     =Math.max(Math.PI*Lbe*Lbe/2.0 - 2.0*AsegV, 0); // in²
 
+  // Discrete-group override: capacities use the tension-governing anchor's Apt
+  // and the shear-governing anchor's Apv (each found by full enumeration —
+  // independently minimizing Apt and Apv is the conservative bounding choice,
+  // since the two governing anchors need not be the same physical anchor).
+  // MUST run before Ba_mas/Ba_steel/Bv1..Bv4 below, which consume Apt/Apv.
+  // The plf path above (segNear/segFar/Aseg/AsegV/Apt/Apv) is left untouched.
+  if(mode==='discrete'){
+    Apt=geo.govT.Apt;
+    Apv=geo.govV.Apv;
+  }
+
   // For the plan sketch only
   var L       =Math.min(Lb, Lbe);
   var theta   =(halfS<Lb)?Math.acos(Math.min(halfS/Lb,1)):0; // rad; 0 when S >= 2*lb (no overlap)
@@ -754,6 +1242,30 @@ function runCalcs(){
   // Per-fastener loads
   var Ta      =S_ft*ba;  // kips (total tension per fastener, unfactored for combined)
   var Va      =S_ft*bv;  // kips (total shear per fastener, unfactored for combined)
+
+  // Discrete-group demand override: equal-share T/N and V/N. Capacities (Apt/
+  // Apv) were already overridden above, before Ba_mas/Bv1.. consumed them.
+  if(mode==='discrete'){
+    Ta=T_kips/N_total;
+    Va=V_kips/N_total;
+  }
+
+  // Mode-specific demand text (used only in the "shown work" strings below;
+  // the numeric Ta/Va/Apt/Apv above already reflect the active mode).
+  var demTeq, demVeq, demTeqDot, demVeqDot, demTeqShort, demVeqShort, demTsub, demVsub;
+  if(mode==='discrete'){
+    demTeq='k&times;T/N';           demVeq='k&times;V/N';
+    demTeqDot='k&sdot;T/N';         demVeqDot='k&sdot;V/N';
+    demTeqShort='k T/N';            demVeqShort='k V/N';
+    demTsub=f2(k_ASD)+'&times;'+f3(T_kips)+'/'+N_total;
+    demVsub=f2(k_ASD)+'&times;'+f3(V_kips)+'/'+N_total;
+  } else {
+    demTeq='k&times;S&times;b<sub>a</sub>';      demVeq='k&times;S&times;b<sub>v</sub>';
+    demTeqDot='k&sdot;S&sdot;b<sub>a</sub>';      demVeqDot='k&sdot;S&sdot;b<sub>v</sub>';
+    demTeqShort='k S b<sub>a</sub>';              demVeqShort='k S b<sub>v</sub>';
+    demTsub=f2(k_ASD)+'&times;('+f1(S_in)+'/12)&times;'+f2(ba);
+    demVsub=f2(k_ASD)+'&times;('+f1(S_in)+'/12)&times;'+f2(bv);
+  }
 
   // Combined interaction (TMS 402-22 §8.1.4.3.3, Eq 8-8): (ba/Ba)^(5/3) + (bv/Bv)^(5/3) <= 1.0
   // The 1/3 allowable increase (when applicable) is applied consistently as k = 3/4 on the demands.
@@ -798,25 +1310,59 @@ function runCalcs(){
   var pB=dc_Ba_gov<=1, chksB=[], maxB=0;
   function ckB(c){chksB.push(c);if(!c.pass)pB=false;if(c.dc>maxB)maxB=c.dc;}
 
-  // B: Lbe and L detail
-  var dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2 / Eq 6-5 &mdash; Projected Tension Breakout Area A<sub>pt</sub></div><div class="cbox">';
-  dbLbe+='<div class="mrow"><span class="ceq">l<sub>be</sub> =</span> b/2 = '+f2(b)+'/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span> (edge of masonry to bolt center, §6.3.7)'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;; far face = '+f2(Lbe_far)+'&Prime;]':'')+'</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;l<sub>b</sub>&sup2; &minus; (area outside masonry) &minus; (overlap with adjacent anchors)</div>';
-  dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
-  dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; opposite edge '+(remoteEdge?'remote (l<sub>be</sub> &ge; b), deduction = 0.00':'chord @ '+f2(Lbe_far)+'&Prime;, deduction = '+f2(segFar))+' in&sup2;</div>';
-  dbLbe+='<div class="mrow ind">Overlap per adjacent anchor (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6)</div>';
-  dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7 &mdash; not the gross bolt area)</div>';
-  dbLbe+='</div>';
-  ckB({n:'Projected Areas A<sub>pt</sub>, A<sub>pv</sub>',r:'TMS 402-22 §6.3.2/§6.3.3',d:'A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>pv</sub> = '+f2(Apv)+' in&sup2;',dc:null,nt:'l<sub>b</sub>='+f2(Lb)+'&Prime;, l<sub>be</sub>='+f2(Lbe)+'&Prime;, S='+f1(S_in)+'&Prime;',pass:true,info:true,det:dbLbe});
+  // B: Lbe and L detail (mode-specific — plf: single fastener pair; discrete: per-anchor enumeration)
+  var dbLbe, ntAreas;
+  if(mode==='discrete'){
+    dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2/§6.3.3 &mdash; Per-Anchor Projected Areas (Discrete Group, N = '+N_total+')</div><div class="cbox">';
+    dbLbe+='<div class="mrow">Group: '+geo.rowsN+' row(s) &times; '+geo.cols+' column(s) @ s = '+f2(geo.s)+'&Prime; ; N = '+N_total+' anchors.'+(geo.rowsN===2?' Row 1 offset o<sub>1</sub> = '+f2(geo.o1)+'&Prime; from near face, gauge g = '+f2(geo.g)+'&Prime;.':' l<sub>be</sub> = '+f2(geo.rows[0].near)+'&Prime; (b/2 auto or override, same convention as continuous mode).')+'</div>';
+    dbLbe+='<div class="mrow"><strong>Tension-governing anchor: Row '+geo.govT.row+', Column '+geo.govT.col+'</strong> (minimum A<sub>pt</sub> by full enumeration &mdash; no &ldquo;interior governs&rdquo; shortcut assumed):</div>';
+    dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
+    dbLbe+='<div class="mrow ind">Near face (d = '+f3(geo.govT.near)+'&Prime;): circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segNear)+' in&sup2;'+(geo.govT.segNear===0?' (remote / d &ge; l<sub>b</sub>)':'')+'</div>';
+    dbLbe+='<div class="mrow ind">Far face (d = '+(isFinite(geo.govT.far)?f3(geo.govT.far)+'&Prime;':'remote')+'): circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segFar)+' in&sup2;</div>';
+    var lensSumT=0;
+    geo.govT.lensTerms.forEach(function(t){
+      lensSumT+=t.lens;
+      dbLbe+='<div class="mrow ind">'+t.type+' neighbor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): full lens circSeg(l<sub>b</sub>, c/2) = circSeg('+f2(Lb)+', '+f3(t.dist/2)+') = '+f3(t.lens)+' in&sup2;</div>';
+    });
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt,gov</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f3(geo.govT.segNear)+' &minus; '+f3(geo.govT.segFar)+' &minus; '+f3(lensSumT)+' = <span class="cval">'+f3(geo.govT.Apt)+' in&sup2;</span></div>';
+    dbLbe+='<hr class="csep">';
+    dbLbe+='<div class="mrow"><strong>Shear-governing anchor: Row '+geo.govV.row+', Column '+geo.govV.col+'</strong> (minimum A<sub>pv</sub> &mdash; nearest row governs; interior columns deduct more side-lens area):</div>';
+    dbLbe+='<div class="mrow ind">&pi;l<sub>be</sub>&sup2;/2 = &pi;&times;'+f3(geo.govV.lbe_i)+'&sup2;/2 = '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' in&sup2;</div>';
+    var avSumV=0;
+    if(geo.govV.avTerms.length===0){
+      dbLbe+='<div class="mrow ind">No side neighbors (end column, or N<sub>cols</sub>=1) &mdash; no half-lens deduction.</div>';
+    }
+    geo.govV.avTerms.forEach(function(t){
+      avSumV+=t.half;
+      dbLbe+='<div class="mrow ind">Side neighbor '+t.otherPos+' (s = '+f3(t.dist)+'&Prime;): half-lens 0.5&times;circSeg(l<sub>be</sub>, s/2) = 0.5&times;circSeg('+f3(geo.govV.lbe_i)+', '+f3(t.dist/2)+') = '+f3(t.half)+' in&sup2;</div>';
+    });
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv,gov</sub> =</span> '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' &minus; '+f3(avSumV)+' = <span class="cval">'+f3(geo.govV.Apv)+' in&sup2;</span></div>';
+    dbLbe+='<div class="mrow" style="color:#78350f"><em>Conservatism: overlap deductions are computed pairwise (lens-by-lens); where 3+ cones mutually overlap the same region, pairwise subtraction over-deducts, making A<sub>pt,i</sub>/A<sub>pv,i</sub> a conservative LOWER BOUND on the exact tributary area &mdash; never unconservative.</em></div>';
+    dbLbe+='<div class="mrow">Full per-anchor table (all '+N_total+' anchors) is provided below the results banner.</div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7)</div>';
+    dbLbe+='</div>';
+    ntAreas='l<sub>b</sub>='+f2(Lb)+'&Prime;, N='+N_total+', gov: R'+geo.govT.row+'C'+geo.govT.col+' (A<sub>pt</sub>), R'+geo.govV.row+'C'+geo.govV.col+' (A<sub>pv</sub>)';
+  } else {
+    dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2 / Eq 6-5 &mdash; Projected Tension Breakout Area A<sub>pt</sub></div><div class="cbox">';
+    dbLbe+='<div class="mrow"><span class="ceq">l<sub>be</sub> =</span> b/2 = '+f2(b)+'/2 = <span class="cval">'+f2(Lbe_auto)+'&Prime;</span> (edge of masonry to bolt center, §6.3.7)'+(Lbe_ov!==''&&parseFloat(Lbe_ov)>0?' [overridden to '+f2(Lbe)+'&Prime;; far face = '+f2(Lbe_far)+'&Prime;]':'')+'</div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;l<sub>b</sub>&sup2; &minus; (area outside masonry) &minus; (overlap with adjacent anchors)</div>';
+    dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
+    dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; opposite edge '+(remoteEdge?'remote (l<sub>be</sub> &ge; b), deduction = 0.00':'chord @ '+f2(Lbe_far)+'&Prime;, deduction = '+f2(segFar))+' in&sup2;</div>';
+    dbLbe+='<div class="mrow ind">Overlap per adjacent anchor (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6)</div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7 &mdash; not the gross bolt area)</div>';
+    dbLbe+='</div>';
+    ntAreas='l<sub>b</sub>='+f2(Lb)+'&Prime;, l<sub>be</sub>='+f2(Lbe)+'&Prime;, S='+f1(S_in)+'&Prime;';
+  }
+  ckB({n:'Projected Areas A<sub>pt</sub>, A<sub>pv</sub>',r:'TMS 402-22 §6.3.2/§6.3.3',d:'A<sub>pt</sub> = '+f2(Apt)+' in&sup2;',c:'A<sub>pv</sub> = '+f2(Apv)+' in&sup2;',dc:null,nt:ntAreas,pass:true,info:true,det:dbLbe});
 
   // B: Masonry breakout tension
   var dbBmas='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 &mdash; Tension: Masonry Breakout</div><div class="cbox">';
   dbBmas+='<div class="mrow"><span class="ceq">B<sub>a,mas</sub> =</span> 1.25 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Ba_mas)+' kips/fastener</span></div>';
-  dbBmas+='<div class="mrow"><span class="ceq">Demand =</span> k&times;S&times;b<sub>a</sub> = '+f2(k_ASD)+'&times;('+f1(S_in)+'/12)&times;'+f2(ba)+' = <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
+  dbBmas+='<div class="mrow"><span class="ceq">Demand =</span> '+demTeq+' = '+demTsub+' = <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
   dbBmas+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Ta),f3(Ba_mas))+' = <span class="cval">'+f3(dc_Ba_mas)+'</span></div></div>';
-  ckB({n:'Tension &mdash; Masonry Breakout',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,mas</sub> = '+f3(Ba_mas)+' kips',dc:dc_Ba_mas,nt:'1.25A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in&sup2;',pass:dc_Ba_mas<=1,info:false,det:dbBmas});
+  ckB({n:'Tension &mdash; Masonry Breakout',r:'TMS 402-22 §8.1.4.3.1',d:demTeqDot+' = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,mas</sub> = '+f3(Ba_mas)+' kips',dc:dc_Ba_mas,nt:'1.25A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in&sup2;',pass:dc_Ba_mas<=1,info:false,det:dbBmas});
 
   // B: Steel tensile
   var dbBstl='<div class="cref-hdr">TMS 402-22 §8.1.4.3.1 / Eq 8-2 &mdash; Tension: Steel Tensile Failure</div><div class="cbox">';
@@ -827,19 +1373,20 @@ function runCalcs(){
     var AbGross=Math.PI*phi*phi/4.0, BaGross=0.5*AbGross*Fu_psi/1000.0;
     dbBstl+='<div class="mrow" style="color:#92400e"><strong>MDG Ex. 9.3-2 printed comparison:</strong> gross A<sub>b</sub>=&pi;(0.500)&sup2;/4='+f3(AbGross)+' in&sup2; gives 0.5&times;'+f3(AbGross)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(BaGross)+' kips</span> (printed 5.890 kips). This cross-example gross-area value is shown for traceability only; the Eq. 6-7 threaded-area result above governs this calculator.</div>';
   }
-  dbBstl+='<div class="mrow"><span class="ceq">Demand =</span> <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
+  dbBstl+='<div class="mrow"><span class="ceq">Demand =</span> '+demTeq+' = '+demTsub+' = <span class="cval">'+f3(k_ASD*Ta)+' kips</span></div>';
   dbBstl+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Ta),f3(Ba_steel))+' = <span class="cval">'+f3(dc_Ba_stl)+'</span></div></div>';
-  ckB({n:'Tension &mdash; Steel Tensile',r:'TMS 402-22 §8.1.4.3.1',d:'k&sdot;S&sdot;b<sub>a</sub> = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,steel</sub> = '+f3(Ba_steel)+' kips',dc:dc_Ba_stl,nt:'0.5A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in&sup2;',pass:dc_Ba_stl<=1,info:false,det:dbBstl});
+  ckB({n:'Tension &mdash; Steel Tensile',r:'TMS 402-22 §8.1.4.3.1',d:demTeqDot+' = '+f3(k_ASD*Ta)+' kips',c:'B<sub>a,steel</sub> = '+f3(Ba_steel)+' kips',dc:dc_Ba_stl,nt:'0.5A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in&sup2;',pass:dc_Ba_stl<=1,info:false,det:dbBstl});
 
   setSummary('sumB',pB,maxB,'Tension Capacity (governing: B<sub>a</sub> = '+f3(Ba)+' kips)');
   setCards('demB',[
-    {v:f3(S_ft*ba)+' kips',l:'Tension per Fastener\nS\u00D7b\u2090 (unfactored)',cls:'dem-card'},
-    {v:f3(k_ASD*Ta)+' kips',l:'Factored Demand\nk\u00D7S\u00D7b\u2090'+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
+    {v:f3(Ta)+' kips',l:(mode==='discrete'?'Tension per Anchor\nT/N (unfactored)':'Tension per Fastener\nS\u00D7b\u2090 (unfactored)'),cls:'dem-card'},
+    {v:f3(k_ASD*Ta)+' kips',l:'Factored Demand\n'+(mode==='discrete'?'k\u00D7T/N':'k\u00D7S\u00D7b\u2090')+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
     {v:f3(Ba_mas)+' kips',l:'B\u2090 Masonry\n1.25A\u209Dt\u221Af\'m',cls:dc_Ba_mas<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Ba_steel)+' kips',l:'B\u2090 Steel\n0.5A\u1D47F\u1D64',cls:dc_Ba_stl<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Ba)+' kips',l:'B\u2090 Governing\nmin(masonry, steel)',cls:dc_Ba_gov<=1?'dem-card ok':'dem-card bad'},
   ]);
   chksB.forEach(function(c){buildRow(c,'chkB','');});
+  if(mode==='discrete') buildAnchorTable(geo, N_total, Ba);
 
   // ══ CHECK C — SHEAR ══════════════════════════════════════════════════════════
   var dc_Bv1=k_ASD*Va/Bv1, dc_Bv2=k_ASD*Va/Bv2, dc_Bv3=k_ASD*Va/Bv3, dc_Bv4=k_ASD*Va/Bv4;
@@ -852,31 +1399,31 @@ function runCalcs(){
   dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6, half-cone toward free edge)</div>';
   dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apv)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
   dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
+  ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
 
   // Bv2
   var dcv2='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-5 &mdash; Shear: Masonry Crushing</div><div class="cbox">';
   dcv2+='<div class="mrow"><span class="ceq">B<sub>v2</sub> =</span> 580 (A<sub>b</sub> f&prime;<sub>m</sub>)<sup>0.25</sup></div>';
   dcv2+='<div class="mrow ind">= 580 &times; ('+f3(Ab)+'&times;'+f1(fm_psi)+')<sup>0.25</sup> = 580 &times; '+f3(Math.pow(Ab*fm_psi,0.25))+' = <span class="cval">'+f3(Bv2)+' kips</span></div>';
   dcv2+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv2))+' = <span class="cval">'+f3(dc_Bv2)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Masonry Crushing B<sub>v2</sub>',r:'TMS 402-22 Eq 8-5',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v2</sub> = '+f3(Bv2)+' kips',dc:dc_Bv2,nt:'580(A\u1D47f\'m)\u00B9\u141F\u2074; Ab='+f3(Ab)+' in\u00B2',pass:dc_Bv2<=1,info:false,det:dcv2});
+  ckC({n:'Shear &mdash; Masonry Crushing B<sub>v2</sub>',r:'TMS 402-22 Eq 8-5',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v2</sub> = '+f3(Bv2)+' kips',dc:dc_Bv2,nt:'580(A\u1D47f\'m)\u00B9\u141F\u2074; Ab='+f3(Ab)+' in\u00B2',pass:dc_Bv2<=1,info:false,det:dcv2});
 
   // Bv3
   var dcv3='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-6 &mdash; Shear: Anchor Pryout</div><div class="cbox">';
   dcv3+='<div class="mrow"><span class="ceq">B<sub>v3</sub> =</span> B<sub>vpry</sub> = 2.0 B<sub>ab</sub> = 2.5 A<sub>pt</sub> '+ov('f&prime;<sub>m</sub>')+' = 2.5&times;'+f2(Apt)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv3)+' kips</span></div>';
   dcv3+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv3))+' = <span class="cval">'+f3(dc_Bv3)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Pryout B<sub>v3</sub>',r:'TMS 402-22 Eq 8-6',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
+  ckC({n:'Shear &mdash; Pryout B<sub>v3</sub>',r:'TMS 402-22 Eq 8-6',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v3</sub> = '+f3(Bv3)+' kips',dc:dc_Bv3,nt:'2.5A<sub>pt</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pt</sub>='+f2(Apt)+' in\u00B2',pass:dc_Bv3<=1,info:false,det:dcv3});
 
   // Bv4
   var dcv4='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-7 &mdash; Shear: Steel Shear Failure</div><div class="cbox">';
   dcv4+='<div class="mrow"><span class="ceq">B<sub>v4</sub> =</span> 0.25 A<sub>b</sub> F<sub>u</sub> = 0.25&times;'+f3(Ab)+'&times;'+f1(Fu_ksi)+'&times;1000 = <span class="cval">'+f3(Bv4)+' kips</span> (A<sub>b</sub> = '+f3(Ab)+' in&sup2; effective threaded area, §6.3.8 / Eq 6-7)</div>';
   dcv4+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv4))+' = <span class="cval">'+f3(dc_Bv4)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Steel Shear B<sub>v4</sub>',r:'TMS 402-22 §8.1.4.3.2',d:'k&sdot;S&sdot;b<sub>v</sub> = '+f3(k_ASD*Va)+' kips',c:'B<sub>v4</sub> = '+f3(Bv4)+' kips',dc:dc_Bv4,nt:'0.25A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in\u00B2',pass:dc_Bv4<=1,info:false,det:dcv4});
+  ckC({n:'Shear &mdash; Steel Shear B<sub>v4</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v4</sub> = '+f3(Bv4)+' kips',dc:dc_Bv4,nt:'0.25A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in\u00B2',pass:dc_Bv4<=1,info:false,det:dcv4});
 
   setSummary('sumC',pC,maxC,'Shear Capacity (governing: B<sub>v</sub> = '+f3(Bv)+' kips)');
   setCards('demC',[
-    {v:f3(S_ft*bv)+' kips',l:'Shear per Fastener\nS\u00D7b\u1D65 (unfactored)',cls:'dem-card'},
-    {v:f3(k_ASD*Va)+' kips',l:'Factored Demand\nk\u00D7S\u00D7b\u1D65'+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
+    {v:f3(Va)+' kips',l:(mode==='discrete'?'Shear per Anchor\nV/N (unfactored)':'Shear per Fastener\nS\u00D7b\u1D65 (unfactored)'),cls:'dem-card'},
+    {v:f3(k_ASD*Va)+' kips',l:'Factored Demand\n'+(mode==='discrete'?'k\u00D7V/N':'k\u00D7S\u00D7b\u1D65')+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
     {v:f3(Bv1)+' kips',l:'Bv1 Masonry\nBreakout',cls:dc_Bv1<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv2)+' kips',l:'Bv2 Crushing\n580(Abf\'m)\u00B9\u141F\u2074',cls:dc_Bv2<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv3)+' kips',l:'Bv3 Pryout\n2.0B\u2090\u1D47',cls:dc_Bv3<=1?'dem-card ok':'dem-card bad'},
@@ -888,17 +1435,18 @@ function runCalcs(){
   // ══ CHECK D — COMBINED ═══════════════════════════════════════════════════════
   var pD=dc_combo<=1, chksD=[], maxD=dc_combo;
   var ddCom='<div class="cref-hdr">TMS 402-22 §8.1.4.3.3 / Eq 8-8 &mdash; Combined Tension and Shear Interaction</div><div class="cbox">';
-  ddCom+='<div class="mrow"><span class="ceq">Interaction =</span>('+fr('k S b<sub>a</sub>','B<sub>a</sub>')+')<sup>5/3</sup> + ('+fr('k S b<sub>v</sub>','B<sub>v</sub>')+')<sup>5/3</sup> &le; 1.0</div>';
+  ddCom+='<div class="mrow"><span class="ceq">Interaction =</span>('+fr(demTeqShort,'B<sub>a</sub>')+')<sup>5/3</sup> + ('+fr(demVeqShort,'B<sub>v</sub>')+')<sup>5/3</sup> &le; 1.0</div>';
   ddCom+='<div class="mrow ind">= ('+fr(f3(k_ASD*Ta),f3(Ba))+')<sup>5/3</sup> + ('+fr(f3(k_ASD*Va),f3(Bv))+')<sup>5/3</sup></div>';
   ddCom+='<div class="mrow ind">= '+f3(Math.pow(k_ASD*Ta/Ba,5.0/3.0))+' + '+f3(Math.pow(k_ASD*Va/Bv,5.0/3.0))+' = <span class="cval">'+f3(combo)+'</span>'+(combo<=combo_limit?' &le; '+f2(combo_limit)+' &#10003;':' > '+f2(combo_limit)+' &#10007;')+'</div>';
   ddCom+='<div class="mrow"><span class="ceq">k =</span> '+f2(k_ASD)+(windInc?' (&#x2153; increase per IBC 1605.2 applied consistently on demands)':' (no increase applied)')+'</div>';
   ddCom+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(combo),f2(combo_limit))+' = <span class="cval">'+f3(dc_combo)+'</span></div></div>';
-  chksD.push({n:'Combined T+V Interaction',r:'TMS 402-22 Eq 8-8',d:'(kSb<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup>+(kSb<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> = '+f3(combo),c:'&le; '+f2(combo_limit),dc:dc_combo,nt:'B<sub>a</sub>='+f3(Ba)+' kips ; B<sub>v</sub>='+f3(Bv)+' kips',pass:pD,info:false,det:ddCom});
+  var comboLbl=(mode==='discrete')?'(kT/N/B<sub>a</sub>)<sup>5/3</sup>+(kV/N/B<sub>v</sub>)<sup>5/3</sup>':'(kSb<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup>+(kSb<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup>';
+  chksD.push({n:'Combined T+V Interaction',r:'TMS 402-22 Eq 8-8',d:comboLbl+' = '+f3(combo),c:'&le; '+f2(combo_limit),dc:dc_combo,nt:'B<sub>a</sub>='+f3(Ba)+' kips ; B<sub>v</sub>='+f3(Bv)+' kips',pass:pD,info:false,det:ddCom});
 
   setSummary('sumD',pD,maxD,'Combined Tension + Shear');
   setCards('demD',[
-    {v:f3(Ta)+' kips',l:'Tension/Fastener\nS\u00D7b\u2090',cls:'dem-card'},
-    {v:f3(Va)+' kips',l:'Shear/Fastener\nS\u00D7b\u1D65',cls:'dem-card'},
+    {v:f3(Ta)+' kips',l:(mode==='discrete'?'Tension/Anchor\nT/N':'Tension/Fastener\nS\u00D7b\u2090'),cls:'dem-card'},
+    {v:f3(Va)+' kips',l:(mode==='discrete'?'Shear/Anchor\nV/N':'Shear/Fastener\nS\u00D7b\u1D65'),cls:'dem-card'},
     {v:f3(Ba)+' kips',l:'B\u2090 Governing\n(tension capacity)',cls:'dem-card'},
     {v:f3(Bv)+' kips',l:'Bv Governing\n(shear capacity)',cls:'dem-card'},
     {v:f3(combo),l:'Interaction Sum\n(k applied'+(windInc?', k=3/4':', k=1')+')',cls:'dem-card warn'},
@@ -917,13 +1465,13 @@ function runCalcs(){
     +' &nbsp;&middot;&nbsp; f&prime;<sub>m</sub> = '+f1(fm_ksi)+' ksi'
     +' &nbsp;&middot;&nbsp; &#981; = '+f2(phi)+'&Prime;'
     +' &nbsp;&middot;&nbsp; L<sub>b</sub> = '+f2(Lb)+'&Prime;'
-    +' &nbsp;&middot;&nbsp; S = '+f1(S_in)+'&Prime;'
+    +(mode==='discrete'?' &nbsp;&middot;&nbsp; N = '+N_total+' ('+geo.rowsN+'&times;'+geo.cols+') &nbsp; T = '+f2(T_kips)+' kips &nbsp; V = '+f2(V_kips)+' kips':' &nbsp;&middot;&nbsp; S = '+f1(S_in)+'&Prime;')
     +' &nbsp;&middot;&nbsp; B<sub>a</sub> = '+f3(Ba)+' kips &nbsp; B<sub>v</sub> = '+f3(Bv)+' kips'
     +(windInc?' &nbsp;&middot;&nbsp; &#x2153; stress increase applied':'');
 
   // ── Notes ───────────────────────────────────────────────────────────────────
   var nl=document.getElementById('notesList');nl.innerHTML='';
-  [
+  var notesArr=[
     'Design per TMS 402-22 ASD §8.1.4.3. Applies to headed anchor bolts or bent bar anchors (standard hook) fully embedded in grouted masonry.',
     '<strong>l<sub>be</sub> (edge distance):</strong> Per TMS §6.3.7, measured from the edge of the masonry to the center of the bolt &mdash; auto-computed as b/2 for a bolt centered in the wall thickness. Override with the manual field if the bolt is positioned differently.',
     '<strong>A<sub>pt</sub>:</strong> &pi;l<sub>b</sub>&sup2; per Eq 6-5, less the projected area lying outside the masonry (beyond each wall face) and less overlap with adjacent anchors at spacing S (no portion of masonry counted more than once). <strong>A<sub>pv</sub>:</strong> &pi;l<sub>be</sub>&sup2;/2 per Eq 6-6 (half-cone toward the free edge), with the same overlap adjustment. (TMS §6.3.2, §6.3.3)',
@@ -932,7 +1480,18 @@ function runCalcs(){
     '<strong>Combined Check (Eq 8-8):</strong> (k&middot;S&middot;b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup> + (k&middot;S&middot;b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> &le; 1.0. The &#x2153; allowable stress increase, when checked, is applied as k = 3/4 on the demands &mdash; consistently in the individual checks and the interaction.',
     windInc?'&#x2153; allowable stress increase (IBC 1605.2) applied: k = 3/4 on demand for all checks including the combined interaction.':'No &#x2153; stress increase: k = 1.0.',
     'Minimum embedment (TMS §6.3.6): L<sub>b,min</sub> = <strong>greater</strong> of 4&#981; and 2&Prime;. For 3/4&Prime; bolts: L<sub>b,min</sub> = 3&Prime;.',
-  ].forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});
+  ];
+  if(mode==='discrete'){
+    notesArr.push(
+      '<strong>Discrete-group applicability:</strong> This mode assumes a rigid attachment (plate or HSS base) delivering load through the group centroid, with no group moment or torsion. Eccentric anchor groups are out of scope and require separate analysis.',
+      '<strong>Equal-share statics:</strong> Per-anchor tension = T/N, per-anchor shear = V/N (N = rows &times; columns = '+N_total+'). This is an equal-share simplification, not a rigorous elastic group distribution.',
+      'Masonry is assumed fully grouted throughout the entire projected breakout region for all '+N_total+' anchors in the group.',
+      'Shear V is applied in a single, consistently-defined direction (toward the near/loaded free face) for every anchor in the group.',
+      'Wall ends, openings, and orthogonal return corners are assumed remote &mdash; no anchor in this group is closer than 2l<sub>b</sub> to any such feature. Verify this against the actual wall plan; this calculator does not check it automatically.',
+      '<strong>Conservatism:</strong> Overlap deductions between anchor breakout cones are computed pairwise; where 3+ cones mutually overlap, pairwise subtraction over-deducts that shared region, so the computed A<sub>pt,i</sub>/A<sub>pv,i</sub> are a conservative LOWER BOUND on the true tributary area (never unconservative).'
+    );
+  }
+  notesArr.forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});
 
   document.getElementById('results').classList.add('show');
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -942,7 +1501,7 @@ function tryDrawMasonry(){
   if(window.AREDraw){ drawMasonryDiagrams(); }
   else { setTimeout(tryDrawMasonry, 80); }
 }
-window.onload=function(){lbModeChange();autoLbe();autoFu();tryDrawMasonry();};
+window.onload=function(){lbModeChange();autoLbe();autoFu();basisChange();tryDrawMasonry();};
 document.addEventListener('change',function(){autoLbe();autoFu();drawMasonryDiagrams();});
 </script>
 <script src="/are-utils-v2.js"></script>
