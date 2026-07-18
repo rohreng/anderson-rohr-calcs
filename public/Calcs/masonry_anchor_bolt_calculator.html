@@ -400,7 +400,8 @@ function f2(v){return isNaN(v)?'—':(Math.round(v*100)/100).toFixed(2);}
 function f3(v){return isNaN(v)?'—':(Math.round(v*1000)/1000).toFixed(3);}
 function fc(v){return isNaN(v)?'—':Math.round(v).toLocaleString();}
 function circSeg(R,d){
-  return d<R ? R*R*Math.acos(d/R)-d*Math.sqrt(Math.max(0,R*R-d*d)) : 0;
+  if(d>=R||R<=0)return 0;
+  return R*R*Math.acos(d/R)-d*Math.sqrt(Math.max(0,R*R-d*d));
 }
 function boltPosition(i,N){return N===1?'single bolt':((i===0||i===N-1)?'end bolt':'interior bolt');}
 function anchorGroupAreas(N,s,lb,lbe){
@@ -542,6 +543,10 @@ function runCalc(){
   var lb_ok = lb >= lb_min;
 
   var spacingMin = Math.max(4*do_,1.8*do_+0.5);
+  if(N>1 && !(s>0)){
+    showCalcError('Bolt spacing s is required and must be greater than 0 for a multi-bolt group. Enter a valid center-to-center spacing.');
+    return;
+  }
   if(N>1 && s<spacingMin){
     showCalcError('Bolt spacing s = '+f2(s)+' in. is less than max(4d<sub>o</sub>, 1.8d<sub>o</sub> + 0.5 in.) = '+f2(spacingMin)+' in. Increase the bolt spacing.');
     return;
