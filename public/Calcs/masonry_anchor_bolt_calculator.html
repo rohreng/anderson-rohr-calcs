@@ -254,9 +254,14 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <span class="hint">From edge of masonry to bolt center, in direction of shear. Use grouted zone limit if applicable.</span>
     </div>
     <div class="ig">
+      <label>Number of Bolts, N</label>
+      <input type="number" id="bolt_count" value="1" min="1" max="6" step="1" onchange="updateGroupUI()"/>
+      <span class="hint">Single row on the wall face (1&ndash;6 bolts)</span>
+    </div>
+    <div class="ig">
       <label>Bolt Spacing, s <span class="unit">(in)</span></label>
-      <input type="number" id="bolt_spacing" value="16" step="0.5" min="1"/>
-      <span class="hint">Center-to-center. Used to check A<sub>pt</sub> overlap (overlap if s &lt; 2l<sub>b</sub>).</span>
+      <input type="number" id="bolt_spacing" value="16" step="0.5" min="1" onchange="updateGroupUI()"/>
+      <span class="hint">Center-to-center; minimum max(4d<sub>o</sub>, 1.8d<sub>o</sub> + 0.5 in.).</span>
     </div>
   </div>
 </div>
@@ -289,18 +294,27 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <!-- BLOCK 4: Applied Loads -->
 <div class="blk">
-  <h2>4 &mdash; Factored Loads per Bolt <span class="badge">Strength Design — LRFD</span></h2>
-  <div class="info-box">
+  <h2 id="loads_heading">4 &mdash; Factored Loads per Bolt <span class="badge">Strength Design — LRFD</span></h2>
+  <div class="g2" style="margin-bottom:12px">
+    <div class="ig">
+      <label>Demand Basis</label>
+      <select id="demand_basis" onchange="updateDemandBasis()">
+        <option value="per_bolt" selected>Per bolt (default)</option>
+        <option value="group_total">Group totals &divide; N</option>
+      </select>
+    </div>
+  </div>
+  <div class="info-box" id="demand_basis_info">
     Both demands are <strong>factored (ultimate) loads per bolt</strong>. b<sub>af</sub> = factored tension (pull-out); b<sub>vf</sub> = factored resultant shear. For the ledger angle shear connection in REK-08, these are derived from load combinations applied to the bolt group.
   </div>
   <div class="g2">
     <div class="ig">
-      <label>Factored Bolt Tension, b<sub>af</sub> <span class="unit">(lb)</span></label>
+      <label id="baf_label">Factored Bolt Tension, b<sub>af</sub> <span class="unit">(lb)</span></label>
       <input type="number" id="baf" value="999" min="0" step="1"/>
       <span class="hint">Tension pulling bolt out of masonry (from prying / out-of-plane loads)</span>
     </div>
     <div class="ig">
-      <label>Factored Bolt Shear, b<sub>vf</sub> <span class="unit">(lb)</span></label>
+      <label id="bvf_label">Factored Bolt Shear, b<sub>vf</sub> <span class="unit">(lb)</span></label>
       <input type="number" id="bvf" value="1579" min="0" step="1"/>
       <span class="hint">Resultant shear = &radic;(V<sub>y</sub>² + V<sub>z</sub>²) for 3-D connections</span>
     </div>
@@ -385,6 +399,65 @@ function rt4(x){return '<sup style="font-size:.75em">4</sup>&radic;<span style="
 function f2(v){return isNaN(v)?'—':(Math.round(v*100)/100).toFixed(2);}
 function f3(v){return isNaN(v)?'—':(Math.round(v*1000)/1000).toFixed(3);}
 function fc(v){return isNaN(v)?'—':Math.round(v).toLocaleString();}
+function circSeg(R,d){
+  return d<R ? R*R*Math.acos(d/R)-d*Math.sqrt(Math.max(0,R*R-d*d)) : 0;
+}
+function boltPosition(i,N){return N===1?'single bolt':((i===0||i===N-1)?'end bolt':'interior bolt');}
+function anchorGroupAreas(N,s,lb,lbe){
+  var rows=[];
+  for(var i=0;i<N;i++){
+    var tensionTerms=[],shearTerms=[],Apt=Math.PI*lb*lb,Apv=Math.PI*lbe*lbe/2;
+    for(var j=0;j<N;j++){
+      if(j===i)continue;
+      var c=Math.abs(i-j)*s;
+      if(c<2*lb){
+        var tDed=circSeg(lb,c/2); Apt-=tDed;
+        tensionTerms.push({bolt:j,c:c,d:c/2,value:tDed});
+      }
+      if(c<2*lbe){
+        var vDed=0.5*circSeg(lbe,c/2); Apv-=vDed;
+        shearTerms.push({bolt:j,c:c,d:c/2,value:vDed});
+      }
+    }
+    rows.push({index:i,position:boltPosition(i,N),tensionTerms:tensionTerms,
+      shearTerms:shearTerms,Apt:Apt,Apv:Apv});
+  }
+  var govT=rows.reduce(function(a,b){return b.Apt<a.Apt?b:a;});
+  var govV=rows.reduce(function(a,b){return b.Apv<a.Apv?b:a;});
+  return {rows:rows,govT:govT,govV:govV};
+}
+function updateDemandBasis(){
+  var group=document.getElementById('demand_basis').value==='group_total';
+  document.getElementById('loads_heading').innerHTML=group
+    ? '4 &mdash; Factored Group-Total Loads <span class="badge">Strength Design — LRFD</span>'
+    : '4 &mdash; Factored Loads per Bolt <span class="badge">Strength Design — LRFD</span>';
+  document.getElementById('baf_label').innerHTML=group
+    ? 'Factored Group Tension, b<sub>af,group</sub> <span class="unit">(lb)</span>'
+    : 'Factored Bolt Tension, b<sub>af</sub> <span class="unit">(lb)</span>';
+  document.getElementById('bvf_label').innerHTML=group
+    ? 'Factored Group Shear, b<sub>vf,group</sub> <span class="unit">(lb)</span>'
+    : 'Factored Bolt Shear, b<sub>vf</sub> <span class="unit">(lb)</span>';
+  document.getElementById('demand_basis_info').innerHTML=group
+    ? 'Both entries are <strong>factored (ultimate) group-total loads</strong>. Every check uses b<sub>af,group</sub>/N and b<sub>vf,group</sub>/N as the equal-share per-bolt demands.'
+    : 'Both demands are <strong>factored (ultimate) loads per bolt</strong>. b<sub>af</sub> = factored tension (pull-out); b<sub>vf</sub> = factored resultant shear. For the ledger angle shear connection in REK-08, these are derived from load combinations applied to the bolt group.';
+}
+function updateGroupUI(){
+  updateDemandBasis();
+  if(typeof drawMabDiagram==='function')drawMabDiagram();
+}
+function showCalcError(message){
+  var sm=document.getElementById('summary');
+  sm.className='summary sum-fail';
+  sm.innerHTML='<h3>&#10007; Geometry error</h3><div style="margin-top:6px">'+message+'</div>';
+  document.getElementById('ten_cards').innerHTML='';
+  document.getElementById('shear_cards').innerHTML='';
+  document.getElementById('dem_cards').innerHTML='';
+  document.getElementById('chk_body').innerHTML='';
+  document.getElementById('prop_table').innerHTML='<tr><th>Property</th><th>Value</th></tr>';
+  document.getElementById('notes_box').innerHTML='<strong>Calculation stopped:</strong> correct the geometry above before using any capacity result.';
+  document.getElementById('results').className='results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+}
 function toggleDet(i){
   var el=document.getElementById('det_'+i);
   var btn=document.getElementById('dbtn_'+i);
@@ -438,10 +511,15 @@ function runCalc(){
   var th   = parseFloat(document.getElementById('t_head').value);
   var lbe  = parseFloat(document.getElementById('lbe').value);
   var s    = parseFloat(document.getElementById('bolt_spacing').value);
+  var N    = Math.max(1,Math.min(6,Math.round(parseFloat(document.getElementById('bolt_count').value)||1)));
+  document.getElementById('bolt_count').value=N;
+  var groupBasis = document.getElementById('demand_basis').value === 'group_total';
   var fy   = parseFloat(document.getElementById('fy').value);
   var fu   = parseFloat(document.getElementById('fu').value);
-  var baf  = parseFloat(document.getElementById('baf').value);
-  var bvf  = parseFloat(document.getElementById('bvf').value);
+  var baf_input = parseFloat(document.getElementById('baf').value);
+  var bvf_input = parseFloat(document.getElementById('bvf').value);
+  var baf  = groupBasis ? baf_input/N : baf_input;
+  var bvf  = groupBasis ? bvf_input/N : bvf_input;
 
   var useBreakout = document.getElementById('use_breakout').checked;
   var usePryout   = document.getElementById('use_pryout').checked;
@@ -463,14 +541,24 @@ function runCalc(){
   var lb_min = Math.max(4*do_, 2.0);
   var lb_ok = lb >= lb_min;
 
-  // Apt: projected tension cone (check for overlap)
-  var Apt_raw = Math.PI * lb * lb;
-  var overlap = (s < 2*lb);
-  var Apt = Apt_raw;  // user note if overlap - they must reduce manually
-  if(overlap) Apt = Apt_raw;  // flag warning but use raw (user must verify)
+  var spacingMin = Math.max(4*do_,1.8*do_+0.5);
+  if(N>1 && s<spacingMin){
+    showCalcError('Bolt spacing s = '+f2(s)+' in. is less than max(4d<sub>o</sub>, 1.8d<sub>o</sub> + 0.5 in.) = '+f2(spacingMin)+' in. Increase the bolt spacing.');
+    return;
+  }
 
-  // Apv: projected shear half-cone
-  var Apv = Math.PI * lbe * lbe / 2;
+  // Per-bolt projected areas, enumerated along the single bolt row.
+  var groupAreas = anchorGroupAreas(N,s,lb,lbe);
+  var Apt = groupAreas.govT.Apt;
+  var Apv = groupAreas.govV.Apv;
+  if(Apt<=0){
+    showCalcError('The pairwise full-lens circSeg(l<sub>b</sub>, c/2) deductions at each actual bolt-pair distance c make A<sub>pt</sub> &le; 0 at Bolt '+(groupAreas.govT.index+1)+' ('+groupAreas.govT.position+'). Use wider spacing or fewer bolts.');
+    return;
+  }
+  if(Apv<=0){
+    showCalcError('The pairwise half-lens 0.5 circSeg(l<sub>be</sub>, c/2) deductions at each actual bolt-pair distance c make A<sub>pv</sub> &le; 0 at Bolt '+(groupAreas.govV.index+1)+' ('+groupAreas.govV.position+'). Use wider spacing or fewer bolts.');
+    return;
+  }
 
   // fu effective per TMS 402-22 §6.3.8
   var fu_eff = Math.min(fu, 1.9*fy, 125000);
@@ -526,7 +614,17 @@ function runCalc(){
   detT += '<div class="cref-hdr">TMS 402-22 &sect;9.1.6.3.1 &mdash; Tension Capacity</div>';
   detT += '<div class="cbox">';
   detT += '<div class="mrow"><span class="ceq">Eq. 9-1 (masonry breakout):</span> B<sub>anb</sub> = 4 A<sub>pt</sub> '+ov("f'<sub>m</sub>")+'</div>';
-  detT += '<div class="mrow ind">A<sub>pt</sub> = &pi; l<sub>b</sub>&sup2; = &pi; &times; '+f2(lb)+'&sup2; = <span class="cval">'+f2(Apt)+' in.&sup2;</span>'+(overlap?'  <span class="cwarn">&larr; bolt spacing '+f2(s)+'" &lt; 2l<sub>b</sub>='+f2(2*lb)+'". Verify no Apt overlap!</span>':'')+'</div>';
+  if(N===1){
+    detT += '<div class="mrow ind">A<sub>pt</sub> = &pi; l<sub>b</sub>&sup2; = &pi; &times; '+f2(lb)+'&sup2; = <span class="cval">'+f2(Apt)+' in.&sup2;</span></div>';
+  } else {
+    detT += '<div class="mrow ind">circSeg(R,d) = R&sup2; acos(d/R) &minus; d&radic;(R&sup2;&minus;d&sup2;), with pair distance c = |i&minus;j|s and d = c/2.</div>';
+    groupAreas.rows.forEach(function(a){
+      var terms=a.tensionTerms.map(function(term){return 'circSeg('+f2(lb)+', '+f2(term.c)+'/2) ['+f3(term.value)+', Bolt '+(term.bolt+1)+']';});
+      detT += '<div class="mrow ind">Bolt '+(a.index+1)+' ('+a.position+'): A<sub>pt,'+(a.index+1)+'</sub> = &pi;&times;'+f2(lb)+'&sup2;'+(terms.length?' &minus; '+terms.join(' &minus; '):'')+' = <span class="cval">'+f2(a.Apt)+' in.&sup2;</span></div>';
+    });
+    detT += '<div class="mrow ind"><strong>Governing: Bolt '+(groupAreas.govT.index+1)+' ('+groupAreas.govT.position+'), A<sub>pt</sub> = <span class="cval">'+f2(Apt)+' in.&sup2;</span></strong></div>';
+    detT += '<div class="mrow ind"><em>Pairwise deduction is a conservative lower bound (deducted regions may overlap).</em></div>';
+  }
   detT += '<div class="mrow ind">B<sub>anb</sub> = 4 &times; '+f2(Apt)+' &times; '+ov(fm+' psi')+' = <span class="cval">'+fc(Banb_nom)+' lb</span></div>';
   detT += '<div class="mrow ind">&phi;B<sub>anb</sub> = 0.50 &times; '+fc(Banb_nom)+' = <span class="cval">'+fc(phi_Banb)+' lb</span></div>';
   detT += '<hr class="csep">';
@@ -545,7 +643,17 @@ function runCalc(){
   // Eq. 9-4
   if(useBreakout){
     detV += '<div class="mrow"><span class="ceq">Eq. 9-4 (masonry breakout):</span> B<sub>vnb</sub> = 4 A<sub>pv</sub> '+ov("f'<sub>m</sub>")+'</div>';
-    detV += '<div class="mrow ind">A<sub>pv</sub> = &pi; l<sub>be</sub>&sup2; / 2 = &pi; &times; '+f2(lbe)+'&sup2; / 2 = <span class="cval">'+f2(Apv)+' in.&sup2;</span></div>';
+    if(N===1){
+      detV += '<div class="mrow ind">A<sub>pv</sub> = &pi; l<sub>be</sub>&sup2; / 2 = &pi; &times; '+f2(lbe)+'&sup2; / 2 = <span class="cval">'+f2(Apv)+' in.&sup2;</span></div>';
+    } else {
+      detV += '<div class="mrow ind">For every other bolt with c &lt; 2l<sub>be</sub>, deduct 0.5 circSeg(l<sub>be</sub>, c/2), where c = |i&minus;j|s.</div>';
+      groupAreas.rows.forEach(function(a){
+        var terms=a.shearTerms.map(function(term){return '0.5 circSeg('+f2(lbe)+', '+f2(term.c)+'/2) ['+f3(term.value)+', Bolt '+(term.bolt+1)+']';});
+        detV += '<div class="mrow ind">Bolt '+(a.index+1)+' ('+a.position+'): A<sub>pv,'+(a.index+1)+'</sub> = &pi;&times;'+f2(lbe)+'&sup2;/2'+(terms.length?' &minus; '+terms.join(' &minus; '):'')+' = <span class="cval">'+f2(a.Apv)+' in.&sup2;</span></div>';
+      });
+      detV += '<div class="mrow ind"><strong>Governing: Bolt '+(groupAreas.govV.index+1)+' ('+groupAreas.govV.position+'), A<sub>pv</sub> = <span class="cval">'+f2(Apv)+' in.&sup2;</span></strong></div>';
+      detV += '<div class="mrow ind"><em>Pairwise deduction is a conservative lower bound (deducted regions may overlap).</em></div>';
+    }
     detV += '<div class="mrow ind">B<sub>vnb</sub> = 4 &times; '+f2(Apv)+' &times; '+ov(fm+' psi')+' = <span class="cval">'+fc(Bvnb_nom)+' lb</span></div>';
     detV += '<div class="mrow ind">&phi;B<sub>vnb</sub> = 0.50 &times; '+fc(Bvnb_nom)+' = <span class="cval">'+fc(phi_Bvnb)+' lb</span></div>';
     detV += '<hr class="csep">';
@@ -691,12 +799,21 @@ function runCalc(){
   // ── Summary ───────────────────────────────────────────────────────────────
   var sm = document.getElementById('summary');
   sm.className = 'summary '+(allPass?'sum-pass':'sum-fail');
+  var basisText = groupBasis
+    ? 'Group totals &divide; N (N = '+N+'): b<sub>af</sub> = '+fc(baf_input)+'/'+N+' = '+fc(baf)+' lb/bolt; b<sub>vf</sub> = '+fc(bvf_input)+'/'+N+' = '+fc(bvf)+' lb/bolt'
+    : 'Per bolt (default): b<sub>af</sub> and b<sub>vf</sub> entered per bolt';
+  var excluded=[];
+  if(!useBreakout) excluded.push('Eq. 9-4 masonry breakout');
+  if(!usePryout) excluded.push('Eq. 9-6 pryout');
+  if(!useSteelV) excluded.push('Eq. 9-7 steel shear');
   var icon = allPass ? '&#10003;' : '&#10007;';
   var gist = allPass
     ? icon+' '+f2(do_*12/12)+'"-&empty; bolt PASSES &mdash; IR = '+f3(IR)+' &le; 1.0 &nbsp;|&nbsp; &phi;B<sub>an</sub> = '+fc(Ban)+' lb &nbsp;|&nbsp; &phi;B<sub>vn</sub> = '+fc(Bvn)+' lb'
     : icon+' '+f2(do_*12/12)+'"-&empty; bolt FAILS &mdash; IR = '+f3(IR)+' &gt; 1.0';
   sm.innerHTML = '<h3>'+gist+'</h3>'
-    +'<div style="margin-top:6px;font-size:.9em">Governing modes: Tension — '+Ban_gov+' | Shear — '+Bvn_min_obj.name+'</div>';
+    +'<div style="margin-top:6px;font-size:.9em"><strong>Demand basis:</strong> '+basisText+'</div>'
+    +'<div style="margin-top:4px;font-size:.9em">Governing modes: Tension — '+Ban_gov+' | Shear — '+Bvn_min_obj.name+'</div>'
+    +(excluded.length?'<div class="cwarn" style="margin-top:4px;font-size:.9em">Modes excluded by user: '+excluded.join('; ')+'</div>':'');
 
   // ── Properties table ─────────────────────────────────────────────────────
   var pt = document.getElementById('prop_table');
@@ -708,10 +825,11 @@ function runCalc(){
     ['Specified embedment', f2(emb)+' in.'],
     ['Head thickness t<sub>head</sub>', f2(th)+' in.'],
     ['Effective embedment l<sub>b</sub>', f2(lb)+' in.'],
+    ['Bolt group', N+' bolt'+(N===1?'':'s')+(N>1?' @ '+f2(s)+' in.':'')],
     ['Min. l<sub>b</sub> (4d<sub>o</sub> or 2")', f2(lb_min)+' in. &rarr; '+(lb_ok?'<span class="pass">OK</span>':'<span class="fail">FAIL</span>')],
-    ['Projected tension area A<sub>pt</sub>', f2(Apt)+' in.&sup2; = &pi;&times;'+f2(lb)+'&sup2;'+(overlap?' <span class="cwarn">(overlap warning!)</span>':'')],
+    [N===1?'Projected tension area A<sub>pt</sub>':'Projected tension area A<sub>pt</sub> (governing Bolt '+(groupAreas.govT.index+1)+', '+groupAreas.govT.position+')', N===1?f2(Apt)+' in.&sup2; = &pi;&times;'+f2(lb)+'&sup2;':f2(Apt)+' in.&sup2;'],
     ['Edge distance (shear) l<sub>be</sub>', f2(lbe)+' in.'],
-    ['Projected shear area A<sub>pv</sub>', f2(Apv)+' in.&sup2; = &pi;&times;'+f2(lbe)+'&sup2;/2'],
+    [N===1?'Projected shear area A<sub>pv</sub>':'Projected shear area A<sub>pv</sub> (governing Bolt '+(groupAreas.govV.index+1)+', '+groupAreas.govV.position+')', N===1?f2(Apv)+' in.&sup2; = &pi;&times;'+f2(lbe)+'&sup2;/2':f2(Apv)+' in.&sup2;'],
     ['f<sub>u,eff</sub> = min(f<sub>u</sub>, 1.9f<sub>y</sub>, 125k)', fc(fu_eff)+' psi'],
     ['<strong>&phi;B<sub>an</sub> (tension capacity)</strong>', '<strong>'+fc(Ban)+' lb</strong>'],
     ['<strong>&phi;B<sub>vn</sub> (shear capacity)</strong>', '<strong>'+fc(Bvn)+' lb</strong>'],
@@ -727,7 +845,7 @@ function runCalc(){
   nb.innerHTML = '<strong>Engineering Notes:</strong><ul>'
     +'<li>This calculator implements <strong>Strength Design (SD)</strong> per TMS 402-22 Chapter 9 for headed anchor bolts. For Allowable Stress Design (ASD), use TMS 402-22 Chapter 8 (Eq. 8-1 through 8-7, with Bvc = 580 &times; &#8308;&radic;(f&#8217;<sub>m</sub> &times; A<sub>b</sub>)).</li>'
     +'<li><strong>Masonry crushing (Eq. 9-5):</strong> B<sub>vnc</sub> = 1750 &times; (f&#8217;<sub>m</sub> &times; A<sub>b</sub>)<sup>1/4</sup>. This is the 4th root of (f&#8217;<sub>m</sub> &times; A<sub>b</sub>).</li>'
-    +'<li>If bolt spacing s &lt; 2l<sub>b</sub> = '+f2(2*lb)+' in., the projected tension areas overlap and A<sub>pt</sub> must be reduced per TMS 402-22 §6.3.2. Currently the full A<sub>pt</sub> is used — verify manually.</li>'
+    +(N>1?'<li>Projected areas are enumerated for every bolt per TMS 402-22 &sect;6.3.2/&sect;6.3.3. Every other bolt closer than 2l<sub>b</sub> deducts a full circSeg term at its actual center distance from A<sub>pt</sub>; every other bolt closer than 2l<sub>be</sub> deducts a half circSeg term from A<sub>pv</sub>. Pairwise deduction is a conservative lower bound because deducted regions may overlap.</li>':'')
     +'<li>Edge distance l<sub>be</sub> for shear should reflect the effective grouted zone limit when only partial grouting is present (not the full edge distance to the parapet top).</li>'
     +'<li>ASCE 7-22 Section 14.4.5.1 requires increasing factored design forces by 2.0 when a non-ductile (masonry-controlled) failure mode governs in SDC D or higher. This calculator does not automatically apply this amplification — verify with the project seismic design category.</li>'
     +'<li>This calculator does not design the steel ledger angle, welds, or joist seat. See MDG REK-08 SD for full shear connection design discussion.</li>'
@@ -739,7 +857,7 @@ function runCalc(){
 
 // initialize
 updateBoltCalcs();
-drawMabDiagram();
+updateGroupUI();
 
 // Wall thickness (t_nom) now drives the CMU cross-section in the diagram
 // (MAB-2) — wire a redraw on change without touching the <select> markup.
@@ -761,6 +879,9 @@ function drawMabDiagram() {
   var th   = parseFloat(document.getElementById('t_head').value)   || 0.5;
   var lbe  = parseFloat(document.getElementById('lbe').value)      || 7.625;
   var lb   = Math.max(0.1, emb - th);
+  var N    = Math.max(1,Math.min(6,Math.round(parseFloat(document.getElementById('bolt_count').value)||1)));
+  var s    = parseFloat(document.getElementById('bolt_spacing').value) || 16;
+  var diagramAreas = anchorGroupAreas(N,s,lb,lbe);
 
   // Actual (net) CMU wall thickness from the nominal selector — matches the
   // option labels in Block 1 (nominal → actual, in.). Drives every "block
@@ -1048,14 +1169,16 @@ function drawMabDiagram() {
   // Fit lbe laterally and vertically; half-cone bottom = lbe below edge
   // Cap pixel budget to keep diagram compact; lbe can be large (7.6"+)
   var pxBudget = 130;
-  var planScale = AREDraw.fitScale(lbe, pxBudget, { min: 5, max: 16 });
+  var groupHalf=(N-1)*s/2;
+  var planExtent=Math.max(lbe,groupHalf+lbe);
+  var planScale = AREDraw.fitScale(planExtent, pxBudget, { min: 3, max: 16 });
 
   // Origin: place wall edge at top, bolt lbe below it
-  var pox = planScale * lbe + 65; // center x; leave 65px left for lbe dim
+  var pox = planScale * planExtent + 65; // group center; leave 65px left for lbe dim
   var poy = 40;                    // top margin; wall edge at poy
   var vP = new AREDraw.View(dwgP, { scale: planScale, ox: pox, oy: poy, flipY: false });
 
-  var halfSpan = lbe + 0.4;
+  var halfSpan = groupHalf+lbe+0.4;
 
   // Half-cone geometry — computed up front (previously computed further down,
   // after the label below already needed it: a latent bug where neLabelPx/
@@ -1129,12 +1252,15 @@ function drawMabDiagram() {
   dwgP.extend(neLabelPx + 110, neLabelPy + 8);
   dwgP.extend(neLabelPx + 110, neLabelPy - 8);
 
-  // --- Bolt circle in plan (at y_world=lbe) ---
-  AREDraw.bolt(vP, 0, lbe, do_, { color: stP.steel });
-
-  // Centerlines through bolt
-  AREDraw.centerline(vP, -lbe * 0.55, lbe, lbe * 0.55, lbe);  // lateral
-  AREDraw.centerline(vP, 0, -0.15, 0, lbe + lbe * 0.3);        // depth axis (shear dir)
+  // --- Bolt row in plan (at y_world=lbe); governing bolt highlighted ---
+  var boltXs=[];
+  for(var bi=0;bi<N;bi++){
+    var bx=(bi-(N-1)/2)*s; boltXs.push(bx);
+    AREDraw.bolt(vP,bx,lbe,do_,{color:bi===diagramAreas.govT.index?stP.force:stP.steel});
+    AREDraw.centerline(vP,bx-do_,lbe,bx+do_,lbe);
+    AREDraw.centerline(vP,bx,-0.15,bx,lbe+lbe*0.3);
+  }
+  if(N>1) AREDraw.dimLine(vP,boltXs[0],lbe,boltXs[1],lbe,'s = '+AREDraw.fmtIn(s,2),{off:24,color:stP.dim});
 
   // --- Half-cone: in plan, Apv is the half-circle at the wall face — LAYERED
   // on top of the CMU plan anatomy drawn above (breakout geometry over real
@@ -1142,27 +1268,49 @@ function drawMabDiagram() {
   // The cone apex is at the bolt (0, lbe); the cone spreads lbe back to the edge,
   // forming a semicircle of radius lbe centered at the bolt's projection on the edge (0,0).
   // Arc: semicircle centered at (px(0), py(0)) of radius planScale*lbe, spanning 0→π (below edge)
-  // Half-cone fill
-  var coneFillEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  coneFillEl.setAttribute('d',
-    'M ' + (arcCX - arcR) + ',' + arcCY +
-    ' A ' + arcR + ',' + arcR + ' 0 0 1 ' + (arcCX + arcR) + ',' + arcCY + ' Z');
-  coneFillEl.setAttribute('fill', 'rgba(107,122,150,0.2)');
-  coneFillEl.setAttribute('stroke', 'none');
-  dwgP.gSteel.appendChild(coneFillEl);
-
-  // Half-cone arc (dashed)
-  var coneArcEl = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  coneArcEl.setAttribute('d',
-    'M ' + (arcCX - arcR) + ',' + arcCY +
-    ' A ' + arcR + ',' + arcR + ' 0 0 1 ' + (arcCX + arcR) + ',' + arcCY);
-  coneArcEl.setAttribute('fill', 'none');
-  coneArcEl.setAttribute('stroke', stP.dim);
-  coneArcEl.setAttribute('stroke-width', '1.4');
-  coneArcEl.setAttribute('stroke-dasharray', '6,3');
-  dwgP.gAnno.appendChild(coneArcEl);
-  dwgP.extend(arcCX - arcR - 4, arcCY - arcR - 4);
-  dwgP.extend(arcCX + arcR + 4, arcCY + arcR + 4);
+  // Per-bolt Apv half-cones and Apt footprint circles.
+  boltXs.forEach(function(bx,bi){
+    var cx=vP.px(bx);
+    var coneFillEl=document.createElementNS('http://www.w3.org/2000/svg','path');
+    coneFillEl.setAttribute('d','M '+(cx-arcR)+','+arcCY+' A '+arcR+','+arcR+' 0 0 1 '+(cx+arcR)+','+arcCY+' Z');
+    coneFillEl.setAttribute('fill',bi===diagramAreas.govV.index?'rgba(220,38,38,0.16)':'rgba(107,122,150,0.14)');
+    coneFillEl.setAttribute('stroke',stP.dim); coneFillEl.setAttribute('stroke-dasharray','6,3');
+    dwgP.gSteel.appendChild(coneFillEl);
+    var apt=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    apt.setAttribute('cx',cx); apt.setAttribute('cy',vP.py(lbe)); apt.setAttribute('r',vP.s(lb));
+    apt.setAttribute('fill','none'); apt.setAttribute('stroke',bi===diagramAreas.govT.index?stP.force:'#2563eb');
+    apt.setAttribute('stroke-width',bi===diagramAreas.govT.index?'2':'1'); apt.setAttribute('stroke-dasharray','4,3');
+    dwgP.gAnno.appendChild(apt);
+    dwgP.gAnno.appendChild(planLine(bx-lbe,0,bx,lbe,stP.dim,'1','5,3'));
+    dwgP.gAnno.appendChild(planLine(bx+lbe,0,bx,lbe,stP.dim,'1','5,3'));
+  });
+  // Shade an Apt overlap lens for every overlapping bolt pair, including
+  // nonadjacent pairs in dense groups.
+  if(N>1){
+    for(var li=0;li<N-1;li++) for(var lj=li+1;lj<N;lj++){
+      var pairC=(lj-li)*s;
+      if(pairC>=2*lb)continue;
+      var x1=vP.px(boltXs[li]), x2=vP.px(boltXs[lj]), cy=vP.py(lbe), rr=vP.s(lb);
+      var h=Math.sqrt(Math.max(0,rr*rr-Math.pow((x2-x1)/2,2))), xm=(x1+x2)/2;
+      var lens=document.createElementNS('http://www.w3.org/2000/svg','path');
+      lens.setAttribute('d','M '+xm+','+(cy-h)+' A '+rr+','+rr+' 0 0 1 '+xm+','+(cy+h)+' A '+rr+','+rr+' 0 0 1 '+xm+','+(cy-h)+' Z');
+      lens.setAttribute('fill','rgba(245,158,11,0.25)'); lens.setAttribute('stroke','#d97706'); lens.setAttribute('stroke-width','0.8');
+      dwgP.gSteel.appendChild(lens);
+    }
+    // Apv uses the same all-pairs distances but only the shear-direction half
+    // of each lens, matching the 0.5*circSeg deduction used in the check.
+    for(var vi=0;vi<N-1;vi++) for(var vj=vi+1;vj<N;vj++){
+      var shearC=(vj-vi)*s;
+      if(shearC>=2*lbe)continue;
+      var vx1=vP.px(boltXs[vi]),vx2=vP.px(boltXs[vj]),vr=vP.s(lbe),vxm=(vx1+vx2)/2;
+      var vh=Math.sqrt(Math.max(0,vr*vr-Math.pow((vx2-vx1)/2,2)));
+      var halfLens=document.createElementNS('http://www.w3.org/2000/svg','path');
+      halfLens.setAttribute('d','M '+(vx2-vr)+','+arcCY+' A '+vr+','+vr+' 0 0 1 '+vxm+','+(arcCY-vh)+' A '+vr+','+vr+' 0 0 1 '+(vx1+vr)+','+arcCY+' Z');
+      halfLens.setAttribute('fill','rgba(139,92,246,0.16)');halfLens.setAttribute('stroke','#7c3aed');halfLens.setAttribute('stroke-width','0.7');
+      dwgP.gSteel.appendChild(halfLens);
+    }
+  }
+  dwgP.extend(vP.px(-halfSpan),arcCY-arcR-4); dwgP.extend(vP.px(halfSpan),arcCY+arcR+4);
 
   // Radial lines from bolt to arc endpoints on the edge (confirm geometry)
   function planLine(x1w, y1w, x2w, y2w, color, sw, dash) {
@@ -1173,9 +1321,7 @@ function drawMabDiagram() {
     if (dash) e.setAttribute('stroke-dasharray', dash);
     return e;
   }
-  // Lines from edge endpoints (±lbe, 0) to bolt (0, lbe)
-  dwgP.gAnno.appendChild(planLine(-lbe, 0, 0, lbe, stP.dim, '1', '5,3'));
-  dwgP.gAnno.appendChild(planLine( lbe, 0, 0, lbe, stP.dim, '1', '5,3'));
+  // Cone radial lines are drawn for each bolt above.
 
   // --- bvf shear force arrow — along shear axis, through bolt centroid ---
   // Arrow points away from wall (downward in display = into wall direction)
@@ -1208,7 +1354,7 @@ function drawMabDiagram() {
   pcap.setAttribute('fill', stP.dim); pcap.setAttribute('font-size', stP.fsDim - 1);
   pcap.setAttribute('font-family', stP.font); pcap.setAttribute('font-style', 'italic');
   pcap.setAttribute('text-anchor', 'middle');
-  pcap.textContent = 'Apv shear half-cone (looking down)';
+  pcap.textContent = N+' bolt'+(N===1?'':'s')+'; Apt/Apv cones, overlap lenses; governing bolt highlighted';
   dwgP.gAnno.appendChild(pcap);
   dwgP.extend(vP.px(0) - 85, pTitleY + 24);
   dwgP.extend(vP.px(0) + 85, pTitleY + 24);
@@ -1252,5 +1398,28 @@ function drawMabDiagram() {
 </script>
 
 <script src="/are-utils-v2.js"></script>
+<script>
+// Calculator-specific v2 save schema layered onto the shared ARE toolbar.
+(function(){
+  var file=(window.location.pathname.split('/').pop()||'calc');
+  var key='are_v1_'+file;
+  var baseSave=window.areSave, baseLoad=window.areLoad;
+  if(typeof baseSave==='function') window.areSave=function(){
+    baseSave();
+    try{var data=JSON.parse(localStorage.getItem(key)||'{}');data.v=2;localStorage.setItem(key,JSON.stringify(data));}catch(e){}
+  };
+  if(typeof baseLoad==='function') window.areLoad=function(){
+    try{
+      var data=JSON.parse(localStorage.getItem(key)||'{}');
+      if(!data.v){
+        document.getElementById('bolt_count').value='1';
+        document.getElementById('demand_basis').value='per_bolt';
+      }
+    }catch(e){}
+    baseLoad();
+    updateGroupUI();
+  };
+})();
+</script>
 </body>
 </html>
