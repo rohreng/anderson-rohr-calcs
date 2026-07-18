@@ -817,10 +817,26 @@ function computeDiscreteGeometry(){
     a.Apv=Math.PI*lbe_i*lbe_i/2.0 - avTotal;
   });
 
-  var bad=null;
-  anchors.forEach(function(a){ if(a.Apt<=0 && !bad) bad=a; });
+  // Rejection scan: BOTH areas must be positive for every anchor. A negative
+  // Apv would flow into Bv1 < 0 → Bv < 0 → negative/NaN D/C and a false PASS,
+  // so it is a hard error exactly like a negative Apt.
+  var bad=null, badKind=null;
+  anchors.forEach(function(a){
+    if(bad) return;
+    if(a.Apt<=0){ bad=a; badKind='Apt'; }
+    else if(a.Apv<=0){ bad=a; badKind='Apv'; }
+  });
   if(bad){
-    return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected tension area (A_pt = '+f3(bad.Apt)+' in²) after face and overlap deductions. Increase column spacing s, reduce the number of rows, or use a single row.'};
+    if(badKind==='Apt'){
+      var lensTot=0; bad.lensTerms.forEach(function(t){lensTot+=t.lens;});
+      var faceTot=bad.segNear+bad.segFar;
+      var killer=(lensTot>=faceTot)
+        ? 'neighbor-overlap lenses totaling '+f3(lensTot)+' in² across '+bad.lensTerms.length+' pair(s) within 2l_b'
+        : 'wall-face segments totaling '+f3(faceTot)+' in²';
+      return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected tension area (A_pt = '+f3(bad.Apt)+' in²). Killing deduction: '+killer+'. Increase column spacing s, reduce the number of rows, or use a single row.'};
+    }
+    var avTot=0; bad.avTerms.forEach(function(t){avTot+=t.half;});
+    return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected shear area (A_pv = '+f3(bad.Apv)+' in² with l_be = '+f3(bad.lbe_i)+'″). Killing deduction: same-row half-lens overlaps totaling '+f3(avTot)+' in² across '+bad.avTerms.length+' pair(s) at spacing s = '+f3(s)+'″. Increase column spacing s or use fewer columns.'};
   }
 
   var govT=anchors[0], govV=anchors[0];
