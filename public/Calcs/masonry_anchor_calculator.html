@@ -306,7 +306,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <div class="ig">
       <label>s &mdash; Column Spacing <span class="unit">(in)</span></label>
       <input type="number" id="s_in" value="8" step="0.5" min="1" oninput="rowsColsChange()">
-      <div class="hint">Center-to-center spacing between adjacent columns along the wall length.</div>
+      <div class="hint">Center-to-center spacing between adjacent columns along the wall length. Min = max(4&#981;, head &Oslash; 2.2&#981; + 0.5&Prime; clearance) &mdash; head &Oslash; &asymp; 2.2&#981; (heavy hex, consistent with the sketch).</div>
     </div>
     <div class="ig">
       <label>Rows <span class="unit">(across wall thickness)</span></label>
@@ -319,7 +319,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     <div class="ig" id="o1Grp" style="display:none">
       <label>o<sub>1</sub> &mdash; Row 1 Offset from Near Face <span class="unit">(in)</span></label>
       <input type="number" id="o1_in" value="2" step="0.25" min="0.1" oninput="rowsColsChange()">
-      <div class="hint">Distance from the near (loaded) face to the row-1 bolt centerline.</div>
+      <div class="hint">Distance from the near (loaded) face to the row-1 bolt centerline. Each row must clear both faces by &ge; 1.1&#981; + 0.5&Prime; cover (head &Oslash; &asymp; 2.2&#981; heavy hex).</div>
     </div>
     <div class="ig" id="gGrp" style="display:none">
       <label>g &mdash; Gauge Between Rows <span class="unit">(in)</span></label>
@@ -727,7 +727,7 @@ function computeDiscreteGeometry(){
   var gin   = parseFloat(document.getElementById('g_in').value)||0;
   var T_kips= parseFloat(document.getElementById('T_kips').value)||0;
   var V_kips= parseFloat(document.getElementById('V_kips').value)||0;
-  var hr    = 0.9*phi;      // approx across-flats hex-head radius
+  var hr    = 1.1*phi;      // heavy-hex head radius ≈ 1.1φ (head Ø ≈ 2.2φ, matches the section sketch)
   var minCov= 0.5;          // required cover beyond the head, in
 
   var rows=[], o1=null, g=null;
@@ -751,17 +751,17 @@ function computeDiscreteGeometry(){
   for(var r=0;r<rows.length;r++){
     var rr=rows[r];
     if(isFinite(rr.near) && rr.near<hr+minCov){
-      return {ok:false, error:'Row '+(r+1)+' near-face distance ('+f3(rr.near)+'″) is less than the required head clearance = 0.9×φ + 0.5″ cover = '+f3(hr+minCov)+'″. Increase o1 (or the l_be override), or use a smaller bolt diameter.'};
+      return {ok:false, error:'Row '+(r+1)+' near-face distance ('+f3(rr.near)+'″) is less than the required head clearance = 1.1×φ + 0.5″ cover = '+f3(hr+minCov)+'″ (heavy-hex head Ø ≈ 2.2φ). Increase o1 (or the l_be override), or use a smaller bolt diameter.'};
     }
     if(isFinite(rr.far) && rr.far<hr+minCov){
-      return {ok:false, error:'Row '+(r+1)+' far-face distance ('+f3(rr.far)+'″) is less than the required head clearance = 0.9×φ + 0.5″ cover = '+f3(hr+minCov)+'″. Move the row toward the wall centerline, use a thicker wall, or use a smaller bolt diameter.'};
+      return {ok:false, error:'Row '+(r+1)+' far-face distance ('+f3(rr.far)+'″) is less than the required head clearance = 1.1×φ + 0.5″ cover = '+f3(hr+minCov)+'″ (heavy-hex head Ø ≈ 2.2φ). Move the row toward the wall centerline, use a thicker wall, or use a smaller bolt diameter.'};
     }
   }
 
   if(cols>=2){
-    var sMin=Math.max(4*phi, 1.8*phi+0.5);
+    var sMin=Math.max(4*phi, 2.2*phi+0.5);
     if(s<sMin){
-      return {ok:false, error:'Column spacing s = '+f3(s)+'″ is less than the minimum s_min = max(4φ, 1.8φ+0.5″) = '+f3(sMin)+'″. Increase column spacing or reduce the number of columns.'};
+      return {ok:false, error:'Column spacing s = '+f3(s)+'″ is less than the minimum s_min = max(4φ, head Ø 2.2φ + 0.5″ clearance) = '+f3(sMin)+'″. Increase column spacing or reduce the number of columns.'};
     }
   }
 
@@ -771,45 +771,49 @@ function computeDiscreteGeometry(){
       anchors.push({row:ri+1, col:ci+1, x:(ci-(cols-1)/2)*s, near:rows[ri].near, far:rows[ri].far});
     }
   }
-  function findAnchor(row,col){
-    for(var i=0;i<anchors.length;i++){ if(anchors[i].row===row&&anchors[i].col===col) return anchors[i]; }
-    return null;
-  }
-  var diag=Math.sqrt(s*s+(g||0)*(g||0));
-
+  // FULL pairwise enumeration: EVERY other anchor in the group is a potential
+  // overlap partner — not just the immediately-adjacent ones. Center distance
+  // c = √((Δcol·s)² + (Δrow·g)²). Apt_i deducts one full lens circSeg(lb, c/2)
+  // for EACH pair with c < 2·lb (e.g. in a 1×6 @ 5.5″ with lb = 8″, the anchor
+  // 2 columns away at 11″ < 16″ also overlaps and must be deducted). Apv_i
+  // deducts a half-lens 0.5·circSeg(lbe_i, c/2) per SAME-ROW anchor at
+  // c < 2·lbe_i (existing half-lens convention), again for all pairs.
   anchors.forEach(function(a){
     var neighbors=[];
-    var left=findAnchor(a.row,a.col-1), right=findAnchor(a.row,a.col+1);
-    if(left)  neighbors.push({dist:s, type:'side', other:left});
-    if(right) neighbors.push({dist:s, type:'side', other:right});
-    if(rowsN===2){
-      var otherRow=a.row===1?2:1;
-      var crossSame=findAnchor(otherRow,a.col);
-      if(crossSame) neighbors.push({dist:g, type:'cross-row', other:crossSame});
-      var crossL=findAnchor(otherRow,a.col-1), crossR=findAnchor(otherRow,a.col+1);
-      if(crossL) neighbors.push({dist:diag, type:'diagonal', other:crossL});
-      if(crossR) neighbors.push({dist:diag, type:'diagonal', other:crossR});
-    }
+    anchors.forEach(function(o){
+      if(o===a) return;
+      var dx=(o.col-a.col)*s;
+      var dy=(o.row===a.row)?0:g;
+      var c=Math.sqrt(dx*dx+dy*dy);
+      var type=(o.row===a.row)?'side':((o.col===a.col)?'cross-row':'diagonal');
+      neighbors.push({dist:c, type:type, other:o, sameRow:o.row===a.row});
+    });
+    neighbors.sort(function(p,q){return p.dist-q.dist;});
     a.neighbors=neighbors;
 
     var segNear=circSeg(Lb,a.near), segFar=circSeg(Lb,a.far);
-    var lensTerms=[], lensTotal=0;
+    var lensTerms=[], lensTotal=0, remoteCount=0;
     neighbors.forEach(function(nb){
-      var lens=(nb.dist<2*Lb)?circSeg(Lb,nb.dist/2):0;
-      lensTotal+=lens;
-      lensTerms.push({type:nb.type, dist:nb.dist, lens:lens, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+      if(nb.dist<2*Lb){
+        var lens=circSeg(Lb,nb.dist/2);
+        lensTotal+=lens;
+        lensTerms.push({type:nb.type, dist:nb.dist, lens:lens, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+      } else remoteCount++;
     });
-    a.segNear=segNear; a.segFar=segFar; a.lensTerms=lensTerms;
+    a.segNear=segNear; a.segFar=segFar; a.lensTerms=lensTerms; a.remoteCount=remoteCount;
     a.Apt=Math.PI*Lb*Lb - segNear - segFar - lensTotal;
 
     var lbe_i=a.near;
-    var avTerms=[], avTotal=0;
-    neighbors.filter(function(nb){return nb.type==='side';}).forEach(function(nb){
-      var half=0.5*circSeg(lbe_i, nb.dist/2);
-      avTotal+=half;
-      avTerms.push({dist:nb.dist, half:half, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+    var avTerms=[], avTotal=0, avRemote=0;
+    neighbors.forEach(function(nb){
+      if(!nb.sameRow) return;
+      if(nb.dist<2*lbe_i){
+        var half=0.5*circSeg(lbe_i, nb.dist/2);
+        avTotal+=half;
+        avTerms.push({dist:nb.dist, half:half, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+      } else avRemote++;
     });
-    a.lbe_i=lbe_i; a.avTerms=avTerms;
+    a.lbe_i=lbe_i; a.avTerms=avTerms; a.avRemote=avRemote;
     a.Apv=Math.PI*lbe_i*lbe_i/2.0 - avTotal;
   });
 
@@ -968,8 +972,10 @@ function drawDiscretePlan(geo){
   }
 
   geo.anchors.forEach(function(a){
-    var isGov=(a===geo.govT);
-    addCircle(a.x, rowY(a), a.Lvis, isGov?'rgba(248,113,113,0.30)':'rgba(219,226,240,0.45)', '5,3', isGov?'#dc2626':stp.dim);
+    var isGovT=(a===geo.govT), isGovV=(a===geo.govV);
+    var fill = isGovT ? 'rgba(248,113,113,0.30)' : (isGovV ? 'rgba(251,191,36,0.30)' : 'rgba(219,226,240,0.45)');
+    var stroke = isGovT ? '#dc2626' : (isGovV ? '#d97706' : stp.dim);
+    addCircle(a.x, rowY(a), a.Lvis, fill, '5,3', stroke);
   });
 
   var drawn={};
@@ -1001,8 +1007,16 @@ function drawDiscretePlan(geo){
   geo.anchors.forEach(function(a){ AREDraw.bolt(vP, a.x, rowY(a), phi, {cross:true}); });
 
   var gx=geo.govT.x, gy=rowY(geo.govT);
-  AREDraw.calloutLabel(vP, gx, gy, vP.px(gx)+(gx>=0?46:-46), vP.py(gy)-vP.s(geo.govT.Lvis)-18,
-    'GOVERNING (R'+geo.govT.row+'C'+geo.govT.col+')', {color:'#dc2626', anchor: gx>=0?'start':'end'});
+  if(geo.govT===geo.govV){
+    AREDraw.calloutLabel(vP, gx, gy, vP.px(gx)+(gx>=0?46:-46), vP.py(gy)-vP.s(geo.govT.Lvis)-18,
+      'GOVERNS T+V (R'+geo.govT.row+'C'+geo.govT.col+')', {color:'#dc2626', anchor: gx>=0?'start':'end'});
+  } else {
+    AREDraw.calloutLabel(vP, gx, gy, vP.px(gx)+(gx>=0?46:-46), vP.py(gy)-vP.s(geo.govT.Lvis)-18,
+      'GOVERNS TENSION (R'+geo.govT.row+'C'+geo.govT.col+')', {color:'#dc2626', anchor: gx>=0?'start':'end'});
+    var vx=geo.govV.x, vy=rowY(geo.govV);
+    AREDraw.calloutLabel(vP, vx, vy, vP.px(vx)+(vx>=0?46:-46), vP.py(vy)+vP.s(geo.govV.Lvis)+22,
+      'GOVERNS SHEAR (R'+geo.govV.row+'C'+geo.govV.col+')', {color:'#d97706', anchor: vx>=0?'start':'end'});
+  }
 
   if(cols>=2){
     var row1=geo.anchors.filter(function(a){return a.row===1;});
@@ -1189,11 +1203,8 @@ function runCalcs(){
   var dStress =phi-0.9743/nt;
   var Ab      =0.7854*dStress*dStress; // TMS 402-22 Eq. 6-7 threaded area, in²
 
-  // Circular-segment helper: area of a circle (radius R) lying beyond a chord at distance d from center
-  function circSeg(R,d){
-    if(d>=R||R<=0) return 0;
-    return R*R*Math.acos(d/R) - d*Math.sqrt(R*R-d*d);
-  }
+  // (circSeg helper is defined once at module scope, shared with the
+  // discrete-group enumeration and the diagram code.)
 
   // Projected tension breakout area (TMS 402-22 Eq 6-5: Apt = pi*lb^2),
   // less area lying outside the masonry (beyond each wall face) and less
@@ -1324,18 +1335,26 @@ function runCalcs(){
       lensSumT+=t.lens;
       dbLbe+='<div class="mrow ind">'+t.type+' neighbor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): full lens circSeg(l<sub>b</sub>, c/2) = circSeg('+f2(Lb)+', '+f3(t.dist/2)+') = '+f3(t.lens)+' in&sup2;</div>';
     });
+    if(geo.govT.remoteCount>0){
+      dbLbe+='<div class="mrow ind">'+geo.govT.remoteCount+' other anchor(s) at c &ge; 2l<sub>b</sub> = '+f2(2*Lb)+'&Prime;: no overlap, no deduction. (All '+(N_total-1)+' other anchors in the group were enumerated.)</div>';
+    } else {
+      dbLbe+='<div class="mrow ind">All '+(N_total-1)+' other anchor(s) in the group enumerated; every pair at c &lt; 2l<sub>b</sub> deducted above.</div>';
+    }
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt,gov</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f3(geo.govT.segNear)+' &minus; '+f3(geo.govT.segFar)+' &minus; '+f3(lensSumT)+' = <span class="cval">'+f3(geo.govT.Apt)+' in&sup2;</span></div>';
     dbLbe+='<hr class="csep">';
     dbLbe+='<div class="mrow"><strong>Shear-governing anchor: Row '+geo.govV.row+', Column '+geo.govV.col+'</strong> (minimum A<sub>pv</sub> &mdash; nearest row governs; interior columns deduct more side-lens area):</div>';
     dbLbe+='<div class="mrow ind">&pi;l<sub>be</sub>&sup2;/2 = &pi;&times;'+f3(geo.govV.lbe_i)+'&sup2;/2 = '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' in&sup2;</div>';
     var avSumV=0;
     if(geo.govV.avTerms.length===0){
-      dbLbe+='<div class="mrow ind">No side neighbors (end column, or N<sub>cols</sub>=1) &mdash; no half-lens deduction.</div>';
+      dbLbe+='<div class="mrow ind">No same-row anchors within c &lt; 2l<sub>be</sub>'+(geo.govV.avRemote>0?' ('+geo.govV.avRemote+' same-row anchor(s) enumerated, all remote)':' (single column)')+' &mdash; no half-lens deduction.</div>';
     }
     geo.govV.avTerms.forEach(function(t){
       avSumV+=t.half;
-      dbLbe+='<div class="mrow ind">Side neighbor '+t.otherPos+' (s = '+f3(t.dist)+'&Prime;): half-lens 0.5&times;circSeg(l<sub>be</sub>, s/2) = 0.5&times;circSeg('+f3(geo.govV.lbe_i)+', '+f3(t.dist/2)+') = '+f3(t.half)+' in&sup2;</div>';
+      dbLbe+='<div class="mrow ind">Same-row anchor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): half-lens 0.5&times;circSeg(l<sub>be</sub>, c/2) = 0.5&times;circSeg('+f3(geo.govV.lbe_i)+', '+f3(t.dist/2)+') = '+f3(t.half)+' in&sup2;</div>';
     });
+    if(geo.govV.avTerms.length>0&&geo.govV.avRemote>0){
+      dbLbe+='<div class="mrow ind">'+geo.govV.avRemote+' other same-row anchor(s) at c &ge; 2l<sub>be</sub>: no overlap, no deduction.</div>';
+    }
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv,gov</sub> =</span> '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' &minus; '+f3(avSumV)+' = <span class="cval">'+f3(geo.govV.Apv)+' in&sup2;</span></div>';
     dbLbe+='<div class="mrow" style="color:#78350f"><em>Conservatism: overlap deductions are computed pairwise (lens-by-lens); where 3+ cones mutually overlap the same region, pairwise subtraction over-deducts, making A<sub>pt,i</sub>/A<sub>pv,i</sub> a conservative LOWER BOUND on the exact tributary area &mdash; never unconservative.</em></div>';
     dbLbe+='<div class="mrow">Full per-anchor table (all '+N_total+' anchors) is provided below the results banner.</div>';
