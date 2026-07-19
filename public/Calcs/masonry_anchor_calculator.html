@@ -141,6 +141,11 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <!-- ── SKETCHES ─────────────────────────────────────────────────────────── -->
 <script src="/are-draw.js"></script>
+<div class="callout" style="background:#eff6ff;border-color:#3b82f6;color:#1e3a8a;font-size:.84em;margin-bottom:14px">
+  <strong>This calculator:</strong> anchors cast <strong>vertically into the grouted top of the wall</strong> (embed plate / brace / ledger on top of wall), one or more anchors, shear in-plane or out-of-plane per the selector in Section&nbsp;2.
+  For a bolt cast <strong>horizontally into the wall FACE</strong> (single-angle ledger shear connection), use the
+  <a href="masonry_anchor_bolt_calculator.html" style="color:#1d4ed8;font-weight:700">Masonry Anchor Bolt (Shear Connection) calculator</a>.
+</div>
 <div class="schema-wrap">
   <div class="schema-box" id="secViewBox">
     <svg id="secSvg" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -196,6 +201,27 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <option value="discrete">Discrete group (total kips) &mdash; N anchors, total T &amp; V</option>
     </select>
     <div class="hint">Continuous: enter b<sub>a</sub>, b<sub>v</sub> per foot and fastener spacing S (§3). Discrete: enter total group tension/shear and the anchor layout (rows &times; columns, §3).</div>
+  </div>
+  <div class="ig" style="max-width:600px;margin-bottom:14px" id="shearDirGrp">
+    <label>Shear Direction <span class="badge">applies to plf &amp; discrete</span></label>
+    <select id="shearDir" onchange="shearDirChange()">
+      <option value="oop" selected>Out-of-plane &mdash; toward wall face (default)</option>
+      <option value="ip">In-plane &mdash; along wall length</option>
+    </select>
+    <div class="hint"><strong>Out-of-plane:</strong> shear perpendicular to the wall face (e.g. a wind/seismic reaction pushing the connection off the wall line) &mdash; masonry breakout is a half-cone toward the near face at l<sub>be</sub> = b/2. <strong>In-plane:</strong> shear along the wall length (brace / diaphragm drag) &mdash; the free edge that can break out is the <strong>wall end</strong>, not the wall face.</div>
+  </div>
+  <div class="g3" id="inplaneGrp" style="display:none">
+    <div class="ig">
+      <label>l<sub>e,end</sub> &mdash; Nearest Anchor to Wall End <span class="unit">(in)</span></label>
+      <input type="number" id="le_end" value="6" step="0.5" min="0.1">
+      <div class="hint">Distance from the nearest anchor centerline to the wall end in the shear direction. Used only when the wall end is NOT remote (checkbox at right).</div>
+    </div>
+    <div class="ig">
+      <div class="chk-row" style="margin-top:0;padding-top:0;border-top:none">
+        <input type="checkbox" id="endRemote" checked>
+        <label for="endRemote"><strong>Wall end remote</strong> (breakout cannot govern) &mdash; the nearest wall end is farther than the in-plane cone can reach. When checked, in-plane masonry breakout B<sub>v1</sub> is reported N/A and excluded from B<sub>v</sub>; crushing / pryout / steel govern shear. Uncheck to enter l<sub>e,end</sub> and check the wall-end breakout.</label>
+      </div>
+    </div>
   </div>
   <div class="callout red">Enter service loads (D, L, or D+L). For wind-governed loads, enter the ASD service-level values and use the ⅓ allowable stress increase checkbox below. Do NOT reduce wind loads by 0.6 here.</div>
   <div class="g3" id="plfLoadGrp">
@@ -453,8 +479,77 @@ function rowsColsChange(){
   drawMasonryDiagrams();
 }
 
+// Shear-direction toggle: 'oop' (out-of-plane, default) or 'ip' (in-plane).
+// Shows/hides the in-plane wall-end inputs and redraws the sketches.
+function shearDirChange(){
+  var ip=document.getElementById('shearDir').value==='ip';
+  var g=document.getElementById('inplaneGrp'); if(g) g.style.display=ip?'':'none';
+  drawMasonryDiagrams();
+}
+
 // ── ARE Diagram drawing (Section + Plan) ─────────────────────────────────────
 function updatePlanSvg(){ drawMasonryDiagrams(); }
+
+// Shared low-level SVG helpers used by both the plf and discrete sketches.
+var SEC_SVGNS='http://www.w3.org/2000/svg';
+// Raw line into a Drawing's annotation layer (extends its bbox).
+function rawLineG(dwg, x1,y1,x2,y2,color,dash,sw){
+  var ln=document.createElementNS(SEC_SVGNS,'line');
+  ln.setAttribute('x1',x1); ln.setAttribute('y1',y1);
+  ln.setAttribute('x2',x2); ln.setAttribute('y2',y2);
+  ln.setAttribute('stroke',color); ln.setAttribute('stroke-width',sw||'1.2');
+  if(dash) ln.setAttribute('stroke-dasharray',dash);
+  dwg.gAnno.appendChild(ln); dwg.extend(x1,y1); dwg.extend(x2,y2);
+}
+// Stippled/dotted grout fill (grouted top / bond beam) over a world rectangle.
+function addStipple(v, dwg, x, y, w, h, color){
+  var id='areStipple';
+  if(!dwg._defKeys) dwg._defKeys={};
+  if(!dwg._defKeys[id]){
+    var p=document.createElementNS(SEC_SVGNS,'pattern');
+    p.setAttribute('id',id); p.setAttribute('width','5'); p.setAttribute('height','5');
+    p.setAttribute('patternUnits','userSpaceOnUse');
+    [[1.2,1.2],[3.6,3.6]].forEach(function(c){
+      var dot=document.createElementNS(SEC_SVGNS,'circle');
+      dot.setAttribute('cx',c[0]); dot.setAttribute('cy',c[1]); dot.setAttribute('r','0.7');
+      dot.setAttribute('fill',color||'#9aa6c2'); p.appendChild(dot);
+    });
+    dwg.defs.appendChild(p); dwg._defKeys[id]=true;
+  }
+  var p1x=v.px(x), p1y=v.py(y), p2x=v.px(x+w), p2y=v.py(y+h);
+  var rect=document.createElementNS(SEC_SVGNS,'rect');
+  rect.setAttribute('x',Math.min(p1x,p2x)); rect.setAttribute('y',Math.min(p1y,p2y));
+  rect.setAttribute('width',Math.abs(p2x-p1x)); rect.setAttribute('height',Math.abs(p2y-p1y));
+  rect.setAttribute('fill','url(#'+id+')');
+  dwg.gSteel.appendChild(rect);
+}
+// Masonry section body for the "cut across wall thickness" view: outline + grout
+// stipple core + TWO vertical face shells (left=near, right=far). NO top shell —
+// the bolt is cast into the grouted top / bond beam.
+function drawMasonrySectionBody(v, dwg, st, b, shellT, wallBot, wallH){
+  AREDraw.plate(v, 0, wallBot, b, wallH, {fill:'#f6f1e7'});
+  addStipple(v, dwg, shellT, wallBot, b-2*shellT, wallH, st.dim);
+  AREDraw.plate(v, 0,        wallBot, shellT, wallH, {fill:st.steelFill, hatch:true});
+  AREDraw.plate(v, b-shellT, wallBot, shellT, wallH, {fill:st.steelFill, hatch:true});
+}
+// Out-of-page shear symbol (⊗) — used in the SECTION for in-plane shear, whose
+// true arrow is drawn in the PLAN view along the wall length.
+function outOfPageSymbol(dwg, v, x, y, rpx, color){
+  var cx=v.px(x), cy=v.py(y);
+  var c=document.createElementNS(SEC_SVGNS,'circle');
+  c.setAttribute('cx',cx); c.setAttribute('cy',cy); c.setAttribute('r',rpx);
+  c.setAttribute('fill','#fff'); c.setAttribute('stroke',color); c.setAttribute('stroke-width','1.4');
+  dwg.gAnno.appendChild(c);
+  var d=rpx*0.7071;
+  [[-d,-d,d,d],[-d,d,d,-d]].forEach(function(L){
+    var ln=document.createElementNS(SEC_SVGNS,'line');
+    ln.setAttribute('x1',cx+L[0]); ln.setAttribute('y1',cy+L[1]);
+    ln.setAttribute('x2',cx+L[2]); ln.setAttribute('y2',cy+L[3]);
+    ln.setAttribute('stroke',color); ln.setAttribute('stroke-width','1.2');
+    dwg.gAnno.appendChild(ln);
+  });
+  dwg.extend(cx-rpx-2, cy-rpx-2); dwg.extend(cx+rpx+2, cy+rpx+2);
+}
 
 // Dispatcher: plf mode keeps the original 2-anchor continuous drawing;
 // discrete mode draws the full anchor group (rows x cols) with per-anchor
@@ -492,112 +587,86 @@ function drawPlfDiagrams(){
     dwg.extend(x1px,y1px); dwg.extend(x2px,y2px);
   }
 
-  // ── SECTION VIEW ─────────────────────────────────────────────────────────────
-  // Engineering y-up convention (flipY:true):
-  //   y=0  = masonry top face (near face)
-  //   y=-b = masonry bottom face (far face)
-  //   Anchor bolt: x=0, shaft from y=plateH (above wall) down to y=-Lb (head)
-  //   Ledger plate: y=0 to y=plateH
+  // ── SECTION VIEW — section CUT ACROSS the wall thickness ─────────────────────
+  // Orientation per EOR markup (flipY:true):
+  //   world x = ACROSS wall thickness, x=0 near (loaded) face … x=b far face
+  //   world y = vertical; y=0 = grouted TOP surface; plate sits y=0..plateH
+  //   bolt enters through the grouted top at x=lbe, head at y=-Lb.
+  // Face shells are VERTICAL strips at left/right; NO top shell (bolt cast into
+  // the grouted top / bond beam). Grout core is stippled.
   var svgSec = document.getElementById('secSvg');
   var dwgSec = new AREDraw.Drawing(svgSec, {});
   var st     = dwgSec.style;
+  var shearDir = (document.getElementById('shearDir')||{}).value||'oop';
 
-  // Scale: wall height b → target ~180 px
-  var secScale = AREDraw.fitScale(b, 180, {min:14, max:40});
-
-  // Wall half-width for drawing (slightly wider than b to look proportional)
-  var wallHW  = Math.max(b*0.6, 4);   // half-width of wall in section
-  var plateH  = phi * 2.5;            // ledger plate thickness
-  var boltW   = phi * 1.1;            // bolt shaft width
-  var headW   = phi * 2.2;            // bolt head width
-  var headH   = phi * 0.6;            // bolt head height
-
-  // Centre bolt at x=0; horizontal gutter for dims on each side
+  var shellT = Math.min(1.25, b*0.18);
+  var plateH = phi*2.5, boltW = phi*1.1, headW = phi*2.2, headH = phi*0.6;
+  var wallH  = Lb + Math.max(1.6, phi*2.4);   // wall depth shown below the top
+  var wallBot= -wallH;
+  var xb     = Lbe;                            // bolt centerline from near face
+  var secScale = AREDraw.fitScale(Math.max(b, wallH), 175, {min:12, max:34});
   var vS = new AREDraw.View(dwgSec, {
     scale: secScale,
-    ox: 95 + wallHW*secScale,   // left gutter of ~95px for Lb dim (must clear dim line + text)
-    oy: 80 + plateH*secScale,   // top gutter for ba arrow + label
+    ox: 66,                        // near face (x=0) at px 66 (left gutter for Lb dim)
+    oy: 66 + plateH*secScale,      // world y=0 (top surface) below the top gutter
     flipY: true
   });
 
-  // Bond-beam CMU section: two face shells, end webs, and a visibly grouted
-  // anchor cell. Geometry scales with the actual wall thickness b.
-  var shellS=Math.min(1.25,b*0.18), webS=Math.min(1.0,wallHW*0.16);
-  AREDraw.plate(vS,-wallHW,-b,wallHW*2,b,{fill:'#f8fafc'});
-  AREDraw.plate(vS,-wallHW,-shellS,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW,-b,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,wallHW-webS,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW+webS,-b+shellS,wallHW*2-2*webS,b-2*shellS,{fill:st.steelFillHi});
-  AREDraw.memberLabel(vS,-wallHW*0.62,-b/2,'GROUTED CELL',{color:st.dim,size:8});
+  drawMasonrySectionBody(vS, dwgSec, st, b, shellT, wallBot, wallH);
 
-  // Ledger / anchor plate (amber — designed member) y=0..plateH
-  AREDraw.plate(vS, -wallHW-phi*0.5, 0, wallHW*2+phi, plateH, {highlight:true});
+  // Ledger / anchor plate on TOP, spanning the wall width (+ small overhang)
+  AREDraw.plate(vS, -phi*0.5, 0, b+phi, plateH, {highlight:true});
 
-  // Bolt shaft: from top of plate (y=plateH) to bolt head (y=-Lb)
-  AREDraw.plate(vS, -boltW/2, -Lb, boltW, Lb+plateH, {fill: st.steel});
+  // Bolt: shaft plate-top (y=plateH) to head (y=-Lb), head below
+  AREDraw.plate(vS, xb-boltW/2, -Lb, boltW, Lb+plateH, {fill: st.steel});
+  AREDraw.plate(vS, xb-headW/2, -(Lb+headH), headW, headH, {fill: st.steel});
+  AREDraw.centerline(vS, xb, plateH+0.5, xb, wallBot-0.3);
 
-  // Bolt bearing head (hex nut shape) at y=-Lb .. y=-(Lb+headH)
-  AREDraw.plate(vS, -headW/2, -(Lb+headH), headW, headH, {fill: st.steel});
-
-  // Bolt centroidal centerline (full height)
-  AREDraw.centerline(vS, 0, plateH+0.5, 0, -(b+headH+0.5));
-
-  // Breakout cone lines — from bolt head at (0,-Lb) to wall faces
-  // Near face (y=0): cone legs to (±Lbe, 0)
-  rawLine(dwgSec, dwgSec.gAnno,
-    vS.px(0), vS.py(-Lb), vS.px(-Lbe), vS.py(0), st.dim, '5,3');
-  rawLine(dwgSec, dwgSec.gAnno,
-    vS.px(0), vS.py(-Lb), vS.px( Lbe), vS.py(0), st.dim, '5,3');
-  // Far face (y=-b): cone legs to (±Lbe_far, -b)  [clipped to wall width]
-  var cFar = Math.min(Lbe_far, wallHW);
-  rawLine(dwgSec, dwgSec.gAnno,
-    vS.px(0), vS.py(-Lb), vS.px(-cFar), vS.py(-b), st.dim, '5,3');
-  rawLine(dwgSec, dwgSec.gAnno,
-    vS.px(0), vS.py(-Lb), vS.px( cFar), vS.py(-b), st.dim, '5,3');
+  // Breakout cone (tension): dashed legs from head up to the two wall faces,
+  // horizontal reach clipped to Lb.
+  var cNear = Math.max(xb - Lb, 0), cFar = Math.min(xb + Lb, b);
+  rawLine(dwgSec, dwgSec.gAnno, vS.px(xb), vS.py(-Lb), vS.px(cNear), vS.py(0), st.dim, '5,3');
+  rawLine(dwgSec, dwgSec.gAnno, vS.px(xb), vS.py(-Lb), vS.px(cFar),  vS.py(0), st.dim, '5,3');
 
   // ── Forces ──
-  // ba (tension) — arrow pointing UP from plate top. Label LEFT gutter.
-  AREDraw.forceArrow(vS, 0, plateH+0.3, 0, 1, 40, '', {color: st.force});
-  AREDraw.calloutLabel(vS, 0, plateH+1.5,
-    vS.px(-wallHW) - 52, vS.py(plateH+1.5),
-    'ba (tension)', {color: st.force, anchor:'end'});
+  // ba (tension) — UP from the plate at the bolt centerline
+  AREDraw.forceArrow(vS, xb, plateH+0.3, 0, 1, 40, '', {color: st.force});
+  AREDraw.calloutLabel(vS, xb, plateH+1.4, vS.px(b)+30, vS.py(plateH+1.4),
+    'ba (tension)', {color: st.force, anchor:'start'});
 
-  // bv (shear) — arrow FROM RIGHT into wall (heading left), tail outside wall.
-  // Keeps arrow clear of plate face. Label: right gutter at same height.
-  var bvTailX = wallHW + 2.8;
-  AREDraw.forceArrow(vS, bvTailX, plateH*0.45, -1, 0, 44, '', {color: st.force});
-  AREDraw.calloutLabel(vS, bvTailX, plateH*0.45,
-    vS.px(bvTailX) + 10, vS.py(plateH*0.45),
-    'bv (shear)', {color: st.force, anchor:'start'});
+  // bv (shear) — direction-dependent
+  if(shearDir==='ip'){
+    // In-plane: shear runs ALONG the wall (into/out of this section) — ⊗ symbol
+    // on the plate; the true arrow is drawn in the PLAN view.
+    outOfPageSymbol(dwgSec, vS, xb + b*0.20, plateH*0.5, Math.max(vS.s(phi*0.7),5), st.force);
+    AREDraw.calloutLabel(vS, xb + b*0.20, plateH*0.5, vS.px(b)+30, vS.py(-Lb*0.35),
+      'bv in-plane (⊗ along wall — see plan)', {color: st.force, anchor:'start'});
+  } else {
+    // Out-of-plane: horizontal arrow at plate level toward the NEAR face (left)
+    var bvTailX = b + Math.max(0.8, phi*0.6);
+    AREDraw.forceArrow(vS, bvTailX, plateH*0.5, -1, 0, 44, '', {color: st.force});
+    AREDraw.calloutLabel(vS, bvTailX, plateH*0.5, vS.px(b)+30, vS.py(-Lb*0.35),
+      'bv (out-of-plane)', {color: st.force, anchor:'start'});
+  }
 
   // ── Dimensions ──
-  // Lb — vertical dim LEFT: near face (y=0) to bolt head (y=-Lb)
-  // off:34 → nxu=-1 → ox=-34 → dim line shifts LEFT (outside wall)
-  AREDraw.dimLine(vS, -wallHW-0.5, 0, -wallHW-0.5, -Lb,
-    'Lb = '+Lb.toFixed(2)+'"', {off:34, color: st.dim});
+  // Lb — vertical, left gutter (near-face side)
+  AREDraw.dimLine(vS, -0.4, 0, -0.4, -Lb, 'Lb = '+Lb.toFixed(2)+'"', {off:34, color: st.dim});
+  // b — full thickness, below the wall
+  AREDraw.dimLine(vS, 0, wallBot, b, wallBot, 'b = '+b.toFixed(3)+'"', {off:28, color: st.dim});
+  // lbe — near face to bolt centerline, second level below the wall
+  AREDraw.dimLine(vS, 0, wallBot, xb, wallBot, 'lbe = '+Lbe.toFixed(2)+'"', {off:52, color: st.dim});
 
-  // b — vertical dim RIGHT: full wall thickness y=0 to y=-b
-  // off:-34 → nxu=-1 → ox=+34 → dim line shifts RIGHT (outside wall)
-  AREDraw.dimLine(vS, wallHW+0.5, 0, wallHW+0.5, -b,
-    'b = '+b.toFixed(3)+'"', {off:-34, color: st.dim});
-
-  // lbe — leader from near wall face at mid-depth, right gutter below b-dim
-  AREDraw.leader(vS, wallHW, -Lb*0.55, 72, 28,
-    'lbe = '+Lbe.toFixed(2)+'"', {color: st.dim, anchor:'start'});
-
-  // Near face — leader from wall top-right corner out to right gutter (clear of plate)
-  AREDraw.leader(vS, wallHW, 0, 68, -24, 'Near face', {color: st.dim, anchor:'start'});
-  // Far face — label below wall bottom, in clear gutter (no filled region there)
-  AREDraw.memberLabel(vS,  0, -b-0.9, 'Far face', {color: st.dim, size:9});
-
-  // Ledger / Anchor Plate — callout pulled to left gutter above ba-tension arrow, clear of Near face and bv labels
-  AREDraw.calloutLabel(vS, -wallHW, plateH*0.5,
-    vS.px(-wallHW) - 6, vS.py(plateH + 3.2),
+  // Face labels + callouts
+  AREDraw.memberLabel(vS, 0, plateH+0.6, 'Near', {color: st.dim, size:9});
+  AREDraw.memberLabel(vS, b, plateH+0.6, 'Far',  {color: st.dim, size:9});
+  AREDraw.calloutLabel(vS, b*0.5, wallBot*0.5, vS.px(0)-8, vS.py(wallBot*0.5),
+    'Grouted top / bond beam', {color: st.dim, anchor:'end'});
+  AREDraw.calloutLabel(vS, 0, plateH*0.5, vS.px(0)-8, vS.py(plateH+2.6),
     'Ledger / Anchor Plate', {color: st.steel, anchor:'end'});
 
   // View title
-  AREDraw.viewTitle(vS, vS.px(0), dwgSec.maxY + 20, 'Section — Anchor in Wall');
+  AREDraw.viewTitle(vS, vS.px(b/2), dwgSec.maxY + 20, 'Section — Cut Across Wall Thickness');
 
   dwgSec.commit();
 
@@ -704,6 +773,18 @@ function drawPlfDiagrams(){
   // Near/far face labels
   AREDraw.memberLabel(vP, 0,  b/2+0.5, 'Near face', {color: stp.dim, size:9});
   AREDraw.memberLabel(vP, 0, -b/2-0.5, 'Far face',  {color: stp.dim, size:9});
+
+  // Shear arrow: out-of-plane = across the thickness (toward near face);
+  // in-plane = along the wall length (matches the section ⊗).
+  if(shearDir==='ip'){
+    AREDraw.forceArrow(vP, bx2, 0, 1, 0, 42, '', {color: stp.force});
+    AREDraw.calloutLabel(vP, bx2, 0, vP.px(bx2)+30, vP.py(-b/2-1.4),
+      'bv in-plane (along wall)', {color: stp.force, anchor:'start'});
+  } else {
+    AREDraw.forceArrow(vP, 0, -b/2-1.6, 0, 1, 34, '', {color: stp.force});
+    AREDraw.calloutLabel(vP, 0, b/2, vP.px(0)+30, vP.py(b/2+1.8),
+      'bv out-of-plane (across thickness)', {color: stp.force, anchor:'start'});
+  }
 
   // View title
   AREDraw.viewTitle(vP, vP.px(0), dwgPlan.maxY + 20, 'Plan — Projected Breakout Area Apt');
@@ -888,52 +969,63 @@ function drawDiscreteSection(geo){
   var svgSec=document.getElementById('secSvg');
   var dwgSec=new AREDraw.Drawing(svgSec, {});
   var st=dwgSec.style;
-  var b=geo.b, phi=geo.phi;
-  var secScale=AREDraw.fitScale(b, 180, {min:14, max:40});
-  var wallHW=Math.max(b*0.6, 4);
-  var plateH=phi*2.5, boltW=phi*1.1;
-  var vS=new AREDraw.View(dwgSec, {scale:secScale, ox:95+wallHW*secScale, oy:80+plateH*secScale, flipY:true});
+  var b=geo.b, phi=geo.phi, Lb=geo.Lb;
+  var shearDir=(document.getElementById('shearDir')||{}).value||'oop';
 
-  var shellS=Math.min(1.25,b*0.18), webS=Math.min(1.0,wallHW*0.16);
-  AREDraw.plate(vS,-wallHW,-b,wallHW*2,b,{fill:'#f8fafc'});
-  AREDraw.plate(vS,-wallHW,-shellS,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW,-b,wallHW*2,shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,wallHW-webS,-b+shellS,webS,b-2*shellS,{fill:st.steelFill,hatch:true});
-  AREDraw.plate(vS,-wallHW+webS,-b+shellS,wallHW*2-2*webS,b-2*shellS,{fill:st.steelFillHi});
-  AREDraw.memberLabel(vS,-wallHW*0.62,-b/2,'GROUTED CELL',{color:st.dim,size:8});
-  AREDraw.plate(vS, -wallHW-phi*0.5, 0, wallHW*2+phi, plateH, {highlight:true});
+  var shellT=Math.min(1.25,b*0.18);
+  var plateH=phi*2.5, boltW=phi*1.1, headW=phi*2.2, headH=phi*0.6;
+  var wallH=Lb+Math.max(1.6,phi*2.4), wallBot=-wallH;
+  var secScale=AREDraw.fitScale(Math.max(b,wallH),175,{min:12,max:34});
+  var vS=new AREDraw.View(dwgSec,{scale:secScale, ox:66, oy:66+plateH*secScale, flipY:true});
 
-  var rowDepths = geo.rowsN===2 ? [geo.rows[0].near, geo.rows[1].near] : [geo.rows[0].near];
-  var xOff = geo.rowsN===2 ? [-boltW*2.2, boltW*2.2] : [0];
-  rowDepths.forEach(function(depth, idx){
-    var x0=xOff[idx];
-    AREDraw.plate(vS, x0-boltW/2, plateH, boltW, -(depth+plateH), {fill: st.steel});
-    AREDraw.bolt(vS, x0, -depth, phi, {cross:true});
+  drawMasonrySectionBody(vS,dwgSec,st,b,shellT,wallBot,wallH);
+  AREDraw.plate(vS,-phi*0.5,0,b+phi,plateH,{highlight:true});
+
+  // 1 or 2 bolts ACROSS the thickness at their near-face distances
+  var xs = geo.rowsN===2 ? [geo.rows[0].near, geo.rows[1].near] : [geo.rows[0].near];
+  xs.forEach(function(xb){
+    AREDraw.plate(vS, xb-boltW/2, -Lb, boltW, Lb+plateH, {fill:st.steel});
+    AREDraw.plate(vS, xb-headW/2, -(Lb+headH), headW, headH, {fill:st.steel});
+    AREDraw.centerline(vS, xb, plateH+0.5, xb, wallBot-0.3);
+    var cNear=Math.max(xb-Lb,0), cFar=Math.min(xb+Lb,b);
+    rawLineG(dwgSec, vS.px(xb),vS.py(-Lb),vS.px(cNear),vS.py(0),st.dim,'5,3');
+    rawLineG(dwgSec, vS.px(xb),vS.py(-Lb),vS.px(cFar), vS.py(0),st.dim,'5,3');
   });
-  AREDraw.centerline(vS, 0, plateH+0.5, 0, -(b+1.0));
 
-  AREDraw.forceArrow(vS, 0, plateH+0.3, 0, 1, 40, '', {color: st.force});
-  AREDraw.calloutLabel(vS, 0, plateH+1.5, vS.px(-wallHW)-52, vS.py(plateH+1.5),
-    'T = '+f2(geo.T_kips)+' kips (total)', {color: st.force, anchor:'end'});
-  var bvTailX=wallHW+2.8;
-  AREDraw.forceArrow(vS, bvTailX, plateH*0.45, -1, 0, 44, '', {color: st.force});
-  AREDraw.calloutLabel(vS, bvTailX, plateH*0.45, vS.px(bvTailX)+10, vS.py(plateH*0.45),
-    'V = '+f2(geo.V_kips)+' kips (total)', {color: st.force, anchor:'start'});
-
-  AREDraw.dimLine(vS, wallHW+0.5, 0, wallHW+0.5, -b, 'b = '+b.toFixed(3)+'″', {off:-34, color: st.dim});
-  if(geo.rowsN===2){
-    AREDraw.dimLine(vS, -wallHW-0.5, 0, -wallHW-0.5, -geo.o1, 'o1 = '+geo.o1.toFixed(2)+'″', {off:34, color: st.dim});
-    AREDraw.dimLine(vS, -wallHW-0.5, -geo.o1, -wallHW-0.5, -(geo.o1+geo.g), 'g = '+geo.g.toFixed(2)+'″', {off:34, color: st.dim});
+  // Forces (group totals)
+  var xMid = geo.rowsN===2 ? (xs[0]+xs[1])/2 : xs[0];
+  AREDraw.forceArrow(vS, xMid, plateH+0.3, 0,1,40,'',{color:st.force});
+  AREDraw.calloutLabel(vS, xMid, plateH+1.4, vS.px(b)+30, vS.py(plateH+1.4),
+    'T = '+f2(geo.T_kips)+' kips (total)', {color:st.force,anchor:'start'});
+  if(shearDir==='ip'){
+    outOfPageSymbol(dwgSec, vS, Math.min(xMid+b*0.2,b-0.3), plateH*0.5, Math.max(vS.s(phi*0.7),5), st.force);
+    AREDraw.calloutLabel(vS, Math.min(xMid+b*0.2,b-0.3), plateH*0.5, vS.px(b)+30, vS.py(-Lb*0.35),
+      'V = '+f2(geo.V_kips)+' kips in-plane (⊗ — see plan)', {color:st.force,anchor:'start'});
   } else {
-    AREDraw.leader(vS, wallHW, -geo.rows[0].near*0.55, 72, 28, 'lbe = '+geo.rows[0].near.toFixed(2)+'″', {color: st.dim, anchor:'start'});
+    var bvTailX=b+Math.max(0.8,phi*0.6);
+    AREDraw.forceArrow(vS, bvTailX, plateH*0.5, -1,0,44,'',{color:st.force});
+    AREDraw.calloutLabel(vS, bvTailX, plateH*0.5, vS.px(b)+30, vS.py(-Lb*0.35),
+      'V = '+f2(geo.V_kips)+' kips (out-of-plane)', {color:st.force,anchor:'start'});
   }
-  AREDraw.leader(vS, wallHW, 0, 68, -24, 'Near face', {color: st.dim, anchor:'start'});
-  AREDraw.memberLabel(vS, 0, -b-0.9, 'Far face', {color: st.dim, size:9});
-  AREDraw.calloutLabel(vS, -wallHW, plateH*0.5, vS.px(-wallHW)-6, vS.py(plateH+3.2),
-    'Ledger / Anchor Plate', {color: st.steel, anchor:'end'});
-  AREDraw.viewTitle(vS, vS.px(0), dwgSec.maxY+20,
-    'Section — Anchor Group ('+geo.rowsN+' row'+(geo.rowsN>1?'s':'')+' across thickness)');
+
+  // Dimensions
+  AREDraw.dimLine(vS, -0.4, 0, -0.4, -Lb, 'Lb = '+Lb.toFixed(2)+'″', {off:34, color:st.dim});
+  AREDraw.dimLine(vS, 0, wallBot, b, wallBot, 'b = '+b.toFixed(3)+'″', {off:28, color:st.dim});
+  if(geo.rowsN===2){
+    AREDraw.dimLine(vS, 0, wallBot, geo.rows[0].near, wallBot, 'o1 = '+geo.o1.toFixed(2)+'″', {off:52, color:st.dim});
+    AREDraw.dimLine(vS, geo.rows[0].near, wallBot, geo.rows[1].near, wallBot, 'g = '+geo.g.toFixed(2)+'″', {off:76, color:st.dim});
+  } else {
+    AREDraw.dimLine(vS, 0, wallBot, geo.rows[0].near, wallBot, 'lbe = '+geo.rows[0].near.toFixed(2)+'″', {off:52, color:st.dim});
+  }
+
+  AREDraw.memberLabel(vS, 0, plateH+0.6, 'Near', {color:st.dim,size:9});
+  AREDraw.memberLabel(vS, b, plateH+0.6, 'Far', {color:st.dim,size:9});
+  AREDraw.calloutLabel(vS, b*0.5, wallBot*0.5, vS.px(0)-8, vS.py(wallBot*0.5),
+    'Grouted top / bond beam', {color:st.dim,anchor:'end'});
+  AREDraw.calloutLabel(vS, 0, plateH*0.5, vS.px(0)-8, vS.py(plateH+2.6),
+    'Ledger / Anchor Plate', {color:st.steel,anchor:'end'});
+  AREDraw.viewTitle(vS, vS.px(b/2), dwgSec.maxY+20,
+    'Section — Cut Across Wall Thickness ('+geo.rowsN+' row'+(geo.rowsN>1?'s':'')+')');
   dwgSec.commit();
 }
 
@@ -1048,6 +1140,30 @@ function drawDiscretePlan(geo){
   AREDraw.memberLabel(vP, 0, b/2+0.5, 'Near face', {color:stp.dim, size:9});
   AREDraw.memberLabel(vP, 0, -b/2-0.5, 'Far face', {color:stp.dim, size:9});
 
+  // Shear arrow — in-plane along the wall length (toward the wall end); the
+  // wall end + le_end are shown when the end is NOT remote.
+  var shearDir=(document.getElementById('shearDir')||{}).value||'oop';
+  if(shearDir==='ip'){
+    var maxX=-1e9; geo.anchors.forEach(function(a){ if(a.x>maxX) maxX=a.x; });
+    var endRemote=(document.getElementById('endRemote')||{checked:true}).checked;
+    var le_end=parseFloat((document.getElementById('le_end')||{}).value)||0;
+    AREDraw.forceArrow(vP, maxX, 0, 1, 0, 42, '', {color: stp.force});
+    AREDraw.calloutLabel(vP, maxX, 0, vP.px(maxX)+30, vP.py(-b/2-1.4),
+      'V in-plane (along wall)', {color: stp.force, anchor:'start'});
+    if(!endRemote && le_end>0){
+      var xEnd=maxX+le_end;
+      rawLineG(dwgPlan, vP.px(xEnd), vP.py(-b/2), vP.px(xEnd), vP.py(b/2), stp.steel, null, '2.2');
+      AREDraw.memberLabel(vP, xEnd, -b/2-1.4, 'WALL END', {color: stp.steel, size:8});
+      AREDraw.dimLine(vP, maxX, b/2, xEnd, b/2, 'le,end = '+le_end.toFixed(2)+'″', {off:-46, color: stp.dim});
+    } else {
+      AREDraw.memberLabel(vP, maxX+(cols>1?s*0.5:2), -b/2-1.4, '(wall end remote)', {color: stp.dim, size:8});
+    }
+  } else {
+    AREDraw.forceArrow(vP, 0, -b/2-1.6, 0, 1, 34, '', {color: stp.force});
+    AREDraw.calloutLabel(vP, 0, b/2, vP.px(0)+30, vP.py(b/2+1.8),
+      'V out-of-plane (across thickness)', {color: stp.force, anchor:'start'});
+  }
+
   AREDraw.viewTitle(vP, vP.px(0), dwgPlan.maxY+26,
     'Plan — Discrete Group ('+geo.rowsN+'×'+geo.cols+' = '+geo.N_total+' anchors) · T='+f2(geo.T_kips)+' kips, V='+f2(geo.V_kips)+' kips');
 
@@ -1056,12 +1172,13 @@ function drawDiscretePlan(geo){
 
 // ── Save / Load ───────────────────────────────────────────────────────────────
 var INPUT_IDS=['fm_ksi','fy_ksi','Fu_ksi','ba','bv','b_wall','phi_in','Lb','S_in','Lbe_override','lb_mode','emb_total','t_head',
-  'basisMode','T_kips','V_kips','cols_n','s_in','rows_n','o1_in','g_in'];
+  'basisMode','T_kips','V_kips','cols_n','s_in','rows_n','o1_in','g_in','shearDir','le_end'];
 function saveInputs(){
-  var d={v:2};
+  var d={v:3};
   INPUT_IDS.forEach(function(id){var e=document.getElementById(id);if(e)d[id]=e.value;});
   d.windInc=document.getElementById('windInc').checked;
   d.discreteGate=document.getElementById('discreteGate').checked;
+  d.endRemote=document.getElementById('endRemote').checked;
   var blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
@@ -1080,9 +1197,12 @@ function loadInputs(){
         INPUT_IDS.forEach(function(id){var el=document.getElementById(id);if(el&&d[id]!==undefined)el.value=d[id];});
         if(d.windInc!==undefined)document.getElementById('windInc').checked=!!d.windInc;
         if(d.discreteGate!==undefined)document.getElementById('discreteGate').checked=!!d.discreteGate;
+        if(d.endRemote!==undefined)document.getElementById('endRemote').checked=!!d.endRemote;
         // Legacy files (no version key) always land in plf mode — today's behavior.
         if(d.v===undefined) document.getElementById('basisMode').value='plf';
-        lbModeChange();autoLbe();autoFu();basisChange();
+        // v:2 and legacy files predate the shear-direction selector → out-of-plane.
+        if(d.shearDir===undefined) document.getElementById('shearDir').value='oop';
+        lbModeChange();autoLbe();autoFu();basisChange();shearDirChange();
         alert('Inputs loaded.');
       }catch(err){alert('Error: '+err.message);}
     };
@@ -1135,6 +1255,21 @@ function showDiscreteError(msg){
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
   drawMasonryDiagrams();
 }
+// Same fatal-error surface for an in-plane-shear input guard failure.
+function showShearError(msg){
+  ['chkA','chkB','chkC','chkD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+  ['demA','demB','demC','demD'].forEach(function(id){document.getElementById(id).innerHTML='';});
+  ['sumA','sumB','sumC','sumD'].forEach(function(id){var e=document.getElementById(id);e.innerHTML='';e.className='summary';});
+  document.getElementById('notesList').innerHTML='';
+  document.getElementById('anchorTableWrap').style.display='none';
+  document.getElementById('anchorTableWrap').innerHTML='';
+  var ob=document.getElementById('overallBanner');
+  ob.className='overall-banner sum-fail';
+  ob.innerHTML='<strong style="font-size:1.1em">&#10007; IN-PLANE SHEAR INPUT ERROR &mdash; RESULTS NOT SHOWN</strong><br>'+msg;
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
+  drawMasonryDiagrams();
+}
 function buildAnchorTable(geo, N_total, Ba){
   var html='<div class="blk" style="border-left-color:#7c3aed"><h2>&#9632; Per-Anchor Areas &mdash; Discrete Group <span class="badge">'+geo.rowsN+'&times;'+geo.cols+' = '+N_total+' anchors</span></h2>';
   html+='<table class="chk-table"><thead><tr><th>Row</th><th>Col</th><th>x (in)</th><th>Near (in)</th><th>Far (in)</th><th>A<sub>pt,i</sub> (in&sup2;)</th><th>A<sub>pv,i</sub> (in&sup2;)</th><th>Governing</th></tr></thead><tbody>';
@@ -1182,6 +1317,10 @@ function runCalcs(){
   var S_ft   =S_in/12.0;                                            // ft
   var windInc=document.getElementById('windInc').checked;
   var k_ASD  =windInc?3.0/4.0:1.0;  // load factor (3/4 when 1/3 increase applies)
+  // Shear direction: 'oop' (out-of-plane, default) or 'ip' (in-plane along wall).
+  var shearDir =(document.getElementById('shearDir')||{}).value||'oop';
+  var endRemote=(document.getElementById('endRemote')||{checked:true}).checked;
+  var le_end   =parseFloat((document.getElementById('le_end')||{}).value)||0;
   var combo_limit=1.0;              // TMS 402-22 Eq 8-8 limit; 1/3 increase handled via k on demands
 
   // ── Design basis (plf vs discrete group) ──
@@ -1247,6 +1386,33 @@ function runCalcs(){
     Apv=geo.govV.Apv;
   }
 
+  // ── Shear direction (out-of-plane vs in-plane) ──────────────────────────────
+  // Out-of-plane (default): free edge = wall FACE; the shear half-cone (Apv,
+  // radius lbe = b/2) and Bv1 above are unchanged. In-plane: free edge = WALL
+  // END; the breakout half-cone of radius le_end faces the wall end. When the
+  // wall end is remote, masonry breakout cannot form and Bv1 is EXCLUDED
+  // (crushing/pryout/steel govern). Tension (Apt) and Bv2/Bv3/Bv4 are
+  // direction-independent, so this only touches Bv1 / the Bv minimum.
+  var ipRemote = (shearDir==='ip') && endRemote;   // Bv1 excluded
+  var ipActive = (shearDir==='ip') && !endRemote;  // Bv1 = wall-end breakout
+  var Apv_ip=NaN, ipG=0, ipAvDeduct=0;
+  if(ipActive){
+    if(!(le_end>0)){
+      showShearError('In-plane shear is selected with the wall end NOT remote, but l<sub>e,end</sub> = '+f2(le_end)+'&Prime; is not greater than 0. Enter the distance from the nearest anchor to the wall end, or check &ldquo;Wall end remote&rdquo;.');
+      return;
+    }
+    // Cross-thickness neighbor deduction applies only to a 2-row discrete group
+    // (the other row in the end column). Same-row trailing anchors sit BEHIND
+    // the end anchor's cone (farther from the wall end) → no side deduction.
+    ipG = (mode==='discrete' && geo.rowsN===2) ? geo.g : 0;
+    ipAvDeduct = ipG>0 ? 0.5*circSeg(le_end, ipG/2.0) : 0;
+    Apv_ip = Math.PI*le_end*le_end/2.0 - ipAvDeduct;
+    if(Apv_ip<=0){
+      showShearError('In-plane projected shear area A<sub>pv,in</sub> = &pi;&sdot;l<sub>e,end</sub>&sup2;/2 &minus; &frac12;&sdot;circSeg = '+f3(Apv_ip)+' in&sup2; is zero or negative (l<sub>e,end</sub> = '+f2(le_end)+'&Prime;, cross-thickness deduction = '+f3(ipAvDeduct)+' in&sup2; at g = '+f2(ipG)+'&Prime;). Increase l<sub>e,end</sub>, reduce the row gauge g, or confirm the wall end is remote.');
+      return;
+    }
+  }
+
   // For the plan sketch only
   var L       =Math.min(Lb, Lbe);
   var theta   =(halfS<Lb)?Math.acos(Math.min(halfS/Lb,1)):0; // rad; 0 when S >= 2*lb (no overlap)
@@ -1260,11 +1426,12 @@ function runCalcs(){
   var Ba      =Math.min(Ba_mas, Ba_steel);          // kips governing
 
   // Shear capacity (TMS §8.1.4.3.2)
-  var Bv1     =1.25*Apv*Math.sqrt(fm_psi)/1000.0;                   // kips masonry breakout
+  var Bv1     =1.25*Apv*Math.sqrt(fm_psi)/1000.0;                   // kips masonry breakout (out-of-plane, wall-face half-cone)
+  if(ipActive) Bv1=1.25*Apv_ip*Math.sqrt(fm_psi)/1000.0;           // in-plane: wall-END half-cone of radius le_end
   var Bv2     =580.0*Math.pow(Ab*fm_psi, 0.25)/1000.0;              // kips masonry crushing (Eq 8-5)
   var Bv3     =2.5*Apt*Math.sqrt(fm_psi)/1000.0;                    // kips anchor pryout (Eq 8-6)
   var Bv4     =0.25*Ab*Fu_psi/1000.0;                               // kips steel shear
-  var Bv      =Math.min(Bv1, Bv2, Bv3, Bv4);
+  var Bv      =ipRemote ? Math.min(Bv2, Bv3, Bv4) : Math.min(Bv1, Bv2, Bv3, Bv4);
 
   // Per-fastener loads
   var Ta      =S_ft*ba;  // kips (total tension per fastener, unfactored for combined)
@@ -1429,12 +1596,30 @@ function runCalcs(){
   var pC=dc_Bv_gov<=1, chksC=[], maxC=0;
   function ckC(c){chksC.push(c);if(!c.pass)pC=false;if(c.dc>maxC)maxC=c.dc;}
 
-  // Bv1
-  var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-4 &mdash; Shear: Masonry Breakout (A<sub>pv</sub>)</div><div class="cbox">';
-  dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6, half-cone toward free edge)</div>';
-  dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apv)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
-  dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
-  ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
+  // Bv1 — masonry breakout. Rendering depends on the shear direction:
+  //  · out-of-plane: wall-face half-cone Apv (unchanged);
+  //  · in-plane, wall end remote: INFO row, N/A, excluded from Bv;
+  //  · in-plane, not remote: wall-END half-cone of radius le_end.
+  if(shearDir==='oop'){
+    var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-4 &mdash; Shear: Masonry Breakout (A<sub>pv</sub>)</div><div class="cbox">';
+    dcv1+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6, half-cone toward free edge)</div>';
+    dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f2(Apv)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
+    dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
+    ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv</sub>='+f2(Apv)+' in&sup2;',pass:dc_Bv1<=1,info:false,det:dcv1});
+  } else if(ipRemote){
+    var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-4 &mdash; Shear: Masonry Breakout &mdash; In-Plane, Wall End Remote</div><div class="cbox">';
+    dcv1+='<div class="mrow">Shear acts <strong>in-plane (along the wall length)</strong>; the only free edge that can produce a masonry breakout is the <strong>wall end</strong>. The wall end is confirmed <strong>remote</strong> (no anchor within the in-plane cone reach), so this failure mode <strong>does not apply</strong>.</div>';
+    dcv1+='<div class="mrow">There is <strong>no near free edge across the wall face</strong> for in-plane shear (the out-of-plane l<sub>be</sub> = b/2 half-cone is not a valid surface here), so B<sub>v1</sub> is <strong>excluded</strong> from B<sub>v</sub> = min(&hellip;). Shear is governed by crushing (B<sub>v2</sub>), pryout (B<sub>v3</sub>), or steel (B<sub>v4</sub>).</div></div>';
+    ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'N/A &mdash; remote wall end (in-plane shear, no near free edge)',dc:null,nt:'In-plane; wall end remote &rarr; breakout excluded',pass:true,info:true,det:dcv1});
+  } else {
+    var dcv1='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-4 &mdash; Shear: Masonry Breakout &mdash; In-Plane (Wall End)</div><div class="cbox">';
+    dcv1+='<div class="mrow">Shear acts <strong>in-plane</strong>; the breakout half-cone of radius l<sub>e,end</sub> = '+f2(le_end)+'&Prime; faces the <strong>wall end</strong>. The end (nearest) anchor governs.</div>';
+    dcv1+='<div class="mrow"><span class="ceq">A<sub>pv,in</sub> =</span> &pi;l<sub>e,end</sub>&sup2;/2'+(ipG>0?' &minus; &frac12;&sdot;circSeg(l<sub>e,end</sub>, g/2)':'')+' = &pi;&times;'+f2(le_end)+'&sup2;/2'+(ipG>0?' &minus; '+f3(ipAvDeduct)+' (cross-thickness neighbor at g = '+f2(ipG)+'&Prime;)':'')+' = <span class="cval">'+f3(Apv_ip)+' in&sup2;</span></div>';
+    if(ipG===0) dcv1+='<div class="mrow" style="color:#78350f"><em>Single row across the thickness: same-row trailing anchors sit behind the cone (farther from the wall end) and add no side deduction.</em></div>';
+    dcv1+='<div class="mrow"><span class="ceq">B<sub>v1</sub> =</span> 1.25 A<sub>pv,in</sub> '+ov('f&prime;<sub>m</sub>')+' = 1.25&times;'+f3(Apv_ip)+'&times;'+ov(f1(fm_psi))+' = <span class="cval">'+f3(Bv1)+' kips</span></div>';
+    dcv1+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv1))+' = <span class="cval">'+f3(dc_Bv1)+'</span></div></div>';
+    ckC({n:'Shear &mdash; Masonry Breakout B<sub>v1</sub> (in-plane, wall end)',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v1</sub> = '+f3(Bv1)+' kips',dc:dc_Bv1,nt:'1.25A<sub>pv,in</sub>'+ov('f\'<sub>m</sub>')+'; A<sub>pv,in</sub>='+f3(Apv_ip)+' in&sup2;, l<sub>e,end</sub>='+f2(le_end)+'&Prime;',pass:dc_Bv1<=1,info:false,det:dcv1});
+  }
 
   // Bv2
   var dcv2='<div class="cref-hdr">TMS 402-22 §8.1.4.3.2 / Eq 8-5 &mdash; Shear: Masonry Crushing</div><div class="cbox">';
@@ -1455,15 +1640,18 @@ function runCalcs(){
   dcv4+='<hr class="csep"><div class="mrow">D/C = '+fr(f3(k_ASD*Va),f3(Bv4))+' = <span class="cval">'+f3(dc_Bv4)+'</span></div></div>';
   ckC({n:'Shear &mdash; Steel Shear B<sub>v4</sub>',r:'TMS 402-22 §8.1.4.3.2',d:demVeqDot+' = '+f3(k_ASD*Va)+' kips',c:'B<sub>v4</sub> = '+f3(Bv4)+' kips',dc:dc_Bv4,nt:'0.25A<sub>b</sub>F<sub>u</sub>; A<sub>b</sub>='+f3(Ab)+' in\u00B2',pass:dc_Bv4<=1,info:false,det:dcv4});
 
-  setSummary('sumC',pC,maxC,'Shear Capacity (governing: B<sub>v</sub> = '+f3(Bv)+' kips)');
+  setSummary('sumC',pC,maxC,'Shear Capacity '+(shearDir==='ip'?'&mdash; in-plane along wall'+(ipRemote?' (wall end remote) ':' (wall-end breakout) '):'')+'(governing: B<sub>v</sub> = '+f3(Bv)+' kips)');
+  var bv1Card = ipRemote
+    ? {v:'N/A',l:'Bv1 Breakout\nremote wall end',cls:'dem-card'}
+    : {v:f3(Bv1)+' kips',l:(ipActive?'Bv1 In-Plane\nWall-End Breakout':'Bv1 Masonry\nBreakout'),cls:dc_Bv1<=1?'dem-card ok':'dem-card bad'};
   setCards('demC',[
     {v:f3(Va)+' kips',l:(mode==='discrete'?'Shear per Anchor\nV/N (unfactored)':'Shear per Fastener\nS\u00D7b\u1D65 (unfactored)'),cls:'dem-card'},
     {v:f3(k_ASD*Va)+' kips',l:'Factored Demand\n'+(mode==='discrete'?'k\u00D7V/N':'k\u00D7S\u00D7b\u1D65')+(windInc?' (k=3/4)':''),cls:'dem-card warn'},
-    {v:f3(Bv1)+' kips',l:'Bv1 Masonry\nBreakout',cls:dc_Bv1<=1?'dem-card ok':'dem-card bad'},
+    bv1Card,
     {v:f3(Bv2)+' kips',l:'Bv2 Crushing\n580(Abf\'m)\u00B9\u141F\u2074',cls:dc_Bv2<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv3)+' kips',l:'Bv3 Pryout\n2.0B\u2090\u1D47',cls:dc_Bv3<=1?'dem-card ok':'dem-card bad'},
     {v:f3(Bv4)+' kips',l:'Bv4 Steel\nShear',cls:dc_Bv4<=1?'dem-card ok':'dem-card bad'},
-    {v:f3(Bv)+' kips',l:'Bv Governing\nmin(Bv1..Bv4)',cls:dc_Bv_gov<=1?'dem-card ok':'dem-card bad'},
+    {v:f3(Bv)+' kips',l:'Bv Governing\n'+(ipRemote?'min(Bv2..Bv4)':'min(Bv1..Bv4)'),cls:dc_Bv_gov<=1?'dem-card ok':'dem-card bad'},
   ]);
   chksC.forEach(function(c){buildRow(c,'chkC','');});
 
@@ -1502,6 +1690,7 @@ function runCalcs(){
     +' &nbsp;&middot;&nbsp; L<sub>b</sub> = '+f2(Lb)+'&Prime;'
     +(mode==='discrete'?' &nbsp;&middot;&nbsp; N = '+N_total+' ('+geo.rowsN+'&times;'+geo.cols+') &nbsp; T = '+f2(T_kips)+' kips &nbsp; V = '+f2(V_kips)+' kips':' &nbsp;&middot;&nbsp; S = '+f1(S_in)+'&Prime;')
     +' &nbsp;&middot;&nbsp; B<sub>a</sub> = '+f3(Ba)+' kips &nbsp; B<sub>v</sub> = '+f3(Bv)+' kips'
+    +' &nbsp;&middot;&nbsp; Shear: '+(shearDir==='ip'?'In-plane along wall'+(ipRemote?' (end remote)':' (l<sub>e,end</sub> = '+f2(le_end)+'&Prime;)'):'Out-of-plane (toward face)')
     +(windInc?' &nbsp;&middot;&nbsp; &#x2153; stress increase applied':'');
 
   // ── Notes ───────────────────────────────────────────────────────────────────
@@ -1512,6 +1701,11 @@ function runCalcs(){
     '<strong>A<sub>pt</sub>:</strong> &pi;l<sub>b</sub>&sup2; per Eq 6-5, less the projected area lying outside the masonry (beyond each wall face) and less overlap with adjacent anchors at spacing S (no portion of masonry counted more than once). <strong>A<sub>pv</sub>:</strong> &pi;l<sub>be</sub>&sup2;/2 per Eq 6-6 (half-cone toward the free edge), with the same overlap adjustment. (TMS §6.3.2, §6.3.3)',
     '<strong>Tension (B<sub>a</sub>):</strong> Lesser of masonry breakout (1.25A<sub>pt</sub>&radic;f&prime;<sub>m</sub>) and steel tensile (0.5A<sub>b</sub>F<sub>u</sub>). F<sub>u</sub> capped at min(1.9f<sub>y</sub>, 125 ksi).',
     '<strong>Shear (B<sub>v</sub>):</strong> Minimum of four failure modes: masonry breakout (B<sub>v1</sub>), pryout/crushing (B<sub>v2</sub> = 580(A<sub>b</sub>f&prime;<sub>m</sub>)<sup>0.25</sup>), masonry shear cone (B<sub>v3</sub>), and steel shear (B<sub>v4</sub> = 0.25A<sub>b</sub>F<sub>u</sub>).',
+    '<strong>Shear direction:</strong> '+(shearDir==='ip'
+      ? 'In-plane (along the wall length). The masonry-breakout free edge is the <strong>WALL END</strong>'+(ipRemote
+          ? ', confirmed <strong>remote</strong> here &mdash; in-plane breakout (B<sub>v1</sub>) cannot form and is <strong>excluded</strong>; crushing / pryout / steel govern shear.'
+          : ' at l<sub>e,end</sub> = '+f2(le_end)+'&Prime; from the nearest anchor. A<sub>pv,in</sub> = &pi;&sdot;l<sub>e,end</sub>&sup2;/2 (half-cone toward the end), less a &frac12;-lens per cross-thickness (2-row) neighbor; same-row trailing anchors sit behind the cone. The out-of-plane wall-face half-cone is NOT a valid surface for in-plane shear.')
+      : 'Out-of-plane (perpendicular to the wall face). Masonry breakout B<sub>v1</sub> uses the half-cone toward the near face at l<sub>be</sub> = b/2 (A<sub>pv</sub> = &pi;l<sub>be</sub>&sup2;/2).')+' Tension (A<sub>pt</sub>) and the crushing / pryout / steel shear modes are direction-independent.',
     '<strong>Combined Check (Eq 8-8):</strong> (k&middot;S&middot;b<sub>a</sub>/B<sub>a</sub>)<sup>5/3</sup> + (k&middot;S&middot;b<sub>v</sub>/B<sub>v</sub>)<sup>5/3</sup> &le; 1.0. The &#x2153; allowable stress increase, when checked, is applied as k = 3/4 on the demands &mdash; consistently in the individual checks and the interaction.',
     windInc?'&#x2153; allowable stress increase (IBC 1605.2) applied: k = 3/4 on demand for all checks including the combined interaction.':'No &#x2153; stress increase: k = 1.0.',
     'Minimum embedment (TMS §6.3.6): L<sub>b,min</sub> = <strong>greater</strong> of 4&#981; and 2&Prime;. For 3/4&Prime; bolts: L<sub>b,min</sub> = 3&Prime;.',
@@ -1536,7 +1730,7 @@ function tryDrawMasonry(){
   if(window.AREDraw){ drawMasonryDiagrams(); }
   else { setTimeout(tryDrawMasonry, 80); }
 }
-window.onload=function(){lbModeChange();autoLbe();autoFu();basisChange();tryDrawMasonry();};
+window.onload=function(){lbModeChange();autoLbe();autoFu();basisChange();shearDirChange();tryDrawMasonry();};
 document.addEventListener('change',function(){autoLbe();autoFu();drawMasonryDiagrams();});
 </script>
 <script src="/are-utils-v2.js"></script>
