@@ -165,6 +165,11 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
 <div class="content">
 
+<!-- Which-calc-is-which identity callout -->
+<div class="info-box" id="calcIdentityCallout" style="font-size:.88em;line-height:1.5">
+  <strong>This calculator:</strong> a bolt cast <strong>HORIZONTALLY into the wall FACE</strong> &mdash; single-angle / ledger shear connection (MDG REK-08). For anchors cast <strong>VERTICALLY into the grouted TOP of the wall</strong> (embed plate, brace, or ledger on top of wall, 1+&nbsp;anchors), use the <a href="masonry_anchor_calculator.html" style="color:#1e40af;font-weight:700;text-decoration:underline">Masonry Top-of-Wall Anchor calculator &#8594;</a>
+</div>
+
 <!-- SCHEMATIC — rebuilt with AREDraw primitives -->
 <div class="schema-wrap" style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
   <svg id="mabElevSvg" xmlns="http://www.w3.org/2000/svg" style="flex:1 1 280px"></svg>
@@ -331,11 +336,21 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <!-- BLOCK 5: Shear Mode Selection -->
 <div class="blk">
   <h2>5 &mdash; Shear Failure Mode Applicability</h2>
+  <div class="g2" style="margin-bottom:12px">
+    <div class="ig">
+      <label>Shear Direction</label>
+      <select id="shear_direction" onchange="updateShearDirectionUI()">
+        <option value="toward_edge" selected>Toward free edge (default)</option>
+        <option value="parallel">Parallel to free edge / edge remote</option>
+      </select>
+      <span class="hint" id="shear_dir_hint">Gravity/downward reaction pushes the bolt toward the nearest free edge at l<sub>be</sub> (top-of-wall edge above a ledger, or nearest opening edge).</span>
+    </div>
+  </div>
   <div class="info-box">
-    Check which failure modes apply. <strong>Masonry crushing always applies.</strong> Breakout (Eq. 9-4) applies only when bolt is near a free edge in the shear direction. Pryout (Eq. 9-6) applies when bolt is deeply embedded and away from an edge (not a through-bolt).
+    Check which failure modes apply. <strong>Masonry crushing always applies.</strong> Breakout (Eq. 9-4) applies only when bolt is near a free edge <em>in the shear direction</em> &mdash; set by the selector above. Pryout (Eq. 9-6) applies when bolt is deeply embedded and away from an edge (not a through-bolt).
   </div>
   <div style="display:flex;flex-wrap:wrap;gap:14px">
-    <label class="chk-lbl"><input type="checkbox" id="use_breakout" checked> <strong>Eq. 9-4 Masonry Breakout</strong> (near edge in shear direction)</label>
+    <label class="chk-lbl" id="breakout_chk_lbl"><input type="checkbox" id="use_breakout" checked> <strong>Eq. 9-4 Masonry Breakout</strong> (near edge in shear direction)</label>
     <label class="chk-lbl"><input type="checkbox" id="use_crushing" checked disabled> <strong>Eq. 9-5 Masonry Crushing</strong> (always applies)</label>
     <label class="chk-lbl"><input type="checkbox" id="use_pryout" checked> <strong>Eq. 9-6 Pryout</strong> (deeply embedded, not a through-bolt)</label>
     <label class="chk-lbl"><input type="checkbox" id="use_steel" checked> <strong>Eq. 9-7 Steel Shear</strong> (always applies)</label>
@@ -446,6 +461,24 @@ function updateGroupUI(){
   updateDemandBasis();
   if(typeof drawMabDiagram==='function')drawMabDiagram();
 }
+function updateShearDirectionUI(){
+  var dirEl = document.getElementById('shear_direction');
+  var parallel = dirEl && dirEl.value === 'parallel';
+  var cb = document.getElementById('use_breakout');
+  var lbl = document.getElementById('breakout_chk_lbl');
+  if(cb) cb.disabled = parallel;
+  if(lbl){
+    lbl.style.opacity = parallel ? '0.5' : '1';
+    lbl.title = parallel ? 'N/A — shear acts parallel to the free edge; no near free edge in the shear direction.' : '';
+  }
+  var hint = document.getElementById('shear_dir_hint');
+  if(hint){
+    hint.innerHTML = parallel
+      ? 'Shear acts along the wall, with no near free edge in the load direction (e.g., a mid-run ledger bolt). Masonry breakout (Eq. 9-4) does not apply in this direction — crushing, pryout, and steel shear are unaffected.'
+      : 'Gravity/downward reaction pushes the bolt toward the nearest free edge at l<sub>be</sub> (top-of-wall edge above a ledger, or nearest opening edge).';
+  }
+  if(typeof drawMabDiagram==='function')drawMabDiagram();
+}
 function showCalcError(message){
   var sm=document.getElementById('summary');
   sm.className='summary sum-fail';
@@ -525,6 +558,14 @@ function runCalc(){
   var useBreakout = document.getElementById('use_breakout').checked;
   var usePryout   = document.getElementById('use_pryout').checked;
   var useSteelV   = document.getElementById('use_steel').checked;
+  var shearDir     = document.getElementById('shear_direction').value;
+  var dirParallel  = shearDir === 'parallel';
+  // Direction overrides the user checkbox: when shear acts parallel to the
+  // free edge (or the edge is remote), there is no near free edge in the
+  // shear direction, so the masonry breakout mode (Eq. 9-4, Apv-based) is
+  // never applicable — regardless of the checkbox state. This is distinct
+  // from the user manually excluding the mode.
+  var useBreakoutEff = useBreakout && !dirParallel;
 
   // ── Bolt geometry ─────────────────────────────────────────────────────────
   var Ab;
@@ -582,7 +623,7 @@ function runCalc(){
   // ── Shear capacity ────────────────────────────────────────────────────────
   // Eq. 9-4: masonry breakout (near edge)
   var Bvnb_nom = 4 * Apv * Math.sqrt(fm);
-  var phi_Bvnb = useBreakout ? 0.50 * Bvnb_nom : Infinity;
+  var phi_Bvnb = useBreakoutEff ? 0.50 * Bvnb_nom : Infinity;
 
   // Eq. 9-5: masonry crushing (always applies)
   // Ab = net tensile stress area per Eq. 6-7 (0.142 in² for 1/2-13 UNC), matching MDG Ex. 9.3-11.
@@ -601,10 +642,10 @@ function runCalc(){
 
   // Governing shear capacity
   var shear_vals = [
-    {name:'Masonry Breakout (Eq.9-4)', nom:Bvnb_nom, phi_val:phi_Bvnb, phi:0.50, eq:'9-4', on:useBreakout},
-    {name:'Masonry Crushing (Eq.9-5)', nom:Bvnc_nom, phi_val:phi_Bvnc, phi:0.50, eq:'9-5', on:true},
-    {name:'Pryout (Eq.9-6)',           nom:Bvnpry_nom,phi_val:phi_Bvnpry,phi:0.50, eq:'9-6', on:usePryout},
-    {name:'Steel Shear (Eq.9-7)',      nom:Bvns_nom, phi_val:phi_Bvns, phi:0.65, eq:'9-7', on:useSteelV}
+    {name:'Masonry Breakout (Eq.9-4)', nom:Bvnb_nom, phi_val:phi_Bvnb, phi:0.50, eq:'9-4', on:useBreakoutEff, naReason:(!useBreakoutEff&&dirParallel)?'direction':null},
+    {name:'Masonry Crushing (Eq.9-5)', nom:Bvnc_nom, phi_val:phi_Bvnc, phi:0.50, eq:'9-5', on:true, naReason:null},
+    {name:'Pryout (Eq.9-6)',           nom:Bvnpry_nom,phi_val:phi_Bvnpry,phi:0.50, eq:'9-6', on:usePryout, naReason:null},
+    {name:'Steel Shear (Eq.9-7)',      nom:Bvns_nom, phi_val:phi_Bvns, phi:0.65, eq:'9-7', on:useSteelV, naReason:null}
   ];
   var active_shear = shear_vals.filter(function(x){return x.on;});
   var Bvn_min_obj = active_shear.reduce(function(a,b){return a.phi_val<=b.phi_val?a:b;});
@@ -646,7 +687,7 @@ function runCalc(){
   detV += '<div class="cref-hdr">TMS 402-22 &sect;9.1.6.3.2 &mdash; Shear Capacity</div>';
   detV += '<div class="cbox">';
   // Eq. 9-4
-  if(useBreakout){
+  if(useBreakoutEff){
     detV += '<div class="mrow"><span class="ceq">Eq. 9-4 (masonry breakout):</span> B<sub>vnb</sub> = 4 A<sub>pv</sub> '+ov("f'<sub>m</sub>")+'</div>';
     if(N===1){
       detV += '<div class="mrow ind">A<sub>pv</sub> = &pi; l<sub>be</sub>&sup2; / 2 = &pi; &times; '+f2(lbe)+'&sup2; / 2 = <span class="cval">'+f2(Apv)+' in.&sup2;</span></div>';
@@ -662,6 +703,8 @@ function runCalc(){
     detV += '<div class="mrow ind">B<sub>vnb</sub> = 4 &times; '+f2(Apv)+' &times; '+ov(fm+' psi')+' = <span class="cval">'+fc(Bvnb_nom)+' lb</span></div>';
     detV += '<div class="mrow ind">&phi;B<sub>vnb</sub> = 0.50 &times; '+fc(Bvnb_nom)+' = <span class="cval">'+fc(phi_Bvnb)+' lb</span></div>';
     detV += '<hr class="csep">';
+  } else if(dirParallel){
+    detV += '<div class="mrow"><span class="na">Eq. 9-4 (breakout) — N/A &mdash; no near free edge in the shear direction (shear acts parallel to the free edge / edge remote)</span></div><hr class="csep">';
   } else {
     detV += '<div class="mrow"><span class="na">Eq. 9-4 (breakout) — not applicable (not near edge)</span></div><hr class="csep">';
   }
@@ -737,10 +780,14 @@ function runCalc(){
     var isGov = m.on && (m.phi_val === Bvn);
     var card = document.createElement('div');
     card.className = 'mode-card'+(isGov?' gov-mode':m.on?'':' na-mode');
-    var val_txt = m.on ? fc(m.phi_val)+' lb' : '<span class="na">N/A</span>';
-    card.innerHTML = '<div class="ml">'+m.name+(isGov?' &#9654; GOVERNS':'')+(m.on?'':'&nbsp;&mdash; skipped')+'</div>'
+    var val_txt = m.on ? fc(m.phi_val)+' lb'
+      : (m.naReason==='direction' ? '<span class="na">N/A &mdash; no near free edge in the shear direction</span>' : '<span class="na">N/A</span>');
+    var offSuffix = m.on ? '' : (m.naReason==='direction' ? '' : '&nbsp;&mdash; skipped');
+    var subLine = m.on ? '&phi;='+m.phi+', nom='+fc(m.nom)+' lb'
+      : (m.naReason==='direction' ? 'N/A by shear direction (not excluded by user)' : '&phi;='+m.phi+', nom='+fc(m.nom)+' lb');
+    card.innerHTML = '<div class="ml">'+m.name+(isGov?' &#9654; GOVERNS':'')+offSuffix+'</div>'
       +'<div class="mv">'+val_txt+'</div>'
-      +'<div class="ml">&phi;='+m.phi+', nom='+fc(m.nom)+' lb</div>';
+      +'<div class="ml">'+subLine+'</div>';
     sc.appendChild(card);
   });
 
@@ -807,18 +854,25 @@ function runCalc(){
   var basisText = groupBasis
     ? 'Group totals &divide; N (N = '+N+'): b<sub>af</sub> = '+fc(baf_input)+'/'+N+' = '+fc(baf)+' lb/bolt; b<sub>vf</sub> = '+fc(bvf_input)+'/'+N+' = '+fc(bvf)+' lb/bolt'
     : 'Per bolt (default): b<sub>af</sub> and b<sub>vf</sub> entered per bolt';
-  var excluded=[];
-  if(!useBreakout) excluded.push('Eq. 9-4 masonry breakout');
-  if(!usePryout) excluded.push('Eq. 9-6 pryout');
-  if(!useSteelV) excluded.push('Eq. 9-7 steel shear');
+  var excludedByUser=[];
+  var excludedByDirection=[];
+  if(dirParallel) excludedByDirection.push('Eq. 9-4 masonry breakout (N/A — no near free edge in the shear direction)');
+  else if(!useBreakout) excludedByUser.push('Eq. 9-4 masonry breakout');
+  if(!usePryout) excludedByUser.push('Eq. 9-6 pryout');
+  if(!useSteelV) excludedByUser.push('Eq. 9-7 steel shear');
   var icon = allPass ? '&#10003;' : '&#10007;';
   var gist = allPass
     ? icon+' '+f2(do_*12/12)+'"-&empty; bolt PASSES &mdash; IR = '+f3(IR)+' &le; 1.0 &nbsp;|&nbsp; &phi;B<sub>an</sub> = '+fc(Ban)+' lb &nbsp;|&nbsp; &phi;B<sub>vn</sub> = '+fc(Bvn)+' lb'
     : icon+' '+f2(do_*12/12)+'"-&empty; bolt FAILS &mdash; IR = '+f3(IR)+' &gt; 1.0';
+  var dirText = dirParallel
+    ? 'Parallel to free edge / edge remote &mdash; shear acts along the wall, no near free edge in the load direction; masonry breakout (Eq. 9-4) is N/A and excluded from &phi;B<sub>vn</sub>.'
+    : 'Toward free edge (default) &mdash; gravity/downward reaction pushes the bolt toward the nearest free edge at l<sub>be</sub>.';
   sm.innerHTML = '<h3>'+gist+'</h3>'
     +'<div style="margin-top:6px;font-size:.9em"><strong>Demand basis:</strong> '+basisText+'</div>'
+    +'<div style="margin-top:4px;font-size:.9em"><strong>Shear direction:</strong> '+dirText+'</div>'
     +'<div style="margin-top:4px;font-size:.9em">Governing modes: Tension — '+Ban_gov+' | Shear — '+Bvn_min_obj.name+'</div>'
-    +(excluded.length?'<div class="cwarn" style="margin-top:4px;font-size:.9em">Modes excluded by user: '+excluded.join('; ')+'</div>':'');
+    +(excludedByUser.length?'<div class="cwarn" style="margin-top:4px;font-size:.9em">Modes excluded by user: '+excludedByUser.join('; ')+'</div>':'')
+    +(excludedByDirection.length?'<div class="cwarn" style="margin-top:4px;font-size:.9em">Modes N/A by shear direction: '+excludedByDirection.join('; ')+'</div>':'');
 
   // ── Properties table ─────────────────────────────────────────────────────
   var pt = document.getElementById('prop_table');
@@ -834,7 +888,7 @@ function runCalc(){
     ['Min. l<sub>b</sub> (4d<sub>o</sub> or 2")', f2(lb_min)+' in. &rarr; '+(lb_ok?'<span class="pass">OK</span>':'<span class="fail">FAIL</span>')],
     [N===1?'Projected tension area A<sub>pt</sub>':'Projected tension area A<sub>pt</sub> (governing Bolt '+(groupAreas.govT.index+1)+', '+groupAreas.govT.position+')', N===1?f2(Apt)+' in.&sup2; = &pi;&times;'+f2(lb)+'&sup2;':f2(Apt)+' in.&sup2;'],
     ['Edge distance (shear) l<sub>be</sub>', f2(lbe)+' in.'],
-    [N===1?'Projected shear area A<sub>pv</sub>':'Projected shear area A<sub>pv</sub> (governing Bolt '+(groupAreas.govV.index+1)+', '+groupAreas.govV.position+')', N===1?f2(Apv)+' in.&sup2; = &pi;&times;'+f2(lbe)+'&sup2;/2':f2(Apv)+' in.&sup2;'],
+    [(N===1?'Projected shear area A<sub>pv</sub>':'Projected shear area A<sub>pv</sub> (governing Bolt '+(groupAreas.govV.index+1)+', '+groupAreas.govV.position+')')+(dirParallel?' <span class="na">(N/A &mdash; parallel shear direction; shown for reference only)</span>':''), N===1?f2(Apv)+' in.&sup2; = &pi;&times;'+f2(lbe)+'&sup2;/2':f2(Apv)+' in.&sup2;'],
     ['f<sub>u,eff</sub> = min(f<sub>u</sub>, 1.9f<sub>y</sub>, 125k)', fc(fu_eff)+' psi'],
     ['<strong>&phi;B<sub>an</sub> (tension capacity)</strong>', '<strong>'+fc(Ban)+' lb</strong>'],
     ['<strong>&phi;B<sub>vn</sub> (shear capacity)</strong>', '<strong>'+fc(Bvn)+' lb</strong>'],
@@ -848,6 +902,7 @@ function runCalc(){
   // ── Notes ─────────────────────────────────────────────────────────────────
   var nb = document.getElementById('notes_box');
   nb.innerHTML = '<strong>Engineering Notes:</strong><ul>'
+    +'<li><strong>Shear direction, in plain terms:</strong> &ldquo;Toward free edge&rdquo; is the usual case for a ledger bolt &mdash; gravity load pushes the bolt toward the top-of-wall edge (or the nearest opening edge) at distance l<sub>be</sub>, so the masonry can break out toward that edge (Eq. 9-4 governs when it controls). &ldquo;Parallel to free edge / edge remote&rdquo; is for shear that runs along the length of the wall with no free edge nearby in that direction (e.g., a bolt mid-run, far from any opening or wall end) &mdash; the masonry breakout mode cannot form in that direction, so it is excluded and crushing (Eq. 9-5), pryout (Eq. 9-6), and steel shear (Eq. 9-7) govern instead.</li>'
     +'<li>This calculator implements <strong>Strength Design (SD)</strong> per TMS 402-22 Chapter 9 for headed anchor bolts. For Allowable Stress Design (ASD), use TMS 402-22 Chapter 8 (Eq. 8-1 through 8-7, with Bvc = 580 &times; &#8308;&radic;(f&#8217;<sub>m</sub> &times; A<sub>b</sub>)).</li>'
     +'<li><strong>Masonry crushing (Eq. 9-5):</strong> B<sub>vnc</sub> = 1750 &times; (f&#8217;<sub>m</sub> &times; A<sub>b</sub>)<sup>1/4</sup>. This is the 4th root of (f&#8217;<sub>m</sub> &times; A<sub>b</sub>).</li>'
     +(N>1?'<li>Projected areas are enumerated for every bolt per TMS 402-22 &sect;6.3.2/&sect;6.3.3. Every other bolt closer than 2l<sub>b</sub> deducts a full circSeg term at its actual center distance from A<sub>pt</sub>; every other bolt closer than 2l<sub>be</sub> deducts a half circSeg term from A<sub>pv</sub>. Pairwise deduction is a conservative lower bound because deducted regions may overlap.</li>':'')
@@ -863,6 +918,7 @@ function runCalc(){
 // initialize
 updateBoltCalcs();
 updateGroupUI();
+updateShearDirectionUI();
 
 // Wall thickness (t_nom) now drives the CMU cross-section in the diagram
 // (MAB-2) — wire a redraw on change without touching the <select> markup.
@@ -887,6 +943,8 @@ function drawMabDiagram() {
   var N    = Math.max(1,Math.min(6,Math.round(parseFloat(document.getElementById('bolt_count').value)||1)));
   var s    = parseFloat(document.getElementById('bolt_spacing').value) || 16;
   var diagramAreas = anchorGroupAreas(N,s,lb,lbe);
+  var dirSelEl = document.getElementById('shear_direction');
+  var dirParallel = !!dirSelEl && dirSelEl.value === 'parallel';
 
   // Actual (net) CMU wall thickness from the nominal selector — matches the
   // option labels in Block 1 (nominal → actual, in.). Drives every "block
@@ -1133,16 +1191,49 @@ function drawMabDiagram() {
     bafLabelPx, bafLabelPy,
     'baf', { color: st.force, anchor: 'end' });
 
-  // bvf — shear (vertical, downward along wall face)
+  // bvf — shear. "Toward edge" = vertical, downward along wall face (unchanged
+  // default). "Parallel to edge / edge remote" = the shear axis runs ALONG the
+  // wall length, i.e. perpendicular to this cross-sectional elevation cut — so
+  // it can't be drawn as an in-plane arrow here. Convention chosen: draw it as
+  // a circled-X ("into the page") symbol per standard drafting practice for a
+  // force normal to the view, labeled to state the direction explicitly.
   var vArrowTailY = wallH - lb * 0.18;         // above baf
   var bvfTailX    = -2.5;
-  AREDraw.forceArrow(vE, bvfTailX, vArrowTailY, 0, -1, 44, '', { color: st.force });
-  // Label: place above the tail (higher in world = lower py value)
-  var bvfLabelPx = vE.px(bvfTailX) - 6;
-  var bvfLabelPy = vE.py(vArrowTailY) - 2;
-  AREDraw.calloutLabel(vE, bvfTailX, vArrowTailY,
-    bvfLabelPx, bvfLabelPy,
-    'bvf', { color: st.force, anchor: 'end' });
+  if (dirParallel) {
+    var symR = 7;
+    var symCx = vE.px(bvfTailX), symCy = vE.py(vArrowTailY);
+    var symG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    var symCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    symCircle.setAttribute('cx', symCx); symCircle.setAttribute('cy', symCy); symCircle.setAttribute('r', symR);
+    symCircle.setAttribute('fill', 'none'); symCircle.setAttribute('stroke', st.force); symCircle.setAttribute('stroke-width', '1.5');
+    symG.appendChild(symCircle);
+    var xd = symR * 0.62;
+    [[-1, -1, 1, 1], [-1, 1, 1, -1]].forEach(function (seg) {
+      var xln = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      xln.setAttribute('x1', symCx + seg[0] * xd); xln.setAttribute('y1', symCy + seg[1] * xd);
+      xln.setAttribute('x2', symCx + seg[2] * xd); xln.setAttribute('y2', symCy + seg[3] * xd);
+      xln.setAttribute('stroke', st.force); xln.setAttribute('stroke-width', '1.5');
+      symG.appendChild(xln);
+    });
+    dwgE.gAnno.appendChild(symG);
+    dwgE.extend(symCx - symR - 4, symCy - symR - 4); dwgE.extend(symCx + symR + 4, symCy + symR + 4);
+    var bvfLabelPx2 = symCx - symR - 8, bvfLabelPy2 = symCy - 2;
+    var bvfLbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    bvfLbl.setAttribute('x', bvfLabelPx2); bvfLbl.setAttribute('y', bvfLabelPy2);
+    bvfLbl.setAttribute('fill', st.force); bvfLbl.setAttribute('font-size', st.fsDim);
+    bvfLbl.setAttribute('font-family', st.font); bvfLbl.setAttribute('text-anchor', 'end');
+    bvfLbl.textContent = 'bvf ⊗ (along wall, into view)';
+    dwgE.gAnno.appendChild(bvfLbl);
+    dwgE.extend(bvfLabelPx2 - 130, bvfLabelPy2 + 8); dwgE.extend(bvfLabelPx2 - 130, bvfLabelPy2 - 8);
+  } else {
+    AREDraw.forceArrow(vE, bvfTailX, vArrowTailY, 0, -1, 44, '', { color: st.force });
+    // Label: place above the tail (higher in world = lower py value)
+    var bvfLabelPx = vE.px(bvfTailX) - 6;
+    var bvfLabelPy = vE.py(vArrowTailY) - 2;
+    AREDraw.calloutLabel(vE, bvfTailX, vArrowTailY,
+      bvfLabelPx, bvfLabelPy,
+      'bvf', { color: st.force, anchor: 'end' });
+  }
 
   // --- View title BELOW (§3) ---
   var eTitleY = vE.py(-0.3) + 18;
@@ -1278,8 +1369,17 @@ function drawMabDiagram() {
     var cx=vP.px(bx);
     var coneFillEl=document.createElementNS('http://www.w3.org/2000/svg','path');
     coneFillEl.setAttribute('d','M '+(cx-arcR)+','+arcCY+' A '+arcR+','+arcR+' 0 0 1 '+(cx+arcR)+','+arcCY+' Z');
-    coneFillEl.setAttribute('fill',bi===diagramAreas.govV.index?'rgba(220,38,38,0.16)':'rgba(107,122,150,0.14)');
-    coneFillEl.setAttribute('stroke',stP.dim); coneFillEl.setAttribute('stroke-dasharray','6,3');
+    if(dirParallel){
+      // Apv (breakout toward-edge cone) is N/A when shear runs parallel to the
+      // free edge — grey it out rather than hide it outright, so the geometry
+      // stays visible for reference but unmistakably inactive.
+      coneFillEl.setAttribute('fill','rgba(148,163,184,0.08)');
+      coneFillEl.setAttribute('stroke','#cbd5e1');
+    } else {
+      coneFillEl.setAttribute('fill',bi===diagramAreas.govV.index?'rgba(220,38,38,0.16)':'rgba(107,122,150,0.14)');
+      coneFillEl.setAttribute('stroke',stP.dim);
+    }
+    coneFillEl.setAttribute('stroke-dasharray','6,3');
     dwgP.gSteel.appendChild(coneFillEl);
     var apt=document.createElementNS('http://www.w3.org/2000/svg','circle');
     apt.setAttribute('cx',cx); apt.setAttribute('cy',vP.py(lbe)); apt.setAttribute('r',vP.s(lb));
@@ -1329,11 +1429,21 @@ function drawMabDiagram() {
   // Cone radial lines are drawn for each bolt above.
 
   // --- bvf shear force arrow — along shear axis, through bolt centroid ---
-  // Arrow points away from wall (downward in display = into wall direction)
-  AREDraw.forceArrow(vP, 0, lbe, 0, 1, 38, '', { color: stP.force });
-  AREDraw.calloutLabel(vP, 0, lbe,
-    vP.px(0) + 46, vP.py(lbe) + 14,
-    'bvf (shear)', { color: stP.force, anchor: 'start' });
+  // Toward-edge (default): arrow points away from wall (downward in display =
+  // into wall direction), unchanged. Parallel: the shear axis rotates 90° to
+  // run ALONG the bolt row (the wall length direction) — plan view is exactly
+  // the right view to show this rotation directly, unlike the elevation.
+  if (dirParallel) {
+    AREDraw.forceArrow(vP, 0, lbe, 1, 0, 38, '', { color: stP.force });
+    AREDraw.calloutLabel(vP, 0, lbe,
+      vP.px(0) + 46, vP.py(lbe) - 16,
+      'bvf (parallel to edge)', { color: stP.force, anchor: 'start' });
+  } else {
+    AREDraw.forceArrow(vP, 0, lbe, 0, 1, 38, '', { color: stP.force });
+    AREDraw.calloutLabel(vP, 0, lbe,
+      vP.px(0) + 46, vP.py(lbe) + 14,
+      'bvf (shear)', { color: stP.force, anchor: 'start' });
+  }
 
   // --- lbe dimension: from wall edge (y=0) down to bolt center (y=lbe), left side ---
   // Use a dedicated dim reference point at x = -halfSpan (leftmost extent).
@@ -1343,7 +1453,8 @@ function drawMabDiagram() {
 
   // --- Apv label via leader — place on RIGHT side of cone to avoid lbe dim overlap ---
   AREDraw.leader(vP, lbe * 0.42, lbe * 0.28,
-    60, 28, 'Apv = π lbe²/2', { color: stP.dim });
+    60, 28, dirParallel ? 'Apv — N/A (parallel shear)' : 'Apv = π lbe²/2',
+    { color: dirParallel ? '#94a3b8' : stP.dim });
 
   // --- MAB-2 legend: grouted cell, near the top of the cell (clear of the
   // lbe dim column, the bvf label, and the Apv leader below it). ---
@@ -1411,7 +1522,7 @@ function drawMabDiagram() {
   var baseSave=window.areSave, baseLoad=window.areLoad;
   if(typeof baseSave==='function') window.areSave=function(){
     baseSave();
-    try{var data=JSON.parse(localStorage.getItem(key)||'{}');data.v=2;localStorage.setItem(key,JSON.stringify(data));}catch(e){}
+    try{var data=JSON.parse(localStorage.getItem(key)||'{}');data.v=3;localStorage.setItem(key,JSON.stringify(data));}catch(e){}
   };
   if(typeof baseLoad==='function') window.areLoad=function(){
     try{
@@ -1420,9 +1531,15 @@ function drawMabDiagram() {
         document.getElementById('bolt_count').value='1';
         document.getElementById('demand_basis').value='per_bolt';
       }
+      // v2 and earlier predate the shear-direction field; those saves always
+      // meant "toward free edge" (the only behavior that existed then).
+      if(!data.v || data.v<3){
+        document.getElementById('shear_direction').value='toward_edge';
+      }
     }catch(e){}
     baseLoad();
     updateGroupUI();
+    updateShearDirectionUI();
   };
 })();
 </script>
