@@ -15,8 +15,8 @@ fs.writeFileSync(path.join(__dirname,'report.json'),JSON.stringify(report,null,2
 if(report.pass) {
   const p=report.property;
   console.log(`PASS: ${report.unit.passed} unit checks; ${p.geometries} property geometries (${p.anchorAssertions} anchor-area assertions)`);
-  console.log(`Expected conservative rejections: ${p.conservativeRejections}; accepted: ${p.accepted}`);
-  console.log(`Max observed conservatism margin: ${(100*p.maxConservatism).toFixed(3)}%`);
+  console.log(`All geometries accepted: ${p.accepted} (tributary areas are always positive — rejections are failures now)`);
+  console.log(`Max closed-form vs oracle deviation: ${(100*p.maxDeviation).toFixed(4)}% (bounded by the oracle's own epsilon)`);
 } else {
   console.error(`FAIL: ${report.error.message}`);
   process.exitCode=1;

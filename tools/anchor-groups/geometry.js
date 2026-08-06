@@ -88,6 +88,89 @@ function integrateRegion({ center, R, halfPlanes, halfCone }) {
   return { area: inside, epsilon: uncertain / 2, depth: maxDepth };
 }
 
+// ── Closed-form tributary areas (design path) ────────────────────────────────
+// Exact area of disc ∩ (∩ half-planes {a·x + b·y ≤ c}), with no numerical
+// integration and no tolerance. The half-plane intersection is built by
+// Sutherland–Hodgman clipping of a bounding box; the resulting convex polygon
+// is intersected with the disc edge-by-edge: each edge is split at its circle
+// crossings — sub-edges inside the disc contribute a triangle (with the
+// center), sub-edges outside contribute a circular sector.
+// These three functions are ported VERBATIM into the calc HTML files (ES5
+// syntax on purpose); keep both copies identical.
+function clipPolyHalfPlane(poly, hp){
+  var out=[], n=poly.length;
+  for(var i=0;i<n;i++){
+    var P=poly[i], Q=poly[(i+1)%n];
+    var dp=hp.a*P.x+hp.b*P.y-hp.c, dq=hp.a*Q.x+hp.b*Q.y-hp.c;
+    if(dp<=0){
+      out.push(P);
+      if(dq>0){ var t=dp/(dp-dq); out.push({x:P.x+t*(Q.x-P.x), y:P.y+t*(Q.y-P.y)}); }
+    } else if(dq<=0){
+      var t2=dp/(dp-dq); out.push({x:P.x+t2*(Q.x-P.x), y:P.y+t2*(Q.y-P.y)});
+    }
+  }
+  return out;
+}
+function circlePolyArea(cx, cy, R, poly){
+  var total=0, n=poly.length;
+  if(n<3||!(R>0)) return 0;
+  for(var i=0;i<n;i++){
+    var p1={x:poly[i].x-cx, y:poly[i].y-cy};
+    var p2={x:poly[(i+1)%n].x-cx, y:poly[(i+1)%n].y-cy};
+    var dx=p2.x-p1.x, dy=p2.y-p1.y;
+    var A=dx*dx+dy*dy;
+    if(A<=0) continue;
+    // Split the edge at its circle crossings (quadratic in the edge parameter).
+    var B=2*(p1.x*dx+p1.y*dy), C=p1.x*p1.x+p1.y*p1.y-R*R;
+    var ts=[0,1], disc=B*B-4*A*C;
+    if(disc>0){
+      var sq=Math.sqrt(disc), tA=(-B-sq)/(2*A), tB=(-B+sq)/(2*A);
+      if(tA>0&&tA<1) ts.push(tA);
+      if(tB>0&&tB<1) ts.push(tB);
+      ts.sort(function(u,v){return u-v;});
+    }
+    for(var k=0;k+1<ts.length;k++){
+      var ax=p1.x+dx*ts[k],   ay=p1.y+dy*ts[k];
+      var bx=p1.x+dx*ts[k+1], by=p1.y+dy*ts[k+1];
+      var mx=(ax+bx)/2, my=(ay+by)/2;
+      // Strict test: a sub-edge whose midpoint sits ON the circle is a tangent
+      // touch from outside (a true chord's midpoint is strictly interior), so
+      // boundary ties must fall to the sector branch. The relative epsilon is
+      // continuous — near-tangent chords give the same area either way.
+      if(mx*mx+my*my<R*R*(1-1e-12)){
+        total+=(ax*by-ay*bx)/2;                 // chord sub-edge: triangle with center
+      } else {
+        var da=Math.atan2(by,bx)-Math.atan2(ay,ax);
+        if(da>Math.PI) da-=2*Math.PI;
+        if(da<-Math.PI) da+=2*Math.PI;
+        total+=R*R*da/2;                        // outside sub-edge: circular sector
+      }
+    }
+  }
+  return Math.abs(total);
+}
+function circleHalfPlanesArea(cx, cy, R, halfPlanes){
+  var m=R*1.125+1;                              // bounding box comfortably containing the disc
+  var poly=[{x:cx-m,y:cy-m},{x:cx+m,y:cy-m},{x:cx+m,y:cy+m},{x:cx-m,y:cy+m}];
+  for(var i=0;i<halfPlanes.length;i++){
+    poly=clipPolyHalfPlane(poly, halfPlanes[i]);
+    if(poly.length<3) return 0;
+  }
+  return circlePolyArea(cx, cy, R, poly);
+}
+
+function tributaryApt({ R, index, anchors, edges = [] }) {
+  const p = anchors[index];
+  return circleHalfPlanesArea(p.x, p.y, R, edges.concat(voronoiPlanes(index, anchors)));
+}
+function tributaryApv({ R_lbe, index, anchors, edges = [], direction = {x:0,y:-1} }) {
+  const p = anchors[index];
+  const halfCone = { a: -direction.x, b: -direction.y,
+    c: -direction.x * p.x - direction.y * p.y };
+  return circleHalfPlanesArea(p.x, p.y, R_lbe,
+    edges.concat(voronoiPlanes(index, anchors)).concat([halfCone]));
+}
+
 function voronoiPlanes(index, anchors) {
   const p = anchors[index];
   return anchors.flatMap((q, j) => j === index ? [] : [{
@@ -140,5 +223,6 @@ function buildSdDomain({ bolts=1, s=0, lbe, lb, aptEdges=[] }) {
 }
 
 module.exports = { circSeg, perAnchorPairwiseApt, perAnchorPairwiseApv,
+  clipPolyHalfPlane, circlePolyArea, circleHalfPlanesArea, tributaryApt, tributaryApv,
   exactTributaryApt, exactTributaryApv, exactTributaryAptDetail,
   exactTributaryApvDetail, epsilonRule, buildTowDomain, buildEmbedDomain, buildSdDomain };

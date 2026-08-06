@@ -422,6 +422,77 @@ function circSeg(R,d){
   return R*R*Math.acos(d/R) - d*Math.sqrt(R*R-d*d);
 }
 
+// ── Closed-form tributary areas ──────────────────────────────────────────────
+// Exact area of disc ∩ (∩ half-planes {a·x + b·y ≤ c}), with no numerical
+// integration and no tolerance. The half-plane intersection is built by
+// Sutherland–Hodgman clipping of a bounding box; the resulting convex polygon
+// is intersected with the disc edge-by-edge: each edge is split at its circle
+// crossings — sub-edges inside the disc contribute a triangle (with the
+// center), sub-edges outside contribute a circular sector.
+// Kept VERBATIM in sync with tools/anchor-groups/geometry.js, where the audit
+// harness proves it against the adaptive-integration oracle (run-all.js).
+function clipPolyHalfPlane(poly, hp){
+  var out=[], n=poly.length;
+  for(var i=0;i<n;i++){
+    var P=poly[i], Q=poly[(i+1)%n];
+    var dp=hp.a*P.x+hp.b*P.y-hp.c, dq=hp.a*Q.x+hp.b*Q.y-hp.c;
+    if(dp<=0){
+      out.push(P);
+      if(dq>0){ var t=dp/(dp-dq); out.push({x:P.x+t*(Q.x-P.x), y:P.y+t*(Q.y-P.y)}); }
+    } else if(dq<=0){
+      var t2=dp/(dp-dq); out.push({x:P.x+t2*(Q.x-P.x), y:P.y+t2*(Q.y-P.y)});
+    }
+  }
+  return out;
+}
+function circlePolyArea(cx, cy, R, poly){
+  var total=0, n=poly.length;
+  if(n<3||!(R>0)) return 0;
+  for(var i=0;i<n;i++){
+    var p1={x:poly[i].x-cx, y:poly[i].y-cy};
+    var p2={x:poly[(i+1)%n].x-cx, y:poly[(i+1)%n].y-cy};
+    var dx=p2.x-p1.x, dy=p2.y-p1.y;
+    var A=dx*dx+dy*dy;
+    if(A<=0) continue;
+    // Split the edge at its circle crossings (quadratic in the edge parameter).
+    var B=2*(p1.x*dx+p1.y*dy), C=p1.x*p1.x+p1.y*p1.y-R*R;
+    var ts=[0,1], disc=B*B-4*A*C;
+    if(disc>0){
+      var sq=Math.sqrt(disc), tA=(-B-sq)/(2*A), tB=(-B+sq)/(2*A);
+      if(tA>0&&tA<1) ts.push(tA);
+      if(tB>0&&tB<1) ts.push(tB);
+      ts.sort(function(u,v){return u-v;});
+    }
+    for(var k=0;k+1<ts.length;k++){
+      var ax=p1.x+dx*ts[k],   ay=p1.y+dy*ts[k];
+      var bx=p1.x+dx*ts[k+1], by=p1.y+dy*ts[k+1];
+      var mx=(ax+bx)/2, my=(ay+by)/2;
+      // Strict test: a sub-edge whose midpoint sits ON the circle is a tangent
+      // touch from outside (a true chord's midpoint is strictly interior), so
+      // boundary ties must fall to the sector branch. The relative epsilon is
+      // continuous — near-tangent chords give the same area either way.
+      if(mx*mx+my*my<R*R*(1-1e-12)){
+        total+=(ax*by-ay*bx)/2;                 // chord sub-edge: triangle with center
+      } else {
+        var da=Math.atan2(by,bx)-Math.atan2(ay,ax);
+        if(da>Math.PI) da-=2*Math.PI;
+        if(da<-Math.PI) da+=2*Math.PI;
+        total+=R*R*da/2;                        // outside sub-edge: circular sector
+      }
+    }
+  }
+  return Math.abs(total);
+}
+function circleHalfPlanesArea(cx, cy, R, halfPlanes){
+  var m=R*1.125+1;                              // bounding box comfortably containing the disc
+  var poly=[{x:cx-m,y:cy-m},{x:cx+m,y:cy-m},{x:cx+m,y:cy+m},{x:cx-m,y:cy+m}];
+  for(var i=0;i<halfPlanes.length;i++){
+    poly=clipPolyHalfPlane(poly, halfPlanes[i]);
+    if(poly.length<3) return 0;
+  }
+  return circlePolyArea(cx, cy, R, poly);
+}
+
 // ── UI Helpers ────────────────────────────────────────────────────────────────
 function autoLbe(){
   var b=parseFloat(document.getElementById('b_wall').value)||7.625;
@@ -794,9 +865,14 @@ function drawPlfDiagrams(){
 
 // ── DISCRETE-GROUP geometry (shared by runCalcs + diagrams) ───────────────────
 // Enumerates every anchor in the rows x cols group, derives its near/far face
-// distances, and computes its own Apt_i / Apv_i by full pairwise enumeration
-// of side / cross-row / diagonal neighbor lenses (no "interior governs"
-// shortcut). Returns {ok:false, error} on any geometry-guard failure.
+// distances, and computes its own Apt_i / Apv_i as its EXACT Voronoi tributary
+// area: the part of its own projected cone closer to it than to any other
+// anchor (midplane at c/2 toward each neighbor), clipped by the wall faces.
+// Σ Apt_i equals the true union of the group's cones — no region is counted
+// twice and none is deducted twice — and each Apt_i is monotone non-decreasing
+// in lb. (Replaces the pairwise lens subtraction, which over-deducted regions
+// shared by 3+ cones and could INVERT: more embedment → less computed area.)
+// Returns {ok:false, error} on any geometry-guard failure.
 function computeDiscreteGeometry(){
   var b     = parseFloat(document.getElementById('b_wall').value)||7.625;
   var phi   = parseFloat(document.getElementById('phi_in').value)||0.75;
@@ -852,13 +928,17 @@ function computeDiscreteGeometry(){
       anchors.push({row:ri+1, col:ci+1, x:(ci-(cols-1)/2)*s, near:rows[ri].near, far:rows[ri].far});
     }
   }
-  // FULL pairwise enumeration: EVERY other anchor in the group is a potential
-  // overlap partner — not just the immediately-adjacent ones. Center distance
-  // c = √((Δcol·s)² + (Δrow·g)²). Apt_i deducts one full lens circSeg(lb, c/2)
-  // for EACH pair with c < 2·lb (e.g. in a 1×6 @ 5.5″ with lb = 8″, the anchor
-  // 2 columns away at 11″ < 16″ also overlaps and must be deducted). Apv_i
-  // deducts a half-lens 0.5·circSeg(lbe_i, c/2) per SAME-ROW anchor at
-  // c < 2·lbe_i (existing half-lens convention), again for all pairs.
+  // FULL enumeration: EVERY other anchor in the group contributes a Voronoi
+  // midplane — not just the immediately-adjacent ones. Center distance
+  // c = √((Δcol·s)² + (Δrow·g)²); the midplane (perpendicular bisector at
+  // c/2) clips the cone whenever c < 2·lb. Apt_i is the EXACT area of
+  // {disc lb} ∩ {wall faces} ∩ {tributary cell}, by closed-form circle vs
+  // half-plane intersection (circleHalfPlanesArea — no lens subtraction).
+  // Apv_i is the same construction on the half-cone of radius lbe_i toward
+  // the near face, with midplanes from SAME-ROW anchors only (cross-row and
+  // diagonal anchors remain Apt-only, unchanged convention).
+  // Section coordinates per anchor: x along the wall, y = distance from the
+  // near face (anchor at y = a.near; faces at y = 0 and y = a.near + a.far).
   anchors.forEach(function(a){
     var neighbors=[];
     anchors.forEach(function(o){
@@ -873,51 +953,65 @@ function computeDiscreteGeometry(){
     a.neighbors=neighbors;
 
     var segNear=circSeg(Lb,a.near), segFar=circSeg(Lb,a.far);
-    var lensTerms=[], lensTotal=0, remoteCount=0;
+    var planes=[{a:0,b:-1,c:0}];                       // near face: y ≥ 0
+    if(isFinite(a.far)) planes.push({a:0,b:1,c:a.near+a.far}); // far face: y ≤ b
+    var clipTerms=[], remoteCount=0;
     neighbors.forEach(function(nb){
+      var o=nb.other;
+      planes.push({a:2*(o.x-a.x), b:2*(o.near-a.near),
+                   c:o.x*o.x+o.near*o.near-a.x*a.x-a.near*a.near}); // midplane at c/2
       if(nb.dist<2*Lb){
-        var lens=circSeg(Lb,nb.dist/2);
-        lensTotal+=lens;
-        lensTerms.push({type:nb.type, dist:nb.dist, lens:lens, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+        clipTerms.push({type:nb.type, dist:nb.dist, otherPos:'R'+o.row+'C'+o.col});
       } else remoteCount++;
     });
-    a.segNear=segNear; a.segFar=segFar; a.lensTerms=lensTerms; a.remoteCount=remoteCount;
-    a.Apt=Math.PI*Lb*Lb - segNear - segFar - lensTotal;
+    a.segNear=segNear; a.segFar=segFar; a.clipTerms=clipTerms; a.remoteCount=remoteCount;
+    a.Apt=circleHalfPlanesArea(a.x, a.near, Lb, planes);
 
     var lbe_i=a.near;
-    var avTerms=[], avTotal=0, avRemote=0;
+    var vPlanes=[{a:0,b:1,c:lbe_i}];                   // half-cone toward the near face: y ≤ y_anchor
+    var avTerms=[], avRemote=0;
     neighbors.forEach(function(nb){
       if(!nb.sameRow) return;
+      var o=nb.other;
+      vPlanes.push({a:2*(o.x-a.x), b:0, c:o.x*o.x-a.x*a.x}); // same-row midplane (vertical, at c/2)
       if(nb.dist<2*lbe_i){
-        var half=0.5*circSeg(lbe_i, nb.dist/2);
-        avTotal+=half;
-        avTerms.push({dist:nb.dist, half:half, otherPos:'R'+nb.other.row+'C'+nb.other.col});
+        avTerms.push({dist:nb.dist, otherPos:'R'+o.row+'C'+o.col});
       } else avRemote++;
     });
     a.lbe_i=lbe_i; a.avTerms=avTerms; a.avRemote=avRemote;
-    a.Apv=Math.PI*lbe_i*lbe_i/2.0 - avTotal;
+    a.Apv=circleHalfPlanesArea(a.x, lbe_i, lbe_i, vPlanes);
   });
 
-  // Rejection scan: BOTH areas must be positive for every anchor. A negative
-  // Apv would flow into Bv1 < 0 → Bv < 0 → negative/NaN D/C and a false PASS,
-  // so it is a hard error exactly like a negative Apt.
+  // 3+ cone mutual-overlap flag (informational): three cones share a region
+  // once lb exceeds the minimum-enclosing-circle radius of some anchor triple
+  // (= circumradius for an acute triple; half the longest side for a right /
+  // obtuse / collinear triple). Under the tributary partition this regime is
+  // handled exactly; the flag is surfaced in the shown work so the engineer
+  // can see the regime changed.
+  var minTriR=Infinity;
+  for(var i1=0;i1<anchors.length;i1++) for(var i2=i1+1;i2<anchors.length;i2++) for(var i3=i2+1;i3<anchors.length;i3++){
+    var P=anchors[i1],Q=anchors[i2],W=anchors[i3];
+    var e1=Math.hypot(Q.x-P.x,Q.near-P.near), e2=Math.hypot(W.x-Q.x,W.near-Q.near), e3=Math.hypot(P.x-W.x,P.near-W.near);
+    var es=[e1,e2,e3].sort(function(u,v){return u-v;});
+    var K=Math.abs((Q.x-P.x)*(W.near-P.near)-(W.x-P.x)*(Q.near-P.near))/2;
+    var rc=(es[2]*es[2]>=es[0]*es[0]+es[1]*es[1] || K<=1e-9) ? es[2]/2 : (e1*e2*e3)/(4*K);
+    if(rc<minTriR) minTriR=rc;
+  }
+  var tripleOverlap=(anchors.length>=3 && Lb>minTriR);
+
+  // Rejection scan: BOTH areas must be positive for every anchor. A tributary
+  // area is positive for any valid geometry (each anchor's cell contains its
+  // own cone center), so this is a backstop against degenerate inputs — a
+  // non-positive Apv would flow into Bv1 ≤ 0 → Bv ≤ 0 → negative/NaN D/C and
+  // a false PASS, so it is a hard error exactly like a non-positive Apt.
   var bad=null, badKind=null;
   anchors.forEach(function(a){
     if(bad) return;
-    if(a.Apt<=0){ bad=a; badKind='Apt'; }
-    else if(a.Apv<=0){ bad=a; badKind='Apv'; }
+    if(!(a.Apt>0)){ bad=a; badKind='A_pt'; }
+    else if(!(a.Apv>0)){ bad=a; badKind='A_pv'; }
   });
   if(bad){
-    if(badKind==='Apt'){
-      var lensTot=0; bad.lensTerms.forEach(function(t){lensTot+=t.lens;});
-      var faceTot=bad.segNear+bad.segFar;
-      var killer=(lensTot>=faceTot)
-        ? 'neighbor-overlap lenses totaling '+f3(lensTot)+' in² across '+bad.lensTerms.length+' pair(s) within 2l_b'
-        : 'wall-face segments totaling '+f3(faceTot)+' in²';
-      return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected tension area (A_pt = '+f3(bad.Apt)+' in²). Killing deduction: '+killer+'. Increase column spacing s, reduce the number of rows, or use a single row.'};
-    }
-    var avTot=0; bad.avTerms.forEach(function(t){avTot+=t.half;});
-    return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or negative projected shear area (A_pv = '+f3(bad.Apv)+' in² with l_be = '+f3(bad.lbe_i)+'″). Killing deduction: same-row half-lens overlaps totaling '+f3(avTot)+' in² across '+bad.avTerms.length+' pair(s) at spacing s = '+f3(s)+'″. Increase column spacing s or use fewer columns.'};
+    return {ok:false, error:'Anchor at row '+bad.row+', column '+bad.col+' has zero or invalid projected '+(badKind==='A_pt'?'tension':'shear')+' tributary area ('+badKind+' = '+f3(badKind==='A_pt'?bad.Apt:bad.Apv)+' in²). Check l_b, the row offsets, and the column spacing s for degenerate values (coincident anchors, zero embedment).'};
   }
 
   var govT=anchors[0], govV=anchors[0];
@@ -925,7 +1019,8 @@ function computeDiscreteGeometry(){
 
   return {ok:true, b:b, phi:phi, Lb:Lb, cols:cols, s:s, rowsN:rowsN, o1:o1, g:g,
           rows:rows, anchors:anchors, govT:govT, govV:govV, N_total:anchors.length,
-          hr:hr, T_kips:T_kips, V_kips:V_kips};
+          hr:hr, T_kips:T_kips, V_kips:V_kips,
+          minTriR:minTriR, tripleOverlap:tripleOverlap};
 }
 
 function renderDiagramError(svgEl, msg){
@@ -1280,7 +1375,7 @@ function buildAnchorTable(geo, N_total, Ba){
     html+='<tr'+(flags.length?' style="background:#fef9f0"':'')+'><td>'+a.row+'</td><td>'+a.col+'</td><td>'+f2(a.x)+'</td><td>'+f3(a.near)+'</td><td>'+(isFinite(a.far)?f3(a.far):'remote')+'</td><td>'+f3(a.Apt)+'</td><td>'+f3(a.Apv)+'</td><td>'+(flags.length?flags.join(' '):'&mdash;')+'</td></tr>';
   });
   html+='</tbody></table>';
-  html+='<div class="hint" style="margin-top:8px">A<sub>pt,i</sub>/A<sub>pv,i</sub> deductions are computed pairwise (lens-by-lens); where 3+ breakout cones mutually overlap the same region this over-deducts it, so these areas are a conservative LOWER BOUND on the exact tributary area &mdash; never unconservative.</div>';
+  html+='<div class="hint" style="margin-top:8px">A<sub>pt,i</sub>/A<sub>pv,i</sub> are EXACT tributary areas: each anchor keeps the part of its own projected cone closer to it than to any other anchor, clipped at the wall faces (closed-form circle&ndash;polygon intersection). &Sigma;A<sub>pt,i</sub> equals the true union of the group&rsquo;s cones &mdash; no portion counted twice, none deducted twice.</div>';
   html+='<div class="hint" style="margin-top:4px"><strong>Equal-share comparison:</strong> N &times; governing B<sub>a</sub> = '+N_total+' &times; '+f3(Ba)+' = <strong>'+f3(N_total*Ba)+' kips</strong> &mdash; per-anchor equal-share comparison only, NOT a TMS group capacity.</div>';
   html+='</div>';
   document.getElementById('anchorTableWrap').innerHTML=html;
@@ -1362,18 +1457,28 @@ function runCalcs(){
   // discrete-group enumeration and the diagram code.)
 
   // Projected tension breakout area (TMS 402-22 Eq 6-5: Apt = pi*lb^2),
-  // less area lying outside the masonry (beyond each wall face) and less
-  // overlap with adjacent anchors at spacing S (§6.3.2)
+  // clipped EXACTLY to the masonry (wall faces) and to the tributary strip
+  // between adjacent anchors at spacing S (midplanes at ±S/2, §6.3.2).
+  // Section coordinates: anchor at (0, Lbe); faces at y = 0 and y = b.
+  // The individual segment/lens terms are kept for the shown work; the
+  // closed-form clip additionally reclaims any corner region beyond BOTH a
+  // wall face and a spacing midplane, which independent segment subtraction
+  // deducts twice (same defect family as the discrete-group lens bug).
   var halfS   =0.5*S_in;
   var segNear =circSeg(Lb, Lbe);      // cone area beyond near wall face
   var segFar  =circSeg(Lb, Lbe_far);  // cone area beyond far wall face
-  var Aseg    =circSeg(Lb, halfS);    // half-lens overlap with EACH adjacent anchor (cone radius lb)
-  var Apt     =Math.max(Math.PI*Lb*Lb - segNear - segFar - 2.0*Aseg, 0); // in²
+  var Aseg    =circSeg(Lb, halfS);    // cone area beyond EACH spacing midplane at S/2
+  var aptPlanes=[{a:0,b:-1,c:0},{a:1,b:0,c:halfS},{a:-1,b:0,c:halfS}];
+  if(!remoteEdge) aptPlanes.push({a:0,b:1,c:Lbe+Lbe_far});
+  var Apt     =circleHalfPlanesArea(0, Lbe, Lb, aptPlanes); // in²
+  var AptChain=Math.max(Math.PI*Lb*Lb - segNear - segFar - 2.0*Aseg, 0); // shown-work lower bound
+  var cornerReclaim=Apt-AptChain;     // > 0 only when corner regions were double-deducted
 
   // Projected shear breakout area (TMS 402-22 Eq 6-6: Apv = pi*lbe^2/2),
-  // half-cone toward the free edge, less overlap with adjacent anchors (§6.3.3)
-  var AsegV   =0.5*circSeg(Lbe, halfS); // per-neighbor overlap of adjacent semicircular cones
-  var Apv     =Math.max(Math.PI*Lbe*Lbe/2.0 - 2.0*AsegV, 0); // in²
+  // half-cone toward the free edge, clipped to the same ±S/2 tributary strip (§6.3.3)
+  var AsegV   =0.5*circSeg(Lbe, halfS); // half-cone area beyond EACH spacing midplane
+  var Apv     =circleHalfPlanesArea(0, Lbe, Lbe,
+                 [{a:0,b:1,c:Lbe},{a:1,b:0,c:halfS},{a:-1,b:0,c:halfS}]); // in²
 
   // Discrete-group override: capacities use the tension-governing anchor's Apt
   // and the shear-governing anchor's Apv (each found by full enumeration —
@@ -1509,37 +1614,36 @@ function runCalcs(){
   if(mode==='discrete'){
     dbLbe='<div class="cref-hdr">TMS 402-22 §6.3.2/§6.3.3 &mdash; Per-Anchor Projected Areas (Discrete Group, N = '+N_total+')</div><div class="cbox">';
     dbLbe+='<div class="mrow">Group: '+geo.rowsN+' row(s) &times; '+geo.cols+' column(s) @ s = '+f2(geo.s)+'&Prime; ; N = '+N_total+' anchors.'+(geo.rowsN===2?' Row 1 offset o<sub>1</sub> = '+f2(geo.o1)+'&Prime; from near face, gauge g = '+f2(geo.g)+'&Prime;.':' l<sub>be</sub> = '+f2(geo.rows[0].near)+'&Prime; (b/2 auto or override, same convention as continuous mode).')+'</div>';
-    dbLbe+='<div class="mrow"><strong>Tension-governing anchor: Row '+geo.govT.row+', Column '+geo.govT.col+'</strong> (minimum A<sub>pt</sub> by full enumeration &mdash; no &ldquo;interior governs&rdquo; shortcut assumed):</div>';
-    dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
-    dbLbe+='<div class="mrow ind">Near face (d = '+f3(geo.govT.near)+'&Prime;): circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segNear)+' in&sup2;'+(geo.govT.segNear===0?' (remote / d &ge; l<sub>b</sub>)':'')+'</div>';
-    dbLbe+='<div class="mrow ind">Far face (d = '+(isFinite(geo.govT.far)?f3(geo.govT.far)+'&Prime;':'remote')+'): circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segFar)+' in&sup2;</div>';
-    var lensSumT=0;
-    geo.govT.lensTerms.forEach(function(t){
-      lensSumT+=t.lens;
-      dbLbe+='<div class="mrow ind">'+t.type+' neighbor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): full lens circSeg(l<sub>b</sub>, c/2) = circSeg('+f2(Lb)+', '+f3(t.dist/2)+') = '+f3(t.lens)+' in&sup2;</div>';
+    dbLbe+='<div class="mrow"><strong>Tension-governing anchor: Row '+geo.govT.row+', Column '+geo.govT.col+'</strong> (minimum A<sub>pt</sub> by full enumeration &mdash; no &ldquo;interior governs&rdquo; shortcut assumed). A<sub>pt,i</sub> is the anchor&rsquo;s <strong>tributary area</strong>: the part of its own cone closer to it than to any other anchor (midplane at c/2 toward each neighbor), clipped at the wall faces:</div>';
+    dbLbe+='<div class="mrow ind">Unclipped cone &pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
+    dbLbe+='<div class="mrow ind">Near face (d = '+f3(geo.govT.near)+'&Prime;): clips circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segNear)+' in&sup2;'+(geo.govT.segNear===0?' (remote / d &ge; l<sub>b</sub>)':'')+'</div>';
+    dbLbe+='<div class="mrow ind">Far face (d = '+(isFinite(geo.govT.far)?f3(geo.govT.far)+'&Prime;':'remote')+'): clips circSeg(l<sub>b</sub>,d) = '+f3(geo.govT.segFar)+' in&sup2;</div>';
+    geo.govT.clipTerms.forEach(function(t){
+      dbLbe+='<div class="mrow ind">'+t.type+' neighbor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): tributary midplane at c/2 = '+f3(t.dist/2)+'&Prime; clips the cone &mdash; area beyond it belongs to '+t.otherPos+'</div>';
     });
     if(geo.govT.remoteCount>0){
-      dbLbe+='<div class="mrow ind">'+geo.govT.remoteCount+' other anchor(s) at c &ge; 2l<sub>b</sub> = '+f2(2*Lb)+'&Prime;: no overlap, no deduction. (All '+(N_total-1)+' other anchors in the group were enumerated.)</div>';
+      dbLbe+='<div class="mrow ind">'+geo.govT.remoteCount+' other anchor(s) at c &ge; 2l<sub>b</sub> = '+f2(2*Lb)+'&Prime;: midplane beyond the cone, no clip. (All '+(N_total-1)+' other anchors in the group were enumerated.)</div>';
     } else {
-      dbLbe+='<div class="mrow ind">All '+(N_total-1)+' other anchor(s) in the group enumerated; every pair at c &lt; 2l<sub>b</sub> deducted above.</div>';
+      dbLbe+='<div class="mrow ind">All '+(N_total-1)+' other anchor(s) in the group enumerated; every midplane at c &lt; 2l<sub>b</sub> clips above.</div>';
     }
-    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt,gov</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f3(geo.govT.segNear)+' &minus; '+f3(geo.govT.segFar)+' &minus; '+f3(lensSumT)+' = <span class="cval">'+f3(geo.govT.Apt)+' in&sup2;</span></div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt,gov</sub> =</span> area of {cone} &cap; {wall faces} &cap; {tributary cell}, exact closed-form circle&ndash;polygon intersection = <span class="cval">'+f3(geo.govT.Apt)+' in&sup2;</span></div>';
+    if(geo.tripleOverlap){
+      dbLbe+='<div class="mrow" style="color:#78350f"><em>Note: l<sub>b</sub> = '+f2(Lb)+'&Prime; exceeds the tightest anchor-triple enclosing radius ('+f3(geo.minTriR)+'&Prime;), so 3+ cones mutually overlap. The tributary partition assigns every shared region to exactly one anchor &mdash; &Sigma;A<sub>pt,i</sub> equals the true union of the cones, and no region is deducted twice.</em></div>';
+    }
     dbLbe+='<hr class="csep">';
-    dbLbe+='<div class="mrow"><strong>Shear-governing anchor: Row '+geo.govV.row+', Column '+geo.govV.col+'</strong> (minimum A<sub>pv</sub> &mdash; nearest row governs; interior columns deduct more side-lens area):</div>';
-    dbLbe+='<div class="mrow ind">&pi;l<sub>be</sub>&sup2;/2 = &pi;&times;'+f3(geo.govV.lbe_i)+'&sup2;/2 = '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' in&sup2;</div>';
-    var avSumV=0;
+    dbLbe+='<div class="mrow"><strong>Shear-governing anchor: Row '+geo.govV.row+', Column '+geo.govV.col+'</strong> (minimum A<sub>pv</sub> &mdash; nearest row governs; interior columns lose more side tributary width). Same tributary construction on the half-cone toward the near face, with midplanes from same-row anchors only:</div>';
+    dbLbe+='<div class="mrow ind">Unclipped half-cone &pi;l<sub>be</sub>&sup2;/2 = &pi;&times;'+f3(geo.govV.lbe_i)+'&sup2;/2 = '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' in&sup2;</div>';
     if(geo.govV.avTerms.length===0){
-      dbLbe+='<div class="mrow ind">No same-row anchors within c &lt; 2l<sub>be</sub>'+(geo.govV.avRemote>0?' ('+geo.govV.avRemote+' same-row anchor(s) enumerated, all remote)':' (single column)')+' &mdash; no half-lens deduction.</div>';
+      dbLbe+='<div class="mrow ind">No same-row anchors within c &lt; 2l<sub>be</sub>'+(geo.govV.avRemote>0?' ('+geo.govV.avRemote+' same-row anchor(s) enumerated, all remote)':' (single column)')+' &mdash; no midplane clips.</div>';
     }
     geo.govV.avTerms.forEach(function(t){
-      avSumV+=t.half;
-      dbLbe+='<div class="mrow ind">Same-row anchor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): half-lens 0.5&times;circSeg(l<sub>be</sub>, c/2) = 0.5&times;circSeg('+f3(geo.govV.lbe_i)+', '+f3(t.dist/2)+') = '+f3(t.half)+' in&sup2;</div>';
+      dbLbe+='<div class="mrow ind">Same-row anchor '+t.otherPos+' (c = '+f3(t.dist)+'&Prime;): tributary midplane at c/2 = '+f3(t.dist/2)+'&Prime; clips the half-cone</div>';
     });
     if(geo.govV.avTerms.length>0&&geo.govV.avRemote>0){
-      dbLbe+='<div class="mrow ind">'+geo.govV.avRemote+' other same-row anchor(s) at c &ge; 2l<sub>be</sub>: no overlap, no deduction.</div>';
+      dbLbe+='<div class="mrow ind">'+geo.govV.avRemote+' other same-row anchor(s) at c &ge; 2l<sub>be</sub>: midplane beyond the half-cone, no clip.</div>';
     }
-    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv,gov</sub> =</span> '+f3(Math.PI*geo.govV.lbe_i*geo.govV.lbe_i/2)+' &minus; '+f3(avSumV)+' = <span class="cval">'+f3(geo.govV.Apv)+' in&sup2;</span></div>';
-    dbLbe+='<div class="mrow" style="color:#78350f"><em>Conservatism: overlap deductions are computed pairwise (lens-by-lens); where 3+ cones mutually overlap the same region, pairwise subtraction over-deducts, making A<sub>pt,i</sub>/A<sub>pv,i</sub> a conservative LOWER BOUND on the exact tributary area &mdash; never unconservative.</em></div>';
+    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv,gov</sub> =</span> area of {half-cone} &cap; {tributary cell}, exact closed-form circle&ndash;polygon intersection = <span class="cval">'+f3(geo.govV.Apv)+' in&sup2;</span></div>';
+    dbLbe+='<div class="mrow" style="color:#78350f"><em>Tributary partition: &Sigma;A<sub>pt,i</sub> over the group equals the exact union of the projected cones &mdash; no portion of masonry is counted more than once (&sect;6.3.2), no portion is deducted more than once, and each A<sub>pt,i</sub>/A<sub>pv,i</sub> can only grow with embedment. Verified against an independent adaptive-integration oracle (tools/anchor-groups).</em></div>';
     dbLbe+='<div class="mrow">Full per-anchor table (all '+N_total+' anchors) is provided below the results banner.</div>';
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7)</div>';
     dbLbe+='</div>';
@@ -1550,8 +1654,13 @@ function runCalcs(){
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> &pi;l<sub>b</sub>&sup2; &minus; (area outside masonry) &minus; (overlap with adjacent anchors)</div>';
     dbLbe+='<div class="mrow ind">&pi;l<sub>b</sub>&sup2; = &pi;&times;'+f2(Lb)+'&sup2; = '+f2(Math.PI*Lb*Lb)+' in&sup2;</div>';
     dbLbe+='<div class="mrow ind">Segment beyond near face (chord @ '+f2(Lbe)+'&Prime;) = '+f2(segNear)+' in&sup2; ; opposite edge '+(remoteEdge?'remote (l<sub>be</sub> &ge; b), deduction = 0.00':'chord @ '+f2(Lbe_far)+'&Prime;, deduction = '+f2(segFar))+' in&sup2;</div>';
-    dbLbe+='<div class="mrow ind">Overlap per adjacent anchor (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
-    dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+    dbLbe+='<div class="mrow ind">Beyond each spacing midplane (chord @ S/2 = '+f2(halfS)+'&Prime;) = '+f2(Aseg)+' in&sup2; &times; 2 neighbors'+(Aseg===0?' &mdash; no overlap (S &ge; 2l<sub>b</sub>)':'')+'</div>';
+    if(cornerReclaim>0.005){
+      dbLbe+='<div class="mrow ind">Chain '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = '+f2(AptChain)+' in&sup2; deducts the corner regions beyond BOTH a wall face and a spacing midplane twice; the exact clip reclaims '+f3(cornerReclaim)+' in&sup2;.</div>';
+      dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> exact area of {cone} &cap; {wall faces} &cap; {&plusmn;S/2 tributary strip} = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+    } else {
+      dbLbe+='<div class="mrow"><span class="ceq">A<sub>pt</sub> =</span> '+f2(Math.PI*Lb*Lb)+' &minus; '+f2(segNear)+' &minus; '+f2(segFar)+' &minus; 2&times;'+f2(Aseg)+' = <span class="cval">'+f2(Apt)+' in&sup2;</span></div>';
+    }
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>pv</sub> =</span> &pi;l<sub>be</sub>&sup2;/2 &minus; overlap = &pi;&times;'+f2(Lbe)+'&sup2;/2 &minus; 2&times;'+f2(AsegV)+' = <span class="cval">'+f2(Apv)+' in&sup2;</span> (Eq 6-6)</div>';
     dbLbe+='<div class="mrow"><span class="ceq">A<sub>b</sub> =</span> 0.7854(d<sub>b</sub> &minus; 0.9743/n<sub>t</sub>)&sup2; = 0.7854('+f3(phi)+' &minus; 0.9743/'+nt+')&sup2; = <span class="cval">'+f3(Ab)+' in&sup2;</span> (effective threaded area, TMS 402-22 §6.3.8 / Eq 6-7 &mdash; not the gross bolt area)</div>';
     dbLbe+='</div>';
@@ -1717,7 +1826,7 @@ function runCalcs(){
       'Masonry is assumed fully grouted throughout the entire projected breakout region for all '+N_total+' anchors in the group.',
       'Shear V is applied in a single, consistently-defined direction (toward the near/loaded free face) for every anchor in the group.',
       'Wall ends, openings, and orthogonal return corners are assumed remote &mdash; no anchor in this group is closer than 2l<sub>b</sub> to any such feature. Verify this against the actual wall plan; this calculator does not check it automatically.',
-      '<strong>Conservatism:</strong> Overlap deductions between anchor breakout cones are computed pairwise; where 3+ cones mutually overlap, pairwise subtraction over-deducts that shared region, so the computed A<sub>pt,i</sub>/A<sub>pv,i</sub> are a conservative LOWER BOUND on the true tributary area (never unconservative).'
+      '<strong>Tributary areas:</strong> Each anchor&rsquo;s A<sub>pt,i</sub> is the exact area of its own projected cone closer to it than to any other anchor (Voronoi tributary partition), clipped at the wall faces; A<sub>pv,i</sub> is the same construction on the half-cone with same-row neighbors. &Sigma;A<sub>pt,i</sub> equals the union of the group&rsquo;s cones exactly &mdash; no portion of masonry counted more than once (&sect;6.3.2) &mdash; and each area is monotone non-decreasing in embedment. Verified against an independent integration oracle (tools/anchor-groups run-all).'
     );
   }
   notesArr.forEach(function(t){nl.innerHTML+='<li>'+t+'</li>';});

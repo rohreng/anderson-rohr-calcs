@@ -10,37 +10,44 @@ const rf=(a,b)=>a+rnd()*(b-a);
 function sideDistances(anchors,i) { return anchors.flatMap((a,j)=>j===i?[]:[Math.hypot(a.x-anchors[i].x,a.y-anchors[i].y)]); }
 
 function checkDomain(domain, stats) {
-  const apt=[], apv=[], apvGroups=[];
+  // Design path is the closed-form Voronoi tributary partition. It must
+  // (a) match the adaptive-integrator oracle TWO-SIDED within the oracle's
+  //     own error bound — not merely sit below it (the old one-sided
+  //     assertion passed geometries where the pairwise design value was
+  //     0.2% of the exact area, which is how the A_pt inversion shipped);
+  // (b) stay strictly positive (no "conservative rejections" — a rejected
+  //     geometry is a failure now, not an expected outcome);
+  // (c) be monotone non-decreasing in the cone radius.
   for(let i=0;i<domain.anchors.length;i++) {
-    apt.push(g.perAnchorPairwiseApt({R:domain.R,index:i,anchors:domain.anchors}));
     // Apv side neighbors are bolts on the same row; cross-row/diagonal anchors are Apt-only.
     const peers=domain.anchors.filter(a=>Math.abs(a.y-domain.anchors[i].y)<1e-9);
     const peerIndex=peers.indexOf(domain.anchors[i]);
-    apvGroups.push({anchors:peers,index:peerIndex});
-    apv.push(g.perAnchorPairwiseApv({R_lbe:domain.R_lbe,index:peerIndex,anchors:peers,
-      sideNeighborDistances:sideDistances(peers,peerIndex)}));
-  }
-  // Exactly one branch is taken for each generated geometry.
-  if(apt.some(a=>a<=0)||apv.some(a=>a<=0)) { stats.conservativeRejections++; return; }
-  for(let i=0;i<domain.anchors.length;i++) {
-    const ad=g.exactTributaryAptDetail({R:domain.R,index:i,anchors:domain.anchors,edges:domain.edges});
-    const vg=apvGroups[i];
-    const vd=g.exactTributaryApvDetail({R_lbe:domain.R_lbe,index:vg.index,anchors:vg.anchors,
+    const apt=g.tributaryApt({R:domain.R,index:i,anchors:domain.anchors,edges:domain.edges});
+    const apv=g.tributaryApv({R_lbe:domain.R_lbe,index:peerIndex,anchors:peers,
       edges:domain.apvEdges||[],direction:domain.direction});
-    for(const [pair,exact,eps,label] of [[apt[i],ad.area,ad.epsilon,'Apt'],[apv[i],vd.area,vd.epsilon,'Apv']]) {
-      assert.ok(Number.isFinite(pair)&&pair>=0,`${domain.type} ${label} invalid: ${pair}`);
-      assert.ok(pair<=exact+eps+1e-10,`${domain.type} ${label}: ${pair} > ${exact} + ${eps}`);
-      if(exact>0) stats.maxConservatism=Math.max(stats.maxConservatism,(exact-pair)/exact);
+    const ad=g.exactTributaryAptDetail({R:domain.R,index:i,anchors:domain.anchors,edges:domain.edges});
+    const vd=g.exactTributaryApvDetail({R_lbe:domain.R_lbe,index:peerIndex,anchors:peers,
+      edges:domain.apvEdges||[],direction:domain.direction});
+    for(const [cf,exact,eps,label] of [[apt,ad.area,ad.epsilon,'Apt'],[apv,vd.area,vd.epsilon,'Apv']]) {
+      assert.ok(Number.isFinite(cf)&&cf>0,`${domain.type} ${label} not positive: ${cf}`);
+      assert.ok(Math.abs(cf-exact)<=eps+1e-9,`${domain.type} ${label}: |${cf} - ${exact}| > ${eps}`);
+      if(exact>0) stats.maxDeviation=Math.max(stats.maxDeviation,Math.abs(cf-exact)/exact);
       stats.anchorAssertions++;
     }
+    const aptUp=g.tributaryApt({R:domain.R*1.1,index:i,anchors:domain.anchors,edges:domain.edges});
+    const apvUp=g.tributaryApv({R_lbe:domain.R_lbe*1.1,index:peerIndex,anchors:peers,
+      edges:domain.apvEdges||[],direction:domain.direction});
+    assert.ok(aptUp>=apt-1e-9,`${domain.type} Apt inversion: R↑ ${domain.R}→ area ${apt}→${aptUp}`);
+    assert.ok(apvUp>=apv-1e-9,`${domain.type} Apv inversion: R↑ ${domain.R_lbe}→ area ${apv}→${apvUp}`);
+    stats.anchorAssertions+=2;
   }
   stats.accepted++;
 }
 
 function runPropertyTests() {
-  const stats={seed:SEED,geometries:0,accepted:0,conservativeRejections:0,anchorAssertions:0,maxConservatism:0,byDomain:{}};
+  const stats={seed:SEED,geometries:0,accepted:0,anchorAssertions:0,maxDeviation:0,byDomain:{}};
   for(const type of ['tow','embed','sd']) {
-    const before={accepted:stats.accepted,rejected:stats.conservativeRejections};
+    const before={accepted:stats.accepted};
     for(let n=0;n<500;n++) {
       let d;
       if(type==='tow') {
@@ -60,10 +67,9 @@ function runPropertyTests() {
       }
       checkDomain(d,stats); stats.geometries++;
     }
-    stats.byDomain[type]={geometries:500,accepted:stats.accepted-before.accepted,
-      conservativeRejections:stats.conservativeRejections-before.rejected};
+    stats.byDomain[type]={geometries:500,accepted:stats.accepted-before.accepted};
   }
-  assert.strictEqual(stats.accepted+stats.conservativeRejections,stats.geometries);
+  assert.strictEqual(stats.accepted,stats.geometries);
   return stats;
 }
 module.exports={runPropertyTests,mulberry32};
