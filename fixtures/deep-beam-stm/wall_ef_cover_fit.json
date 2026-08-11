@@ -1,0 +1,40 @@
+{
+  "name": "wall_ef_cover_fit — EF curtain fit uses ENTERED wall cover, not hardcoded 0.75 (Codex re-audit finding 1)",
+  "comments": {
+    "hand": [
+      "Fit rule: t_w >= 2*(cover_wall + db_v + db_h) for EF (layers = 2).",
+      "reject run (the auditor's probe): t_w = 4 in, entered wall cover 1.25 in, #4 vertical + #4 horizontal EF:",
+      "required = 2*(1.25 + 0.5 + 0.5) = 4.5 in > 4 in -> INVALID_INPUT. Old code used hardcoded 0.75:",
+      "2*(0.75 + 0.5 + 0.5) = 3.5 <= 4 -> wrongly ok and wrongly eligible for beta_s = 0.75.",
+      "accept run: same wall with cover 0.75 entered explicitly: required = 3.5 <= 4 -> ok (geometrically legal,",
+      "cover choice is the engineer's responsibility; default in the UI is 1.5).",
+      "Span kept short/stocky (12 ft x 10 ft wall) so the thin 4-in wall still solves; loads light."
+    ]
+  },
+  "runs": [
+    {
+      "name": "entered_cover_rejects",
+      "inputs": {
+        "geometry": { "L_w_ft": 14, "x_L_ft": 1, "x_R_ft": 13, "lb_L_in": 20, "lb_R_in": 20, "t_w_in": 4, "h_w_ft": 10, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 1000, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 2, "size": "#4" }, "cover_bot_in": 3, "cover_side_in": 0.75, "cover_top_in": 2,
+          "web": { "v": { "size": "#4", "s_in": 12, "layers": 2 }, "h": { "size": "#4", "s_in": 12, "layers": 2 }, "cover_in": 1.25 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INVALID_INPUT"] }
+    },
+    {
+      "name": "explicit_low_cover_accepts",
+      "inputs": {
+        "geometry": { "L_w_ft": 14, "x_L_ft": 1, "x_R_ft": 13, "lb_L_in": 20, "lb_R_in": 20, "t_w_in": 4, "h_w_ft": 10, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 1000, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 2, "size": "#4" }, "cover_bot_in": 3, "cover_side_in": 0.75, "cover_top_in": 2,
+          "web": { "v": { "size": "#4", "s_in": 12, "layers": 2 }, "h": { "size": "#4", "s_in": 12, "layers": 2 }, "cover_in": 0.75 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok" }
+    }
+  ]
+}

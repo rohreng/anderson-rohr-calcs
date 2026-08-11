@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Beam STM — SVG Feasibility Spike</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f2f4f9;padding:18px;color:#1a2b5f}
+h1{font-size:1.15em;margin-bottom:4px}
+.sub{font-size:.8em;color:#6b7a96;margin-bottom:12px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.controls button{padding:7px 14px;border:1.5px solid #2e4a8a;border-radius:6px;background:#fff;color:#1a2b5f;font-size:.85em;cursor:pointer}
+.controls button.active{background:#1a2b5f;color:#fff}
+.stage{background:#fff;border:1px solid #dde;border-radius:10px;padding:14px;position:relative;transition:max-width .2s}
+.stage.mobile{max-width:375px}
+#status{margin-top:12px;font-size:.82em;background:#fff;border:1px solid #dde;border-radius:8px;padding:10px 14px;white-space:pre-wrap;font-family:Consolas,monospace}
+#status.pass{border-color:#16a34a;background:#f0fdf4;color:#166534}
+#status.fail{border-color:#dc2626;background:#fef2f2;color:#991b1b}
+@media print{
+  .controls,#status,.sub{display:none}
+  body{background:#fff;padding:0}
+  .stage{border:none;padding:0;max-width:100% !important}
+  /* Drawing.commit() pins an intrinsic max-width; override so the SVG scales to page width. */
+  .stage svg{width:100% !important;max-width:100% !important;height:auto !important}
+}
+</style>
+</head>
+<body>
+<h1>Deep Beam Strut-and-Tie — SVG Feasibility Spike (PLAN.md §8)</h1>
+<div class="sub">Wall-on-piers funicular arch + tie · AREDraw shared library + documented local helpers · not a calculator</div>
+
+<div class="controls">
+  <button id="btnA" class="active">26 ft × 16 ft</button>
+  <button id="btnB">60 ft × 8 ft</button>
+  <button id="btnMobile">375 px container</button>
+  <button id="btnInvalid">Invalid state</button>
+  <button id="btnPrint">Print</button>
+</div>
+
+<div class="stage" id="stage">
+  <svg id="spikeSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+
+<div id="status">rendering…</div>
+
+<script src="/are-draw.js"></script>
+<script>
+/* ===========================================================================
+ * deep_beam_stm_spike.html — graphics feasibility spike for PLAN.md §8.
+ * Proves: funicular arch band (13 vertices), tie + anchorage glyphs, nodal
+ * zones w/ extended zone, section view, long force labels with an OBJECTIVE
+ * post-render overlap/clip audit, two extreme aspect ratios, 375px container,
+ * invalid-state watermark, print scaling.
+ *
+ * AREDraw primitives used: Drawing, View, fitScale, plate, dimLine, leader,
+ * calloutLabel, forceArrow, distLoad, viewTitle, memberLabel, centerline,
+ * hatchPattern, style tokens, fmtKip/fmtIn.
+ *
+ * LOCAL HELPERS (each exists because AREDraw cannot cover it — see the
+ * one-line comment on each):
+ *   polyW, lineW, archBand, hookGlyph, headGlyph, rebarDot, nodalZone,
+ *   auditLabels, showWatermark.
+ * =========================================================================*/
+(function () {
+  'use strict';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  /* ------------------------------------------------------------------ */
+  /* Presets — world units are INCHES, y = 0 at bottom of grade beam.   */
+  /* ------------------------------------------------------------------ */
+  var PRESETS = {
+    A: { name: '26 ft x 16 ft', Lw: 342, xL: 15, xR: 327, lb: 30, tw: 12,
+         hw: 168, hgb: 24, bgb: 24, wu: 18.198 / 12 /* k/in */, wuLbl: '18.2 klf' },
+    B: { name: '60 ft x 8 ft',  Lw: 750, xL: 15, xR: 735, lb: 30, tw: 12,
+         hw: 72,  hgb: 24, bgb: 24, wu: 6.0 / 12,           wuLbl: '6.0 klf' }
+  };
+  var current = 'A';
+  var invalid = false;
+
+  /* ------------------------------------------------------------------ */
+  /* Mock STM solve (real statics, PLAN §2 fixed point) — spike only.   */
+  /* ------------------------------------------------------------------ */
+  function solveSTM(p) {
+    var yt = 3.5;                              // tie centroid: 3" cover + db/2
+    var h = p.hw + p.hgb;
+    var fce = 0.75 * 0.85 * 0.75 * 3.0;        // ksi (βs=0.75, f'c=3 ksi)
+    var Ls = p.xR - p.xL;
+    var Mmax = p.wu * Ls * Ls / 8;             // k-in
+    var a = 6, z, H, ok = false;
+    for (var i = 0; i < 80; i++) {
+      z = h - yt - a / 2;
+      if (z <= 0) return null;
+      H = Mmax / z;
+      var aN = H / (fce * p.tw);
+      if (Math.abs(aN - a) < 0.01) { a = aN; ok = true; break; }
+      a = aN;
+    }
+    if (!ok || !isFinite(a) || a <= 0 || a >= h) return null;
+    z = h - yt - a / 2; H = Mmax / z;
+    var N = 12, verts = [];                    // 13 vertices, parabola-proportional
+    for (var k = 0; k <= N; k++) {
+      var x = p.xL + Ls * k / N, xi = x - p.xL;
+      var M = p.wu * Ls / 2 * xi - p.wu * xi * xi / 2;
+      verts.push({ x: x, y: yt + z * (M / Mmax) });
+    }
+    var segs = [];
+    for (k = 0; k < N; k++) {
+      var dx = verts[k + 1].x - verts[k].x, dy = verts[k + 1].y - verts[k].y;
+      var al = Math.atan2(Math.abs(dy), dx);
+      segs.push({ alpha: al, F: H / Math.cos(al), d: a / Math.pow(Math.cos(al), 2) });
+    }
+    return { yt: yt, h: h, z: z, a: a, H: H, verts: verts, segs: segs,
+             R: p.wu * Ls / 2, Ls: Ls, theta: segs[0].alpha };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* LOCAL SVG HELPERS                                                  */
+  /* ------------------------------------------------------------------ */
+
+  // polyW: arbitrary filled/stroked polygon/polyline from WORLD points —
+  // AREDraw's pathFromWorld/rectWorld are private (not exported) and it has no
+  // public polygon primitive.
+  function polyW(v, pts, attrs, layer, open) {
+    var d = '';
+    for (var i = 0; i < pts.length; i++) {
+      d += (i ? 'L' : 'M') + v.px(pts[i][0]).toFixed(2) + ',' + v.py(pts[i][1]).toFixed(2) + ' ';
+      v.mark(v.px(pts[i][0]), v.py(pts[i][1]));
+    }
+    if (!open) d += 'Z';
+    var node = document.createElementNS(SVGNS, 'path');
+    node.setAttribute('d', d.trim());
+    for (var k in attrs) node.setAttribute(k, attrs[k]);
+    v.add(node, layer || 'steel');
+    return node;
+  }
+
+  // lineW: plain world-coordinate line with caller-chosen weight/dash —
+  // AREDraw exposes only centerline() (fixed long-short dash) for bare lines.
+  function lineW(v, x1, y1, x2, y2, attrs, layer) {
+    var node = document.createElementNS(SVGNS, 'line');
+    node.setAttribute('x1', v.px(x1)); node.setAttribute('y1', v.py(y1));
+    node.setAttribute('x2', v.px(x2)); node.setAttribute('y2', v.py(y2));
+    for (var k in attrs) node.setAttribute(k, attrs[k]);
+    v.add(node, layer || 'steel');
+    v.mark(v.px(x1), v.py(y1)); v.mark(v.px(x2), v.py(y2));
+    return node;
+  }
+
+  // archBand: funicular compression band with per-segment varying width —
+  // no AREDraw primitive supports variable-width band polygons.
+  function archBand(v, m, st) {
+    var n = m.verts.length, top = [], bot = [];
+    for (var k = 0; k < n; k++) {
+      var dL = k > 0 ? m.segs[k - 1].d : m.segs[0].d;
+      var dR = k < n - 1 ? m.segs[k].d : m.segs[n - 2].d;
+      var dv = (dL + dR) / 2;
+      var y = m.verts[k].y;
+      top.push([m.verts[k].x, Math.min(y + dv / 2, m.h)]);
+      bot.push([m.verts[k].x, Math.max(y - dv / 2, 0)]);
+    }
+    var pts = top.concat(bot.slice().reverse());
+    polyW(v, pts, { fill: 'rgba(26,43,95,0.16)', stroke: st.steel,
+      'stroke-width': 1, 'stroke-linejoin': 'round' }, 'steel');
+    // Funicular axis (dashed polyline through the 13 vertices).
+    var ax = m.verts.map(function (vv) { return [vv.x, vv.y]; });
+    polyW(v, ax, { fill: 'none', stroke: st.weld, 'stroke-width': 1.4,
+      'stroke-dasharray': '6 4' }, 'center', true);
+  }
+
+  // hookGlyph: 90° standard-hook rebar end (bend arc + 12db tail) —
+  // AREDraw is a steel-connection library and has no rebar bend primitives.
+  function hookGlyph(v, xEnd, y, db, st, lw) {
+    var r0 = 3 * db, tail = 12 * db;
+    var p0x = v.px(xEnd + r0), p0y = v.py(y);
+    var p1x = v.px(xEnd), p1y = v.py(y + r0);
+    var rp = Math.abs(v.s(r0));
+    var node = document.createElementNS(SVGNS, 'path');
+    node.setAttribute('d', 'M' + p0x.toFixed(2) + ',' + p0y.toFixed(2) +
+      ' A' + rp.toFixed(2) + ',' + rp.toFixed(2) + ' 0 0 0 ' + p1x.toFixed(2) + ',' + p1y.toFixed(2) +
+      ' L' + v.px(xEnd).toFixed(2) + ',' + v.py(y + r0 + tail).toFixed(2));
+    node.setAttribute('fill', 'none');
+    node.setAttribute('stroke', st.force);
+    node.setAttribute('stroke-width', lw);
+    node.setAttribute('stroke-linecap', 'round');
+    v.add(node, 'steel');
+    v.mark(v.px(xEnd) - lw, v.py(y + r0 + tail) - 2);
+    return node;
+  }
+
+  // headGlyph: headed-bar anchor plate tick at a bar end —
+  // AREDraw has no rebar head/plate-tick primitive (bolt() is an open circle).
+  function headGlyph(v, xEnd, y, st) {
+    var wpx = Math.max(3.2, Math.abs(v.s(0.5)));
+    var hpx = Math.max(11, Math.abs(v.s(4)));
+    var node = document.createElementNS(SVGNS, 'rect');
+    node.setAttribute('x', (v.px(xEnd) - wpx / 2).toFixed(2));
+    node.setAttribute('y', (v.py(y) - hpx / 2).toFixed(2));
+    node.setAttribute('width', wpx.toFixed(2));
+    node.setAttribute('height', hpx.toFixed(2));
+    node.setAttribute('fill', st.force);
+    v.add(node, 'steel');
+    v.mark(v.px(xEnd) + wpx, v.py(y) - hpx / 2 - 2);
+    return node;
+  }
+
+  // rebarDot: solid rebar cross-section dot — AREDraw's bolt() draws an open
+  // circle with a centering cross (a steel bolt glyph, wrong for rebar).
+  function rebarDot(v, x, y, dia, st) {
+    var node = document.createElementNS(SVGNS, 'circle');
+    node.setAttribute('cx', v.px(x).toFixed(2));
+    node.setAttribute('cy', v.py(y).toFixed(2));
+    node.setAttribute('r', Math.max(2.4, Math.abs(v.s(dia / 2))).toFixed(2));
+    node.setAttribute('fill', st.force);
+    node.setAttribute('stroke', '#7f1d1d');
+    node.setAttribute('stroke-width', 0.7);
+    v.add(node, 'steel');
+    return node;
+  }
+
+  // nodalZone: CCT support nodal zone + FHWA-style extended-zone outline +
+  // tie critical section — domain-specific STM construction absent from AREDraw.
+  // side = +1 left support (span to the right), -1 right support.
+  function nodalZone(v, xc, lb, ha, theta, yt, side, st) {
+    var c = Math.cos(theta), s = Math.sin(theta);
+    var xO = xc - side * lb / 2;               // outer bearing edge
+    var xI = xc + side * lb / 2;               // inner bearing edge
+    // Nodal zone proper: bearing x back-face rectangle w/ inclined strut face.
+    polyW(v, [[xO, 0], [xI, 0], [xI, ha], [xO, ha]],
+      { fill: 'rgba(179,101,26,0.20)', stroke: st.moment, 'stroke-width': 1.3 }, 'anno');
+    lineW(v, xO, ha, xI, 0, { stroke: st.moment, 'stroke-width': 1.6 }, 'anno'); // strut face
+    // Extended nodal zone: dashed parallelogram along the strut band
+    // (edges through back-face top D and inner bearing corner B).
+    var e = (lb * s + ha * c) * 1.15;          // extension length ~ ws
+    var ux = side * c, uy = s;
+    polyW(v, [[xO, ha], [xO + ux * e, ha + uy * e], [xI + ux * e, uy * e], [xI, 0]],
+      { fill: 'none', stroke: st.moment, 'stroke-width': 1,
+        'stroke-dasharray': '5 4' }, 'anno');
+    // Critical section: tie centroid exits the extended zone at the far band edge.
+    var xCrit = xI + side * yt * (c / s);
+    lineW(v, xCrit, -8, xCrit, ha + 14,
+      { stroke: st.dim, 'stroke-width': 1, 'stroke-dasharray': '3 3' }, 'anno');
+    return { xCrit: xCrit };
+  }
+
+  // showWatermark: invalid-state blank + watermark inside the SVG —
+  // AREDraw has no empty/error rendering mode (commit() always fits content).
+  function showWatermark(svg) {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 640 300');
+    svg.setAttribute('width', 640); svg.setAttribute('height', 300);
+    svg.style.width = '100%'; svg.style.maxWidth = '832px'; svg.style.height = 'auto';
+    var box = document.createElementNS(SVGNS, 'rect');
+    box.setAttribute('x', 4); box.setAttribute('y', 4);
+    box.setAttribute('width', 632); box.setAttribute('height', 292);
+    box.setAttribute('fill', 'none'); box.setAttribute('stroke', '#c9cfdd');
+    box.setAttribute('stroke-width', 1.5); box.setAttribute('stroke-dasharray', '8 6');
+    svg.appendChild(box);
+    var t = document.createElementNS(SVGNS, 'text');
+    t.setAttribute('x', 320); t.setAttribute('y', 150);
+    t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-size', 26); t.setAttribute('font-weight', 700);
+    t.setAttribute('fill', '#9aa6c2');
+    t.setAttribute('font-family', "'Segoe UI',system-ui,sans-serif");
+    t.textContent = 'INVALID INPUT — no drawing';
+    svg.appendChild(t);
+    var t2 = document.createElementNS(SVGNS, 'text');
+    t2.setAttribute('x', 320); t2.setAttribute('y', 178);
+    t2.setAttribute('text-anchor', 'middle');
+    t2.setAttribute('font-size', 12); t2.setAttribute('fill', '#9aa6c2');
+    t2.setAttribute('font-family', "'Segoe UI',system-ui,sans-serif");
+    t2.textContent = 'Fix inputs to restore the diagram';
+    svg.appendChild(t2);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* MAIN RENDER                                                        */
+  /* ------------------------------------------------------------------ */
+  function render() {
+    var svg = document.getElementById('spikeSvg');
+    if (invalid) { showWatermark(svg); audit('invalid'); return; }
+    var p = PRESETS[current];
+    var m = solveSTM(p);
+    if (!m) { showWatermark(svg); audit('no-converge'); return; }
+
+    var dwg = new AREDraw.Drawing(svg, { margin: 22 });
+    var st = dwg.style;
+    var pierH = 30;
+
+    /* ---- elevation view ---- */
+    var scl = AREDraw.fitScale(p.Lw, 640, { min: 0.2, max: 4 });
+    var oy = 78 + m.h * scl;                       // room above wall for UDL rail
+    var vE = new AREDraw.View(dwg, { scale: scl, ox: 150, oy: oy, flipY: true });
+
+    // Concrete bodies: wall panel, grade beam (the tie chord — amber), piers.
+    AREDraw.plate(vE, 0, p.hgb, p.Lw, p.hw, { fill: '#eef1f8' });
+    AREDraw.plate(vE, 0, 0, p.Lw, p.hgb, { highlight: true });
+    [p.xL, p.xR].forEach(function (xc) {
+      AREDraw.plate(vE, xc - p.lb / 2, -pierH, p.lb, pierH, { fill: st.steelFill, hatch: true });
+    });
+
+    // Vertical compression members: tributary-width wall struts, load point
+    // down to each interior arch vertex (light so the band stays primary).
+    var trib = m.Ls / 12;
+    for (var k = 1; k <= 11; k++) {
+      var vx = m.verts[k].x;
+      polyW(vE, [[vx - trib / 2, m.verts[k].y], [vx + trib / 2, m.verts[k].y],
+                 [vx + trib / 2, m.h], [vx - trib / 2, m.h]],
+        { fill: 'rgba(26,43,95,0.06)', stroke: 'rgba(26,43,95,0.30)',
+          'stroke-width': 0.7 }, 'steel');
+    }
+
+    // Funicular arch band (varying width) + dashed axis polyline.
+    archBand(vE, m, st);
+
+    // Bottom tie: constant-force bar from hook bend to headed end.
+    var db = 1.0;                                   // #8
+    var xEndL = 2, xEndR = p.Lw - 2;
+    var tieLw = Math.max(3, Math.abs(vE.s(db)));
+    lineW(vE, xEndL + 3 * db, m.yt, xEndR, m.yt,
+      { stroke: st.force, 'stroke-width': tieLw, 'stroke-linecap': 'butt' }, 'steel');
+    hookGlyph(vE, xEndL, m.yt, db, st, tieLw);      // left end: 90° hook
+    headGlyph(vE, xEndR, m.yt, st);                 // right end: headed bar
+
+    // Nodal zones (CCT) with extended-zone outline + critical sections.
+    var ha = 2 * m.yt;
+    var nL = nodalZone(vE, p.xL, p.lb, ha, m.theta, m.yt, +1, st);
+    nodalZone(vE, p.xR, p.lb, ha, m.theta, m.yt, -1, st);
+    AREDraw.leader(vE, p.xL - p.lb / 2 + 2, ha * 0.6, -72, 30,
+      'ext. nodal zone', { color: st.moment });
+    AREDraw.leader(vE, nL.xCrit, ha + 10, 46, -64,
+      'critical section', { color: st.dim });
+
+    // Required vs available anchorage dimension pair (left end).
+    var lReq = 22;                                  // mock ℓdh for #8, f'c=3ksi
+    var lAvail = nL.xCrit - xEndL;
+    AREDraw.dimLine(vE, xEndL, m.yt, xEndL + lReq, m.yt,
+      'ldh,req = ' + AREDraw.fmtIn(lReq), { off: -26, color: st.force });
+    AREDraw.dimLine(vE, xEndL, m.yt, nL.xCrit, m.yt,
+      'l,avail = ' + AREDraw.fmtIn(Math.round(lAvail * 10) / 10), { off: -52 });
+
+    // Loads + reactions.
+    AREDraw.distLoad(vE, 0, p.Lw, m.h, 26, 'wu = ' + p.wuLbl + ' (1.2D + 1.6L)');
+    [p.xL, p.xR].forEach(function (xc, i) {
+      AREDraw.forceArrow(vE, xc, -pierH - 34 / scl, 0, 1, 34,
+        'R = ' + AREDraw.fmtKip(Math.round(m.R * 10) / 10), { labelOff: 12 });
+    });
+
+    // Long force labels — the §8 no-clip acceptance targets.
+    var d2 = function (x) { return (Math.round(x * 10) / 10).toFixed(1); };
+    var degl = d2(m.theta * 180 / Math.PI);
+    var seg1mid = { x: (m.verts[0].x + m.verts[1].x) / 2, y: (m.verts[0].y + m.verts[1].y) / 2 };
+    AREDraw.calloutLabel(vE, seg1mid.x, seg1mid.y, vE.px(0) - 16, vE.py(seg1mid.y),
+      'F1 = ' + d2(m.segs[0].F) + ' k @ ' + degl + '°', { anchor: 'end' });
+    var xMid = (p.xL + p.xR) / 2;
+    AREDraw.calloutLabel(vE, xMid, m.verts[6].y, vE.px(xMid), vE.py(m.verts[6].y) + 40,
+      'H = ' + d2(m.H) + ' k @ 0.0°', { color: st.weld, anchor: 'middle' });
+    AREDraw.memberLabel(vE, p.xL + m.Ls * 0.25, m.yt + 30 / scl,
+      'T = H = ' + d2(m.H) + ' k (const.)', { color: st.force, size: st.fsForce, weight: 600 });
+
+    // Overall dims.
+    AREDraw.dimLine(vE, p.xL, -pierH, p.xR, -pierH,
+      'Ls = ' + (m.Ls / 12).toFixed(1) + ' ft c/c brg', { off: 46 });
+    AREDraw.dimLine(vE, p.Lw, 0, p.Lw, m.h, 'h = ' + (m.h / 12).toFixed(1) + ' ft', { off: 30 });
+
+    /* ---- anchorage glyph legend (all three, rendered distinctly) ---- */
+    var legY = vE.py(-pierH) + 46 + 42;
+    var vL = new AREDraw.View(dwg, { scale: 2.0, ox: vE.px(0), oy: legY, flipY: true });
+    AREDraw.memberLabel(vL, 0, 14, 'Tie anchorage glyphs:', { anchor: 'start', size: st.fsDim, color: st.dim, weight: 600 });
+    function legendBar(x0, glyph, cap) {
+      lineW(vL, x0 + 3, 0, x0 + 22, 0, { stroke: st.force, 'stroke-width': 3 }, 'steel');
+      if (glyph === 'hook') hookGlyph(vL, x0 + 3, 0, 1.0, st, 3);
+      if (glyph === 'head') headGlyph(vL, x0 + 3, 0, st);
+      if (glyph === 'straight') lineW(vL, x0, 0, x0 + 3, 0, { stroke: st.force, 'stroke-width': 3 }, 'steel');
+      AREDraw.memberLabel(vL, x0 + 12, -8, cap, { size: st.fsDim, color: st.dim });
+    }
+    legendBar(0, 'hook', '90° hook');
+    legendBar(38, 'head', 'headed bar');
+    legendBar(76, 'straight', 'straight bar');
+
+    AREDraw.viewTitle(vE, vE.px(p.Lw / 2), legY + 44, 'Elevation — Funicular Arch STM (' + p.name + ')');
+
+    /* ---- section view: 24x24 GB + wall with EF steel ---- */
+    var sclS = AREDraw.fitScale(64, 190, { min: 1.5, max: 8 });
+    var vS = new AREDraw.View(dwg, {
+      scale: sclS, ox: vE.px(p.Lw) + 190 + (p.bgb / 2) * sclS, oy: oy, flipY: true });
+    var wallShown = 40;
+    AREDraw.plate(vS, -p.bgb / 2, 0, p.bgb, p.hgb, { highlight: true });
+    AREDraw.plate(vS, -p.tw / 2, p.hgb, p.tw, wallShown, { fill: '#eef1f8' });
+    lineW(vS, -p.tw / 2 - 2, p.hgb + wallShown, p.tw / 2 + 2, p.hgb + wallShown,
+      { stroke: st.dim, 'stroke-width': 1, 'stroke-dasharray': '4 3' }, 'steel'); // break line
+    // 4 bars T&B at cover (3" bottom / 2" side per PLAN defaults).
+    var bxs = [-8.5, -2.83, 2.83, 8.5];
+    bxs.forEach(function (bx) {
+      rebarDot(vS, bx, 3.5, 1.0, st);
+      rebarDot(vS, bx, p.hgb - 2.5, 1.0, st);
+    });
+    // Wall EF steel dots (#4 @ 12" EF).
+    [30, 42, 54].forEach(function (ey) {
+      rebarDot(vS, -p.tw / 2 + 1.75, ey, 0.5, st);
+      rebarDot(vS, p.tw / 2 - 1.75, ey, 0.5, st);
+    });
+    AREDraw.dimLine(vS, -p.bgb / 2, 0, p.bgb / 2, 0, 'b = ' + AREDraw.fmtIn(p.bgb), { off: 28 });
+    AREDraw.dimLine(vS, p.bgb / 2, 0, p.bgb / 2, p.hgb, 'h = ' + AREDraw.fmtIn(p.hgb), { off: 26 });
+    AREDraw.leader(vS, bxs[3], 3.5, 40, 16, '4-#8 T&B', { color: st.force });
+    AREDraw.leader(vS, p.tw / 2 - 1.75, 42, 42, -6, '#4@12" EF', { color: st.dim });
+    AREDraw.viewTitle(vS, vS.px(0), vS.py(0) + 66, 'Section — GB + Wall');
+
+    dwg.commit();
+    audit(p.name);
+  }
+
+  /* ------------------------------------------------------------------ */
+  // auditLabels: OBJECTIVE post-render self-check — measures every <text>
+  // via getBBox() against the committed viewBox and pairwise overlap.
+  // AREDraw only *reserves* space heuristically (textWidthPx); it cannot
+  // measure, so the audit must live here.
+  /* ------------------------------------------------------------------ */
+  function audit(mode) {
+    var run = function () {
+      var svg = document.getElementById('spikeSvg');
+      var out = document.getElementById('status');
+      if (invalid || mode === 'invalid') {
+        out.className = '';
+        out.textContent = 'INVALID STATE ACTIVE — drawing suppressed, watermark shown. Toggle "Invalid state" to restore.';
+        return;
+      }
+      var vb = svg.viewBox.baseVal;
+      var texts = Array.prototype.slice.call(svg.querySelectorAll('text'));
+      var tol = 0.75, boxes = [], escapes = [], overlaps = [];
+      texts.forEach(function (t) {
+        var b;
+        try { b = t.getBBox(); } catch (e) { return; }
+        if (b.width === 0 && b.height === 0) return;
+        boxes.push({ s: (t.textContent || '').trim(), b: b });
+      });
+      boxes.forEach(function (x) {
+        if (x.b.x < vb.x - tol || x.b.y < vb.y - tol ||
+            x.b.x + x.b.width > vb.x + vb.width + tol ||
+            x.b.y + x.b.height > vb.y + vb.height + tol) {
+          escapes.push('"' + x.s + '"');
+        }
+      });
+      for (var i = 0; i < boxes.length; i++) {
+        for (var j = i + 1; j < boxes.length; j++) {
+          var a = boxes[i].b, b = boxes[j].b;
+          var ow = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+          var oh = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+          if (ow > 1 && oh > 1) {
+            overlaps.push('"' + boxes[i].s + '" ⨯ "' + boxes[j].s + '"');
+          }
+        }
+      }
+      var pass = escapes.length === 0 && overlaps.length === 0;
+      out.className = pass ? 'pass' : 'fail';
+      var msg = 'SELF-CHECK [' + mode + '] — ' + boxes.length + ' labels, viewBox ' +
+        Math.round(vb.width) + '×' + Math.round(vb.height) + ': ' +
+        (pass ? 'PASS (no clipped labels, no overlapping labels)' : 'FAIL');
+      if (escapes.length) msg += '\n  escapes viewport (' + escapes.length + '): ' + escapes.join(', ');
+      if (overlaps.length) msg += '\n  overlapping pairs (' + overlaps.length + '): ' + overlaps.join('; ');
+      out.textContent = msg;
+    };
+    // setTimeout, not requestAnimationFrame: rAF never fires in a hidden /
+    // non-painting tab and getBBox() is valid as soon as the DOM is attached.
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { setTimeout(run, 0); });
+    } else { setTimeout(run, 0); }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Controls                                                           */
+  /* ------------------------------------------------------------------ */
+  function setPreset(key) {
+    current = key;
+    document.getElementById('btnA').classList.toggle('active', key === 'A');
+    document.getElementById('btnB').classList.toggle('active', key === 'B');
+    render();
+  }
+  document.getElementById('btnA').addEventListener('click', function () { setPreset('A'); });
+  document.getElementById('btnB').addEventListener('click', function () { setPreset('B'); });
+  document.getElementById('btnMobile').addEventListener('click', function () {
+    var stg = document.getElementById('stage');
+    var on = stg.classList.toggle('mobile');
+    this.classList.toggle('active', on);
+    render();  // re-render + re-audit under the constrained container
+  });
+  document.getElementById('btnInvalid').addEventListener('click', function () {
+    invalid = !invalid;
+    this.classList.toggle('active', invalid);
+    render();
+  });
+  document.getElementById('btnPrint').addEventListener('click', function () { window.print(); });
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', render);
+  } else { render(); }
+})();
+</script>
+</body>
+</html>

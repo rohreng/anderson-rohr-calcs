@@ -1,0 +1,42 @@
+{
+  "name": "vertex_node_band_cap — vertex-node faces are capped by the delivering band depth (AUDIT-FIXES B1, H5)",
+  "comments": {
+    "hand": [
+      "Same statics as asym_case_b1 (independently hand-solved there): Ls = 240; P1 = 140 k at 60; P2 = 70 k at 180 (1.4D);",
+      "z = 138.963571, H = 52.891560, y2 = z*5250/7350 = 99.259694; fce*tw = 17.2125 k/in; hp = 140.5; yt = 3.5.",
+      "Adjacent segment vertical band depths at V2 (dVert = H/(fce*tw*cos^2 alpha)):",
+      "  arch.1: alpha = atan2(y2-z, 120) = -18.307607 deg -> dVert1 = 52.891560/(17.2125*0.949385^2) = 3.409250 in;",
+      "  arch.2: alpha = atan2(-y2, 60) = -58.848101 deg -> dVert2 = 52.891560/(17.2125*0.517309^2) = 11.482660 in.",
+      "PRE-B1 the vertical extent was bounded only by the envelope: haNode_old = 2*min(hp-y2, y2+yt) = 2*(140.5-99.259694)",
+      "= 82.480612 in -> face toward arch.2 = 10*sin(58.848101) + 82.480612*cos(58.848101) = 51.225944 in — 4.5x wider than",
+      "the 11.48 in band that actually delivers the force (the audit's ~131 in class of overstatement).",
+      "B1 cap: haNode = min(2*(hp-y2), 2*(y2+yt), max(dVert1, dVert2)) = min(82.480612, 205.519388, 11.482660) = 11.482660 in.",
+      "Faces (w = w_v*|sin a| + haNode*|cos a|, w_v = 10 in):",
+      "  toward arch.1: 10*0.314123 + 11.482660*0.949385 = 3.141234 + 10.901430 = 14.042636 in;",
+      "  toward arch.2: 10*0.855885 + 11.482660*0.517309 = 8.558852 + 5.940082 = 14.498070 in.",
+      "Band-fit consequence (also asserted in asym_case_b1): arch.2 avail = min(14.498070, wsR 24.160332) = 14.498070,",
+      "fitDcr = 5.940082/14.498070 = 0.409715."
+    ]
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": { "L_w_ft": 23, "x_L_ft": 1.5, "x_R_ft": 21.5, "lb_L_in": 24, "lb_R_in": 24, "t_w_in": 12, "h_w_ft": 10, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 0, "LL_plf": 0, "wallSW_plf": 0, "gbSW_plf": 0, "pointLoads": [
+          { "x_ft": 6.5, "width_in": 10, "D_kip": 100, "L_kip": 0 },
+          { "x_ft": 16.5, "width_in": 10, "D_kip": 50, "L_kip": 0 }
+        ] },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "results.model.nodePolygons[id=node.vertex.2].faces[1].width_in", "value": 14.042635760483478, "rtol": 1e-6, "note": "face toward arch.1: 10*|sin(-18.307607)| + 11.482660*|cos(-18.307607)| = 14.042636 in (band-capped)" },
+        { "path": "results.model.nodePolygons[id=node.vertex.2].faces[2].width_in", "value": 14.498069634529571, "rtol": 1e-6, "note": "face toward arch.2: 10*0.855885 + 11.482660*0.517309 = 14.498070 in — pre-B1 the envelope bound gave 51.225944 in, wider than the 11.482660 in delivering band" },
+        { "path": "results.model.bands[segId=arch.2].wAvail_in", "value": 14.498069634529571, "rtol": 1e-6, "note": "capped vertex face now governs over wsR = 24.160332" },
+        { "path": "results.model.bands[segId=arch.2].fitDcr", "value": 0.40971538746705016, "rtol": 1e-6, "note": "5.940082/14.498070" }
+      ] }
+    }
+  ]
+}

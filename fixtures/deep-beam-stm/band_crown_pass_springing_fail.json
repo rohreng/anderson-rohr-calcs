@@ -1,0 +1,86 @@
+{
+  "name": "band_crown_pass_springing_fail — arch band fits at the crown but not at a springing",
+  "comments": {
+    "note": "Symmetric UDL, small bearings (lb = 7 in). Crown segment (arch.5, alpha = 0) fit DCR = 1.000 (crown sized to fit exactly; nearLimit). Springing required width 10.3071 in exceeds the support-node strut face ws = 9.2455 in -> DCR 1.1148 governs and FAILS."
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 21,
+          "x_L_ft": 0.5,
+          "x_R_ft": 20.5,
+          "lb_L_in": 7,
+          "lb_R_in": 7,
+          "t_w_in": 8,
+          "h_w_ft": 10,
+          "h_gb_in": 20,
+          "b_gb_in": 16
+        },
+        "loads": {
+          "DL_super_plf": 7000,
+          "LL_plf": 1500,
+          "wallSW_plf": 0,
+          "gbSW_plf": 0
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 12,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.model.bands[segId=arch.5].fitDcr",
+            "value": 1,
+            "atol": 0.0001,
+            "note": "crown band passes (sized to fit)"
+          },
+          {
+            "path": "results.model.bands[segId=arch.0].fitDcr",
+            "value": 1.114816464835271,
+            "rtol": 0.00001,
+            "note": "springing band fails"
+          },
+          {
+            "path": "checks[id=strut.fit].pass",
+            "value": false
+          },
+          {
+            "path": "checks[id=strut.fit].dcr",
+            "value": 1.114816464835271,
+            "rtol": 0.00001,
+            "note": "governing = springing"
+          }
+        ]
+      }
+    }
+  ]
+}

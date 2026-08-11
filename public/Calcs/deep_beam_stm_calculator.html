@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Beam Strut-and-Tie — Wall on Piers</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-amber{font-size:.7em;background:#fef9c3;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled,.ig select:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.hint.warn{color:#b45309}
+.chk-inline{display:flex;align-items:center;gap:7px;font-size:.85em;color:#333;font-weight:600;margin-bottom:5px}
+.chk-inline input{width:15px;height:15px}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.sum-geom{background:#ede9fe;border:2px solid #7c3aed}
+.sum-detail{background:#fef3c7;border:2px solid #d97706}
+.sum-noadm{background:#e0f2fe;border:2px solid #0369a1}
+.sum-invalid{background:#f3f4f6;border:2px solid #6b7280}
+.sum-err{background:#fee2e2;border:2px dashed #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.summary p{font-size:.9em}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.chk-table tr.nl-row td{background:#fffbeb!important;border-left:3px solid #d97706}
+.tbl-wrap{overflow-x:auto}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.3em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.info-badge{font-size:.7em;background:#e0e7ff;color:#3730a3;padding:1px 7px;border-radius:9px;font-weight:600}
+.nl-badge{font-size:.7em;background:#fef3c7;color:#92400e;padding:1px 7px;border-radius:9px;font-weight:600}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.err-box{background:#fef2f2;border:1.5px solid #dc2626;border-radius:8px;padding:12px 16px;font-size:.85em;color:#991b1b;margin-bottom:16px;display:none}
+.err-box.show{display:block}
+.err-box ul{padding-left:18px;margin-top:5px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:6px}
+.lbl-audit{font-size:.74em;font-family:Consolas,monospace;padding:5px 10px;border-radius:6px;margin-bottom:16px;border:1px solid #dde;background:#fafbff;color:#556}
+.lbl-audit.audit-pass{border-color:#16a34a;background:#f0fdf4;color:#166534}
+.lbl-audit.audit-fail{border-color:#dc2626;background:#fef2f2;color:#991b1b}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.cval-warn{color:#b45309;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.mini-table{width:100%;border-collapse:collapse;font-size:.92em;margin:6px 0}
+.mini-table th{background:#e8edf8;color:#1e3c72;padding:4px 8px;text-align:left;font-size:.9em}
+.mini-table td{padding:3px 8px;border-bottom:1px solid #e2e7f2}
+.case-blk{display:none}
+.case-blk.show{display:block}
+.pl-row{display:grid;grid-template-columns:auto repeat(4,minmax(110px,1fr));gap:10px;align-items:end;margin-bottom:10px;background:#fff;border:1px solid #e2e7f2;border-radius:8px;padding:10px 12px}
+@media(max-width:800px){.pl-row{grid-template-columns:1fr 1fr}}
+/* educational fragment styles */
+.why-box{background:#f8f9fa;border-left:4px solid #2a5298;border-radius:10px;margin-bottom:14px;font-size:.9em;overflow:hidden}
+.why-box summary{cursor:pointer;padding:13px 18px;font-weight:700;color:#1e3c72;list-style:none;display:flex;align-items:center;gap:9px}
+.why-box summary::-webkit-details-marker{display:none}
+.why-box summary::before{content:"\25B8";font-size:.85em;color:#2a5298;transition:transform .15s}
+.why-box[open] summary::before{transform:rotate(90deg)}
+.why-box summary .why-tag{font-size:.72em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.why-box summary .why-tag.warn{background:#fef3c7;color:#92400e}
+.why-body{padding:2px 20px 15px 20px;color:#1a1a1a;line-height:1.55}
+.why-body p{margin:0 0 9px 0}
+.why-body ul{margin:0 0 9px 0;padding-left:20px}
+.why-body li{margin-bottom:4px}
+.why-eq{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:7px 12px;margin:0 0 9px 0;font-style:italic;color:#1e3c72}
+.why-cite{color:#555;font-size:.92em}
+.why-note{background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:.92em;color:#78350f;margin:0 0 9px 0}
+.why-refs{border-top:1px dashed #c7d2e8;padding-top:7px;margin-top:4px;font-size:.9em;color:#555}
+.why-refs a{color:#1e40af}
+@media print{
+  body{background:#fff;padding:0}
+  .calc-btn,.lbl-audit{display:none}
+  .container{box-shadow:none;border-radius:0}
+  .schema-wrap{border:none;padding:0}
+  /* Drawing.commit() pins an intrinsic max-width; override so the SVG scales to page width. */
+  .schema-wrap svg{width:100% !important;max-width:100% !important;height:auto !important}
+}
+</style>
+  <link rel="stylesheet" href="./are-calc.css">
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <h1>Deep Beam Strut-and-Tie — Wall on Piers</h1>
+  <p>Concrete wall spanning between piers as a deep beam — funicular arch-and-tie model, nodes, anchorage</p>
+  <div class="ref-tags">
+    <span class="tag">ACI 318-19 Ch. 23</span>
+    <span class="tag">ACI 318-19 §9.9</span>
+    <span class="tag">ACI 318-19 Ch. 25</span>
+    <span class="tag">Funicular Arch-and-Tie Model</span>
+    <span class="tag">LRFD</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Live drawing -->
+  <div class="schema-wrap">
+    <svg id="stmSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="lbl-audit" id="lblAudit">label audit: pending…</div>
+
+  <!-- Engine errors (verbatim) -->
+  <div class="err-box" id="engErr"></div>
+
+  <!-- 1. Geometry -->
+  <div class="blk">
+    <h2>1. Geometry <span class="badge">PLAN coordinate system: x = 0 at left wall end, y = 0 at bottom of grade beam</span></h2>
+    <div class="g3">
+      <div class="ig"><label>Wall Length, L<sub>w</sub> <span class="unit">(ft)</span></label>
+        <input type="number" id="Lw" value="28.5" step="0.25">
+      </div>
+      <div class="ig"><label>Wall Height, h<sub>w</sub> <span class="unit">(ft)</span></label>
+        <input type="number" id="hwft" value="14" step="0.5">
+      </div>
+      <div class="ig"><label>Wall Thickness, t<sub>w</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="tw" value="12" step="1">
+      </div>
+      <div class="ig"><label>Left Support Centerline, x<sub>L</sub> <span class="unit">(ft)</span></label>
+        <input type="number" id="xL" value="1.25" step="0.25">
+        <span class="hint">Must satisfy x<sub>L</sub> &ge; lb<sub>L</sub>/2 (bearing inside wall footprint)</span>
+      </div>
+      <div class="ig"><label>Right Support Centerline, x<sub>R</sub> <span class="unit">(ft)</span></label>
+        <input type="number" id="xR" value="27.25" step="0.25">
+        <span class="hint">Must satisfy x<sub>R</sub> &le; L<sub>w</sub> &minus; lb<sub>R</sub>/2</span>
+      </div>
+      <div class="ig"><label>Bearing Width Left, lb<sub>L</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="lbL" value="30" step="1">
+      </div>
+      <div class="ig"><label>Bearing Width Right, lb<sub>R</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="lbR" value="30" step="1">
+      </div>
+      <div class="ig"><label>Grade Beam Width, b<sub>gb</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="bgb" value="24" step="1">
+        <span class="hint">b<sub>gb</sub> &ge; t<sub>w</sub> required</span>
+      </div>
+      <div class="ig"><label>Grade Beam Depth, h<sub>gb</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="hgb" value="24" step="1">
+      </div>
+      <div class="ig"><label>GB Extension Left, e<sub>L</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="eL" value="0" step="1">
+        <span class="hint">Beyond bearing outer face; adds tie embedment</span>
+      </div>
+      <div class="ig"><label>GB Extension Right, e<sub>R</sub> <span class="unit">(in)</span></label>
+        <input type="number" id="eR" value="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Load case -->
+  <div class="blk">
+    <h2>2. Load Case</h2>
+    <div class="g3">
+      <div class="ig"><label>Case</label>
+        <select id="caseSel">
+          <option value="A" selected>A — Uniform load only</option>
+          <option value="B">B — Uniform + point loads (up to 3)</option>
+          <option value="C">C — Overhang (cantilever) one side</option>
+        </select>
+        <span class="hint">The engine classifies loads itself (routed / truss / overhang) — the solved case is echoed in the results banner.</span>
+      </div>
+    </div>
+
+    <div id="caseB" class="case-blk" style="margin-top:14px">
+      <div class="sub-head">Interior / over-support point loads (factored per combo by the engine; enter unfactored D and L)</div>
+      <div class="pl-row">
+        <label class="chk-inline"><input type="checkbox" id="pOn_1"> P1</label>
+        <div class="ig"><label>D <span class="unit">(kip)</span></label><input type="number" id="pD_1" value="50" step="1"></div>
+        <div class="ig"><label>L <span class="unit">(kip)</span></label><input type="number" id="pL_1" value="25" step="1"></div>
+        <div class="ig"><label>x <span class="unit">(ft)</span></label><input type="number" id="px_1" value="14.25" step="0.25"></div>
+        <div class="ig"><label>Bearing width <span class="unit">(in)</span></label><input type="number" id="pw_1" value="12" step="1"></div>
+      </div>
+      <div class="pl-row">
+        <label class="chk-inline"><input type="checkbox" id="pOn_2"> P2</label>
+        <div class="ig"><label>D <span class="unit">(kip)</span></label><input type="number" id="pD_2" value="30" step="1"></div>
+        <div class="ig"><label>L <span class="unit">(kip)</span></label><input type="number" id="pL_2" value="15" step="1"></div>
+        <div class="ig"><label>x <span class="unit">(ft)</span></label><input type="number" id="px_2" value="8" step="0.25"></div>
+        <div class="ig"><label>Bearing width <span class="unit">(in)</span></label><input type="number" id="pw_2" value="12" step="1"></div>
+      </div>
+      <div class="pl-row">
+        <label class="chk-inline"><input type="checkbox" id="pOn_3"> P3</label>
+        <div class="ig"><label>D <span class="unit">(kip)</span></label><input type="number" id="pD_3" value="30" step="1"></div>
+        <div class="ig"><label>L <span class="unit">(kip)</span></label><input type="number" id="pL_3" value="15" step="1"></div>
+        <div class="ig"><label>x <span class="unit">(ft)</span></label><input type="number" id="px_3" value="20.5" step="0.25"></div>
+        <div class="ig"><label>Bearing width <span class="unit">(in)</span></label><input type="number" id="pw_3" value="12" step="1"></div>
+      </div>
+      <span class="hint">A load whose bearing centroid is within 0.25 in of a support centerline AND whose footprint lies inside the support bearing is routed directly to the pier (bearing checks only). Anything else is a truss load. Overlapping footprints are rejected.</span>
+    </div>
+
+    <div id="caseC" class="case-blk" style="margin-top:14px">
+      <div class="sub-head">Overhang configuration</div>
+      <div class="g3">
+        <div class="ig"><label>Overhang Side</label>
+          <select id="ovSide">
+            <option value="left" selected>Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+        <div class="ig"><label>Overhang Length (wall end to support CL) <span class="unit">(ft)</span></label>
+          <input type="number" id="ovLen" value="4" step="0.25">
+          <span class="hint warn">Writes into x<sub>L</sub> (left) or x<sub>R</sub> (right) above — one geometry, no duplicate inputs</span>
+        </div>
+        <div class="ig"><label>Top-Tie Free-End Anchorage</label>
+          <select disabled><option>Straight development (&#8467;<sub>d</sub>, engine-fixed)</option></select>
+          <span class="hint">Free-end development of the top tie is computed as straight-bar development per ACI 318-19 25.4.2</span>
+        </div>
+      </div>
+      <div class="pl-row" style="margin-top:12px">
+        <label class="chk-inline"><input type="checkbox" id="ovOn" checked> Overhang point load</label>
+        <div class="ig"><label>D <span class="unit">(kip)</span></label><input type="number" id="ovD" value="20" step="1"></div>
+        <div class="ig"><label>L <span class="unit">(kip)</span></label><input type="number" id="ovL" value="10" step="1"></div>
+        <div class="ig"><label>Dist. from wall end <span class="unit">(ft)</span></label><input type="number" id="ovx" value="1" step="0.25"></div>
+        <div class="ig"><label>Bearing width <span class="unit">(in)</span></label><input type="number" id="ovw" value="12" step="1"></div>
+      </div>
+      <span class="hint">The UDL outboard strip only becomes a Case C overhang truss load when it fails the dispersion/bearing rule o &le; min(h<sub>gb</sub>, l<sub>b</sub>) (45&deg; through the GB depth, landing inside the bearing); short overhangs need the point load to trigger Case C. The engine decides — see the results banner.</span><br>
+      <span class="hint warn">Case C anchors the backspan compression polygon at the top-bar level (fixed z<sub>t</sub>). Heavy uniform backspan loads make the polygon crest flatter than the 25&deg; angle floor at every admissible anchor vertex — the engine then honestly reports &ldquo;no admissible STM.&rdquo; Point-load-dominated backspans (enter them in the rows above; reduce the UDL) are the workable Case C configuration.</span>
+    </div>
+  </div>
+
+  <!-- 3. Loads -->
+  <div class="blk">
+    <h2>3. Loads <span class="badge">Combos 1.4D and 1.2D+1.6L; all LL patterns enumerated (ACI Table 5.3.1)</span></h2>
+    <div class="g3">
+      <div class="ig"><label>Superimposed Dead Load, DL<sub>super</sub> <span class="unit">(plf)</span></label>
+        <input type="number" id="DLs" value="5525" step="25">
+      </div>
+      <div class="ig"><label>Live Load, LL <span class="unit">(plf)</span></label>
+        <input type="number" id="LLs" value="5205" step="25">
+      </div>
+      <div class="ig">
+        <label class="chk-inline" style="margin-bottom:5px"><input type="checkbox" id="swOverride"> Override auto self-weight</label>
+        <span class="hint">Unchecked: engine computes at 150 pcf from entered geometry</span>
+      </div>
+      <div class="ig"><label>Wall Self-Weight <span class="unit">(plf)</span></label>
+        <input type="number" id="wallSW" value="2100" step="25" disabled>
+        <span class="hint" id="wallSWHint">Auto: 150 &times; (t<sub>w</sub>/12) &times; h<sub>w</sub></span>
+      </div>
+      <div class="ig"><label>Grade Beam Self-Weight <span class="unit">(plf)</span></label>
+        <input type="number" id="gbSW" value="600" step="25" disabled>
+        <span class="hint" id="gbSWHint">Auto: 150 &times; b<sub>gb</sub>&middot;h<sub>gb</sub>/144</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Materials -->
+  <div class="blk">
+    <h2>4. Materials</h2>
+    <div class="g3">
+      <div class="ig"><label>Concrete Strength, f'<sub>c</sub> <span class="unit">(psi)</span></label>
+        <input type="number" id="fc" value="3000" step="500" min="2000" max="10000">
+        <span class="hint">2,000 – 10,000 psi</span>
+      </div>
+      <div class="ig"><label>Rebar Grade, f<sub>y</sub> <span class="unit">(ksi)</span></label>
+        <select id="fySel">
+          <option value="60" selected>Grade 60</option>
+          <option value="40">Grade 40</option>
+        </select>
+        <span class="hint">Grade 80 excluded by scope</span>
+      </div>
+      <div class="ig"><label>Concrete Weight Class</label>
+        <select disabled><option>Normalweight (&lambda; = 1.0) — locked</option></select>
+        <span class="hint">Lightweight concrete is out of scope for this calculator</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Reinforcement & anchorage -->
+  <div class="blk alt-blk">
+    <h2>5. Reinforcement &amp; Anchorage <span class="badge-green">Enter the drawing reinforcement — calc returns DCRs</span></h2>
+    <div class="sub-head">Grade beam chord bars</div>
+    <div class="g3">
+      <div class="ig"><label>Bottom (Tie) Bars — Count</label>
+        <input type="number" id="tieN" value="4" step="1" min="2">
+        <span class="hint">&ge; 2 bars; must fit: 2&middot;cover<sub>side</sub> + n&middot;d<sub>b</sub> &le; b<sub>gb</sub></span>
+      </div>
+      <div class="ig"><label>Bottom (Tie) Bars — Size</label>
+        <select id="tieSize">
+          <option>#5</option><option>#6</option><option>#7</option><option selected>#8</option>
+          <option>#9</option><option>#10</option><option>#11</option>
+        </select>
+      </div>
+      <div class="ig"><label>Top Bars — Count</label>
+        <input type="number" id="topN" value="4" step="1" min="2">
+        <span class="hint">&ge; 2 bars; must fit: 2&middot;cover<sub>side</sub> + n&middot;d<sub>b</sub> &le; t<sub>w</sub></span>
+      </div>
+      <div class="ig"><label>Top Bars — Size</label>
+        <select id="topSize">
+          <option>#5</option><option>#6</option><option>#7</option><option selected>#8</option>
+          <option>#9</option><option>#10</option><option>#11</option>
+        </select>
+        <span class="hint">Top bars resist routed-strip cantilever moment; Case C top tie</span>
+      </div>
+      <div class="ig"><label>Bottom Cover <span class="unit">(in)</span></label>
+        <input type="number" id="covBot" value="3" step="0.25" min="0.75">
+        <span class="hint">&ge; 0.75; tie centroid (cover + d<sub>b</sub>/2) must stay below h<sub>gb</sub>/2</span>
+      </div>
+      <div class="ig"><label>Side Cover <span class="unit">(in)</span></label>
+        <input type="number" id="covSide" value="2" step="0.25" min="0.75">
+      </div>
+      <div class="ig"><label>Top Cover <span class="unit">(in)</span></label>
+        <input type="number" id="covTop" value="2" step="0.25" min="0.75">
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="sub-head">Wall each-face (EF) web steel — sets &beta;<sub>s</sub> (Table 23.5.1) and §9.9.3.1 minimums</div>
+    <div class="g3">
+      <div class="ig"><label>Vertical EF Bars — Size</label>
+        <select id="webVsize"><option>#3</option><option selected>#4</option><option>#5</option><option>#6</option></select>
+      </div>
+      <div class="ig"><label>Vertical EF Spacing <span class="unit">(in)</span></label>
+        <input type="number" id="webVs" value="12" step="1">
+      </div>
+      <div class="ig"><label>Horizontal EF Bars — Size</label>
+        <select id="webHsize"><option>#3</option><option selected>#4</option><option>#5</option><option>#6</option></select>
+      </div>
+      <div class="ig"><label>Horizontal EF Spacing <span class="unit">(in)</span></label>
+        <input type="number" id="webHs" value="12" step="1">
+      </div>
+      <div class="ig"><label>Wall Face Cover <span class="unit">(in)</span></label>
+        <input type="number" id="webCov" value="1.5" step="0.25" min="0.5">
+        <span class="hint">ACI 318-19 §20.5.1.3 — 1.5" formed/exposed (#5 and smaller), 2" for #6+</span>
+      </div>
+    </div>
+    <hr class="sep">
+    <div class="sub-head">Bottom-tie anchorage (per end) — critical section at tie-centroid exit from the extended nodal zone (§23.8.3)</div>
+    <div class="g3">
+      <div class="ig"><label>Left End Anchorage</label>
+        <select id="anchLType">
+          <option value="hook" selected>90&deg; standard hook (&#8467;<sub>dh</sub>)</option>
+          <option value="headed">Headed bar (&#8467;<sub>dt</sub>)</option>
+          <option value="straight">Straight (&#8467;<sub>d</sub>)</option>
+        </select>
+      </div>
+      <div class="ig"><label>Right End Anchorage</label>
+        <select id="anchRType">
+          <option value="hook" selected>90&deg; standard hook (&#8467;<sub>dh</sub>)</option>
+          <option value="headed">Headed bar (&#8467;<sub>dt</sub>)</option>
+          <option value="straight">Straight (&#8467;<sub>d</sub>)</option>
+        </select>
+      </div>
+      <div class="ig">
+        <label class="chk-inline" style="margin-bottom:5px"><input type="checkbox" id="epoxyOn"> Epoxy-coated tie bars</label>
+        <span class="hint">&psi;<sub>e</sub> = 1.2 when checked</span>
+      </div>
+    </div>
+    <div class="g3" style="margin-top:12px">
+      <div class="ig">
+        <label class="chk-inline" style="margin-bottom:5px"><input type="checkbox" id="tiesOn"> Hook/head-region confining ties entered</label>
+        <span class="hint">&psi;<sub>r</sub>/&psi;<sub>p</sub> = 1.0 per Tables 25.4.3.2 / 25.4.4.3 when A<sub>th</sub> &ge; 0.4A<sub>hs</sub> (A<sub>tt</sub> &ge; 0.3A<sub>hs</sub> heads) from ties within 15d<sub>b</sub>, OR when the tie-bar c/c spacing itself is &ge; 6d<sub>b</sub> (computed from b<sub>gb</sub>, side cover, bar count); else 1.6</span>
+      </div>
+      <div class="ig"><label>Tie Size</label>
+        <select id="tieHSize" disabled><option>#3</option><option selected>#4</option><option>#5</option></select>
+      </div>
+      <div class="ig"><label>Tie Spacing <span class="unit">(in)</span></label>
+        <input type="number" id="tieHs" value="4" step="0.5" disabled>
+      </div>
+      <div class="ig"><label>Legs per Set</label>
+        <input type="number" id="tieHlegs" value="2" step="1" min="1" disabled>
+        <span class="hint">A<sub>th</sub> = legs &times; A<sub>b</sub> &times; n<sub>ties</sub>, n<sub>ties</sub> = floor(15d<sub>b</sub>/s) + 1 (ties within 15d<sub>b</sub>); wide tie spacing REDUCES A<sub>th</sub>. Head A<sub>brg</sub> &ge; 4A<sub>b</sub> assumed for &#8467;<sub>dt</sub> applicability</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Run All Checks</button>
+
+  <!-- ===== RESULTS ===== -->
+  <div id="results" class="results">
+    <div id="sumBox" class="summary"></div>
+    <div id="routedEcho"></div>
+
+    <div class="blk"><h2>Solved Model — Demands</h2><div id="demOut"></div></div>
+
+    <div class="blk">
+      <h2>Check Results
+        <span style="font-size:.75em;font-weight:400;color:#555">&mdash; every limit state, governing combo + LL pattern per check; click &#9656; Calc to expand the substituted numbers</span>
+      </h2>
+      <div class="tbl-wrap">
+      <table class="chk-table">
+        <thead>
+          <tr>
+            <th style="width:26%">Check</th>
+            <th>ACI Ref.</th>
+            <th>Demand</th>
+            <th>Capacity</th>
+            <th>D/C</th>
+            <th>Governing</th>
+            <th>Status</th>
+            <th style="width:66px">Detail</th>
+          </tr>
+        </thead>
+        <tbody id="chkTb"></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Educational layer -->
+  <div class="blk">
+  <h2>Why This Works &mdash; Background <span class="badge">Reference Only</span></h2>
+
+  <details class="why-box" id="why-deep-beam">
+  <summary>Why this wall is a deep beam, and what that changes</summary>
+  <div class="why-body">
+  <p>ACI 318-19 &sect;9.9.1.1 classifies a member as a deep beam when the clear span does not exceed four times the overall depth (l<sub>n</sub> &le; 4h), or when concentrated loads act within 2h of the face of a support. A wall panel spanning between piers, with the grade beam as its bottom chord, almost always meets the first test: the full member depth h is the wall height plus the grade beam depth, and spans rarely exceed 4h. The calculator evaluates the exact code boolean and reports which clause triggers.</p>
+  <p>What changes: the plane-sections-remain-plane assumption fails. In a slender beam, strain varies linearly through the depth and sectional design (flexure at a section, V<sub>c</sub> + V<sub>s</sub> shear) is valid. In a deep beam the entire member is a D-region &mdash; a disturbed region where the strain field is nonlinear from support to support. Load travels to the supports by direct compression through the wall, not by beam shear.</p>
+  <p>ACI 318-19 &sect;9.9.1.2 therefore requires deep beams to be designed either accounting for the nonlinear strain distribution or by the strut-and-tie method of Chapter 23. This calculator uses Chapter 23: an explicit truss of concrete compression members (struts), reinforcement tension members (ties), and the joints between them (nodes), each checked against its own strength provision.</p>
+  <div class="why-refs">Further reading: <a href="https://library.ctr.utexas.edu/ctr-publications/0-5253-1.pdf" data-verify="verified" target="_blank" rel="noopener">Birrcher et al., Strength and Serviceability Design of Reinforced Concrete Deep Beams, CTR Report 0-5253-1, UT Austin / TxDOT (free PDF)</a> &mdash; the experimental basis for modern deep-beam STM provisions.</div>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-arch">
+  <summary>Arch action: why the tie force is constant, and why strut steepness sets it</summary>
+  <div class="why-body">
+  <p>A deep beam under gravity load carries load as a tied arch: compression arches through the wall from the load points down to the piers, and the grade beam reinforcement is the tension tie holding the arch feet together. The calculator builds the compression path as the <b>funicular polygon</b> of the applied loads &mdash; arch ordinates proportional to the moment diagram, y(x) = z&middot;M(x)/M<sub>max</sub>, springing to the tie level at each support.</p>
+  <p>That shape is not cosmetic. Because the ordinates track M(x), a moment cut anywhere in the span closes with the same horizontal thrust:</p>
+  <div class="why-eq">M(x) = H &middot; y(x) at every x &nbsp;&rArr;&nbsp; H = M<sub>max</sub>/z = constant</div>
+  <p>With no horizontal applied loads, the tie balances that thrust at every section, so the tie force is <b>T = H = M<sub>max</sub>/z over the full span</b> &mdash; one constant force, not a tapered T(x). Every arch segment is in pure compression and no members cross, so the model is determinate and each piece can be checked without load-sharing assumptions.</p>
+  <p><b>Why constant T beats a stepped or tapered tie here.</b> A Bernoulli beam lets T(x) = M(x)/z decay toward the supports, so bars can be cut off following the moment gradient. Arch action removes that decay: the arch delivers its full horizontal thrust at the springing, where the moment is zero, so the tie force near the support is set by the arch geometry, not by the local moment. A tapered tie would understate the anchorage demand exactly where it is most critical. Constant T is both the honest deep-beam physics and the conservative envelope.</p>
+  <p><b>Steepness.</b> At the springing, the support node has three forces: the reaction R (vertical), the springing strut (at angle &theta; from horizontal), and the tie (horizontal). Equilibrium gives:</p>
+  <div class="why-eq">T = R &middot; cot&theta;</div>
+  <p>Steep struts collapse the tie force; shallow struts inflate it. cot 67&deg; &asymp; 0.42 versus cot 20&deg; &asymp; 2.7 &mdash; a factor of more than six for the same reaction. The calculator&rsquo;s default case shows this: R<sub>t</sub> = 236.6 k arriving at &theta; &asymp; 67&deg; needs only T &asymp; 99 k of tie. This is also why ACI 318-19 &sect;23.2.7 forbids strut-tie angles below 25&deg;: past that, the tie demand and the strain incompatibility both blow up, and the calculator stops with &ldquo;no admissible STM&rdquo; rather than report numbers for a geometry the code excludes.</p>
+  <div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="verified" target="_blank" rel="noopener">FHWA-NHI-17-071, Strut-and-Tie Modeling (STM) for Concrete Structures (free PDF)</a> &mdash; worked deep-beam examples with the same tied-arch load path.</div>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-nodes">
+  <summary>Node classes CCC / CCT / CTT: why anchoring a tie weakens a node</summary>
+  <div class="why-body">
+  <p>Nodes are named by what meets there: C for a compression member or bearing face, T for a tie. An interior arch vertex where two strut segments and a vertical compression member meet is CCC. A support node where the reaction, the springing strut, and one tie meet is CCT. Add a second tie direction &mdash; as at the overhang-side support in the cantilever case &mdash; and it becomes CTT.</p>
+  <p>ACI 318-19 Table 23.9.2 discounts the usable concrete strength of the node by &beta;<sub>n</sub>:</p>
+  <ul>
+  <li>CCC &mdash; &beta;<sub>n</sub> = 1.0 (all compression, concrete confined on all faces)</li>
+  <li>CCT &mdash; &beta;<sub>n</sub> = 0.8 (one tie anchored)</li>
+  <li>CTT &mdash; &beta;<sub>n</sub> = 0.6 (ties in more than one direction)</li>
+  </ul>
+  <p>The physical reason is anchorage cracking. A tie anchored at a node means bars are pulling on the same block of concrete the struts are bearing against. Developing bar force requires bond, bond requires some slip and tensile strain, and that tensile strain runs transverse to the strut compression &mdash; opening splitting cracks through the nodal zone. Cracked concrete carries less compression than uncracked concrete, so each anchored tie direction takes a bite out of the node&rsquo;s effective strength. A CCC node stays uncracked and biaxially confined; it keeps full strength.</p>
+  <p>Node class is assigned from the solved member forces, not assumed, and every node face is checked against 0.85&middot;&beta;<sub>c</sub>&middot;&beta;<sub>n</sub>&middot;f&prime;<sub>c</sub> per ACI 318-19 &sect;23.9. Geometrically the two kinds of node are built differently: the <b>support nodes</b> get the full FHWA extended-nodal-zone construction (bearing face, strut face, tie back face), while the <b>interior arch vertices are band-bounded smeared nodes</b> &mdash; their vertical extent is capped by the wall envelope <i>and</i> by the depth of the adjacent compression bands, because a node face can never be wider than the band that delivers its force.</p>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-bottle">
+  <summary>Bottle-shaped struts: why compression makes tension, and how web steel earns &beta;<sub>s</sub> = 0.75</summary>
+  <div class="why-body">
+  <p>A strut inside a wall is not a uniform prism. Compression entering at a narrow node spreads laterally into the available wall panel &mdash; the stress field bulges at mid-length and necks back down at the far node, the shape of a bottle. The spreading is not free: as the compression trajectories curve outward and back, equilibrium requires <b>transverse tension</b> across the strut at mid-length. Unreinforced, that tension splits the strut longitudinally well before the concrete crushes.</p>
+  <p>ACI 318-19 handles this through &beta;<sub>s</sub> in the strut strength f<sub>ce</sub> = 0.85&middot;&beta;<sub>s</sub>&middot;f&prime;<sub>c</sub> (&sect;23.4.3):</p>
+  <ul>
+  <li>&beta;<sub>s</sub> = 0.75 &mdash; strut crossed by distributed reinforcement satisfying Table 23.5.1. The web steel carries the transverse tension, controls the splitting crack, and lets the strut reach its crushing strength.</li>
+  <li>&beta;<sub>s</sub> = 0.4 &mdash; no qualifying distributed reinforcement. The code assumes the splitting failure mode and nearly halves the strut.</li>
+  </ul>
+  <p>For a wall this is cheap strength: the each-face bar mats the wall needs anyway (checked separately against the &sect;9.9.3.1 deep-beam minimums) usually satisfy Table 23.5.1. The calculator resolves &beta;<sub>s</sub> from the entered web steel <i>first</i>, then sizes the arch band with the resulting design stress &mdash; so a &beta;<sub>s</sub> downgrade from 0.75 to 0.4 nearly doubles the required band width and can flip the fit result. Both the Table 23.5.1 qualification and the &sect;9.9.3.1 minimums are reported separately; passing one does not imply the other.</p>
+  <div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="verified" target="_blank" rel="noopener">FHWA-NHI-17-071 (free PDF)</a> &mdash; bottle-shaped strut mechanics and crack-control reinforcement.</div>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-anchorage">
+  <summary>Why the tie must anchor its full force at the support &mdash; and where the critical section is</summary>
+  <div class="why-body">
+  <p>The strut-and-tie method is a lower-bound (static) method: if you can find any internal force distribution that is in equilibrium with the applied loads and nowhere exceeds member strength, the true capacity is at least that. The catch is the &ldquo;nowhere exceeds&rdquo; clause &mdash; the guarantee holds only if every member can actually deliver the force the model assigns it. A tie that cannot develop T at the support node is a broken link, and the lower-bound guarantee evaporates with it.</p>
+  <p>In a slender beam, the moment gradient rescues short embedment: T(x) decays toward the support, so a bar needs less and less development as it approaches the end. Arch action removes that rescue. The tie carries the full T = M<sub>max</sub>/z right up to the springing (see the arch-action box), so the bars must develop <b>100% of T at the support node</b> &mdash; by straight development, standard hooks, or headed bars, whichever the entered detailing provides.</p>
+  <p>ACI 318-19 &sect;23.8.3 sets the critical section: development is measured from the point where the tie centroid exits the <b>extended nodal zone</b> &mdash; the region where the compression from the bearing and the strut overlaps and clamps the bars. This is more generous than measuring from the inner bearing face, because the clamping pressure improves bond, but it is a computed geometric point, not a rule of thumb. The calculator constructs the extended nodal zone per the FHWA method <b>at the support nodes</b> (the only nodes where that construction is built &mdash; interior arch vertices are band-bounded smeared nodes instead), draws the critical section on the elevation, and compares available embedment (along the bar centerline, less cover, bend, and head clearances) against l<sub>d</sub>, l<sub>dh</sub>, or l<sub>dt</sub> per Chapter 25. If it does not fit, the answer is &ldquo;detailing does not fit&rdquo; &mdash; not a smaller tie force.</p>
+  <div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="verified" target="_blank" rel="noopener">FHWA-NHI-17-071 (free PDF)</a> &mdash; extended nodal zone construction and anchorage examples.</div>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-discretization">
+  <summary>How the uniform load becomes a truss, and why lumping it is safe</summary>
+  <div class="why-body">
+  <p>A truss needs point loads, so the calculator lumps the UDL between support centerlines into N = 10 equal segments, each applied at its segment centroid and carried to the arch by a vertical compression member representing the wall above. The lumped moment diagram is piecewise linear with vertices at every load abscissa.</p>
+  <p>Centroid lumping is <b>exact at midspan</b>: the lumped-load M<sub>max</sub> equals wL<sub>s</sub>&sup2;/8 identically, so H = M<sub>max</sub>/z and the tie force are exact, and the test suite asserts H&middot;z = wL<sub>s</sub>&sup2;/8 on the default case. Between vertices the polygonal diagram inscribes the true parabola; at N = 10 the deviation is bounded by about 1% of M<sub>max</sub>, which is inside every rounding in the check.</p>
+  <p>The lower-bound logic ties it together: each lumped load reaches its own arch vertex, all segments share the single constant thrust H, and per-node equilibrium is asserted numerically at every joint. The whole polygon is <b>one funicular polygon constructed through the lumped resultants of the UDL (N = 10) plus any point loads</b> &mdash; a single statically admissible field with no crossing or shared compression fields, which is what makes the per-member checks meaningful.</p>
+  <p>Live load is not hand-waved either: every independently variable live component is enumerated on/off across both load combinations, and each check reports its own governing combination and pattern. Adding live load to a simple span can only increase M<sub>max</sub> and therefore T &mdash; but individual segment angles and node demands do not follow that monotonic rule under asymmetric patterns, so the engine enumerates rather than assumes.</p>
+  </div>
+  </details>
+
+  <details class="why-box" id="why-corner">
+  <summary>Corner condition: wall returning around a corner <span class="why-tag warn">Not computed &mdash; detailing guidance only</span></summary>
+  <div class="why-body">
+  <div class="why-note"><b>The calculator does not analyze this condition.</b> The notes below are detailing practice for the drawings, not a computed check. Where corner forces are significant, design the corner joint separately.</div>
+  <p>Where the wall returns around a corner and its grade beam meets a perpendicular grade beam, each tie must still anchor its full force &mdash; and the corner is where straight embedment runs out. The working detail:</p>
+  <ul>
+  <li><b>Hook the X-direction tie bars into the Y-direction grade beam</b>, and the Y-direction tie bars into the X-direction beam. The perpendicular beam&rsquo;s concrete mass and reinforcement cage give the hooks the confined anchorage the corner itself cannot.</li>
+  <li><b>Lap the hooked bars with the perpendicular beam&rsquo;s bottom steel</b> so the tie force has a continuous path into the perpendicular tie rather than dead-ending at the corner.</li>
+  <li>Detail the corner symmetrically &mdash; both walls&rsquo; ties get the same treatment in mirror image.</li>
+  <li>Maintain the same cover and hook-tail clearances checked elsewhere in this calculator; a hook that does not fit inside the perpendicular beam&rsquo;s depth is the same &ldquo;detailing does not fit&rdquo; problem, found by hand instead of by the calc.</li>
+  </ul>
+  <p>Show the hooks and laps explicitly on the plan and corner sections. &ldquo;Typical corner bars&rdquo; notes get built as whatever is easiest to tie.</p>
+  </div>
+  </details>
+  </div>
+
+  <!-- Scope -->
+  <div class="note-box">
+    <strong>Scope — what this calculator does and does not do:</strong>
+    <ul>
+      <li><strong>Vertical load path only.</strong> No lateral soil pressure, no out-of-plane wall design, no slab strut / prop reaction, no pier design (pier bearing at the interface is checked; the pier itself is not).</li>
+      <li><strong>Top-bearing loads only</strong> — no hanger / suspended loads. No openings or joints in the wall panel.</li>
+      <li><strong>Simple span (plus one optional overhang).</strong> Continuous multi-span walls are out of scope. Up to 3 interior point loads and 3 overhang point loads.</li>
+      <li><strong>Normalweight concrete only</strong> (&lambda; = 1.0, locked). <strong>Grade 40/60 reinforcement only</strong> — Grade 80 excluded.</li>
+      <li><strong>Corner condition is guidance only</strong> (see the Why box) — the corner joint is not computed.</li>
+      <li>No prestress/PT, no seismic Ch. 18 provisions. Bottom tie bars are assumed full length between anchorages (input assumption, enforced in the checks).</li>
+      <li>The engine is authoritative: geometric non-fit reports as <em>geometry infeasible</em> or <em>detailing does not fit</em>, inadmissible truss geometry as <em>no admissible STM</em> — none of these are capacity DCRs, and all of them block a PASS.</li>
+    </ul>
+  </div>
+
+</div>
+</div>
+
+<script src="./js/deep_beam_stm_engine.js"></script>
+<script src="/are-draw.js"></script>
+<script>
+/* ===========================================================================
+ * Deep Beam STM calculator page — UI + drawing layer only.
+ * ALL structural computation lives in DeepBeamSTM (deep_beam_stm_engine.js).
+ * This file never recomputes a demand or capacity; it renders engine output.
+ * Drawing approach and the local SVG helpers are carried over from the proven
+ * spike (public/dev/deep_beam_stm_spike.html): polyW, lineW, archBand,
+ * hookGlyph, headGlyph, rebarDot, nodalZone, auditLabels, showWatermark.
+ * =========================================================================*/
+(function () {
+'use strict';
+var SVGNS = 'http://www.w3.org/2000/svg';
+var BAR_DB = { '#3':0.375,'#4':0.5,'#5':0.625,'#6':0.75,'#7':0.875,'#8':1.0,'#9':1.128,'#10':1.27,'#11':1.41 };
+var BAR_AB = { '#3':0.11,'#4':0.20,'#5':0.31,'#6':0.44,'#7':0.60,'#8':0.79,'#9':1.00,'#10':1.27,'#11':1.56 };
+
+function $(id){ return document.getElementById(id); }
+function num(id){ var v = parseFloat($(id).value); return isFinite(v) ? v : NaN; }
+function f1(v){ return isFinite(v)?Number(v).toFixed(1):'—'; }
+function f2(v){ return isFinite(v)?Number(v).toFixed(2):'—'; }
+function f3(v){ return isFinite(v)?Number(v).toFixed(3):'—'; }
+function fnum(v){ // magnitude-aware display (rho ratios etc.)
+  if (!isFinite(v)) return '—';
+  var a = Math.abs(v);
+  if (a === 0) return '0';
+  if (a >= 100) return f1(v);
+  if (a >= 1) return f2(v);
+  if (a >= 0.01) return f3(v);
+  return Number(v).toPrecision(3);
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fr(n,d){ return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'; }
+
+/* ------------------------------------------------------------------ */
+/* Case selector + self-weight UI wiring                               */
+/* ------------------------------------------------------------------ */
+function syncCaseBlocks(){
+  var c = $('caseSel').value;
+  $('caseB').classList.toggle('show', c === 'B' || c === 'C'); // Case C backspan may need interior point loads
+  $('caseC').classList.toggle('show', c === 'C');
+}
+function syncOverhangGeom(){
+  if ($('caseSel').value !== 'C') return;
+  var side = $('ovSide').value, len = num('ovLen');
+  if (!isFinite(len)) return;
+  if (side === 'left') $('xL').value = len;
+  else $('xR').value = (num('Lw') - len);
+}
+function syncSW(){
+  var over = $('swOverride').checked;
+  $('wallSW').disabled = !over; $('gbSW').disabled = !over;
+  if (!over) {
+    var w = 150 * (num('tw')/12) * num('hwft');
+    var g = 150 * (num('bgb') * num('hgb') / 144);
+    if (isFinite(w)) $('wallSW').value = Math.round(w*100)/100;
+    if (isFinite(g)) $('gbSW').value = Math.round(g*100)/100;
+  }
+}
+function syncTies(){
+  var on = $('tiesOn').checked;
+  ['tieHSize','tieHs','tieHlegs'].forEach(function(id){ $(id).disabled = !on; });
+}
+
+/* ------------------------------------------------------------------ */
+/* Payload builder — one conversion layer, engine units at boundary    */
+/* ------------------------------------------------------------------ */
+function buildInputs(){
+  var caseV = $('caseSel').value;
+  var pts = [];
+  if (caseV === 'B' || caseV === 'C') {
+    for (var i = 1; i <= 3; i++) {
+      if (!$('pOn_'+i).checked) continue;
+      pts.push({ x_ft: num('px_'+i), width_in: num('pw_'+i), D_kip: num('pD_'+i), L_kip: num('pL_'+i) });
+    }
+  }
+  if (caseV === 'C' && $('ovOn').checked) {
+    var side = $('ovSide').value, dEnd = num('ovx');
+    var x = side === 'left' ? dEnd : num('Lw') - dEnd;
+    pts.push({ x_ft: x, width_in: num('ovw'), D_kip: num('ovD'), L_kip: num('ovL') });
+  }
+  var ties = null;
+  if ($('tiesOn').checked) {
+    // engine computes Ath/Att = legs x Ab x nTies (ties within 15db) per Tables 25.4.3.2/25.4.4.3
+    ties = { legs: num('tieHlegs'), size: $('tieHSize').value, s_in: num('tieHs') };
+  }
+  var anch = function(type){
+    var a = { type: type, headAbrgRatio: 4, epoxy: $('epoxyOn').checked };
+    if (ties) a.ties = ties;
+    return a;
+  };
+  var loads = { DL_super_plf: num('DLs'), LL_plf: num('LLs'), pointLoads: pts };
+  if ($('swOverride').checked) { loads.wallSW_plf = num('wallSW'); loads.gbSW_plf = num('gbSW'); }
+  return {
+    geometry: {
+      L_w_ft: num('Lw'), x_L_ft: num('xL'), x_R_ft: num('xR'),
+      lb_L_in: num('lbL'), lb_R_in: num('lbR'), t_w_in: num('tw'),
+      h_w_ft: num('hwft'), h_gb_in: num('hgb'), b_gb_in: num('bgb'),
+      e_L_in: num('eL'), e_R_in: num('eR')
+    },
+    loads: loads,
+    materials: { fc_psi: num('fc'), fy_ksi: parseFloat($('fySel').value) },
+    reinf: {
+      tieBars: { count: num('tieN'), size: $('tieSize').value },
+      topBars: { count: num('topN'), size: $('topSize').value },
+      cover_bot_in: num('covBot'), cover_side_in: num('covSide'), cover_top_in: num('covTop'),
+      web: {
+        v: { size: $('webVsize').value, s_in: num('webVs'), layers: 2 },
+        h: { size: $('webHsize').value, s_in: num('webHs'), layers: 2 },
+        cover_in: num('webCov')
+      },
+      anchorage: { left: anch($('anchLType').value), right: anch($('anchRType').value) }
+    }
+  };
+}
+
+/* Client-side bound checks — mirrors of the engine's §1/§7 inequalities.
+   Advisory only; the ENGINE is authoritative and its errors render verbatim. */
+function clientWarnings(){
+  var w = [];
+  var Lw = num('Lw'), xL = num('xL'), xR = num('xR'), lbL = num('lbL'), lbR = num('lbR');
+  if (xL * 12 < lbL / 2) w.push('x_L < lb_L/2 — bearing extends beyond wall end');
+  if (xR * 12 > Lw * 12 - lbR / 2) w.push('x_R > L_w − lb_R/2 — bearing extends beyond wall end');
+  if (!(xR > xL)) w.push('span L_s = x_R − x_L must be > 0');
+  if (num('bgb') < num('tw')) w.push('b_gb < t_w (grade beam narrower than wall)');
+  if (num('covBot') < 0.75 || num('covSide') < 0.75 || num('covTop') < 0.75) w.push('cover < 0.75 in');
+  // D1/D2 mirrors (engine authoritative)
+  if (num('tieN') < 2) w.push('tie bar count must be >= 2');
+  if (num('topN') < 2) w.push('top bar count must be >= 2');
+  if (num('covBot') + BAR_DB[$('tieSize').value] / 2 >= num('hgb') / 2) w.push('tie centroid at/above grade-beam mid-depth (cover_bot + db/2 >= h_gb/2)');
+  if (2 * num('covSide') + num('tieN') * BAR_DB[$('tieSize').value] > num('bgb')) w.push('tie bars do not fit within b_gb');
+  if (2 * num('covSide') + num('topN') * BAR_DB[$('topSize').value] > num('tw')) w.push('top bars do not fit within t_w');
+  if (num('tw') < 2 * (num('webCov') + BAR_DB[$('webVsize').value] + BAR_DB[$('webHsize').value])) w.push('wall too thin for EF web reinforcement cover');
+  if (num('eL') < 0 || num('eR') < 0) w.push('GB extensions must be >= 0');
+  if (num('eL') > xL * 12 - lbL / 2) w.push('e_L extends GB beyond wall end');
+  if (num('eR') > (Lw - xR) * 12 - lbR / 2) w.push('e_R extends GB beyond wall end');
+  if (num('webVs') <= 0 || num('webHs') <= 0) w.push('web spacing must be > 0');
+  return w;
+}
+
+/* ------------------------------------------------------------------ */
+/* Status metadata for the summary banner                              */
+/* ------------------------------------------------------------------ */
+var STATUS_META = {
+  invalid_input:      { cls: 'sum-invalid', title: 'Invalid Input',            wm: 'INVALID INPUT — no drawing' },
+  geometry_infeasible:{ cls: 'sum-geom',    title: 'Geometry Infeasible',      wm: 'GEOMETRY INFEASIBLE — no drawing' },
+  no_admissible_stm:  { cls: 'sum-noadm',   title: 'No Admissible STM',        wm: 'NO ADMISSIBLE STM — no drawing' },
+  not_converged:      { cls: 'sum-err',     title: 'Engine Did Not Converge',  wm: 'ENGINE ERROR — no drawing' }
+};
+
+/* ------------------------------------------------------------------ */
+/* Derivation renderers — numbers come from the engine result only.    */
+/* ------------------------------------------------------------------ */
+function govLine(ch){
+  return '<div class="mrow" style="font-size:.9em;color:#555">Governing: <strong>' + esc(ch.governingCombo || '—') +
+    '</strong> &nbsp;|&nbsp; pattern: <code>' + esc(ch.governingPattern || '—') + '</code></div>';
+}
+function dcLine(ch){
+  var cls = ch.dcr <= 1 ? 'cval' : 'cval-warn';
+  return '<div class="mrow">D/C = ' + fr(f3(ch.demand), f3(ch.capacity)) + ' = <span class="' + cls + '">' + f3(ch.dcr) + '</span>' +
+    (ch.units ? ' <span style="color:#888;font-size:.85em">(' + esc(ch.units) + ')</span>' : '') + '</div>';
+}
+function contribTable(rows, cols){
+  var h = '<table class="mini-table"><thead><tr>';
+  cols.forEach(function(c){ h += '<th>' + c.label + '</th>'; });
+  h += '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    h += '<tr>';
+    cols.forEach(function(c){
+      var v = r[c.key];
+      h += '<td>' + (typeof v === 'number' ? fnum(v) : esc(v === undefined ? '—' : v)) + '</td>';
+    });
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+function detailFor(ch, model, inp){
+  var d = '<div class="cref-hdr">' + esc(ch.aciRef) + ' — ' + esc(ch.label) + '</div><div class="cbox">';
+  d += govLine(ch);
+  var id = ch.id;
+  var fy = inp.materials.fy_ksi, fc = inp.materials.fc_psi;
+
+  if (id === 'tie.bottom') {
+    var As = model.AsTie_in2;
+    d += '<div class="mrow"><span class="ceq">Demand:</span> T = H = M<sub>max</sub>/z = <span class="cval">' + f2(ch.demand) + ' kip</span> (constant over the full span — funicular model)</div>';
+    d += '<div class="mrow"><span class="ceq">Capacity:</span> &phi;F<sub>nt</sub> = 0.75 &times; A<sub>s</sub> &times; f<sub>y</sub> = 0.75 &times; ' + f2(As) + ' &times; ' + fy + ' = <span class="cval">' + f2(ch.capacity) + ' kip</span></div>';
+    d += dcLine(ch);
+    // AUDIT-FIXES F2: As_req comes from the ENGINE (results.model.AsReq_tie_in2) — rendered verbatim
+    d += '<hr class="csep"><div class="mrow"><span class="ceq">Convenience:</span> min A<sub>s</sub> for D/C = 1.0 = T/(0.75&middot;f<sub>y</sub>) = ' + fr(f2(ch.demand), '0.75 × ' + fy) + ' = <span class="cval">' + f2(model.AsReq_tie_in2) + ' in&sup2;</span> &nbsp;(provided ' + f2(As) + ' in&sup2;)</div>';
+    if (ch.contributions && ch.contributions.length) {
+      d += '<hr class="csep"><div class="sub-head">Truss loads (governing pattern, factored)</div>';
+      d += contribTable(ch.contributions, [{ key: 'source', label: 'Load' }, { key: 'value', label: 'P (kip)' }]);
+    }
+  } else if (id === 'strut.fit' || id === 'strut.overhang') {
+    d += '<div class="mrow"><span class="ceq">Per-segment fit:</span> w<sub>req</sub> = F/(f<sub>ce</sub>&middot;t<sub>w</sub>) with f<sub>ce</sub> = 0.75&middot;0.85&middot;&beta;<sub>s</sub>&middot;f&prime;<sub>c</sub> = 0.75 &times; 0.85 &times; ' + f2(model.betaS) + ' &times; ' + f2(fc/1000) + ' = <span class="cval">' + f3(model.fce_ksi) + ' ksi</span></div>';
+    d += '<div class="mrow"><span class="ceq">Governing:</span> w<sub>req</sub> = <span class="cval">' + f2(ch.demand) + ' in</span> vs available <span class="cval">' + f2(ch.capacity) + ' in</span> (from constructed node faces + envelope, not from the required width)</div>';
+    d += dcLine(ch);
+    if (ch.contributions && ch.contributions.length) {
+      d += '<div class="sub-head">All segments</div>';
+      d += contribTable(ch.contributions, [
+        { key: 'source', label: 'Segment' }, { key: 'F', label: 'F (kip)' }, { key: 'S', label: 'S (kip)' },
+        { key: 'alphaDeg', label: '&alpha; (deg)' }, { key: 'theta', label: '&theta; (deg)' },
+        { key: 'wReq', label: 'w_req (in)' }, { key: 'wAvail', label: 'w_avail (in)' }, { key: 'value', label: 'D/C' }
+      ]);
+    }
+  } else if (id.indexOf('node.') === 0) {
+    d += '<div class="mrow"><span class="ceq">Limit:</span> f<sub>ce,node</sub> = 0.75&middot;0.85&middot;&beta;<sub>c</sub>&middot;&beta;<sub>n</sub>&middot;f&prime;<sub>c</sub> = <span class="cval">' + f3(ch.capacity) + ' ksi</span> (&beta;<sub>c</sub> = 1.0 locked-conservative; &beta;<sub>n</sub> from node class per Table 23.9.2)</div>';
+    d += '<div class="mrow"><span class="ceq">Governing face stress:</span> <span class="cval">' + f3(ch.demand) + ' ksi</span></div>';
+    d += dcLine(ch);
+    if (ch.contributions && ch.contributions.length) {
+      if (ch.contributions[0] && ch.contributions[0].faces) {
+        ch.contributions.forEach(function(vn){
+          d += '<div class="sub-head">' + esc(vn.source || vn.name || 'node') + (vn.cls ? ' (' + esc(vn.cls) + ')' : '') + '</div>';
+          d += contribTable(vn.faces, [
+            { key: 'name', label: 'Face' }, { key: 'width', label: 'Width (in)' },
+            { key: 'stress', label: 'Stress (ksi)' }, { key: 'dcr', label: 'D/C' }
+          ]);
+        });
+      } else {
+        d += '<div class="sub-head">Faces</div>';
+        d += contribTable(ch.contributions, [
+          { key: 'name', label: 'Face' }, { key: 'width', label: 'Width (in)' },
+          { key: 'stress', label: 'Stress (ksi)' }, { key: 'dcr', label: 'D/C' }
+        ]);
+      }
+    }
+  } else if (id === 'bearing.L' || id === 'bearing.R' || id.indexOf('bearing.topload.') === 0) {
+    d += '<div class="mrow"><span class="ceq">Capacity:</span> &phi;(0.65) &times; 0.85 &times; f&prime;<sub>c</sub> &times; A<sub>brg</sub> = <span class="cval">' + f2(ch.capacity) + ' kip</span></div>';
+    d += '<div class="mrow"><span class="ceq">Demand:</span> <span class="cval">' + f2(ch.demand) + ' kip</span></div>';
+    d += dcLine(ch);
+    if (ch.contributions && ch.contributions.length && ch.contributions[0].source) {
+      d += contribTable(ch.contributions, [{ key: 'source', label: 'Component' }, { key: 'value', label: 'kip' }]);
+    }
+  } else if (id === 'anchorage.L' || id === 'anchorage.R') {
+    var det = (ch.contributions && ch.contributions[0]) || {};
+    d += '<div class="mrow"><span class="ceq">Type:</span> <strong>' + esc(det.type || '—') + '</strong> &nbsp;|&nbsp; T = ' + f2(det.T_kip) + ' kip &nbsp;|&nbsp; &theta;<sub>spr</sub> = ' + f2(det.theta_deg) + '&deg;</div>';
+    d += '<div class="mrow"><span class="ceq">Critical section:</span> tie-centroid exit from the extended nodal zone, x<sub>crit</sub> = y<sub>t</sub>/tan&theta; = <span class="cval">' + f2(det.xCrit_in) + ' in</span> inboard of the bearing inner face (drawn on the elevation)</div>';
+    if (det.ldh) {
+      d += '<div class="mrow"><span class="ceq">&#8467;<sub>dh</sub></span> = ' + fr('f<sub>y</sub>&middot;&psi;<sub>e</sub>&middot;&psi;<sub>r</sub>&middot;&psi;<sub>o</sub>&middot;&psi;<sub>c</sub>', '55&middot;&lambda;&middot;&radic;f&prime;<sub>c</sub>') + ' &middot; d<sub>b</sub>' +
+        ' with &psi;<sub>e</sub> = ' + f2(det.ldh.psiE) + ', &psi;<sub>r</sub> = ' + f2(det.ldh.psiR) + ' (' + esc(det.ldh.psiRWhy) + '), &psi;<sub>o</sub> = ' + f2(det.ldh.psiO) + ', &psi;<sub>c</sub> = ' + f2(det.ldh.psiC) + ' = <span class="cval">' + f2(det.ldh.l) + ' in</span></div>';
+    }
+    if (det.ldt) {
+      d += '<div class="mrow"><span class="ceq">&#8467;<sub>dt</sub></span> = ' + fr('f<sub>y</sub>&middot;&psi;<sub>e</sub>&middot;&psi;<sub>p</sub>&middot;&psi;<sub>o</sub>&middot;&psi;<sub>c</sub>', '75&middot;&radic;f&prime;<sub>c</sub>') + ' &middot; d<sub>b</sub>' +
+        ' with &psi;<sub>e</sub> = ' + f2(det.ldt.psiE) + ', &psi;<sub>p</sub> = ' + f2(det.ldt.psiP) + ', &psi;<sub>o</sub> = ' + f2(det.ldt.psiO) + ', &psi;<sub>c</sub> = ' + f2(det.ldt.psiC) + ' = <span class="cval">' + f2(det.ldt.l) + ' in</span>' +
+        (det.reject ? ' — <span class="cval-warn">' + esc(det.reject) + '</span>' : '') + '</div>';
+    }
+    if (det.ld) {
+      d += '<div class="mrow"><span class="ceq">&#8467;<sub>d</sub></span> (25.4.2.4, K<sub>tr</sub> = 0, c<sub>b</sub> = ' + f2(det.ld.cb) + ' in) = ' + f2(det.ld.l) + ' in, scaled by stress ratio ' + f3(det.stressRatio) + ' = <span class="cval">' + f2(ch.demand) + ' in</span> (hooks/heads get no such reduction per 25.4.10.2)</div>';
+    }
+    d += '<div class="mrow"><span class="ceq">Required:</span> <span class="cval">' + f2(det.required_in) + ' in</span> &nbsp;vs&nbsp; <span class="ceq">available</span> (along bar centerline, less cover) = <span class="cval">' + f2(det.available_in) + ' in</span></div>';
+    d += dcLine(ch);
+  } else if (id === 'shear.cap') {
+    d += '<div class="mrow"><span class="ceq">Cap:</span> V<sub>u</sub> &le; &phi;&middot;10&middot;&radic;f&prime;<sub>c</sub>&middot;b<sub>w</sub>&middot;d = 0.75 &times; 10 &times; &radic;' + fc + ' &times; t<sub>w</sub> &times; d / 1000 = <span class="cval">' + f2(ch.capacity) + ' kip</span> (&radic;f&prime;<sub>c</sub> in psi; lb&rarr;kip conversion explicit)</div>';
+    d += '<div class="mrow"><span class="ceq">V<sub>u</sub></span> = max reaction = <span class="cval">' + f2(ch.demand) + ' kip</span></div>';
+    d += dcLine(ch);
+    if (ch.contributions) d += contribTable(ch.contributions, [{ key: 'source', label: 'Term' }, { key: 'value', label: 'Value' }]);
+  } else if (id === 'web.min.9931' || id === 'web.qual.2351') {
+    d += '<div class="mrow"><span class="ceq">Required each way:</span> &rho; &ge; 0.0025 with s &le; min(d/5, 12 in)</div>';
+    if (ch.contributions) d += contribTable(ch.contributions, [{ key: 'source', label: 'Quantity' }, { key: 'value', label: 'Value' }]);
+    d += '<div class="mrow" style="font-size:.9em;color:#555">' + (id === 'web.min.9931'
+      ? 'Deep-beam distributed minimums per 9.9.3.1 — reported separately from the &beta;<sub>s</sub> qualification.'
+      : 'Table 23.5.1 qualification only sets &beta;<sub>s</sub> (0.75 vs 0.4); it is not itself a pass/fail strength check.') + '</div>';
+  } else if (id.indexOf('strip.') === 0) {
+    if (id.indexOf('.dispersion') > 0) {
+      d += '<div class="mrow"><span class="ceq">Rule:</span> outboard strip length beyond the bearing outer face (o = ' + f2(ch.demand) + ' in) routes only if it disperses at 45&deg; through the grade-beam depth AND lands entirely within the bearing width: o &le; min(h<sub>gb</sub>, l<sub>b</sub>) = ' + f2(ch.capacity) + ' in. A strip that exceeds this limit is a genuine overhang &mdash; use Case C.</div>';
+      if (ch.contributions) d += contribTable(ch.contributions, [{ key: 'source', label: 'Quantity' }, { key: 'value', label: 'in' }]);
+      d += '<div class="mrow" style="font-size:.9em;color:#555">A strip that fails this test is a genuine overhang and the engine models it as Case C.</div>';
+    } else {
+      d += '<div class="mrow"><span class="ceq">Mini load path for the routed strip:</span> demand <span class="cval">' + f3(ch.demand) + '</span> vs capacity <span class="cval">' + f3(ch.capacity) + '</span> ' + (ch.units ? '(' + esc(ch.units) + ')' : '') + '</div>';
+      d += dcLine(ch);
+      if (ch.contributions && ch.contributions.length) d += contribTable(ch.contributions, [{ key: 'source', label: 'Term' }, { key: 'value', label: 'Value' }, { key: 'stressRatio', label: 'Stress ratio' }]);
+      d += '<div class="mrow" style="font-size:.9em;color:#555">Critical section at the support face — conservative, no d-offset credit (PLAN routing rule).</div>';
+    }
+  } else if (id === 'applicability') {
+    d += '<div class="mrow"><span class="ceq">§9.9.1.1 boolean:</span> (a) l<sub>n</sub> &le; 4h &nbsp;or&nbsp; (b) concentrated load within 2h of a support face</div>';
+    if (ch.contributions && ch.contributions[0]) d += '<div class="mrow"><span class="ceq">Triggering clause:</span> <span class="cval">' + esc(ch.contributions[0].value) + '</span></div>';
+    d += '<div class="mrow">Compared: ' + f1(ch.demand) + ' in vs ' + f1(ch.capacity) + ' in</div>';
+  } else if (id === 'tie.top') {
+    d += '<div class="mrow"><span class="ceq">Capacity:</span> &phi;F<sub>nt</sub> = 0.75 &times; A<sub>s,top</sub> &times; f<sub>y</sub> = 0.75 &times; ' + f2(model.AsTop_in2) + ' &times; ' + fy + ' = <span class="cval">' + f2(ch.capacity) + ' kip</span></div>';
+    d += dcLine(ch);
+    if (ch.contributions) d += contribTable(ch.contributions, [{ key: 'source', label: 'Segment' }, { key: 'value', label: 'T (kip)' }]);
+  } else if (id === 'anchorage.freeEnd' || id === 'anchorage.topCutoff') {
+    d += '<div class="mrow"><span class="ceq">Required:</span> <span class="cval">' + f2(ch.demand) + ' in</span> vs <span class="ceq">available</span> <span class="cval">' + f2(ch.capacity) + ' in</span></div>';
+    d += dcLine(ch);
+    if (ch.contributions) d += contribTable(ch.contributions, [{ key: 'source', label: 'Term' }, { key: 'value', label: 'in' }, { key: 'stressRatio', label: 'Stress ratio' }]);
+  } else if (id === 'tie.identity') {
+    d += '<div class="mrow"><span class="ceq">Physics self-check:</span> |T<sub>bot,A</sub> &minus; T<sub>bot,C</sub>| = <span class="cval">' + ch.demand.toExponential(2) + ' kip</span> (derived independently at each support joint; informational)</div>';
+  } else if (id === 'angles.strutTie') {
+    d += '<div class="mrow"><span class="ceq">Minimum strut-tie angle in the model:</span> <span class="cval">' + f2(ch.capacity) + '&deg;</span> vs the 25&deg; floor of §23.2.7 (also enforced as a hard guard — an inadmissible angle stops the solve)</div>';
+  } else if (id.indexOf('detailing.') === 0) {
+    d += '<div class="mrow"><span class="ceq">Required:</span> ' + f2(ch.demand) + ' in &nbsp;vs&nbsp; <span class="ceq">available/provided:</span> ' + f2(ch.capacity) + ' in</div>';
+    d += dcLine(ch);
+    if (ch.state === 'detailing does not fit') d += '<div class="mrow"><span class="cval-warn">Reported as "detailing does not fit" — blocks PASS.</span></div>';
+  } else {
+    d += '<div class="mrow">Demand = ' + f3(ch.demand) + ', capacity = ' + f3(ch.capacity) + ' ' + (ch.units ? '(' + esc(ch.units) + ')' : '') + '</div>';
+    d += dcLine(ch);
+  }
+  return d + '</div>';
+}
+
+/* ------------------------------------------------------------------ */
+/* Results rendering                                                   */
+/* ------------------------------------------------------------------ */
+window.toggleDet = function (i) {
+  var el = $('det_' + i), btn = $('dbtn_' + i);
+  var open = el.classList.toggle('open');
+  btn.textContent = open ? '▾ Calc' : '▶ Calc';
+};
+
+function renderResults(out, inp){
+  var resBox = $('results');
+  var sb = $('sumBox');
+  var errBox = $('engErr');
+  var warns = clientWarnings();
+
+  // errors box (client warnings advisory + engine errors verbatim)
+  var eHtml = '';
+  if (warns.length) {
+    eHtml += '<strong>Input bound checks (advisory — the engine is authoritative):</strong><ul>' +
+      warns.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>';
+  }
+  if (out.status !== 'ok' && out.errors && out.errors.length) {
+    eHtml += '<strong>Engine (' + esc(out.status) + '):</strong><ul>' +
+      out.errors.map(function (e) {
+        return '<li><code>' + esc(e.code) + '</code> ' + esc(e.message) +
+          (e.combo ? ' <em>[' + esc(e.combo) + (e.pattern ? ' / ' + esc(e.pattern) : '') + ']</em>' : '') + '</li>';
+      }).join('') + '</ul>';
+  }
+  errBox.innerHTML = eHtml;
+  errBox.className = 'err-box' + (eHtml ? ' show' : '');
+
+  resBox.className = 'results show';
+
+  if (out.status !== 'ok') {
+    var meta = STATUS_META[out.status] || STATUS_META.not_converged;
+    sb.className = 'summary ' + meta.cls;
+    sb.innerHTML = '<h3>' + esc(meta.title) + '</h3><p>' +
+      (out.errors && out.errors.length ? esc(out.errors[0].message) : 'See the message box above.') +
+      ' &nbsp;&mdash;&nbsp; no DCRs are reported for this state; it is not a capacity result.</p>';
+    $('demOut').innerHTML = '<p style="font-size:.85em;color:#888">No solved model.</p>';
+    $('chkTb').innerHTML = '';
+    $('routedEcho').innerHTML = '';
+    return;
+  }
+
+  var r = out.results, model = r.model, sum = r.summary;
+
+  // summary banner: pass / fail / detailing-does-not-fit (distinct)
+  var govCh = null;
+  r.checks.forEach(function (c) { if (sum.governing && c.id === sum.governing.id) govCh = c; });
+  var detailingBlocked = sum.states.indexOf('detailing does not fit') >= 0;
+  if (sum.pass) {
+    sb.className = 'summary sum-pass';
+    sb.innerHTML = '<h3>&#10004; All Checks Pass</h3>';
+  } else if (detailingBlocked) {
+    sb.className = 'summary sum-detail';
+    sb.innerHTML = '<h3>&#9888; Detailing Does Not Fit</h3>';
+  } else {
+    sb.className = 'summary sum-fail';
+    sb.innerHTML = '<h3>&#10008; One or More Checks Fail</h3>';
+  }
+  sb.innerHTML += '<p>Solved case: <strong>' + esc(r.caseLabel) + '</strong>' +
+    (model.overhangSide ? ' (overhang ' + esc(model.overhangSide) + ')' : '') +
+    ' &nbsp;|&nbsp; &beta;<sub>s</sub> = ' + f2(r.betaS.value) + (r.betaS.qualifies ? ' (Table 23.5.1 qualified)' : ' (NOT qualified — 0.4)') +
+    (sum.governing ? ' &nbsp;|&nbsp; governing: <strong>' + esc(sum.governing.id) + '</strong> D/C = <strong>' + f3(sum.governing.dcr) + '</strong>' : '') +
+    (govCh ? ' [' + esc(govCh.governingCombo) + ']' : '') +
+    ' &nbsp;|&nbsp; combos: ' + r.combosRun.join(', ') +
+    ' &nbsp;|&nbsp; ' + r.patterns.length + ' combination/pattern runs enveloped' +
+    (sum.states.length ? ' &nbsp;|&nbsp; states: ' + sum.states.map(esc).join('; ') : '') + '</p>';
+  sb.innerHTML += '<p style="font-size:.78em;color:#555;margin-top:4px">Engine self-checks: max node residual = ' +
+    model.selfChecks.maxNodeResidual_kip.toExponential(2) + ' kip; global &Sigma;V = ' +
+    model.selfChecks.globalV_kip.toExponential(2) + ' kip' +
+    (model.selfChecks.tieIdentityDelta_kip !== undefined ? '; Case C tie identity &Delta; = ' + model.selfChecks.tieIdentityDelta_kip.toExponential(2) + ' kip' : '') + '</p>';
+
+  // routed-strip echo
+  var rEcho = '';
+  var rl = model.routed && model.routed.L, rr = model.routed && model.routed.R;
+  if ((rl && rl.strip.P > 1e-9) || (rr && rr.strip.P > 1e-9) || (rl && rl.pts.length) || (rr && rr.pts.length)) {
+    rEcho = '<div class="note-box" style="margin:0 0 16px 0"><strong>Routed-load assumption echo (PLAN §1):</strong> ' +
+      'loads routed directly to the piers, bypassing the truss — left: strip ' + f1(rl.strip.P) + ' k over ' + f1(rl.strip.len) + ' in' +
+      (rl.pts.length ? ' + ' + rl.pts.length + ' point load(s)' : '') +
+      '; right: strip ' + f1(rr.strip.P) + ' k over ' + f1(rr.strip.len) + ' in' +
+      (rr.pts.length ? ' + ' + rr.pts.length + ' point load(s)' : '') +
+      '. Each routed strip carries its own mini load-path checks (strip.* rows): dispersion/bearing footprint o &le; min(h<sub>gb</sub>, l<sub>b</sub>), cantilever moment vs top bars, one-way shear at the support face, and top-bar development. Routed live load is always applied (kept on in every LL pattern).</div>';
+  }
+  $('routedEcho').innerHTML = rEcho;
+
+  // demand cards
+  var dh = '<div class="dem-grid">';
+  dh += '<div class="dem-card"><div class="v">' + f2(model.wu_klf) + ' klf</div><div class="l">w<sub>u</sub> (reference combo ' + esc(model.combo) + ')</div></div>';
+  dh += '<div class="dem-card"><div class="v">' + f1(model.RtL_kip) + ' / ' + f1(model.RtR_kip) + ' k</div><div class="l">R<sub>truss</sub> L / R</div></div>';
+  dh += '<div class="dem-card"><div class="v">' + f1(model.RbL_kip) + ' / ' + f1(model.RbR_kip) + ' k</div><div class="l">R<sub>bearing</sub> L / R (incl. routed)</div></div>';
+  dh += '<div class="dem-card"><div class="v">' + f1(model.Mmax_kin / 12) + ' k-ft</div><div class="l">M<sub>max</sub></div></div>';
+  dh += '<div class="dem-card alt"><div class="v">' + f1(model.T_kip) + ' k</div><div class="l">Tie Force T = H (constant)</div></div>';
+  dh += '<div class="dem-card"><div class="v">' + f1(model.thetaL_deg) + '&deg; / ' + f1(model.thetaR_deg) + '&deg;</div><div class="l">&theta;<sub>spr</sub> L / R</div></div>';
+  dh += '<div class="dem-card"><div class="v">' + f1(model.z_in / 12) + ' ft</div><div class="l">Lever arm z (' + f1(model.z_in) + ' in)</div></div>';
+  if (model.a_in !== null && model.a_in !== undefined) {
+    dh += '<div class="dem-card"><div class="v">' + f2(model.a_in) + ' in</div><div class="l">Crown band depth a</div></div>';
+  }
+  if (r.caseLabel === 'C') {
+    dh += '<div class="dem-card"><div class="v">' + f1(model.Ttop_kip) + ' k</div><div class="l">Top tie T<sub>top</sub> (max at N<sub>a</sub>)</div></div>';
+    dh += '<div class="dem-card"><div class="v">' + f1(model.HL_kip) + ' / ' + f1(model.HR_kip) + ' k</div><div class="l">Thrust H<sub>L</sub> / H<sub>R</sub> (step at N<sub>a</sub>)</div></div>';
+  }
+  dh += '</div>';
+  $('demOut').innerHTML = dh;
+
+  // check table
+  var tb = $('chkTb');
+  tb.innerHTML = '';
+  var rowsHtml = '';
+  r.checks.forEach(function (ch, i) {
+    var isInfo = ch.informational || ch.state === 'informational';
+    var dcOk = isFinite(ch.dcr);
+    var pct = dcOk ? Math.min(ch.dcr * 100, 150) : 0;
+    var col = isInfo ? '#9ca3af' : (!ch.pass ? '#dc2626' : (ch.dcr > 0.95 ? '#d97706' : '#16a34a'));
+    var stat = isInfo ? '<span class="info-badge">INFO</span>'
+      : (ch.pass ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>');
+    if (!isInfo && ch.state === 'detailing does not fit') stat = '<span class="fail">DOES NOT FIT</span>';
+    var flags = '';
+    if (!isInfo && ch.nearLimit) flags += ' <span class="nl-badge">NEAR LIMIT</span>';
+    var rowCls = (!isInfo && ch.nearLimit) ? ' class="nl-row"' : '';
+    var minAs = '';
+    if (ch.id === 'tie.bottom') {
+      // AUDIT-FIXES F2: engine-computed As_req rendered verbatim (no UI arithmetic)
+      minAs = '<br><small style="color:#555">min A<sub>s</sub> for D/C = 1.0: <strong>' + f2(model.AsReq_tie_in2) + ' in&sup2;</strong> (provided ' + f2(model.AsTie_in2) + ' in&sup2;)</small>';
+    }
+    rowsHtml +=
+      '<tr' + rowCls + '>' +
+      '<td><strong>' + esc(ch.label) + '</strong>' + flags + minAs + '</td>' +
+      '<td><code style="font-size:.92em">' + esc(ch.aciRef) + '</code></td>' +
+      '<td>' + fnum(ch.demand) + (ch.units ? ' <span style="color:#888;font-size:.85em">' + esc(ch.units) + '</span>' : '') + '</td>' +
+      '<td>' + fnum(ch.capacity) + (ch.units ? ' <span style="color:#888;font-size:.85em">' + esc(ch.units) + '</span>' : '') + '</td>' +
+      '<td><div class="dc-cell"><span style="color:' + col + ';font-weight:700">' + (dcOk ? f3(ch.dcr) : '&infin;') + '</span>' +
+      (dcOk ? '<div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' : '') + '</div></td>' +
+      '<td style="font-size:.8em">' + esc(ch.governingCombo || '—') + '<br><code style="font-size:.85em">' + esc(ch.governingPattern || '') + '</code></td>' +
+      '<td>' + stat + '</td>' +
+      '<td><button class="det-btn" id="dbtn_' + i + '" onclick="toggleDet(' + i + ')">▶ Calc</button></td>' +
+      '</tr>' +
+      '<tr class="det-row"><td colspan="8"><div class="calc-det" id="det_' + i + '">' + detailFor(ch, model, inp) + '</div></td></tr>';
+  });
+  tb.innerHTML = rowsHtml;
+}
+
+/* ------------------------------------------------------------------ */
+/* LOCAL SVG HELPERS (from the spike — each exists because AREDraw     */
+/* has no equivalent primitive; see spike header for rationale)        */
+/* ------------------------------------------------------------------ */
+function polyW(v, pts, attrs, layer, open) {
+  var d = '';
+  for (var i = 0; i < pts.length; i++) {
+    d += (i ? 'L' : 'M') + v.px(pts[i][0]).toFixed(2) + ',' + v.py(pts[i][1]).toFixed(2) + ' ';
+    v.mark(v.px(pts[i][0]), v.py(pts[i][1]));
+  }
+  if (!open) d += 'Z';
+  var node = document.createElementNS(SVGNS, 'path');
+  node.setAttribute('d', d.trim());
+  for (var k in attrs) node.setAttribute(k, attrs[k]);
+  v.add(node, layer || 'steel');
+  return node;
+}
+function lineW(v, x1, y1, x2, y2, attrs, layer) {
+  var node = document.createElementNS(SVGNS, 'line');
+  node.setAttribute('x1', v.px(x1)); node.setAttribute('y1', v.py(y1));
+  node.setAttribute('x2', v.px(x2)); node.setAttribute('y2', v.py(y2));
+  for (var k in attrs) node.setAttribute(k, attrs[k]);
+  v.add(node, layer || 'steel');
+  v.mark(v.px(x1), v.py(y1)); v.mark(v.px(x2), v.py(y2));
+  return node;
+}
+function archBand(v, verts, dv, hTop, st) {
+  // verts: [{x,y}] n points; dv: per-segment vertical band depth (n-1)
+  var n = verts.length, top = [], bot = [];
+  for (var k = 0; k < n; k++) {
+    var dL = k > 0 ? dv[k - 1] : dv[0];
+    var dR = k < n - 1 ? dv[k] : dv[n - 2];
+    var d2 = (dL + dR) / 2;
+    top.push([verts[k].x, Math.min(verts[k].y + d2 / 2, hTop)]);
+    bot.push([verts[k].x, Math.max(verts[k].y - d2 / 2, 0)]);
+  }
+  polyW(v, top.concat(bot.slice().reverse()),
+    { fill: 'rgba(26,43,95,0.16)', stroke: st.steel, 'stroke-width': 1, 'stroke-linejoin': 'round' }, 'steel');
+  polyW(v, verts.map(function (p) { return [p.x, p.y]; }),
+    { fill: 'none', stroke: st.weld, 'stroke-width': 1.4, 'stroke-dasharray': '6 4' }, 'center', true);
+}
+function hookGlyph(v, xEnd, y, db, st, lw, dir) {
+  // dir = +1: hook at LEFT bar end (bend opens right); -1: right end
+  dir = dir || 1;
+  var r0 = 3 * db, tail = 12 * db;
+  var p0x = v.px(xEnd + dir * r0), p0y = v.py(y);
+  var p1x = v.px(xEnd), p1y = v.py(y + r0);
+  var rp = Math.abs(v.s(r0));
+  var sweep = dir > 0 ? 0 : 1;
+  var node = document.createElementNS(SVGNS, 'path');
+  node.setAttribute('d', 'M' + p0x.toFixed(2) + ',' + p0y.toFixed(2) +
+    ' A' + rp.toFixed(2) + ',' + rp.toFixed(2) + ' 0 0 ' + sweep + ' ' + p1x.toFixed(2) + ',' + p1y.toFixed(2) +
+    ' L' + v.px(xEnd).toFixed(2) + ',' + v.py(y + r0 + tail).toFixed(2));
+  node.setAttribute('fill', 'none');
+  node.setAttribute('stroke', st.force);
+  node.setAttribute('stroke-width', lw);
+  node.setAttribute('stroke-linecap', 'round');
+  v.add(node, 'steel');
+  v.mark(v.px(xEnd) - lw, v.py(y + r0 + tail) - 2);
+  return node;
+}
+function headGlyph(v, xEnd, y, st) {
+  var wpx = Math.max(3.2, Math.abs(v.s(0.5)));
+  var hpx = Math.max(11, Math.abs(v.s(4)));
+  var node = document.createElementNS(SVGNS, 'rect');
+  node.setAttribute('x', (v.px(xEnd) - wpx / 2).toFixed(2));
+  node.setAttribute('y', (v.py(y) - hpx / 2).toFixed(2));
+  node.setAttribute('width', wpx.toFixed(2));
+  node.setAttribute('height', hpx.toFixed(2));
+  node.setAttribute('fill', st.force);
+  v.add(node, 'steel');
+  v.mark(v.px(xEnd) + wpx, v.py(y) - hpx / 2 - 2);
+  return node;
+}
+function rebarDot(v, x, y, dia, st) {
+  var node = document.createElementNS(SVGNS, 'circle');
+  node.setAttribute('cx', v.px(x).toFixed(2));
+  node.setAttribute('cy', v.py(y).toFixed(2));
+  node.setAttribute('r', Math.max(2.4, Math.abs(v.s(dia / 2))).toFixed(2));
+  node.setAttribute('fill', st.force);
+  node.setAttribute('stroke', '#7f1d1d');
+  node.setAttribute('stroke-width', 0.7);
+  v.add(node, 'steel');
+  return node;
+}
+function nodalZone(v, xc, lb, ha, thetaRad, yt, side, st) {
+  var c = Math.cos(thetaRad), s = Math.sin(thetaRad);
+  var xO = xc - side * lb / 2;
+  var xI = xc + side * lb / 2;
+  polyW(v, [[xO, 0], [xI, 0], [xI, ha], [xO, ha]],
+    { fill: 'rgba(179,101,26,0.20)', stroke: st.moment, 'stroke-width': 1.3 }, 'anno');
+  lineW(v, xO, ha, xI, 0, { stroke: st.moment, 'stroke-width': 1.6 }, 'anno');
+  var e = (lb * s + ha * c) * 1.15;
+  var ux = side * c, uy = s;
+  polyW(v, [[xO, ha], [xO + ux * e, ha + uy * e], [xI + ux * e, uy * e], [xI, 0]],
+    { fill: 'none', stroke: st.moment, 'stroke-width': 1, 'stroke-dasharray': '5 4' }, 'anno');
+  var xCrit = xI + side * yt * (c / s);
+  lineW(v, xCrit, -8, xCrit, ha + 14,
+    { stroke: st.dim, 'stroke-width': 1, 'stroke-dasharray': '3 3' }, 'anno');
+  return { xCrit: xCrit };
+}
+function showWatermark(svg, line1, line2) {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  svg.setAttribute('viewBox', '0 0 640 300');
+  svg.setAttribute('width', 640); svg.setAttribute('height', 300);
+  svg.style.width = '100%'; svg.style.maxWidth = '832px'; svg.style.height = 'auto';
+  var box = document.createElementNS(SVGNS, 'rect');
+  box.setAttribute('x', 4); box.setAttribute('y', 4);
+  box.setAttribute('width', 632); box.setAttribute('height', 292);
+  box.setAttribute('fill', 'none'); box.setAttribute('stroke', '#c9cfdd');
+  box.setAttribute('stroke-width', 1.5); box.setAttribute('stroke-dasharray', '8 6');
+  svg.appendChild(box);
+  var t = document.createElementNS(SVGNS, 'text');
+  t.setAttribute('x', 320); t.setAttribute('y', 150);
+  t.setAttribute('text-anchor', 'middle');
+  t.setAttribute('font-size', 24); t.setAttribute('font-weight', 700);
+  t.setAttribute('fill', '#9aa6c2');
+  t.setAttribute('font-family', "'Segoe UI',system-ui,sans-serif");
+  t.textContent = line1;
+  svg.appendChild(t);
+  var t2 = document.createElementNS(SVGNS, 'text');
+  t2.setAttribute('x', 320); t2.setAttribute('y', 178);
+  t2.setAttribute('text-anchor', 'middle');
+  t2.setAttribute('font-size', 12); t2.setAttribute('fill', '#9aa6c2');
+  t2.setAttribute('font-family', "'Segoe UI',system-ui,sans-serif");
+  t2.textContent = line2 || 'Fix inputs to restore the diagram';
+  svg.appendChild(t2);
+}
+
+/* Label audit — objective post-render self-check (spike approach).
+   setTimeout, not requestAnimationFrame: rAF never fires in a hidden tab
+   and getBBox() is valid as soon as the DOM is attached. */
+function auditLabels(mode) {
+  var run = function () {
+    var svg = $('stmSvg'), out = $('lblAudit');
+    if (mode !== 'drawn') {
+      out.className = 'lbl-audit';
+      out.textContent = 'label audit: n/a — drawing suppressed (' + mode + ')';
+      return;
+    }
+    var vb = svg.viewBox.baseVal;
+    var texts = Array.prototype.slice.call(svg.querySelectorAll('text'));
+    var tol = 0.75, boxes = [], escapes = [], overlaps = [];
+    texts.forEach(function (t) {
+      var b;
+      try { b = t.getBBox(); } catch (e) { return; }
+      if (b.width === 0 && b.height === 0) return;
+      boxes.push({ s: (t.textContent || '').trim(), b: b });
+    });
+    boxes.forEach(function (x) {
+      if (x.b.x < vb.x - tol || x.b.y < vb.y - tol ||
+          x.b.x + x.b.width > vb.x + vb.width + tol ||
+          x.b.y + x.b.height > vb.y + vb.height + tol) escapes.push('"' + x.s + '"');
+    });
+    for (var i = 0; i < boxes.length; i++) {
+      for (var j = i + 1; j < boxes.length; j++) {
+        var a = boxes[i].b, b = boxes[j].b;
+        var ow = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        var oh = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+        if (ow > 1 && oh > 1) overlaps.push('"' + boxes[i].s + '" x "' + boxes[j].s + '"');
+      }
+    }
+    var pass = escapes.length === 0 && overlaps.length === 0;
+    out.className = 'lbl-audit ' + (pass ? 'audit-pass' : 'audit-fail');
+    var msg = 'label audit: ' + boxes.length + ' labels — ' + (pass ? 'PASS (no clips, no overlaps)' : 'ISSUES');
+    if (escapes.length) msg += ' | escapes viewport (' + escapes.length + '): ' + escapes.join(', ');
+    if (overlaps.length) msg += ' | overlapping (' + overlaps.length + '): ' + overlaps.join('; ');
+    out.textContent = msg;
+  };
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { setTimeout(run, 0); });
+  } else { setTimeout(run, 0); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Elevation + section drawing from the ENGINE model                   */
+/* ------------------------------------------------------------------ */
+function drawSTM(out, inp) {
+  var svg = $('stmSvg');
+  if (!window.AREDraw) return;
+  if (out.status !== 'ok') {
+    var meta = STATUS_META[out.status] || STATUS_META.not_converged;
+    showWatermark(svg, meta.wm);
+    auditLabels(out.status);
+    return;
+  }
+  var model = out.results.model;
+  var g = inp.geometry;
+  var Lw = g.L_w_ft * 12, xL = g.x_L_ft * 12, xR = g.x_R_ft * 12;
+  var lbL = g.lb_L_in, lbR = g.lb_R_in, tw = g.t_w_in;
+  var hw = g.h_w_ft * 12, hgb = g.h_gb_in, bgb = g.b_gb_in;
+  var eLx = g.e_L_in, eRx = g.e_R_in;
+  var h = model.h_in, yt = model.yt_in;
+  var tieDb = BAR_DB[inp.reinf.tieBars.size];
+  var topDb = BAR_DB[inp.reinf.topBars.size];
+  var ytTop = inp.reinf.cover_top_in + topDb / 2;
+  var caseC = out.results.caseLabel === 'C';
+
+  var dwg = new AREDraw.Drawing(svg, { margin: 22 });
+  var st = dwg.style;
+  var pierH = 30;
+
+  /* ---- elevation ---- */
+  var scl = AREDraw.fitScale(Lw, 640, { min: 0.2, max: 4 });
+  var oy = 78 + h * scl;
+  var vE = new AREDraw.View(dwg, { scale: scl, ox: 150, oy: oy, flipY: true });
+
+  // concrete bodies
+  AREDraw.plate(vE, 0, hgb, Lw, hw, { fill: '#eef1f8' });
+  var gbX0 = xL - lbL / 2 - eLx, gbX1 = xR + lbR / 2 + eRx;
+  AREDraw.plate(vE, gbX0, 0, gbX1 - gbX0, hgb, { highlight: true });
+  [[xL, lbL], [xR, lbR]].forEach(function (sp) {
+    AREDraw.plate(vE, sp[0] - sp[1] / 2, -pierH, sp[1], pierH, { fill: st.steelFill, hatch: true });
+  });
+
+  // vertical compression members (Cases A/B — engine model members)
+  var nodeById = {};
+  model.nodes.forEach(function (n) { nodeById[n.id] = n; });
+  model.members.forEach(function (m) {
+    if (m.type !== 'vertical') return;
+    var vtx = nodeById[m.to];
+    if (!vtx) return;
+    var wHalf = (m.width_in || 6) / 2;
+    polyW(vE, [[vtx.x - wHalf, vtx.y], [vtx.x + wHalf, vtx.y], [vtx.x + wHalf, h], [vtx.x - wHalf, h]],
+      { fill: 'rgba(26,43,95,0.06)', stroke: 'rgba(26,43,95,0.30)', 'stroke-width': 0.7 }, 'steel');
+  });
+
+  // funicular arch band from solved model (vertices + per-segment vertical depths)
+  if (model.arch.length >= 2 && model.bands.length === model.arch.length - 1) {
+    archBand(vE, model.arch, model.bands.map(function (b) { return b.dVert_in; }), h, st);
+  }
+
+  // Case C overhang struts + top tie
+  if (caseC) {
+    model.members.forEach(function (m) {
+      if (m.id.indexOf('strut.ov') !== 0) return;
+      var a = nodeById[m.from], b = nodeById[m.to];
+      if (!a || !b) return;
+      lineW(vE, a.x, a.y, b.x, b.y,
+        { stroke: 'rgba(26,43,95,0.55)', 'stroke-width': 3, 'stroke-dasharray': '7 4' }, 'steel');
+    });
+    // top tie: free end (wall end + side cover) to cutoff beyond Na
+    var yTop = h - ytTop;
+    var ovLeft = model.overhangSide === 'left';
+    var xFree = ovLeft ? inp.reinf.cover_side_in : Lw - inp.reinf.cover_side_in;
+    var cut = model.anchorage && model.anchorage.topCutoff ? model.anchorage.topCutoff.required_in : 60;
+    var xCut = ovLeft ? Math.min(Lw - 2, model.Na.x + cut) : Math.max(2, model.Na.x - cut);
+    var topLw = Math.max(2.5, Math.abs(vE.s(topDb)));
+    lineW(vE, xFree, yTop, xCut, yTop,
+      { stroke: st.force, 'stroke-width': topLw, 'stroke-linecap': 'butt' }, 'steel');
+    // Na marker
+    var naDot = document.createElementNS(SVGNS, 'circle');
+    naDot.setAttribute('cx', vE.px(model.Na.x)); naDot.setAttribute('cy', vE.py(model.Na.y));
+    naDot.setAttribute('r', 5); naDot.setAttribute('fill', 'none');
+    naDot.setAttribute('stroke', st.moment); naDot.setAttribute('stroke-width', 2);
+    vE.add(naDot, 'anno');
+    AREDraw.leader(vE, model.Na.x, model.Na.y, 40, -46,
+      'N_a  (T_top = ' + f1(model.Ttop_kip) + ' k)', { color: st.moment });
+  }
+
+  // bottom tie bar with per-end anchorage glyphs
+  var barEndL = gbX0 + inp.reinf.cover_side_in;
+  var barEndR = gbX1 - inp.reinf.cover_side_in;
+  var tieLw = Math.max(3, Math.abs(vE.s(tieDb)));
+  var aL = inp.reinf.anchorage.left.type, aR = inp.reinf.anchorage.right.type;
+  var xBarL = barEndL + (aL === 'hook' ? 3 * tieDb : 0);
+  var xBarR = barEndR - (aR === 'hook' ? 3 * tieDb : 0);
+  lineW(vE, xBarL, yt, xBarR, yt, { stroke: st.force, 'stroke-width': tieLw, 'stroke-linecap': 'butt' }, 'steel');
+  if (aL === 'hook') hookGlyph(vE, barEndL, yt, tieDb, st, tieLw, +1);
+  if (aL === 'headed') headGlyph(vE, barEndL, yt, st);
+  if (aR === 'hook') hookGlyph(vE, barEndR, yt, tieDb, st, tieLw, -1);
+  if (aR === 'headed') headGlyph(vE, barEndR, yt, st);
+
+  // nodal zones + extended zones + critical sections (both supports)
+  var ha = model.ha_in;
+  var thL = model.thetaL_deg * Math.PI / 180, thR = model.thetaR_deg * Math.PI / 180;
+  var nzL = nodalZone(vE, xL, lbL, ha, thL, yt, +1, st);
+  var nzR = nodalZone(vE, xR, lbR, ha, thR, yt, -1, st);
+  AREDraw.leader(vE, xL - lbL / 2 + 2, ha * 0.6, -72, 30, 'ext. nodal zone', { color: st.moment });
+  AREDraw.leader(vE, nzL.xCrit, ha + 10, 46, -64, 'critical section', { color: st.dim });
+
+  // anchorage dimension pairs — required vs available, both ends (engine numbers)
+  if (model.anchorage && model.anchorage.left) {
+    var reqL = model.anchorage.left.required_in, avL = model.anchorage.left.available_in;
+    AREDraw.dimLine(vE, barEndL, yt, barEndL + reqL, yt,
+      'l,req = ' + AREDraw.fmtIn(Math.round(reqL * 10) / 10), { off: -26, color: st.force });
+    AREDraw.dimLine(vE, barEndL, yt, barEndL + avL, yt,
+      'l,avail = ' + AREDraw.fmtIn(Math.round(avL * 10) / 10), { off: -52 });
+  }
+  if (model.anchorage && model.anchorage.right) {
+    var reqR = model.anchorage.right.required_in, avR = model.anchorage.right.available_in;
+    AREDraw.dimLine(vE, barEndR - reqR, yt, barEndR, yt,
+      'l,req = ' + AREDraw.fmtIn(Math.round(reqR * 10) / 10), { off: -26, color: st.force });
+    AREDraw.dimLine(vE, barEndR - avR, yt, barEndR, yt,
+      'l,avail = ' + AREDraw.fmtIn(Math.round(avR * 10) / 10), { off: -52 });
+  }
+
+  // loads
+  if (model.wu_klf > 0.001) {
+    AREDraw.distLoad(vE, 0, Lw, h, 26, 'wu = ' + f2(model.wu_klf) + ' klf (' + model.combo + ')');
+  }
+  var ptsSorted = (inp.loads.pointLoads || []).slice().sort(function (a, b) { return a.x_ft - b.x_ft; });
+  ptsSorted.forEach(function (p, pi) {
+    var Pf = p.D_kip + p.L_kip;
+    if (!(Pf > 0)) return;
+    // alternate arrow length + label side so closely spaced load labels never collide
+    var stag = (pi % 2) * 44;
+    AREDraw.forceArrow(vE, p.x_ft * 12, h + (34 + stag) / scl, 0, -1, 34 + stag,
+      'P = ' + f1(p.D_kip) + 'D+' + f1(p.L_kip) + 'L k', { labelOff: (pi % 2) ? -12 : 12 });
+  });
+
+  // reactions (bearing demand incl. routed)
+  AREDraw.forceArrow(vE, xL, -pierH - 34 / scl, 0, 1, 34,
+    'Rb = ' + f1(model.RbL_kip) + ' k', { labelOff: 12 });
+  AREDraw.forceArrow(vE, xR, -pierH - 34 / scl, 0, 1, 34,
+    'Rb = ' + f1(model.RbR_kip) + ' k', { labelOff: 12 });
+
+  // force labels
+  var midX = (xL + xR) / 2;
+  AREDraw.memberLabel(vE, xL + (xR - xL) * 0.28, yt + 30 / scl,
+    'T = H = ' + f1(model.T_kip) + ' k (const.)', { color: st.force, size: st.fsForce, weight: 600 });
+  if (model.bands.length) {
+    var s0 = model.bands[0];
+    AREDraw.calloutLabel(vE, (model.arch[0].x + model.arch[1].x) / 2, (model.arch[0].y + model.arch[1].y) / 2,
+      vE.px(0) - 16, vE.py((model.arch[0].y + model.arch[1].y) / 2),
+      'F1 = ' + f1(model.T_kip / Math.cos(s0.alphaDeg * Math.PI / 180)) + ' k @ ' + f1(Math.abs(s0.alphaDeg)) + '°',
+      { anchor: 'end' });
+  }
+
+  // overall dims
+  AREDraw.dimLine(vE, xL, -pierH, xR, -pierH,
+    'Ls = ' + f1(model.Ls_in / 12) + ' ft c/c brg', { off: 46 });
+  AREDraw.dimLine(vE, Lw, 0, Lw, h, 'h = ' + f1(h / 12) + ' ft', { off: 30 });
+
+  AREDraw.viewTitle(vE, vE.px(Lw / 2), vE.py(-pierH) + 46 + 42,
+    'Elevation — Funicular Arch STM (Case ' + out.results.caseLabel + ')');
+
+  /* ---- section view ---- */
+  var sclS = AREDraw.fitScale(Math.max(bgb, tw) + 40, 190, { min: 1.5, max: 8 });
+  var vS = new AREDraw.View(dwg, {
+    scale: sclS, ox: vE.px(Lw) + 190 + (bgb / 2) * sclS, oy: oy, flipY: true });
+  var wallShown = 40;
+  AREDraw.plate(vS, -bgb / 2, 0, bgb, hgb, { highlight: true });
+  AREDraw.plate(vS, -tw / 2, hgb, tw, wallShown, { fill: '#eef1f8' });
+  lineW(vS, -tw / 2 - 2, hgb + wallShown, tw / 2 + 2, hgb + wallShown,
+    { stroke: st.dim, 'stroke-width': 1, 'stroke-dasharray': '4 3' }, 'steel');
+  // GB bars at cover
+  var nB = inp.reinf.tieBars.count, nT = inp.reinf.topBars.count;
+  var cs = inp.reinf.cover_side_in, cb = inp.reinf.cover_bot_in, ct = inp.reinf.cover_top_in;
+  function barRow(n, db, y) {
+    var x0 = -bgb / 2 + cs + db / 2, x1 = bgb / 2 - cs - db / 2;
+    for (var i = 0; i < n; i++) {
+      var x = n === 1 ? 0 : x0 + (x1 - x0) * i / (n - 1);
+      rebarDot(vS, x, y, db, st);
+    }
+  }
+  barRow(nB, tieDb, cb + tieDb / 2);
+  barRow(nT, topDb, hgb - ct - topDb / 2);
+  // wall EF steel (horizontal-bar dots at vertical spacing, both faces)
+  var webDb = BAR_DB[inp.reinf.web.h.size];
+  var sV = Math.max(4, inp.reinf.web.h.s_in);
+  for (var ey = hgb + 6; ey < hgb + wallShown - 2; ey += sV) {
+    rebarDot(vS, -tw / 2 + 1.75, ey, webDb, st);
+    rebarDot(vS, tw / 2 - 1.75, ey, webDb, st);
+  }
+  AREDraw.dimLine(vS, -bgb / 2, 0, bgb / 2, 0, 'b = ' + AREDraw.fmtIn(bgb), { off: 28 });
+  AREDraw.dimLine(vS, bgb / 2, 0, bgb / 2, hgb, 'h = ' + AREDraw.fmtIn(hgb), { off: 26 });
+  AREDraw.leader(vS, bgb / 2 - cs - tieDb / 2, cb + tieDb / 2, 40, 16,
+    nB + '-' + inp.reinf.tieBars.size + ' B', { color: st.force });
+  AREDraw.leader(vS, -bgb / 2 + cs + topDb / 2, hgb - ct - topDb / 2, -46, -10,
+    nT + '-' + inp.reinf.topBars.size + ' T', { color: st.force });
+  AREDraw.leader(vS, tw / 2 - 1.75, hgb + wallShown * 0.55, 42, -6,
+    inp.reinf.web.v.size + '@' + inp.reinf.web.v.s_in + '" EF', { color: st.dim });
+  AREDraw.viewTitle(vS, vS.px(0), vS.py(0) + 66, 'Section — GB + Wall');
+
+  dwg.commit();
+  auditLabels('drawn');
+}
+
+/* ------------------------------------------------------------------ */
+/* Orchestration                                                       */
+/* ------------------------------------------------------------------ */
+window.runCalc = function () {
+  syncSW();
+  var inp = buildInputs();
+  var out;
+  try {
+    out = DeepBeamSTM.run(inp);
+  } catch (e) {
+    out = { status: 'not_converged', errors: [{ code: 'EXCEPTION', message: String(e && e.message || e) }], results: null };
+  }
+  renderResults(out, inp);
+  drawSTM(out, inp);
+};
+
+var debounceT = null;
+function queueCalc() {
+  clearTimeout(debounceT);
+  debounceT = setTimeout(window.runCalc, 250);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  $('caseSel').addEventListener('change', function () { syncCaseBlocks(); syncOverhangGeom(); queueCalc(); });
+  $('ovSide').addEventListener('change', function () { syncOverhangGeom(); queueCalc(); });
+  $('ovLen').addEventListener('input', function () { syncOverhangGeom(); queueCalc(); });
+  $('swOverride').addEventListener('change', function () { syncSW(); queueCalc(); });
+  $('tiesOn').addEventListener('change', function () { syncTies(); queueCalc(); });
+  Array.prototype.slice.call(document.querySelectorAll('input,select')).forEach(function (el) {
+    if (el.disabled && !/^(wallSW|gbSW|tieHSize|tieHs|tieHlegs)$/.test(el.id)) return;
+    el.addEventListener('input', queueCalc);
+    el.addEventListener('change', queueCalc);
+  });
+  syncCaseBlocks();
+  syncSW();
+  syncTies();
+  window.runCalc();   // auto-calc with defaults — the page never opens empty
+});
+})();
+</script>
+</body>
+</html>

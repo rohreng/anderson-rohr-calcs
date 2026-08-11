@@ -1,0 +1,86 @@
+{
+  "name": "case_c_left_overhang — complete hand-solved Case C connected truss (left overhang)",
+  "comments": {
+    "hand_solution": [
+      "GEOMETRY (in): wall 408 long; supports x_L = 108, x_R = 384 (Ls = 276); lb = 24 both; t_w 12; h = 120+24 = 144.",
+      "Bottom tie centroid yt = 3 + 0.5 = 3.5; top tie centroid 2 + 0.5 = 2.5 below top -> z_tt = (144-2.5) - 3.5 = 138.0 in.",
+      "LOADS (service D, no LL; 1.4D governs, factored values below): two overhang points 30 k at c1 = 46 in and c2 = 92 in",
+      "outboard of the left support CL (abs x = 62 in, 16 in); one backspan point 90 k at xi = 92 in (abs x = 200 in). No UDL.",
+      "FACTORED (1.4D): P_ov = 42 k each; P_bs = 126 k.",
+      "OVERHANG STRUTS (tan(theta_i) = z_tt/c_i): theta1 = atan(138/46) = 71.565 deg, S1 = 42/sin = 42*sqrt(10)/3 = 44.27189 k (C);",
+      "theta2 = atan(138/92) = 56.310 deg, S2 = 42*sqrt(13)/3 = 50.47772 k (C). Horizontal components 14 and 28 k.",
+      "TOP TIE (accumulates from the free end): segment ov2->ov1 = 28 k (T); segment ov1->N_a (across the support) = 28+14 = 42 k = T_top.",
+      "T_top = sum(P*c)/z_tt = 42*(46+92)/138 = 42 k; M_ov = T_top*z_tt = 5796 k-in.",
+      "GLOBAL STATICS: sum P = 210 k. Moments about A: R_C*276 = -42*46 - 42*92 + 126*92 = 5796 -> R_C = 21 k; R_A = 189 k.",
+      "BACKSPAN MOMENT (true, incl. overhang hogging): M(92) = (189-84)*92 - 5796 = 3864 k-in.",
+      "N_a = first backspan abscissa (xi = 92): H_right = M/z_tt = 3864/138 = 28 k; H_left = H_right + T_top = 70 k.",
+      "POLYGON: A(0,0) -> N_a(92,138) -> C(276,0). Left segment: atan(138/92) = 56.310 deg, F = 70/cos = 70*sqrt(13)/2 = 126.19429 k (C),",
+      "vertical = 70*1.5 = 105 = R_A - P_ov,total = 189 - 84. Right segment: atan(138/184) = 36.870 deg (3-4-5), F = 28/0.8 = 35 k (C), vertical = 21 = R_C.",
+      "BOTTOM TIE (constant, derived independently at each end): at A, T_bot = H_left - sum(strut horizontals) = 70 - 42 = 28 k;",
+      "at C, T_bot = H_right = 28 k. Identity holds. N_a joint closure: x: 70 - 28 - 42 = 0; y: 105 + 21 - 126 = 0.",
+      "DETERMINACY: j = 5 (A, C, ov1, ov2, N_a); m = 7 (2 struts, 2 top-tie segments, 2 polygon segments, bottom tie); r = 3; m + r = 10 = 2j.",
+      "FREE-END ANCHORAGE (honest FAIL): outermost node 16 in from the wall end; segment force 28 k; ld(#8 top, cb = 7/6 in, psi_t = 1.3) = 91.553 in;",
+      "required = 91.553 * 28/142.2 = 18.03 in > available 16 - 2 = 14 in -> DCR 1.288, pass = false (expected)."
+    ]
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": { "L_w_ft": 34, "x_L_ft": 9, "x_R_ft": 32, "lb_L_in": 24, "lb_R_in": 24, "t_w_in": 12, "h_w_ft": 10, "h_gb_in": 24, "b_gb_in": 24, "e_L_in": 96, "e_R_in": 12 },
+        "loads": { "DL_super_plf": 0, "LL_plf": 0, "wallSW_plf": 0, "gbSW_plf": 0, "pointLoads": [
+          { "x_ft": 5.166666666666667, "width_in": 8, "D_kip": 30, "L_kip": 0 },
+          { "x_ft": 1.3333333333333333, "width_in": 8, "D_kip": 30, "L_kip": 0 },
+          { "x_ft": 16.666666666666668, "width_in": 12, "D_kip": 90, "L_kip": 0 }
+        ] },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.caseLabel", "value": "C" },
+          { "path": "results.model.overhangSide", "value": "left" },
+          { "path": "results.model.combo", "value": "1.4D" },
+          { "path": "results.model.determinacy.m", "value": 7, "atol": 0 },
+          { "path": "results.model.determinacy.r", "value": 3, "atol": 0 },
+          { "path": "results.model.determinacy.j", "value": 5, "atol": 0 },
+          { "path": "results.model.determinacy.strict", "value": true },
+          { "path": "results.model.zTop_in", "value": 138, "rtol": 1e-9 },
+          { "path": "results.model.Ttop_kip", "value": 42, "rtol": 1e-6 },
+          { "path": "results.model.Tbot_kip", "value": 28, "rtol": 1e-6 },
+          { "path": "results.model.HL_kip", "value": 70, "rtol": 1e-6 },
+          { "path": "results.model.HR_kip", "value": 28, "rtol": 1e-6 },
+          { "path": "results.model.RtL_kip", "value": 189, "rtol": 1e-6 },
+          { "path": "results.model.RtR_kip", "value": 21, "rtol": 1e-6 },
+          { "path": "results.model.thetaL_deg", "value": 56.309932474020215, "atol": 1e-4 },
+          { "path": "results.model.thetaR_deg", "value": 36.86989764584402, "atol": 1e-4 },
+          { "path": "results.model.Na.xSpan_in", "value": 92, "atol": 1e-6 },
+          { "path": "results.model.Na.x", "value": 200, "atol": 1e-6 },
+          { "path": "results.model.members[id=strut.ov1].force_kip", "value": -44.27188724235731, "rtol": 1e-6, "note": "-42*sqrt(10)/3" },
+          { "path": "results.model.members[id=strut.ov2].force_kip", "value": -50.477717856496235, "rtol": 1e-6, "note": "-42*sqrt(13)/3" },
+          { "path": "results.model.members[id=ttop.ov2-ov1].force_kip", "value": 28, "rtol": 1e-6 },
+          { "path": "results.model.members[id=ttop.ov1-Na].force_kip", "value": 42, "rtol": 1e-6 },
+          { "path": "results.model.members[id=arch.0].force_kip", "value": -126.19429464124058, "rtol": 1e-6, "note": "-70*sqrt(13)/2" },
+          { "path": "results.model.members[id=arch.1].force_kip", "value": -35, "rtol": 1e-6, "note": "-28/cos(36.87)" },
+          { "path": "results.model.members[id=tie.bottom].force_kip", "value": 28, "rtol": 1e-6 },
+          { "path": "results.model.selfChecks.maxNodeResidual_kip", "value": 0, "atol": 1e-6, "note": "independent equilibrium at N_a and both supports (matrix residual)" },
+          { "path": "results.model.selfChecks.tieIdentityDelta_kip", "value": 0, "atol": 1e-6, "note": "T_bot identity derived at both support joints" },
+          { "path": "results.checks[id=tie.bottom].demand", "value": 28, "rtol": 1e-6 },
+          { "path": "results.checks[id=tie.top].demand", "value": 42, "rtol": 1e-6 },
+          { "path": "results.checks[id=tie.top].pass", "value": true },
+          { "path": "results.checks[id=node.Na].pass", "value": true },
+          { "path": "results.checks[id=angles.strutTie].capacity", "value": 36.86989764584402, "atol": 1e-4, "note": "min strut-tie angle" },
+          { "path": "results.checks[id=anchorage.freeEnd].pass", "value": false, "note": "honest fail: 28 k entering the top tie 16 in from the free end" },
+          { "path": "results.checks[id=anchorage.freeEnd].dcr", "value": 1.2876, "atol": 0.001 },
+          { "path": "results.checks[id=strip.L.dispersion].demand", "value": 96, "atol": 1e-6, "note": "left strip o = 96 <= h_disp = 144 (strip itself routes; Case C triggered by the outboard point loads)" },
+          { "path": "results.checks[id=tie.identity].pass", "value": true }
+        ]
+      }
+    }
+  ]
+}

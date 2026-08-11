@@ -1,0 +1,209 @@
+{
+  "name": "asym_case_b2 — asymmetric bearings + asymmetric outboard strips + UDL + two point loads",
+  "comments": {
+    "hand_solution": [
+      "1.4D governs (D only). w = 1.4*(2000+1500+625)/1000 = 5.775 klf = 0.48125 k/in over Ls = 264 in.",
+      "UDL lumped at N=10 centroids (26.4 in tributary). P1 = 1.4*80 = 112 k at xi=90 (footprint 84-96 overlaps lump 4 [79.2,105.6] -> merged",
+      "at the force-weighted centroid); P2 = 1.4*120 = 168 k at xi=150 (merges with lump 6 [132,158.4]). 10 merged truss members remain.",
+      "Statics: R_L = 209.888636 k, R_R = 197.161364 k; Mmax = 19415.5985 k-in at x = 149.6625 in.",
+      "hp = 174 - 3.5 = 170.5; fce*tw = 14.34375 k/in; z = (hp + sqrt(hp^2 - 2*Mmax/14.34375))/2 = 166.433533 in; H = T = 116.656771 k.",
+      "theta_L = 60.93456 deg (lb_L = 24 -> ws_L = 24.3782); theta_R = 59.38797 deg (lb_R = 18 -> ws_R = 19.0560).",
+      "Outboard strips: left len 24 in (o = 24 - 12 = 12 <= h_disp = 174 -> routed; cantilever o = 12 in checks per §22.5/25.4.2);",
+      "right len 18 in (o = 18 - 9 = 9 -> routed). Bearing demands add w*len per side.",
+      "Per-node equilibrium asserted via engine self-check residual."
+    ]
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 25.5,
+          "x_L_ft": 2,
+          "x_R_ft": 24,
+          "lb_L_in": 24,
+          "lb_R_in": 18,
+          "t_w_in": 10,
+          "h_w_ft": 12,
+          "h_gb_in": 30,
+          "b_gb_in": 20,
+          "e_L_in": 4,
+          "e_R_in": 2
+        },
+        "loads": {
+          "DL_super_plf": 2000,
+          "LL_plf": 0,
+          "pointLoads": [
+            {
+              "x_ft": 9.5,
+              "width_in": 12,
+              "D_kip": 80,
+              "L_kip": 0
+            },
+            {
+              "x_ft": 14.5,
+              "width_in": 12,
+              "D_kip": 120,
+              "L_kip": 0
+            }
+          ]
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 10,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.caseLabel",
+            "value": "B"
+          },
+          {
+            "path": "results.model.combo",
+            "value": "1.4D"
+          },
+          {
+            "path": "results.model.RtL_kip",
+            "value": 209.88863636363627,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.RtR_kip",
+            "value": 197.16136363636363,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.RbL_kip",
+            "value": 221.43863636363628,
+            "rtol": 1e-9,
+            "note": "R + routed strip (w*24in)"
+          },
+          {
+            "path": "results.model.RbR_kip",
+            "value": 205.82386363636363,
+            "rtol": 1e-9,
+            "note": "R + routed strip (w*18in)"
+          },
+          {
+            "path": "results.model.Mmax_kin",
+            "value": 19415.59847604457,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.MmaxX_in",
+            "value": 149.66252178965718,
+            "atol": 0.000001
+          },
+          {
+            "path": "results.model.z_in",
+            "value": 166.43353305296222,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.T_kip",
+            "value": 116.65677054314632,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.thetaL_deg",
+            "value": 60.93455559993521,
+            "atol": 0.00001
+          },
+          {
+            "path": "results.model.thetaR_deg",
+            "value": 59.38797365325808,
+            "atol": 0.00001
+          },
+          {
+            "path": "results.model.wsL_in",
+            "value": 24.378227241150565,
+            "rtol": 0.000001,
+            "note": "asymmetric support node widths"
+          },
+          {
+            "path": "results.model.wsR_in",
+            "value": 19.055987406562195,
+            "rtol": 0.000001
+          },
+          {
+            "path": "results.model.members[id=arch.0].force_kip",
+            "value": -240.1292189387685,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=arch.10].force_kip",
+            "value": -229.08820446392693,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=tie.bottom].force_kip",
+            "value": 116.65677054314632,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.bands[segId=arch.0].fitDcr",
+            "value": 0.686720765457842,
+            "rtol": 0.000001
+          },
+          {
+            "path": "results.model.bands[segId=arch.10].fitDcr",
+            "value": 0.8381245538354488,
+            "rtol": 0.000001
+          },
+          {
+            "path": "results.model.selfChecks.maxNodeResidual_kip",
+            "value": 0,
+            "atol": 0.000001
+          },
+          {
+            "path": "checks[id=strip.L.dispersion].demand",
+            "value": 12,
+            "atol": 1e-9,
+            "note": "o_L = 12 in"
+          },
+          {
+            "path": "checks[id=strip.R.dispersion].demand",
+            "value": 9,
+            "atol": 1e-9,
+            "note": "o_R = 9 in (asymmetric)"
+          },
+          {
+            "path": "checks[id=strip.L.moment].pass",
+            "value": true
+          },
+          {
+            "path": "checks[id=strip.R.moment].pass",
+            "value": true
+          }
+        ]
+      }
+    }
+  ]
+}

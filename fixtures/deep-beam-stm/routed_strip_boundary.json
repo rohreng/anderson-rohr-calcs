@@ -1,0 +1,46 @@
+{
+  "name": "routed_strip_boundary — o <= min(h_gb, lb) routing rule at the boundary (AUDIT-FIXES E, H6)",
+  "comments": {
+    "hand": [
+      "Rule (AUDIT-FIXES E): an outboard UDL strip routes to the pier only if the strip length beyond the bearing OUTER",
+      "face satisfies o <= min(h_gb, lb) — 45-degree dispersion through the GB depth AND landing entirely within the",
+      "bearing width. Here h_gb = 24, lb = 24 -> limit = 24 in.",
+      "at_limit run: x_L = 3.0 ft = 36 in, lb/2 = 12 -> o = 36 - 12 = 24 in = limit exactly -> routes (pass, status ok).",
+      "above_limit run: x_L = 3.05 ft = 36.6 in on BOTH sides -> o = 24.6 in > 24 on both sides with a UDL present;",
+      "one failing side alone is modeled as a Case C overhang automatically, but BOTH sides failing is out of scope ->",
+      "input error whose message directs the user to the dispersion/bearing limit and Case C.",
+      "(The default case routes with room to spare: o = x_L - lb/2 = 15 - 15 = 0 <= min(24, 30) = 24.)"
+    ]
+  },
+  "runs": [
+    {
+      "name": "at_limit_routes",
+      "inputs": {
+        "geometry": { "L_w_ft": 30, "x_L_ft": 3, "x_R_ft": 27, "lb_L_in": 24, "lb_R_in": 24, "t_w_in": 12, "h_w_ft": 12, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 4000, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=strip.L.dispersion].demand", "value": 24, "atol": 1e-9, "note": "o = 36 - 12 = 24 in" },
+        { "path": "checks[id=strip.L.dispersion].capacity", "value": 24, "atol": 1e-9, "note": "min(h_gb, lb) = min(24, 24) = 24 in" },
+        { "path": "checks[id=strip.L.dispersion].pass", "value": true, "note": "o = limit routes (<=)" },
+        { "path": "checks[id=strip.R.dispersion].pass", "value": true }
+      ] }
+    },
+    {
+      "name": "above_limit_both_sides_error",
+      "inputs": {
+        "geometry": { "L_w_ft": 30, "x_L_ft": 3.05, "x_R_ft": 26.95, "lb_L_in": 24, "lb_R_in": 24, "t_w_in": 12, "h_w_ft": 12, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 4000, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["SCOPE"] }
+    }
+  ]
+}

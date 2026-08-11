@@ -1,0 +1,197 @@
+{
+  "name": "asym_case_b1 — asymmetric Case B, two point loads, hand-solved funicular closed form",
+  "comments": {
+    "hand_solution": [
+      "Loads (D only, 1.4D governs): P1 = 1.4*100 = 140 k at xi = 60 in; P2 = 1.4*50 = 70 k at xi = 180 in; Ls = 240 in.",
+      "R_L = (140*180 + 70*60)/240 = 122.5 k; R_R = 87.5 k. M(60) = 122.5*60 = 7350 k-in (max); M(180) = 87.5*60 = 5250 k-in.",
+      "h = 120+24 = 144; yt = 3+0.5 = 3.5; hp = 140.5. fce = 0.75*0.85*0.75*3 = 1.434375 ksi; fce*tw = 17.2125 k/in.",
+      "z^2 - 140.5 z + 7350/(2*17.2125) = 0 -> z = (140.5 + sqrt(140.5^2 - 4*213.5077))/2 = 138.963571 in; a = 2(hp-z) = 3.072857 in.",
+      "H = 7350/z = 52.891560 k = T (constant tie). Vertex ordinates y = z*M/Mmax: y1 = z = 138.9636; y2 = 99.2597.",
+      "Segment angles/forces (F = H/cos alpha): alpha = [66.6469, -18.3076, -58.8481] deg; F = [133.4308, 55.7115, 102.2437] k.",
+      "Per-node vertical closure: at V1, H*tan(a0) - H*tan(a1) = 122.5 - (-17.5) = 140 = P1; at V2, 17.5 + 87.5*... closes to 70 = P2 (engine asserts residual < 1e-8*SumP + 0.001 k)."
+    ]
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 23,
+          "x_L_ft": 1.5,
+          "x_R_ft": 21.5,
+          "lb_L_in": 24,
+          "lb_R_in": 24,
+          "t_w_in": 12,
+          "h_w_ft": 10,
+          "h_gb_in": 24,
+          "b_gb_in": 24
+        },
+        "loads": {
+          "DL_super_plf": 0,
+          "LL_plf": 0,
+          "wallSW_plf": 0,
+          "gbSW_plf": 0,
+          "pointLoads": [
+            {
+              "x_ft": 6.5,
+              "width_in": 10,
+              "D_kip": 100,
+              "L_kip": 0
+            },
+            {
+              "x_ft": 16.5,
+              "width_in": 10,
+              "D_kip": 50,
+              "L_kip": 0
+            }
+          ]
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 12,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.caseLabel",
+            "value": "B"
+          },
+          {
+            "path": "results.model.combo",
+            "value": "1.4D",
+            "note": "reference model = governing (heaviest) combo"
+          },
+          {
+            "path": "results.model.RtL_kip",
+            "value": 122.5,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.RtR_kip",
+            "value": 87.5,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.Mmax_kin",
+            "value": 7350,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.MmaxX_in",
+            "value": 60,
+            "atol": 1e-9
+          },
+          {
+            "path": "results.model.z_in",
+            "value": 138.96357125581284,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.a_in",
+            "value": 3.072857488374325,
+            "rtol": 0.000001
+          },
+          {
+            "path": "results.model.H_kip",
+            "value": 52.891559518642914,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.T_kip",
+            "value": 52.891559518642914,
+            "rtol": 1e-7,
+            "note": "constant tie = H"
+          },
+          {
+            "path": "results.model.thetaL_deg",
+            "value": 66.64686659388245,
+            "atol": 0.00001
+          },
+          {
+            "path": "results.model.thetaR_deg",
+            "value": 58.848088653515596,
+            "atol": 0.00001
+          },
+          {
+            "path": "results.model.members[id=arch.0].force_kip",
+            "value": -133.4307575797805,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=arch.1].force_kip",
+            "value": -55.71146262946384,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=arch.2].force_kip",
+            "value": -102.24366517449454,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=tie.bottom].force_kip",
+            "value": 52.891559518642914,
+            "rtol": 1e-7
+          },
+          {
+            "path": "results.model.members[id=vert.1].force_kip",
+            "value": -140,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.members[id=vert.2].force_kip",
+            "value": -70,
+            "rtol": 1e-9
+          },
+          {
+            "path": "results.model.bands[segId=arch.0].fitDcr",
+            "value": 0.7454630540065812,
+            "rtol": 0.000001
+          },
+          {
+            "path": "results.model.bands[segId=arch.2].fitDcr",
+            "value": 0.40971538746705016,
+            "rtol": 0.000001,
+            "note": "B1 update, hand: V2 haNode = min(2*(hp-y2), 2*(y2+yt), max(dVert1,dVert2)) = min(2*(140.5-99.259694)=82.4806, 205.5194, max(3.409250, 11.482660)) = 11.482660 (band bound governs; pre-B1 the envelope alone gave 82.4806 -> face 51.23 in, wider than the delivering band). Face toward arch.2 = 10*|sin(-58.8481)| + 11.482660*|cos(-58.8481)| = 8.558852 + 5.940082 = 14.498070 in < wsR = 24.160332 in, so it now governs. wReq2 = 102.243665/17.2125 = 5.940082. fitDcr = 5.940082/14.498070 = 0.409715 (was 5.940082/24.160332 = 0.245861)."
+          },
+          {
+            "path": "results.model.selfChecks.maxNodeResidual_kip",
+            "value": 0,
+            "atol": 0.000001,
+            "note": "per-node equilibrium expectation"
+          },
+          {
+            "path": "checks[id=tie.bottom].governingCombo",
+            "value": "1.4D"
+          }
+        ]
+      }
+    }
+  ]
+}

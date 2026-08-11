@@ -1,0 +1,125 @@
+{
+  "source": {
+    "doc": "FHWA-NHI-17-071, Strut-and-Tie Modeling (STM) for Concrete Structures, Design Examples (NHI Course No. 130126), FHWA National Highway Institute, October 2017",
+    "example": "Design Example 1 - Simply-Supported Deep Beam",
+    "pages": "1-3 through 1-36 (PDF pages 25-60 of https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf)",
+    "design_basis": "AASHTO LRFD Bridge Design Specifications, 8th Edition - NOT ACI 318-19. Statics, topology, member forces, and angles are code-agnostic; node-face capacities (phi*Pn) below use AASHTO phi = 0.70 (compression) / 0.90 (tension) and AASHTO Table 5.8.2.5.3a-1 efficiency factors, so they validate the node-geometry construction and stress arithmetic, not ACI 318-19 Table 23.9.2 numbers.",
+    "extraction_note": "Every number below was read directly from the fetched PDF (Figures 1-1, 1-8, 1-12, 1-15, 1-21; Table 1-1; Design Steps 4-10). Nothing is derived or fabricated."
+  },
+  "inputs": {
+    "geometry_in": {
+      "overall_height_h": 72,
+      "width_bw": 48,
+      "span_c_c_bearings": 324,
+      "overhang_each_end": 12,
+      "overall_length": 348,
+      "shear_span_a_each_side": 108,
+      "distance_between_loads": 108,
+      "effective_depth_d": 67,
+      "tie_centroid_above_bottom_fiber": 4.90,
+      "top_strut_depth_a": 6,
+      "top_node_below_top_fiber": 3,
+      "truss_height_hSTM": 64,
+      "bearing_plate_initial_lb": 12,
+      "bearing_plate_final_lb": 14,
+      "bearing_plate_width": 48,
+      "note": "a = As*fy/(0.85*f'c*b) = 20.32*60/(0.85*5*48) = 5.98 in, rounded to 6 in. hSTM = 72 - 5 - 3 = 64 in (5 = 4.90 rounded). All bearing plates increased from 12 in to 14 in during the Node F strut-interface check."
+    },
+    "loads_kips": {
+      "P_strength_each": 600,
+      "P_service_each": 400,
+      "number_of_point_loads": 2,
+      "load_positions": "each load at 1.5h = 108 in from its adjacent bearing centerline; loads 108 in apart",
+      "self_weight": "included in the stated point loads"
+    },
+    "materials": {
+      "fc_psi": 5000,
+      "fy_ksi": 60
+    },
+    "reinforcement": {
+      "bottom_tie": "16 No. 10 bars (As = 20.32 in^2), two rows of 8, 2 in bottom cover, No. 5 stirrups, tie centroid 4.90 in above bottom fiber; ends hooked",
+      "vertical_tie_BD_region": "9 sets of 2 No. 5 closed stirrups (4 legs/set) at 6 in over available length la = 48 in; Ast provided = 11.16 in^2",
+      "crack_control_horizontal": "4 No. 6 per foot (Ah = 1.76 in^2/ft >= 0.003*bw = 1.73 in^2/ft)",
+      "crack_control_vertical": "2 No. 5 closed stirrups (4 legs) at 8 in (Av = 1.86 in^2/ft >= 1.73 in^2/ft)",
+      "top_strut_steel": "6 No. 8 (Ast = 4.74 in^2) added because back face of Node F was deficient (required 4.67 in^2)"
+    }
+  },
+  "expected": {
+    "reactions_kips": {
+      "strength_each_support": 600,
+      "service_each_support": 400
+    },
+    "moment": {
+      "Mu_max_kip_in": 64800,
+      "note": "Mu = Pu*x = 600 * 108 (Design Step 5)"
+    },
+    "truss_topology": {
+      "nodes": "A = left support (tie level), B = tie level under vertical tie at 54 in, C = right support; D above B, E under left load, F under right load (all at hSTM = 64 in above tie)",
+      "x_from_left_bearing_in": { "A": 0, "B": 54, "E": 108, "F": 216, "C": 324 },
+      "left_half": "two-panel model (vertical tie BD) - used for demonstration only",
+      "right_half": "direct strut model (single inclined strut CF)"
+    },
+    "angles_deg": {
+      "strut_AD": 49.8,
+      "strut_BE": 49.8,
+      "strut_CF": 30.7,
+      "note": "30.7 = atan(600/1013); strut lengths from Figure 1-8: AD/BE = 83.7 in (typ), CF = 125.5 in"
+    },
+    "member_forces_kips_strength": {
+      "AB": 506,
+      "BC": 1013,
+      "BD": 600,
+      "AD": -785,
+      "BE": -785,
+      "CF": -1177,
+      "DE": -506,
+      "EF": -1013,
+      "sign_convention": "+ tension, - compression (Table 1-1)"
+    },
+    "tie_checks": {
+      "bottom_tie": { "demand_kips": 1013, "phiPn_kips": 1097, "calc": "0.9 * 60 * 20.32" },
+      "vertical_tie_BD": { "demand_kips": 600, "Ast_required_in2": 11.11, "Ast_provided_in2": 11.16 }
+    },
+    "node_checks": {
+      "node_C_CCT": {
+        "ha_in": 10,
+        "lb_in": 12,
+        "strut_interface_width_in": 14.7,
+        "interface_width_formula": "w = lb*sin(theta) + ha*cos(theta) = 12*sin30.7 + 10*cos30.7",
+        "bearing_face": { "Acn_in2": 576, "nu": 0.70, "phiPn_kips": 1411, "demand_kips": 600, "result": "OK" },
+        "strut_interface": { "Acn_in2": 706, "nu": 0.60, "phiPn_kips": 1482, "demand_kips": 1177, "result": "OK" },
+        "back_face": "not checked - bond stresses from deformed-bar development need not be applied to the back face of a CCT node (AASHTO 5.8.2.5.3b)"
+      },
+      "node_A_CCT": "adequate by inspection: same bearing as C, strut AD = 785 kips < 1177 kips and wider interface (49.8 deg)",
+      "node_F_CCC": {
+        "ha_in": 6,
+        "lb_initial_in": 12,
+        "strut_interface_width_initial_in": 11.3,
+        "bearing_face": { "Acn_in2": 576, "nu": 0.85, "phiPn_kips": 1713, "demand_kips": 600, "result": "OK" },
+        "back_face": { "Acn_in2": 288, "nu": 0.85, "phiPn_kips": 856, "demand_kips": 1013, "result": "NO GOOD", "fix": "top strut reinforced with 6 No. 8; deficiency 157 kips, Ast required = 157/(0.80*0.70*60) = 4.67 in^2, provided 4.74 in^2" },
+        "strut_interface_initial": { "Acn_in2": 542, "nu": 0.60, "phiPn_kips": 1138, "demand_kips": 1177, "result": "NO GOOD" },
+        "strut_interface_final": { "lb_in": 14, "width_in": 12.3, "Acn_in2": 590, "phiPn_kips": 1239, "demand_kips": 1177, "result": "OK" }
+      },
+      "node_E": "resultant of DE and BE components: R = sqrt(1013^2 + 600^2) = 1177 kips at 30.7 deg - statically equivalent to Node F, therefore OK",
+      "nodes_B_D": "smeared nodes - not checked (tie force spread over available length la)"
+    },
+    "anchorage": {
+      "ldh_basic_lhb_in": 21.6,
+      "lambda_er": 0.92,
+      "ldh_required_in": 20,
+      "ldh_available_in": 25.4,
+      "available_calc": "x + lb + overhang - cover = 8.4 + 14 + 5 - 2 (x = 5/tan(30.7) = 8.4 in from bearing edge to critical section where tie centroid exits the extended nodal zone)",
+      "result": "OK"
+    }
+  },
+  "tolerances": {
+    "reactions": "0.5% (exact statics)",
+    "member_forces": "2% (published values rounded to whole kips; forces scale with 1/z, so the published z = 64 in must be used - see topology_note)",
+    "angles_deg": "0.3 absolute",
+    "node_face_widths_in": "0.15 absolute (published to 0.1 in)",
+    "node_capacities_phiPn": "2% (requires AASHTO phi = 0.70 and AASHTO efficiency factors, m = 1.0)",
+    "tie_capacity": "1%",
+    "anchorage_lengths_in": "0.3 absolute"
+  },
+  "topology_note": "This example maps onto the calculator's funicular arch-and-tie model directly. The document itself states (page 1-28, 'Static Equivalency') that the left-half two-panel model is interchangeable with a direct strut, so the canonical symmetric model of this beam is the three-segment funicular polygon for two equal point loads: springing strut A->E at 30.7 deg, horizontal crown segment E->F carrying the constant thrust, and springing strut F->C at 30.7 deg, with a constant bottom tie A->C. The published forces satisfy the funicular identity exactly: H = M_max/z = 64,800 kip-in / 64 in = 1,012.5 ~ 1,013 kips = tie force BC = crown chord EF; springing force = H/cos(30.7) = 1,177 kips = CF; springing angle = atan(hSTM/a) = atan(64/108) = 30.7 deg = atan(R/H) = atan(600/1013). For a single point load the funicular polygon degenerates to the classic two-strut triangle; for the two loads here it is the trapezoid above. To reproduce these numbers the engine must be run with the published chord geometry (tie centroid 5 in above bottom, crown depth a = 6 in, z = 64 in) rather than its own f_ce-sized crown, because the FHWA example sizes the top strut by the Whitney block (a = As*fy/(0.85*f'c*b)); with z pinned at 64 in all member forces above are closed-form statics and code-independent. Node-stress expected values validate the node construction geometry (w = lb*sin(theta) + ha*cos(theta), ha = 2 x cover-to-tie-centroid at CCT supports, ha = strut depth a at the CCC load node) but carry AASHTO phi/nu factors, not ACI 318-19 beta_n; compare geometry and Acn directly, capacities only under AASHTO factors."
+}

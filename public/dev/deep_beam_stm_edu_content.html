@@ -1,0 +1,130 @@
+<!-- ============================================================
+  Educational layer — Deep Beam STM Calculator (wall on piers)
+  HTML FRAGMENT — no <html>/<head>/<body>. Include inside the calc
+  page's .content div. Styles are scoped to .why-box and can be
+  moved into are-calc.css at integration.
+  All ACI 318-19 references are TEXT citations by design — never
+  hyperlinks. External links are limited to the three approved free
+  sources and carry data-verify="pending" until the URL-verification
+  pass replaces/confirms them.
+============================================================ -->
+
+<style>
+.why-box{background:#f8f9fa;border-left:4px solid #2a5298;border-radius:10px;margin-bottom:14px;font-size:.9em;overflow:hidden}
+.why-box summary{cursor:pointer;padding:13px 18px;font-weight:700;color:#1e3c72;list-style:none;display:flex;align-items:center;gap:9px}
+.why-box summary::-webkit-details-marker{display:none}
+.why-box summary::before{content:"\25B8";font-size:.85em;color:#2a5298;transition:transform .15s}
+.why-box[open] summary::before{transform:rotate(90deg)}
+.why-box summary .why-tag{font-size:.72em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.why-box summary .why-tag.warn{background:#fef3c7;color:#92400e}
+.why-body{padding:2px 20px 15px 20px;color:#1a1a1a;line-height:1.55}
+.why-body p{margin:0 0 9px 0}
+.why-body ul{margin:0 0 9px 0;padding-left:20px}
+.why-body li{margin-bottom:4px}
+.why-eq{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:7px 12px;margin:0 0 9px 0;font-style:italic;color:#1e3c72}
+.why-cite{color:#555;font-size:.92em}
+.why-note{background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:8px 12px;font-size:.92em;color:#78350f;margin:0 0 9px 0}
+.why-refs{border-top:1px dashed #c7d2e8;padding-top:7px;margin-top:4px;font-size:.9em;color:#555}
+.why-refs a{color:#1e40af}
+</style>
+
+<div class="blk">
+<h2>Why This Works &mdash; Background <span class="badge">Reference Only</span></h2>
+
+<!-- 1 ─ Deep beam / D-region ─────────────────────────────── -->
+<details class="why-box" id="why-deep-beam">
+<summary>Why this wall is a deep beam, and what that changes</summary>
+<div class="why-body">
+<p>ACI 318-19 &sect;9.9.1.1 classifies a member as a deep beam when the clear span does not exceed four times the overall depth (l<sub>n</sub> &le; 4h), or when concentrated loads act within 2h of the face of a support. A wall panel spanning between piers, with the grade beam as its bottom chord, almost always meets the first test: the full member depth h is the wall height plus the grade beam depth, and spans rarely exceed 4h. The calculator evaluates the exact code boolean and reports which clause triggers.</p>
+<p>What changes: the plane-sections-remain-plane assumption fails. In a slender beam, strain varies linearly through the depth and sectional design (flexure at a section, V<sub>c</sub> + V<sub>s</sub> shear) is valid. In a deep beam the entire member is a D-region &mdash; a disturbed region where the strain field is nonlinear from support to support. Load travels to the supports by direct compression through the wall, not by beam shear.</p>
+<p>ACI 318-19 &sect;9.9.1.2 therefore requires deep beams to be designed either accounting for the nonlinear strain distribution or by the strut-and-tie method of Chapter 23. This calculator uses Chapter 23: an explicit truss of concrete compression members (struts), reinforcement tension members (ties), and the joints between them (nodes), each checked against its own strength provision.</p>
+<div class="why-refs">Further reading: <a href="https://library.ctr.utexas.edu/ctr-publications/5-5253-01-1.pdf" data-verify="pending">TxDOT/UT Austin report 5-5253-01-1, Strength and Serviceability Design of Reinforced Concrete Deep Beams (free PDF)</a> &mdash; the experimental basis for modern deep-beam STM provisions.</div>
+</div>
+</details>
+
+<!-- 2 ─ Arch action / funicular shape / steepness ────────── -->
+<details class="why-box" id="why-arch">
+<summary>Arch action: why the tie force is constant, and why strut steepness sets it</summary>
+<div class="why-body">
+<p>A deep beam under gravity load carries load as a tied arch: compression arches through the wall from the load points down to the piers, and the grade beam reinforcement is the tension tie holding the arch feet together. The calculator builds the compression path as the <b>funicular polygon</b> of the applied loads &mdash; arch ordinates proportional to the moment diagram, y(x) = z&middot;M(x)/M<sub>max</sub>, springing to the tie level at each support.</p>
+<p>That shape is not cosmetic. Because the ordinates track M(x), a moment cut anywhere in the span closes with the same horizontal thrust:</p>
+<div class="why-eq">M(x) = H &middot; y(x) at every x &nbsp;&rArr;&nbsp; H = M<sub>max</sub>/z = constant</div>
+<p>With no horizontal applied loads, the tie balances that thrust at every section, so the tie force is <b>T = H = M<sub>max</sub>/z over the full span</b> &mdash; one constant force, not a tapered T(x). Every arch segment is in pure compression and no members cross, so the model is determinate and each piece can be checked without load-sharing assumptions.</p>
+<p><b>Why constant T beats a stepped or tapered tie here.</b> A Bernoulli beam lets T(x) = M(x)/z decay toward the supports, so bars can be cut off following the moment gradient. Arch action removes that decay: the arch delivers its full horizontal thrust at the springing, where the moment is zero, so the tie force near the support is set by the arch geometry, not by the local moment. A tapered tie would understate the anchorage demand exactly where it is most critical. Constant T is both the honest deep-beam physics and the conservative envelope.</p>
+<p><b>Steepness.</b> At the springing, the support node has three forces: the reaction R (vertical), the springing strut (at angle &theta; from horizontal), and the tie (horizontal). Equilibrium gives:</p>
+<div class="why-eq">T = R &middot; cot&theta;</div>
+<p>Steep struts collapse the tie force; shallow struts inflate it. cot 67&deg; &asymp; 0.42 versus cot 20&deg; &asymp; 2.7 &mdash; a factor of more than six for the same reaction. The calculator&rsquo;s default case shows this: R<sub>t</sub> = 236.6 k arriving at &theta; &asymp; 67&deg; needs only T &asymp; 99 k of tie. This is also why ACI 318-19 &sect;23.2.7 forbids strut-tie angles below 25&deg;: past that, the tie demand and the strain incompatibility both blow up, and the calculator stops with &ldquo;no admissible STM&rdquo; rather than report numbers for a geometry the code excludes.</p>
+<div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="pending">FHWA-NHI-17-071, Strut-and-Tie Modeling (STM) for Concrete Structures (free PDF)</a> &mdash; worked deep-beam examples with the same tied-arch load path.</div>
+</div>
+</details>
+
+<!-- 3 ─ Node classes ─────────────────────────────────────── -->
+<details class="why-box" id="why-nodes">
+<summary>Node classes CCC / CCT / CTT: why anchoring a tie weakens a node</summary>
+<div class="why-body">
+<p>Nodes are named by what meets there: C for a compression member or bearing face, T for a tie. An interior arch vertex where two strut segments and a vertical compression member meet is CCC. A support node where the reaction, the springing strut, and one tie meet is CCT. Add a second tie direction &mdash; as at the overhang-side support in the cantilever case &mdash; and it becomes CTT.</p>
+<p>ACI 318-19 Table 23.9.2 discounts the usable concrete strength of the node by &beta;<sub>n</sub>:</p>
+<ul>
+<li>CCC &mdash; &beta;<sub>n</sub> = 1.0 (all compression, concrete confined on all faces)</li>
+<li>CCT &mdash; &beta;<sub>n</sub> = 0.8 (one tie anchored)</li>
+<li>CTT &mdash; &beta;<sub>n</sub> = 0.6 (ties in more than one direction)</li>
+</ul>
+<p>The physical reason is anchorage cracking. A tie anchored at a node means bars are pulling on the same block of concrete the struts are bearing against. Developing bar force requires bond, bond requires some slip and tensile strain, and that tensile strain runs transverse to the strut compression &mdash; opening splitting cracks through the nodal zone. Cracked concrete carries less compression than uncracked concrete, so each anchored tie direction takes a bite out of the node&rsquo;s effective strength. A CCC node stays uncracked and biaxially confined; it keeps full strength.</p>
+<p>Node class is assigned from the solved member forces, not assumed, and every node face is checked against 0.85&middot;&beta;<sub>c</sub>&middot;&beta;<sub>n</sub>&middot;f&prime;<sub>c</sub> per ACI 318-19 &sect;23.9.</p>
+</div>
+</details>
+
+<!-- 4 ─ Bottle-shaped struts ─────────────────────────────── -->
+<details class="why-box" id="why-bottle">
+<summary>Bottle-shaped struts: why compression makes tension, and how web steel earns &beta;<sub>s</sub> = 0.75</summary>
+<div class="why-body">
+<p>A strut inside a wall is not a uniform prism. Compression entering at a narrow node spreads laterally into the available wall panel &mdash; the stress field bulges at mid-length and necks back down at the far node, the shape of a bottle. The spreading is not free: as the compression trajectories curve outward and back, equilibrium requires <b>transverse tension</b> across the strut at mid-length. Unreinforced, that tension splits the strut longitudinally well before the concrete crushes.</p>
+<p>ACI 318-19 handles this through &beta;<sub>s</sub> in the strut strength f<sub>ce</sub> = 0.85&middot;&beta;<sub>s</sub>&middot;f&prime;<sub>c</sub> (&sect;23.4.3):</p>
+<ul>
+<li>&beta;<sub>s</sub> = 0.75 &mdash; strut crossed by distributed reinforcement satisfying Table 23.5.1. The web steel carries the transverse tension, controls the splitting crack, and lets the strut reach its crushing strength.</li>
+<li>&beta;<sub>s</sub> = 0.4 &mdash; no qualifying distributed reinforcement. The code assumes the splitting failure mode and nearly halves the strut.</li>
+</ul>
+<p>For a wall this is cheap strength: the each-face bar mats the wall needs anyway (checked separately against the &sect;9.9.3.1 deep-beam minimums) usually satisfy Table 23.5.1. The calculator resolves &beta;<sub>s</sub> from the entered web steel <i>first</i>, then sizes the arch band with the resulting design stress &mdash; so a &beta;<sub>s</sub> downgrade from 0.75 to 0.4 nearly doubles the required band width and can flip the fit result. Both the Table 23.5.1 qualification and the &sect;9.9.3.1 minimums are reported separately; passing one does not imply the other.</p>
+<div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="pending">FHWA-NHI-17-071 (free PDF)</a> &mdash; bottle-shaped strut mechanics and crack-control reinforcement.</div>
+</div>
+</details>
+
+<!-- 5 ─ Full anchorage at the support node ───────────────── -->
+<details class="why-box" id="why-anchorage">
+<summary>Why the tie must anchor its full force at the support &mdash; and where the critical section is</summary>
+<div class="why-body">
+<p>The strut-and-tie method is a lower-bound (static) method: if you can find any internal force distribution that is in equilibrium with the applied loads and nowhere exceeds member strength, the true capacity is at least that. The catch is the &ldquo;nowhere exceeds&rdquo; clause &mdash; the guarantee holds only if every member can actually deliver the force the model assigns it. A tie that cannot develop T at the support node is a broken link, and the lower-bound guarantee evaporates with it.</p>
+<p>In a slender beam, the moment gradient rescues short embedment: T(x) decays toward the support, so a bar needs less and less development as it approaches the end. Arch action removes that rescue. The tie carries the full T = M<sub>max</sub>/z right up to the springing (see the arch-action box), so the bars must develop <b>100% of T at the support node</b> &mdash; by straight development, standard hooks, or headed bars, whichever the entered detailing provides.</p>
+<p>ACI 318-19 &sect;23.8.3 sets the critical section: development is measured from the point where the tie centroid exits the <b>extended nodal zone</b> &mdash; the region where the compression from the bearing and the strut overlaps and clamps the bars. This is more generous than measuring from the inner bearing face, because the clamping pressure improves bond, but it is a computed geometric point, not a rule of thumb. The calculator constructs the extended nodal zone per the FHWA method, draws the critical section on the elevation, and compares available embedment (along the bar centerline, less cover, bend, and head clearances) against l<sub>d</sub>, l<sub>dh</sub>, or l<sub>dt</sub> per Chapter 25. If it does not fit, the answer is &ldquo;detailing does not fit&rdquo; &mdash; not a smaller tie force.</p>
+<div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="pending">FHWA-NHI-17-071 (free PDF)</a> &mdash; extended nodal zone construction and anchorage examples.</div>
+</div>
+</details>
+
+<!-- 6 ─ Discretization + lower bound ─────────────────────── -->
+<details class="why-box" id="why-discretization">
+<summary>How the uniform load becomes a truss, and why lumping it is safe</summary>
+<div class="why-body">
+<p>A truss needs point loads, so the calculator lumps the UDL between support centerlines into N = 10 equal segments, each applied at its segment centroid and carried to the arch by a vertical compression member representing the wall above. The lumped moment diagram is piecewise linear with vertices at every load abscissa.</p>
+<p>Centroid lumping is <b>exact at midspan</b>: the lumped-load M<sub>max</sub> equals wL<sub>s</sub>&sup2;/8 identically, so H = M<sub>max</sub>/z and the tie force are exact, and the test suite asserts H&middot;z = wL<sub>s</sub>&sup2;/8 on the default case. Between vertices the polygonal diagram inscribes the true parabola; at N = 10 the deviation is bounded by about 1% of M<sub>max</sub>, which is inside every rounding in the check.</p>
+<p>The lower-bound logic ties it together: each lumped load reaches its own arch vertex, all segments share the single constant thrust H, and per-node equilibrium is asserted numerically at every joint. The whole polygon is one statically admissible field &mdash; superposition of the ten load paths without any crossing or shared compression fields, which is what makes the per-member checks meaningful.</p>
+<p>Live load is not hand-waved either: every independently variable live component is enumerated on/off across both load combinations, and each check reports its own governing combination and pattern. Adding live load to a simple span can only increase M<sub>max</sub> and therefore T &mdash; but individual segment angles and node demands do not follow that monotonic rule under asymmetric patterns, so the engine enumerates rather than assumes.</p>
+</div>
+</details>
+
+<!-- 7 ─ Corner condition ─────────────────────────────────── -->
+<details class="why-box" id="why-corner">
+<summary>Corner condition: wall returning around a corner <span class="why-tag warn">Not computed &mdash; detailing guidance only</span></summary>
+<div class="why-body">
+<div class="why-note"><b>The calculator does not analyze this condition.</b> The notes below are detailing practice for the drawings, not a computed check. Where corner forces are significant, design the corner joint separately.</div>
+<p>Where the wall returns around a corner and its grade beam meets a perpendicular grade beam, each tie must still anchor its full force &mdash; and the corner is where straight embedment runs out. The working detail:</p>
+<ul>
+<li><b>Hook the X-direction tie bars into the Y-direction grade beam</b>, and the Y-direction tie bars into the X-direction beam. The perpendicular beam&rsquo;s concrete mass and reinforcement cage give the hooks the confined anchorage the corner itself cannot.</li>
+<li><b>Lap the hooked bars with the perpendicular beam&rsquo;s bottom steel</b> so the tie force has a continuous path into the perpendicular tie rather than dead-ending at the corner.</li>
+<li>Detail the corner symmetrically &mdash; both walls&rsquo; ties get the same treatment in mirror image.</li>
+<li>Maintain the same cover and hook-tail clearances checked elsewhere in this calculator; a hook that does not fit inside the perpendicular beam&rsquo;s depth is the same &ldquo;detailing does not fit&rdquo; problem, found by hand instead of by the calc.</li>
+</ul>
+<p>Show the hooks and laps explicitly on the plan and corner sections. &ldquo;Typical corner bars&rdquo; notes get built as whatever is easiest to tie.</p>
+</div>
+</details>
+
+</div>

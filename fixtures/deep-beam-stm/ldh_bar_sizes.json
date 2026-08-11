@@ -1,0 +1,176 @@
+{
+  "name": "ldh_bar_sizes — ACI 318-19 25.4.3.1 hook development for #5/#8/#11, unconfined and confined via each Table 25.4.3.2 disjunct (AUDIT-FIXES A1/A2, H1)",
+  "comments": {
+    "why": [
+      "The A1 fix changes the hook formula exponent from db^1.0 to db^1.5. At db = 1.0 (#8) the exponent is INVISIBLE",
+      "(1.0^1.5 = 1.0), which is exactly why the bug survived the original fixture suite — every hook fixture used #8 bars.",
+      "The #5 and #11 runs are what prove the exponent fix.",
+      "All values hand-computed independently: fy 60,000 psi, f'c 3,000 psi, sqrt(3000) = 54.7722558, psi_c = 3000/15000 + 0.6 = 0.8,",
+      "psi_o = 1.25 (side cover 2 in < 6db for every size here), psi_e = 1.0 (uncoated), lambda = 1.0.",
+      "ldh = (60000 * psi_e * psi_r * psi_o * psi_c / (55 * 54.7722558)) * db^1.5, min max(8db, 6 in). 55*54.7722558 = 3012.4740663.",
+      "Unconfined numerator: 60000*1.6*1.25*0.8 = 96000 -> 96000/3012.4740663 = 31.8674943 in * db^1.5.",
+      "Confined numerator: 60000*1.0*1.25*0.8 = 60000 -> 60000/3012.4740663 = 19.9171839 in * db^1.5.",
+      "db^1.5: #5 (0.625) -> 0.625*sqrt(0.625) = 0.4941059; #8 (1.0) -> 1.0; #11 (1.41) -> 1.41*sqrt(1.41) = 1.6742871.",
+      "#5: unconfined 31.8674943*0.4941059 = 15.7459164 in; confined 19.9171839*0.4941059 = 9.8411977 in (> max(8db=5, 6) floor).",
+      "#8: unconfined 31.8674943 in (matches the pre-fix default output — the exponent is invisible at db = 1.0);",
+      "    confined 19.9171839 in.",
+      "#11: unconfined 31.8674943*1.6742871 = 53.3551795 in; confined 19.9171839*1.6742871 = 33.3469872 in (> 8db = 11.28 floor).",
+      "psi_r disjuncts exercised separately per run (hooked-bar c/c spacing s = (b_gb - 2*cover_side - db)/(n-1)):",
+      "  unconfined runs: s < 6db AND no ties -> 1.6;",
+      "  (b) spacing runs: s >= 6db with NO ties -> 1.0;",
+      "  (a) ties runs: s < 6db but Ath = legs*Ab*nTies >= 0.4*Ahs with nTies = floor(15db/s_tie)+1 -> 1.0.",
+      "Geometry/loads are the PLAN 10 defaults except b_gb and the tie-bar group, which only affect the anchorage row asserted here."
+    ],
+    "per_run_spacing_arithmetic": [
+      "#5_unconfined: 5-#5 in b_gb 16 -> s = (16-4-0.625)/4 = 2.84375 < 6db = 3.75 -> psi_r 1.6.",
+      "#5_confined_spacing: 4-#5 in b_gb 24 -> s = (24-4-0.625)/3 = 6.45833 >= 3.75 -> psi_r 1.0 via (b).",
+      "#5_confined_ties: 5-#5 in b_gb 16 (s = 2.84375 < 3.75) + 2-leg #4 @ 2 in: nTies = floor(15*0.625/2)+1 = 5, Ath = 2*0.20*5 = 2.00 >= 0.4*Ahs = 0.4*(5*0.31) = 0.62 -> psi_r 1.0 via (a).",
+      "#8_unconfined: 4-#8 in b_gb 16 -> s = (16-4-1)/3 = 3.66667 < 6.0 -> psi_r 1.6.",
+      "#8_confined_spacing: 4-#8 in b_gb 24 -> s = (24-4-1)/3 = 6.33333 >= 6.0 -> psi_r 1.0 via (b).",
+      "#8_confined_ties: 4-#8 in b_gb 16 (s = 3.66667 < 6.0) + 2-leg #4 @ 3 in: nTies = floor(15*1.0/3)+1 = 6, Ath = 2*0.20*6 = 2.40 >= 0.4*(4*0.79) = 1.264 -> psi_r 1.0 via (a).",
+      "#11_unconfined: 4-#11 in b_gb 24 -> s = (24-4-1.41)/3 = 6.19667 < 6db = 8.46 -> psi_r 1.6.",
+      "#11_confined_spacing: 4-#11 in b_gb 32 -> s = (32-4-1.41)/3 = 8.86333 >= 8.46 -> psi_r 1.0 via (b).",
+      "#11_confined_ties: 4-#11 in b_gb 24 (s = 6.19667 < 8.46) + 2-leg #5 @ 3 in: nTies = floor(15*1.41/3)+1 = 8, Ath = 2*0.31*8 = 4.96 >= 0.4*(4*1.56) = 2.496 -> psi_r 1.0 via (a)."
+    ]
+  },
+  "runs": [
+    {
+      "name": "no5_unconfined",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 16 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 5, "size": "#5" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1.6, "atol": 0, "note": "s = 2.84375 < 3.75, no ties" },
+        { "path": "checks[id=anchorage.L].demand", "value": 15.745916432444337, "rtol": 1e-9, "note": "hand: 96000/3012.4740663 * 0.625^1.5 = 31.8674943*0.4941059 = 15.7459164 in" }
+      ] }
+    },
+    {
+      "name": "no5_confined_spacing",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#5" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (b): s = 6.45833 >= 6db = 3.75, no ties needed" },
+        { "path": "checks[id=anchorage.L].demand", "value": 9.841197770277711, "rtol": 1e-9, "note": "hand: 60000/3012.4740663 * 0.4941059 = 19.9171839*0.4941059 = 9.8411978 in (> floor max(5, 6))" }
+      ] }
+    },
+    {
+      "name": "no5_confined_ties",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 16 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 5, "size": "#5" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook", "ties": { "legs": 2, "size": "#4", "s_in": 2 } }, "right": { "type": "hook", "ties": { "legs": 2, "size": "#4", "s_in": 2 } } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (a): Ath = 2*0.20*5 = 2.00 >= 0.4*1.55 = 0.62 while s = 2.84375 < 3.75" },
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.nTies", "value": 5, "atol": 0, "note": "floor(15*0.625/2)+1 = 5" },
+        { "path": "checks[id=anchorage.L].demand", "value": 9.841197770277711, "rtol": 1e-9 }
+      ] }
+    },
+    {
+      "name": "no8_unconfined",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 16 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1.6, "atol": 0, "note": "s = 3.66667 < 6.0, no ties" },
+        { "path": "checks[id=anchorage.L].demand", "value": 31.867494254846026, "rtol": 1e-9, "note": "hand: 96000/3012.4740663 * 1.0^1.5 = 31.8674943 in — MATCHES the pre-fix default output because the db^1.5 exponent is invisible at db = 1.0, which is why the exponent bug survived the original #8-only fixtures" }
+      ] }
+    },
+    {
+      "name": "no8_confined_spacing",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (b): s = 6.33333 >= 6.0" },
+        { "path": "checks[id=anchorage.L].demand", "value": 19.917183909278766, "rtol": 1e-9, "note": "hand: 60000/3012.4740663 * 1.0 = 19.9171839 in" }
+      ] }
+    },
+    {
+      "name": "no8_confined_ties",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 16 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook", "ties": { "legs": 2, "size": "#4", "s_in": 3 } }, "right": { "type": "hook", "ties": { "legs": 2, "size": "#4", "s_in": 3 } } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (a): Ath = 2*0.20*6 = 2.40 >= 0.4*3.16 = 1.264 while s = 3.66667 < 6.0" },
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.nTies", "value": 6, "atol": 0, "note": "floor(15*1.0/3)+1 = 6" },
+        { "path": "checks[id=anchorage.L].demand", "value": 19.917183909278766, "rtol": 1e-9 }
+      ] }
+    },
+    {
+      "name": "no11_unconfined",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#11" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1.6, "atol": 0, "note": "s = 6.19667 < 6db = 8.46, no ties" },
+        { "path": "checks[id=anchorage.L].demand", "value": 53.35517948166476, "rtol": 1e-9, "note": "hand: 96000/3012.4740663 * 1.41^1.5 = 31.8674943*1.6742871 = 53.3551795 in — the pre-fix db^1.0 formula would have given 31.8674943*1.41 = 44.9331669 in (19% unconservative)" }
+      ] }
+    },
+    {
+      "name": "no11_confined_spacing",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 32 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#11" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (b): s = 8.86333 >= 8.46" },
+        { "path": "checks[id=anchorage.L].demand", "value": 33.34698717604048, "rtol": 1e-9, "note": "hand: 60000/3012.4740663 * 1.6742871 = 33.3469872 in (> 8db = 11.28 floor)" }
+      ] }
+    },
+    {
+      "name": "no11_confined_ties",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#11" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook", "ties": { "legs": 2, "size": "#5", "s_in": 3 } }, "right": { "type": "hook", "ties": { "legs": 2, "size": "#5", "s_in": 3 } } } }
+      },
+      "expect": { "status": "ok", "values": [
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.psiR", "value": 1, "atol": 0, "note": "disjunct (a): Ath = 2*0.31*8 = 4.96 >= 0.4*6.24 = 2.496 while s = 6.19667 < 8.46" },
+        { "path": "checks[id=anchorage.L].contributions[0].ldh.nTies", "value": 8, "atol": 0, "note": "floor(15*1.41/3)+1 = floor(7.05)+1 = 8" },
+        { "path": "checks[id=anchorage.L].demand", "value": 33.34698717604048, "rtol": 1e-9 }
+      ] }
+    }
+  ]
+}

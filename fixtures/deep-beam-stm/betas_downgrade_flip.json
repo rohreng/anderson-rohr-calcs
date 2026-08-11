@@ -1,0 +1,159 @@
+{
+  "name": "betas_downgrade_flip — Table 23.5.1 disqualification (0.75 -> 0.4) enlarges the band and flips the fit result",
+  "comments": {
+    "note": "Run 1: #4@12 EF qualifies -> betaS 0.75, springing fit DCR 0.7890 (band fits). Run 2: #4@18 EF (s > 12 in) disqualifies -> betaS 0.4, springing fit DCR 1.4802 > 1 -> band-fit FAIL. Same geometry/loads."
+  },
+  "runs": [
+    {
+      "name": "qualified_075",
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 21,
+          "x_L_ft": 0.5,
+          "x_R_ft": 20.5,
+          "lb_L_in": 8,
+          "lb_R_in": 8,
+          "t_w_in": 8,
+          "h_w_ft": 10,
+          "h_gb_in": 20,
+          "b_gb_in": 16
+        },
+        "loads": {
+          "DL_super_plf": 5000,
+          "LL_plf": 1500,
+          "wallSW_plf": 0,
+          "gbSW_plf": 0
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 12,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.betaS.value",
+            "value": 0.75,
+            "atol": 0
+          },
+          {
+            "path": "checks[id=strut.fit].pass",
+            "value": true,
+            "note": "band fits with betaS = 0.75"
+          },
+          {
+            "path": "results.model.bands[segId=arch.0].fitDcr",
+            "value": 0.7889990586032348,
+            "rtol": 0.00001,
+            "note": "springing fit"
+          }
+        ]
+      }
+    },
+    {
+      "name": "downgraded_040",
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 21,
+          "x_L_ft": 0.5,
+          "x_R_ft": 20.5,
+          "lb_L_in": 8,
+          "lb_R_in": 8,
+          "t_w_in": 8,
+          "h_w_ft": 10,
+          "h_gb_in": 20,
+          "b_gb_in": 16
+        },
+        "loads": {
+          "DL_super_plf": 5000,
+          "LL_plf": 1500,
+          "wallSW_plf": 0,
+          "gbSW_plf": 0
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 18,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.betaS.value",
+            "value": 0.4,
+            "atol": 0
+          },
+          {
+            "path": "checks[id=strut.fit].pass",
+            "value": false,
+            "note": "band-fit result FLIPS"
+          },
+          {
+            "path": "checks[id=strut.fit].dcr",
+            "value": 1.4802119865645944,
+            "rtol": 0.00001,
+            "note": "springing governs"
+          },
+          {
+            "path": "results.model.bands[segId=arch.0].fitDcr",
+            "value": 1.4802119865645944,
+            "rtol": 0.00001
+          }
+        ]
+      }
+    }
+  ]
+}

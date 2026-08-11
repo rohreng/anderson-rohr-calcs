@@ -1,0 +1,94 @@
+{
+  "name": "mmax_vertex_move — governing Mmax vertex moves between discretization points under a pattern change",
+  "comments": {
+    "note": "UDL dead + one live point at 0.65Ls (merges with UDL lump 7). Pattern LL-off: Mmax at the 0.45Ls vertex (140.4000 in). Pattern LL-on: Mmax moves to the merged vertex at 202.8000 in. Both patterns enumerated; envelope reports the governing pattern."
+  },
+  "runs": [
+    {
+      "inputs": {
+        "geometry": {
+          "L_w_ft": 28.5,
+          "x_L_ft": 1.25,
+          "x_R_ft": 27.25,
+          "lb_L_in": 30,
+          "lb_R_in": 30,
+          "t_w_in": 12,
+          "h_w_ft": 14,
+          "h_gb_in": 24,
+          "b_gb_in": 24
+        },
+        "loads": {
+          "DL_super_plf": 5000,
+          "LL_plf": 0,
+          "wallSW_plf": 0,
+          "gbSW_plf": 0,
+          "pointLoads": [
+            {
+              "x_ft": 18.150000000000002,
+              "width_in": 12,
+              "D_kip": 0,
+              "L_kip": 150
+            }
+          ]
+        },
+        "materials": {
+          "fc_psi": 3000,
+          "fy_ksi": 60
+        },
+        "reinf": {
+          "tieBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "topBars": {
+            "count": 4,
+            "size": "#8"
+          },
+          "cover_bot_in": 3,
+          "cover_side_in": 2,
+          "cover_top_in": 2,
+          "web": {
+            "size": "#4",
+            "s_in": 12,
+            "layers": 2
+          },
+          "anchorage": {
+            "left": {
+              "type": "hook"
+            },
+            "right": {
+              "type": "hook"
+            }
+          }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          {
+            "path": "results.patterns[1].MmaxX_in",
+            "value": 140.4,
+            "atol": 0.000001,
+            "note": "1.2D+1.6L, LL off: Mmax vertex at 0.45Ls"
+          },
+          {
+            "path": "results.patterns[2].MmaxX_in",
+            "value": 202.8,
+            "atol": 0.000001,
+            "note": "1.2D+1.6L, LL on: Mmax vertex moved"
+          },
+          {
+            "path": "results.patterns[2].Mmax_kin",
+            "value": 22632.480000000014,
+            "rtol": 1e-7
+          },
+          {
+            "path": "checks[id=tie.bottom].governingPattern",
+            "value": "LL[P1:1]",
+            "note": "live-on pattern governs the tie"
+          }
+        ]
+      }
+    }
+  ]
+}

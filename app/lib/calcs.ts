@@ -679,6 +679,19 @@ export const CALCS: CalcMeta[] = [
     calcType: "Beams & Flexure",
     icon: "concrete-beam",
   },
+  {
+    slug: "deep-beam-stm",
+    label: "Deep Beam Strut-and-Tie (Wall on Piers)",
+    subtitle: "Wall spanning piers as ACI 318-19 Ch. 23 deep beam — funicular arch-and-tie, nodes, anchorage",
+    htmlFile: "/Calcs/deep_beam_stm_calculator.html",
+    category: "Concrete",
+    spec: "ACI 318-19 Ch. 23 & §9.9",
+    status: "ready",
+    keywords: ["deep beam", "strut and tie", "STM", "grade beam", "pier", "wall", "tie", "node", "CCT", "anchorage", "funicular", "arch", "ACI 318"],
+    material: "Concrete",
+    calcType: "Walls",
+    icon: "retaining-wall",
+  },
   // ── Foundations ──────────────────────────────────────────────
   {
     slug: "holdown-footing",
