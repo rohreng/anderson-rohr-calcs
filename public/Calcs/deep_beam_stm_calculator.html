@@ -185,11 +185,12 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <input type="number" id="hgb" value="24" step="1">
       </div>
       <div class="ig"><label>GB Extension Left, e<sub>L</sub> <span class="unit">(in)</span></label>
-        <input type="number" id="eL" value="0" step="1">
-        <span class="hint">Beyond bearing outer face; adds tie embedment</span>
+        <input type="number" id="eL" value="0" step="1" min="0">
+        <span class="hint">Anchorage nib beyond the bearing outer face &mdash; may run past the wall end; adds tie embedment. Nib past the wall end limited to min(h<sub>gb</sub>, l<sub>b</sub>)</span>
       </div>
       <div class="ig"><label>GB Extension Right, e<sub>R</sub> <span class="unit">(in)</span></label>
-        <input type="number" id="eR" value="0" step="1">
+        <input type="number" id="eR" value="0" step="1" min="0">
+        <span class="hint">Same limit; beyond it the nib is a designed cantilever (out of scope)</span>
       </div>
     </div>
   </div>
@@ -686,8 +687,8 @@ function clientWarnings(){
   if (2 * num('covSide') + num('topN') * BAR_DB[$('topSize').value] > num('tw')) w.push('top bars do not fit within t_w');
   if (num('tw') < 2 * (num('webCov') + BAR_DB[$('webVsize').value] + BAR_DB[$('webHsize').value])) w.push('wall too thin for EF web reinforcement cover');
   if (num('eL') < 0 || num('eR') < 0) w.push('GB extensions must be >= 0');
-  if (num('eL') > xL * 12 - lbL / 2) w.push('e_L extends GB beyond wall end');
-  if (num('eR') > (Lw - xR) * 12 - lbR / 2) w.push('e_R extends GB beyond wall end');
+  if (num('eL') - (xL * 12 - lbL / 2) > Math.min(num('hgb'), lbL)) w.push('GB nib past wall end > min(h_gb, lb_L) (becomes a designed cantilever)');
+  if (num('eR') - ((Lw - xR) * 12 - lbR / 2) > Math.min(num('hgb'), lbR)) w.push('GB nib past wall end > min(h_gb, lb_R) (becomes a designed cantilever)');
   if (num('webVs') <= 0 || num('webHs') <= 0) w.push('web spacing must be > 0');
   return w;
 }

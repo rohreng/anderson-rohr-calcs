@@ -116,8 +116,19 @@
     var Ls = xR - xL;
     if (!(Ls > 0)) err(errors, "GEOM", "span L_s = x_R - x_L must be > 0");
     if (bgb < tw - GEOM_EPS) err(errors, "GEOM", "b_gb >= t_w required");
-    if (eL > xL - lbL / 2 + GEOM_EPS) err(errors, "GEOM", "e_L would extend GB beyond wall end");
-    if (eR > (Lw - xR) - lbR / 2 + GEOM_EPS) err(errors, "GEOM", "e_R would extend GB beyond wall end");
+    // GB anchorage nib: the grade beam MAY extend past the wall end — that nib is the
+    // standard detail for developing the tie hook (PLAN §5 / §23.8.3), so it is NOT a
+    // geometry error. Only the length past the WALL END is a nib; where the wall itself
+    // continues beyond the bearing (outboard strip / Case C overhang) the GB is simply
+    // following the wall and is unbounded here.
+    // Bound: the SAME limit as the outboard-strip dispersion rule (AUDIT-FIXES E),
+    // nib <= min(h_gb, lb) — 45 deg through the GB depth AND landing within the bearing,
+    // so the nib's own weight reaches the pier instead of acting as a designed
+    // cantilever (which is out of scope).
+    var nibL = eL - (xL - lbL / 2), nibR = eR - ((Lw - xR) - lbR / 2);
+    var nibLimL = Math.min(hgb, lbL), nibLimR = Math.min(hgb, lbR);
+    if (nibL > nibLimL + GEOM_EPS) err(errors, "GEOM", "GB nib past the wall end (" + fmt(nibL, 2) + " in) > min(h_gb, lb) = " + fmt(nibLimL, 2) + " in — becomes a designed cantilever (out of scope): deepen the GB, widen the bearing, or use headed bars");
+    if (nibR > nibLimR + GEOM_EPS) err(errors, "GEOM", "GB nib past the wall end (" + fmt(nibR, 2) + " in) > min(h_gb, lb) = " + fmt(nibLimR, 2) + " in — becomes a designed cantilever (out of scope): deepen the GB, widen the bearing, or use headed bars");
 
     var fc = reqNum(mat.fc_psi, "materials.fc_psi", 2000, 10000);
     var fy = reqNum(mat.fy_ksi, "materials.fy_ksi");
@@ -245,7 +256,7 @@
       tieBars: tieBars, topBars: topBars,
       coverBot: coverBot, coverSide: coverSide, coverTop: coverTop,
       webV: webV, webH: webH, anchL: anchL, anchR: anchR,
-      wD_pli: wD_pli, wL_pli: wL_pli, points: points,
+      wD_pli: wD_pli, wL_pli: wL_pli, gbSW_pli: gbSW / 12000, points: points,
       pinZ: pinZ, combos: combos,
       tNode: Math.min(tw, bgb)
     };
@@ -500,7 +511,14 @@
         ? strip.lb / 2                      // Case C: only the part over the bearing routes
         : strip.len;
       var P = (fD * ctx.wD_pli + fL * ctx.wL_pli) * lenRouted;
-      return { P: P, len: lenRouted };
+      // GB anchorage nib beyond the wall end: grade-beam self weight only (no wall and no
+      // superimposed DL sits on it), dead load only, dispersed into the bearing.
+      // NOTE the datum: e is measured from the bearing OUTER face, so the nib is
+      // e - strip.o (o = wall beyond the outer face) — NOT e - strip.len, which is
+      // measured to the bearing CENTERLINE and understates the nib by lb/2.
+      var nib = Math.max(0, (strip.side === "L" ? ctx.eL : ctx.eR) - strip.o);
+      P += fD * ctx.gbSW_pli * nib;
+      return { P: P, len: lenRouted, nib: nib };
     }
     var out = { L: { strip: stripForce(ctx.stripL), pts: [] }, R: { strip: stripForce(ctx.stripR), pts: [] } };
     ["L", "R"].forEach(function (s) {
