@@ -1,0 +1,361 @@
+{
+  "name": "tie_width_band — FEATURE 1: ACI 318-19 23.8.2 effective tie width (band check), multi-layer ties, and cap propagation",
+  "comments": {
+    "common": [
+      "f_ce (node) = 0.85*beta_n*beta_c*f'c with beta_n = 0.8 (CCT) and beta_c LOCKED at 1.0",
+      "        = 0.85*0.8*1.0*3.0 ksi = 2.04 ksi.   b_s = min(t_w, b_gb) = min(12, 24) = 12 in.",
+      "        f_ce*b_s = 24.48 kip/in.   F_nt = As*fy NOMINAL (no phi).   w_t,max = F_nt/(f_ce*b_s).",
+      "w_t,phys = 2*ybar_t.  w_t,gov = min(w_t,phys, w_t,max).  Band = [ybar_t - w_t,gov/2, ybar_t + w_t,gov/2].",
+      "Row dcr = w_t,gov/w_t,max <= 1 BY CONSTRUCTION; the row is ALWAYS informational so it can never",
+      "become the summary's governing DCR. `pass` reports BAND MEMBERSHIP only (F1.4).",
+      "Geometry common to runs 1-3 = PLAN §10 defaults: L_w 28.5 ft, x_L 1.25, x_R 27.25 (L_s = 312 in),",
+      "lb 30 in, t_w 12, h_w 14 ft, GB 24x24 -> h = 192 in; f'c 3000, fy 60; DL_super 5525, LL 5205 plf;",
+      "wall SW 150*1*14 = 2100 plf, GB SW 150*4 = 600 plf -> sum D = 8225 plf.",
+      "f_ce,strut (sizing) = 0.75*0.85*0.75*3 = 1.434375 ksi; 2*f_ce,strut*t_w = 34.425 kip.",
+      "Crown sizing closed form: z = [hp + sqrt(hp^2 - 4*M/(2*f_ce*t_w))]/2, T = M/z."
+    ],
+    "run1_default_regression": [
+      "REGRESSION GUARD (F1.6 row 1 / F1.7): the DEFAULT case must be NUMERICALLY UNCHANGED.",
+      "4-#8: As = 3.16 in2, F_nt = 189.6 k, w_t,max = 189.6/24.48 = 7.745098039215686 in.",
+      "ybar_t = 3 + 1.0/2 = 3.500 -> w_t,phys = 7.000 in < w_t,max -> NOT capped, w_t,gov = 7.000 = the",
+      "pre-change ha exactly. Row dcr = 7.000/7.745098 = 171.36/189.6 = 0.9037974683544304.",
+      "xCrit = (w_t,gov/2)/tan(theta) = 3.500/tan(theta) — identical to the pre-change ybar_t/tan(theta),",
+      "so anchorage is unchanged: available 29.46032359584895, ldh 19.917183909278766, DCR 0.676068063016292",
+      "(all carried over from default_case.json, where they are hand-derived).",
+      "R4.7 NIT-9: this fixture and default_case.json used to write T as ...230259 and call it",
+      "  'verbatim'/'identical'. The engine's closed-form T is 99.41577884230226 — the last two digits",
+      "  differ, absorbed by rtol 1e-9. The literals are corrected here and in default_case.json rather",
+      "  than left as a false claim of exactness. T is the closed-form root, T = M/z with",
+      "  z = [hp + sqrt(hp^2 - 4M/(2*f_ce*t_w))]/2, so the digits past ~1e-13 are float rounding of that",
+      "  expression, not a modelling difference.",
+      "xCrit itself = 29.46032359584895 - (lb 30 + e 0 - cover_side 2) = 1.46032359584895 in."
+    ],
+    "run2_capped_3no7": [
+      "F1.6 row 2 — 3-#7 bottom, cover 3 (everything else default). CAP ENGAGES.",
+      "As = 3*0.60 = 1.80 in2; F_nt = 108.0 k; w_t,max = 108/24.48 = 4.411764705882353 in.",
+      "ybar_t = 3 + 0.875/2 = 3.4375 -> w_t,phys = 6.875 in > w_t,max -> CAPPED, w_t,gov = 4.411764705882353.",
+      "Cap ratio w_t,gov/w_t,phys = 4.411764705882353/6.875 = 0.6417109 (spec F1.6: x0.6417).",
+      "  (1) ha := 4.411764705882353 in.",
+      "  (2) back-face stress scales by 1/0.6417109 = 1.5583 (spec F1.6).",
+      "  (3) xCrit := (w_t,gov/2)/tan(theta) = 2.2058823529/tan(theta), i.e. x0.6417109 of the",
+      "      uncapped 3.4375/tan(theta) — AVAILABLE EMBEDMENT DROPS. This is the F1.3(3) touchpoint.",
+      "Governing anchorage pattern = the LIGHTEST run (ldh is load-independent, so the minimum",
+      "available embedment governs; lighter load -> larger z -> steeper theta -> smaller xCrit).",
+      "1.2D only: w = 1.2*8.225 = 9.870 klf; M = 9.870*26^2/8 = 834.015 k-ft = 10008.18 k-in.",
+      "hp = 192 - 3.4375 = 188.5625; hp^2 = 35555.81640625; 4M/(2*f_ce*t_w) = 4*10008.18/34.425 = 1162.896732.",
+      "sqrt(35555.81640625 - 1162.896732) = sqrt(34392.919674) = 185.4532817;",
+      "z = (188.5625 + 185.4532817)/2 = 187.0078908 in.  For a pure UDL, tan(theta) = R/T = (wL/2)/(M/z) = 4z/L_s",
+      "  = 4*187.0078908/312 = 2.39753706.",
+      "xCrit = 2.2058823529/2.39753706 = 0.92006184 in  (uncapped it would be 3.4375/2.39753706 = 1.4337734 in).",
+      "available = 0.92006184 + 30 + 0 - 2 = 28.92006184 in  (uncapped 29.4337734 -> the cap costs 0.5137 in).",
+      "ldh for #7 (db 0.875): s_hooked = (24 - 2*2 - 0.875)/(3-1) = 9.5625 >= 6db = 5.25 -> psi_r = 1.0 (Table 25.4.3.2(b));",
+      "psi_o = 1.25 (cover_side 2 < 6db = 5.25); psi_c = 3000/15000 + 0.6 = 0.8; psi_e = 1.0.",
+      "ldh = (60000*1.0*1.0*1.25*0.8/(55*sqrt(3000)))*0.875^1.5 = 19.917183909*0.8184875534 = 16.30196669 in",
+      "  >= max(8db = 7.0, 6) -> 16.30196669.   DCR = 16.30196669/28.92006184 = 0.56369060.",
+      "F1.5 COLLAPSE IDENTITY (exact, because beta_c is locked at 1.0): with the back face capped,",
+      "stress = T/(w_t,max*b_s) and w_t,max*b_s*f_ce = F_nt, so back-face DCR = T/(0.75*F_nt) = the tie DCR.",
+      "Governing (heaviest) run 1.2D+1.6L all-on: wu = 18.198 klf, M = 18452.772 k-in;",
+      "4M/34.425 = 2144.1129412; sqrt(35555.81640625 - 2144.1129412) = sqrt(33411.7034651) = 182.7886852;",
+      "z = (188.5625 + 182.7886852)/2 = 185.6755926; T = 18452.772/185.6755926 = 99.381788 k.",
+      "tie DCR = 99.381788/(0.75*1.80*60) = 99.381788/81 = 1.22693565  -> the node.support.L row must read",
+      "the SAME 1.22693565 (back face governs: bearing 236.574/(30*12)/1.53 = 0.42951, strut 0.4759).",
+      "Back-face stress = 99.3817862/(4.411764705882353*12) = 99.3817862/52.94117647 = 1.87721152 ksi;",
+      "1.87721152/1.53 = 1.22693565 — identical, as F1.5 requires. Both rows FAIL honestly (3-#7 is under-steeled)."
+    ],
+    "run3_multilayer_band_fail": [
+      "F1.6 row 3 — REQUIRES F1.2 (tieLayers). 3-#7 @ y = 3.4375 in AND 3-#7 @ y = 21.5625 in.",
+      "Layer y limits: bottom >= cover_bot + db/2 = 3.4375; top <= h_gb - cover_top - db/2 = 24 - 2 - 0.4375 = 21.5625.",
+      "As = 2*1.80 = 3.60 in2; equal areas -> ybar_t = (3.4375 + 21.5625)/2 = 12.500 in; w_t,phys = 25.000 in.",
+      "F_nt = 3.60*60 = 216.0 k; w_t,max = 216/24.48 = 8.823529411764706 in -> CAPPED, w_t,gov = 8.823529411764706.",
+      "Band = [12.5 - 4.411764706, 12.5 + 4.411764706] = [8.0882353, 16.9117647] in.",
+      "Layer 1 at 3.4375 is 8.0882353 - 3.4375 = 4.6507353 in BELOW the band;",
+      "Layer 2 at 21.5625 is 21.5625 - 16.9117647 = 4.6507353 in ABOVE it.  BOTH OUTSIDE -> row FAILS.",
+      "The row's dcr stays 8.823529/8.823529 = 1.0 (<= 1 by construction) and the row stays informational,",
+      "so this failure cannot corrupt the summary's governing-DCR selection — it reports as a band failure."
+    ],
+    "run4_caseC_top_tie_capped": [
+      "F1.7 — Case C top-tie capping touchpoints. Geometry/loads = case_c_left_overhang.json, with the",
+      "top bars reduced to 3-#5 so the TOP tie caps:",
+      "ytTop = cover_top + db/2 = 2 + 0.625/2 = 2.3125 -> w_t,phys(top) = 4.625 in.",
+      "As,top = 3*0.31 = 0.93 in2; F_nt = 55.8 k; b_s = t_w = 12 in (the top tie lies in the wall);",
+      "w_t,max(top) = 55.8/24.48 = 2.2794117647058822 in < 4.625 -> CAPPED.",
+      "Both top-tie node touchpoints must read the capped width:",
+      "  haTopSup at the overhang-side support (subFaces 'top tie face (T_top)'), and",
+      "  haTop at N_a (min(w_t,gov(top), band bound) — the band bound is tens of inches here, so w_t,gov governs).",
+      "The bottom tie is unchanged (4-#8: w_t,phys 7.000 < w_t,max 7.745098) — ha stays 7.000 in."
+    ],
+    "R4_3_lower_half_guard": [
+      "R4.3 (round-1 MAJOR 3). The engine's grade-beam mid-depth rule was a COVER test:",
+      "  cover_bot + db/2 < h_gb/2. That proves a bottom layer COULD fit low; it says nothing about",
+      "  where reinf.tieLayers actually puts it, because with tieLayers the engineer states each y",
+      "  explicitly. tieLayers[0].y was never inspected. Consequences, both reachable from the",
+      "  shipped UI (the page exposes the layer table, and its clientWarnings mirror had the same",
+      "  gap): a SINGLE layer at y = 20 in a 24 in grade beam, and a TWO-LAYER tie at y = 13/21,",
+      "  both returned `ok` with tie.width PASS. Why those pass the old tests but are wrong:",
+      "    single @ 20:  ybar_t = 20, w_t,phys = 40; As = 4*0.79 = 3.16, F_nt = 189.6,",
+      "                  w_t,max = 189.6/24.48 = 7.745098 -> capped, band = [16.1275, 23.8725].",
+      "                  ONE layer is inside its own band BY CONSTRUCTION (F1.4), so pass = true —",
+      "                  a tie band 16 to 24 in above the bottom of the grade beam, nowhere near the",
+      "                  bearing it is supposed to anchor into, reported as PASSING.",
+      "    two @ 13/21:  As = 6*0.60 = 3.60, ybar_t = 17, w_t,max = 216/24.48 = 8.823529,",
+      "                  band = [12.588, 21.412] -> BOTH layers inside -> pass = true. Same defect,",
+      "                  and this one even passes the band-membership test.",
+      "  The fix rejects tieLayers[0].y >= h_gb/2 with an INVALID_INPUT naming the value and the",
+      "  limit. The bottom tie is the funicular chord that anchors into the CCT nodal zone directly",
+      "  above the bearing; if its lowest layer is not in the lower half of the grade beam, neither",
+      "  that node nor the lever arm z = h - ybar_t means anything.",
+      "  Both rejections are fixtured (runs R4_3_reject_*), AND a LEGITIMATE low two-layer tie is",
+      "  fixtured passing (run R4_3_low_two_layer_tie_passes) so the guard is proven not to be a",
+      "  blanket ban on multi-layer ties:",
+      "    3-#7 @ y = 3.4375 and 3-#7 @ y = 10, in the same default geometry.",
+      "    lowest layer 3.4375 < h_gb/2 = 12 -> accepted.",
+      "    As = 6*0.60 = 3.60 in2; equal areas -> ybar_t = (3.4375 + 10)/2 = 6.71875 in;",
+      "    w_t,phys = 13.4375 in; F_nt = 3.60*60 = 216.0 k; w_t,max = 216/24.48 = 8.823529411764706 in;",
+      "    13.4375 > 8.823529 -> CAPPED, w_t,gov = 8.823529411764706, half-width 4.411764705882353;",
+      "    band = [6.71875 - 4.411764706, 6.71875 + 4.411764706] = [2.306985294, 11.130514706] in.",
+      "    Layer 1 at 3.4375 in and layer 2 at 10 in are BOTH inside -> tie.width PASSES (dcr 1.0,",
+      "    informational, capped). This is also the R4.5 multi-layer IN-BAND PASS assertion, which",
+      "    was previously uncovered — only the failing multi-layer case existed.",
+      "  R4.4 touchpoint asserted on the same run: because the band is CAPPED, the drawn extended",
+      "    nodal zone must be the band CENTRED ON THE TIE, [2.306985, 11.130515], not [0, w_t,gov]",
+      "    = [0, 8.823529]. Uncapped the two coincide, which is why the default case is untouched."
+    ]
+  },
+  "runs": [
+    {
+      "name": "default_regression",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.tieBand.wtPhys", "value": 7.0, "rtol": 1e-12, "note": "2*3.500" },
+          { "path": "results.model.tieBand.wtMax", "value": 7.745098039215686, "rtol": 1e-12, "note": "189.6/24.48" },
+          { "path": "results.model.tieBand.wtGov", "value": 7.0, "rtol": 1e-12, "note": "min -> physical governs" },
+          { "path": "results.model.tieBand.capped", "value": false },
+          { "path": "results.model.ha_in", "value": 7.0, "rtol": 1e-12, "note": "UNCHANGED node back face" },
+          { "path": "checks[id=tie.width].demand", "value": 7.0, "rtol": 1e-12 },
+          { "path": "checks[id=tie.width].capacity", "value": 7.745098039215686, "rtol": 1e-12 },
+          { "path": "checks[id=tie.width].dcr", "value": 0.9037974683544304, "rtol": 1e-9, "note": "171.36/189.6" },
+          { "path": "checks[id=tie.width].pass", "value": true, "note": "single layer — inside band by construction" },
+          { "path": "checks[id=tie.width].informational", "value": true, "note": "F1.4: always informational" },
+          { "path": "checks[id=tie.width].capped", "value": false },
+          { "path": "checks[id=tie.width].nearLimit", "value": false },
+          { "path": "checks[id=tie.width].contributions[6].source", "value": "single layer — inside band by construction" },
+          { "path": "checks[id=tie.width].contributions[0].value", "value": 7.0, "rtol": 1e-12, "note": "w_t,phys lives in contributions, NOT in demand" },
+          { "path": "results.model.T_kip", "value": 99.41577884230226, "rtol": 1e-9, "note": "unchanged (default_case.json)" },
+          { "path": "results.model.z_in", "value": 185.61210518976608, "rtol": 1e-9, "note": "unchanged" },
+          { "path": "results.model.thetaL_deg", "value": 67.2063341530138, "atol": 1e-9, "note": "unchanged" },
+          { "path": "checks[id=anchorage.L].capacity", "value": 29.46032359584895, "rtol": 1e-9, "note": "unchanged available embedment" },
+          { "path": "checks[id=anchorage.L].demand", "value": 19.917183909278766, "rtol": 1e-9, "note": "unchanged ldh" },
+          { "path": "checks[id=anchorage.L].dcr", "value": 0.6760680630162922, "rtol": 1e-9, "note": "unchanged" },
+          { "path": "checks[id=anchorage.L].contributions[0].xCrit_in", "value": 1.46032359584895, "rtol": 1e-7, "note": "29.46032359584895 - (30 + 0 - 2); = 3.5/tan(theta) uncapped, identical" },
+          { "path": "checks[id=node.support.L].contributions[2].stress", "value": 1.1835211766940784, "rtol": 1e-9, "note": "back face T/(ha*b_s) = 99.41577884230226/84 — unchanged" },
+          { "path": "results.summary.governing.dcr", "value": 1.0, "rtol": 1e-12, "note": "governing = detailing.wallEF (s = 12 in vs min(d/5, 12) = min(37.7, 12) = 12 -> 1.0); tie.width (0.9038) is informational and cannot be selected" }
+        ]
+      }
+    },
+    {
+      "name": "capped_3no7",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 3, "size": "#7" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.tieBand.wtPhys", "value": 6.875, "rtol": 1e-12, "note": "2*3.4375" },
+          { "path": "results.model.tieBand.wtMax", "value": 4.411764705882353, "rtol": 1e-12, "note": "108/24.48" },
+          { "path": "results.model.tieBand.wtGov", "value": 4.411764705882353, "rtol": 1e-12 },
+          { "path": "results.model.tieBand.capped", "value": true },
+          { "path": "results.model.ha_in", "value": 4.411764705882353, "rtol": 1e-12, "note": "cap propagates to the node back face (F1.3.1)" },
+          { "path": "checks[id=tie.width].dcr", "value": 1.0, "rtol": 1e-12, "note": "w_t,gov = w_t,max exactly when capped" },
+          { "path": "checks[id=tie.width].capped", "value": true },
+          { "path": "checks[id=tie.width].pass", "value": true, "note": "single layer — band membership still satisfied" },
+          { "path": "checks[id=anchorage.L].contributions[0].xCrit_in", "value": 0.92006184, "rtol": 1e-6, "note": "F1.3(3): (4.411764706/2)/2.39753706; uncapped would be 1.4337734" },
+          { "path": "checks[id=anchorage.L].capacity", "value": 28.92006184, "rtol": 1e-7, "note": "0.92006184 + 30 - 2; embedment DROPS 0.5137 in vs uncapped 29.4337734" },
+          { "path": "checks[id=anchorage.L].demand", "value": 16.30196669, "rtol": 1e-7, "note": "ldh #7 = 19.917183909*0.875^1.5" },
+          { "path": "checks[id=anchorage.L].dcr", "value": 0.56369060, "rtol": 1e-7, "note": "16.30196669/28.92006184" },
+          { "path": "checks[id=node.support.L].contributions[2].stress", "value": 1.87721152, "rtol": 1e-7, "note": "99.3817862/52.94117647; x1.5583 the uncapped 1.20456" },
+          { "path": "checks[id=node.support.L].dcr", "value": 1.22693565, "rtol": 1e-6, "note": "F1.5 collapse: equals the tie DCR exactly" },
+          { "path": "checks[id=tie.bottom].dcr", "value": 1.22693565, "rtol": 1e-6, "note": "T/(0.75*1.8*60) = 99.381788/81 — SAME number as the node back face" },
+          { "path": "checks[id=node.support.L].collapsedOntoTie", "value": true, "note": "F1.5 mandatory disclosure" },
+          { "path": "results.model.T_kip", "value": 99.3817862, "rtol": 1e-7, "note": "18452.772/185.6755926" },
+          { "path": "results.summary.governing.id", "value": "tie.bottom", "note": "informational tie.width (dcr 1.0) is NOT selected even though the capped node collapses onto the same 1.2269" },
+          { "path": "results.summary.governing.dcr", "value": 1.22693565, "rtol": 1e-6 }
+        ]
+      }
+    },
+    {
+      "name": "multilayer_band_fail",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieLayers": [
+            { "count": 3, "size": "#7", "y_in": 3.4375 },
+            { "count": 3, "size": "#7", "y_in": 21.5625 }
+          ],
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.tieBand.ybar", "value": 12.5, "rtol": 1e-12, "note": "equal areas -> midpoint" },
+          { "path": "results.model.tieBand.As", "value": 3.6, "rtol": 1e-12, "note": "6-#7" },
+          { "path": "results.model.tieBand.wtPhys", "value": 25.0, "rtol": 1e-12, "note": "2*12.5" },
+          { "path": "results.model.tieBand.wtMax", "value": 8.823529411764706, "rtol": 1e-12, "note": "216/24.48" },
+          { "path": "results.model.tieBand.capped", "value": true },
+          { "path": "checks[id=tie.width].demand", "value": 8.823529411764706, "rtol": 1e-12 },
+          { "path": "checks[id=tie.width].capacity", "value": 8.823529411764706, "rtol": 1e-12 },
+          { "path": "checks[id=tie.width].dcr", "value": 1.0, "rtol": 1e-12, "note": "<= 1 by construction even though the row FAILS" },
+          { "path": "checks[id=tie.width].pass", "value": false, "note": "both layers outside the band" },
+          { "path": "checks[id=tie.width].informational", "value": true },
+          { "path": "checks[id=tie.width].contributions[5].value", "value": "[8.0882, 16.9118] in" },
+          { "path": "checks[id=tie.width].contributions[6].value", "value": "OUTSIDE band by 4.6507 in", "note": "layer 1: 8.0882353 - 3.4375" },
+          { "path": "checks[id=tie.width].contributions[7].value", "value": "OUTSIDE band by 4.6507 in", "note": "layer 2: 21.5625 - 16.9117647" },
+          { "path": "checks[id=tie.width].contributions[6].source", "value": "layer 1 (3-#7 @ y = 3.4375 in)" },
+          { "path": "checks[id=tie.width].contributions[7].source", "value": "layer 2 (3-#7 @ y = 21.5625 in)" },
+          { "path": "results.model.ha_in", "value": 8.823529411764706, "rtol": 1e-12 }
+        ]
+      }
+    },
+    {
+      "name": "caseC_top_tie_capped",
+      "inputs": {
+        "geometry": { "L_w_ft": 34, "x_L_ft": 9, "x_R_ft": 32, "lb_L_in": 24, "lb_R_in": 24, "t_w_in": 12, "h_w_ft": 10, "h_gb_in": 24, "b_gb_in": 24, "e_L_in": 96, "e_R_in": 12 },
+        "loads": {
+          "DL_super_plf": 0, "LL_plf": 0, "wallSW_plf": 0, "gbSW_plf": 0,
+          "pointLoads": [
+            { "x_ft": 5.166666666666667, "width_in": 8, "D_kip": 30, "L_kip": 0 },
+            { "x_ft": 1.3333333333333333, "width_in": 8, "D_kip": 30, "L_kip": 0 },
+            { "x_ft": 16.666666666666668, "width_in": 12, "D_kip": 90, "L_kip": 0 }
+          ]
+        },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 3, "size": "#5" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.topBand.wtPhys", "value": 4.625, "rtol": 1e-12, "note": "2*(2 + 0.625/2)" },
+          { "path": "results.model.topBand.wtMax", "value": 2.2794117647058822, "rtol": 1e-12, "note": "55.8/24.48" },
+          { "path": "results.model.topBand.capped", "value": true },
+          { "path": "results.model.nodePolygons[id=node.support.ov].faces[3].name", "value": "top tie face (T_top)" },
+          { "path": "results.model.nodePolygons[id=node.support.ov].faces[3].width_in", "value": 2.2794117647058822, "rtol": 1e-12, "note": "haTopSup routed through the §23.8.2 cap" },
+          { "path": "results.model.nodePolygons[id=node.Na].faces[3].name", "value": "tie back face (T_top)" },
+          { "path": "results.model.nodePolygons[id=node.Na].faces[3].width_in", "value": 2.2794117647058822, "rtol": 1e-12, "note": "haTop = min(w_t,gov(top), band bound); band bound is far larger" },
+          { "path": "results.model.tieBand.capped", "value": false, "note": "bottom tie 4-#8 unchanged" },
+          { "path": "results.model.ha_in", "value": 7.0, "rtol": 1e-12, "note": "bottom-tie back face unchanged" }
+        ]
+      }
+    },
+    {
+      "name": "R4_3_reject_single_layer_upper_half",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieLayers": [{ "count": 4, "size": "#8", "y_in": 20 }],
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INVALID_INPUT"] }
+    },
+    {
+      "name": "R4_3_reject_two_layers_upper_half",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieLayers": [
+            { "count": 3, "size": "#7", "y_in": 13 },
+            { "count": 3, "size": "#7", "y_in": 21 }
+          ],
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INVALID_INPUT"] }
+    },
+    {
+      "name": "R4_3_low_two_layer_tie_passes",
+      "inputs": {
+        "geometry": { "L_w_ft": 28.5, "x_L_ft": 1.25, "x_R_ft": 27.25, "lb_L_in": 30, "lb_R_in": 30, "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieLayers": [
+            { "count": 3, "size": "#7", "y_in": 3.4375 },
+            { "count": 3, "size": "#7", "y_in": 10 }
+          ],
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.tieBand.ybar", "value": 6.71875, "rtol": 1e-12, "note": "equal areas -> (3.4375 + 10)/2" },
+          { "path": "results.model.tieBand.As", "value": 3.6, "rtol": 1e-12, "note": "6-#7 = 6*0.60" },
+          { "path": "results.model.tieBand.wtPhys", "value": 13.4375, "rtol": 1e-12, "note": "2*6.71875" },
+          { "path": "results.model.tieBand.wtMax", "value": 8.823529411764706, "rtol": 1e-12, "note": "F_nt/(f_ce*b_s) = 216.0/24.48" },
+          { "path": "results.model.tieBand.wtGov", "value": 8.823529411764706, "rtol": 1e-12, "note": "min(13.4375, 8.823529) -> the cap governs" },
+          { "path": "results.model.tieBand.capped", "value": true },
+          { "path": "checks[id=tie.width].dcr", "value": 1.0, "rtol": 1e-12, "note": "w_t,gov/w_t,max = 1 when capped, by construction" },
+          { "path": "checks[id=tie.width].pass", "value": true, "note": "R4.3/R4.5: the multi-layer IN-BAND PASS case — both layers lie inside [2.3070, 11.1305]" },
+          { "path": "checks[id=tie.width].informational", "value": true },
+          { "path": "checks[id=tie.width].capped", "value": true },
+          { "path": "checks[id=tie.width].contributions[5].value", "value": "[2.307, 11.1305] in", "note": "6.71875 -/+ 4.4117647" },
+          { "path": "checks[id=tie.width].contributions[6].source", "value": "layer 1 (3-#7 @ y = 3.4375 in)" },
+          { "path": "checks[id=tie.width].contributions[6].value", "value": "inside band" },
+          { "path": "checks[id=tie.width].contributions[7].source", "value": "layer 2 (3-#7 @ y = 10 in)" },
+          { "path": "checks[id=tie.width].contributions[7].value", "value": "inside band" },
+          { "path": "results.model.ha_in", "value": 8.823529411764706, "rtol": 1e-12, "note": "node back face = w_t,gov" },
+          { "path": "results.model.nodeBand.lo_in", "value": 2.3069852941176472, "rtol": 1e-9, "note": "R4.4: the drawn zone is CENTRED on the tie when capped — 6.71875 - 8.823529412/2, NOT 0" },
+          { "path": "results.model.nodeBand.hi_in", "value": 11.130514705882353, "rtol": 1e-9, "note": "6.71875 + 4.411764706" },
+          { "path": "results.model.nodePolygons[id=node.support.L].poly[0][1]", "value": 2.3069852941176472, "rtol": 1e-9, "note": "R4.4: polygon bottom edge, was 0" },
+          { "path": "results.model.nodePolygons[id=node.support.L].poly[2][1]", "value": 11.130514705882353, "rtol": 1e-9, "note": "R4.4: polygon top edge, was h_a = 8.8235" }
+        ]
+      }
+    }
+  ]
+}

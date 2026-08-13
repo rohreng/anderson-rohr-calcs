@@ -1,0 +1,193 @@
+{
+  "name": "case_d_scope — FEATURE 2: Case D scope rejections, run count, and the 5-span solver check",
+  "comments": {
+    "five_span": [
+      "Solver verification at the maximum span count (F2.1 allows 2..5). Dead only -> 1.4D governs:",
+      "  w_u = 11.515 klf; L = 26 ft = 312 in; wL = 299.390 k; wL^2 = 93,409.68 k-in.",
+      "Three-moment equations for 5 EQUAL spans, symmetric (M1 = M4, M2 = M3, M0 = M5 = 0):",
+      "  support 1: 4*M1 + M2 = -wL^2/2",
+      "  support 2: M1 + 5*M2 = -wL^2/2   (M3 = M2)",
+      "  -> M2 = -wL^2/2 - 4*M1 substituted gives -19*M1 = 2*wL^2  ->  M1 = -(2/19) wL^2 = -0.1052632 wL^2",
+      "  -> M2 = -wL^2/2 + (8/19) wL^2 = -(3/38) wL^2 = -0.0789474 wL^2",
+      "  (the classic 5-span table values 0.1053 / 0.0789.)",
+      "  M1 = -2/19 * 93,409.68 = -9,832.5979 k-in;  M2 = -3/38 * 93,409.68 = -7,374.4484 k-in",
+      "Reactions from the span-end shears  V_L = wL/2 + (M_B - M_A)/L,  V_R = wL/2 - (M_B - M_A)/L:",
+      "  R_0 = V_L(span0) = wL/2 + M1/L        = wL(19/38 - 4/38)  = (15/38) wL = 118.1803 k",
+      "  R_1 = V_R(span0) + V_L(span1)         = wL(23/38 + 20/38) = (43/38) wL = 338.7834 k",
+      "  R_2 = V_R(span1) + V_L(span2)         = wL(18/38 + 19/38) = (37/38) wL = 291.5113 k",
+      "  check sum: 2*(15 + 43)/38 + 2*37/38 = (116 + 74)/38 = 5 -> 5*wL = 1,496.95 k = total load.",
+      "F2.3 RUN COUNT: LL = 0 here, so there are no patterns and only the two combos run.",
+      "  With live load present the count is 2^nSpans + 1 = 33 (asserted in the five_span_patterned run).",
+      "F2.6 scope note: 5 statements must be present in results.model.caseD.scopeNote and echoed",
+      "  through the informational caseD.scope row."
+    ],
+    "uplift": [
+      "F2.5(14) Rev 3 — a patterned live load on a lightly dead-loaded continuous member produces a",
+      "genuine negative end reaction. The engine must return no_admissible_stm naming BOTH the pier",
+      "and the governing pattern (the error record carries .combo and .pattern; the message text",
+      "embeds the pier index, the reaction, the combination and the pattern id).",
+      "2 equal spans, L = 26 ft; self weights entered as 0, DL_super = 200 plf, LL = 5000 plf.",
+      "  1.4D:              w = 0.280 klf on both spans -> symmetric, no uplift, runs fine.",
+      "  1.2D+1.6L, sp1 on: w_1 = 1.2*0.2 + 1.6*5.0 = 8.240 klf = 0.6866667 kip/in",
+      "                     w_2 = 1.2*0.2           = 0.240 klf = 0.0200000 kip/in",
+      "  M_sup = -(w_1 + w_2)L^2/16 = -0.7066667*97,344/16 = -0.7066667*6,084 = -4,299.20 k-in",
+      "  R_2   = w_2*L/2 + M_sup/L = 0.02*156 - 4,299.20/312 = 3.120 - 13.7795 = -10.66 k  -> UPLIFT",
+      "  (general condition, hand-derived for two equal spans: uplift at the far pier iff w_1 > 7*w_2;",
+      "   here 8.240 > 1.680.)",
+      "A tension connection at the pier is out of scope, so the whole calculation stops rather than",
+      "silently analysing a pier that is not in bearing."
+    ],
+    "rejections": [
+      "F2.1 scope rejections, each with an actionable message:",
+      "  nSpans = 6            -> INPUT   (2..5 only)",
+      "  loads.pointLoads      -> SCOPE   (midspan point loads go in caseD.spanPoint[])",
+      "  e_L_in > 0            -> SCOPE   (no outboard strips / overhangs in Case D)",
+      "  no negative steel     -> INPUT   (a continuous model needs a negative chord)"
+    ]
+  },
+  "runs": [
+    {
+      "name": "five_span",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 5, "L_ft": 26, "lb_in": 30,
+          "negChord": { "useWallEF": true, "depth_in": 40, "addBars": { "count": 4, "size": "#6", "depth_from_top_in": 3 }, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.caseLabel", "value": "D" },
+          { "path": "results.model.caseD.nSpans", "value": 5 },
+          { "path": "results.model.caseD.pierX_in[5]", "value": 1575, "rtol": 1e-12, "note": "15 + 5*312" },
+          { "path": "results.model.caseD.supports[1].Mneg_env_kin", "value": -9832.5979, "rtol": 1e-6, "note": "-(2/19) wL^2" },
+          { "path": "results.model.caseD.supports[2].Mneg_env_kin", "value": -7374.4484, "rtol": 1e-6, "note": "-(3/38) wL^2" },
+          { "path": "results.model.caseD.supports[3].Mneg_env_kin", "value": -7374.4484, "rtol": 1e-6, "note": "symmetry" },
+          { "path": "results.model.caseD.supports[4].Mneg_env_kin", "value": -9832.5979, "rtol": 1e-6 },
+          { "path": "results.model.caseD.supports[0].R_elastic_kip", "value": 118.1803, "rtol": 1e-6, "note": "(15/38) wL" },
+          { "path": "results.model.caseD.supports[1].R_elastic_kip", "value": 338.7834, "rtol": 1e-6, "note": "(43/38) wL" },
+          { "path": "results.model.caseD.supports[2].R_elastic_kip", "value": 291.5113, "rtol": 1e-6, "note": "(37/38) wL" },
+          { "path": "results.model.caseD.supports[3].R_elastic_kip", "value": 291.5113, "rtol": 1e-6 },
+          { "path": "results.model.caseD.supports[1].sumV_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.caseD.supports[2].sumV_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.caseD.supports[3].sumV_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.caseD.supports[4].sumH_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.selfChecks.globalV_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.selfChecks.globalM_kin", "value": 0, "atol": 1e-6 },
+          { "path": "results.patterns.length", "value": 2, "note": "LL = 0 -> no patterns, just the two combos" },
+          { "path": "results.model.caseD.scopeNote.length", "value": 5, "note": "F2.6 must render in results" },
+          { "path": "checks[id=caseD.scope].contributions.length", "value": 5 },
+          { "path": "checks[id=bearing.pier.5].pass", "value": true, "note": "a bearing row exists at EVERY pier" }
+        ]
+      }
+    },
+    {
+      "name": "five_span_patterned",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 5, "L_ft": 26, "lb_in": 30,
+          "negChord": { "useWallEF": true, "depth_in": 40, "addBars": { "count": 4, "size": "#6", "depth_from_top_in": 3 }, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.patterns.length", "value": 33, "note": "F2.3: 2^nSpans + 1 = 32 + 1" },
+          { "path": "results.model.selfChecks.globalV_kip", "value": 0, "atol": 1e-9 }
+        ]
+      }
+    },
+    {
+      "name": "uplift_under_pattern",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 200, "LL_plf": 5000, "wallSW_plf": 0, "gbSW_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 2, "L_ft": 26, "lb_in": 30,
+          "negChord": { "useWallEF": true, "depth_in": 40, "addBars": { "count": 4, "size": "#6", "depth_from_top_in": 3 }, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "no_admissible_stm",
+        "errorCodes": ["NEG_REACTION"],
+        "values": [
+          { "path": "errors[0].combo", "value": "1.2D+1.6L", "note": "F2.5(14): the error names the combination" },
+          { "path": "errors[0].pattern", "value": "LL[sp1:1,sp2:0]", "note": "F2.5(14): and the governing live-load pattern" },
+          { "path": "results", "value": null, "note": "no DCRs are reported when the model is inadmissible" }
+        ]
+      }
+    },
+    {
+      "name": "reject_nspans",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2, "web": { "size": "#4", "s_in": 12, "layers": 2 } },
+        "caseD": { "nSpans": 6, "L_ft": 26, "lb_in": 30, "negChord": { "useWallEF": true, "depth_in": 40, "extension_in": 300 } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INPUT"] }
+    },
+    {
+      "name": "reject_point_loads",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0, "pointLoads": [{ "x_ft": 5, "width_in": 12, "D_kip": 10, "L_kip": 0 }] },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2, "web": { "size": "#4", "s_in": 12, "layers": 2 } },
+        "caseD": { "nSpans": 2, "L_ft": 26, "lb_in": 30, "negChord": { "useWallEF": true, "depth_in": 40, "extension_in": 300 } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["SCOPE"] }
+    },
+    {
+      "name": "reject_overhang",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24, "e_L_in": 6 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2, "web": { "size": "#4", "s_in": 12, "layers": 2 } },
+        "caseD": { "nSpans": 2, "L_ft": 26, "lb_in": 30, "negChord": { "useWallEF": true, "depth_in": 40, "extension_in": 300 } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["SCOPE"] }
+    },
+    {
+      "name": "reject_no_negative_steel",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": { "tieBars": { "count": 4, "size": "#8" }, "topBars": { "count": 4, "size": "#8" }, "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2, "web": { "size": "#4", "s_in": 12, "layers": 2 } },
+        "caseD": { "nSpans": 2, "L_ft": 26, "lb_in": 30, "negChord": { "extension_in": 300 } }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INPUT"] }
+    }
+  ]
+}

@@ -141,6 +141,30 @@ function runAuthority(fx) {
       options: {
         pinZ_in: 64,           // topology_note: published chord geometry (Whitney-block crown), test-only
         tieCentroid_in: 5,     // published hSTM uses yt = 5 in (4.90 rounded)
+        // ---- WHY THE ACI §23.8.2 TIE-WIDTH CAP IS DISABLED FOR THIS FIXTURE ----------------
+        // FHWA-NHI-17-071 Example 1 is an AASHTO LRFD Bridge Design Specifications §5.8.2
+        // strut-and-tie example. AASHTO carries NO equivalent of ACI 318-19 §23.8.2 (effective
+        // tie width w_t <= F_nt/(f_ce*b_s)): its nodal zone is built directly from the tie
+        // centroid, and the document's published node C back face is the full ha = 2*yt = 10 in.
+        // Under ACI the same section would cap at
+        //     w_t,max = F_nt/(f_ce*b_s) = (16*1.27*60)/(0.85*0.80*1.0*5*48)
+        //             = 1219.2/163.2 = 7.4706 in  <  10 in,
+        // which would change ha, the strut-interface width, Acn and phiPn at node C and make the
+        // published values unmatchable. This fixture exists to validate the ENGINE'S TOPOLOGY,
+        // STATICS AND NODE GEOMETRY against an independent authority, and it already compares
+        // capacities only under AASHTO phi/nu factors for exactly this reason. The cap is
+        // switched off here so the whole comparison stays on the document's own code basis
+        // instead of mixing two codes inside one check.
+        //
+        // CONSEQUENCE, STATED EXPLICITLY: this fixture therefore does NOT validate the ACI
+        // §23.8.2 effective-tie-width feature in any way, and must not be cited as evidence for
+        // it. That feature is validated separately and independently by
+        // fixtures/deep-beam-stm/tie_width_band.json, which covers the uncapped case (default,
+        // w_t,phys < w_t,max), the capped case (the cap propagating to ha, to the node
+        // back-face stress, and to the anchorage critical section xCrit), the multi-layer
+        // band-membership failure, and the Case C top-tie capping touchpoints.
+        // The ENGINE DEFAULT is tieWidthLimit = true; this adapter is the only place it is off.
+        tieWidthLimit: false,
         combos: [{ id: "AASHTO-STR", D: 1.0, L: 0 }] // loads are entered already factored
       }
     };

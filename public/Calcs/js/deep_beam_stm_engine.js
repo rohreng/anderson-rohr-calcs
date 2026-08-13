@@ -16,10 +16,36 @@
  *   options.tieCentroid_in   — override computed bottom-tie centroid (authority validation only).
  *   options.combos           — override load combinations, e.g. [{id:"AS-IS",D:1,L:0}]
  *                              (authority example enters already-factored loads).
+ *   TEST-ONLY OPTIONS ARE GUARDED (R4.7): pinZ_in / tieCentroid_in / tieWidthLimit are honored
+ *   ONLY when the engine is loaded as a CommonJS module (the Node fixture harness) or when the
+ *   caller sets options.allowTestOnly === true. Under the shipped browser build they are
+ *   REJECTED with INVALID_INPUT naming the option, so a future JSON-import path on the page
+ *   cannot silently disable a code check. When they ARE applied the engine echoes them in
+ *   results.model.testOnlyOptions so they are never silent.
  *
- * CODE-TEXT VERIFICATION FLAGS (PLAN "Risks"): the exact ACI 318-19 wording of §9.9.1.1,
- * Table 23.5.1, Table 25.4.3.2, and §25.4.4.1 applicability limits is implemented per the
- * plan's stated intended forms and must be verified against a licensed copy before "ready".
+ *   options.tieWidthLimit    — DEFAULTS TO TRUE. Set false to DISABLE the ACI 318-19 §23.8.2
+ *                              effective-tie-width cap (w_t = 2*ybar_t, uncapped). Test-only,
+ *                              and used in exactly one place: the FHWA-NHI-17-071 authority
+ *                              example is an AASHTO LRFD §5.8.2 example, AASHTO has no §23.8.2
+ *                              equivalent, and its published node geometry uses the full
+ *                              2*ybar_t back face. Consequence: that fixture does NOT validate
+ *                              the §23.8.2 band feature — tie_width_band.json does, and is the
+ *                              only evidence for it. See the comment block at the
+ *                              tieWidthLimit line in tools/test-deep-beam-stm.mjs.
+ *
+ * CODE-TEXT VERIFICATION FLAGS (PLAN "Risks" + FEATURES-v2 §R4.6): the exact ACI 318-19 wording
+ * of each of the following is implemented per the plan's stated intended forms and MUST be
+ * verified against a licensed copy before the registry entry may claim "ready":
+ *   - §9.9.1.1                deep-beam applicability (both clauses)
+ *   - Table 23.5.1            beta_s for struts with distributed reinforcement
+ *   - Table 25.4.3.2          psi_r for hooked bars (both disjuncts)
+ *   - §25.4.4.1               headed-bar applicability limits
+ *   - §23.8.2                 effective tie width w_t <= F_nt/(f_ce*b_s). Some printings carry
+ *                             the w_t,max form in commentary R23.8.1 rather than in the section
+ *                             body; the wording AND its placement must both be confirmed.
+ *   - §9.7.3.8.4              flexural bar extension max(d, 12db) past the cut-off point
+ *                             (used ONLY as the informational B-region comparison row)
+ *   - §25.5.2                 Class B tension lap = 1.3*ld (bottom-bar splice over the piers)
  */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) { module.exports = factory(); }
@@ -97,6 +123,33 @@
       return v;
     }
 
+    // ---- FEATURE 2 / F2.1 — Case D geometry is DERIVED, not entered ------------------------
+    // Equal spans, equal bearings. Pier CLs at x_i = l_b/2 + i*L (i = 0..nSpans);
+    // L_w = nSpans*L + l_b, so the wall ends flush with the outer bearing faces and the strip
+    // from each end-pier CL to the wall end (length l_b/2) has o = 0 BY CONSTRUCTION — it lies
+    // outside the CL-to-CL analysis span and routes straight into the end bearing.
+    var cD = inputs.caseD || null;
+    if (cD) {
+      var nSpD = cD.nSpans, LspD = cD.L_ft, lbD = cD.lb_in;
+      if (!isNum(nSpD) || nSpD !== Math.floor(nSpD) || nSpD < 2 || nSpD > 5)
+        err(errors, "INPUT", "caseD.nSpans must be an integer 2..5");
+      if (!isNum(LspD) || LspD <= 0) err(errors, "INPUT", "caseD.L_ft must be > 0");
+      if (!isNum(lbD) || lbD < 0.5) err(errors, "INPUT", "caseD.lb_in must be >= 0.5");
+      if ((isNum(g.e_L_in) && g.e_L_in > 0) || (isNum(g.e_R_in) && g.e_R_in > 0))
+        err(errors, "SCOPE", "Case D does not support grade-beam extensions, outboard strips or overhangs (F2.1) — set e_L_in = e_R_in = 0");
+      if (((inputs.loads || {}).pointLoads || []).length)
+        err(errors, "SCOPE", "Case D takes one midspan point load per span through caseD.spanPoint[]; loads.pointLoads is not supported (F2.1)");
+      if (errors.length) return { errors: errors };
+      var LwD = nSpD * LspD * 12 + lbD;
+      var gD = {};
+      for (var gk in g) if (Object.prototype.hasOwnProperty.call(g, gk)) gD[gk] = g[gk];
+      gD.L_w_ft = LwD / 12;
+      gD.x_L_ft = (lbD / 2) / 12;
+      gD.x_R_ft = (LwD - lbD / 2) / 12;
+      gD.lb_L_in = lbD; gD.lb_R_in = lbD; gD.e_L_in = 0; gD.e_R_in = 0;
+      g = gD;
+    }
+
     var Lw = reqNum(g.L_w_ft, "geometry.L_w_ft", 1) * 12;
     var xL = reqNum(g.x_L_ft, "geometry.x_L_ft", 0) * 12;
     var xR = reqNum(g.x_R_ft, "geometry.x_R_ft", 0) * 12;
@@ -140,7 +193,7 @@
       var size = bg.size || defSize;
       if (!BARS[size]) { err(errors, "REINF", name + " bar size unknown: " + size); size = "#8"; }
       if (count < 1 || count !== Math.floor(count)) err(errors, "REINF", name + " count must be a positive integer");
-      return { count: count, size: size, db: BARS[size].db, Ab: BARS[size].Ab, As: count * BARS[size].Ab };
+      return { count: count, rowCount: count, size: size, db: BARS[size].db, Ab: BARS[size].Ab, As: count * BARS[size].Ab };
     }
     var tieBars = barGroup(rf.tieBars, "tieBars", 4, "#8");
     var topBars = barGroup(rf.topBars, "topBars", 4, "#8");
@@ -152,10 +205,72 @@
     var coverSide = isNum(rf.cover_side_in) ? rf.cover_side_in : 2;
     var coverTop = isNum(rf.cover_top_in) ? rf.cover_top_in : 2;
     if (coverBot < 0.75 || coverSide < 0.75 || coverTop < 0.75) err(errors, "REINF", "covers must be >= 0.75 in");
-    // D2 (AUDIT-FIXES): cover geometry that cannot fit is rejected up front.
-    if (coverBot + tieBars.db / 2 >= hgb / 2 - GEOM_EPS)
+
+    // ---- F1.2 multi-layer tie input (OPTIONAL; overrides tieBars when present) --------------
+    // reinf.tieLayers = [ { count, size, y_in }, ... ], y_in = layer centroid above the BOTTOM
+    // of the grade beam. A_s = sum of layers, ybar_t = area-weighted centroid. Without this the
+    // §23.8.2 band-membership test is true by construction (one layer is always its own centroid).
+    // Validation: >= 2 bars per layer, every layer inside the GB less covers (bottom clear cover
+    // = cover_bot_in, top-of-GB clear cover = cover_top_in), layers ordered bottom -> top, no
+    // duplicate y. Aggregate governing bar size = the largest db present (governs development
+    // and detailing); rowCount = the largest single-layer count (governs in-row bar spacing).
+    var tieLayers = null;
+    if (Array.isArray(rf.tieLayers) && rf.tieLayers.length) {
+      tieLayers = [];
+      var sumAsL = 0, sumAsYL = 0, govDbL = 0, govSizeL = null, rowCountL = 0, prevYL = -Infinity;
+      for (var tl = 0; tl < rf.tieLayers.length; tl++) {
+        var Ly = rf.tieLayers[tl] || {};
+        var lname = "tieLayers[" + tl + "]";
+        var lsize = Ly.size || "#8";
+        if (!BARS[lsize]) { err(errors, "REINF", lname + " bar size unknown: " + lsize); lsize = "#8"; }
+        var lcount = isNum(Ly.count) ? Ly.count : 0;
+        if (lcount < 2 || lcount !== Math.floor(lcount)) err(errors, "INVALID_INPUT", lname + ".count must be an integer >= 2");
+        var ldb = BARS[lsize].db, lAs = lcount * BARS[lsize].Ab;
+        var ly = Ly.y_in;
+        if (!isNum(ly)) { err(errors, "INVALID_INPUT", lname + ".y_in required (layer centroid above bottom of grade beam)"); ly = 0; }
+        else {
+          var loLim = coverBot + ldb / 2, hiLim = hgb - coverTop - ldb / 2;
+          if (ly < loLim - GEOM_EPS || ly > hiLim + GEOM_EPS)
+            err(errors, "INVALID_INPUT", lname + ".y_in = " + fmt(ly, 4) + " in must lie between " + fmt(loLim, 4) + " and " + fmt(hiLim, 4) + " in (inside the grade beam less covers)");
+          if (ly <= prevYL + GEOM_EPS)
+            err(errors, "INVALID_INPUT", lname + ".y_in must be strictly greater than the previous layer (layers ordered bottom to top, no duplicate y)");
+          prevYL = ly;
+        }
+        if (2 * coverSide + lcount * ldb > bgb + GEOM_EPS)
+          err(errors, "INVALID_INPUT", lname + " bars do not fit within b_gb (2*cover_side + count*db > b_gb)");
+        tieLayers.push({ count: lcount, size: lsize, db: ldb, Ab: BARS[lsize].Ab, As: lAs, y: ly });
+        sumAsL += lAs; sumAsYL += lAs * ly;
+        if (ldb > govDbL) { govDbL = ldb; govSizeL = lsize; }
+        if (lcount > rowCountL) rowCountL = lcount;
+      }
+      if (sumAsL > 0) {
+        tieBars = {
+          count: tieLayers.reduce(function (s, L) { return s + L.count; }, 0),
+          rowCount: rowCountL, size: govSizeL, db: govDbL, Ab: BARS[govSizeL].Ab,
+          As: sumAsL, layers: tieLayers, ybar: sumAsYL / sumAsL
+        };
+      }
+    }
+    var tieRowN = tieBars.rowCount || tieBars.count;
+
+    // D2 (AUDIT-FIXES): cover geometry that cannot fit is rejected up front. The GB mid-depth
+    // rule is a BOTTOM-LAYER fit rule (the lowest layer must clear the bottom cover and sit in
+    // the lower half); a multi-layer tie may legitimately have its CENTROID above mid-depth —
+    // that is exactly the configuration the F1.4 band check is there to judge.
+    if (coverBot + (tieLayers ? tieLayers[0].db : tieBars.db) / 2 >= hgb / 2 - GEOM_EPS)
       err(errors, "INVALID_INPUT", "tie centroid must lie below grade-beam mid-depth (cover_bot + db/2 < h_gb/2)");
-    if (2 * coverSide + tieBars.count * tieBars.db > bgb + GEOM_EPS)
+    // R4.3 — the cover-based test above only proves a bottom layer COULD fit low; with
+    // reinf.tieLayers the engineer states the actual y of each layer, and nothing forced the
+    // LOWEST one to be low. Without this guard a single layer at y = 20 in a 24 in grade beam,
+    // or a two-layer tie at y = 13/21, returns `ok` with tie.width PASS — a tie band nowhere
+    // near the bearing, reported as passing, and reachable straight from the shipped UI. The
+    // bottom tie is the funicular chord that anchors into the CCT nodal zone directly above the
+    // bearing; its lowest layer must sit in the lower half of the grade beam for that node (and
+    // for lever arm z = h - ybar_t) to mean anything.
+    if (tieLayers && tieLayers[0].y >= hgb / 2 - GEOM_EPS)
+      err(errors, "INVALID_INPUT", "lowest tie layer y_in = " + fmt(tieLayers[0].y, 4) + " in must lie below grade-beam mid-depth (h_gb/2 = " +
+        fmt(hgb / 2, 4) + " in). The bottom tie anchors into the nodal zone above the bearing, so its lowest layer has to be in the lower half of the grade beam — lower the first layer, or model the upper steel as a separate tie.");
+    if (2 * coverSide + tieRowN * tieBars.db > bgb + GEOM_EPS)
       err(errors, "INVALID_INPUT", "tie bars do not fit within b_gb (2*cover_side + count*db > b_gb)");
     if (2 * coverSide + topBars.count * topBars.db > tw + GEOM_EPS)
       err(errors, "INVALID_INPUT", "top bars do not fit within t_w (2*cover_side + count*db > t_w)");
@@ -234,20 +349,137 @@
         err(errors, "LOAD", "point loads " + pa.id + " and " + pb.id + " have overlapping footprints (rejected)");
     }
 
-    // test-only options
-    var pinZ = isNum(opts.pinZ_in) ? opts.pinZ_in : null;
-    var ytOverride = isNum(opts.tieCentroid_in) ? opts.tieCentroid_in : null;
-    var combos = opts.combos || [{ id: "1.4D", D: 1.4, L: 0 }, { id: "1.2D+1.6L", D: 1.2, L: 1.6 }];
+    // ---- R4.7 test-only option GUARD -------------------------------------------------------
+    // pinZ_in / tieCentroid_in / tieWidthLimit bypass or disable real code checks. They exist for
+    // the authority-validation harness only, and until now were honored from ANY caller's
+    // inputs.options — unreachable from today's UI, but a future "import a saved input JSON"
+    // path on the page would have silently accepted `{"options":{"tieWidthLimit":false}}` and
+    // switched off §23.8.2. Gate them on the load context: the CommonJS branch of the UMD
+    // wrapper is the Node fixture harness; the browser build gets `module === undefined` and
+    // rejects. A deliberate non-Node caller can still opt in with options.allowTestOnly = true.
+    // No DOM is touched — this is the same `typeof module` test the UMD wrapper already uses.
+    // "combos" is the most dangerous of the set and was ungated until verification round 2:
+    // left open it silently replaces BOTH ACI Table 5.3.1 combinations, so a caller could run
+    // the entire calculator unfactored and still receive a green summary.
+    var TEST_ONLY_OPTS = ["pinZ_in", "tieCentroid_in", "tieWidthLimit", "combos"];
+    var testOptsUsed = [];
+    for (var to = 0; to < TEST_ONLY_OPTS.length; to++) {
+      if (opts[TEST_ONLY_OPTS[to]] !== undefined) testOptsUsed.push(TEST_ONLY_OPTS[to]);
+    }
+    var testOptsAllowed = (typeof module === "object" && module !== null && !!module.exports) || opts.allowTestOnly === true;
+    if (testOptsUsed.length && !testOptsAllowed) {
+      err(errors, "INVALID_INPUT", "test-only option(s) " + testOptsUsed.join(", ") +
+        " are not accepted from this caller. They bypass or disable code checks (pinZ_in bypasses the f_ce crown sizing, tieCentroid_in overrides the computed tie centroid, tieWidthLimit disables the ACI 318-19 23.8.2 effective-tie-width cap, combos replaces the ACI Table 5.3.1 load combinations) and are reserved for the fixture harness.");
+    }
+    var pinZ = (testOptsAllowed && isNum(opts.pinZ_in)) ? opts.pinZ_in : null;
+    var ytOverride = (testOptsAllowed && isNum(opts.tieCentroid_in)) ? opts.tieCentroid_in : null;
+    var combos = (testOptsAllowed && opts.combos) || [{ id: "1.4D", D: 1.4, L: 0 }, { id: "1.2D+1.6L", D: 1.2, L: 1.6 }];
 
     if (errors.length) return { errors: errors };
 
     var h = hw + hgb;
-    // bottom-tie centroid from entered bars + cover (single layer assumed; override is test-only)
-    var yt = (ytOverride !== null) ? ytOverride : (coverBot + tieBars.db / 2);
+    // bottom-tie centroid: area-weighted over tieLayers when given, else single layer from
+    // cover + db/2 (test-only override wins).
+    var yt = (ytOverride !== null) ? ytOverride : (tieBars.ybar !== undefined ? tieBars.ybar : (coverBot + tieBars.db / 2));
     var hp = h - yt;                                  // tie centroid -> top fiber
     var ytTop = coverTop + topBars.db / 2;            // top fiber -> top-bar centroid
     var dEff = h - yt;                                // §9.9.2.1 d from top-of-wall compression fiber
     var dTop = h - ytTop;                             // effective depth for top bars (outboard cantilever)
+
+    // ---- F1.3 §23.8.2 effective tie width ----------------------------------------------------
+    // Applies to NODE-ANCHORED ties only (F1.1): the bottom tie at each end pier (all cases) and
+    // the Case C top tie. It does NOT apply to the Case D distributed negative chord, which
+    // terminates at no node — that chord is governed by F2.4b instead.
+    //   w_t,phys = 2*ybar          (symmetric extended nodal zone — the existing ha)
+    //   w_t,max  = F_nt/(f_ce*b_s), F_nt = As*fy NOMINAL (no phi)
+    //   f_ce     = 0.85*beta_n*beta_c*f'c, beta_n = 0.8 (CCT), beta_c LOCKED at 1.0 — that lock
+    //              is why the F1.5 collapse identity (back-face DCR == tie DCR) is EXACT.
+    //   b_s      = min(t_w, b_gb) for the bottom tie (in the grade beam); t_w for the top tie.
+    //   w_t,gov  = min(w_t,phys, w_t,max)   -> propagated to ha, w_s, node polygons AND to the
+    //              anchorage critical section xCrit = (w_t,gov/2)/tan(theta).
+    var capTieWidth = !(testOptsAllowed && opts.tieWidthLimit === false);
+    function makeTieBand(As, yBar, bs) {
+      var fceNode = 0.85 * 0.8 * BETA_C * (fc / 1000);
+      var Fnt = As * fy;
+      var wtMax = Fnt / (fceNode * bs);
+      var wtPhys = 2 * yBar;
+      return {
+        ybar: yBar, As: As, Fnt: Fnt, fce: fceNode, bs: bs,
+        wtPhys: wtPhys, wtMax: wtMax,
+        wtGov: capTieWidth ? Math.min(wtPhys, wtMax) : wtPhys,
+        capped: capTieWidth && (wtPhys > wtMax + 1e-12),
+        limitApplied: capTieWidth
+      };
+    }
+    var tNodeCalc = Math.min(tw, bgb);
+    var tieBand = makeTieBand(tieBars.As, yt, tNodeCalc);
+    var topBand = makeTieBand(topBars.As, ytTop, tw);
+
+    // ---- F2.1 / F2.4b — Case D loads + negative chord ---------------------------------------
+    var caseD = null;
+    if (cD) {
+      var nSp = cD.nSpans, L_in = cD.L_ft * 12;
+      var spIn = cD.spanPoint || [];
+      if (spIn.length && spIn.length !== nSp)
+        err(errors, "INPUT", "caseD.spanPoint must have exactly nSpans entries (one midspan point load per span)");
+      var spanPoint = [];
+      for (var si = 0; si < nSp; si++) {
+        var sPt = spIn[si] || {};
+        var sD = isNum(sPt.D_kip) ? sPt.D_kip : 0, sL = isNum(sPt.L_kip) ? sPt.L_kip : 0;
+        if (sD < 0 || sL < 0) err(errors, "LOAD", "caseD.spanPoint[" + si + "] components must be >= 0");
+        spanPoint.push({ D: sD, L: sL });
+      }
+      var nc = cD.negChord || {};
+      var negDepth = isNum(nc.depth_in) ? nc.depth_in : 0;
+      if (negDepth < 0) err(errors, "INPUT", "caseD.negChord.depth_in must be >= 0");
+      // F2.4b distribution limit, in place of the band check (F1.1): counting steel deeper than
+      // 0.25h drops the centroid so far that zNeg collapses and the model stops being
+      // representative. Counting deeper steel is already self-penalizing (y_neg down ->
+      // zNeg down -> Tneg up); this is the hard stop.
+      if (negDepth > 0.25 * h + GEOM_EPS)
+        err(errors, "INPUT", "caseD.negChord.depth_in = " + fmt(negDepth, 2) + " in exceeds the distribution limit 0.25h = " +
+          fmt(0.25 * h, 2) + " in — reduce the counted depth, or add concentrated top bars nearer the top of the wall (F2.4b)");
+      var negParts = [], AsNeg = 0, AsNegY = 0, dbNeg = 0;
+      if (nc.useWallEF && negDepth > 0) {
+        // smeared EF horizontal wall steel over `depth_in` from the top of the wall:
+        // As = layers * Ab * (depth/s); a uniform smear has its centroid at depth/2.
+        var AsEF = webH.layers * webH.Ab * (negDepth / webH.s);
+        negParts.push({ src: "wall EF horizontal " + webH.size + "@" + fmt(webH.s, 2) + " over " + fmt(negDepth, 2) + " in", As: AsEF, y: h - negDepth / 2, db: webH.db });
+        AsNeg += AsEF; AsNegY += AsEF * (h - negDepth / 2);
+        if (webH.db > dbNeg) dbNeg = webH.db;
+      }
+      var ab = nc.addBars || null;
+      if (ab && isNum(ab.count) && ab.count > 0) {
+        var abSize = ab.size || "#5";
+        if (!BARS[abSize]) { err(errors, "REINF", "caseD.negChord.addBars size unknown: " + abSize); abSize = "#5"; }
+        if (ab.count !== Math.floor(ab.count) || ab.count < 2)
+          err(errors, "INVALID_INPUT", "caseD.negChord.addBars.count must be an integer >= 2");
+        var abDepth = isNum(ab.depth_from_top_in) ? ab.depth_from_top_in : (wallCover + BARS[abSize].db / 2);
+        if (abDepth < wallCover + BARS[abSize].db / 2 - GEOM_EPS)
+          err(errors, "INVALID_INPUT", "caseD.negChord.addBars.depth_from_top_in must be >= wall cover + db/2 = " + fmt(wallCover + BARS[abSize].db / 2, 3) + " in");
+        if (abDepth > 0.25 * h + GEOM_EPS)
+          err(errors, "INPUT", "caseD.negChord.addBars.depth_from_top_in exceeds the 0.25h distribution limit (F2.4b)");
+        if (2 * wallCover + ab.count * BARS[abSize].db > tw + GEOM_EPS)
+          err(errors, "INVALID_INPUT", "caseD.negChord.addBars do not fit within t_w");
+        var AsAdd = ab.count * BARS[abSize].Ab;
+        negParts.push({ src: ab.count + "-" + abSize + " @ " + fmt(abDepth, 2) + " in below top of wall", As: AsAdd, y: h - abDepth, db: BARS[abSize].db });
+        AsNeg += AsAdd; AsNegY += AsAdd * (h - abDepth);
+        if (BARS[abSize].db > dbNeg) dbNeg = BARS[abSize].db;
+      }
+      if (!(AsNeg > 0))
+        err(errors, "INPUT", "Case D requires negative-moment reinforcement over the interior piers — set caseD.negChord.useWallEF with depth_in > 0 and/or caseD.negChord.addBars");
+      caseD = {
+        nSpans: nSp, L: L_in, lb: cD.lb_in, spanPoint: spanPoint,
+        negChord: {
+          parts: negParts, As: AsNeg, y: AsNeg > 0 ? AsNegY / AsNeg : 0, db: dbNeg,
+          depth_in: negDepth, useWallEF: !!nc.useWallEF,
+          extension_in: isNum(nc.extension_in) ? nc.extension_in : 0
+        },
+        pierX: []
+      };
+      for (var pi = 0; pi <= nSp; pi++) caseD.pierX.push(cD.lb_in / 2 + pi * L_in);
+    }
+    if (errors.length) return { errors: errors };   // Case D validation is raised after `h` exists
 
     var ctx = {
       Lw: Lw, xL: xL, xR: xR, Ls: Ls, lbL: lbL, lbR: lbR, tw: tw, hw: hw, hgb: hgb, bgb: bgb,
@@ -258,7 +490,11 @@
       webV: webV, webH: webH, anchL: anchL, anchR: anchR,
       wD_pli: wD_pli, wL_pli: wL_pli, gbSW_pli: gbSW / 12000, points: points,
       pinZ: pinZ, combos: combos,
-      tNode: Math.min(tw, bgb)
+      tieBand: tieBand, topBand: topBand,
+      caseD: caseD, wallCover: wallCover,
+      tNode: tNodeCalc,
+      // R4.7: echoed so an applied test-only option is never silent (see the header block).
+      testOnlyOptions: testOptsUsed.slice()
     };
     return { ctx: ctx, errors: [] };
   }
@@ -334,8 +570,11 @@
 
   // Developed-bar center-to-center spacing from the entered GB layout (bar count >= 2
   // enforced at input, AUDIT-FIXES D1). Used by the Table 25.4.3.2(b)/25.4.4.3(b) disjuncts.
+  // (rowCount = bars in ONE layer; for a multi-layer tie the c/c spacing of the developed bars
+  //  is an in-row quantity, not a total-count quantity.)
   function barSpacingCC(ctx, bar) {
-    return (ctx.bgb - 2 * ctx.coverSide - bar.db) / (bar.count - 1);
+    var n = bar.rowCount || bar.count;
+    return (ctx.bgb - 2 * ctx.coverSide - bar.db) / (n - 1);
   }
   // Confining-tie area within 15db of the hook/head: Ath(Att) = perSetArea * nTies with
   // nTies = floor(15*db / s) + 1 (25.4.3.3 geometry; AUDIT-FIXES A2/A4). Wide TIE spacing
@@ -418,7 +657,7 @@
   }
 
   function cbBottom(ctx) {
-    var n = ctx.tieBars.count, db = ctx.tieBars.db;
+    var n = ctx.tieBars.rowCount || ctx.tieBars.count, db = ctx.tieBars.db;
     var cc = n > 1 ? (ctx.bgb - 2 * ctx.coverSide - db) / (n - 1) : Infinity; // center-to-center
     return Math.min(ctx.coverBot + db / 2, ctx.coverSide + db / 2, cc / 2);
   }
@@ -630,7 +869,11 @@
     var bar = ctx.tieBars;
     var coverEnd = ctx.coverSide;
     var tanT = Math.tan(rad(theta));
-    var xCrit = ctx.yt / tanT;                       // inboard of the bearing inner edge
+    // F1.3(3): the critical section is the exit of the bar centroid from the EXTENDED NODAL
+    // ZONE, whose half-height is w_t,gov/2 — NOT ybar_t. When §23.8.2 caps the node width the
+    // zone shrinks and the critical section moves toward the bearing, REDUCING available
+    // embedment. Uncapped (w_t,gov = 2*ybar_t) this reduces identically to ybar_t/tan(theta).
+    var xCrit = (ctx.tieBand.wtGov / 2) / tanT;      // inboard of the bearing inner edge
     var available = xCrit + lb + e - coverEnd;       // along the bar centerline to the bar end
     var req, detail = { type: cfg.type, xCrit_in: xCrit };
     var state = "ok", forceFail = false;
@@ -638,7 +881,7 @@
       var hk = ldHook(ctx, bar, cfg);
       req = hk.l; detail.ldh = hk;                    // no excess-reinforcement reduction (25.4.10.2)
     } else if (cfg.type === "headed") {
-      var n = bar.count, ccClear = n > 1 ? (ctx.bgb - 2 * ctx.coverSide - bar.db) / (n - 1) - bar.db : Infinity;
+      var n = bar.rowCount || bar.count, ccClear = n > 1 ? (ctx.bgb - 2 * ctx.coverSide - bar.db) / (n - 1) - bar.db : Infinity;
       var hd = ldHead(ctx, bar, cfg, ccClear);
       req = hd.l; detail.ldt = hd;
       if (!hd.applicable) { state = "detailing does not fit"; forceFail = true; detail.reject = "ldt applicability (25.4.4.1): " + hd.notes.join("; "); }
@@ -698,8 +941,8 @@
     if (thetaL < THETA_MIN - 1e-9 || thetaR < THETA_MIN - 1e-9)
       return { status: "no_admissible_stm", errors: [{ code: "THETA_MIN", message: "springing angle " + fmt(Math.min(thetaL, thetaR), 2) + " deg < 25 deg (ACI 23.2.7) [" + combo.id + "]" }] };
 
-    // support nodes (CCT extended nodal zone)
-    var ha = 2 * ctx.yt;
+    // support nodes (CCT extended nodal zone) — back-face height limited by §23.8.2 (F1.3)
+    var ha = ctx.tieBand.wtGov;
     var wsL = ctx.lbL * Math.sin(rad(thetaL)) + ha * Math.cos(rad(thetaL));
     var wsR = ctx.lbR * Math.sin(rad(thetaR)) + ha * Math.cos(rad(thetaR));
     if (ha > ctx.h) return { status: "geometry_infeasible", errors: [{ code: "NODE", message: "support node back face exceeds member depth" }] };
@@ -950,7 +1193,7 @@
     }
     var thetaL = segs[0].alphaDeg, thetaR = -segs[segs.length - 1].alphaDeg;
 
-    var ha = 2 * ctx.yt;
+    var ha = ctx.tieBand.wtGov;   // §23.8.2-limited back-face height (F1.3)
     var wsR = ctx.lbR * Math.sin(rad(thetaR)) + ha * Math.cos(rad(thetaR));
     // overhang-side support node (B3): ONE physical zone — bearing subdivided in proportion
     // to arriving vertical components; sub-face x-ranges documented for drawing.
@@ -974,8 +1217,9 @@
     var lbSum = 0; subFaces.forEach(function (f) { lbSum += f.lbSub; });
     if (lbSum > ctx.lbL + 1e-9)
       return { status: "geometry_infeasible", errors: [{ code: "SUBFACE_OVERLAP", message: "support bearing sub-faces overlap (sum lbSub = " + fmt(lbSum, 3) + " in > lb = " + fmt(ctx.lbL, 3) + " in) [" + combo.id + "]" }] };
-    // B3: top-tie face where T_top crosses the node region — width bounded by 2*ytTop
-    var haTopSup = 2 * ctx.ytTop;
+    // B3: top-tie face where T_top crosses the node region — width bounded by 2*ytTop and,
+    // per F1.1/F1.3, by the §23.8.2 effective tie width of the TOP tie (node-anchored here).
+    var haTopSup = ctx.topBand.wtGov;
     subFaces.push({ name: "top tie face (T_top)", member: "ttop.ov1-Na", lbSub: 0, lbFrom: null, lbTo: null, width: haTopSup, area: haTopSup * ctx.tw, force: Ttop, stress: Ttop / (haTopSup * ctx.tw) });
 
     // vertex nodes for backspan vertices (N_a gets the tie back face added)
@@ -987,9 +1231,10 @@
       vn2.v = vObj;
       if (vb === sel.iNa) {
         vn2.id = "node.Na"; vn2.cls = "CCT";
-        // B2: tie back face bounded by BOTH the cover geometry (2*ytTop: N_a sits at the
-        // top-bar centroid, ytTop below the top of wall) and the adjacent band depths (B1).
-        var haTop = Math.min(2 * ctx.ytTop, vn2.haBand);
+        // B2: tie back face bounded by the cover geometry (2*ytTop: N_a sits at the top-bar
+        // centroid, ytTop below the top of wall), the §23.8.2 effective tie width of the top
+        // tie (F1.3 — same capping as the bottom tie), and the adjacent band depths (B1).
+        var haTop = Math.min(ctx.topBand.wtGov, vn2.haBand);
         if (vObj.yAbs + haTop / 2 > ctx.h + GEOM_EPS)
           return { status: "geometry_infeasible", errors: [{ code: "NA_TIEFACE", message: "N_a tie back face extends above the wall envelope [" + combo.id + "]" }] };
         // closure test including the tie face: the four-face polygon must still close
@@ -1032,6 +1277,545 @@
     };
   }
 
+  // =========================================================================================
+  // CASE D — continuous spans over piers (FEATURE 2)
+  // =========================================================================================
+  //
+  // results.model SHAPE FOR THE DRAWING LAYER (consumed by the UI/graphics agent).
+  // Everything below hangs off  results.model.caseD  and is in INCHES / KIPS / KSI, full
+  // precision.  x is absolute along the wall (0 = left end of wall), y is above the bottom of
+  // the grade beam.  All enveloped quantities carry the governing combo + pattern.
+  //
+  //   model.caseD = {
+  //     nSpans, L_in, lb_in, h_in, pierX_in: [x_0 .. x_n],       // pier CENTERLINES
+  //     endStrip: { len_in, o_in, note },                        // l_b/2 strip routed to the end bearing
+  //     scopeNote: [ ...strings... ],                            // F2.6, must be rendered
+  //     spans: [ {                                               // one per span, left to right
+  //       index, x0_in, x1_in,                                   // pier CL to pier CL
+  //       Mpos_env_kin, Mpos_x_in, Mpos_combo, Mpos_pattern,     // ENVELOPED positive moment
+  //       Tpos_kip, Tpos_combo, Tpos_pattern,                    // ENVELOPED bottom-tie force
+  //       zPos_in, aPos_in, Mss_kin, MposDesign_kin, floorGoverns,   // from the Tpos-governing run
+  //          // floorGoverns = "elastic envelope" | "capacity-consistent floor" | "0.5*M_ss floor"
+  //       phiMn_neg_L_kin, phiMn_neg_R_kin,                      // what the PROVIDED neg. steel delivers
+  //       VfaceL_kip, VfaceR_kip,                                // ENVELOPED shear at each support face
+  //       MA_ref_kin, MB_ref_kin, wu_ref_klf, Pu_ref_kip         // reference-run span-end moments/loads
+  //     } ],
+  //     supports: [ {                                            // one per pier, left to right
+  //       index, x_in, type: "end" | "interior",
+  //       governingCombo, governingPattern,                      // the run everything below comes from
+  //       AsNeg_in2, yNeg_in,
+  //       Mneg_kin, Tneg_kip, aNeg_in, zNeg_in,                  // negative chord, governing run
+  //       R_elastic_kip, R_floor_kip, R_used_kip, R_bearing_kip, // F2.4c reaction floor + routed strip
+  //       theta_end_deg,                                         // end piers only: atan(R_end/Tpos)
+  //       diagonals: [ { side:"L"|"R", V_kip, H_kip, theta_deg, F_kip, ws_in, stress_ksi, dcr } ],
+  //       node: { id, cls, lim_ksi, combo, pattern,
+  //               faces:[{name,width_in,Acn_in2,force_kip,stress_ksi,dcr}] },
+  //       sumV_kip, sumH_kip,                                    // interior nodes: closure residuals
+  //       Mneg_env_kin, Mneg_combo, Mneg_pattern,                // <= 0 (hogging), ENVELOPED scalars
+  //       Tneg_env_kip, Tneg_combo, Tneg_pattern,
+  //       R_used_env_kip, R_bearing_env_kip
+  //     } ],
+  //   A support's governing run is the one with the heaviest BEARING demand — a physical,
+  //   monotone criterion. Everything geometric for that pier comes from that single run, so the
+  //   drawing is always a real load case; the *_env fields carry the independent maxima. The
+  //   CHECK ROWS are enveloped separately on DCR and are unaffected by this reporting choice.
+  //     negChord: {
+  //       As_in2, y_in, db_in, depth_in, useWallEF, parts:[{src,As,y}],
+  //       extension_provided_in,
+  //       extensions: [ { pier, side, x_infl_in, noInflection, ld_in,
+  //                       devShift_ld_in,        // max(ld, 12db)  — governing (D-region)
+  //                       devShift_d_in,         // max(d, 12db)   — §9.7.3.8.4 B-region compare
+  //                       req_devRule_in, req_ld_in,
+  //                       required_in,           // governing requirement, ld-based
+  //                       required_bregion_in,   // informational B-region comparison
+  //                       provided_in, governs } ]
+  //     },
+  //     diagram: { x_in:[...], Mmin_kin:[...], Mmax_kin:[...] },  // moment ENVELOPE for plotting
+  //     inflections: [ { x_in, pier, side } ],                    // envelope zero-crossings
+  //     lap: { classB_in, ld_in, note },                          // bottom-bar Class B lap over piers
+  //     reference: { combo, pattern, R_kip:[...], Msup_kin:[...] }
+  //   }
+  //
+  // ---- F2.2 exact elastic analysis, prismatic, rotational DOF at each of nSpans+1 supports.
+  // Slope-deflection with k = 2EI/L (EI = 1) and member-end moments POSITIVE COUNTERCLOCKWISE:
+  //   M_ij = k*(2*th_i + th_j) + FEM_ij,   FEM_ij = -F_i,  FEM_ji = +F_i,
+  //   F_i  = w_i*L^2/12 + P_i*L/8      (UDL + MIDSPAN point load fixed-end moments)
+  // Joint equilibrium: sum of arriving end moments = 0 (ends are simple: single term = 0).
+  // Mapping to the sagging-positive beam convention: M_A(span i) = M_{i,i+1},
+  // M_B(span i) = -M_{i+1,i}. Verified against the textbook coefficients (F2.8): 2 equal spans
+  // UDL -> M- = wL^2/8, M+ = 9/128 wL^2, R_int = 1.25wL, R_end = 0.375wL; 3 equal spans ->
+  // 0.100/0.080/0.025 wL^2.
+  //
+  // STATED ASSUMPTION (F2.2): flexure-only. Shear flexibility at ln/h ~ 1.6 reduces continuity,
+  // which reduces M- and increases M+ (handled by the F2.4a floor) and raises end reactions
+  // toward the simple-span value (handled by the F2.4c reaction floor).
+  // ---- R4.2 INDEPENDENT CROSS-CHECK of the moment distribution -----------------------------
+  // The direct-stiffness path above is a DISPLACEMENT method: unknown rotations, slope-deflection
+  // end moments, shears from those end moments, reactions from those shears. Every statics
+  // residual computed downstream of it (sum-V, sum-M, the interior-node sum-V/sum-H) is satisfied
+  // IDENTICALLY for ANY set of end moments, right or wrong — pick any M values, derive the shears
+  // from them, and the free body closes. So none of those residuals can detect a wrong moment
+  // distribution (a mis-signed or mis-scaled fixed-end moment, a bad stiffness term, a bad
+  // b-vector). They are model-consistency statements, not checks.
+  //
+  // This function re-derives the support moments by the FORCE method — Clapeyron's three-moment
+  // equation — which shares no code and no formulation with the stiffness solve. For equal
+  // prismatic spans of length L with simple ends (M_0 = M_n = 0), sagging-positive support
+  // moments, and the free (simply-supported) bending-moment diagram of each span:
+  //
+  //   M_{i-1}*L + 2*M_i*(L + L) + M_{i+1}*L = -6*A_left*xbar_left/L - 6*A_right*xbar_right/L
+  //
+  // with the areas taken about the FAR end of each span. For a UDL, A = wL^3/12 with the
+  // centroid at L/2, so the term is 6*(wL^3/12)*(L/2)/L = wL^3/4. For a MIDSPAN point load,
+  // A = PL^2/8 with the centroid at L/2, so the term is 3PL^2/8. Dividing through by L:
+  //
+  //   M_{i-1} + 4*M_i + M_{i+1} = -[ w_{i-1}L^2/4 + 3P_{i-1}L/8 + w_i L^2/4 + 3P_i L/8 ]
+  //
+  // Sanity (closed form, both reproduced by the tridiagonal solve below):
+  //   2 equal spans, UDL:      4*M_1 = -wL^2/2            -> M_1 = -wL^2/8       (= F2.8(1))
+  //   3 equal spans, UDL:      5*M_1 = -wL^2/2 (symmetry) -> M_1 = -0.100wL^2    (= F2.8(2))
+  //   2 equal spans, midspan P: 4*M_1 = -3PL^2/4          -> M_1 = -3PL/16       (textbook)
+  //
+  // Reactions are then rebuilt from THOSE moments and compared against the shear-assembled
+  // reactions.
+  //
+  // WHAT THIS CATCHES THAT NOTHING ELSE DOES — fixed-end-moment MAGNITUDE errors. Changing the
+  // UDL FEM from wL^2/12 to wL^2/10, or the midspan-point FEM from PL/8 to PL/6, produces a
+  // self-consistent-but-wrong moment distribution: jointRes, globalV, globalM and the
+  // interior-node ΣV/ΣH all stay at exactly zero while this residual moves to tens of kips
+  // (mutation-verified: wL^2/10 gives maxR = 14.97 kip against a ~1e-13 kip clean run).
+  //
+  // WHAT IT DOES NOT ADD (verified by mutation, corrected after verification round 2 — the
+  // earlier comment here overclaimed): a FLIPPED FEM sign or a bad b-vector term trips the
+  // EQUILIBRIUM (jointRes) guard first, and kk = 1/L instead of 2/L changes NOTHING at all,
+  // because uniform stiffness scaling cancels in K·θ = F — there is no error there to detect.
+  function threeMomentCheck(n, L, w, P, R, Msup, tol) {
+    var i, k;
+    var M3 = new Array(n + 1).fill(0);
+    var m = n - 1;                                   // interior unknowns M_1 .. M_{n-1}
+    if (m > 0) {
+      // tridiagonal [1, 4, 1] solved by the Thomas algorithm — deliberately NOT solveNormal(),
+      // so the cross-check shares no solver with the stiffness path either.
+      var a = [], bdi = [], c = [], d = [];
+      for (i = 1; i <= m; i++) {
+        a.push(i === 1 ? 0 : 1); bdi.push(4); c.push(i === m ? 0 : 1);
+        d.push(-(w[i - 1] * L * L / 4 + 3 * P[i - 1] * L / 8 + w[i] * L * L / 4 + 3 * P[i] * L / 8));
+      }
+      var cp = new Array(m), dp = new Array(m);
+      cp[0] = c[0] / bdi[0]; dp[0] = d[0] / bdi[0];
+      for (k = 1; k < m; k++) {
+        var den = bdi[k] - a[k] * cp[k - 1];
+        if (Math.abs(den) < 1e-12) return { error: "three-moment system singular" };
+        cp[k] = c[k] / den; dp[k] = (d[k] - a[k] * dp[k - 1]) / den;
+      }
+      var x = new Array(m);
+      x[m - 1] = dp[m - 1];
+      for (k = m - 2; k >= 0; k--) x[k] = dp[k] - cp[k] * x[k + 1];
+      for (i = 1; i <= n; i++) if (i < n) M3[i] = x[i - 1];
+    }
+    // reactions rebuilt from the independent support moments (F2.5.13 / R4.2 form):
+    //   R_i = SUM over adjacent spans of [ wL/2 + P/2 -/+ (M_far - M_near)/L ]
+    var R3 = new Array(n + 1).fill(0);
+    for (i = 0; i <= n; i++) {
+      if (i > 0) R3[i] += w[i - 1] * L / 2 + P[i - 1] / 2 - (M3[i] - M3[i - 1]) / L;
+      if (i < n) R3[i] += w[i] * L / 2 + P[i] / 2 + (M3[i + 1] - M3[i]) / L;
+    }
+    var maxR = 0, maxM = 0;
+    for (i = 0; i <= n; i++) {
+      maxR = Math.max(maxR, Math.abs(R3[i] - R[i]));
+      maxM = Math.max(maxM, Math.abs(M3[i] - Msup[i]));
+    }
+    return { M3: M3, R3: R3, maxR: maxR, maxM: maxM, tol: tol, ok: maxR <= tol };
+  }
+
+  function solveD(ctx, combo, mask, betaInfo) {
+    var cd = ctx.caseD, n = cd.nSpans, L = cd.L, lb = cd.lb;
+    var fce = PHI_STM * 0.85 * betaInfo.betaS * ctx.fcKsi;   // design stress for chord/strut sizing
+    var i, k;
+
+    // ---- factored per-span loads (each span's LL toggles as a unit, F2.3)
+    var w = [], P = [], F = [];
+    for (i = 0; i < n; i++) {
+      var on = !!(mask.spans && mask.spans["sp" + (i + 1)]);
+      w.push(combo.D * ctx.wD_pli + (on ? combo.L * ctx.wL_pli : 0));
+      P.push(combo.D * cd.spanPoint[i].D + (on ? combo.L * cd.spanPoint[i].L : 0));
+      F.push(w[i] * L * L / 12 + P[i] * L / 8);
+    }
+
+    // ---- direct stiffness in the rotations
+    var nd = n + 1, kk = 2 / L;
+    var A = [], b = [];
+    for (i = 0; i < nd; i++) { A.push(new Array(nd).fill(0)); b.push(0); }
+    // node 0
+    A[0][0] += 2 * kk; A[0][1] += kk; b[0] += F[0];
+    // interior nodes
+    for (i = 1; i < n; i++) {
+      A[i][i - 1] += kk; A[i][i] += 2 * kk;          // right end of span i-1
+      A[i][i] += 2 * kk; A[i][i + 1] += kk;          // left end of span i
+      b[i] += F[i] - F[i - 1];
+    }
+    // node n
+    A[n][n - 1] += kk; A[n][n] += 2 * kk; b[n] += -F[n - 1];
+    var th = solveNormal(A, b, nd);
+    if (!th) return { status: "not_converged", errors: [{ code: "SINGULAR", message: "Case D stiffness system singular (" + combo.id + ")" }] };
+
+    // ---- end moments -> sagging-positive span-end moments
+    var MA = [], MB = [], Msup = new Array(nd).fill(0);
+    for (i = 0; i < n; i++) {
+      MA.push(kk * (2 * th[i] + th[i + 1]) - F[i]);
+      MB.push(-(kk * (th[i] + 2 * th[i + 1]) + F[i]));
+    }
+    Msup[0] = MA[0]; Msup[n] = MB[n - 1];
+    for (i = 1; i < n; i++) Msup[i] = MB[i - 1];
+    // joint-equilibrium self-check (F2.5.13): the two adjacent spans must report the same
+    // support moment, and the simple ends must report zero.
+    var jointRes = Math.max(Math.abs(MA[0]), Math.abs(MB[n - 1]));
+    for (i = 1; i < n; i++) jointRes = Math.max(jointRes, Math.abs(MB[i - 1] - MA[i]));
+
+    // ---- shears at the span ends and support reactions
+    var VL = [], VR = [], R = new Array(nd).fill(0), Wtot = 0;
+    for (i = 0; i < n; i++) {
+      var Vss = w[i] * L / 2 + P[i] / 2;
+      VL.push(Vss + (MB[i] - MA[i]) / L);
+      VR.push(Vss - (MB[i] - MA[i]) / L);
+      Wtot += w[i] * L + P[i];
+    }
+    if (!(Wtot > 0)) return { status: "no_admissible_stm", errors: [{ code: "NO_TRUSS_LOAD", message: "no load on any span (" + combo.id + ")" }] };
+    R[0] = VL[0]; R[n] = VR[n - 1];
+    for (i = 1; i < n; i++) R[i] = VR[i - 1] + VL[i];
+    var globalV = 0; for (i = 0; i < nd; i++) globalV += R[i];
+    globalV -= Wtot;
+    var globalM = 0;                                   // moments about the left pier CL
+    for (i = 0; i < nd; i++) globalM += R[i] * (i * L);
+    for (i = 0; i < n; i++) globalM -= w[i] * L * (i * L + L / 2) + P[i] * (i * L + L / 2);
+    var eqTolD = 1e-8 * Math.abs(Wtot) + 0.001;
+    if (jointRes > eqTolD || Math.abs(globalV) > eqTolD || Math.abs(globalM) > eqTolD * L)
+      return { status: "not_converged", errors: [{ code: "EQUILIBRIUM", message: "Case D statics self-check failed (joint " + jointRes + ", V " + globalV + ", M " + globalM + ") [" + combo.id + "]" }] };
+    // R4.2: the LOAD-BEARING statics assertion. globalV above is identically zero (R is assembled
+    // from the same span shears it is summed against) and so is the interior-node closure below;
+    // this one is not — it re-derives the support moments by the three-moment (force) method and
+    // rebuilds the reactions from them. See threeMomentCheck() for what would trip it.
+    var xchk = threeMomentCheck(n, L, w, P, R, Msup, eqTolD);
+    if (xchk.error || !xchk.ok || Math.abs(xchk.maxM) > eqTolD * L)
+      return {
+        status: "not_converged", errors: [{
+          code: "REACTION_CROSSCHECK", message: "Case D reaction cross-check failed: reactions rebuilt from an independent three-moment (force-method) solution differ from the shear-assembled reactions by " +
+            (xchk.error ? xchk.error : fmt(xchk.maxR, 6) + " kip (support-moment difference " + fmt(xchk.maxM, 6) + " kip-in) — the elastic moment distribution is not self-consistent [" + combo.id + "]")
+        }]
+      };
+    // F2.5(14): a patterned live load on a lightly dead-loaded continuous member can produce a
+    // genuine negative end reaction. Name BOTH the pier and the governing pattern.
+    for (i = 0; i < nd; i++) if (R[i] < -1e-9)
+      return {
+        status: "no_admissible_stm", errors: [{
+          code: "NEG_REACTION", message: "uplift at pier " + i + " (reaction " + fmt(R[i], 2) + " kip) under combination " +
+            combo.id + ", live-load pattern " + maskId(mask) +
+            " — this model assumes every pier stays in bearing. A tension connection at the pier is out of scope: add dead load, change the pier layout, or design that connection separately."
+        }]
+      };
+
+    // ---- M(x) within a span: M = M_A*(1-xi) + M_B*xi + M_ss(x)
+    function Mx(i2, x) {
+      var xi = x / L;
+      var mss = w[i2] * x * (L - x) / 2 + (x <= L / 2 ? P[i2] * x / 2 : P[i2] * (L - x) / 2);
+      return MA[i2] * (1 - xi) + MB[i2] * xi + mss;
+    }
+    // ---- positive-moment maximum per span: stationary points + midspan kink + dense sweep
+    var Mpos = [], MposX = [];
+    for (i = 0; i < n; i++) {
+      var cand = [0, L / 2, L], slope = (MB[i] - MA[i]) / L;
+      if (w[i] > 0) {
+        var xa = L / 2 + slope / w[i] + P[i] / (2 * w[i]);   // left half branch
+        var xb = L / 2 + slope / w[i] - P[i] / (2 * w[i]);   // right half branch
+        if (xa > 0 && xa < L / 2) cand.push(xa);
+        if (xb > L / 2 && xb < L) cand.push(xb);
+      }
+      for (k = 0; k <= 200; k++) cand.push(k * L / 200);
+      var best = -Infinity, bestX = 0;
+      for (k = 0; k < cand.length; k++) { var mv = Mx(i, cand[k]); if (mv > best) { best = mv; bestX = cand[k]; } }
+      Mpos.push(Math.max(0, best)); MposX.push(bestX);
+    }
+
+    // ---- F2.4b negative chord at each support (no band check — see F1.1)
+    function sizeNeg(M) {
+      // a- = Tneg/(f_ce*b_gb) on the GRADE BEAM width; zNeg = y_neg - a-/2, iterated.
+      var yN = ctx.caseD.negChord.y, a = 0, z = yN, it = 0;
+      if (M <= 0) return { T: 0, a: 0, z: yN, iters: 0 };
+      while (it < ITER_MAX) {
+        z = yN - a / 2;
+        if (z <= GEOM_EPS) return { error: "geometry_infeasible", msg: "negative-chord lever arm zNeg <= 0" };
+        var T = M / z, aNew = T / (fce * ctx.bgb);
+        it++;
+        if (Math.abs(aNew - a) < ITER_TOL) { a = aNew; z = yN - a / 2; return { T: M / z, a: a, z: z, iters: it }; }
+        a = aNew;
+      }
+      return { error: "not_converged", msg: "negative-chord depth a- did not converge" };
+    }
+    var neg = [];
+    for (i = 0; i <= n; i++) {
+      var Mn = -Math.min(0, Msup[i]);                 // magnitude of the hogging moment
+      var sn = sizeNeg(Mn);
+      if (sn.error) return { status: sn.error, errors: [{ code: "NEGCHORD", message: sn.msg + " at pier " + i + " [" + combo.id + "]" }] };
+      if (sn.a > ctx.hgb + GEOM_EPS)
+        return {
+          status: "geometry_infeasible", errors: [{
+            code: "NEG_A_GT_HGB", message: "negative compression block a- = " + fmt(sn.a, 2) +
+              " in exceeds the grade-beam depth h_gb = " + fmt(ctx.hgb, 2) + " in at pier " + i + " — deepen the grade beam, widen it, or add negative reinforcement [" + combo.id + "]"
+          }]
+        };
+      neg.push({ M: Mn, T: sn.T, a: sn.a, z: sn.z });
+    }
+
+    // ---- F2.4a positive chord per span, with the CAPACITY-CONSISTENT floor
+    // Tpos >= [ M_ss - 0.5*(phiMn,neg,L + phiMn,neg,R) ] / zPos   (lower-bound-theorem form:
+    // continuity relief may only be claimed up to what the PROVIDED negative steel can deliver),
+    // and additionally Tpos >= 0.5*M_ss/zPos. zPos is iterated AT the floored force.
+    var AsNeg = ctx.caseD.negChord.As;
+    var pos = [];
+    for (i = 0; i < n; i++) {
+      var Mss = w[i] * L * L / 8 + P[i] * L / 4;
+      var phiMnL = (i === 0) ? 0 : PHI_STM * AsNeg * ctx.fy * neg[i].z;
+      var phiMnR = (i === n - 1) ? 0 : PHI_STM * AsNeg * ctx.fy * neg[i + 1].z;
+      var Mcap = Math.max(0, Mss - 0.5 * (phiMnL + phiMnR));
+      var M50 = 0.5 * Mss;
+      var Mdes = Mpos[i], gov = "elastic envelope";
+      if (Mcap > Mdes + 1e-12) { Mdes = Mcap; gov = "capacity-consistent floor"; }
+      if (M50 > Mdes + 1e-12) { Mdes = M50; gov = "0.5*M_ss floor"; }
+      if (!(Mdes > 0)) { pos.push({ M: 0, Mss: Mss, Mdes: 0, gov: gov, T: 0, a: 0, z: ctx.hp, phiMnL: phiMnL, phiMnR: phiMnR }); continue; }
+      var ch = sizeChord(ctx, Mdes, fce);
+      if (ch.error) return { status: ch.error, errors: [{ code: "CHORD", message: ch.msg + " in span " + (i + 1) + " [" + combo.id + "]" }] };
+      pos.push({ M: Mpos[i], Mss: Mss, Mdes: Mdes, gov: gov, T: Mdes / ch.z, a: ch.a, z: ch.z, phiMnL: phiMnL, phiMnR: phiMnR });
+    }
+
+    // ---- F2.4c reaction floor at the END piers (consistent with the F2.4a moment floor)
+    var Rfloor = new Array(nd).fill(0), Rused = R.slice();
+    Rfloor[0] = w[0] * L / 2 + P[0] / 2 - 0.5 * neg[1].M / L;
+    Rfloor[n] = w[n - 1] * L / 2 + P[n - 1] / 2 - 0.5 * neg[n - 1].M / L;
+    Rused[0] = Math.max(R[0], Rfloor[0]);
+    Rused[n] = Math.max(R[n], Rfloor[n]);
+
+    // ---- F2.5(7) end-pier springing angle: theta_end = atan(R_end / Tpos) — the funicular
+    // springing identity, which is exactly what makes the Cases A/B node + anchorage machinery
+    // callable here unchanged.
+    var thetaEnd = [null, null];
+    thetaEnd[0] = pos[0].T > 0 ? deg(Math.atan2(Rused[0], pos[0].T)) : 90;
+    thetaEnd[1] = pos[n - 1].T > 0 ? deg(Math.atan2(Rused[n], pos[n - 1].T)) : 90;
+
+    // ---- F2.5(6) diagonal struts per span-half, and F2.5(8) interior nodes
+    var haEnd = ctx.tieBand.wtGov;
+    function diagonal(side, V, H, ha) {
+      if (!(V > GEOM_EPS)) return { side: side, V: 0, H: H, theta: 90, F: 0, ws: lb, stress: 0, dcr: 0 };
+      var t = deg(Math.atan2(V, Math.max(H, 0)));
+      var Fd = V / Math.sin(rad(t));
+      var ws = lb * Math.sin(rad(t)) + ha * Math.cos(rad(t));
+      return { side: side, V: V, H: H, theta: t, F: Fd, ws: ws, stress: Fd / (ws * ctx.tw), dcr: (Fd / (ws * ctx.tw)) / fce };
+    }
+    var supports = [], minAngle = Infinity;
+    for (i = 0; i <= n; i++) {
+      var sup = { index: i, type: (i === 0 || i === n) ? "end" : "interior", diagonals: [] };
+      if (i === 0) {
+        sup.diagonals.push(diagonal("R", Rused[0], pos[0].T, haEnd));
+        sup.theta_end = thetaEnd[0];
+      } else if (i === n) {
+        sup.diagonals.push(diagonal("L", Rused[n], pos[n - 1].T, haEnd));
+        sup.theta_end = thetaEnd[1];
+      } else {
+        // both diagonals use the SAME chord force C- = Tneg at this support, so each delivers a
+        // horizontal component of exactly Tneg — which is what closes sum-H below.
+        sup.diagonals.push(diagonal("L", VR[i - 1], neg[i].T, neg[i].a));
+        sup.diagonals.push(diagonal("R", VL[i], neg[i].T, neg[i].a));
+      }
+      sup.diagonals.forEach(function (d) { minAngle = Math.min(minAngle, d.theta); });
+      supports.push(sup);
+    }
+
+    var lim = { CCT: PHI_STM * 0.85 * BETA_C * 0.8 * ctx.fcKsi, CCC: PHI_STM * 0.85 * BETA_C * 1.0 * ctx.fcKsi };
+    var closeMax = 0;
+    for (i = 0; i <= n; i++) {
+      var s2 = supports[i], faces = [];
+      if (s2.type === "end") {
+        // CCT: bearing (TRUSS reaction only — B4 FBD split; routed load stays in the §22.8
+        // bearing check), springing strut at theta_end, tie back face at the §23.8.2 width.
+        var dg = s2.diagonals[0];
+        faces.push({ name: "bearing", width: lb, Acn: lb * ctx.tNode, force: Rused[i], stress: Rused[i] / (lb * ctx.tNode) });
+        faces.push({ name: "strut (springing)", width: dg.ws, Acn: dg.ws * ctx.tw, force: dg.F, stress: dg.F / (dg.ws * ctx.tw) });
+        var Tend = (i === 0) ? pos[0].T : pos[n - 1].T;
+        faces.push({ name: "back (tie)", width: haEnd, Acn: haEnd * ctx.tNode, force: Tend, stress: Tend / (haEnd * ctx.tNode) });
+        s2.node = { id: "node.pier." + i, cls: "CCT", faces: faces, lim: lim.CCT };
+      } else {
+        // CCC (verified: nothing tensile enters — the negative chord is remote at the TOP of the
+        // wall). Faces: bearing up, the two diagonals, and the two bottom-chord compressions.
+        var dL = s2.diagonals[0], dR = s2.diagonals[1], aN = neg[i].a, Tn = neg[i].T;
+        faces.push({ name: "bearing", width: lb, Acn: lb * ctx.tNode, force: R[i], stress: R[i] / (lb * ctx.tNode) });
+        faces.push({ name: "strut (diagonal L)", width: dL.ws, Acn: dL.ws * ctx.tw, force: dL.F, stress: dL.stress });
+        faces.push({ name: "strut (diagonal R)", width: dR.ws, Acn: dR.ws * ctx.tw, force: dR.F, stress: dR.stress });
+        // F2.5(8) Rev 3 — EACH FACE ON ITS OWN THICKNESS. The horizontal bottom-chord faces are
+        // checked on b_gb: the negative compression chord lives in the grade beam, is delivered
+        // ALONG the grade beam into the pier, and is not confined by the thinner wall above it.
+        // The diagonals above use t_w because those struts run through the wall.
+        // Rev 2 ALSO checked the same force squeezed onto t_w. That was wrong: with a- sized on
+        // b_gb at f_ce, that face's DCR was exactly beta_s*(b_gb/t_w) — load-independent, 1.500
+        // for a 24 in grade beam on a 12 in wall, i.e. a false failure on every Case D run.
+        // It is removed. The wall -> grade-beam width transition across the node is a STATED
+        // MODELLING ASSUMPTION (reported in the node derivation), not a check.
+        faces.push({ name: "chord (bottom compression, on b_gb — sized-to-fit)", width: aN, Acn: aN * ctx.bgb, force: Tn, stress: aN > 0 ? Tn / (aN * ctx.bgb) : 0, byConstruction: true });
+        // R4.2 — HONEST LABEL. These two residuals CLOSE BY CONSTRUCTION and are reported as
+        // model-consistency statements, not as checks: R[i] is assembled as VR[i-1] + VL[i], the
+        // very quantities subtracted here, so sumV is identically zero; and both diagonals take
+        // their horizontal component from the SAME chord force Tn, so sumH is float noise. They
+        // confirm the node was assembled the way the model says it was — nothing more. The
+        // load-bearing assertions are the three-moment reaction cross-check above, jointRes and
+        // globalM.
+        var sumV = R[i] - dL.V - dR.V;
+        var HL = dL.V / Math.tan(rad(dL.theta)), HR = dR.V / Math.tan(rad(dR.theta));
+        var sumH = (HL - HR) + (Tn - Tn);
+        s2.sumV = sumV; s2.sumH = sumH; s2.HL = HL; s2.HR = HR;
+        closeMax = Math.max(closeMax, Math.abs(sumV), Math.abs(sumH));
+        s2.node = { id: "node.pier." + i, cls: "CCC", faces: faces, lim: lim.CCC };
+      }
+      s2.node.faces.forEach(function (f) { f.dcr = f.stress / s2.node.lim; });
+    }
+    if (closeMax > eqTolD)
+      return { status: "not_converged", errors: [{ code: "NODE_CLOSURE", message: "Case D interior node equilibrium residual " + closeMax + " kip exceeds tolerance [" + combo.id + "]" }] };
+
+    // ---- bearing demands. The l_b/2 wall strip outboard of each END pier CL routes straight
+    // into that bearing (o = 0 by construction, F2.1); interior piers take the full reaction.
+    var routed = routedForces(ctx, combo.D, combo.L);
+    var Rbrg = new Array(nd).fill(0);
+    for (i = 0; i <= n; i++) Rbrg[i] = (i === 0) ? Rused[0] + routed.L.total : (i === n ? Rused[n] + routed.R.total : R[i]);
+
+    var TposMax = 0, aPosMax = 0, zPosMin = Infinity, MposMax = 0, MposMaxX = 0;
+    for (i = 0; i < n; i++) {
+      if (pos[i].T > TposMax) TposMax = pos[i].T;
+      if (pos[i].a > aPosMax) aPosMax = pos[i].a;
+      if (pos[i].z < zPosMin) zPosMin = pos[i].z;
+      if (pos[i].M > MposMax) { MposMax = pos[i].M; MposMaxX = cd.pierX[i] + MposX[i]; }
+    }
+    var TnegMax = 0, iNegMax = 0;
+    for (i = 0; i <= n; i++) if (neg[i].T > TnegMax) { TnegMax = neg[i].T; iNegMax = i; }
+
+    return {
+      status: "ok", errors: [], caseD: true,
+      fce: fce, w: w, P: P, MA: MA, MB: MB, Msup: Msup, VL: VL, VR: VR,
+      R: R, Rfloor: Rfloor, Rused: Rused, Rbrg: Rbrg, routed: routed,
+      pos: pos, neg: neg, supports: supports, Mx: Mx, MposX: MposX,
+      thetaEnd: thetaEnd, minAngle: minAngle, TnegMax: TnegMax, iNegMax: iNegMax,
+      // generic fields consumed by run()/patterns/reference-model selection
+      Mmax: MposMax, MmaxX: MposMaxX, z: zPosMin, a: aPosMax, H: TposMax, T: TposMax,
+      ha: ctx.tieBand.wtGov, wsL: supports[0].diagonals[0].ws, wsR: supports[n].diagonals[0].ws,
+      thetaL: thetaEnd[0], thetaR: thetaEnd[1],
+      st: { RL: Rused[0], RR: Rused[n], W: Wtot },
+      RbL: Rbrg[0], RbR: Rbrg[n],
+      xchk: xchk,
+      selfChecks: {
+        maxNodeResidual_kip: Math.max(closeMax, jointRes), globalV_kip: globalV, globalM_kin: globalM,
+        interiorNodeClosure_kip: closeMax,
+        // R4.2: the independent one. The three above all close by construction in Case D.
+        reactionCrossCheck_kip: xchk.maxR, momentCrossCheck_kin: xchk.maxM, crossCheckTol_kip: eqTolD
+      }
+    };
+  }
+
+  // ---- F2.5(10) negative-moment ENVELOPE (max over ALL combos/patterns) and its zero
+  // crossings. This MUST come from the envelope, not from the all-loaded pattern: with an
+  // adjacent span loaded and this one bare, the hogging region reaches further into the span.
+  var NEG_SAMPLES = 400;
+  function negEnvelope(ctx, sols) {
+    var cd = ctx.caseD, n = cd.nSpans, L = cd.L;
+    var spans = [];
+    for (var i = 0; i < n; i++) {
+      var xs = [], mn = [], mx = [];
+      for (var k = 0; k <= NEG_SAMPLES; k++) {
+        var x = k * L / NEG_SAMPLES, lo = Infinity, hi = -Infinity;
+        for (var s = 0; s < sols.length; s++) {
+          var v = sols[s].Mx(i, x);
+          if (v < lo) lo = v;
+          if (v > hi) hi = v;
+        }
+        xs.push(x); mn.push(lo); mx.push(hi);
+      }
+      spans.push({ xs: xs, Mmin: mn, Mmax: mx });
+    }
+    // crossing search from a support into a span; dir = +1 (rightwards from support i into
+    // span i) or -1 (leftwards from support i into span i-1).
+    function cross(spanIdx, fromLeft) {
+      var sp = spans[spanIdx], m = sp.Mmin, N = m.length;
+      var seq = [];
+      for (var k = 0; k < N; k++) seq.push(fromLeft ? k : N - 1 - k);
+      if (!(m[seq[0]] < 0)) return { x: 0, none: false };     // already non-negative at the face
+      for (var q = 1; q < N; q++) {
+        var a = seq[q - 1], b2 = seq[q];
+        if (m[b2] >= 0) {
+          var t = m[a] / (m[a] - m[b2]);
+          var xa = sp.xs[a], xb = sp.xs[b2];
+          var xz = xa + t * (xb - xa);
+          return { x: Math.abs(xz - (fromLeft ? 0 : L)), none: false };
+        }
+      }
+      return { x: L, none: true };                            // hogging over the whole span
+    }
+    return { spans: spans, cross: cross };
+  }
+
+  // ------------------------------------------------- F1.4 tie effective-width row
+  // ALWAYS informational (F1.4): it is excluded from governing-DCR and near-limit selection.
+  // demand = w_t,gov, capacity = w_t,max, dcr = w_t,gov/w_t,max <= 1 BY CONSTRUCTION — w_t,phys
+  // goes in contributions, never in demand, because a dcr > 1 on a passing row would corrupt
+  // the summary's governing-DCR selection. `pass` reflects BAND MEMBERSHIP ONLY.
+  // Failing (rather than silently discounting out-of-band steel) is deliberate: auto-discounting
+  // cascades (As -> F_nt -> w_t,max -> band) and hides the required fix from the engineer.
+  function tieWidthRow(ctx) {
+    var tb = ctx.tieBand;
+    var lo = tb.ybar - tb.wtGov / 2, hi = tb.ybar + tb.wtGov / 2;
+    var layers = ctx.tieBars.layers;
+    var contributions = [
+      { source: "w_t,phys = 2*ybar_t", value: tb.wtPhys },
+      { source: "ybar_t (area-weighted)", value: tb.ybar },
+      { source: "F_nt = As*fy (NOMINAL, no phi)", value: tb.Fnt },
+      { source: "f_ce = 0.85*beta_n(0.8, CCT)*beta_c(1.0)*f'c", value: tb.fce },
+      { source: "b_s = min(t_w, b_gb)", value: tb.bs },
+      { source: "band [lo, hi] above bottom of GB", value: "[" + fmt(lo, 4) + ", " + fmt(hi, 4) + "] in" }
+    ];
+    var outside = [];
+    if (layers && layers.length > 1) {
+      layers.forEach(function (Ly, i) {
+        var d = (Ly.y < lo) ? (lo - Ly.y) : (Ly.y > hi ? Ly.y - hi : 0);
+        var tag = "layer " + (i + 1) + " (" + Ly.count + "-" + Ly.size + " @ y = " + fmt(Ly.y, 4) + " in)";
+        contributions.push({ source: tag, value: d > 1e-9 ? "OUTSIDE band by " + fmt(d, 4) + " in" : "inside band" });
+        if (d > 1e-9) outside.push(tag + " lies " + fmt(d, 4) + " in " + (Ly.y < lo ? "below" : "above") + " the band");
+      });
+    } else {
+      contributions.push({ source: "single layer — inside band by construction", value: tb.ybar });
+    }
+    var row = checkRow("tie.width",
+      "Tie effective width w_t ≤ w_t,max" + (tb.capped ? " (node width capped to w_t,max)" : ""),
+      "ACI 318-19 23.8.2", tb.wtGov, tb.wtMax,
+      { units: "in", informational: true, state: "informational", contributions: contributions });
+    row.capped = tb.capped;
+    row.nearLimit = false;
+    row.pass = (outside.length === 0);
+    if (outside.length) {
+      row.message = "counted tie steel lies outside the effective tie width band [" + fmt(lo, 4) + ", " + fmt(hi, 4) +
+        "] in: " + outside.join("; ") + ". Move the layers together, add steel (larger F_nt widens w_t,max), or model them as separate ties.";
+      row.contributions.push({ source: "band membership", value: row.message });
+    }
+    return row;
+  }
+
+  // F1.5 mandatory anti-circularity disclosure. When the back face is capped to w_t,max the
+  // back-face stress is T/(w_t,max*b_s) = f_ce*(T/F_nt), so the back-face DCR equals EXACTLY
+  // the tie-strength DCR T/(0.75*As*fy) (beta_c is locked at 1.0, which makes it exact).
+  // The two rows stop being independent checks and the node row must say so.
+  function discloseCollapse(ctx, row) {
+    if (!ctx.tieBand.capped) return row;
+    row.collapsedOntoTie = true;
+    row.contributions = (row.contributions || []).concat([{
+      source: "anti-circularity disclosure (ACI 318-19 23.8.2)",
+      value: "back face capped to w_t,max: stress = T/(w_t,max*b_s) = f_ce*(T/F_nt), so this face's DCR equals EXACTLY the tie-strength DCR T/(0.75*As*fy) — the node back face is no longer an independent check."
+    }]);
+    return row;
+  }
+
   // ------------------------------------------------- checks assembly (PLAN §5)
   function buildChecks(ctx, combo, mask, betaInfo, run) {
     var checks = [];
@@ -1060,6 +1844,8 @@
     checks.push(checkRow("tie.bottom", "Bottom tie φFnt ≥ T", "ACI 318-19 23.7.2 / 23.8.2",
       run.T, PHI_STM * ctx.tieBars.As * ctx.fy,
       { units: "kip", contributions: (run.items || []).map(function (it) { return { source: it.srcs.join("+"), value: it.P }; }) }));
+    // F1: §23.8.2 effective tie width of the node-anchored bottom tie
+    checks.push(tieWidthRow(ctx));
 
     // strut band fit (AUDIT-FIXES C) — TWO rows:
     //  1. strut.fit        load-governed: max fitDcr over segments NOT sized-to-fit by construction
@@ -1096,6 +1882,7 @@
       var wf = faces[0]; faces.forEach(function (f) { f.dcr = f.stress / lim; if (f.dcr > wf.dcr) wf = f; });
       var row = checkRow("node.support." + side, "Support nodal zone " + side + " (CCT, governing face: " + wf.name + ")", "ACI 318-19 23.9 / Table 23.9.2",
         wf.stress, lim, { units: "ksi", contributions: faces });
+      discloseCollapse(ctx, row);
       checks.push(row);
       return faces;
     }
@@ -1114,8 +1901,8 @@
       facesO.push({ name: "bearing", width: ctx.lbL, area: ctx.lbL * ctx.tNode, stress: run.RL / (ctx.lbL * ctx.tNode), dcr: run.RL / (ctx.lbL * ctx.tNode) / limO });
       facesO.push({ name: "back (tie)", width: run.ha, area: run.ha * ctx.tNode, stress: run.Tbot / (run.ha * ctx.tNode), dcr: run.Tbot / (run.ha * ctx.tNode) / limO });
       var wfO = facesO[0]; facesO.forEach(function (f) { if (f.dcr > wfO.dcr) wfO = f; });
-      checks.push(checkRow("node.support.L", "Overhang-side support nodal zone (subdivided multi-face, governing: " + wfO.name + ")", "ACI 318-19 23.9 / Table 23.9.2",
-        wfO.stress, limO, { units: "ksi", contributions: facesO }));
+      checks.push(discloseCollapse(ctx, checkRow("node.support.L", "Overhang-side support nodal zone (subdivided multi-face, governing: " + wfO.name + ")", "ACI 318-19 23.9 / Table 23.9.2",
+        wfO.stress, limO, { units: "ksi", contributions: facesO })));
       facesR = supportNodeCheck("R", run.wsR, run.thetaR, ctx.lbR, run.RR, run.segs[run.segs.length - 1].F);
     }
 
@@ -1190,7 +1977,7 @@
       var wo2 = null;
       run.ov.forEach(function (o, oi) {
         o.wReq = o.S / (run.fce * ctx.tw);
-        var haTop = 2 * ctx.ytTop;
+        var haTop = ctx.topBand.wtGov;   // §23.8.2-limited top-tie node face (F1.3)
         var wTopFace = o.w * Math.sin(rad(o.theta)) + haTop * Math.cos(rad(o.theta));
         o.wAvailMin = Math.min(o.wAvail, wTopFace);
         o.fitDcr = o.wReq / o.wAvailMin;
@@ -1230,16 +2017,7 @@
     }
 
     // web reinforcement — BOTH reported separately (PLAN §5)
-    var d5 = Math.min(ctx.dEff / 5, 12);
-    var rhoMin = Math.min(betaInfo.rhoV, betaInfo.rhoH);
-    var webRow = checkRow("web.min.9931", "Distributed web reinforcement minimums", "ACI 318-19 9.9.3.1",
-      0.0025, rhoMin, { units: "ratio", contributions: [{ source: "rho_v", value: betaInfo.rhoV }, { source: "rho_h", value: betaInfo.rhoH }, { source: "s_max_allowed", value: d5 }] });
-    if (ctx.webV.s > d5 + GEOM_EPS || ctx.webH.s > d5 + GEOM_EPS) { webRow.pass = false; webRow.state = "detailing does not fit"; }
-    checks.push(webRow);
-    var qRow = checkRow("web.qual.2351", "Table 23.5.1 βs qualification (" + (betaInfo.qualifies ? "βs = 0.75" : "βs = 0.4") + ")", "ACI 318-19 23.5 / Table 23.5.1",
-      0.0025, rhoMin, { units: "ratio", informational: true });
-    qRow.pass = true; qRow.state = "informational";
-    checks.push(qRow);
+    pushWebRows(ctx, betaInfo, checks);
 
     // global shear cap — explicit psi -> kips conversion
     var Vu = caseC ? Math.max(run.RL, run.RR) : Math.max(run.st.RL, run.st.RR);
@@ -1275,7 +2053,29 @@
     });
 
     // detailing fit (PLAN §5 last row) — failures are "detailing does not fit"
-    var n = ctx.tieBars.count, dbb = ctx.tieBars.db;
+    pushDetailingRows(ctx, checks);
+
+    return checks;
+  }
+
+  // ---- shared row builders (identical text/order for every case) ----------------------------
+  function pushWebRows(ctx, betaInfo, checks) {
+    var d5 = Math.min(ctx.dEff / 5, 12);
+    var rhoMin = Math.min(betaInfo.rhoV, betaInfo.rhoH);
+    var webRow = checkRow("web.min.9931", "Distributed web reinforcement minimums", "ACI 318-19 9.9.3.1",
+      0.0025, rhoMin, { units: "ratio", contributions: [{ source: "rho_v", value: betaInfo.rhoV }, { source: "rho_h", value: betaInfo.rhoH }, { source: "s_max_allowed", value: d5 }] });
+    if (ctx.webV.s > d5 + GEOM_EPS || ctx.webH.s > d5 + GEOM_EPS) { webRow.pass = false; webRow.state = "detailing does not fit"; }
+    checks.push(webRow);
+    var qRow = checkRow("web.qual.2351", "Table 23.5.1 βs qualification (" + (betaInfo.qualifies ? "βs = 0.75" : "βs = 0.4") + ")", "ACI 318-19 23.5 / Table 23.5.1",
+      0.0025, rhoMin, { units: "ratio", informational: true });
+    qRow.pass = true; qRow.state = "informational";
+    checks.push(qRow);
+    return checks;
+  }
+
+  function pushDetailingRows(ctx, checks) {
+    var d5 = Math.min(ctx.dEff / 5, 12);
+    var n = ctx.tieBars.rowCount || ctx.tieBars.count, dbb = ctx.tieBars.db;
     if (n > 1) {
       var clear = (ctx.bgb - 2 * ctx.coverSide - n * dbb) / (n - 1);
       var minClear = Math.max(1, dbb);
@@ -1305,9 +2105,303 @@
       Math.max(ctx.webV.s, ctx.webH.s), d5, { units: "in" });
     if (!efRow.pass) efRow.state = "detailing does not fit";
     checks.push(efRow);
+    return checks;
+  }
+
+  // ------------------------------------------------- Case D checks (F2.5)
+  function buildChecksD(ctx, combo, mask, betaInfo, run, envInfo) {
+    var checks = [], cd = ctx.caseD, n = cd.nSpans, L = cd.L, lb = cd.lb;
+    var i;
+
+    // (1) deep-beam applicability per span (§9.9.1.1), clear span between BEARING FACES
+    var ln = L - lb;
+    var clauseA = ln <= 4 * ctx.h + 1e-9;
+    var hasPt = false;
+    for (i = 0; i < n; i++) if (run.P[i] > 0) hasPt = true;
+    var loadDist = L / 2 - lb / 2;                       // midspan load to the nearest bearing face
+    var clauseB = hasPt && loadDist <= 2 * ctx.h + 1e-9;
+    var appRow = checkRow("applicability", "Deep-beam applicability per span (ln ≤ 4h or concentrated load within 2h)", "ACI 318-19 9.9.1.1 / 23.1",
+      clauseA ? ln : (clauseB ? loadDist : ln), clauseA ? 4 * ctx.h : (clauseB ? 2 * ctx.h : 4 * ctx.h),
+      { units: "in", contributions: [{ source: "clause", value: clauseA ? "(a) ln<=4h" : (clauseB ? "(b) concentrated load within 2h" : "none — NOT a deep beam") }, { source: "ln = L - lb (all spans equal)", value: ln }] });
+    appRow.pass = clauseA || clauseB;
+    checks.push(appRow);
+
+    // (2) bottom tie + F1 band check
+    var iT = 0; for (i = 0; i < n; i++) if (run.pos[i].T > run.pos[iT].T) iT = i;
+    checks.push(checkRow("tie.bottom", "Bottom tie φFnt ≥ Tpos (governing span " + (iT + 1) + ")", "ACI 318-19 23.7.2 / 23.8.2",
+      run.pos[iT].T, PHI_STM * ctx.tieBars.As * ctx.fy,
+      {
+        units: "kip", contributions: run.pos.map(function (p, j) {
+          return { source: "span " + (j + 1) + " (" + p.gov + ")", value: p.T, Mpos_kin: p.M, Mss_kin: p.Mss, Mdesign_kin: p.Mdes, z_in: p.z, a_in: p.a, phiMn_neg_L: p.phiMnL, phiMn_neg_R: p.phiMnR };
+        })
+      }));
+    checks.push(tieWidthRow(ctx));
+
+    // (3) negative chord — NO band check (F1.1: it terminates at no node; F2.4b governs)
+    var negRow = checkRow("tie.negative", "Negative chord φFnt ≥ Tneg (governing pier " + run.iNegMax + ")", "ACI 318-19 23.7.2",
+      run.TnegMax, PHI_STM * cd.negChord.As * ctx.fy,
+      {
+        units: "kip", contributions: [
+          { source: "As,neg", value: cd.negChord.As },
+          { source: "y_neg (above bottom of GB)", value: cd.negChord.y },
+          { source: "zNeg", value: run.neg[run.iNegMax].z },
+          { source: "a- (on b_gb)", value: run.neg[run.iNegMax].a },
+          { source: "M- (hogging)", value: run.neg[run.iNegMax].M },
+          { source: "no §23.8.2 band check (F1.1)", value: "the negative chord is a distributed tension field running THROUGH the interior piers; it anchors into no nodal zone, so there is no back face to limit. Distribution is governed instead by depth_in ≤ 0.25h (F2.4b)." }
+        ].concat(cd.negChord.parts.map(function (p) { return { source: p.src, value: p.As, y_in: p.y }; }))
+      });
+    checks.push(negRow);
+
+    // (4) positive compression chord fits the wall envelope
+    var iA = 0; for (i = 0; i < n; i++) if (run.pos[i].a > run.pos[iA].a) iA = i;
+    checks.push(checkRow("chord.pos.fit", "Positive compression chord a⁺ within the wall (span " + (iA + 1) + ")", "ACI 318-19 23.4.3",
+      run.pos[iA].a, ctx.hw, { units: "in", contributions: [{ source: "a+ = Tpos/(f_ce*t_w)", value: run.pos[iA].a }, { source: "z+", value: run.pos[iA].z }, { source: "f_ce (design)", value: run.fce }] }));
+
+    // (5) negative compression chord: a- ≤ h_gb, on b_gb. The STRESS equals f_ce exactly
+    // because a- IS sized at f_ce — it is reported, not used as the DCR (that would be a
+    // DCR = 1.0 by construction; same disclosure pattern as the crown row, AUDIT-FIXES C).
+    var iAn = 0; for (i = 0; i <= n; i++) if (run.neg[i].a > run.neg[iAn].a) iAn = i;
+    checks.push(checkRow("chord.neg.fit", "Negative compression chord a⁻ ≤ h_gb (pier " + iAn + ")", "ACI 318-19 23.4.3",
+      run.neg[iAn].a, ctx.hgb, {
+        units: "in", contributions: [
+          { source: "a- = Tneg/(f_ce*b_gb)", value: run.neg[iAn].a },
+          { source: "stress on b_gb = f_ce by the sizing step (not an independent check)", value: run.fce },
+          { source: "zNeg", value: run.neg[iAn].z }
+        ]
+      }));
+
+    // (6) diagonal struts §23.4.3 — the shear transfer Cases A/B get from the arch band
+    var wd = null;
+    run.supports.forEach(function (s) {
+      s.diagonals.forEach(function (d) {
+        if (!wd || d.dcr > wd.d.dcr) wd = { s: s, d: d };
+      });
+    });
+    checks.push(checkRow("strut.diagonal", "Diagonal strut (pier " + wd.s.index + ", side " + wd.d.side + ", " + wd.s.type + ")", "ACI 318-19 23.4.3",
+      wd.d.stress, run.fce, {
+        units: "ksi", contributions: [].concat.apply([], run.supports.map(function (s) {
+          return s.diagonals.map(function (d) {
+            return { source: "pier " + s.index + " " + d.side + " (" + s.type + ")", value: d.dcr, V_kip: d.V, H_kip: d.H, theta_deg: d.theta, F_kip: d.F, ws_in: d.ws, stress_ksi: d.stress };
+          });
+        }))
+      }));
+
+    // §23.2.7 minimum angle across every diagonal (end springings included via theta_end)
+    checks.push(checkRow("angles.strutTie", "Minimum strut-tie angle", "ACI 318-19 23.2.7",
+      THETA_MIN, run.minAngle, { units: "deg", contributions: [{ source: "theta_end L", value: run.thetaEnd[0] }, { source: "theta_end R", value: run.thetaEnd[1] }] }));
+
+    // (7)+(8) nodes at every pier
+    run.supports.forEach(function (s) {
+      // R4.1 — governing-face selection SKIPS faces that are sized-to-fit by construction, and
+      // falls back to them only if EVERY face is by-construction. Same pattern the crown band row
+      // already uses (AUDIT-FIXES §C): a face whose DCR is fixed by the sizing step carries no
+      // load information, so letting it win the max() puts a load-INDEPENDENT floor (here exactly
+      // beta_s) into the row demand and, through summary.governing, into the whole calculation.
+      // Under light load the chord face used to report 0.750 while the real load faces sat at
+      // 0.19/0.11. The by-construction face stays in `contributions` and gets its own disclosure
+      // line — nothing is hidden; it is simply not eligible to be called "governing".
+      var loadFaces = s.node.faces.filter(function (f) { return !f.byConstruction; });
+      var pool = loadFaces.length ? loadFaces : s.node.faces;
+      var byCon = s.node.faces.filter(function (f) { return f.byConstruction; });
+      var wf = pool[0];
+      pool.forEach(function (f) { if (f.dcr > wf.dcr) wf = f; });
+      var id = (s.index === 0) ? "node.support.L" : (s.index === cd.nSpans ? "node.support.R" : "node.interior." + s.index);
+      var lbl = (s.type === "end")
+        ? "End-pier nodal zone " + (s.index === 0 ? "L" : "R") + " (CCT, governing face: " + wf.name + ")"
+        : "Interior pier nodal zone " + s.index + " (CCC, governing load-bearing face: " + wf.name + ")";
+      var row = checkRow(id, lbl, "ACI 318-19 23.9 / Table 23.9.2", wf.stress, s.node.lim,
+        { units: "ksi", contributions: s.node.faces.slice() });
+      row.governingFace = wf.name;
+      if (byCon.length) {
+        // R4.1 disclosure line — the by-construction face(s), reported and excluded.
+        row.byConstructionFaces = byCon.map(function (f) { return f.name; });
+        row.contributions.push({
+          source: "disclosure — face(s) sized to fit, EXCLUDED from governing-face selection",
+          value: byCon.map(function (f) {
+            return f.name + ": stress = " + fmt(f.stress, 4) + " ksi, DCR = " + fmt(f.dcr, 4);
+          }).join("; ") + ". a⁻ IS sized at f_ce = φ·0.85·β_s·f'c and then checked against the CCC limit φ·0.85·1.0·f'c, so this face reads exactly β_s = " +
+            fmt(betaInfo.betaS, 3) + " in EVERY run whatever the load. It is a sizing identity, not a demand, so it is reported here and excluded from the governing-face max() (AUDIT-FIXES §C pattern) — otherwise every interior-node row would carry a load-independent floor of β_s and could reach summary.governing. The governing face above is chosen from the load-bearing faces (bearing, diagonals) only."
+        });
+      }
+      if (s.type === "end") discloseCollapse(ctx, row);
+      else row.contributions.push({
+        source: "face thicknesses + stated modelling assumption (F2.5.8)",
+        value: "Each face is checked on ITS OWN thickness: the horizontal bottom-chord faces on b_gb = " + fmt(ctx.bgb, 2) +
+          " in (the negative compression chord lives in the grade beam and is delivered along it into the pier — the thinner wall above does not confine it, and a⁻ is sized on the same width); the diagonal strut faces on t_w = " + fmt(ctx.tw, 2) +
+          " in (those struts run through the wall); the bearing face on min(t_w, b_gb) = " + fmt(ctx.tNode, 2) +
+          " in, the same conservative node interface width Cases A/B use and the same width as the §22.8 bearing row. " +
+          "The t_w -> b_gb width transition across the node (wall " + fmt(ctx.tw, 2) + " in into grade beam " + fmt(ctx.bgb, 2) +
+          " in) is a STATED MODELLING ASSUMPTION, not a check: the model assumes the chord force spreads into the full grade-beam width within the node region. " +
+          "The chord face reads exactly β_s = " + fmt(betaInfo.betaS, 3) + " by construction (a⁻ is sized at f_ce = φ·0.85·β_s·f'c and checked against the CCC limit φ·0.85·1.0·f'c), so it can never govern — it is flagged byConstruction and excluded from the governing-face selection above (R4.1); the bearing and diagonal faces are the load-governed ones."
+      });
+      checks.push(row);
+    });
+
+    // R4.2 (a) — THE LOAD-BEARING STATICS ASSERTION. Reactions rebuilt from support moments that
+    // were re-derived by the three-moment (force) method — a different formulation, a different
+    // solver, no shared code with the direct-stiffness path — and compared against the reactions
+    // assembled from the span shears. Unlike ΣV/ΣH below this residual is NOT identically zero:
+    // a wrong fixed-end moment, a wrong stiffness term or a flipped FEM sign moves it to tens of
+    // kips while leaving every other residual in this engine at exactly zero.
+    var xcRow = checkRow("statics.reactionCrossCheck",
+      "Reaction cross-check — reactions re-derived from an independent three-moment (force-method) solution",
+      "statics (F2.5.13 / R4.2)",
+      run.selfChecks.reactionCrossCheck_kip, run.selfChecks.crossCheckTol_kip,
+      {
+        units: "kip", contributions: [
+          {
+            source: "why this one has teeth",
+            value: "The direct-stiffness solve is a DISPLACEMENT method; every statics residual computed downstream of it (ΣV, ΣM, the interior-node ΣV/ΣH) closes identically for ANY set of end moments, right or wrong, because the shears are derived FROM those moments. This row instead re-solves the support moments with Clapeyron's three-moment equation (M_{i-1} + 4M_i + M_{i+1} = −[w_{i-1}L²/4 + 3P_{i-1}L/8 + w_i L²/4 + 3P_i L/8], simple ends) and rebuilds R_i = Σ_adjacent [wL/2 + P/2 ∓ (M_far − M_near)/L] from them. A mis-scaled or mis-signed fixed-end moment, or a bad stiffness/b-vector term, trips this and nothing else."
+          },
+          { source: "max |R (three-moment) − R (shear-assembled)|", value: run.selfChecks.reactionCrossCheck_kip },
+          { source: "max |M_sup (three-moment) − M_sup (stiffness)|, kip-in", value: run.selfChecks.momentCrossCheck_kin },
+          { source: "tolerance", value: run.selfChecks.crossCheckTol_kip }
+        ].concat(run.xchk.R3.map(function (r3, ii) {
+          return { source: "pier " + ii, value: r3, R_assembled_kip: run.R[ii], Msup_threeMoment_kin: run.xchk.M3[ii], Msup_stiffness_kin: run.Msup[ii] };
+        }))
+      });
+    checks.push(xcRow);
+
+    // R4.2 (b) — the ΣV/ΣH row, relabelled honestly. It is retained because it documents how the
+    // interior node was assembled, but it CANNOT fail and is not evidence of anything.
+    var closeRow = checkRow("node.interior.closure",
+      "Interior node ΣV/ΣH — closes by construction (model consistency, not a check)", "statics (F2.5.8)",
+      run.selfChecks.interiorNodeClosure_kip, 1e-8 * Math.abs(run.st.W) + 0.001,
+      {
+        units: "kip", informational: true, state: "informational",
+        contributions: [{
+          source: "why this is not a check",
+          value: "ΣV = R_i − V_L − V_R is identically zero because R_i is ASSEMBLED as V_L + V_R from those same span shears, and ΣH is float noise because both diagonals take their horizontal component from the same chord force C⁻ = Tneg. The same is true of results.model.selfChecks.globalV_kip. These confirm the node was built the way the model says it was — they are model-consistency statements, not verification. The load-bearing assertions are: statics.reactionCrossCheck (independent three-moment reaction cross-check), the joint-equilibrium residual (adjacent spans must report the same support moment) and globalM (moment about the left pier CL, which is NOT identically zero because it re-integrates the applied loads)."
+        }].concat(run.supports.filter(function (s) { return s.type === "interior"; }).map(function (s) {
+          return { source: "pier " + s.index, sumV_kip: s.sumV, sumH_kip: s.sumH, R_kip: run.R[s.index], H_L: s.HL, H_R: s.HR, C_chord: run.neg[s.index].T };
+        }))
+      });
+    closeRow.nearLimit = false;
+    checks.push(closeRow);
+
+    // (9) bearing at every pier (§22.8), end and interior reported separately
+    var brgCapD = PHI_BRG * 0.85 * ctx.fcKsi * lb * ctx.tNode;
+    var llTag = (ctx.wL_pli > 0) ? " (routed LL always applied)" : "";
+    for (i = 0; i <= n; i++) {
+      var isEnd = (i === 0 || i === n);
+      var rtd = isEnd ? (i === 0 ? run.routed.L.total : run.routed.R.total) : 0;
+      checks.push(checkRow("bearing.pier." + i, "Pier bearing " + i + (isEnd ? " (end: R_end + routed l_b/2 strip)" : " (interior)") + (isEnd ? llTag : ""), "ACI 318-19 22.8",
+        run.Rbrg[i], brgCapD, {
+          units: "kip", contributions: [
+            { source: "R_elastic", value: run.R[i] },
+            { source: "R_floor (F2.4c)", value: isEnd ? run.Rfloor[i] : 0 },
+            { source: "R_used", value: run.Rused[i] },
+            { source: "routed", value: rtd }
+          ]
+        }));
+    }
+
+    // (7) end-pier bottom-tie anchorage — Cases A/B machinery, callable because theta_end exists
+    var anL = anchorageEnd(ctx, "L", run.thetaEnd[0], run.pos[0].T, run);
+    var anR = anchorageEnd(ctx, "R", run.thetaEnd[1], run.pos[n - 1].T, run);
+    checks.push(checkRow("anchorage.L", "Bottom-tie anchorage, left end pier (" + ctx.anchL.type + ")", "ACI 318-19 23.8.3 + Ch. 25",
+      anL.req, anL.avail, { units: "in", contributions: [anL.detail], state: anL.state, forceFail: anL.forceFail }));
+    checks.push(checkRow("anchorage.R", "Bottom-tie anchorage, right end pier (" + ctx.anchR.type + ")", "ACI 318-19 23.8.3 + Ch. 25",
+      anR.req, anR.avail, { units: "in", contributions: [anR.detail], state: anR.state, forceFail: anR.forceFail }));
+    run.anchorage = { left: anL.detail, right: anR.detail };
+
+    // (10) top-steel extension past each interior pier, from the NEGATIVE-MOMENT ENVELOPE
+    var ext = envInfo.extensions, worstExt = null, worstBreg = null;
+    ext.forEach(function (e) {
+      if (!worstExt || e.required > worstExt.required) worstExt = e;
+      if (!worstBreg || e.required_bregion > worstBreg.required_bregion) worstBreg = e;
+    });
+    var extRow = checkRow("topsteel.extension", "Top-steel extension past interior piers (envelope inflection + max(ℓd, 12db); ℓd from the pier face)", "ACI 318-19 23.8.3 + Ch. 25",
+      worstExt.required, cd.negChord.extension_in, {
+        units: "in", contributions: [
+          { source: "shift past the cut-off point", value: "max(ℓd, 12db) = max(" + fmt(ext[0].ld, 3) + ", " + fmt(12 * (cd.negChord.db || ctx.webH.db), 3) + ") = " + fmt(ext[0].devShift_ld, 3) + " in — develop the bar for its force (D-region: the STM models the load path directly, and x_infl already carries the worst pattern)" }
+        ].concat(ext.map(function (e) {
+          return {
+            source: "pier " + e.pier + " side " + e.side + (e.noInflection ? " — NO INFLECTION in the span" : ""),
+            value: e.required, x_infl_in: e.x_infl, devRule_in: e.req_devRule, ld_rule_in: e.req_ld, governs: e.governs,
+            note: e.noInflection
+              ? "the negative-moment envelope never returns to zero in this span (an adjacent span loaded, this one bare): top steel is required across the FULL span plus development past the next pier"
+              : "x_infl is the zero crossing of the negative-moment ENVELOPE (max over all combos and patterns), not of the all-loaded pattern"
+          };
+        }))
+      });
+    checks.push(extRow);
+    // §9.7.3.8.4 B-region comparison — INFORMATIONAL only (F2.5.10 Rev 3). Reported so the
+    // engineer can see the flexural-member cut-off rule and overrule if they prefer it; it is
+    // excluded from governing-DCR and near-limit selection.
+    var bregRow = checkRow("topsteel.extension.bregion",
+      "Top-steel extension — §9.7.3.8.4 B-region comparison (x_infl + max(d, 12db)), informational",
+      "ACI 318-19 9.7.3.8.4 (comparison only)",
+      worstBreg.required_bregion, cd.negChord.extension_in, {
+        units: "in", informational: true, state: "informational",
+        contributions: [
+          // R4.7 NIT-8: this label used to print max(d, 12db) under a "d = y_neg =" caption via a
+          // ternary whose else-branch (printing 0) was unreachable, since devShift_d is defined as
+          // max(d, 12db) and is therefore always >= 12db. Both quantities are now named correctly.
+          {
+            source: "why this is not the governing rule",
+            value: "§9.7.3.8.4's d-shift accounts for tension shift from diagonal cracking in a B-region. In a D-region the strut-and-tie model carries the load path explicitly and x_infl comes from the negative-moment ENVELOPE, so the shift is max(ℓd, 12db). Here d = y_neg = " +
+              fmt(cd.negChord.y, 2) + " in and 12db = " + fmt(12 * (cd.negChord.db || ctx.webH.db), 2) +
+              " in, so the B-region shift max(d, 12db) = " + fmt(ext[0].devShift_d, 2) + " in on a " + fmt(ctx.h / 12, 2) + " ft deep member."
+          },
+          { source: "governing (ℓd-based) requirement", value: worstExt.required },
+          { source: "B-region (d-based) comparison", value: worstBreg.required_bregion }
+        ].concat(ext.map(function (e) {
+          return { source: "pier " + e.pier + " side " + e.side, value: e.required_bregion, x_infl_in: e.x_infl, noInflection: e.noInflection };
+        }))
+      });
+    bregRow.pass = true;
+    bregRow.nearLimit = false;
+    checks.push(bregRow);
+
+    // (11) bottom-bar continuity + Class B lap note
+    var lapRow = checkRow("detailing.bottomContinuity", "Bottom bars run through the interior piers — no ℓdh required there; Class B tension lap over the piers", "ACI 318-19 25.5.2 / 23.8.3",
+      envInfo.lap.classB, envInfo.lap.classB, {
+        units: "in", informational: true, state: "informational",
+        contributions: [
+          { source: "interior piers", value: "the bottom tie is continuous through every interior pier — it terminates only at the two END piers, where ℓdh/ℓdt/ℓd is checked (anchorage.L / anchorage.R). No hook development is required at an interior pier." },
+          { source: "ℓd (straight, bottom bars)", value: envInfo.lap.ld },
+          { source: "Class B lap = 1.3ℓd", value: envInfo.lap.classB },
+          { source: "splice location", value: "lap over the interior piers, where the bottom fiber is in COMPRESSION under the negative moment" }
+        ]
+      });
+    lapRow.pass = true; lapRow.nearLimit = false;
+    checks.push(lapRow);
+
+    // end-strip routing disclosure (F2.1)
+    var stripRow = checkRow("caseD.endStrip", "Wall strip outboard of each end-pier CL routes to that bearing (o = 0 by construction)", "PLAN §1 routing rule (F2.1)",
+      0, Math.min(ctx.hgb, lb), {
+        units: "in", informational: true, state: "informational",
+        contributions: [{ source: "strip length (CL to wall end)", value: lb / 2 }, { source: "beyond the bearing outer face", value: 0 }, { source: "note", value: "L_w = nSpans*L + l_b puts the wall end flush with the outer bearing face, so the strip lies entirely over the bearing: it is outside the CL-to-CL analysis span and is added to the end-pier bearing demand." }]
+      });
+    stripRow.pass = true; stripRow.nearLimit = false;
+    checks.push(stripRow);
+
+    // F2.6 scope note (must render in results)
+    var scopeRow = checkRow("caseD.scope", "Case D scope and exclusions", "PLAN / FEATURES-v2 F2.6",
+      0, 1, { units: "", informational: true, state: "informational", contributions: CASE_D_SCOPE.map(function (s) { return { source: "note", value: s }; }) });
+    scopeRow.pass = true; scopeRow.nearLimit = false;
+    checks.push(scopeRow);
+
+    // (12) web reinforcement + global shear cap (per span, larger adjacent reaction) + detailing
+    pushWebRows(ctx, betaInfo, checks);
+    var Vu = 0;
+    for (i = 0; i <= n; i++) Vu = Math.max(Vu, (i === 0 || i === n) ? run.Rused[i] : run.R[i]);
+    var Vcap = PHI_SHEAR * 10 * Math.sqrt(ctx.fc) * ctx.tw * ctx.dEff / 1000;
+    checks.push(checkRow("shear.cap", "Global shear cap Vu ≤ φ·10√f'c·bw·d (per span, larger adjacent reaction)", "ACI 318-19 9.9.2.1",
+      Vu, Vcap, { units: "kip", contributions: [{ source: "sqrt(fc)_psi", value: Math.sqrt(ctx.fc) }, { source: "d_in", value: ctx.dEff }] }));
+    pushDetailingRows(ctx, checks);
 
     return checks;
   }
+
+  var CASE_D_SCOPE = [
+    "Case D computes chord forces from the ELASTIC moment envelope and checks ties, chords, diagonal struts, nodes at every pier, bearing and development.",
+    "It does NOT construct a full multi-span funicular polygon.",
+    "Out of scope: unequal spans; more than one point load per span; outboard strips / overhangs; moving loads.",
+    "Also out of scope, and disclosed rather than left silent: crack control and serviceability on the top-of-wall tension face that Case D introduces.",
+    "Analysis is flexure-only (F2.2). Shear flexibility at ln/h ≈ 1.6 reduces continuity: elastic M⁻ is therefore conservative, elastic M⁺ is not (handled by the F2.4a capacity-consistent floor) and elastic end reactions are not (handled by the F2.4c reaction floor)."
+  ];
 
   // ------------------------------------------------- model for the drawing layer
   function buildModel(ctx, combo, mask, run, betaInfo) {
@@ -1320,6 +2414,7 @@
       thetaL_deg: run.thetaL, thetaR_deg: run.thetaR,
       AsTie_in2: ctx.tieBars.As, AsTop_in2: ctx.topBars.As,
       betaS: betaInfo.betaS, fce_ksi: run.fce,
+      tieBand: ctx.tieBand, topBand: ctx.topBand,
       ha_in: run.ha, wsL_in: run.wsL, wsR_in: run.wsR,
       RtL_kip: caseC ? run.RL : run.st.RL, RtR_kip: caseC ? run.RR : run.st.RR,
       RbL_kip: run.RbL, RbR_kip: run.RbR,
@@ -1327,6 +2422,10 @@
       anchorage: run.anchorage, routed: run.routed, selfChecks: run.selfChecks
     };
     var x0 = ctx.xL, yTie = ctx.yt;
+    // R4.4 — extended nodal zone = the §23.8.2 band centred on the tie centroid (see the note at
+    // the support-node polygons below). Declared here because the Case C overhang-support polygon
+    // uses it too.
+    var nzLo = ctx.yt - run.ha / 2, nzHi = ctx.yt + run.ha / 2;
     if (!caseC) {
       model.nodes.push({ id: "SL", x: x0, y: yTie, type: "support" });
       model.arch.push({ x: x0, y: yTie });
@@ -1370,23 +2469,233 @@
       });
       model.nodePolygons.push({
         id: "node.support.ov", cls: "CCT-multiface",
-        poly: [[x0 - ctx.lbL / 2, 0], [x0 + ctx.lbL / 2, 0], [x0 + ctx.lbL / 2, run.ha], [x0 - ctx.lbL / 2, run.ha]],
+        poly: [[x0 - ctx.lbL / 2, nzLo], [x0 + ctx.lbL / 2, nzLo], [x0 + ctx.lbL / 2, nzHi], [x0 - ctx.lbL / 2, nzHi]],
         // B3: sub-face layout documented for drawing — lbFrom/lbTo measured across the
         // bearing from its outboard (overhang-side) edge; the top-tie face has no bearing strip.
         faces: run.subFaces.map(function (f) { return { name: f.name, width_in: f.width, Acn_in2: f.area, stress_ksi: f.stress, lbSub_in: f.lbSub, lbFrom_in: f.lbFrom, lbTo_in: f.lbTo }; })
       });
     }
-    // support node polygons (both cases; simple rectangles bearing x ha for drawing)
+    // support node polygons (both cases; simple rectangles bearing x ha for drawing).
+    // R4.4: the extended nodal zone is the §23.8.2 band CENTRED ON THE TIE CENTROID, i.e.
+    // [ybar_t - w_t,gov/2, ybar_t + w_t,gov/2] — NOT [0, ha]. Uncapped, w_t,gov = 2*ybar_t and the
+    // two are identical (the default case is bit-for-bit unchanged). CAPPED, the zone is smaller
+    // than 2*ybar_t and no longer reaches the bottom of the grade beam; drawing it as [0, h_a]
+    // put its top edge at w_t,gov instead of ybar_t + w_t,gov/2 and overstated the zone.
+    var nzLo = ctx.yt - run.ha / 2, nzHi = ctx.yt + run.ha / 2;
+    model.nodeBand = { lo_in: nzLo, hi_in: nzHi, ybar_in: ctx.yt, wtGov_in: run.ha, capped: !!ctx.tieBand.capped };
     model.nodePolygons.push({
       id: "node.support.L", cls: caseC ? "CCT-multiface" : "CCT",
-      poly: [[ctx.xL - ctx.lbL / 2, 0], [ctx.xL + ctx.lbL / 2, 0], [ctx.xL + ctx.lbL / 2, run.ha], [ctx.xL - ctx.lbL / 2, run.ha]],
+      poly: [[ctx.xL - ctx.lbL / 2, nzLo], [ctx.xL + ctx.lbL / 2, nzLo], [ctx.xL + ctx.lbL / 2, nzHi], [ctx.xL - ctx.lbL / 2, nzHi]],
       faces: [{ name: "bearing", width_in: ctx.lbL, Acn_in2: ctx.lbL * ctx.tNode }, { name: "strut", width_in: run.wsL, Acn_in2: run.wsL * ctx.tw }, { name: "back (tie)", width_in: run.ha, Acn_in2: run.ha * ctx.tNode }]
     });
     model.nodePolygons.push({
       id: "node.support.R", cls: "CCT",
-      poly: [[ctx.xR - ctx.lbR / 2, 0], [ctx.xR + ctx.lbR / 2, 0], [ctx.xR + ctx.lbR / 2, run.ha], [ctx.xR - ctx.lbR / 2, run.ha]],
+      poly: [[ctx.xR - ctx.lbR / 2, nzLo], [ctx.xR + ctx.lbR / 2, nzLo], [ctx.xR + ctx.lbR / 2, nzHi], [ctx.xR - ctx.lbR / 2, nzHi]],
       faces: [{ name: "bearing", width_in: ctx.lbR, Acn_in2: ctx.lbR * ctx.tNode }, { name: "strut", width_in: run.wsR, Acn_in2: run.wsR * ctx.tw }, { name: "back (tie)", width_in: run.ha, Acn_in2: run.ha * ctx.tNode }]
     });
+    return model;
+  }
+
+  // ---- Case D cross-run envelope work: inflection positions, required top-steel extension,
+  // Class B lap, and the sampled moment envelope for the drawing layer.
+  function caseDEnvelope(ctx, sols) {
+    var cd = ctx.caseD, n = cd.nSpans, L = cd.L, lb = cd.lb;
+    var envs = negEnvelope(ctx, sols);
+    // development of the negative (top) steel: straight bars, psi_t = 1.3
+    var dbN = cd.negChord.db || ctx.webH.db;
+    var cbN = Math.min(ctx.wallCover + dbN / 2, ctx.webH.s / 2);
+    var ldN = ldStraight(ctx, { db: dbN }, { top: true, epoxy: false, cb: cbN }).l;
+    var dNeg = cd.negChord.y;                       // d to the negative steel (compression at the GB bottom)
+    // F2.5(10) Rev 3: the governing shift past the point the bar is no longer required is
+    // max(ld, 12db) — develop the bar for its force. §9.7.3.8.4's max(d, 12db) is a B-REGION
+    // rule whose d-shift covers tension shift from diagonal cracking; in a D-region the STM
+    // models the load path directly and the envelope-based x_infl already carries the worst
+    // live-load pattern. On a 16 ft deep member d ~ 182 in, so the B-region form produced a
+    // ~260 in requirement that governed the summary of every Case D run. It is retained as an
+    // INFORMATIONAL comparison so the engineer can see it and overrule.
+    var devLd = Math.max(ldN, 12 * dbN);            // Rev 3 governing shift
+    var devD = Math.max(dNeg, 12 * dbN);            // §9.7.3.8.4 B-region comparison (informational)
+    var extensions = [], inflections = [];
+    for (var p = 1; p < n; p++) {
+      [{ side: "L", span: p - 1, fromLeft: false }, { side: "R", span: p, fromLeft: true }].forEach(function (sd) {
+        var c = envs.cross(sd.span, sd.fromLeft);
+        var reqDev = c.none ? (L + ldN) : (c.x + devLd);
+        var reqLd = lb / 2 + ldN;
+        var required = Math.max(reqDev, reqLd);
+        // no inflection -> top steel runs the full span anyway, so the d-shift adds nothing
+        var bregion = c.none ? (L + ldN) : Math.max(c.x + devD, reqLd);
+        extensions.push({
+          pier: p, side: sd.side, x_infl: c.none ? null : c.x, noInflection: !!c.none,
+          ld: ldN, devShift_ld: devLd, devShift_d: devD,
+          req_devRule: reqDev, req_ld: reqLd, required: required, required_bregion: bregion,
+          provided: cd.negChord.extension_in,
+          governs: c.none ? "full span (no inflection) + ℓd past the next pier" : (reqDev >= reqLd ? "x_infl + max(ℓd, 12db)" : "ℓd from the pier face")
+        });
+        if (!c.none) inflections.push({ x_in: cd.pierX[p] + (sd.side === "R" ? c.x : -c.x), pier: p, side: sd.side });
+      });
+    }
+    var ldBot = ldStraight(ctx, ctx.tieBars, {
+      top: false, epoxy: false, cb: cbBottom(ctx),
+      clearCover: Math.min(ctx.coverBot, ctx.coverSide),
+      clearSpacing: barSpacingCC(ctx, ctx.tieBars) - ctx.tieBars.db
+    }).l;
+    // ---- per-span / per-support ENVELOPES across every combo and pattern.
+    // Scalars (moments, tie forces, reactions) are enveloped independently — each is a monotone
+    // demand. Geometry that must stay mutually consistent (zPos/aPos, aNeg/zNeg, the diagonals
+    // and the node faces) is reported from a SINGLE governing run, so the drawing layer always
+    // has a real, self-consistent load case rather than a mix.
+    function pick(best, cand, val, better) { return (!best || better(val, best.v)) ? { v: val, r: cand } : best; }
+    var gt = function (a, b) { return a > b; }, lt = function (a, b) { return a < b; };
+    var spanEnv = [], supEnv = [];
+    for (var s1 = 0; s1 < n; s1++) {
+      var bMpos = null, bT = null, bVL = null, bVR = null;
+      sols.forEach(function (r) {
+        bMpos = pick(bMpos, r, r.pos[s1].M, gt);
+        bT = pick(bT, r, r.pos[s1].T, gt);
+        bVL = pick(bVL, r, r.VL[s1], gt);
+        bVR = pick(bVR, r, r.VR[s1], gt);
+      });
+      spanEnv.push({ Mpos: bMpos, T: bT, VL: bVL, VR: bVR });
+    }
+    for (var s2 = 0; s2 <= n; s2++) {
+      var bMneg = null, bTn = null, bRu = null, bRb = null;
+      sols.forEach(function (r) {
+        bMneg = pick(bMneg, r, r.Msup[s2], lt);
+        bTn = pick(bTn, r, r.neg[s2].T, gt);
+        bRu = pick(bRu, r, r.Rused[s2], gt);
+        // the support's REPORTING run: heaviest bearing demand. A physical, monotone criterion —
+        // deliberately NOT "max node-face DCR", because the interior chord face reads exactly
+        // beta_s by construction in EVERY run (it is sized at f_ce), so that tie would be decided
+        // by last-bit iteration noise instead of by load. R4.1 additionally excludes that face
+        // from the governing-face selection inside each row.
+        bRb = pick(bRb, r, r.Rbrg[s2], gt);
+      });
+      supEnv.push({ Mneg: bMneg, T: bTn, Rused: bRu, Rbrg: bRb, gov: bRb.r });
+    }
+    return {
+      envs: envs, extensions: extensions, inflections: inflections,
+      spanEnv: spanEnv, supEnv: supEnv,
+      lap: { ld: ldBot, classB: 1.3 * ldBot }
+    };
+  }
+
+  function buildModelD(ctx, combo, mask, run, betaInfo, envInfo) {
+    var cd = ctx.caseD, n = cd.nSpans, L = cd.L, i;
+    var model = {
+      combo: combo.id, pattern: maskId(mask), caseLabel: "D",
+      Ls_in: cd.pierX[n] - cd.pierX[0], h_in: ctx.h, hp_in: ctx.hp, yt_in: ctx.yt,
+      z_in: run.z, a_in: run.a, H_kip: run.H, T_kip: run.T,
+      Mmax_kin: run.Mmax, MmaxX_in: run.MmaxX,
+      wu_klf: run.w[0] * 12,
+      thetaL_deg: run.thetaL, thetaR_deg: run.thetaR,
+      AsTie_in2: ctx.tieBars.As, AsTop_in2: ctx.topBars.As,
+      betaS: betaInfo.betaS, fce_ksi: run.fce,
+      tieBand: ctx.tieBand, topBand: ctx.topBand,
+      ha_in: run.ha, wsL_in: run.wsL, wsR_in: run.wsR,
+      RtL_kip: run.Rused[0], RtR_kip: run.Rused[n],
+      RbL_kip: run.Rbrg[0], RbR_kip: run.Rbrg[n],
+      nodes: [], members: [], arch: [], bands: [], nodePolygons: [],
+      anchorage: run.anchorage, routed: run.routed, selfChecks: run.selfChecks
+    };
+    var yTie = ctx.yt;
+    model.nodeBand = { lo_in: ctx.yt - run.ha / 2, hi_in: ctx.yt + run.ha / 2, ybar_in: ctx.yt, wtGov_in: run.ha, capped: !!ctx.tieBand.capped };
+    var spans = [], supports = [];
+    var tag = function (r) { return { combo: r.combo.id, pattern: maskId(r.mask) }; };
+    for (i = 0; i < n; i++) {
+      var se = envInfo.spanEnv[i], gT = se.T.r;      // Tpos-governing run: one consistent case
+      spans.push({
+        index: i, x0_in: cd.pierX[i], x1_in: cd.pierX[i + 1],
+        Mpos_env_kin: se.Mpos.v, Mpos_x_in: cd.pierX[i] + se.Mpos.r.MposX[i],
+        Mpos_combo: tag(se.Mpos.r).combo, Mpos_pattern: tag(se.Mpos.r).pattern,
+        Tpos_kip: se.T.v, Tpos_combo: tag(gT).combo, Tpos_pattern: tag(gT).pattern,
+        zPos_in: gT.pos[i].z, aPos_in: gT.pos[i].a,
+        Mss_kin: gT.pos[i].Mss, MposDesign_kin: gT.pos[i].Mdes, floorGoverns: gT.pos[i].gov,
+        phiMn_neg_L_kin: gT.pos[i].phiMnL, phiMn_neg_R_kin: gT.pos[i].phiMnR,
+        VfaceL_kip: se.VL.v, VfaceR_kip: se.VR.v,
+        MA_ref_kin: run.MA[i], MB_ref_kin: run.MB[i], wu_ref_klf: run.w[i] * 12, Pu_ref_kip: run.P[i]
+      });
+      model.members.push({ id: "tie.bottom.span" + (i + 1), type: "tie", from: "P" + i, to: "P" + (i + 1), force_kip: se.T.v });
+    }
+    for (i = 0; i <= n; i++) {
+      var pe = envInfo.supEnv[i];
+      var gR = pe.gov;                                // ONE governing run: heaviest bearing demand
+      var s = gR.supports[i];
+      supports.push({
+        index: i, x_in: cd.pierX[i], type: s.type,
+        governingCombo: tag(gR).combo, governingPattern: tag(gR).pattern,
+        AsNeg_in2: cd.negChord.As, yNeg_in: cd.negChord.y,
+        // --- from the governing run (a single, self-consistent load case) ---
+        Mneg_kin: gR.Msup[i], Tneg_kip: gR.neg[i].T, aNeg_in: gR.neg[i].a, zNeg_in: gR.neg[i].z,
+        R_elastic_kip: gR.R[i], R_floor_kip: gR.Rfloor[i], R_used_kip: gR.Rused[i], R_bearing_kip: gR.Rbrg[i],
+        theta_end_deg: s.theta_end === undefined ? null : s.theta_end,
+        sumV_kip: s.sumV === undefined ? null : s.sumV,
+        sumH_kip: s.sumH === undefined ? null : s.sumH,
+        diagonals: s.diagonals.map(function (d) {
+          return { side: d.side, V_kip: d.V, H_kip: d.H, theta_deg: d.theta, F_kip: d.F, ws_in: d.ws, stress_ksi: d.stress, dcr: d.dcr };
+        }),
+        node: {
+          id: s.node.id, cls: s.node.cls, lim_ksi: s.node.lim,
+          combo: tag(gR).combo, pattern: tag(gR).pattern,
+          faces: s.node.faces.map(function (f) { return { name: f.name, width_in: f.width, Acn_in2: f.Acn, force_kip: f.force, stress_ksi: f.stress, dcr: f.dcr, byConstruction: !!f.byConstruction }; })
+        },
+        // --- enveloped scalars (each independently maximised over every combo and pattern) ---
+        Mneg_env_kin: pe.Mneg.v, Mneg_combo: tag(pe.Mneg.r).combo, Mneg_pattern: tag(pe.Mneg.r).pattern,
+        Tneg_env_kip: pe.T.v, Tneg_combo: tag(pe.T.r).combo, Tneg_pattern: tag(pe.T.r).pattern,
+        R_used_env_kip: pe.Rused.v, R_bearing_env_kip: pe.Rbrg.v
+      });
+      // R4.4 — an END pier carries the bottom-tie back face, so its extended nodal zone is the
+      // §23.8.2 band CENTRED ON THE TIE: [ybar_t - w_t,gov/2, ybar_t + w_t,gov/2]. Uncapped this
+      // is [0, 2*ybar_t] exactly as before. An INTERIOR pier has no tie face — its node is the
+      // negative-chord compression block a⁻ bearing on the bottom of the grade beam, so it keeps
+      // [0, a⁻].
+      var polyLo = (s.type === "end") ? (ctx.yt - run.ha / 2) : 0;
+      var polyHi = (s.type === "end") ? (ctx.yt + run.ha / 2) : gR.neg[i].a;
+      model.nodes.push({ id: "P" + i, x: cd.pierX[i], y: yTie, type: s.type === "end" ? "support" : "interior support" });
+      model.nodePolygons.push({
+        id: s.node.id, cls: s.node.cls,
+        poly: [[cd.pierX[i] - cd.lb / 2, polyLo], [cd.pierX[i] + cd.lb / 2, polyLo], [cd.pierX[i] + cd.lb / 2, polyHi], [cd.pierX[i] - cd.lb / 2, polyHi]],
+        faces: s.node.faces.map(function (f) { return { name: f.name, width_in: f.width, Acn_in2: f.Acn, stress_ksi: f.stress, dcr: f.dcr, byConstruction: !!f.byConstruction }; })
+      });
+      s.diagonals.forEach(function (d) {
+        model.members.push({ id: "strut.diag." + i + "." + d.side, type: "strut", from: "P" + i, to: (d.side === "L" ? "span" + i : "span" + (i + 1)), force_kip: -d.F, theta_deg: d.theta, ws_in: d.ws });
+      });
+    }
+    // sampled moment ENVELOPE across the whole beam, for the diagram beneath the elevation
+    var dx = [], dmin = [], dmax = [];
+    for (i = 0; i < n; i++) {
+      var sp = envInfo.envs.spans[i];
+      for (var k = 0; k < sp.xs.length; k++) {
+        if (i > 0 && k === 0) continue;             // avoid duplicating the shared pier abscissa
+        dx.push(cd.pierX[i] + sp.xs[k]); dmin.push(sp.Mmin[k]); dmax.push(sp.Mmax[k]);
+      }
+    }
+    model.caseD = {
+      nSpans: n, L_in: L, lb_in: cd.lb, h_in: ctx.h, pierX_in: cd.pierX.slice(),
+      endStrip: { len_in: cd.lb / 2, o_in: 0, note: "L_w = nSpans*L + l_b, so the strip from each end-pier CL to the wall end lies entirely over the bearing (o = 0) and routes into it; it is outside the CL-to-CL analysis span." },
+      scopeNote: CASE_D_SCOPE.slice(),
+      spans: spans, supports: supports,
+      negChord: {
+        As_in2: cd.negChord.As, y_in: cd.negChord.y, db_in: cd.negChord.db,
+        depth_in: cd.negChord.depth_in, useWallEF: cd.negChord.useWallEF,
+        depthLimit_in: 0.25 * ctx.h,
+        parts: cd.negChord.parts.map(function (p) { return { src: p.src, As_in2: p.As, y_in: p.y }; }),
+        extension_provided_in: cd.negChord.extension_in,
+        extensions: envInfo.extensions.map(function (e) {
+          return {
+            pier: e.pier, side: e.side, x_infl_in: e.x_infl, noInflection: e.noInflection,
+            ld_in: e.ld, devShift_ld_in: e.devShift_ld, devShift_d_in: e.devShift_d,
+            req_devRule_in: e.req_devRule, req_ld_in: e.req_ld,
+            required_in: e.required, required_bregion_in: e.required_bregion,
+            provided_in: e.provided, governs: e.governs
+          };
+        })
+      },
+      diagram: { x_in: dx, Mmin_kin: dmin, Mmax_kin: dmax },
+      inflections: envInfo.inflections.slice(),
+      lap: { ld_in: envInfo.lap.ld, classB_in: envInfo.lap.classB, note: "Class B tension lap for the continuous bottom bars, spliced over the interior piers where the bottom fiber is in compression." },
+      reference: { combo: combo.id, pattern: maskId(mask), R_kip: run.R.slice(), Rused_kip: run.Rused.slice(), Msup_kin: run.Msup.slice() }
+    };
+    if (ctx.caseD) model.AsReq_tie_in2 = run.T / (PHI_STM * ctx.fy);
     return model;
   }
 
@@ -1408,6 +2717,16 @@
   // ------------------------------------------------- patterns
   function liveComponents(ctx) {
     var comps = [];
+    if (ctx.caseD) {
+      // F2.3: each SPAN's live load toggles as a unit (its UDL-LL and its midspan point-LL
+      // together) — verified sufficient for the enveloped M+, |M-| and reactions under gravity;
+      // toggling the two independently adds nothing. 1.4D carries no patterns, so the run count
+      // is 2^nSpans + 1 <= 33.
+      for (var d = 0; d < ctx.caseD.nSpans; d++) {
+        if (ctx.wL_pli > 0 || ctx.caseD.spanPoint[d].L > 0) comps.push({ id: "sp" + (d + 1), kind: "span" });
+      }
+      return comps;
+    }
     if (ctx.wL_pli > 0) comps.push({ id: "udl" });
     ctx.trussPts.forEach(function (p) { if (p.L > 0) comps.push({ id: p.id }); });
     var ovLL = false;
@@ -1416,11 +2735,12 @@
     return comps;
   }
   function maskFromBits(comps, bits) {
-    var mask = { udl: false, pts: {}, ov: false, bits: [] };
+    var mask = { udl: false, pts: {}, spans: {}, ov: false, bits: [] };
     comps.forEach(function (c, i) {
       var on = !!(bits & (1 << i));
       mask.bits.push(c.id + (on ? ":1" : ":0"));
-      if (c.id === "udl") mask.udl = on;
+      if (c.kind === "span") mask.spans[c.id] = on;
+      else if (c.id === "udl") mask.udl = on;
       else if (c.id === "ov") mask.ov = on;
       else mask.pts[c.id] = on;
     });
@@ -1496,19 +2816,35 @@
       } else masks.push(maskFromBits([], 0)); // 1.4D carries no LL patterns (noted)
       for (var mI = 0; mI < masks.length; mI++) {
         var mk = masks[mI];
-        var sol = ctx.caseC ? solveC(ctx, combo, mk, betaInfo) : solveAB(ctx, combo, mk, betaInfo);
+        var sol = ctx.caseD ? solveD(ctx, combo, mk, betaInfo)
+          : (ctx.caseC ? solveC(ctx, combo, mk, betaInfo) : solveAB(ctx, combo, mk, betaInfo));
         if (sol.status !== "ok") {
           // a run with zero truss load under an all-off pattern is legitimately skipped
-          if (sol.errors.length && sol.errors[0].code === "NO_TRUSS_LOAD" && (mk.bits.length && !anyOn(mk))) continue;
+          // a run with zero load is legitimately skipped: an all-off LL pattern (A/B/C), or any
+          // Case D combo whose factored load is zero (e.g. a LL-only verification combo).
+          if (sol.errors.length && sol.errors[0].code === "NO_TRUSS_LOAD" && (ctx.caseD || (mk.bits.length && !anyOn(mk)))) continue;
           return { status: sol.status, errors: sol.errors.map(function (e) { e.combo = combo.id; e.pattern = maskId(mk); return e; }), results: null };
         }
         sol.combo = combo; sol.mask = mk;
-        sol.checks = buildChecks(ctx, combo, mk, betaInfo, sol);
         runs.push(sol);
       }
     }
-    function anyOn(mask) { return mask.udl || mask.ov || Object.keys(mask.pts).some(function (k) { return mask.pts[k]; }); }
+    function anyOn(mask) {
+      return mask.udl || mask.ov ||
+        Object.keys(mask.pts).some(function (k) { return mask.pts[k]; }) ||
+        Object.keys(mask.spans || {}).some(function (k) { return mask.spans[k]; });
+    }
     if (!runs.length) return { status: "no_admissible_stm", errors: [{ code: "NO_RUNS", message: "no computable combination/pattern" }], results: null };
+
+    // F2.5(10): the top-steel extension needs the negative-moment ENVELOPE, which only exists
+    // once EVERY combo/pattern has been solved — so Case D builds its check rows in a second
+    // pass. Cases A/B/C have no cross-run dependency; the deferral is behaviourally identical.
+    var envInfo = ctx.caseD ? caseDEnvelope(ctx, runs) : null;
+    runs.forEach(function (r0) {
+      r0.checks = ctx.caseD
+        ? buildChecksD(ctx, r0.combo, r0.mask, betaInfo, r0, envInfo)
+        : buildChecks(ctx, r0.combo, r0.mask, betaInfo, r0);
+    });
 
     // envelope per check id
     var env = {};
@@ -1538,10 +2874,14 @@
       if (W > refScore) { refScore = W; ref = r2; }
     });
     if (!ref) ref = runs[runs.length - 1];
-    var model = buildModel(ctx, ref.combo, ref.mask, ref, betaInfo);
+    var model = ctx.caseD
+      ? buildModelD(ctx, ref.combo, ref.mask, ref, betaInfo, envInfo)
+      : buildModel(ctx, ref.combo, ref.mask, ref, betaInfo);
     // F2: min tie steel for D/C = 1.0 computed HERE (engine), from the ENVELOPED governing
     // tie demand — the UI renders this verbatim and performs no arithmetic of its own.
     if (env["tie.bottom"]) model.AsReq_tie_in2 = env["tie.bottom"].demand / (PHI_STM * ctx.fy);
+    // R4.7: an applied test-only option is echoed on the model so it can never be silent.
+    if (ctx.testOnlyOptions && ctx.testOnlyOptions.length) model.testOnlyOptions = ctx.testOnlyOptions.slice();
 
     var patterns = runs.map(function (r2) {
       return {

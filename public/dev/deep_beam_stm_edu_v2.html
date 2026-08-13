@@ -1,0 +1,118 @@
+<!-- ============================================================
+  Educational layer — Deep Beam STM Calculator, v2 features
+  (tie effective width §23.8.2; Case D continuous spans)
+  HTML FRAGMENT — no <html>/<head>/<body>. Include inside the calc
+  page's .content div, after the v1 fragment.
+  The .why-box / .why-body / .why-eq / .why-note / .why-refs styles
+  are defined once in deep_beam_stm_edu_content.html (and move to
+  are-calc.css at integration) — deliberately NOT duplicated here.
+  All ACI 318-19 references are TEXT citations by design — never
+  hyperlinks. The two external links are the verified free sources
+  in fixtures/deep-beam-stm/verified-links.json, each used once.
+============================================================ -->
+
+<div class="blk">
+<h2>Why This Works &mdash; Tie Width and Continuous Spans <span class="badge">Reference Only</span></h2>
+
+<!-- 8 ─ Tie effective width §23.8.2 ──────────────────────── -->
+<details class="why-box" id="why-tie-width">
+<summary>Tie effective width w<sub>t</sub>: what it is, and why the code caps it</summary>
+<div class="why-body">
+<p>In the truss the tie is a line. In the concrete the steel occupies a band, and where that tie runs into the support node the node needs a <b>face</b> for the tie force to bear against. w<sub>t</sub> is the height of that face &mdash; the back face of the nodal zone. ACI 318-19 &sect;23.8.2 is a limit on the geometry of the node the tie anchors into. It is not a bar-spacing rule and it does not say how far apart bars may be placed.</p>
+<p>Two bounds are computed and the smaller governs:</p>
+<ul>
+<li><b>Physical band</b> w<sub>t,phys</sub> = 2&middot;&#563;<sub>t</sub>, where &#563;<sub>t</sub> is the centroid of the counted tie steel above the bottom of the grade beam. The nodal zone is taken symmetric about the tie centroid, so the band is twice the centroid height. For a single layer this reduces to d<sub>b</sub> + 2&middot;cover.</li>
+<li><b>Code cap</b> w<sub>t,max</sub> = F<sub>nt</sub>/(f<sub>ce</sub>&middot;b<sub>s</sub>), with F<sub>nt</sub> = A<sub>s</sub>&middot;f<sub>y</sub> <b>nominal &mdash; no &phi;</b>, f<sub>ce</sub> = 0.85&middot;&beta;<sub>n</sub>&middot;f&prime;<sub>c</sub> at &beta;<sub>n</sub> = 0.8 for the CCT support node (&beta;<sub>c</sub> locked at 1.0), and b<sub>s</sub> = min(t<sub>w</sub>, b<sub>gb</sub>), the node thickness where the tie anchors.</li>
+</ul>
+<div class="why-eq">w<sub>t</sub> = min(2&middot;&#563;<sub>t</sub>, F<sub>nt</sub>/(f<sub>ce</sub>&middot;b<sub>s</sub>)) &nbsp;&nbsp;band = &#563;<sub>t</sub> &plusmn; w<sub>t</sub>/2</div>
+<p><b>Why a cap has to exist.</b> A taller back face is a better node in every direction: the strut face grows with it (w<sub>s</sub> = l<sub>b</sub>&middot;sin&theta; + w<sub>t</sub>&middot;cos&theta;), so the same strut force arrives on more concrete and every node stress drops. Without a cap you could manufacture node capacity by spreading bars apart on the drawing. The cap prices that honestly: you may claim only the width that would actually be stressed to f<sub>ce</sub> when the tie reaches its nominal strength. Beyond that width the concrete is not working, so it is not part of the node.</p>
+<p><b>What capping does downstream.</b> When w<sub>t,phys</sub> exceeds w<sub>t,max</sub>, the calculator does not simply annotate the result &mdash; it caps the geometry and carries the cap through:</p>
+<ul>
+<li>node back-face height h<sub>a</sub> := w<sub>t,max</sub>;</li>
+<li>strut-face width, the node polygons, and the drawn elevation all shrink with it, which makes the strut-fit and node-stress checks <i>harder</i>, not softer;</li>
+<li>the anchorage critical section moves: x<sub>crit</sub> = (w<sub>t</sub>/2)/tan&theta;. A shorter extended nodal zone pulls the critical section toward the bearing and therefore <b>reduces available embedment</b>.</li>
+</ul>
+<p>That last one is the point worth remembering. Spreading bars apart is not free. It buys nothing at the node once the cap binds, and it costs anchorage length.</p>
+<div class="why-note"><b>Disclosure &mdash; the two checks collapse when the cap binds.</b> With &beta;<sub>c</sub> = 1.0, the capped back-face stress is T/(w<sub>t,max</sub>&middot;b<sub>s</sub>) = f<sub>ce</sub>&middot;(T/F<sub>nt</sub>), so the back-face DCR equals T/(0.75&middot;A<sub>s</sub>&middot;f<sub>y</sub>) &mdash; <b>exactly</b> the tie-strength DCR. The support-node back face and the tie-strength check then report the same number and are no longer independent checks. The results flag this where it happens; read the pair as one check, not two.</div>
+<p><b>How the row reads.</b> The w<sub>t</sub> row is informational: demand = governing w<sub>t</sub>, capacity = w<sub>t,max</sub>, so its DCR is &le; 1 by construction and it is excluded from the governing-DCR selection. Its pass/fail reflects <b>band membership only</b> &mdash; whether every counted layer centroid lies inside &#563;<sub>t</sub> &plusmn; w<sub>t</sub>/2. For a single layer that is true by construction and the row says so. Out-of-band steel fails the row rather than being silently discounted, because discounting cascades (A<sub>s</sub>&darr; &rarr; F<sub>nt</sub>&darr; &rarr; w<sub>t,max</sub>&darr; &rarr; band&darr;) and hides the fix.</p>
+<p><b>Worked example &mdash; counting top and bottom grade-beam bars as one tie.</b> f&prime;<sub>c</sub> = 3000 psi, f<sub>y</sub> = 60 ksi, b<sub>s</sub> = 12 in, so f<sub>ce</sub> = 0.85&middot;0.8&middot;3.0 = 2.04 ksi. Three #7 near the bottom (centroid 3.44 in above the bottom of the grade beam) and three #7 near the top (centroid 21.56 in):</p>
+<ul>
+<li>&#563;<sub>t</sub> = 12.50 in &rarr; w<sub>t,phys</sub> = 25.00 in</li>
+<li>A<sub>s</sub> = 6 &times; 0.60 = 3.60 in&sup2; &rarr; F<sub>nt</sub> = 216.0 k</li>
+<li>w<sub>t,max</sub> = 216.0/(2.04&middot;12) = 8.82 in &rarr; band = 12.50 &plusmn; 4.41 = <b>8.09 in to 16.91 in</b></li>
+<li>Both curtains lie outside that band &mdash; <b>inadmissible</b>.</li>
+</ul>
+<p>The reason is physical, not bookkeeping. The model would be claiming that 216 kips enters the node across an 8.8 in band centered at mid-depth, where there is no steel at all. The two curtains are 18 in apart; they are two ties, not one. The fix is more steel in one band, or a tie taken at one curtain with the other left uncounted &mdash; not a wider band.</p>
+<p><b>Where the check applies:</b> the bottom tie at each end pier, and the Case C top tie at its anchor vertex and at the overhang-side support. It does <b>not</b> apply to the Case D continuous negative chord, which is a distributed tension field running through the interior piers and terminating at no node &mdash; there is no back face to limit. That chord is governed by its own distribution limit instead.</p>
+<div class="why-refs">Further reading: <a href="https://www.fhwa.dot.gov/bridge/concrete/nhi17071.pdf" data-verify="verified">FHWA-NHI-17-071, Strut-and-Tie Modeling (STM) for Concrete Structures (free PDF)</a> &mdash; nodal zone construction, tie width, and the extended nodal zone used for the critical section.</div>
+</div>
+</details>
+
+<!-- 9 ─ Continuity and reverse curvature ─────────────────── -->
+<details class="why-box" id="why-continuous">
+<summary>Continuity: why a wall over several piers is not a chain of simple spans</summary>
+<div class="why-body">
+<p>Treating a continuous wall as independent simple spans gets the bottom steel roughly right and the top steel entirely wrong. Continuity changes both the size and the <i>location</i> of the tension.</p>
+<p><b>Positive moment drops.</b> Against the simple-span 0.125wL&sup2;:</p>
+<ul>
+<li>two equal spans: M&#8314; = (9/128)wL&sup2; = 0.070wL&sup2;</li>
+<li>three equal spans: M&#8314; = 0.080wL&sup2; in the end spans, 0.025wL&sup2; in the interior span</li>
+</ul>
+<p>So designing the bottom tie as a simple span is conservative. That is the whole of the good news.</p>
+<p><b>Negative moment appears, and it is not small.</b> Over an interior pier of two equal spans, M&#8315; = wL&sup2;/8 &mdash; <b>exactly the simple-span positive moment</b>. Three equal spans give 0.100wL&sup2;. The moment does not get smaller when you make the wall continuous. It moves. Design the spans as simple and you have not removed that moment; you have only failed to reinforce for it.</p>
+<p><b>The tension moves to the top of the wall &mdash; not the top of the grade beam.</b> This is the part that catches people. Over an interior pier the chords swap: the compression chord drops into the grade beam, and the tension chord rides the <i>upper wall</i>. The negative tie is horizontal wall steel near the top of the wall, and its lever arm z&#8315; is measured from that steel down to the compression block in the grade beam. The calculator counts wall each-face horizontal steel over a stated depth below the top of the wall, plus any added bars, takes the area-weighted centroid, and iterates the grade-beam compression depth a&#8315; on width b<sub>gb</sub>; a&#8315; exceeding the grade beam depth is reported as geometry infeasible.</p>
+<p>The counted depth is limited to 0.25h. Counting steel further down is self-penalizing anyway &mdash; the centroid drops, z&#8315; collapses, and the tie force climbs &mdash; but past that limit the model stops representing the real chord and the calculator rejects it.</p>
+<p><b>What continuity buys.</b> The bottom bars run through the interior piers, so there is no hook development to check there &mdash; only the end piers anchor the tie. Interior reactions rise (1.25wL against 0.5wL simple, for two equal spans) and end reactions fall to 0.375wL.</p>
+<p><b>What continuity costs.</b> Top steel over every interior pier, extended past the inflection point of the negative-moment <i>envelope</i> by max(d, 12d<sub>b</sub>) and separately developed &#8467;<sub>d</sub> from the pier face, whichever is longer. Plus Class B tension laps in the continuous bottom bars, placed over the interior piers where the bottom fiber is in compression. Both are reported with required lengths.</p>
+</div>
+</details>
+
+<!-- 10 ─ The continuity floor ────────────────────────────── -->
+<details class="why-box" id="why-continuity-floor">
+<summary>Why the calculator will not give you full continuity relief</summary>
+<div class="why-body">
+<p>The continuous analysis is exact elastic, prismatic, flexure only. That last word is the problem. Elastic continuity assumes the wall over each pier delivers full rotational fixity, and a member with l<sub>n</sub>/h &asymp; 1.6 is a D-region whose deformation is largely shear. <b>Shear flexibility reduces continuity</b>, pushing the real behavior back toward simple spans.</p>
+<p>The direction of that error is what matters:</p>
+<ul>
+<li>less continuity &rarr; <b>smaller</b> negative moment &mdash; the elastic M&#8315; is conservative;</li>
+<li>less continuity &rarr; <b>larger</b> positive moment and <b>larger</b> end reactions &mdash; the elastic values are not conservative. End reactions migrate from 0.375wL toward the simple-span 0.5wL, an increase of a third.</li>
+</ul>
+<p>So the calculator does not hand you the elastic positive moment. It floors the positive tie:</p>
+<div class="why-eq">T<sub>pos</sub> &ge; [ M<sub>ss</sub> &minus; &frac12;(&phi;M<sub>n,neg,L</sub> + &phi;M<sub>n,neg,R</sub>) ] / z<sub>pos</sub></div>
+<p>with M<sub>ss</sub> = w<sub>u</sub>L&sup2;/8 + P<sub>u</sub>L/4 for that span under the same combination and load pattern, and &phi;M<sub>n,neg</sub> = &phi;&middot;A<sub>s,neg</sub>&middot;f<sub>y</sub>&middot;z<sub>neg</sub> the negative capacity <i>actually provided</i> at each adjacent support (zero at an end pier). A second floor, T<sub>pos</sub> &ge; 0.5&middot;M<sub>ss</sub>/z<sub>pos</sub>, is retained. The larger governs and the results name which one it was. End reactions are floored consistently: R<sub>end</sub> &ge; w<sub>u</sub>L/2 + P<sub>u</sub>/2 &minus; M&#8315;<sub>use</sub>/L with M&#8315;<sub>use</sub> = 0.5&middot;|M&#8315;<sub>elastic</sub>|, applied to end-pier bearing, the end node, and end-span shear.</p>
+<p><b>The reasoning in plain words.</b> Strut-and-tie is a lower-bound method: it certifies a load path the structure can actually take. The continuous solution is one such path, but only if the negative-moment region exists to carry it. Negative moment over a pier is carried by top steel. If that steel is not there, the moment cannot develop, the span cannot shed load to the support, and midspan ends up carrying something much closer to the simple-span moment. <b>You may claim continuity relief only up to what the negative steel you actually provided can deliver.</b> Anything past that is a moment you have drawn but not built.</p>
+<p>Two things make it worse than the usual redistribution argument. First, redistribution presumes rotation capacity, and deep beams have very little &mdash; strain in a D-region concentrates into a few wide cracks instead of spreading along a plastic hinge, so the wall reaches its distress state before it reaches the assumed redistributed state. Second, on a retaining face those wide cracks over the interior piers are a durability problem in their own right, independent of strength. Providing the negative steel resolves both. Assuming the moment away resolves neither.</p>
+<div class="why-refs">Further reading: <a href="https://library.ctr.utexas.edu/ctr-publications/0-5253-1.pdf" data-verify="verified">Birrcher et al., Strength and Serviceability Design of Reinforced Concrete Deep Beams, CTR/TxDOT report 0-5253-1 (free PDF)</a> &mdash; the test program behind the modern deep-beam STM provisions, including service-load crack widths and the limited deformation capacity of D-regions.</div>
+</div>
+</details>
+
+<!-- 11 ─ Case D scope ───────────────────────────────────── -->
+<details class="why-box" id="why-caseD-scope">
+<summary>What Case D checks &mdash; and what it does not <span class="why-tag warn">Scope &mdash; read before use</span></summary>
+<div class="why-body">
+<p>Case D takes chord forces from the <b>elastic moment envelope</b> over equal continuous spans, enveloped across 1.4D and 1.2D+1.6L with each span's live load toggled on and off as a unit. From that envelope it checks:</p>
+<ul>
+<li>deep-beam applicability per span (&sect;9.9.1.1);</li>
+<li>the bottom tie, including the &sect;23.8.2 effective-width band check;</li>
+<li>the negative chord over each interior pier &mdash; area, centroid, lever arm, and grade-beam compression depth;</li>
+<li>positive and negative compression chords against the wall and grade-beam envelopes;</li>
+<li>a diagonal strut per span-half at each support face, with the 25&deg; angle guard (&sect;23.2.7); the interior diagonals govern;</li>
+<li>the end-pier CCT node and full bottom-tie anchorage, using the same node and development machinery as the simple-span cases;</li>
+<li>the interior CCC node, with vertical and horizontal equilibrium closure asserted;</li>
+<li>bearing at every pier (&sect;22.8), end and interior reported separately;</li>
+<li>top-steel extension past the envelope inflection point, and Class B lap lengths for the continuous bottom bars;</li>
+<li>web reinforcement, the global shear cap, and detailing fit, per span.</li>
+</ul>
+<p>The following are <b>not checked</b>. They are exclusions, not simplifications:</p>
+<ul>
+<li><b>A full multi-span funicular polygon is not constructed.</b> Case D is not the arch-and-tie geometry of the simple-span cases; chord forces come from the moment envelope, and the compression path between piers is not drawn as a continuous funicular.</li>
+<li><b>Unequal spans.</b> Spans and bearings must be equal.</li>
+<li><b>More than one point load per span.</b> One point load per span, at midspan.</li>
+<li><b>Overhangs and outboard strips.</b> Rejected with a scope error. The wall strip from each end-pier centerline to the outer face lies outside the centerline-to-centerline analysis span and is routed to the end bearing.</li>
+<li><b>Moving loads.</b> Live load is patterned span by span; no vehicle or travelling-load placement is searched.</li>
+<li><b>Crack control and serviceability on the top-of-wall tension face.</b> Case D is what creates that face, so the exclusion is stated rather than left silent: check crack width and reinforcement distribution on the upper wall over the interior piers separately.</li>
+</ul>
+</div>
+</details>
+
+</div>

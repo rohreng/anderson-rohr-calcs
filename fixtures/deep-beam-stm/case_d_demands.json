@@ -1,0 +1,263 @@
+{
+  "name": "case_d_demands — FEATURE 2: Case D patterning, capacity-consistent floor, reaction floor, geometry rejections, no-inflection (F2.8 items 4-8)",
+  "comments": {
+    "common": [
+      "Section as case_d_continuous unless stated: t_w 12, h_w 14 ft, GB 24x24 -> h = 192 in;",
+      "f'c 3000, fy 60; 4-#8 T&B; cover 3/2/2; wall #4@12 EF; L = 26 ft = 312 in; l_b = 30 in.",
+      "sum D = 5525 + 2100 + 600 = 8225 plf.  f_ce = 1.434375 ksi; 2*f_ce*t_w = 34.425; 2*f_ce*b_gb = 68.85.",
+      "TWO-SPAN CLOSED FORM used throughout (slope-deflection, k = 2EI/L, F_i = w_i L^2/12 + P_i L/8):",
+      "  theta_1 = (A_1 - A_0)/2 with A_i = F_i/k  ->  M_support = -0.75*(F_0 + F_1) = -(w_1 + w_2)L^2/16",
+      "  (equal loads reduce to the textbook -wL^2/8).",
+      "  Span-1 moment: M(x) = M_sup*(x/L) + w_1*x*(L-x)/2, maximised at x* = L/2 + M_sup/(w_1 L)."
+    ],
+    "pattern_and_reaction_floor": [
+      "F2.8(4) PATTERN GOVERNS and F2.8(6) REACTION FLOOR GOVERNS — same run set.",
+      "LL = 5205 plf. Combos 1.4D and 1.2D+1.6L; each SPAN's live load toggles as a unit (F2.3),",
+      "so 1.2D+1.6L runs 4 patterns and 1.4D runs 1 -> 5 runs = 2^2 + 1.",
+      "  w(loaded)   = 1.2*8.225 + 1.6*5.205 = 9.870 + 8.328 = 18.198 klf = 1.51650 kip/in",
+      "  w(unloaded) = 1.2*8.225                              =  9.870 klf = 0.82250 kip/in",
+      "PATTERN sp1 LOADED, sp2 BARE:",
+      "  M_sup = -(1.51650 + 0.82250)*97,344/16 = -2.33900*6,084 = -14,230.476 k-in",
+      "  x* = 156 + (-14,230.476)/(1.51650*312) = 156 - 30.076162 = 125.923838 in",
+      "  M+ = -14,230.476*(125.923838/312) + 1.51650*125.923838*186.076162/2",
+      "     = -5,743.45 + 17,766.88 = 12,023.43 k-in",
+      "ALL SPANS LOADED (the naive check): M+ = (9/128)*1.51650*97,344 = (9/128)*147,622.176 = 10,379.684 k-in.",
+      "  12,023.43 > 10,379.684 -> THE PATTERN GOVERNS by a factor of 1.158. (The textbook idealisation",
+      "  with a completely unloaded second span gives 49/512 = 0.0957 wL^2 vs 9/128 = 0.0703 wL^2; here the",
+      "  dead load stays on both spans, so the ratio is smaller but the conclusion is the same.)",
+      "  Tpos: C = 12,023.43/34.425 = 349.264429; hp = 188.5, hp^2 = 35,532.25;",
+      "  sqrt(35,532.25 - 1,397.057716) = sqrt(34,135.192284) = 184.757117;",
+      "  z+ = (188.5 + 184.757117)/2 = 186.628559 in; Tpos = 12,023.43/186.628559 = 64.424385 k.",
+      "REACTION FLOOR at pier 0, same governing pattern (heaviest bearing demand):",
+      "  R_elastic = w_1*L/2 + (M_B - M_A)/L = 236.574 + (-14,230.476)/312 = 236.574 - 45.61050 = 190.96350 k",
+      "  R_floor   = w_1*L/2 - 0.5*|M-|/L    = 236.574 - 0.5*14,230.476/312 = 236.574 - 22.80525 = 213.76875 k",
+      "  -> THE FLOOR GOVERNS: R_used = 213.76875 k (the all-loaded run gives only 207.00225 = 0.4375*wL).",
+      "  Bearing adds the routed l_b/2 strip: 1.51650 kip/in * 15 in = 22.74750 k -> R_bearing = 236.51625 k",
+      "  (vs 229.74975 all-loaded and 145.37688 under 1.4D, so this pattern is the reporting run).",
+      "M- ENVELOPE is the ALL-LOADED pattern: -1.51650*97,344/8 = -18,452.772 k-in."
+    ],
+    "capacity_floor_governs": [
+      "F2.8(5) — the CAPACITY-CONSISTENT floor governs. Same as case_d_continuous:textbook_2span except",
+      "the negative chord is deliberately weak: wall EF only, counted over depth_in = 12 in, no added bars.",
+      "  As,neg = 2*0.20*(12/12) = 0.400 in2; y_neg = 192 - 6 = 186.0 in.",
+      "  Dead only -> 1.4D governs: M- = wL^2/8 = 11,676.210 k-in.",
+      "  zNeg: C = 11,676.210/68.85 = 169.58910; y_neg^2 = 34,596; sqrt(34,596 - 678.3564) = sqrt(33,917.6436) = 184.167434;",
+      "  zNeg = (186 + 184.167434)/2 = 185.083717 in; Tneg = 11,676.210/185.083717 = 63.086130 k;",
+      "  a- = 63.086130/34.425 = 1.832567 in.",
+      "  phiMn,neg = 0.75*0.400*60*185.083717 = 18*185.083717 = 3,331.507 k-in.",
+      "FLOOR COMPARISON for span 1 (M_ss = wL^2/8 = 11,676.210; the LEFT support is an end pier so phiMn = 0):",
+      "  elastic envelope              = 6,567.868 k-in",
+      "  0.5*M_ss floor                = 5,838.105 k-in",
+      "  capacity-consistent floor     = 11,676.210 - 0.5*(0 + 3,331.507) = 11,676.210 - 1,665.7535 = 10,010.4565 k-in  <- GOVERNS",
+      "  (the lower-bound-theorem statement: continuity relief may only be claimed up to what the",
+      "   PROVIDED negative steel can actually deliver — here very little, so the span must be designed",
+      "   much closer to the simple-span moment.)",
+      "  z+ iterated AT the floored force: C = 10,010.4565/34.425 = 290.790319;",
+      "  sqrt(35,532.25 - 1,163.161276) = sqrt(34,369.088724) = 185.389020;",
+      "  z+ = (188.5 + 185.389020)/2 = 186.944510 in; Tpos = 10,010.4565/186.944510 = 53.547743 k",
+      "  (vs 35.031939 k on the elastic envelope — a 53% increase).",
+      "  The 1.2D run cannot govern: its floor is 10,008.18 - 0.5*18*185.215372 = 8,341.2 k-in < 10,010.4565."
+    ],
+    "aneg_exceeds_hgb": [
+      "F2.8(7a) — a- > h_gb must be rejected as GEOMETRY INFEASIBLE (not as a DCR failure).",
+      "Shallow grade beam: t_w 12, h_w 10 ft = 120, h_gb 12, b_gb 12 -> h = 132 in, 0.25h = 33 in.",
+      "Heavy load: DL_super 11,500 plf; wall SW = 150*1*10 = 1500; GB SW = 150*(12*12/144) = 150 -> sum D = 13,150 plf.",
+      "  1.4D: w = 18.410 klf = 1.534167 kip/in; L = 30 ft = 360 in; M- = wL^2/8 = 1.534167*129,600/8 = 24,853.5 k-in.",
+      "Negative chord = wall EF over 32 in (<= 33): As = 2*0.20*(32/12) = 1.066667 in2, y_neg = 132 - 16 = 116 in.",
+      "  2*f_ce*b_gb = 2*1.434375*12 = 34.425; the a- that would be required is ~13.2 in > h_gb = 12 in",
+      "  (first iterate: T = 24,853.5/116 = 214.3 k -> a = 12.45 in, already past the grade-beam depth).",
+      "  -> status geometry_infeasible, code NEG_A_GT_HGB."
+    ],
+    "depth_limit_rejected": [
+      "F2.8(7b) — caseD.negChord.depth_in = 50 in > 0.25h = 48 in must be rejected up front (F2.4b)."
+    ],
+    "no_inflection": [
+      "F2.8(8) — a span with NO inflection point under the governing pattern.",
+      "3 equal spans, DL 5525 (sum D 8225 plf), LL 5205 plf. Pattern: outer spans loaded, middle span bare.",
+      "  a = w(outer, loaded)   = 1.51650 kip/in;  b = w(middle, bare) = 0.82250 kip/in",
+      "Symmetric 3-span three-moment with M_1 = M_2 = M:  2M(2L) + M*L = -L^3(a + b)/4  ->  M = -L^2(a + b)/20",
+      "  = -97,344*2.33900/20 = -11,384.38 k-in   (equal loads reduce to the textbook -0.100 wL^2).",
+      "Middle span: M(x) = M + b*x*(L-x)/2, maximum at midspan = M + b*L^2/8",
+      "  = -11,384.38 + 0.82250*97,344/8 = -11,384.38 + 10,008.18 = -1,376.20 k-in  < 0",
+      "  -> the negative-moment ENVELOPE never returns to zero anywhere in the middle span.",
+      "  (General condition, hand-derived: no inflection iff b < (2/3)a; here 0.82250 < 1.01100.)",
+      "Required top steel then = the FULL span plus development past the next pier:",
+      "  L + ld = 312 + 25.633416 = 337.633416 in (ld for the #6 negative bars as derived in case_d_continuous).",
+      "The end-span sides of the interior piers DO have an inflection point, so they use x_infl + max(d, 12db)."
+    ]
+  },
+  "runs": [
+    {
+      "name": "pattern_and_reaction_floor",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 2, "L_ft": 26, "lb_in": 30,
+          "spanPoint": [{ "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }],
+          "negChord": { "useWallEF": true, "depth_in": 40, "addBars": { "count": 4, "size": "#6", "depth_from_top_in": 3 }, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.caseD.spans[0].Mpos_env_kin", "value": 12023.43, "rtol": 0.001, "note": "F2.8(4): pattern value, > 10379.684 all-loaded" },
+          { "path": "results.model.caseD.spans[0].Mpos_pattern", "value": "LL[sp1:1,sp2:0]", "note": "span 1 peaks with span 2 bare" },
+          { "path": "results.model.caseD.spans[0].Mpos_combo", "value": "1.2D+1.6L" },
+          { "path": "results.model.caseD.spans[1].Mpos_env_kin", "value": 12023.43, "rtol": 0.001 },
+          { "path": "results.model.caseD.spans[1].Mpos_pattern", "value": "LL[sp1:0,sp2:1]", "note": "mirror image" },
+          { "path": "results.model.caseD.spans[0].Tpos_kip", "value": 64.424385, "rtol": 1e-5 },
+          { "path": "results.model.caseD.spans[0].zPos_in", "value": 186.628559, "rtol": 1e-6 },
+          { "path": "results.model.caseD.spans[0].Tpos_pattern", "value": "LL[sp1:1,sp2:0]" },
+          { "path": "checks[id=tie.bottom].demand", "value": 64.424385, "rtol": 1e-5 },
+          { "path": "checks[id=tie.bottom].governingCombo", "value": "1.2D+1.6L" },
+
+          { "path": "results.model.caseD.supports[1].Mneg_env_kin", "value": -18452.772, "rtol": 1e-6, "note": "all-loaded governs M-" },
+          { "path": "results.model.caseD.supports[1].Mneg_pattern", "value": "LL[sp1:1,sp2:1]" },
+
+          { "path": "results.model.caseD.supports[0].governingPattern", "value": "LL[sp1:1,sp2:0]", "note": "heaviest end-pier bearing demand" },
+          { "path": "results.model.caseD.supports[0].R_elastic_kip", "value": 190.96350, "rtol": 1e-6 },
+          { "path": "results.model.caseD.supports[0].R_floor_kip", "value": 213.76875, "rtol": 1e-6, "note": "F2.4c" },
+          { "path": "results.model.caseD.supports[0].R_used_kip", "value": 213.76875, "rtol": 1e-6, "note": "F2.8(6): the floor governs, 213.769 > 190.964" },
+          { "path": "results.model.caseD.supports[0].R_bearing_kip", "value": 236.51625, "rtol": 1e-6, "note": "+ routed 1.5165*15 = 22.7475" },
+          { "path": "checks[id=bearing.pier.0].demand", "value": 236.51625, "rtol": 1e-6 },
+          { "path": "checks[id=bearing.pier.0].contributions[1].value", "value": 213.76875, "rtol": 1e-6, "note": "R_floor reported alongside R_elastic" },
+          { "path": "results.model.caseD.supports[0].sumV_kip", "value": null, "note": "end piers carry no interior-closure residual" },
+          { "path": "results.model.caseD.supports[1].sumV_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.caseD.supports[1].sumH_kip", "value": 0, "atol": 1e-9 },
+          { "path": "results.model.selfChecks.globalV_kip", "value": 0, "atol": 1e-9 }
+        ]
+      }
+    },
+    {
+      "name": "capacity_floor_governs",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 2, "L_ft": 26, "lb_in": 30,
+          "spanPoint": [{ "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }],
+          "negChord": { "useWallEF": true, "depth_in": 12, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.caseD.negChord.As_in2", "value": 0.4, "rtol": 1e-12, "note": "2*0.20*(12/12)" },
+          { "path": "results.model.caseD.negChord.y_in", "value": 186, "rtol": 1e-12, "note": "192 - 12/2" },
+          { "path": "results.model.caseD.supports[1].zNeg_in", "value": 185.083717, "rtol": 1e-6 },
+          { "path": "results.model.caseD.supports[1].Tneg_kip", "value": 63.086130, "rtol": 1e-6 },
+          { "path": "results.model.caseD.supports[1].aNeg_in", "value": 1.832567, "rtol": 1e-5 },
+          { "path": "results.model.caseD.spans[0].phiMn_neg_R_kin", "value": 3331.507, "rtol": 1e-5, "note": "0.75*0.4*60*185.083717" },
+          { "path": "results.model.caseD.spans[0].phiMn_neg_L_kin", "value": 0, "atol": 1e-12, "note": "end pier delivers no negative capacity" },
+          { "path": "results.model.caseD.spans[0].Mpos_env_kin", "value": 6567.868, "rtol": 0.001, "note": "elastic (9/128)wL^2" },
+          { "path": "results.model.caseD.spans[0].Mss_kin", "value": 11676.210, "rtol": 1e-6 },
+          { "path": "results.model.caseD.spans[0].MposDesign_kin", "value": 10010.4565, "rtol": 1e-7, "note": "11676.210 - 0.5*3331.507" },
+          { "path": "results.model.caseD.spans[0].floorGoverns", "value": "capacity-consistent floor" },
+          { "path": "results.model.caseD.spans[0].zPos_in", "value": 186.944510, "rtol": 1e-6, "note": "z iterated AT the floored force" },
+          { "path": "results.model.caseD.spans[0].Tpos_kip", "value": 53.547743, "rtol": 1e-6, "note": "vs 35.031939 on the elastic envelope" },
+          { "path": "checks[id=tie.bottom].demand", "value": 53.547743, "rtol": 1e-6 },
+          { "path": "checks[id=tie.bottom].contributions[0].source", "value": "span 1 (capacity-consistent floor)", "note": "the named contribution identifies the governing floor" },
+          { "path": "checks[id=tie.bottom].contributions[0].Mdesign_kin", "value": 10010.4565, "rtol": 1e-7 }
+        ]
+      }
+    },
+    {
+      "name": "aneg_exceeds_hgb",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 10, "h_gb_in": 12, "b_gb_in": 12 },
+        "loads": { "DL_super_plf": 11500, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 2, "L_ft": 30, "lb_in": 30,
+          "spanPoint": [{ "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }],
+          "negChord": { "useWallEF": true, "depth_in": 32, "extension_in": 300 }
+        }
+      },
+      "expect": { "status": "geometry_infeasible", "errorCodes": ["NEG_A_GT_HGB"] }
+    },
+    {
+      "name": "depth_limit_rejected",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 0 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 2, "L_ft": 26, "lb_in": 30,
+          "spanPoint": [{ "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }],
+          "negChord": { "useWallEF": true, "depth_in": 50, "extension_in": 300 }
+        }
+      },
+      "expect": { "status": "invalid_input", "errorCodes": ["INPUT"] }
+    },
+    {
+      "name": "no_inflection",
+      "inputs": {
+        "geometry": { "t_w_in": 12, "h_w_ft": 14, "h_gb_in": 24, "b_gb_in": 24 },
+        "loads": { "DL_super_plf": 5525, "LL_plf": 5205 },
+        "materials": { "fc_psi": 3000, "fy_ksi": 60 },
+        "reinf": {
+          "tieBars": { "count": 4, "size": "#8" },
+          "topBars": { "count": 4, "size": "#8" },
+          "cover_bot_in": 3, "cover_side_in": 2, "cover_top_in": 2,
+          "web": { "size": "#4", "s_in": 12, "layers": 2 },
+          "anchorage": { "left": { "type": "hook" }, "right": { "type": "hook" } }
+        },
+        "caseD": {
+          "nSpans": 3, "L_ft": 26, "lb_in": 30,
+          "spanPoint": [{ "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }, { "D_kip": 0, "L_kip": 0 }],
+          "negChord": { "useWallEF": true, "depth_in": 40, "addBars": { "count": 4, "size": "#6", "depth_from_top_in": 3 }, "extension_in": 300 }
+        }
+      },
+      "expect": {
+        "status": "ok",
+        "values": [
+          { "path": "results.model.caseD.negChord.extensions[1].pier", "value": 1 },
+          { "path": "results.model.caseD.negChord.extensions[1].side", "value": "R", "note": "into the middle span" },
+          { "path": "results.model.caseD.negChord.extensions[1].noInflection", "value": true, "note": "F2.8(8): middle span hogging throughout under the outer-spans-loaded pattern" },
+          { "path": "results.model.caseD.negChord.extensions[1].x_infl_in", "value": null },
+          { "path": "results.model.caseD.negChord.extensions[1].required_in", "value": 337.633416, "rtol": 1e-7, "note": "L + ld = 312 + 25.633416" },
+          { "path": "results.model.caseD.negChord.extensions[1].governs", "value": "full span (no inflection) + ℓd past the next pier" },
+          { "path": "results.model.caseD.negChord.extensions[2].side", "value": "L", "note": "the other side of the same bare middle span" },
+          { "path": "results.model.caseD.negChord.extensions[2].noInflection", "value": true },
+          { "path": "results.model.caseD.negChord.extensions[0].pier", "value": 1 },
+          { "path": "results.model.caseD.negChord.extensions[0].side", "value": "L", "note": "into the loaded end span — an inflection point does exist there" },
+          { "path": "results.model.caseD.negChord.extensions[0].noInflection", "value": false },
+          { "path": "checks[id=topsteel.extension].demand", "value": 337.633416, "rtol": 1e-7, "note": "the no-inflection sides govern" },
+          { "path": "checks[id=topsteel.extension].capacity", "value": 300, "rtol": 1e-12 },
+          { "path": "results.model.selfChecks.globalV_kip", "value": 0, "atol": 1e-9 }
+        ]
+      }
+    }
+  ]
+}
