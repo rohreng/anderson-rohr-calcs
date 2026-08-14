@@ -127,6 +127,44 @@ select.ti{cursor:pointer}
 .pier-cap-table td{padding:7px 10px;border-bottom:1px solid #ede9fe;vertical-align:middle}
 .pier-cap-table tr:nth-child(even) td{background:#f5f3ff}
 .pier-cap-table tr.pier-fail td{background:#fef2f2!important;border-left:3px solid #dc2626}
+
+/* ── Table cell inputs — must beat two shared stylesheets ──────────────────
+   are-calc.css sets input[type=number]{padding:.5rem .75rem;font-size:.9375rem}
+   at (0,1,1), and are-theme-v2.css (injected site-wide by are-utils-v2.js) sets
+   padding:8px 11px!important;font-size:.92em!important. !important is required
+   to win, and is scoped to .inp-table so the full-size inputs in the Global
+   Properties block keep the shared theme styling. */
+.inp-table input.ti,
+.inp-table select.ti{
+  font-family:inherit;font-size:.82em !important;padding:3px 5px !important;color:#333;
+  border:1px solid #d1d5db;border-radius:4px;background:transparent;width:100%;min-width:0
+}
+.inp-table select.ti{padding:2px 2px !important}
+.inp-table .ti:focus,.inp-table .ti:focus-visible{
+  border-color:#2a5298;outline:none;background:#fff;box-shadow:0 0 0 2px rgba(42,82,152,.22)
+}
+/* Native spinners consume ~15px of a 60px column — this is why f'c=3000 clipped. */
+.inp-table input[type=number].ti{-moz-appearance:textfield;appearance:textfield}
+.inp-table input[type=number].ti::-webkit-outer-spin-button,
+.inp-table input[type=number].ti::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* ── Resizable columns ─────────────────────────────────────────────────────
+   table-layout:fixed makes the <th> widths authoritative; each table gets an
+   inline min-width equal to its column sum so the overflow-x wrapper scrolls
+   instead of the columns compressing. Widths live in COLW and are re-applied
+   after every table rebuild. */
+.inp-table{table-layout:fixed}
+.inp-table th{position:relative;overflow:hidden;white-space:normal;overflow-wrap:break-word}
+.inp-table td{overflow:hidden}
+.inp-table td[colspan]{overflow:visible}
+.col-grip{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
+.col-grip:hover,.col-grip.dragging{background:rgba(255,255,255,.55)}
+body.col-resizing{user-select:none;cursor:col-resize}
+.btn-resetcol{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;
+  border-radius:5px;cursor:pointer;font-size:.72em;font-weight:600;white-space:nowrap}
+.btn-resetcol:hover{background:#dbeafe}
+.gate-ok{color:#166534;font-weight:700}.gate-no{color:#dc2626;font-weight:700}
+
 /* Print */
 @page{size:letter portrait;margin:0.45in 0.5in 0.45in 0.5in}
 @media print{
@@ -138,6 +176,11 @@ select.ti{cursor:pointer}
   .results{display:block!important}
   .blk,.inp-table,.chk-table,.pier-cap-table{break-inside:avoid;page-break-inside:avoid}
   .g-row{flex-wrap:wrap!important}
+  /* Column resizing is screen-only; on paper the wrapper cannot scroll, so drop
+     the fixed layout and let the tables size to the page. */
+  .col-grip,.btn-resetcol{display:none!important}
+  .inp-table{table-layout:auto!important;min-width:0!important}
+  .inp-table th,.inp-table td{width:auto!important;overflow:visible!important}
 }
 </style>
   <link rel="stylesheet" href="./are-calc.css">
@@ -178,9 +221,30 @@ select.ti{cursor:pointer}
       <select id="gb_fy"><option value="60" selected>Grade 60 — 60 ksi</option><option value="40">Grade 40 — 40 ksi</option><option value="75">Grade 75 — 75 ksi</option></select>
     </div>
     <div class="ig"><label>Bot. Steel, As <span class="unit">in²</span></label><input type="number" id="gb_As" value="1.58" step="0.01"><span class="hint">e.g. 2-#8 = 1.58 in²</span></div>
+    <div class="ig"><label>Top Steel, As <span class="unit">in²</span></label><input type="number" id="gb_Ast" value="1.58" step="0.01"><span class="hint">over piers — negative moment</span></div>
     <div class="ig"><label>Clear Cover <span class="unit">in</span></label><input type="number" id="gb_cov" value="3"></div>
     <div class="ig"><label>Bar Diam. db <span class="unit">in</span></label><input type="number" id="gb_db" value="1.0" step="0.125"></div>
+    <div class="ig"><label>Stirrup Bar db<sub>s</sub> <span class="unit">in</span></label><input type="number" id="gb_dbs" value="0.375" step="0.125"><span class="hint">#3 = 0.375 — reduces d</span></div>
     <div class="ig"><label>Unit Wt. wc <span class="unit">pcf</span></label><input type="number" id="gb_wc" value="150"></div>
+  </div>
+
+  <div class="sep"></div>
+  <div class="sub-head">Continuity &amp; Shear Reinforcement <span style="font-weight:400;text-transform:none;font-size:.85em;color:#666">— these change the design basis; read the notes</span></div>
+  <div class="g-row">
+    <div class="ig" style="min-width:340px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="gb_continuous" style="width:auto;margin:0" onchange="runIfReady()">
+        <span>Treat grade beams as continuous (ACI 318-19 §6.5)</span>
+      </label>
+      <span class="hint">Top steel and negative moment at the piers are <strong>always</strong> checked. This box additionally reduces the mid-span moment to w<sub>u</sub>l<sub>n</sub>²/11 (end spans, discontinuous end unrestrained) and /16 (interior), and is honoured <strong>only</strong> if every §6.5.1 condition passes — the calculator tests them and reports each one.</span>
+    </div>
+    <div class="ig" style="min-width:300px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="gb_stirrups" style="width:auto;margin:0" onchange="runIfReady()">
+        <span>Minimum stirrups provided (A<sub>v</sub> ≥ A<sub>v,min</sub>)</span>
+      </label>
+      <span class="hint">Unchecked, V<sub>c</sub> uses Table 22.5.5.1(c) <strong>with</strong> the size-effect factor λ<sub>s</sub>. Checked, λ<sub>s</sub> = 1.0 is permitted per §22.5.5.1.3.</span>
+    </div>
   </div>
 
   <div class="sep"></div>
@@ -207,6 +271,7 @@ select.ti{cursor:pointer}
     <div class="ig"><label>Allow. Skin Friction q<sub>s</sub> <span class="unit">psf</span></label><input type="number" id="q_skin" value="4000"></div>
     <div class="ig"><label>Depth to Bearing <span class="unit">ft</span></label><input type="number" id="z_bearing" value="18"><span class="hint">Grade to top of stratum</span></div>
     <div class="ig"><label>Min. Penetration <span class="unit">ft</span></label><input type="number" id="pen_min" value="2"></div>
+    <div class="ig"><label>Pier f'c <span class="unit">psi</span></label><input type="number" id="pier_fc" value="3000"><span class="hint">structural shaft capacity, 0.33f'c</span></div>
     <div class="ig"><label>Bearing Material</label><input type="text" id="bearing_mat" value="Gray Limestone"></div>
   </div>
 </div>
@@ -234,6 +299,8 @@ select.ti{cursor:pointer}
 
   <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
     <button class="btn-sm btn-add" onclick="addZone()">+ Add Zone</button>
+    <button class="btn-resetcol" onclick="resetColW()" title="Restore every table column to its default width">&#8596; Reset column widths</button>
+    <span style="font-size:.78em;color:#777">Drag the right edge of any column heading to resize · double-click it to reset one</span>
     <span id="zoneSummary" style="font-size:.83em;color:#555"></span>
   </div>
 
@@ -241,14 +308,14 @@ select.ti{cursor:pointer}
   <table class="inp-table" id="zoneTable">
     <thead>
       <tr>
-        <th class="th-l" style="min-width:130px">Zone Label</th>
-        <th style="min-width:90px">Wall Length<br><span style="font-weight:400;font-size:.85em">ft along GB</span></th>
-        <th style="min-width:85px">DL intensity<br><span style="font-weight:400;font-size:.85em">plf</span></th>
-        <th style="min-width:85px">LL + Snow<br><span style="font-weight:400;font-size:.85em">plf</span></th>
-        <th style="min-width:75px">P<sub>DL</sub><br><span style="font-weight:400;font-size:.85em">kips</span></th>
-        <th style="min-width:75px">P<sub>LL</sub><br><span style="font-weight:400;font-size:.85em">kips</span></th>
-        <th style="min-width:80px">P<sub>total</sub><br><span style="font-weight:400;font-size:.85em">kips</span></th>
-        <th style="width:30px"></th>
+        <th class="th-l" data-ck="z:lbl" data-dw="150">Zone Label<div class="col-grip"></div></th>
+        <th data-ck="z:len" data-dw="92">Wall Length<br><span style="font-weight:400;font-size:.85em">ft along GB</span><div class="col-grip"></div></th>
+        <th data-ck="z:dl" data-dw="90">DL intensity<br><span style="font-weight:400;font-size:.85em">plf</span><div class="col-grip"></div></th>
+        <th data-ck="z:ll" data-dw="90">LL + Snow<br><span style="font-weight:400;font-size:.85em">plf</span><div class="col-grip"></div></th>
+        <th data-ck="z:pdl" data-dw="80">P<sub>DL</sub><br><span style="font-weight:400;font-size:.85em">kips</span><div class="col-grip"></div></th>
+        <th data-ck="z:pll" data-dw="80">P<sub>LL</sub><br><span style="font-weight:400;font-size:.85em">kips</span><div class="col-grip"></div></th>
+        <th data-ck="z:ptot" data-dw="86">P<sub>total</sub><br><span style="font-weight:400;font-size:.85em">kips</span><div class="col-grip"></div></th>
+        <th data-ck="z:del" data-dw="34"></th>
       </tr>
     </thead>
     <tbody id="zoneBody"></tbody>
@@ -271,7 +338,7 @@ select.ti{cursor:pointer}
   <h2><span class="sec-num grn">B</span> Concrete Grade Beams <span class="badge-grn">ACI 318-19 LRFD</span></h2>
   <div class="callout-grn">
     Set the number of grade beam spans, then click <strong>Generate Tables</strong>. Labels default to GB-1, GB-2, etc. — all editable.
-    Wall loads from Section A are distributed proportionally to span length. Each grade beam is checked as a simply-supported span.
+    Wall loads from Section A are distributed in proportion to span length. Mid-span moment is w<sub>u</sub>L²/8 unless <em>continuous</em> is selected in the Global block <strong>and</strong> every ACI 318-19 §6.5.1 condition passes — the results report each condition individually. Negative moment and top steel at the piers are checked whenever there are two or more spans.
   </div>
   <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
     <div class="ig" style="min-width:160px">
@@ -286,23 +353,26 @@ select.ti{cursor:pointer}
     <table class="inp-table" id="gbTable">
       <thead>
         <tr>
-          <th class="th-l" style="min-width:90px">Label</th>
-          <th style="min-width:75px">Span<br><span style="font-weight:400;font-size:.85em">ft</span></th>
-          <th style="min-width:60px">b<br><span style="font-weight:400;font-size:.85em">in</span></th>
-          <th style="min-width:60px">h<br><span style="font-weight:400;font-size:.85em">in</span></th>
-          <th style="min-width:65px">As bot<br><span style="font-weight:400;font-size:.85em">in²</span></th>
-          <th style="min-width:65px">f'c<br><span style="font-weight:400;font-size:.85em">psi</span></th>
-          <th style="min-width:75px">Wall DL<br><span style="font-weight:400;font-size:.85em">k (auto)</span></th>
-          <th style="min-width:75px">Wall LL<br><span style="font-weight:400;font-size:.85em">k (auto)</span></th>
-          <th style="min-width:100px">Notes</th>
+          <th class="th-l" data-ck="gb:lbl" data-dw="100">Label<div class="col-grip"></div></th>
+          <th data-ck="gb:L" data-dw="72">Span<br><span style="font-weight:400;font-size:.85em">ft</span><div class="col-grip"></div></th>
+          <th data-ck="gb:b" data-dw="60">b<br><span style="font-weight:400;font-size:.85em">in</span><div class="col-grip"></div></th>
+          <th data-ck="gb:h" data-dw="60">h<br><span style="font-weight:400;font-size:.85em">in</span><div class="col-grip"></div></th>
+          <th data-ck="gb:Asb" data-dw="76">A<sub>s</sub> bot<br><span style="font-weight:400;font-size:.85em">in²</span><div class="col-grip"></div></th>
+          <th data-ck="gb:Ast" data-dw="76">A<sub>s</sub> top<br><span style="font-weight:400;font-size:.85em">in² — at piers</span><div class="col-grip"></div></th>
+          <th data-ck="gb:fc" data-dw="76">f'c<br><span style="font-weight:400;font-size:.85em">psi</span><div class="col-grip"></div></th>
+          <th data-ck="gb:hDL" data-dw="104">Wall DL<br><span style="font-weight:400;font-size:.85em">kips total on span (auto)</span><div class="col-grip"></div></th>
+          <th data-ck="gb:hLL" data-dw="104">Wall LL<br><span style="font-weight:400;font-size:.85em">kips total on span (auto)</span><div class="col-grip"></div></th>
+          <th data-ck="gb:w" data-dw="96">w<sub>wall</sub> = DL+LL<br><span style="font-weight:400;font-size:.85em">klf (derived)</span><div class="col-grip"></div></th>
+          <th data-ck="gb:note" data-dw="110">Notes<div class="col-grip"></div></th>
         </tr>
       </thead>
       <tbody id="gbBody"></tbody>
     </table>
     </div>
     <div class="callout-grn" style="margin-top:10px;font-size:.8em">
-      Wall DL/LL are auto-distributed from Section A proportional to span length — edit to override.
-      Grade beam self-weight is computed automatically from b, h, and w<sub>c</sub>.
+      <strong>Wall DL / Wall LL are total kips carried by that span</strong> — not klf, not plf. They are auto-distributed from Section A in proportion to span length; the w<sub>wall</sub> column shows the resulting uniform intensity in klf. Typing in either cell marks it as a manual override so it is no longer redistributed when spans change.
+      <button class="btn-resetcol" style="margin-left:8px" onclick="resetGBAuto()">&#8635; Restore auto-distribution</button>
+      <br>Grade beam self-weight is computed automatically from b, h, and w<sub>c</sub> and is included in the dead load once.
     </div>
   </div>
 </div>
@@ -321,12 +391,13 @@ select.ti{cursor:pointer}
     <table class="inp-table" id="pierTable">
       <thead>
         <tr>
-          <th class="th-l" style="min-width:85px">Label</th>
-          <th style="min-width:90px">Shaft Diam<br><span style="font-weight:400;font-size:.85em">in</span></th>
-          <th style="min-width:90px">Pier Type</th>
-          <th style="min-width:75px">Add'l DL<br><span style="font-weight:400;font-size:.85em">kips</span></th>
-          <th style="min-width:75px">Add'l LL<br><span style="font-weight:400;font-size:.85em">kips</span></th>
-          <th style="min-width:110px">Notes</th>
+          <th class="th-l" data-ck="p:lbl" data-dw="95">Label<div class="col-grip"></div></th>
+          <th data-ck="p:diam" data-dw="94">Shaft Diam<br><span style="font-weight:400;font-size:.85em">in</span><div class="col-grip"></div></th>
+          <th data-ck="p:type" data-dw="94">Pier Type<div class="col-grip"></div></th>
+          <th data-ck="p:bell" data-dw="94">Bell Diam<br><span style="font-weight:400;font-size:.85em">in — belled only</span><div class="col-grip"></div></th>
+          <th data-ck="p:adl" data-dw="84">Add'l DL<br><span style="font-weight:400;font-size:.85em">kips</span><div class="col-grip"></div></th>
+          <th data-ck="p:all" data-dw="84">Add'l LL<br><span style="font-weight:400;font-size:.85em">kips</span><div class="col-grip"></div></th>
+          <th data-ck="p:note" data-dw="120">Notes<div class="col-grip"></div></th>
         </tr>
       </thead>
       <tbody id="pierBody"></tbody>
@@ -349,12 +420,15 @@ select.ti{cursor:pointer}
   <div class="note-box">
     <strong>Engineering Notes:</strong>
     <ul>
-      <li><strong>Load Path:</strong> Wall zone loads (plf × length = kips) are distributed proportionally to grade beam span length as equivalent uniform loads. Refine with point-load analysis for critical cases.</li>
-      <li><strong>Load Conversion:</strong> Grade beam LRFD demands use 1.2DL + 1.6LL. Pier ASD service loads use unfactored DL + LL from grade beam reactions.</li>
-      <li><strong>Grade Beams:</strong> Analyzed as simply supported spans. For continuous grade beams, results are conservative at supports and unconservative at mid-span.</li>
-      <li><strong>Shear:</strong> ACI 318-19 §22.5.5.1 simplified shear (Table approach). If φV<sub>c</sub> &lt; V<sub>u</sub>, stirrups are required — design separately.</li>
+      <li><strong>Load Path:</strong> Wall zone loads (plf × length = kips) are distributed <strong>in proportion to span length</strong> — equivalent to a uniform intensity w = ΣP/ΣL applied to every span. The <em>Wall DL</em> and <em>Wall LL</em> columns are <strong>total kips carried by that span</strong>; the derived w<sub>wall</sub> column shows the resulting klf. Editing either cell marks it as an override and it is no longer auto-distributed. Refine with point-load analysis for critical cases.</li>
+      <li><strong>Load Combinations:</strong> Grade beams take the greater of <strong>1.4D</strong> and <strong>1.2D + 1.6(L+S)</strong>; the governing combination is reported per beam. Snow arrives merged into L from the stacked calculator and is factored at 1.6, which is conservative relative to ACI 5.3.1(c)–(d). Pier ASD capacity uses the straight sum D + (L+S), conservative relative to ASCE 7-22 §2.4.1. <strong>Gravity only — no wind, seismic, uplift or lateral load combinations are evaluated anywhere in this tool.</strong></li>
+      <li><strong>Grade Beam Continuity:</strong> Negative moment and top steel at the piers are <strong>always</strong> checked when there are two or more spans — against ACI 318-19 Table 6.5.2 where every §6.5.1 condition is satisfied, otherwise against a w<sub>u</sub>L²/8 envelope. Mid-span uses w<sub>u</sub>L²/8 unless the <em>continuous</em> box is ticked <em>and</em> all §6.5.1 conditions pass, in which case w<sub>u</sub>l<sub>n</sub>²/11 (end) and /16 (interior) apply. Shear takes the greater of w<sub>u</sub>L/2 and 1.15w<sub>u</sub>l<sub>n</sub>/2 (Table 6.5.4). Clear span l<sub>n</sub> is derived from the adjacent shaft diameters, so <strong>Span is taken as centre-to-centre</strong>. End-span positive moment uses the <em>discontinuous end unrestrained</em> coefficient (/11), since a drilled shaft provides negligible rotational restraint. Negative moment at a shared support uses each span's own l<sub>n</sub> rather than the §6.5.3 average of adjacent clear spans; under the 1.2× span-ratio gate the longer span's check envelopes the code value where top steel is uniform, but review this if you cut A<sub>s,top</sub> on one span only.</li>
+      <li><strong>Shear:</strong> V<sub>c</sub> per ACI 318-19 Table 22.5.5.1 including the size-effect factor λ<sub>s</sub> = √(2/(1+d/10)) of §22.5.5.1.3, capped at 5λ√f'<sub>c</sub>b<sub>w</sub>d. λ<sub>s</sub> is taken as 1.0 only when minimum stirrups are declared. A<sub>v,min</sub> per §9.6.3.1 is triggered whenever V<sub>u</sub> &gt; φλ√f'<sub>c</sub>b<sub>w</sub>d, well below φV<sub>c</sub>. λ = 1.0 (normalweight).</li>
+      <li><strong>Effective depth:</strong> d = h − cover − stirrup bar − d<sub>b</sub>/2.</li>
       <li><strong>Pier Embedment:</strong> Minimum total depth = depth to bearing + minimum penetration + active penetration required. Round up to 0.5 ft increments in the field.</li>
-      <li><strong>Belled Piers:</strong> End bearing on bell face area. Skin friction on shaft above bell only, beyond minimum penetration.</li>
+      <li><strong>Belled Piers:</strong> End bearing on bell face area. Skin friction excludes the bell flare height (60° bell) plus one shaft diameter above it, and is credited only beyond minimum penetration.</li>
+      <li><strong>Pier structural capacity:</strong> P<sub>svc</sub> ≤ 0.33f'<sub>c</sub>A<sub>g</sub> on the shaft per IBC 2021 §1810.3.2.6. Slenderness is neglected — the shaft is assumed laterally braced by the surrounding soil for its full length. Minimum longitudinal reinforcement and ties per IBC §1810.3.9 are <strong>not</strong> evaluated. Pier self-weight is excluded from P<sub>svc</sub> (conventionally offset by the weight of excavated soil).</li>
+      <li><strong>Judgment items left to the engineer:</strong> full end bearing and full skin friction are taken simultaneously at the same displacement — many geotechnical reports prohibit this, so confirm against the report. Total wall length is not reconciled against total span length. Lateral load, uplift and downdrag are out of scope.</li>
       <li><strong>Stacked Calc Link:</strong> Use "Export to Foundation Design" in the Stacked Headers &amp; Studs Calc to auto-populate Section A with lowest-floor accumulated wall loads.</li>
     </ul>
   </div>
@@ -370,19 +444,99 @@ select.ti{cursor:pointer}
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
 function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A';}
 function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
-function gv(id,def){var el=document.getElementById(id);return el?(parseFloat(el.value)||def||0):def||0;}
+/* H4 — `parseFloat(v)||def` turned an explicit 0 into the default, so zeroing
+   As silently designed the beam with 1.58 in² of phantom steel. Only a blank
+   or non-numeric entry may fall back to the default now. */
+function gv(id,def){
+  var el=document.getElementById(id); if(!el) return def||0;
+  var v=parseFloat(el.value);
+  return isNaN(v)?(def||0):v;
+}
+function cb(id){var el=document.getElementById(id);return !!(el&&el.checked);}
+function runIfReady(){ if(gbIds.length&&document.getElementById('results').className.indexOf('show')>=0) runAllChecks(); }
 function sv(id,html){var el=document.getElementById(id);if(el)el.innerHTML=html;}
 function toggleDet(i){
   var el=document.getElementById('det_'+i);var btn=document.getElementById('dbtn_'+i);
   var open=el.classList.toggle('open');btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
 }
 function pf(dc){return dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';}
+
+/* H3 — Flexural capacity with 318-19 strain limits. The old inline code used
+   the 318-14 constants (0.002 / 0.005) and let φ slide toward 0.65, so an
+   over-reinforced beam could report PASS while violating §9.3.3.1 outright.
+   318-19 Table 21.2.2 keys the transition to εty = fy/Es, which matters for the
+   Grade 75 option (εty = 0.00259, not 0.002). fy in ksi, f'c in psi. */
+function flexCap(As,b,d,fc,fy){
+  var beta1=fc<=4000?0.85:Math.max(0.65,0.85-0.05*(fc-4000)/1000);
+  var a=As*fy/(0.85*(fc/1000)*b);
+  var c=a/beta1;
+  var eps_t=0.003*(d-c)/Math.max(c,1e-9);
+  var eps_ty=fy/29000;                       // Es = 29,000 ksi
+  var phi = eps_t>=eps_ty+0.003 ? 0.90
+          : eps_t<=eps_ty       ? 0.65
+          : 0.65+0.25*(eps_t-eps_ty)/0.003;
+  var Mn=As*fy*(d-a/2)/12;                   // in²·ksi·in → k-ft
+  return {beta1:beta1,a:a,c:c,eps_t:eps_t,eps_ty:eps_ty,phi:phi,
+          Mn:Mn,phiMn:phi*Mn,tc:eps_t>=eps_ty+0.003};
+}
 function dcBar(dc){
   var pct=Math.min(dc,1.5)/1.5*100;
   var col=dc<=0.75?'#16a34a':dc<=1.0?'#f59e0b':'#dc2626';
   return '<div class="dc-cell"><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div>'+(isFinite(dc)?f3(dc):'N/A')+'</div>';
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESIZABLE COLUMNS
+   Widths are keyed by column ('gb:Asb'), not by row, and re-applied after each
+   table rebuild. Drag the right edge of a heading; double-click it to reset one.
+═══════════════════════════════════════════════════════════════════════════ */
+var COLW_KEY='areCalcs_fnd_colWidths';
+var COLW={};
+try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
+if(typeof COLW!=='object'||!COLW||Array.isArray(COLW)) COLW={};
+function saveColW(){ try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){} }
+
+function applyColW(){
+  var tbls=document.querySelectorAll('.inp-table');
+  for(var i=0;i<tbls.length;i++){
+    var ths=tbls[i].querySelectorAll('thead th[data-ck]'), sum=0;
+    for(var j=0;j<ths.length;j++){
+      var w=+COLW[ths[j].getAttribute('data-ck')];
+      if(!isFinite(w)||w<32) w=+ths[j].getAttribute('data-dw');
+      ths[j].style.width=w+'px'; sum+=w;
+    }
+    tbls[i].style.minWidth=sum+'px';
+  }
+}
+function resetColW(){ COLW={}; saveColW(); applyColW(); }
+function gripOf(e){ return e.target&&e.target.closest?e.target.closest('.col-grip'):null; }
+
+document.addEventListener('mousedown',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  e.preventDefault();
+  var startX=e.clientX, startW=grip.parentElement.offsetWidth;
+  grip.classList.add('dragging'); document.body.classList.add('col-resizing');
+  function mv(ev){
+    if(ev.buttons===0){ up(); return; }   // released outside the window
+    COLW[ck]=Math.max(32,startW+(ev.clientX-startX)); applyColW();
+  }
+  function up(){
+    document.removeEventListener('mousemove',mv);
+    document.removeEventListener('mouseup',up);
+    grip.classList.remove('dragging'); document.body.classList.remove('col-resizing');
+    saveColW();
+  }
+  document.addEventListener('mousemove',mv);
+  document.addEventListener('mouseup',up);
+});
+document.addEventListener('dblclick',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  delete COLW[ck]; saveColW(); applyColW();
+});
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PIER TYPE TOGGLE
@@ -413,9 +567,9 @@ function addZone(label, dlPlf, llPlf){
   tr.id='row_'+id;
   tr.innerHTML=
     '<td><input class="ti" id="lbl_'+id+'" value="'+label.replace(/"/g,'&quot;')+'" style="font-weight:600"></td>'
-    +'<td><input class="ti" type="number" id="len_'+id+'" value="40" style="width:65px" oninput="updateZoneRow(\''+id+'\')"></td>'
-    +'<td><input class="ti" type="number" id="dlplf_'+id+'" value="'+Math.round(dlPlf)+'" style="width:70px" oninput="updateZoneRow(\''+id+'\')"></td>'
-    +'<td><input class="ti" type="number" id="llplf_'+id+'" value="'+Math.round(llPlf)+'" style="width:70px" oninput="updateZoneRow(\''+id+'\')"></td>'
+    +'<td><input class="ti" type="number" id="len_'+id+'" value="40" oninput="updateZoneRow(\''+id+'\')"></td>'
+    +'<td><input class="ti" type="number" id="dlplf_'+id+'" value="'+Math.round(dlPlf)+'" oninput="updateZoneRow(\''+id+'\')"></td>'
+    +'<td><input class="ti" type="number" id="llplf_'+id+'" value="'+Math.round(llPlf)+'" oninput="updateZoneRow(\''+id+'\')"></td>'
     +'<td class="td-calc" id="PDL_'+id+'">—</td>'
     +'<td class="td-calc" id="PLL_'+id+'">—</td>'
     +'<td class="td-tot" id="Ptot_'+id+'">—</td>'
@@ -468,6 +622,16 @@ function loadFromStorage(){
   try{ data=JSON.parse(raw); }catch(e){ return; }
   if(!data||!data.studs||!Array.isArray(data.studs)) return;
 
+  /* M10 — this used to wipe every manually entered zone on EVERY page load, so
+     a reload after hand-editing silently destroyed the work. Ask first, and
+     only when there is actually something to lose. */
+  if(zoneIds.length>0){
+    var msg='Import from the Stacked Headers & Studs calculator?\n\n'
+      +'Floor: '+(data.floorName||'—')+'  ·  '+data.studs.length+' zones  ·  exported '+(data.exported||'—')+'\n\n'
+      +'This REPLACES the '+zoneIds.length+' wall load zone'+(zoneIds.length!==1?'s':'')+' currently entered below.';
+    if(!confirm(msg)) return;
+  }
+
   // Clear existing zones
   zoneIds.slice().forEach(function(id){ removeZone(id); });
 
@@ -494,22 +658,73 @@ function clearImport(){
    SECTION B — GRADE BEAM TABLE GENERATOR
 ═══════════════════════════════════════════════════════════════════════════ */
 var gbIds=[];
+var GB_DEFAULT_SPAN=15;
+
+function zoneTotals(){
+  var totDL=0,totLL=0;
+  zoneIds.forEach(function(id){
+    var len=gv('len_'+id,0), dlPlf=gv('dlplf_'+id,0), llPlf=gv('llplf_'+id,0);
+    totDL+=dlPlf*len/1000; totLL+=llPlf*len/1000;
+  });
+  return {DL:totDL,LL:totLL};
+}
+
+/* C3 — Distribute the total wall load in PROPORTION TO SPAN LENGTH, which is
+   what the UI has always claimed. The old code used totDL/n (equal kips per
+   span), which understated a long span sitting next to a short one by ~25%.
+   Equivalent to applying a uniform intensity w = totDL/ΣL to every span.
+   Cells the user has typed into are marked data-auto="0" and never overwritten. */
+function redistributeGBLoads(){
+  if(gbIds.length===0) return;
+  var t=zoneTotals(), sumL=0;
+  gbIds.forEach(function(gid){ sumL+=Math.max(0,gv('L_'+gid,0)); });
+  gbIds.forEach(function(gid){
+    var frac=sumL>0?Math.max(0,gv('L_'+gid,0))/sumL:0;
+    [['hDL',t.DL],['hLL',t.LL]].forEach(function(p){
+      var el=document.getElementById(p[0]+'_'+gid);
+      if(el&&el.getAttribute('data-auto')==='1') el.value=(p[1]*frac).toFixed(2);
+    });
+    updateGBRow(gid,true);
+  });
+}
+
+function markGBOverride(gid,which){
+  var el=document.getElementById(which+'_'+gid);
+  if(el) el.setAttribute('data-auto','0');
+  updateGBRow(gid,true);
+}
+
+/* M2 — the "Wall DL/LL" columns are TOTAL KIPS ON THE SPAN, which the old
+   header ("k (auto)") left ambiguous. This shows the uniform intensity that
+   the beam is actually designed for, in klf, so there is nothing to infer. */
+function updateGBRow(gid,skipRedist){
+  var L=gv('L_'+gid,0);
+  var cell=document.getElementById('wcell_'+gid);
+  if(cell){
+    cell.innerHTML = L>0
+      ? '<strong>'+f3((gv('hDL_'+gid,0)+gv('hLL_'+gid,0))/L)+'</strong>'
+      : '<span class="fail">span = 0</span>';
+  }
+  if(!skipRedist) redistributeGBLoads();
+}
+
+function resetGBAuto(){
+  gbIds.forEach(function(gid){
+    ['hDL','hLL'].forEach(function(k){
+      var el=document.getElementById(k+'_'+gid); if(el) el.setAttribute('data-auto','1');
+    });
+  });
+  redistributeGBLoads();
+}
+
 function buildGBTable(){
   var n=Math.max(1,Math.min(20,+(document.getElementById('gbCount').value)||3));
   var b_def=document.getElementById('gb_b').value;
   var h_def=document.getElementById('gb_h').value;
   var As_def=document.getElementById('gb_As').value;
+  var Ast_def=document.getElementById('gb_Ast').value;
   var fc_def=document.getElementById('gb_fc').value;
-
-  // Total wall loads from zones
-  var totDL=0,totLL=0;
-  zoneIds.forEach(function(id){
-    var len  =parseFloat((document.getElementById('len_'+id)||{value:0}).value)||0;
-    var dlPlf=parseFloat((document.getElementById('dlplf_'+id)||{value:0}).value)||0;
-    var llPlf=parseFloat((document.getElementById('llplf_'+id)||{value:0}).value)||0;
-    totDL+=dlPlf*len/1000; totLL+=llPlf*len/1000;
-  });
-  var DL_each=totDL/n, LL_each=totLL/n;
+  var L_def=GB_DEFAULT_SPAN, DL_i=0, LL_i=0;
 
   gbIds=[];
   document.getElementById('gbBody').innerHTML='';
@@ -519,18 +734,22 @@ function buildGBTable(){
     tr.className='gb-row'; tr.id='row_'+gid;
     tr.innerHTML=
       '<td><input class="ti" id="lbl_'+gid+'" value="GB-'+i+'" style="font-weight:700;color:#166534"></td>'
-      +'<td><input class="ti" type="number" id="L_'+gid+'" value="15" style="width:60px"></td>'
-      +'<td><input class="ti" type="number" id="b_'+gid+'" value="'+b_def+'" style="width:52px"></td>'
-      +'<td><input class="ti" type="number" id="h_'+gid+'" value="'+h_def+'" style="width:52px"></td>'
-      +'<td><input class="ti" type="number" id="As_'+gid+'" value="'+As_def+'" step="0.01" style="width:60px"></td>'
-      +'<td><input class="ti" type="number" id="fc_'+gid+'" value="'+fc_def+'" style="width:62px"></td>'
-      +'<td><input class="ti" type="number" id="hDL_'+gid+'" value="'+DL_each.toFixed(2)+'" step="0.01" style="width:68px"></td>'
-      +'<td><input class="ti" type="number" id="hLL_'+gid+'" value="'+LL_each.toFixed(2)+'" step="0.01" style="width:68px"></td>'
+      +'<td><input class="ti" type="number" id="L_'+gid+'" value="'+L_def.toFixed(2)+'" oninput="updateGBRow(\''+gid+'\')"></td>'
+      +'<td><input class="ti" type="number" id="b_'+gid+'" value="'+b_def+'"></td>'
+      +'<td><input class="ti" type="number" id="h_'+gid+'" value="'+h_def+'"></td>'
+      +'<td><input class="ti" type="number" id="As_'+gid+'" value="'+As_def+'" step="0.01"></td>'
+      +'<td><input class="ti" type="number" id="Ast_'+gid+'" value="'+Ast_def+'" step="0.01"></td>'
+      +'<td><input class="ti" type="number" id="fc_'+gid+'" value="'+fc_def+'"></td>'
+      +'<td><input class="ti" type="number" id="hDL_'+gid+'" value="'+DL_i.toFixed(2)+'" step="0.01" data-auto="1" oninput="markGBOverride(\''+gid+'\',\'hDL\')"></td>'
+      +'<td><input class="ti" type="number" id="hLL_'+gid+'" value="'+LL_i.toFixed(2)+'" step="0.01" data-auto="1" oninput="markGBOverride(\''+gid+'\',\'hLL\')"></td>'
+      +'<td class="td-calc" id="wcell_'+gid+'">—</td>'
       +'<td><input class="ti" id="note_'+gid+'" value="" placeholder="optional"></td>';
     document.getElementById('gbBody').appendChild(tr);
   }
   document.getElementById('gbTableWrap').style.display='';
+  redistributeGBLoads();
   buildPierTable(n);
+  applyColW();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -541,6 +760,7 @@ function buildPierTable(n){
   pierIds=[];
   document.getElementById('pierBody').innerHTML='';
   var diam_def=document.getElementById('pier_diam').value;
+  var bell_def=document.getElementById('pier_bell').value;
   var diamOpts=[12,14,16,18,20,22,24,28,30,36,42,48].map(function(d){
     return '<option value="'+d+'"'+(d==diam_def?' selected':'')+'>'+d+'"</option>';
   }).join('');
@@ -556,12 +776,16 @@ function buildPierTable(n){
       +'<option value="straight">Straight</option>'
       +'<option value="belled"'+(pierType==='belled'?' selected':'')+'>Belled</option>'
       +'</select></td>'
-      +'<td><input class="ti" type="number" id="addDL_'+pid+'" value="0" step="0.1" style="width:62px"></td>'
-      +'<td><input class="ti" type="number" id="addLL_'+pid+'" value="0" step="0.1" style="width:62px"></td>'
+      // H6 — bell diameter is per-pier; it used to be one global applied to
+      // every belled pier regardless of its shaft diameter.
+      +'<td><input class="ti" type="number" id="bell_'+pid+'" value="'+bell_def+'" step="1"></td>'
+      +'<td><input class="ti" type="number" id="addDL_'+pid+'" value="0" step="0.1"></td>'
+      +'<td><input class="ti" type="number" id="addLL_'+pid+'" value="0" step="0.1"></td>'
       +'<td><input class="ti" id="pnote_'+pid+'" value="'+(isEnd?'End pier':'Interior pier')+'" placeholder="optional"></td>';
     document.getElementById('pierBody').appendChild(tr);
   }
   document.getElementById('pierTableWrap').style.display='';
+  applyColW();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -569,6 +793,12 @@ function buildPierTable(n){
 ═══════════════════════════════════════════════════════════════════════════ */
 function runAllChecks(){
   if(gbIds.length===0){ alert('Please click "Generate Tables" in Section B first.'); return; }
+
+  /* C3 — pick up any Section A edits made AFTER Generate. Without this the
+     beams run on the kips that were distributed when the table was built, so
+     changing a zone from 420 to 800 plf silently had no effect. Override flags
+     are respected, so hand-entered cells are untouched. */
+  redistributeGBLoads();
 
   var gb_fy =gv('gb_fy',60);
   var gb_cov=gv('gb_cov',3);
@@ -579,6 +809,8 @@ function runAllChecks(){
   var z_bear=gv('z_bearing',18);
   var pen_min=gv('pen_min',2);
   var bell_D=gv('pier_bell',36);
+  var pier_fc=gv('pier_fc',3000);
+  var gb_dbs=gv('gb_dbs',0.375);
   var bmat  =document.getElementById('bearing_mat').value||'Bearing Material';
 
   /* ── Collect zones ── */
@@ -603,11 +835,23 @@ function runAllChecks(){
       b  :gv('b_'+gid,18),
       h  :gv('h_'+gid,24),
       As :gv('As_'+gid,1.58),
+      Ast:gv('Ast_'+gid,1.58),
       fc :gv('fc_'+gid,3000),
       hDL:gv('hDL_'+gid,0),
       hLL:gv('hLL_'+gid,0)
     });
   });
+
+  /* H5 — a zero/blank span used to silently drop that beam's load out of the
+     load path: w=hDL/L became 0, the reactions vanished, and both the beam and
+     the piers downstream still reported PASS. Refuse to run instead. */
+  var badSpan=gbs.filter(function(g){return !(g.L>0);});
+  if(badSpan.length){
+    alert('Span length must be greater than zero.\n\nOffending grade beam'+(badSpan.length>1?'s':'')+': '
+      +badSpan.map(function(g){return g.lbl;}).join(', ')
+      +'\n\nA zero span would drop that wall load out of the load path entirely and still report PASS.');
+    return;
+  }
 
   /* ── Collect pier inputs ── */
   var pierInps=[];
@@ -616,6 +860,7 @@ function runAllChecks(){
       lbl  :(document.getElementById('lbl_'+pid)||{value:pid}).value,
       diam :gv('diam_'+pid,18),
       ptype:(document.getElementById('ptype_'+pid)||{value:'straight'}).value,
+      bell :gv('bell_'+pid,bell_D),
       addDL:gv('addDL_'+pid,0),
       addLL:gv('addLL_'+pid,0)
     });
@@ -636,96 +881,323 @@ function runAllChecks(){
   resA+='</tbody></table>';
   sv('resZones',resA);
 
+  /* ══ C2 — ACI 318-19 §6.5.1 GATE ═══════════════════════════════════════
+     The approximate coefficients of Table 6.5.2 may only be used when EVERY
+     condition of §6.5.1 is satisfied. Each is tested against the actual span
+     table and reported individually, so a reduction can never be applied to a
+     beam that does not qualify. (b) is true by construction — the tool applies
+     only uniformly distributed loads. */
+  var nSp=gbs.length;
+  var gate=[];
+  gate.push({t:'§6.5.1(a) Members are prismatic',
+             ok:gbs.every(function(g){return g.b===gbs[0].b&&g.h===gbs[0].h;}),
+             why:'b and h identical on every span'});
+  gate.push({t:'§6.5.1(b) Loads uniformly distributed', ok:true,
+             why:'true by construction — this tool applies only uniform loads'});
+  /* The L/D ratio must be tested PER SPAN. Maxing L and D independently across
+     spans lets a heavily loaded span mask a light one: D=3.0/L=0.5 on span 1
+     and D=1.0/L=3.4 on span 2 would compare 3.4 ≤ 9 and "pass", while span 2
+     actually violates §6.5.1(c). This is the interlock that guards the
+     reduction, so it takes the worst individual span. */
+  var worstLD=0, worstLDlbl='—';
+  gbs.forEach(function(g){
+    var wsw=(g.b/12)*(g.h/12)*gb_wc/1000;
+    var dSpan=wsw+g.hDL/g.L, lSpan=g.hLL/g.L;
+    var r=dSpan>0?lSpan/dSpan:Infinity;
+    if(r>worstLD){ worstLD=r; worstLDlbl=g.lbl; }
+  });
+  gate.push({t:'§6.5.1(c) Unfactored L ≤ 3 × unfactored D',
+             ok:worstLD<=3,
+             why:'worst L/D = '+(isFinite(worstLD)?f2(worstLD):'∞')+' on '+worstLDlbl});
+  gate.push({t:'§6.5.1(d) Two or more spans', ok:nSp>=2, why:nSp+' span'+(nSp!==1?'s':'')});
+  var spanRatioOK=true, worstRatio=1;
+  for(var si=0;si<nSp-1;si++){
+    var a=gbs[si].L,bb=gbs[si+1].L;
+    var r=Math.max(a,bb)/Math.max(Math.min(a,bb),1e-9);
+    worstRatio=Math.max(worstRatio,r);
+    if(r>1.2) spanRatioOK=false;
+  }
+  gate.push({t:'§6.5.1(e) Longer of two adjacent spans ≤ 1.2 × shorter',
+             ok:nSp<2?true:spanRatioOK,
+             why:nSp<2?'n/a — single span':'worst adjacent ratio = '+f2(worstRatio)});
+  var gateOK=gate.every(function(g){return g.ok;});
+  var wantContinuous=cb('gb_continuous');
+  var useReduction=wantContinuous&&gateOK;      // +M reduction, gated
+  var isContinuous=nSp>=2;                       // top steel is checked regardless
+
   /* ── SECTION B — Grade Beam Checks ── */
   var pierLoadDL=new Array(gbs.length+1).fill(0);
   var pierLoadLL=new Array(gbs.length+1).fill(0);
   var resB='', gbIdx=0, anyGBFail=false;
 
+  /* Gate report — always shown so the basis of the run is on the printout */
+  resB+='<div class="blk" style="margin-bottom:16px;border-left-color:'+(useReduction?'#16a34a':'#f59e0b')+'">';
+  resB+='<h2 style="font-size:1.0em">Continuity basis — ACI 318-19 §6.5.1</h2>';
+  resB+='<table class="chk-table"><thead><tr><th>Condition</th><th>Basis</th><th>Result</th></tr></thead><tbody>';
+  gate.forEach(function(g){
+    resB+='<tr><td>'+g.t+'</td><td>'+g.why+'</td><td class="'+(g.ok?'gate-ok':'gate-no')+'">'+(g.ok?'✓ satisfied':'✗ not satisfied')+'</td></tr>';
+  });
+  resB+='</tbody></table>';
+  if(nSp<2){
+    resB+='<div style="margin-top:8px;font-size:.84em;color:#166534;background:#f0fdf4;padding:8px 12px;border-radius:5px">'
+      +'Single span — analysed as simply supported. No continuity checks apply.</div>';
+  } else if(useReduction){
+    resB+='<div style="margin-top:8px;font-size:.84em;color:#166534;background:#f0fdf4;padding:8px 12px;border-radius:5px">'
+      +'<strong>All §6.5.1 conditions satisfied and "continuous" selected.</strong> Mid-span moment uses w<sub>u</sub>l<sub>n</sub>²/11 (end spans — discontinuous end taken as unrestrained on the pier) and /16 (interior); '
+      +'negative moment at the piers uses Table 6.5.2; shear at the first interior support uses 1.15w<sub>u</sub>l<sub>n</sub>/2.</div>';
+  } else if(wantContinuous&&!gateOK){
+    resB+='<div style="margin-top:8px;font-size:.84em;color:#7f1d1d;background:#fef2f2;border:1.5px solid #dc2626;padding:8px 12px;border-radius:5px">'
+      +'<strong>⚠ "Continuous" is selected but §6.5.1 is NOT satisfied — the mid-span reduction has been WITHHELD.</strong> '
+      +'Mid-span remains w<sub>u</sub>L²/8 and the negative moment is enveloped at w<sub>u</sub>L²/8. Applying Table 6.5.2 here would be unconservative and is not permitted. '
+      +'Analyse this frame explicitly, or correct the span geometry.</div>';
+  } else {
+    resB+='<div style="margin-top:8px;font-size:.84em;color:#78350f;background:#fffbeb;padding:8px 12px;border-radius:5px">'
+      +'<strong>Continuity reduction not selected.</strong> Mid-span uses w<sub>u</sub>L²/8. Top steel over the piers is still checked — '
+      +'against Table 6.5.2 where §6.5.1 permits it, otherwise against the w<sub>u</sub>L²/8 envelope.</div>';
+  }
+  resB+='</div>';
+
   gbs.forEach(function(gb,gi){
-    var L=gb.L,b=gb.b,h=gb.h,As=gb.As,fc=gb.fc,fy=gb_fy,cov=gb_cov,db=gb_db;
-    var d=h-cov-db/2;
+    var L=gb.L,b=gb.b,h=gb.h,As=gb.As,Ast=gb.Ast,fc=gb.fc,fy=gb_fy,cov=gb_cov,db=gb_db;
+    // M5 — d now subtracts the stirrup bar, which was ignored entirely before
+    var d=h-cov-gb_dbs-db/2;
     var hDL=gb.hDL,hLL=gb.hLL;
     var w_sw=(b/12)*(h/12)*gb_wc/1000;
-    var w_hDL=L>0?hDL/L:0;
-    var w_hLL=L>0?hLL/L:0;
+    var w_hDL=hDL/L, w_hLL=hLL/L;
     var w_DL=w_sw+w_hDL;
     var w_LL=w_hLL;
-    var Wu=1.2*w_DL+1.6*w_LL;
-    var Mu=Wu*L*L/8;
-    var Vu=Wu*L/2;
 
-    var beta1=fc<=4000?0.85:Math.max(0.65,0.85-0.05*(fc-4000)/1000);
-    var a=As*fy/(0.85*fc/1000*b);
-    var c=a/beta1;
-    var eps_t=0.003*(d-c)/Math.max(c,0.001);
-    var phi_f=eps_t>=0.005?0.90:Math.max(0.65,0.65+(eps_t-0.002)/0.003*0.25);
-    var Mn=As*fy*(d-a/2)/12;
-    var phiMn=phi_f*Mn;
+    // H1 — 1.4D was never evaluated; it governs when (L+S) < D/8
+    var U1=1.4*w_DL, U2=1.2*w_DL+1.6*w_LL;
+    var Wu=Math.max(U1,U2);
+    var combo=(U1>=U2)?'1.4D':'1.2D + 1.6(L+S)';
+
+    // Clear span from the adjacent shaft diameters (L is centre-to-centre)
+    var Dp1=(pierInps[gi]||{diam:18}).diam, Dp2=(pierInps[gi+1]||{diam:18}).diam;
+    var ln=Math.max(0.1, L-(Dp1+Dp2)/24);
+    var isEndSpan=(gi===0||gi===nSp-1);
+
+    /* C2 — positive moment. Reduced only when the user asked AND every
+       §6.5.1 condition passed; otherwise the simply-supported value stands. */
+    var Mu_pos, posBasis, posDen;
+    if(useReduction&&nSp>=2){
+      /* End spans use /11 — "discontinuous end unrestrained". A grade beam
+         bearing on a drilled shaft gets negligible rotational restraint, so
+         /14 ("integral with support") would understate end-span +Mu by 27%
+         inside the one path where the tool reduces demand. */
+      posDen=isEndSpan?11:16;
+      Mu_pos=Wu*ln*ln/posDen;
+      posBasis='w<sub>u</sub>l<sub>n</sub>²/'+posDen+' — Table 6.5.2, '+(isEndSpan?'end span, discontinuous end unrestrained':'interior span');
+    } else {
+      posDen=8; Mu_pos=Wu*L*L/8; posBasis='w<sub>u</sub>L²/8 — simply supported';
+    }
+
+    /* C2 — negative moment at the piers. This was never computed at all, so
+       top steel went unchecked on every continuous run. Checked whenever there
+       are 2+ spans; enveloped at wL²/8 when §6.5.1 does not permit Table 6.5.2. */
+    var Mu_neg=0, negBasis='', negDen=0, negChecked=(nSp>=2);
+    if(negChecked){
+      if(gateOK){
+        negDen=(nSp===2)?9:((gi<=1||gi>=nSp-2)?10:11);
+        Mu_neg=Wu*ln*ln/negDen;
+        negBasis='w<sub>u</sub>l<sub>n</sub>²/'+negDen+' — Table 6.5.2';
+      } else {
+        negDen=8; Mu_neg=Wu*L*L/8;
+        negBasis='w<sub>u</sub>L²/8 envelope — §6.5.1 not satisfied, Table 6.5.2 not permitted';
+      }
+    }
+
+    /* C2 — Table 6.5.4: 1.15w_u·l_n/2 at the face of the first interior
+       support. Taken as the max against the simply-supported value so the
+       result is conservative whether or not §6.5.1 passes. */
+    var vFac=(nSp>=2&&isEndSpan)?1.15:1.0;
+    var Vu_ss=Wu*L/2, Vu_cont=vFac*Wu*ln/2;
+    var Vu=Math.max(Vu_ss,Vu_cont);
+    var vBasis=(Vu_cont>=Vu_ss&&vFac>1)?'1.15w<sub>u</sub>l<sub>n</sub>/2 — Table 6.5.4, first interior support':'w<sub>u</sub>L/2';
+
+    var fBot=flexCap(As,b,d,fc,fy);
+    var fTop=negChecked?flexCap(Ast,b,d,fc,fy):null;
 
     var As_min=Math.max(3*Math.sqrt(fc)/(fy*1000),200/(fy*1000))*b*d;
+
+    /* C1 — size-effect factor λs per §22.5.5.1.3. Omitting it overstated φVc
+       by ~23% on the default 24in beam and worsens with depth. λs may be taken
+       as 1.0 only where Av ≥ Av,min (Table 22.5.5.1 row b). */
+    var hasStirr=cb('gb_stirrups');
+    var lam=1.0;                                   // L3 — normalweight concrete
+    var lam_s=hasStirr?1.0:Math.min(1.0,Math.sqrt(2/(1+d/10)));
     var rho_w=As/(b*Math.max(d,1));
-    var Vc=8*1.0*Math.pow(Math.max(rho_w,0.0001),1/3)*Math.sqrt(fc)*b*d/1000;
+    var Vc_raw=8*lam_s*lam*Math.pow(Math.max(rho_w,1e-9),1/3)*Math.sqrt(fc)*b*d/1000;
+    var Vc_cap=5*lam*Math.sqrt(fc)*b*d/1000;       // §22.5.5.1.1 upper bound
+    var Vc=Math.min(Vc_raw,Vc_cap);
     var phiVc=0.75*Vc;
 
-    var dc_flex=phiMn>0?Mu/phiMn:999;
+    /* C4 — §9.6.3.1 requires Av,min wherever Vu > φλ√f'c·bw·d, well below φVc.
+       The old code only mentioned stirrups when φVc < Vu, so beams passed with
+       no shear reinforcement where code mandates it. */
+    var Vu_trig=0.75*lam*Math.sqrt(fc)*b*d/1000;
+    var needsAvMin=Vu>Vu_trig;
+    var AvMin_s=Math.max(0.75*Math.sqrt(fc)*b/(fy*1000),50*b/(fy*1000)); // in²/in
+    var avMinOK=(!needsAvMin)||hasStirr;
+
+    /* M7 — development length, §25.4.2.3 (ψt=ψe=1.0, normalweight) */
+    var ldCoef=(db>=0.875)?20:25;
+    var ld=Math.max(12,(fy*1000)/(ldCoef*lam*Math.sqrt(fc))*db);
+    /* The discontinuous end is the LEFT pier on the first span and the RIGHT
+       pier on the last; a single span has both, so take the smaller shaft. */
+    var ldPierIdx = (nSp===1) ? (Dp1<=Dp2?gi:gi+1) : (gi===0?gi:gi+1);
+    var ldPier=pierInps[ldPierIdx]||{diam:18,lbl:'P-'+(ldPierIdx+1)};
+    var embedAvail=Math.max(0,ldPier.diam-cov);
+    var ldChecked=isEndSpan;
+    var ldOK=(!ldChecked)||(ld<=embedAvail);
+    // §25.4.3.1 standard hook, for the detailer when straight bar will not fit
+    var ldh=Math.max(6,8*db,(fy*1000)/(55*lam*Math.sqrt(fc))*Math.pow(db,1.5));
+
+    var dc_flex=fBot.phiMn>0?Mu_pos/fBot.phiMn:999;
+    var dc_top =negChecked?(fTop.phiMn>0?Mu_neg/fTop.phiMn:999):0;
     var dc_shear=phiVc>0?Vu/phiVc:999;
-    if(dc_flex>1||dc_shear>1||As<As_min) anyGBFail=true;
+    if(dc_flex>1||dc_shear>1||As<As_min||!fBot.tc) anyGBFail=true;
+    if(negChecked&&(dc_top>1||Ast<As_min||!fTop.tc)) anyGBFail=true;
+    if(!avMinOK) anyGBFail=true;
+    /* l_d is reported as an ADVISORY, not a pass/fail. Straight embedment inside
+       a shaft is almost never the real anchorage — bottom bars are normally
+       hooked or run continuous over the pier — so failing the whole run on it
+       would cry wolf on every end span. The number and the required hook length
+       are reported so the detailer has them. */
 
     var R_DL=w_DL*L/2, R_LL=w_LL*L/2;
     pierLoadDL[gi]+=R_DL; pierLoadDL[gi+1]+=R_DL;
     pierLoadLL[gi]+=R_LL; pierLoadLL[gi+1]+=R_LL;
 
     var di=++gbIdx;
-    // Detail panels
-    var det_flex='<div class="cref-hdr">ACI 318-19 §22.3 — Flexural Strength (LRFD)</div><div class="cbox">';
-    det_flex+='<div class="mrow"><span class="ceq">w<sub>sw</sub></span> = '+fr(b+'×'+h,'144')+'×'+gb_wc+' = <span class="cval">'+f3(w_sw)+' k/ft</span></div>';
-    det_flex+='<div class="mrow"><span class="ceq">w<sub>DL</sub></span> = '+f3(w_sw)+' + '+f3(w_hDL)+' = <span class="cval">'+f3(w_DL)+' k/ft</span></div>';
-    det_flex+='<div class="mrow"><span class="ceq">W<sub>u</sub></span> = 1.2('+f3(w_DL)+') + 1.6('+f3(w_LL)+') = <span class="cval">'+f3(Wu)+' k/ft</span></div>';
-    det_flex+='<div class="mrow"><span class="ceq">M<sub>u</sub></span> = '+fr('W<sub>u</sub>L²','8')+' = <span class="cval">'+f2(Mu)+' k-ft</span></div>';
-    det_flex+='<hr class="csep">';
-    det_flex+='<div class="mrow"><span class="ceq">d</span> = '+h+' − '+cov+' − '+f2(db/2)+' = <span class="cval">'+f2(d)+' in</span></div>';
-    det_flex+='<div class="mrow"><span class="ceq">a</span> = '+fr('A<sub>s</sub>f<sub>y</sub>','0.85f\'<sub>c</sub>b')+' = <span class="cval">'+f2(a)+' in</span></div>';
-    det_flex+='<div class="mrow"><span class="ceq">φ</span> = '+f3(phi_f)+' (ε<sub>t</sub> = '+f3(eps_t)+')</div>';
-    det_flex+='<div class="mrow"><span class="ceq">φM<sub>n</sub></span> = φ×A<sub>s</sub>f<sub>y</sub>(d−a/2)/12 = <span class="cval">'+f2(phiMn)+' k-ft</span></div>';
-    det_flex+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Mu),f2(phiMn))+' = <span class="'+(dc_flex<=1?'cval':'cval-warn')+'">'+f3(dc_flex)+'</span></div></div>';
 
-    var det_shear='<div class="cref-hdr">ACI 318-19 §22.5.5.1 — Shear Strength (Simplified)</div><div class="cbox">';
-    det_shear+='<div class="mrow"><span class="ceq">V<sub>u</sub></span> = '+fr('W<sub>u</sub>L','2')+' = <span class="cval">'+f2(Vu)+' k</span></div>';
-    det_shear+='<div class="mrow"><span class="ceq">ρ<sub>w</sub></span> = '+fr('A<sub>s</sub>','b×d')+' = <span class="cval">'+f3(rho_w)+'</span></div>';
-    det_shear+='<div class="mrow"><span class="ceq">V<sub>c</sub></span> = 8λ(ρ<sub>w</sub>)<sup>1/3</sup>√f\'<sub>c</sub>·b·d/1000 = <span class="cval">'+f2(Vc)+' k</span></div>';
+    // Shared load build-up, reused by both flexure panels
+    var loadRows=''
+      // L1 — the displayed formula used to omit the /1000 and read as lb/ft
+      +'<div class="mrow"><span class="ceq">w<sub>sw</sub></span> = '+fr(b+'×'+h,'144')+'× '+gb_wc+' /1000 = <span class="cval">'+f3(w_sw)+' k/ft</span></div>'
+      +'<div class="mrow"><span class="ceq">w<sub>wall,DL</sub></span> = '+fr(f2(hDL)+' k','L = '+f2(L)+' ft')+' = <span class="cval">'+f3(w_hDL)+' k/ft</span></div>'
+      +'<div class="mrow"><span class="ceq">w<sub>DL</sub></span> = '+f3(w_sw)+' + '+f3(w_hDL)+' = <span class="cval">'+f3(w_DL)+' k/ft</span></div>'
+      +'<div class="mrow"><span class="ceq">w<sub>LL</sub></span> = '+fr(f2(hLL)+' k','L = '+f2(L)+' ft')+' = <span class="cval">'+f3(w_LL)+' k/ft</span></div>'
+      +'<hr class="csep">'
+      +'<div class="mrow">1.4D = 1.4('+f3(w_DL)+') = '+f3(U1)+' k/ft</div>'
+      +'<div class="mrow">1.2D + 1.6(L+S) = 1.2('+f3(w_DL)+') + 1.6('+f3(w_LL)+') = '+f3(U2)+' k/ft</div>'
+      +'<div class="mrow"><span class="ceq">W<sub>u</sub></span> = max = <span class="cval">'+f3(Wu)+' k/ft</span> &nbsp;<em>governed by '+combo+'</em></div>'
+      +'<div class="mrow"><span class="ceq">l<sub>n</sub></span> = '+f2(L)+' − ('+Dp1+'+'+Dp2+')/24 = <span class="cval">'+f2(ln)+' ft</span> <em>(clear span)</em></div>'
+      +'<div class="mrow"><span class="ceq">d</span> = '+h+' − '+cov+' − '+f3(gb_dbs)+' <em>(stirrup)</em> − '+f3(db/2)+' = <span class="cval">'+f2(d)+' in</span></div>';
+
+    function flexPanel(title,ref,Mu_v,basis,F,Asv,dcv){
+      var s='<div class="cref-hdr">'+ref+' — '+title+'</div><div class="cbox">';
+      s+=loadRows+'<hr class="csep">';
+      s+='<div class="mrow"><span class="ceq">M<sub>u</sub></span> = '+basis+' = <span class="cval">'+f2(Mu_v)+' k-ft</span></div>';
+      s+='<div class="mrow"><span class="ceq">β<sub>1</sub></span> = <span class="cval">'+f3(F.beta1)+'</span> (Table 22.2.2.4.3)</div>';
+      s+='<div class="mrow"><span class="ceq">a</span> = '+fr('A<sub>s</sub>f<sub>y</sub>','0.85f\'<sub>c</sub>b')+' = '+fr(f2(Asv)+'×'+f1(fy),'0.85×'+f3(fc/1000)+'×'+b)+' = <span class="cval">'+f2(F.a)+' in</span></div>';
+      s+='<div class="mrow"><span class="ceq">c</span> = a/β<sub>1</sub> = <span class="cval">'+f2(F.c)+' in</span></div>';
+      s+='<div class="mrow"><span class="ceq">ε<sub>t</sub></span> = 0.003(d−c)/c = <span class="cval">'+f3(F.eps_t)+'</span> &nbsp;·&nbsp; ε<sub>ty</sub> = f<sub>y</sub>/E<sub>s</sub> = '+f3(F.eps_ty)+'</div>';
+      s+='<div class="mrow">Tension-controlled requires ε<sub>t</sub> ≥ ε<sub>ty</sub>+0.003 = '+f3(F.eps_ty+0.003)+' → <span class="'+(F.tc?'cval':'cval-warn')+'">'+(F.tc?'satisfied':'NOT satisfied — §9.3.3.1 violated')+'</span></div>';
+      s+='<div class="mrow"><span class="ceq">φ</span> = <span class="cval">'+f3(F.phi)+'</span> (Table 21.2.2)</div>';
+      s+='<div class="mrow"><span class="ceq">φM<sub>n</sub></span> = φ·A<sub>s</sub>f<sub>y</sub>(d−a/2)/12 = <span class="cval">'+f2(F.phiMn)+' k-ft</span></div>';
+      s+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Mu_v),f2(F.phiMn))+' = <span class="'+(dcv<=1?'cval':'cval-warn')+'">'+f3(dcv)+'</span></div></div>';
+      return s;
+    }
+
+    var det_flex=flexPanel('Positive (mid-span) Flexure','ACI 318-19 §22.3',Mu_pos,posBasis,fBot,As,dc_flex);
+    var det_top =negChecked?flexPanel('Negative Flexure at Pier — Top Steel','ACI 318-19 §22.3 / §6.5',Mu_neg,negBasis,fTop,Ast,dc_top):null;
+
+    var det_shear='<div class="cref-hdr">ACI 318-19 Table 22.5.5.1 — Concrete Shear Strength</div><div class="cbox">';
+    det_shear+='<div class="mrow"><span class="ceq">V<sub>u</sub></span> = '+vBasis+' = <span class="cval">'+f2(Vu)+' k</span></div>';
+    det_shear+='<div class="mrow" style="padding-left:22px"><em>w<sub>u</sub>L/2 = '+f2(Vu_ss)+' k &nbsp;·&nbsp; '+f2(vFac)+'w<sub>u</sub>l<sub>n</sub>/2 = '+f2(Vu_cont)+' k → governing '+f2(Vu)+' k</em></div>';
+    det_shear+='<div class="mrow"><span class="ceq">ρ<sub>w</sub></span> = '+fr('A<sub>s</sub>','b·d')+' = <span class="cval">'+f3(rho_w)+'</span></div>';
+    det_shear+='<div class="mrow"><span class="ceq">λ<sub>s</sub></span> = √(2/(1+d/10)) ≤ 1.0 = <span class="cval">'+f3(lam_s)+'</span>'
+      +(hasStirr?' <em>— taken as 1.0, A<sub>v</sub> ≥ A<sub>v,min</sub> provided (§22.5.5.1.3)</em>':' <em>— size effect, §22.5.5.1.3 (no stirrups assumed)</em>')+'</div>';
+    det_shear+='<div class="mrow"><span class="ceq">λ</span> = '+f2(lam)+' <em>(normalweight)</em></div>';
+    det_shear+='<div class="mrow"><span class="ceq">V<sub>c</sub></span> = 8λ<sub>s</sub>λ(ρ<sub>w</sub>)<sup>1/3</sup>√f\'<sub>c</sub>·b·d/1000 = <span class="cval">'+f2(Vc_raw)+' k</span></div>';
+    det_shear+='<div class="mrow">upper bound 5λ√f\'<sub>c</sub>·b·d/1000 = '+f2(Vc_cap)+' k → <span class="ceq">V<sub>c</sub></span> = <span class="cval">'+f2(Vc)+' k</span></div>';
     det_shear+='<div class="mrow"><span class="ceq">φV<sub>c</sub></span> = 0.75×'+f2(Vc)+' = <span class="cval">'+f2(phiVc)+' k</span></div>';
-    if(phiVc<Vu) det_shear+='<div class="mrow" style="color:#dc2626;font-weight:700">⚠ Stirrups required — V<sub>s,req</sub>='+f2(Vu/0.75-Vc)+' k (design separately)</div>';
+    if(phiVc<Vu) det_shear+='<div class="mrow" style="color:#dc2626;font-weight:700">⚠ V<sub>u</sub> &gt; φV<sub>c</sub> — shear reinforcement required for strength. V<sub>s,req</sub> = '+f2(Vu/0.75-Vc)+' k (design separately)</div>';
     det_shear+='<hr class="csep"><div class="mrow">D/C = '+fr(f2(Vu),f2(phiVc))+' = <span class="'+(dc_shear<=1?'cval':'cval-warn')+'">'+f3(dc_shear)+'</span></div></div>';
 
+    // M4 — As,min previously had no expandable panel at all
+    var det_asmin='<div class="cref-hdr">ACI 318-19 §9.6.1.2 — Minimum Flexural Reinforcement</div><div class="cbox">';
+    det_asmin+='<div class="mrow">Greater of the two expressions governs:</div>';
+    det_asmin+='<div class="mrow ind">(a) '+fr('3√f\'<sub>c</sub>','f<sub>y</sub>')+'b<sub>w</sub>d = '+fr('3√'+fc,(fy*1000)+'')+'×'+b+'×'+f2(d)+' = <span class="cval">'+f3(3*Math.sqrt(fc)/(fy*1000)*b*d)+' in²</span></div>';
+    det_asmin+='<div class="mrow ind">(b) '+fr('200','f<sub>y</sub>')+'b<sub>w</sub>d = '+fr('200',(fy*1000)+'')+'×'+b+'×'+f2(d)+' = <span class="cval">'+f3(200/(fy*1000)*b*d)+' in²</span></div>';
+    det_asmin+='<hr class="csep"><div class="mrow"><span class="ceq">A<sub>s,min</sub></span> = <span class="cval">'+f3(As_min)+' in²</span> &nbsp;·&nbsp; provided bottom = '+f2(As)+' in²'+(negChecked?' , top = '+f2(Ast)+' in²':'')+'</div></div>';
+
+    // C4 — new check, and its panel
+    var det_avmin='<div class="cref-hdr">ACI 318-19 §9.6.3.1 — Minimum Shear Reinforcement Threshold</div><div class="cbox">';
+    det_avmin+='<div class="mrow">A<sub>v,min</sub> is required wherever V<sub>u</sub> exceeds φλ√f\'<sub>c</sub>·b<sub>w</sub>·d — far below φV<sub>c</sub>.</div>';
+    det_avmin+='<div class="mrow"><span class="ceq">trigger</span> = 0.75×'+f2(lam)+'√'+fc+'×'+b+'×'+f2(d)+'/1000 = <span class="cval">'+f2(Vu_trig)+' k</span></div>';
+    det_avmin+='<div class="mrow"><span class="ceq">V<sub>u</sub></span> = '+f2(Vu)+' k → <span class="'+(needsAvMin?'cval-warn':'cval')+'">'+(needsAvMin?'stirrups REQUIRED':'no minimum stirrups required')+'</span></div>';
+    if(needsAvMin){
+      det_avmin+='<hr class="csep"><div class="mrow">§9.6.3.4 — A<sub>v,min</sub>/s = greater of:</div>';
+      det_avmin+='<div class="mrow ind">0.75√f\'<sub>c</sub>·b<sub>w</sub>/f<sub>yt</sub> = '+f4(0.75*Math.sqrt(fc)*b/(fy*1000))+' in²/in</div>';
+      det_avmin+='<div class="mrow ind">50·b<sub>w</sub>/f<sub>yt</sub> = '+f4(50*b/(fy*1000))+' in²/in</div>';
+      det_avmin+='<div class="mrow"><span class="ceq">A<sub>v,min</sub>/s</span> = <span class="cval">'+f4(AvMin_s)+' in²/in = '+f3(AvMin_s*12)+' in²/ft</span></div>';
+      det_avmin+='<div class="mrow"><em>e.g. #3 closed stirrups (A<sub>v</sub>=0.22 in²) at s ≤ '+f1(Math.min(0.22/AvMin_s,d/2,24))+' in (also ≤ d/2 = '+f1(d/2)+' in per Table 9.7.6.2.2)</em></div>';
+    }
+    det_avmin+='</div>';
+
+    // M7 — development length was never reported
+    var det_ld='<div class="cref-hdr">ACI 318-19 §25.4.2.3 — Development Length, Bottom Bars</div><div class="cbox">';
+    det_ld+='<div class="mrow">ψ<sub>t</sub>=1.0 (not top bars) · ψ<sub>e</sub>=1.0 (uncoated) · λ=1.0 · d<sub>b</sub>='+f3(db)+' in ('+(db>=0.875?'#7 or larger → 20':'#6 or smaller → 25')+' coefficient)</div>';
+    det_ld+='<div class="mrow"><span class="ceq">l<sub>d</sub></span> = '+fr('f<sub>y</sub>ψ<sub>t</sub>ψ<sub>e</sub>',ldCoef+'λ√f\'<sub>c</sub>')+'d<sub>b</sub> = <span class="cval">'+f1(ld)+' in</span> (≥ 12 in)</div>';
+    det_ld+=ldChecked
+      ? '<hr class="csep"><div class="mrow">Available at discontinuous end '+ldPier.lbl+' = '+ldPier.diam+'" shaft − '+cov+'" cover = <span class="'+(ldOK?'cval':'cval-warn')+'">'+f1(embedAvail)+' in</span></div>'
+        +'<div class="mrow">'+(ldOK?'Straight embedment adequate.':'<strong style="color:#dc2626">Straight embedment insufficient — use a standard hook (§25.4.3) or increase shaft diameter.</strong>')+'</div>'
+      : '<hr class="csep"><div class="mrow"><em>Interior span — bottom bars are continuous through both supports; no end anchorage check applies.</em></div>';
+    det_ld+='</div>';
+
     var chks=[
-      {n:'Flexure — φM<sub>n</sub>',    r:'ACI 318-19 §22.3',    d:'M<sub>u</sub>='+f2(Mu)+' k-ft',  c:'φM<sub>n</sub>='+f2(phiMn)+' k-ft',dc:dc_flex, det:det_flex, pass:dc_flex<=1},
-      {n:'Shear — φV<sub>c</sub>',      r:'ACI 318-19 §22.5.5.1',d:'V<sub>u</sub>='+f2(Vu)+' k',    c:'φV<sub>c</sub>='+f2(phiVc)+' k',   dc:dc_shear,det:det_shear,pass:dc_shear<=1},
-      {n:'Min. Steel A<sub>s,min</sub>',r:'ACI 318-19 §9.6.1.2', d:'A<sub>s,req</sub>='+f2(As_min)+' in²',c:'A<sub>s,prov</sub>='+f2(As)+' in²',dc:As_min/As,det:null,pass:As>=As_min}
+      {n:'Flexure (+) — mid-span',      r:'ACI 318-19 §22.3',     d:'M<sub>u</sub>='+f2(Mu_pos)+' k-ft',       c:'φM<sub>n</sub>='+f2(fBot.phiMn)+' k-ft', dc:dc_flex,  det:det_flex,  pass:dc_flex<=1}
     ];
+    if(negChecked){
+      chks.push({n:'Flexure (−) — at pier, top steel', r:'ACI 318-19 §6.5 / §22.3', d:'M<sub>u</sub>='+f2(Mu_neg)+' k-ft', c:'φM<sub>n</sub>='+f2(fTop.phiMn)+' k-ft', dc:dc_top, det:det_top, pass:dc_top<=1});
+    }
+    chks.push(
+      {n:'Tension-controlled (+)',      r:'ACI 318-19 §9.3.3.1',  d:'ε<sub>t</sub>='+f3(fBot.eps_t),           c:'≥ ε<sub>ty</sub>+0.003 = '+f3(fBot.eps_ty+0.003), dc:fBot.tc?0.5:1.5, det:det_flex, pass:fBot.tc, txt:fBot.tc?'tension-controlled':'OVER-REINFORCED — §9.3.3.1'},
+      {n:'Shear — φV<sub>c</sub>',      r:'ACI 318-19 T22.5.5.1', d:'V<sub>u</sub>='+f2(Vu)+' k',              c:'φV<sub>c</sub>='+f2(phiVc)+' k',         dc:dc_shear, det:det_shear, pass:dc_shear<=1},
+      {n:'Min. shear reinf. A<sub>v,min</sub>', r:'ACI 318-19 §9.6.3.1', d:'V<sub>u</sub>='+f2(Vu)+' k',       c:'trigger '+f2(Vu_trig)+' k',              dc:avMinOK?0.5:1.5, det:det_avmin, pass:avMinOK, txt:needsAvMin?(hasStirr?'Stirrups declared':'REQUIRED — not declared'):'Not required'},
+      {n:'Min. Steel A<sub>s,min</sub>',r:'ACI 318-19 §9.6.1.2',  d:'A<sub>s,req</sub>='+f2(As_min)+' in²',    c:'A<sub>s,prov</sub>='+f2(As)+' in²',      dc:As_min/Math.max(As,1e-9), det:det_asmin, pass:As>=As_min},
+      {n:'Development length l<sub>d</sub>', r:'ACI 318-19 §25.4.2.3', d:'l<sub>d</sub>='+f1(ld)+' in · hook l<sub>dh</sub>='+f1(ldh)+' in', c:ldChecked?('straight avail. '+f1(embedAvail)+' in'):'continuous through supports', dc:0, det:det_ld, pass:true, info:true, txt:ldChecked?(ldOK?'straight bar fits':'detail hook or run bar continuous'):'n/a — interior span'}
+    );
+    if(negChecked){
+      chks.push(
+        // Without this row an over-reinforced TOP could flip the summary banner
+        // to FAIL with no failing row visible in the table.
+        {n:'Tension-controlled (−) — top', r:'ACI 318-19 §9.3.3.1', d:'ε<sub>t</sub>='+f3(fTop.eps_t), c:'≥ ε<sub>ty</sub>+0.003 = '+f3(fTop.eps_ty+0.003), dc:fTop.tc?0.5:1.5, det:det_top, pass:fTop.tc, txt:fTop.tc?'tension-controlled':'OVER-REINFORCED — §9.3.3.1'},
+        {n:'Min. Steel A<sub>s,min</sub> — top', r:'ACI 318-19 §9.6.1.2', d:'A<sub>s,req</sub>='+f2(As_min)+' in²', c:'A<sub>s,prov</sub>='+f2(Ast)+' in²', dc:As_min/Math.max(Ast,1e-9), det:det_asmin, pass:Ast>=As_min});
+    }
 
     resB+='<div class="blk grn" style="margin-bottom:16px">';
     resB+='<h2 style="font-size:1.05em"><span style="color:#16a34a">'+gb.lbl+'</span>'
-      +' — <span style="font-size:.88em;font-weight:400">'+f1(L)+' ft · b='+b+'" · h='+h+'" · A<sub>s</sub>='+f2(As)+' in²</span></h2>';
+      +' — <span style="font-size:.88em;font-weight:400">L='+f2(L)+' ft (l<sub>n</sub>='+f2(ln)+' ft) · b='+b+'" · h='+h+'" · A<sub>s,bot</sub>='+f2(As)+' in²'
+      +(negChecked?' · A<sub>s,top</sub>='+f2(Ast)+' in²':'')+' · '+(isEndSpan&&nSp>1?'end span':(nSp>1?'interior span':'single span'))+'</span></h2>';
     resB+='<div class="dem-grid">';
-    resB+='<div class="dem-card warn"><div class="v">'+f3(Wu)+' k/ft</div><div class="l">W<sub>u</sub> (1.2D+1.6L)</div></div>';
-    resB+='<div class="dem-card warn"><div class="v">'+f2(Mu)+' k-ft</div><div class="l">M<sub>u</sub></div></div>';
+    resB+='<div class="dem-card warn"><div class="v">'+f3(Wu)+' k/ft</div><div class="l">W<sub>u</sub><br>('+combo+')</div></div>';
+    resB+='<div class="dem-card warn"><div class="v">'+f2(Mu_pos)+' k-ft</div><div class="l">+M<sub>u</sub> mid-span</div></div>';
+    if(negChecked) resB+='<div class="dem-card warn"><div class="v">'+f2(Mu_neg)+' k-ft</div><div class="l">−M<sub>u</sub> at pier</div></div>';
     resB+='<div class="dem-card warn"><div class="v">'+f2(Vu)+' k</div><div class="l">V<sub>u</sub></div></div>';
-    resB+='<div class="dem-card alt"><div class="v">'+f2(phiMn)+' k-ft</div><div class="l">φM<sub>n</sub></div></div>';
-    resB+='<div class="dem-card alt"><div class="v">'+f2(phiVc)+' k</div><div class="l">φV<sub>c</sub></div></div>';
+    resB+='<div class="dem-card alt"><div class="v">'+f2(fBot.phiMn)+' k-ft</div><div class="l">φM<sub>n</sub> bottom</div></div>';
+    if(negChecked) resB+='<div class="dem-card alt"><div class="v">'+f2(fTop.phiMn)+' k-ft</div><div class="l">φM<sub>n</sub> top</div></div>';
+    resB+='<div class="dem-card alt"><div class="v">'+f2(phiVc)+' k</div><div class="l">φV<sub>c</sub><br>(λ<sub>s</sub>='+f3(lam_s)+')</div></div>';
     resB+='<div class="dem-card"><div class="v">'+f2(R_DL+R_LL)+' k</div><div class="l">Service Reaction<br>at Each End</div></div>';
     resB+='</div>';
-    resB+='<table class="chk-table"><thead><tr><th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th>Detail</th></tr></thead><tbody>';
+    resB+='<div style="overflow-x:auto"><table class="chk-table"><thead><tr><th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th>Detail</th></tr></thead><tbody>';
     chks.forEach(function(ck,ci){
       var idx=di*10+ci;
-      resB+='<tr class="'+(ck.pass?'alt-row':'warn-row')+'"><td>'+ck.n+'</td><td>'+ck.r+'</td><td>'+ck.d+'</td><td>'+ck.c+'</td><td>'+dcBar(ck.dc)+'</td><td>'+pf(ck.dc)+'</td>';
+      resB+='<tr class="'+(ck.info?'':(ck.pass?'alt-row':'warn-row'))+'"><td>'+ck.n+'</td><td>'+ck.r+'</td><td>'+ck.d+'</td><td>'+ck.c+'</td>'
+        +'<td>'+(ck.txt?'<span style="font-size:.9em;color:#374151">'+ck.txt+'</span>':dcBar(ck.dc))+'</td>'
+        +'<td>'+(ck.info?'<span style="color:#92400e;font-weight:700">REVIEW</span>':(ck.pass?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>'))+'</td>';
       if(ck.det){
         resB+='<td><button class="det-btn" id="dbtn_'+idx+'" onclick="toggleDet('+idx+')">&#9654; Calc</button></td></tr>';
         resB+='<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+idx+'">'+ck.det+'</div></td></tr>';
       } else { resB+='<td class="na">—</td></tr>'; }
     });
-    resB+='</tbody></table>';
+    resB+='</tbody></table></div>';
     resB+='<div style="margin-top:8px;font-size:.82em;color:#166534;background:#f0fdf4;padding:6px 10px;border-radius:5px">';
-    resB+='&#9654; Service reactions: R<sub>DL</sub>='+f2(R_DL)+' k + R<sub>LL</sub>='+f2(R_LL)+' k = '+f2(R_DL+R_LL)+' k &nbsp;→ flows to pier nodes P-'+gi+' &amp; P-'+(gi+2);
+    // M8 — this printed "P-0 & P-2"; piers are labelled P-1 … P-(n+1)
+    resB+='&#9654; Service reactions: R<sub>DL</sub>='+f2(R_DL)+' k + R<sub>LL</sub>='+f2(R_LL)+' k = '+f2(R_DL+R_LL)+' k &nbsp;→ flows to pier nodes '
+      +((pierInps[gi]||{lbl:'P-'+(gi+1)}).lbl)+' &amp; '+((pierInps[gi+1]||{lbl:'P-'+(gi+2)}).lbl);
     resB+='</div></div>';
   });
   sv('resGB',resB);
@@ -741,12 +1213,15 @@ function runAllChecks(){
   resC+='<div class="dem-card pur"><div class="v">'+bmat+'</div><div class="l">Bearing<br>Material</div></div>';
   resC+='</div>';
 
+  // Wrapped so the widened 14-column table scrolls in place instead of
+  // pushing the whole page sideways.
+  resC+='<div style="overflow-x:auto">';
   resC+='<table class="pier-cap-table"><thead><tr>'
     +'<th>Pier</th><th>Type</th><th>Diam (in)</th>'
     +'<th>P<sub>DL</sub> (k)</th><th>P<sub>LL</sub> (k)</th><th>P<sub>svc</sub> (k)</th>'
-    +'<th>Q<sub>end</sub> (k)</th><th>Active Pen. Req. (ft)</th>'
-    +'<th>Min. Total Depth (ft)</th><th>Q<sub>all</sub> @ min (k)</th>'
-    +'<th>D/C</th><th>Status</th>'
+    +'<th>Q<sub>end</sub> (k)</th><th>Active Pen. Provided (ft)</th>'
+    +'<th>Total Depth BGL (ft)</th><th>Q<sub>all</sub> (k)</th>'
+    +'<th>Geo D/C</th><th>Struct. D/C</th><th>Status</th><th>Detail</th>'
     +'</tr></thead><tbody>';
 
   pierInps.forEach(function(pi,i){
@@ -755,35 +1230,81 @@ function runAllChecks(){
     var P_serv=PDL+PLL;
     var D_in=pi.diam, D_ft=D_in/12;
     var circ=Math.PI*D_ft, Ag_sf=Math.PI/4*D_ft*D_ft;
+    var Ag_in2=Math.PI/4*D_in*D_in;
     var isBelled=pi.ptype==='belled';
-    var Q_end, Q_skin_per_ft;
+    var Db_in=pi.bell, Db_ft=Db_in/12;
+    var Q_end, Q_skin_per_ft=circ*q_skin/1000, exclZone=0, bellH=0;
     if(isBelled){
-      var Db_ft=bell_D/12;
       Q_end=Math.PI/4*Db_ft*Db_ft*q_end/1000;
-      Q_skin_per_ft=circ*q_skin/1000;
+      /* H6 — the note always promised "skin friction on shaft above bell only",
+         but friction was being credited over the bell height too. Exclude the
+         bell flare (60° bell) plus the customary one-diameter zone above it. */
+      bellH=Math.max(0,(Db_ft-D_ft)/2*Math.tan(60*Math.PI/180));
+      exclZone=bellH+D_ft;
     } else {
       Q_end=Ag_sf*q_end/1000;
-      Q_skin_per_ft=circ*q_skin/1000;
     }
-    var pen_act_req=Math.max(0,(P_serv-Q_end)/Math.max(Q_skin_per_ft,0.001));
+    // Closed form for the required penetration with the excluded zone included
+    var pen_act_req=(P_serv>Q_end)
+      ? (P_serv-Q_end)/Math.max(Q_skin_per_ft,1e-6)+exclZone
+      : 0;
     var pen_total_req=Math.ceil((pen_act_req+pen_min)*2)/2;
     var pen_act_prov=Math.max(0,pen_total_req-pen_min);
+    var frictionLen=Math.max(0,pen_act_prov-exclZone);
     var total_depth=z_bear+pen_total_req;
-    var Q_all=Q_skin_per_ft*pen_act_prov+Q_end;
-    var dc=P_serv>0?P_serv/Q_all:0;
-    var pass=dc<=1.0;
+    var Q_all=Q_skin_per_ft*frictionLen+Q_end;
+    var dc=P_serv>0?P_serv/Math.max(Q_all,1e-9):0;
+
+    /* H2 — the pier structural capacity was never computed, so a 12" shaft
+       passed at any load the soil could carry. IBC 2021 §1810.3.2.6. */
+    var P_struct=0.33*pier_fc*Ag_in2/1000;
+    var dc_struct=P_struct>0?P_serv/P_struct:999;
+
+    var pass=(dc<=1.0)&&(dc_struct<=1.0);
     if(!pass) anyPierFail=true;
-    var typeStr=isBelled?'Belled ('+bell_D+'"⌀ bell)':'Straight';
+    var typeStr=isBelled?('Belled ('+Db_in+'"⌀)'):'Straight';
+
+    // M4 — the pier checks had no expandable derivation at all
+    var pidx=9000+i;
+    var det_p='<div class="cref-hdr">'+pi.lbl+' — Geotechnical &amp; Structural Capacity</div><div class="cbox">';
+    det_p+='<div class="mrow"><span class="ceq">P<sub>svc</sub></span> = '+f2(PDL)+' + '+f2(PLL)+' = <span class="cval">'+f2(P_serv)+' k</span> <em>(unfactored, ASD)</em></div>';
+    det_p+='<div class="mrow"><span class="ceq">A<sub>g</sub></span> = π/4×('+D_in+'/12)² = <span class="cval">'+f3(Ag_sf)+' ft²</span> &nbsp;·&nbsp; perimeter = π×'+f3(D_ft)+' = <span class="cval">'+f3(circ)+' ft</span></div>';
+    det_p+='<hr class="csep"><div class="cref-hdr" style="border:none;font-size:.85em">End bearing</div>';
+    det_p+=isBelled
+      ? '<div class="mrow"><span class="ceq">Q<sub>end</sub></span> = π/4×('+Db_in+'/12)²×'+q_end+'/1000 = <span class="cval">'+f2(Q_end)+' k</span> <em>(bell face)</em></div>'
+      : '<div class="mrow"><span class="ceq">Q<sub>end</sub></span> = '+f3(Ag_sf)+'×'+q_end+'/1000 = <span class="cval">'+f2(Q_end)+' k</span></div>';
+    det_p+='<div class="cref-hdr" style="border:none;font-size:.85em">Skin friction</div>';
+    det_p+='<div class="mrow"><span class="ceq">q<sub>s</sub>/ft</span> = '+f3(circ)+'×'+q_skin+'/1000 = <span class="cval">'+f2(Q_skin_per_ft)+' k/ft</span></div>';
+    if(isBelled){
+      det_p+='<div class="mrow">bell flare height (60°) = ('+f3(Db_ft)+'−'+f3(D_ft)+')/2×tan60° = '+f2(bellH)+' ft</div>';
+      det_p+='<div class="mrow">excluded zone = bell height + 1 shaft dia = '+f2(bellH)+' + '+f2(D_ft)+' = <span class="cval">'+f2(exclZone)+' ft</span></div>';
+    }
+    det_p+='<div class="mrow">effective friction length = '+f2(pen_act_prov)+' − '+f2(exclZone)+' = <span class="cval">'+f2(frictionLen)+' ft</span></div>';
+    det_p+='<hr class="csep"><div class="mrow"><span class="ceq">pen<sub>req</sub></span> = ('+f2(P_serv)+' − '+f2(Q_end)+')/'+f2(Q_skin_per_ft)+(isBelled?' + '+f2(exclZone):'')+' = <span class="cval">'+f2(pen_act_req)+' ft</span></div>';
+    det_p+='<div class="mrow">+ min. penetration '+f1(pen_min)+' ft, rounded up to 0.5 ft → <span class="cval">'+f1(pen_total_req)+' ft into stratum</span></div>';
+    det_p+='<div class="mrow"><span class="ceq">Total depth</span> = '+f1(z_bear)+' (to stratum) + '+f1(pen_total_req)+' = <span class="cval">'+f1(total_depth)+' ft BGL</span></div>';
+    det_p+='<div class="mrow"><span class="ceq">Q<sub>all</sub></span> = '+f2(Q_skin_per_ft)+'×'+f2(frictionLen)+' + '+f2(Q_end)+' = <span class="cval">'+f2(Q_all)+' k</span></div>';
+    det_p+='<div class="mrow">Geotechnical D/C = '+fr(f2(P_serv),f2(Q_all))+' = <span class="'+(dc<=1?'cval':'cval-warn')+'">'+f3(dc)+'</span></div>';
+    det_p+='<hr class="csep"><div class="cref-hdr" style="border:none;font-size:.85em">Structural — IBC 2021 §1810.3.2.6</div>';
+    det_p+='<div class="mrow"><span class="ceq">P<sub>allow</sub></span> = 0.33f\'<sub>c</sub>A<sub>g</sub> = 0.33×'+pier_fc+'×'+f1(Ag_in2)+'/1000 = <span class="cval">'+f2(P_struct)+' k</span> <em>(shaft, not bell)</em></div>';
+    det_p+='<div class="mrow">Structural D/C = '+fr(f2(P_serv),f2(P_struct))+' = <span class="'+(dc_struct<=1?'cval':'cval-warn')+'">'+f3(dc_struct)+'</span></div>';
+    det_p+='<div class="mrow"><em>Minimum longitudinal reinforcement and ties per IBC §1810.3.9 are not evaluated here — detail separately.</em></div>';
+    det_p+='</div>';
+
     resC+='<tr class="'+(pass?'':'pier-fail')+'">'
       +'<td><strong>'+pi.lbl+'</strong></td><td>'+typeStr+'</td><td>'+D_in+'"</td>'
       +'<td>'+f2(PDL)+'</td><td>'+f2(PLL)+'</td><td><strong>'+f2(P_serv)+'</strong></td>'
       +'<td>'+f2(Q_end)+'</td><td>'+f2(pen_act_prov)+'</td>'
-      +'<td><strong>'+f1(pen_total_req)+' ft</strong><br><span style="font-size:.78em;color:#555">Total: '+f1(total_depth)+' ft BGL</span></td>'
-      +'<td>'+f2(Q_all)+'</td><td>'+dcBar(dc)+'</td><td>'+pf(dc)+'</td>'
+      // M3 — total depth BGL is the number a reader needs; it used to be small
+      // subtext under the penetration-into-stratum value
+      +'<td><strong>'+f1(total_depth)+' ft</strong><br><span style="font-size:.78em;color:#555">'+f1(pen_total_req)+' ft into stratum</span></td>'
+      +'<td>'+f2(Q_all)+'</td><td>'+dcBar(dc)+'</td><td>'+dcBar(dc_struct)+'</td><td>'+pf(Math.max(dc,dc_struct))+'</td>'
+      +'<td><button class="det-btn" id="dbtn_'+pidx+'" onclick="toggleDet('+pidx+')">&#9654; Calc</button></td>'
       +'</tr>';
+    resC+='<tr class="det-row"><td colspan="14" style="padding:0!important"><div class="calc-det" id="det_'+pidx+'">'+det_p+'</div></td></tr>';
   });
 
-  resC+='</tbody></table>';
+  resC+='</tbody></table></div>';
   resC+='<div style="margin-top:10px;font-size:.81em;color:#5b21b6;background:#f5f3ff;padding:8px 12px;border-radius:5px">';
   resC+='&#9670; Min. Total Depth = Depth to Bearing + Min. Penetration + Required Active Penetration, rounded up to 0.5 ft.';
   resC+='</div>';
@@ -815,6 +1336,7 @@ window.addEventListener('load', function(){
     addZone('Bearing Wall — East',  380, 180);
     addZone('Bearing Wall — South', 420, 200);
   }
+  applyColW();
 });
 </script>
 <script src="/are-utils-v2.js"></script>
