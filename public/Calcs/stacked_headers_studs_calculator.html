@@ -105,6 +105,49 @@ select.ti{cursor:pointer;padding:2px 1px}
 .csep{border:none;border-top:1px dashed #c7d2e8;margin:5px 0}
 .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:7px 10px;margin-top:4px}
 
+/* ── Table cell inputs — re-assert compact metrics over are-calc.css ────────
+   are-calc.css sets input[type="number"]{padding:.5rem .75rem;font-size:.9375rem;
+   font-family:monospace}. That selector is (0,1,1) and outranks .ti at (0,1,0),
+   so every cell input was really 24px of padding + 15px monospace inside a ~40px
+   column — which is why 2-digit values rendered as "1(". These are (0,2,1). */
+.load-table input.ti,
+.load-table select.ti{
+  font-family:inherit;font-size:.80em;padding:3px 4px;color:#333;
+  border:1px solid #d1d5db;border-radius:3px;background:transparent;
+  width:100%;min-width:0
+}
+.load-table select.ti{padding:2px 1px}
+/* are-calc.css also sets color on inputs, which outranks .ti-dis and made the
+   disabled cells look editable. Re-assert the greyed-out cue at (0,2,1). */
+.load-table input.ti-dis{color:#888;border-color:#e5e7eb}
+.load-table .ti:focus,.load-table .ti:focus-visible{
+  border-color:#2a5298;outline:none;background:#fff;
+  box-shadow:0 0 0 2px rgba(42,82,152,.22)
+}
+/* Native spinner arrows consume ~15px of a 58px column. Removing them costs
+   nothing — the field stays typeable and ↑/↓ still step the value. */
+.load-table input[type=number].ti{-moz-appearance:textfield;appearance:textfield}
+.load-table input[type=number].ti::-webkit-outer-spin-button,
+.load-table input[type=number].ti::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+/* ── Resizable columns ─────────────────────────────────────────────────────
+   table-layout:fixed makes the <th> widths authoritative. Each table also gets
+   an inline min-width equal to its column sum, so the overflow-x:auto wrapper
+   scrolls instead of the columns compressing back down. */
+.load-table{table-layout:fixed}
+/* Headings wrap rather than clip: are-calc.css `th` adds uppercase +.06em
+   letter-spacing that .load-table th never overrode, so a narrowed column
+   would silently cut the label off against the overflow:hidden below. */
+.load-table th{position:relative;overflow:hidden;white-space:normal;overflow-wrap:break-word}
+.load-table td{overflow:hidden}
+.load-table td[colspan]{overflow:visible}
+.col-grip{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
+.col-grip:hover,.col-grip.dragging{background:rgba(255,255,255,.55)}
+body.col-resizing{user-select:none;cursor:col-resize}
+.btn-resetcol{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:3px 10px;
+  border-radius:5px;cursor:pointer;font-size:.72em;font-weight:600;white-space:nowrap}
+.btn-resetcol:hover{background:#dbeafe}
+
 
 /* ── Print / PDF — letter portrait, fills 8.5×11 ───────────────────────── */
 @page {
@@ -154,6 +197,14 @@ select.ti{cursor:pointer;padding:2px 1px}
   /* Results always visible */
   #results { display: block !important; }
   #printBtn { display: none !important; }
+  /* Column resizing is screen-only. On paper the overflow wrapper cannot
+     scroll, so drop the fixed layout and let the tables shrink to the page. */
+  .col-grip, .btn-resetcol { display: none !important; }
+  .load-table { table-layout: auto !important; min-width: 0 !important; }
+  .load-table th, .load-table td {
+    width: auto !important;
+    overflow: visible !important;
+  }
 }
 
 </style>
@@ -248,13 +299,16 @@ select.ti{cursor:pointer;padding:2px 1px}
 </div>
 
 <div class="blk">
-  <h2>&#9314; Floor Configuration <span class="badge">Loads cascade top&rarr;down</span></h2>
+  <h2>&#9314; Floor Configuration <span class="badge">Loads cascade top&rarr;down</span>
+    <button class="btn-resetcol" onclick="resetColW()" title="Restore every column to its default width">&#8596; Reset column widths</button>
+  </h2>
   <div class="callout">
     <strong>&#8505; Workflow:</strong>
     Each floor has a <strong>Headers</strong> section and a <strong>Wall Studs</strong> section.
     For headers: set trib widths, choose <em>Header Trial Sz</em>, <em>Wall Size</em> (drives jamb &amp; king), <em># Jambs</em> (0=auto), and <em># Kings</em> per row, then click <strong>&#9654; Check</strong>.
     For studs: edit the location label, set tribs, choose trial size + spacing, then <strong>&#9654; Check</strong>.
     Use <strong>+ Stud Row</strong> to add custom scenarios (e.g. a special bearing wall).
+    <br><strong>Columns:</strong> drag the right edge of any column heading to widen or narrow it &mdash; double-click that edge to restore one column, or use <strong>Reset column widths</strong> above for all of them. Widths apply to every floor and are remembered on this browser.
   </div>
   <div id="floorsContainer"></div>
   <button class="btn-add-floor" onclick="addFloor()">+ Add Floor Level Below</button>
@@ -868,6 +922,78 @@ function updStud(fi,si,fld,val){
 function togFloor(fi){floors[fi].exp=!floors[fi].exp;render();}
 
 // ══════════════════════════════════════════════════════════════════════════════
+// RESIZABLE COLUMNS
+// Widths are keyed by column ('hdr:dlAdd', 'stud:wallTrib'), not by floor, so
+// every floor's Headers table stays aligned with every other Headers table.
+// render() rebuilds floorsContainer.innerHTML on each edit, so widths cannot
+// live on the DOM — they live here and are re-applied after every render.
+// ══════════════════════════════════════════════════════════════════════════════
+var COLW_KEY='areCalcs_shjs_colWidths';
+var COLW={};
+try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
+// Guard the shape too, not just the parse: a stored string or array would make
+// COLW[key]= a silent no-op and drag would look dead.
+if(typeof COLW!=='object'||!COLW||Array.isArray(COLW)) COLW={};
+function saveColW(){ try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){} }
+
+// Emits one <th> carrying its column key, its default width, and a drag grip.
+function thc(key,dw,label,cls){
+  return '<th class="'+(cls||'')+'" data-ck="'+key+'" data-dw="'+dw+'">'+label
+       + '<div class="col-grip" title="Drag to resize — double-click to reset"></div></th>';
+}
+
+// Push COLW onto the DOM and set each table's min-width to its column sum.
+function applyColW(){
+  var tbls=document.querySelectorAll('.load-table');
+  for(var i=0;i<tbls.length;i++){
+    var ths=tbls[i].querySelectorAll('thead th[data-ck]'), sum=0;
+    for(var j=0;j<ths.length;j++){
+      // Coerce: a corrupt stored value would otherwise string-concatenate sum.
+      var w=+COLW[ths[j].getAttribute('data-ck')];
+      if(!isFinite(w)||w<32) w=+ths[j].getAttribute('data-dw');
+      ths[j].style.width=w+'px'; sum+=w;
+    }
+    tbls[i].style.minWidth=sum+'px';
+  }
+}
+
+function resetColW(){ COLW={}; saveColW(); applyColW(); }
+
+// Delegated so the handlers survive every re-render.
+function gripOf(e){ return e.target&&e.target.closest?e.target.closest('.col-grip'):null; }
+
+document.addEventListener('mousedown',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  e.preventDefault();
+  var startX=e.clientX, startW=grip.parentElement.offsetWidth;
+  grip.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+  function mv(ev){
+    // Releasing outside the window fires no mouseup — without this the column
+    // would keep resizing when the pointer comes back.
+    if(ev.buttons===0){ up(); return; }
+    COLW[ck]=Math.max(32,startW+(ev.clientX-startX)); applyColW();
+  }
+  function up(){
+    document.removeEventListener('mousemove',mv);
+    document.removeEventListener('mouseup',up);
+    grip.classList.remove('dragging');
+    document.body.classList.remove('col-resizing');
+    saveColW();
+  }
+  document.addEventListener('mousemove',mv);
+  document.addEventListener('mouseup',up);
+});
+
+// Double-click a grip to restore that one column's default width.
+document.addEventListener('dblclick',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  delete COLW[ck]; saveColW(); applyColW();
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
 // RENDER
 // ══════════════════════════════════════════════════════════════════════════════
 function render(){
@@ -892,36 +1018,36 @@ function render(){
         out+='<p class="empty-state">No headers — click "+ Header" above.</p>';
       } else {
         out+='<div style="overflow-x:auto"><table class="load-table"><thead><tr>';
-        out+='<th class="th-desc" style="min-width:110px">Description</th>';
-        out+='<th style="width:40px">Lbl</th>';
-        out+='<th style="width:52px">Span<br>ft</th>';
-        out+='<th style="width:54px">Roof<br>Trib</th>';
+        out+=thc('hdr:desc',170,'Description','th-desc');
+        out+=thc('hdr:lbl',44,'Lbl');
+        out+=thc('hdr:span',58,'Span<br>ft');
+        out+=thc('hdr:roofTrib',62,'Roof<br>Trib');
         if(!isRoof){
-          out+='<th class="th-fl1" style="width:58px">FlTrib1<br><small>L='+LV.floorLL1+'</small></th>';
-          out+='<th class="th-fl2" style="width:58px">FlTrib2<br><small>L='+LV.floorLL2+'</small></th>';
+          out+=thc('hdr:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1');
+          out+=thc('hdr:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2');
         }
-        out+='<th style="width:54px">Wall<br>Trib</th>';
-        out+='<th style="width:46px">Wall<br>Type</th>';
-        out+='<th style="width:48px">DL<sub>add</sub></th>';
-        out+='<th style="width:48px">LL<sub>add</sub></th>';
-        out+='<th style="width:48px">SL<sub>add</sub></th>';
-        out+='<th style="width:48px">w<sub>DL</sub></th>';
-        out+='<th style="width:48px">w<sub>LL</sub></th>';
-        out+='<th style="width:48px">w<sub>SL</sub></th>';
-        out+='<th class="th-jamb" style="width:50px">&#8595;jDL<br>k</th>';
-        out+='<th class="th-jamb" style="width:50px">&#8595;jLL<br>k</th>';
-        out+='<th class="th-jamb" style="width:50px">&#8595;jSL<br>k</th>';
-        out+='<th class="th-tot" style="width:56px">&#8595;Total<br>k</th>';
-        out+='<th class="th-open" style="width:58px">Open<br>Type</th>';
-        out+='<th class="th-open" style="width:54px">Top<br>Open ft</th>';
-        out+='<th class="th-open" style="width:54px">King<br>Axial lb</th>';
+        out+=thc('hdr:wallTrib',62,'Wall<br>Trib');
+        out+=thc('hdr:wallType',58,'Wall<br>Type');
+        out+=thc('hdr:dlAdd',60,'DL<sub>add</sub>');
+        out+=thc('hdr:llAdd',60,'LL<sub>add</sub>');
+        out+=thc('hdr:slAdd',60,'SL<sub>add</sub>');
+        out+=thc('hdr:wDL',66,'w<sub>DL</sub>');
+        out+=thc('hdr:wLL',66,'w<sub>LL</sub>');
+        out+=thc('hdr:wSL',66,'w<sub>SL</sub>');
+        out+=thc('hdr:jDL',58,'&#8595;jDL<br>k','th-jamb');
+        out+=thc('hdr:jLL',58,'&#8595;jLL<br>k','th-jamb');
+        out+=thc('hdr:jSL',58,'&#8595;jSL<br>k','th-jamb');
+        out+=thc('hdr:jTot',64,'&#8595;Total<br>k','th-tot');
+        out+=thc('hdr:openType',66,'Open<br>Type','th-open');
+        out+=thc('hdr:topOpen',62,'Top<br>Open ft','th-open');
+        out+=thc('hdr:kingAxial',66,'King<br>Axial lb','th-open');
         // Trial section
-        out+='<th class="th-trial" style="width:70px">Hdr<br>Trial Sz</th>';
-        out+='<th class="th-king" style="width:70px">Wall<br>Size</th>';
-        out+='<th class="th-king" style="width:50px">#<br>Jambs</th>';
-        out+='<th class="th-king" style="width:50px">#<br>Kings</th>';
-        out+='<th class="th-trial" style="width:72px">&#9654; Check</th>';
-        out+='<th style="width:26px"></th>';
+        out+=thc('hdr:trialSz',78,'Hdr<br>Trial Sz','th-trial');
+        out+=thc('hdr:wallSz',78,'Wall<br>Size','th-king');
+        out+=thc('hdr:nJambs',56,'#<br>Jambs','th-king');
+        out+=thc('hdr:nKings',56,'#<br>Kings','th-king');
+        out+=thc('hdr:check',80,'&#9654; Check','th-trial');
+        out+=thc('hdr:del',32,'');
         out+='</tr></thead><tbody>';
 
         fl.headers.forEach(function(h,hi){
@@ -933,7 +1059,7 @@ function render(){
           var kCnt=+(h.kingCount||1);
           out+='<tr>';
           out+='<td><input class="ti ti-desc" type="text" value="'+xe(h.description)+'" onchange="updHdr('+fi+','+hi+',\'description\',this.value)"></td>';
-          out+='<td><input class="ti ti-dis" type="text" value="'+xe(h.label)+'" disabled style="width:36px"></td>';
+          out+='<td><input class="ti ti-dis" type="text" value="'+xe(h.label)+'" disabled></td>';
           out+='<td><input class="ti" type="number" value="'+h.span+'" min="1" step="0.5" onchange="updHdr('+fi+','+hi+',\'span\',this.value)"></td>';
           if(isRoof){
             out+='<td><input class="ti" type="number" value="'+h.roofTrib+'" min="0" step="0.5" onchange="updHdr('+fi+','+hi+',\'roofTrib\',this.value)"></td>';
@@ -982,7 +1108,7 @@ function render(){
           out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkHeaderRow('+fi+','+hi+')">&#9654; Check</button></td>';
           out+='<td><button class="btn-x" onclick="delHeader('+fi+','+hi+')">&#10005;</button></td>';
           out+='</tr>';
-          var ncols=isRoof?24:26;
+          var ncols=isRoof?25:27;   // must equal the <th> count above
           out+='<tr><td colspan="'+ncols+'" style="padding:0"><div id="hchk_'+fi+'_'+hi+'" style="display:none"></div></td></tr>';
         });
         out+='</tbody></table></div>';
@@ -995,25 +1121,25 @@ function render(){
       out+='<span class="sec-label grn" style="margin-top:14px">&#9632; Wall Studs</span>';
       out+=' <button class="btn-sm btn-grn" style="margin-left:8px;margin-top:14px;margin-bottom:4px" onclick="addStudRow('+fi+')">+ Stud Row</button>';
       out+='<div style="overflow-x:auto;margin-top:4px"><table class="load-table"><thead><tr>';
-      out+='<th class="th-desc th-stud" style="min-width:130px">Stud Location</th>';
-      out+='<th class="th-stud" style="width:54px">Roof<br>Trib</th>';
+      out+=thc('stud:loc',190,'Stud Location','th-desc th-stud');
+      out+=thc('stud:roofTrib',62,'Roof<br>Trib','th-stud');
       if(!isRoof){
-        out+='<th class="th-fl1" style="width:58px">FlTrib1<br><small>L='+LV.floorLL1+'</small></th>';
-        out+='<th class="th-fl2" style="width:58px">FlTrib2<br><small>L='+LV.floorLL2+'</small></th>';
+        out+=thc('stud:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1');
+        out+=thc('stud:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2');
       }
-      out+='<th class="th-stud" style="width:54px">Wall<br>Trib</th>';
-      out+='<th class="th-stud" style="width:46px">Wall<br>Type</th>';
-      out+='<th class="th-stud" style="width:48px">DL<sub>add</sub></th>';
-      out+='<th class="th-stud" style="width:48px">LL<sub>add</sub></th>';
-      out+='<th class="th-stud" style="width:48px">SL<sub>add</sub></th>';
-      out+='<th class="th-stud" style="width:48px">w<sub>DL</sub></th>';
-      out+='<th class="th-stud" style="width:48px">w<sub>LL</sub></th>';
-      out+='<th class="th-stud" style="width:48px">w<sub>SL</sub></th>';
-      out+='<th class="th-tot" style="width:60px">&#8595;Total<br>plf</th>';
-      out+='<th class="th-trial" style="width:70px">Trial<br>Size</th>';
-      out+='<th class="th-trial" style="width:62px">Spacing<br>in o.c.</th>';
-      out+='<th class="th-trial" style="width:72px">&#9654; Check</th>';
-      out+='<th style="width:26px"></th>';
+      out+=thc('stud:wallTrib',62,'Wall<br>Trib','th-stud');
+      out+=thc('stud:wallType',58,'Wall<br>Type','th-stud');
+      out+=thc('stud:dlAdd',60,'DL<sub>add</sub>','th-stud');
+      out+=thc('stud:llAdd',60,'LL<sub>add</sub>','th-stud');
+      out+=thc('stud:slAdd',60,'SL<sub>add</sub>','th-stud');
+      out+=thc('stud:wDL',66,'w<sub>DL</sub>','th-stud');
+      out+=thc('stud:wLL',66,'w<sub>LL</sub>','th-stud');
+      out+=thc('stud:wSL',66,'w<sub>SL</sub>','th-stud');
+      out+=thc('stud:tot',70,'&#8595;Total<br>plf','th-tot');
+      out+=thc('stud:trialSz',78,'Trial<br>Size','th-trial');
+      out+=thc('stud:spacing',72,'Spacing<br>in o.c.','th-trial');
+      out+=thc('stud:check',80,'&#9654; Check','th-trial');
+      out+=thc('stud:del',32,'');
       out+='</tr></thead><tbody>';
 
       fl.studs.forEach(function(s,si){
@@ -1058,7 +1184,7 @@ function render(){
         out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkStudRow('+fi+','+si+')">&#9654; Check</button></td>';
         out+='<td><button class="btn-x" onclick="delStudRow('+fi+','+si+')" title="Remove row">&#10005;</button></td>';
         out+='</tr>';
-        var scols=isRoof?16:18;
+        var scols=isRoof?15:17;   // must equal the <th> count above
         out+='<tr><td colspan="'+scols+'" style="padding:0"><div id="schk_'+fi+'_'+si+'" style="display:none"></div></td></tr>';
       });
 
@@ -1068,6 +1194,7 @@ function render(){
     out+='</div>'; // floor-blk
   });
   document.getElementById('floorsContainer').innerHTML=out;
+  applyColW();   // innerHTML wiped the inline widths — put them back
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
