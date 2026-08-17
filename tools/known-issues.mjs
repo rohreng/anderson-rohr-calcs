@@ -5,14 +5,10 @@
 // Failures that exist in the calculator today, independent of save/load. Listed
 // so they are REPORTED as pre-existing rather than silently passing or being
 // blamed on this feature. PLAN.md puts calculator logic out of scope.
-export const PREEXISTING = {
-  // Drawing code emits NaN geometry for some input states. Pre-existing at HEAD;
-  // the file is untouched by this feature. Tracked separately as its own fix.
-  'through_plate_calculator.html': [
-    /<(rect|line|circle|path)> attribute [a-z0-9_-]+: Expected (length|number|"[^"]*")/i,
-    /Expected length, "NaN"/i,
-  ],
-};
+// through_plate_calculator.html was listed here for NaN <rect> geometry; fixed
+// 2026-08-17 (en-dash HSS wall thickness from the AISC workbook coerced to NaN
+// in the schematic). Kept empty so the harness itself is the regression test.
+export const PREEXISTING = {};
 
 // Third-party noise that is not this project's concern.
 export const BENIGN = [

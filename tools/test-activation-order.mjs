@@ -85,6 +85,57 @@ const lapsed = await run('lapsed-grant requestPermission', () => {
   else window.__noSeam = true;
 });
 
+// 3. Permission prompt resolves 'denied', then the fallback picker throws
+//    SecurityError — the prompt already consumed the click's activation, so
+//    this is what genuinely happens on a lapsed grant. The old behavior mapped
+//    that SecurityError to the anchor-download fallback: the engineer expected
+//    the project folder and silently got Downloads. Assert the fix: NO download
+//    is produced and the "click Save again" retry message is shown instead.
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  const downloads = [];
+  page.on('download', (d) => downloads.push(d.suggestedFilename()));
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.waitForSelector('#areBar');
+  await page.waitForFunction(() => window.AREv2?.isReady?.() === true, null, { timeout: 15000 });
+  await page.evaluate(() => {
+    window.__calls = [];
+    const fake = {
+      kind: 'directory',
+      queryPermission: async () => 'prompt',
+      requestPermission: async () => { window.__calls.push('requestPermission'); return 'denied'; },
+      getFileHandle: async () => { throw new Error('should not reach the write path'); },
+    };
+    window.showDirectoryPicker = async () => {
+      window.__calls.push('showDirectoryPicker');
+      const err = new Error('Must be handling a user gesture to show a file picker.');
+      err.name = 'SecurityError'; throw err;
+    };
+    AREv2._setDirHandleForTest(fake);
+    document.getElementById('areJob').value = 'DENIED-TEST';
+  });
+  await page.click('#areSaveBtn');
+  await page.waitForTimeout(2500);       // destination rejects fast; toast is up for 6s
+  const out = await page.evaluate(() => ({
+    calls: window.__calls,
+    toast: (document.getElementById('areToast') || {}).textContent || '',
+  }));
+  await ctx.close();
+
+  if (downloads.length) {
+    failures.push(`denied-grant: a download WAS produced (${downloads.join(', ')}) — ` +
+                  'the SecurityError fell through to the download fallback');
+  }
+  if (!/click Save again/.test(out.toast)) {
+    failures.push(`denied-grant: retry message not shown — toast was "${out.toast}"`);
+  }
+  if (out.calls.join(',') !== 'requestPermission,showDirectoryPicker') {
+    failures.push(`denied-grant: unexpected call sequence ${out.calls.join(',')}`);
+  }
+  console.log(`  denied-grant retry: calls=${out.calls.join(',')} downloads=${downloads.length} toast="${out.toast}"`);
+}
+
 for (const r of [first, lapsed]) {
   const log = r.log || [];
   if (!log.length) {

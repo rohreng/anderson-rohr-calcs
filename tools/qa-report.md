@@ -1,6 +1,6 @@
 # ARE calc save/load QA report
 
-Run: 2026-08-17T01:41:20.749Z
+Run: 2026-08-17T19:34:12.706Z
 
 **55/55 passed.**
 
@@ -32,11 +32,11 @@ Run: 2026-08-17T01:41:20.749Z
 | concrete_beam_design_calculator.html | 34 | 124 | - | 0 | pass |
 | counterfort_bay_v4.html | 19 | 82 | - | 0 | pass |
 | deep_beam_stm_calculator.html | 100 | 103 | - | 0 | pass |
-| directly_welded_HSS_connection_calculator.html | 2 | 178 | - | 0 | pass |
+| directly_welded_HSS_connection_calculator.html | 0 | 178 | yes | 0 | pass |
 | embed_plate_beam_bearing_calculator.html | 26 | 118 | - | 0 | pass |
 | headers_gradebeam_pier_calculator.html | 41 | 81 | yes | 0 | pass |
 | hss_column_bearing_on_beam_calculator.html | 51 | 49 | - | 0 | pass |
-| hss_connection_complete_calculator.html | 2 | 88 | - | 0 | pass |
+| hss_connection_complete_calculator.html | 0 | 90 | yes | 0 | pass |
 | hss_hanger_tension_connection_calculator.html | 17 | 56 | - | 0 | pass |
 | large_moment_base_plate.html | 13 | 85 | - | 0 | pass |
 | masonry_anchor_bolt_calculator.html | 22 | 86 | - | 0 | pass |

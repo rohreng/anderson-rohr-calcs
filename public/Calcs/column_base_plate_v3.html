@@ -1076,5 +1076,18 @@ window.addEventListener('are:stateLoaded', function(e) {
 buildTable();
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// Load-failure hint for the RISA-upload case. A file saved AFTER loadExcel()
+// captures inputs with member-derived ids (fPu_<mid>, ssec_<mid>) that do not
+// exist on a fresh page, so the fail-closed mismatch gate correctly blocks the
+// load (signed off: block, do not corrupt). Without this hint the engineer only
+// sees raw keys like "#fPu_M12" with no cause or remedy. Guarded because
+// AREv2.loadHint may not exist yet in every deployed utils build — the hint is
+// then simply absent, which is the pre-hint status quo, not a failure.
+if (window.AREv2 && AREv2.loadHint) AREv2.loadHint(
+  'If this file was saved after a RISA Excel upload, its member rows do not exist on a fresh page. ' +
+  'Re-upload the same RISA export first, then Load again.'
+);
+</script>
 </body>
 </html>

@@ -209,6 +209,18 @@ for (const file of [TIER_A, TIER_B]) {
       s.fields['#definitely_not_a_real_field_xyz'] = '1';
       return window.AREv2.loadFromState(s, { force: true });
     });
+
+    // A file carrying a model, loaded into a page whose adapter failed to
+    // register: every adapter branch in loadFromState is guarded `if (adapter`,
+    // so without the ADAPTER_MISSING gate this would silently drop the model
+    // and report success — a wrong record, not an error.
+    run('adapterMissing', () => {
+      const s = clone();
+      s.adapterVersion = 1;
+      s.model = { floors: [{ name: 'L2' }] };
+      return window.AREv2.loadFromState(s);
+    });
+
     out.fieldCount = Object.keys(g.state.fields).length;
     return out;
   }, good);
@@ -223,6 +235,82 @@ for (const file of [TIER_A, TIER_B]) {
   check('C: force applies the resolvable fields',
         cases.forceApplies?.res?.ok === true && cases.forceApplies.res.applied === cases.fieldCount,
         JSON.stringify(cases.forceApplies));
+  check('C: model file on an adapterless page -> ADAPTER_MISSING',
+        cases.adapterMissing?.threw && cases.adapterMissing.code === 'ADAPTER_MISSING',
+        JSON.stringify(cases.adapterMissing));
+  await ctx.close();
+}
+
+// =============================================================================
+// TEST D — loadHint reaches the mismatch dialog text
+// =============================================================================
+{
+  const ctx = await browser.newContext();
+  const { page } = await openCalc(ctx, TIER_A);
+
+  const d = await page.evaluate(() => {
+    const res = { ok: false, mismatches: { missingOnPage: ['#fPu_12'], notInFile: [] }, notices: [] };
+    const before = window.AREv2._describeMismatch(res);
+    window.AREv2.loadHint('Upload the RISA workbook first, then Load this file again.');
+    const withHint = window.AREv2._describeMismatch(res);
+    window.AREv2.loadHint('');            // cleared hint must disappear again
+    const after = window.AREv2._describeMismatch(res);
+    return { before, withHint, after };
+  });
+  check('D: hint absent until a calc sets one', !d.before.includes('RISA workbook'));
+  check('D: loadHint text appears in the mismatch description',
+        d.withHint.includes('Upload the RISA workbook first, then Load this file again.'), d.withHint);
+  check('D: mismatch list itself is still present alongside the hint',
+        d.withHint.includes('#fPu_12'), d.withHint);
+  check('D: clearing the hint removes it', !d.after.includes('RISA workbook'));
+  await ctx.close();
+}
+
+// =============================================================================
+// TEST E — attribute URL audit (regression armour; no current calc trips it)
+// =============================================================================
+{
+  const ctx = await browser.newContext();
+  const { page } = await openCalc(ctx, TIER_A);
+
+  const e = await page.evaluate(async () => {
+    document.getElementById('areJob').value = 'ATTR-AUDIT';
+    const tryBuild = async () => {
+      try { await window.AREv2.buildSnapshot('f'); return { ok: true }; }
+      catch (err) { return { ok: false, code: err.code || '', msg: err.message }; }
+    };
+
+    // .invalid never resolves, so no real network traffic leaves the test.
+    const img = document.createElement('img');
+    img.setAttribute('src', 'https://example.invalid/x.png');
+    document.body.appendChild(img);
+    const externalImg = await tryBuild();
+    img.remove();
+
+    const div = document.createElement('div');
+    div.setAttribute('style', 'background:url(https://example.invalid/bg.png)');
+    document.body.appendChild(div);
+    const externalStyle = await tryBuild();
+    div.remove();
+
+    // Control: data: image + fragment url() are the allowed forms — they must
+    // still save, proving the audit rejects externals rather than everything.
+    const okImg = document.createElement('img');
+    okImg.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAAC');
+    document.body.appendChild(okImg);
+    const frag = document.createElement('div');
+    frag.setAttribute('style', 'clip-path:url(#clip)');
+    document.body.appendChild(frag);
+    const control = await tryBuild();
+    okImg.remove(); frag.remove();
+
+    return { externalImg, externalStyle, control };
+  });
+  check('E: external img[src] fails the save closed (EXTERNAL_ATTR_URL)',
+        !e.externalImg.ok && e.externalImg.code === 'EXTERNAL_ATTR_URL', JSON.stringify(e.externalImg));
+  check('E: external url() in an inline style fails the save closed',
+        !e.externalStyle.ok && e.externalStyle.code === 'EXTERNAL_ATTR_URL', JSON.stringify(e.externalStyle));
+  check('E: data: image and url(#fragment) still save', e.control.ok, JSON.stringify(e.control));
   await ctx.close();
 }
 

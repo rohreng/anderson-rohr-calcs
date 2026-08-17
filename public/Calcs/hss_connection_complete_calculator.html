@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DG24 HSS Welded Connection Calculator - Complete</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vendored locally (PLAN.md Risks: CDN/CI flake). Same versions the CDN
+         tags resolved to: react@18.3.1, react-dom@18.3.1, @babel/standalone@8.0.4,
+         tailwind play CDN 3.4.17. -->
+    <script src="/vendor/react-18.3.1.umd.development.js"></script>
+    <script src="/vendor/react-dom-18.3.1.umd.development.js"></script>
+    <script src="/vendor/babel-standalone-8.0.4.min.js"></script>
+    <script src="/vendor/tailwind-play-3.4.17.js"></script>
     <style>
         body { 
             margin: 0; 
@@ -77,6 +80,15 @@
 <body class="print-friendly">
     <div id="root"></div>
     
+    <script>
+    // Readiness gate (PLAN.md §1): queue the promise BEFORE are-utils-v2.js runs
+    // so there is no window where Save/Load think the calc is ready while the
+    // React component is still mounting. The component resolves it once the
+    // adapter is registered and the shapes table has landed in state.
+    window.AREv2 = window.AREv2 || {};
+    window.__areReadyPromise = new Promise(function (resolve) { window.__areAdapterArmed = resolve; });
+    (window.AREv2._q = window.AREv2._q || []).push(window.__areReadyPromise);
+    </script>
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
         
@@ -142,6 +154,75 @@
           const [openSteps, setOpenSteps] = useState({});
           const toggleStep = (i) => setOpenSteps(prev => ({ ...prev, [i]: !prev[i] }));
           const schemSvgRef = useRef(null);
+
+          // ── ARE save/load adapter (Tier B, PLAN.md §1) ──────────────────────
+          // React owns everything under #root, so DOM-level restore cannot work:
+          // writing input values does not update hook state and the results
+          // panel would keep numbers computed from the defaults. Instead the
+          // whole tree is declared model-owned and the model is the two member
+          // selections. A ref keeps getModel/setModel on CURRENT state without
+          // re-registering the adapter every render.
+          const areRef = useRef({});
+          areRef.current = { selectedBeam, selectedColumn, shapesData };
+
+          useEffect(() => {
+            if (!window.AREv2 || !AREv2.registerAdapter) return;
+            AREv2.registerAdapter({
+              version: 1,
+              ownedFields: ['#root'],
+              schema: {
+                allowedKeys: ['beam', 'column'],
+                maxDepth: 2,
+                maxNodes: 10,
+                maxStringLength: 40,
+                // AISC designations only (W16X57, HSS10X10X1/2 …) — these
+                // strings reach the DOM, so a hand-edited file must not be
+                // able to smuggle markup through them.
+                stringPattern: /^[A-Za-z0-9 ._\/-]*$/
+              },
+              ready: window.__areReadyPromise,
+              getModel: () => ({
+                beam: areRef.current.selectedBeam,
+                column: areRef.current.selectedColumn
+              }),
+              setModel: (m) => {
+                if (!m || typeof m.beam !== 'string' || typeof m.column !== 'string') {
+                  throw new Error('Saved file carries no member selections.');
+                }
+                const { shapesData } = areRef.current;
+                // Fail closed: an unknown label would leave props (and results)
+                // stale while the select displayed nothing sensible.
+                if (!shapesData.wShapes.some(s => s.label === m.beam)) {
+                  throw new Error('Saved beam "' + m.beam + '" is not in this calculator\'s shape table.');
+                }
+                if (!shapesData.hssShapes.some(s => s.label === m.column)) {
+                  throw new Error('Saved column "' + m.column + '" is not in this calculator\'s shape table.');
+                }
+                setSelectedBeam(m.beam);
+                setSelectedColumn(m.column);
+              },
+              runAndSettle: () => new Promise((resolve) => {
+                // Let React flush state → props → results effects, then refresh
+                // the member-hint lines (DOM 'change' listeners wired by
+                // AREv2.normalizeSelects) so hint text tracks a model restore
+                // exactly as it tracks a user edit. Non-bubbling on purpose —
+                // it must not re-enter React's delegated onChange.
+                requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+                  document.querySelectorAll('select.member-select').forEach((sel) => {
+                    sel.dispatchEvent(new Event('change'));
+                  });
+                  resolve();
+                }, 30)));
+              })
+            });
+          }, []);
+
+          // Arm Save/Load only once the shapes table has landed in state.
+          useEffect(() => {
+            if (shapesData.wShapes.length && typeof window.__areAdapterArmed === 'function') {
+              window.__areAdapterArmed();
+            }
+          }, [shapesData]);
 
           // Normalize member selects (short labels + full-property hint) via shared ARE utils
           useEffect(() => {
@@ -854,49 +935,6 @@ Mn = ${Mn_ASD.toFixed(1)} kip-ft
 
         ReactDOM.render(<HSSWeldedConnectionCalculator />, document.getElementById('root'));
     </script>
-    <script>
-    // React interop: restored <select> values must go through the native value
-    // setter so React's onChange fires and state/recalc update on areLoad().
-    (function () {
-      'use strict';
-      var baseLoad = window.areLoad;
-      window.areLoad = function () {
-        var key = 'are_v1_' + (window.location.pathname.split('/').pop() || 'calc');
-        var raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            var data = JSON.parse(raw);
-            Object.keys(data._inputs || {}).forEach(function (id) {
-              var el = document.getElementById(id);
-              if (!el || el.tagName !== 'SELECT') return;
-              var desc = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value');
-              if (desc && desc.set) desc.set.call(el, data._inputs[id]);
-              el.dispatchEvent(new Event('change', { bubbles: true }));
-            });
-          } catch (e) { /* ignore */ }
-        }
-        baseLoad();
-      };
-    })();
-    </script>
-
-
 <script src="/are-utils-v2.js"></script>
-<script>
-// React owns these inputs; DOM-level restore does not update component state, so
-// a Load would show the file's values while the results stayed computed from the
-// defaults. Refuse Load until in-component adapters exist (PLAN.md S-B2).
-// Save is unaffected — the snapshot is a frozen post-run DOM and is truthful.
-(function () {
-  function apply() {
-    if (window.AREv2 && AREv2.disableLoad) {
-      AREv2.disableLoad('Load is not yet supported on this React-based calculator — re-enter inputs manually. Save works normally.');
-    }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
-  else apply();
-  setTimeout(apply, 300);
-})();
-</script>
 </body>
 </html>

@@ -63,7 +63,10 @@ export function deriveCoverage(dir = CALCS_DIR) {
       dyn_rows: /function\s+add[A-Za-z]+\s*\(/.test(src) ? 1 : 0,
       idless_inputs: (src.match(/<(input|select|textarea)[^>]*>/g) || [])
         .filter((t) => !/\bid=/.test(t)).length,
-      react: /unpkg\.com\/react/.test(src) ? 1 : 0,
+      // React arrives vendored (/vendor/react-*.js) since 2026-08-17; the unpkg
+      // pattern is kept so a CDN tag creeping back is still classified as React
+      // rather than silently falling out of the column.
+      react: /unpkg\.com\/react|\/vendor\/react-/.test(src) ? 1 : 0,
       adapter: count(/AREv2\.registerAdapter\s*\(/g),
     };
   });

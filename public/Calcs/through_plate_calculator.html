@@ -901,6 +901,14 @@
             if(!window.AREDraw) return;
 
             function gv(id,def){var e=document.getElementById(id);var v=e?parseFloat(e.value):NaN;return isFinite(v)?v:def;}
+            // Finite-or-default: the AISC v16 workbook fills non-applicable columns
+            // with an en dash ("–"), which is truthy, so a bare (obj&&obj.prop) check
+            // passes and +"–" yields NaN — which then reaches <rect> x/y/width/height
+            // as the literal string "NaN". Every DB-sourced dimension must come
+            // through here so the schematic degrades to its default geometry instead
+            // of emitting broken SVG (broken SVG would be frozen permanently into
+            // saved calculation records).
+            function nv(x,def){var v=parseFloat(x);return isFinite(v)?v:def;}
             var beamSize=document.getElementById('beamSize')?document.getElementById('beamSize').value:'';
             var hssSize =document.getElementById('hssSize') ?document.getElementById('hssSize').value :'';
             var beam=null, hss=null;
@@ -908,11 +916,13 @@
             try{ if(hssSize)  hss =getShapeProperties('hss', hssSize);  }catch(e){}
 
             // Real-world dimensions (inches)
-            var d  = (beam&&beam.d) ? +beam.d   : 16.4;
-            var tf = (beam&&beam.tf)? +beam.tf  : 0.715;
-            var Hc = (hss &&hss.H)  ? +hss.H    : 20.0;
-            var Bc = (hss &&hss.B)  ? +hss.B    : 12.0;
-            var tc = (hss &&hss.t)  ? +hss.t    : 0.465;
+            var d  = nv(beam&&beam.d,  16.4);
+            var tf = nv(beam&&beam.tf, 0.715);
+            var Hc = nv(hss &&hss.H,   20.0);
+            var Bc = nv(hss &&hss.B,   12.0);
+            // HSS wall: the DB's "t" column is "–" for every HSS (thicknesses live in
+            // tdes/tnom), so prefer the design thickness before the drawing default.
+            var tc = nv(hss&&hss.t, nv(hss&&hss.tdes, 0.465));
             var tp = gv('plateThickness',0.75);
             var nb = Math.max(1, Math.round(gv('boltsPerLine',5)));
             var sp = gv('boltSpacing',3);

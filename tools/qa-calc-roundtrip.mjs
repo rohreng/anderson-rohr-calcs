@@ -181,6 +181,32 @@ for (const file of files) {
     const fill = await fillPage(page, 12345);
     row.filled = fill.filled; row.addButtons = fill.addButtons;
 
+    // React calcs: their inputs are model-owned (ownedFields ['#root']) so the
+    // generic fill skips them, and a plain DOM value write would not update
+    // component state anyway. Drive them the way a user does — native value
+    // setter + bubbling change so React's delegated onChange fires — otherwise
+    // the round trip only ever exercises the default selections.
+    if (MANIFEST.get(file)?.react === 1) {
+      row.reactFilled = await page.evaluate(() => {
+        let n = 0;
+        document.querySelectorAll('#root select').forEach((el) => {
+          const real = Array.from(el.options).filter((o) => o.value !== '');
+          if (real.length < 2) return;
+          const pick = real[Math.floor(real.length / 2)];   // deterministic non-default
+          if (pick.value === el.value) return;
+          const desc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+          desc.set.call(el, pick.value);
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          n++;
+        });
+        return n;
+      });
+      await page.waitForTimeout(300);
+      // Model equality is the only strong post-reload criterion here — selected
+      // option VALUES never appear in innerText.
+      row.modelBefore = await page.evaluate(() => JSON.stringify(window.AREv2._getAdapterModelForTest()));
+    }
+
     // DELETE-A-MIDDLE-ROW scenario (PLAN.md §5 step 2). Sentinels, not counts —
     // a count check passes on regenerated defaults and proves nothing.
     const scenarioSrc = SCENARIO_SOURCE[file];
@@ -218,11 +244,22 @@ for (const file of files) {
     // is a calc the harness never actually exercised. This is exactly how the two
     // React calcs "passed" with 2 fields each while their UI had not rendered.
     const mf = MANIFEST.get(file);
-    if (mf && mf.react === 1) {
-      row.reactExempt = true;                       // documented limitation, reported as ok*
-    } else if (snap.fields < 3 && !snap.hasModel) {
+    if (snap.fields < 3 && !snap.hasModel) {
       row.notes.push(`only ${snap.fields} field(s) captured and no model — the calc was not exercised`);
       throw new Error('vacuous');
+    }
+    // The React calcs' whole tree is adapter-owned (#root), so fields is
+    // legitimately 0 — but then the MODEL must exist and must be non-default,
+    // or this is the 2-fields-while-the-UI-never-rendered vacuous pass again.
+    if (mf && mf.react === 1) {
+      if (!snap.hasModel) {
+        row.notes.push('React calc snapshot carries no adapter model — the component never registered');
+        throw new Error('vacuous');
+      }
+      if (!row.reactFilled) {
+        row.notes.push('React calc: no select could be driven — the UI never rendered');
+        throw new Error('vacuous');
+      }
     }
     // An adapter that failed to register (stale cache, JS error) would silently
     // drop the whole model and still pass Tier A. Cross-check declaration vs fact.
@@ -299,6 +336,17 @@ for (const file of files) {
         }
       }
     }
+    // React calcs: the restored adapter model must equal the saved one exactly.
+    if (!row.scenario && row.modelBefore) {
+      const modelAfter = await page2.evaluate(() => JSON.stringify(window.AREv2._getAdapterModelForTest()));
+      if (modelAfter !== row.modelBefore) {
+        row.notes.push('adapter model did not round-trip' +
+                       '\n      before: ' + String(row.modelBefore).slice(0, 220) +
+                       '\n      after : ' + String(modelAfter).slice(0, 220));
+        throw new Error('model');
+      }
+    }
+
     row.stage = 'diff';
     // Compare with ALL whitespace removed. Rebuilt rows (adapter setModel using
     // innerHTML) carry no inter-tag whitespace, while the page's original
@@ -380,7 +428,7 @@ for (const file of files) {
 
   await ctx.close();
   results.push(row);
-  const mark = row.ok ? ((row.preexisting || row.reactExempt) ? 'ok* ' : 'ok  ') : 'FAIL';
+  const mark = row.ok ? (row.preexisting ? 'ok* ' : 'ok  ') : 'FAIL';
   console.log(`${mark} ${row.file.padEnd(52)} ${String(row.fields ?? '-').padStart(4)} fields  ` +
               `${String(row.kb ?? '-').padStart(4)} KB  ${row.ok ? '' : '[' + row.stage + '] ' + row.notes[0]}`);
 }

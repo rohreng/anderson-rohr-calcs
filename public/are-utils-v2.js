@@ -339,6 +339,13 @@
 
   // ── Hub drawer ────────────────────────────────────────────────────────────
   function injectHub() {
+    // .are-hub-fab / .are-hub are styled ONLY by are-theme-v2.css, which
+    // data-no-theme calcs deliberately do not load — injecting there renders an
+    // unstyled "Results Hub" button and drawer in document flow at the bottom
+    // of the page. None of the opted-out calcs publishes results or accepts
+    // imports, so skip injection rather than duplicating hub CSS into
+    // MINIMAL_BAR_CSS for a feature they cannot use.
+    if (themeOptedOut()) return;
     if (document.getElementById('areHub')) return;
     var fab = document.createElement('button');
     fab.className = 'are-hub-fab'; fab.id = 'areHubFab';
@@ -874,6 +881,33 @@
     return bad;
   }
 
+  // auditCssUrls only sees STYLESHEETS. An external URL can also ride in on
+  // img[src], SVG image[href], or an inline style="background:url(…)" — none of
+  // which any current calc uses (all drawings are inline SVG), but a future calc
+  // that added one would produce a snapshot whose CSP silently blanks the image
+  // when the record is opened offline — exactly the half-inlined file the
+  // fail-closed audits exist to prevent. Regression armour, same contract as
+  // the CSS audit: data: and #fragment pass, everything else fails the save.
+  function auditAttributeUrls(root) {
+    var bad = [];
+    root.querySelectorAll('img[src]').forEach(function (el) {
+      var u = (el.getAttribute('src') || '').trim();
+      // Empty src fetches nothing in modern browsers; failing a save over a
+      // no-op attribute would block engineers for zero offline benefit.
+      if (u && u.indexOf('data:') !== 0) bad.push('img src=' + u);
+    });
+    root.querySelectorAll('image').forEach(function (el) {
+      var u = (el.getAttribute('href') || el.getAttribute('xlink:href') || '').trim();
+      if (u && u.indexOf('data:') !== 0 && u.charAt(0) !== '#') bad.push('image href=' + u);
+    });
+    root.querySelectorAll('[style]').forEach(function (el) {
+      auditCssUrls(el.getAttribute('style') || '').forEach(function (u) {
+        bad.push('style url(' + u + ')');
+      });
+    });
+    return bad;
+  }
+
   function sanitizeClone(root) {
     root.querySelectorAll('script').forEach(function (s) { s.remove(); });
     root.querySelectorAll('iframe, object, embed').forEach(function (s) { s.remove(); });
@@ -956,6 +990,17 @@
   function isoDate() {
     var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; };
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  // Synchronous on purpose: areSaveAs must hand showSaveFilePicker its
+  // suggestedName BEFORE any await or the picker loses transient activation, so
+  // the name cannot come out of the async buildSnapshot. One helper keeps Save
+  // and Save-as… naming identical — a generic "calculation.html" default was
+  // producing anonymous files in project folders.
+  function snapshotBasename(project) {
+    return sanitizeFilename(project) + ' - ' +
+           sanitizeFilename((document.title || FILE).replace(/\s*[—–|].*$/, '')) + ' - ' +
+           isoDate();
   }
 
   var PRINT_TOGGLE_CSS =
@@ -1054,6 +1099,12 @@
           if (el.getAttribute('style') === '') el.removeAttribute('style');
         });
         sanitizeClone(clone);
+        var badAttrs = auditAttributeUrls(clone);
+        if (badAttrs.length) {
+          var eA = new Error('Snapshot still references external resources: ' + badAttrs.slice(0, 5).join(', '));
+          eA.code = 'EXTERNAL_ATTR_URL';
+          throw eA;
+        }
 
         var head = clone.querySelector('head');
         var body = clone.querySelector('body');
@@ -1121,9 +1172,7 @@
           throw e5;
         }
 
-        var base = sanitizeFilename(project) + ' - ' +
-                   sanitizeFilename((document.title || FILE).replace(/\s*[—–|].*$/, '')) + ' - ' +
-                   isoDate();
+        var base = snapshotBasename(project);
         return { filename: base + '.html', html: html, state: state };
       })
       .then(function (out) {
@@ -1192,6 +1241,16 @@
       var e2 = new Error('That file was saved from "' + (state.calcTitle || state.calcFile) +
                          '". Open that calculator to load it.');
       e2.code = 'WRONG_CALC'; throw e2;
+    }
+    // Every adapter branch below is guarded `if (adapter && …)`. If this page's
+    // adapter failed to register — script error, load-order regression — a file
+    // that carries a model would sail past every one of those guards, silently
+    // DROP the model, and report a successful load with only the Tier-A fields
+    // populated. That is the silent-wrong-record outcome this design exists to
+    // prevent, so an adapter-shaped file on an adapterless page fails loudly.
+    if (!adapter && (state.adapterVersion > 0 || state.model != null)) {
+      var eAM = new Error('This calculator failed to initialize its saved-data handler — reload the page; if it persists the file cannot be loaded.');
+      eAM.code = 'ADAPTER_MISSING'; throw eAM;
     }
     if (adapter && state.adapterVersion !== adapter.version) {
       var e3 = new Error('This calculator\'s saved-data format changed (file v' + state.adapterVersion +
@@ -1398,7 +1457,7 @@
       return dir.getFileHandle(name, { create: false }).then(function () {
         i++;
         if (i > 50) throw new Error('Too many revisions of this filename.');
-        return attempt(stem + ' -r' + i + ext);
+        return attempt(stem + '-r' + i + ext);
       }, function (err) {
         if (err && err.name === 'NotFoundError') {
           // Advisory only: check-then-create is a race. Last write wins, as on
@@ -1444,7 +1503,24 @@
         destPromise = dirHandle.requestPermission({ mode: 'readwrite' }).then(function (p) {
           if (p === 'granted') return { dir: dirHandle, via: 'remembered folder' };
           return window.showDirectoryPicker({ mode: 'readwrite', id: 'are-project' })
-            .then(function (h) { dirHandle = h; idbSet(IDB_KEY, h); return { dir: h, via: 'folder picker' }; });
+            .then(function (h) { dirHandle = h; idbSet(IDB_KEY, h); return { dir: h, via: 'folder picker' }; },
+                  function (err) {
+                    // The permission prompt above already CONSUMED the click's
+                    // transient activation, so this fallback picker throws
+                    // SecurityError. Mapping that to the download fallback (as
+                    // the generic catch below does) silently sends a file to
+                    // Downloads when the engineer expected the project folder.
+                    // Surface a retry instead — and drop the stale handle so
+                    // the next click goes straight to the picker with its
+                    // activation intact.
+                    if (err && err.name === 'SecurityError') {
+                      dirHandle = null;
+                      var eP = new Error('Folder permission needed — click Save again to choose the folder');
+                      eP.code = 'PERMISSION_RETRY';
+                      throw eP;
+                    }
+                    throw err;
+                  });
         });
       } else {
         destPromise = window.showDirectoryPicker({ mode: 'readwrite', id: 'are-project' })
@@ -1458,6 +1534,7 @@
 
     Promise.all([destPromise.catch(function (err) {
       if (err && err.name === 'AbortError') throw err;
+      if (err && err.code === 'PERMISSION_RETRY') throw err;   // retry, never Downloads
       return { dir: null, via: 'download (picker unavailable)' };
     }), built])
       .then(function (r) {
@@ -1469,6 +1546,7 @@
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') { showToast('Save cancelled.', 2200); return; }
+        if (err && err.code === 'PERMISSION_RETRY') { showToast('⚠ ' + err.message, 6000); return; }
         showToast('⚠ Save failed: ' + (err && err.message ? err.message : err), 7000);
         if (window.console) console.error('[are-save]', err.code || '', err);
       });
@@ -1480,7 +1558,7 @@
     if (!jobEl || !jobEl.value.trim()) { showToast('⚠ Enter a Project first.', 4200); return; }
     if (!calcReady) { showToast('⏳ Still loading — try again in a moment.', 3000); return; }
 
-    var opts = { suggestedName: 'calculation.html',
+    var opts = { suggestedName: snapshotBasename(jobEl.value.trim()) + '.html',
                  types: [{ description: 'ARE calculation', accept: { 'text/html': ['.html'] } }] };
     if (dirHandle) opts.startIn = dirHandle;
     var pick = window.showSaveFilePicker(opts);      // first, before any await
@@ -1495,6 +1573,15 @@
       });
   };
 
+  // A calc can register one line of context for the mismatch dialog. The
+  // generic dialog lists raw field keys, which the engineer cannot act on when
+  // the mismatch is workflow-driven — column_base_plate_v3's post-RISA-upload
+  // saves reference ids that only exist after re-uploading the workbook, and
+  // without the hint the dialog just looks broken. Callable any time after this
+  // script loads; describeMismatch reads it at dialog time.
+  var loadHintText = '';
+  AREv2.loadHint = function (text) { loadHintText = text == null ? '' : String(text); };
+
   function describeMismatch(res) {
     var lines = [];
     if (res.mismatches.missingOnPage.length) {
@@ -1505,8 +1592,13 @@
       lines.push('On this calculator but not in the file (' + res.mismatches.notInFile.length + '):\n  ' +
                  res.mismatches.notInFile.slice(0, 12).join('\n  '));
     }
+    if (loadHintText) lines.push(loadHintText);
     return lines.join('\n\n');
   }
+  // Test seam: the dialog text otherwise only surfaces through window.confirm,
+  // which Playwright can only observe by letting the dialog fire — and the
+  // adversarial suite treats any dialog as a failure.
+  AREv2._describeMismatch = describeMismatch;
 
   function handleLoadedText(text) {
     var state;
