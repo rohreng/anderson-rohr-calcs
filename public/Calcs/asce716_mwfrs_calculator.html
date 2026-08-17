@@ -1538,5 +1538,51 @@ window.updateSendPreview=updateSendPreview;
 </script>
 <script src="/are-draw.js"></script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// Story rows live only in the DOM (#storyRows children); calculate() reads them
+// back at run time. A fresh page has a different row count, so generic DOM-path
+// keys cannot resolve — the model is the row data itself.
+//
+// Note reindexStories() rewrites the story label to 'Roof'/'Floor n' on every
+// add/remove, so the label is derived, not user data. It is still carried so the
+// snapshot matches what was on screen.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+  var rows = function () { return document.getElementById('storyRows'); };
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: ['#storyRows'],
+    schema: { allowedKeys: ['stories'], maxDepth: 3, maxNodes: 500,
+              maxStringLength: 40, stringPattern: /^[A-Za-z0-9 ._-]*$/ },
+    getModel: function () {
+      return { stories: Array.prototype.map.call(rows().children, function (r) {
+        return { label: (r.querySelector('input[type=text]') || {}).value || '',
+                 sh: (r.querySelector('.sh') || {}).value || '12' };
+      }) };
+    },
+    setModel: function (m) {
+      var list = (m && m.stories) || [];
+      if (!list.length) throw new Error('Saved file contains no stories.');
+      rows().innerHTML = '';
+      for (var i = 0; i < list.length; i++) addStory();      // rebuild from empty
+      var kids = rows().children;
+      for (var j = 0; j < list.length && j < kids.length; j++) {
+        var t = kids[j].querySelector('input[type=text]');
+        var h = kids[j].querySelector('.sh');
+        if (t) t.value = list[j].label;
+        if (h) h.value = list[j].sh;
+      }
+      // Several controls (#sendDir, #sendStory, #diaStoryX, #diaStoryY) are
+      // BUILT by calculate() from the story list, so they do not exist on a
+      // fresh page. Materialize them here; the core's iterative restore then
+      // resolves their saved values on a later pass.
+      if (typeof calculate === 'function') calculate();
+    },
+    runAndSettle: function () { if (typeof calculate === 'function') calculate(); }
+  });
+})();
+</script>
 </body>
 </html>

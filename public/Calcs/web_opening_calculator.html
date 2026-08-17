@@ -2010,5 +2010,66 @@ window.addEventListener('DOMContentLoaded',function(){
 });
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// Holes, point loads and partial loads are dynamic rows rendered from JS arrays.
+// Generic DOM-path capture cannot restore them: the rows do not exist on a fresh
+// page, so every path key would be unresolvable and the mismatch gate would
+// (correctly) refuse to load.
+//
+// Note these arrays hold DEFAULTS only — the calc never writes edits back to
+// them, it reads the DOM at run time via getHoleFromRow()/getPloadFromRow()/
+// getPartialFromRow(). So getModel() must read the DOM back the same way, or a
+// saved file would carry the values the rows were CREATED with rather than the
+// ones the engineer typed.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+
+  function readBack(list, reader) {
+    return list.map(function (item) {
+      var live = null;
+      try { live = reader(item.id); } catch (e) {}
+      return live || item;
+    });
+  }
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: ['#holesTbody', '#ploadsTbody', '#partialTbody'],
+    schema: {
+      allowedKeys: ['holes', 'ploads', 'partialLoads', 'holeCount', 'ploadCount', 'partialCount'],
+      maxDepth: 4,
+      maxNodes: 2000,
+      maxStringLength: 40,
+      stringPattern: /^[A-Za-z0-9 ._\/-]*$/
+    },
+    getModel: function () {
+      return {
+        holes: readBack(holes, getHoleFromRow),
+        ploads: readBack(ploads, getPloadFromRow),
+        partialLoads: readBack(partialLoads, getPartialFromRow),
+        holeCount: holeCount,
+        ploadCount: ploadCount,
+        partialCount: partialCount
+      };
+    },
+    setModel: function (m) {
+      holes = (m.holes || []).slice();
+      ploads = (m.ploads || []).slice();
+      partialLoads = (m.partialLoads || []).slice();
+      // Keep the counters ahead of any restored id so a later Add cannot collide
+      // with an existing row id.
+      var maxId = function (a) { return a.reduce(function (x, r) { return Math.max(x, r.id || 0); }, 0); };
+      holeCount = Math.max(m.holeCount || 0, maxId(holes));
+      ploadCount = Math.max(m.ploadCount || 0, maxId(ploads));
+      partialCount = Math.max(m.partialCount || 0, maxId(partialLoads));
+      renderHolesTable();
+      renderPloadsTable();
+      renderPartialTable();
+    },
+    runAndSettle: function () { if (typeof runCalc === 'function') runCalc(); }
+  });
+})();
+</script>
 </body>
 </html>

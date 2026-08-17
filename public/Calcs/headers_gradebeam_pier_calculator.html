@@ -1340,5 +1340,69 @@ window.addEventListener('load', function(){
 });
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// Zone, grade-beam and pier tables exist only after the engineer clicks
+// "Generate Tables" (runAllChecks() even refuses to run without them), so a
+// fresh page has none of those inputs and a saved file cannot restore.
+//
+// But every generated cell carries a STABLE id (lbl_z1, len_z1, row_gb1,
+// pier1...), so ordinary Tier-A capture can restore the values — it just needs
+// the rows to exist first. This adapter therefore owns NO fields and stores no
+// values: it only replays the structure, and the core's iterative restore fills
+// it in on the next pass. Counters are reset so regenerated ids match the saved
+// ones exactly.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: [],
+    schema: { allowedKeys: ['zoneIds', 'zoneN', 'gbN'], maxDepth: 3, maxNodes: 200,
+              maxStringLength: 8, stringPattern: /^z\d+$/ },
+    getModel: function () {
+      // Serialize zone IDENTITIES, not a count. Zones can be deleted from the
+      // middle (removeZone, :581), leaving e.g. z1,z3,z4 — replaying a count
+      // would regenerate z1,z2,z3 and every saved cell id (len_z4, dlplf_z4...)
+      // would fail to resolve, blocking the load. Nick saves at each step and
+      // reloads, so this path has to be exact.
+      return { zoneIds: zoneIds.slice(), gbN: gbIds.length };
+    },
+    setModel: function (m) {
+      var ids = (m && m.zoneIds) || [];
+      // Back-compat with the first adapter revision, which stored a bare count.
+      if (!ids.length && m && m.zoneN) {
+        for (var k = 1; k <= Math.min(50, m.zoneN); k++) ids.push('z' + k);
+      }
+      ids = ids.slice(0, 50).filter(function (id) { return /^z\d+$/.test(id); });
+      var gbN = Math.max(0, Math.min(20, (m && m.gbN) || 0));
+
+      var body = document.getElementById('zoneBody');
+      if (body) body.innerHTML = '';
+      zoneIds = [];
+      // addZone() derives its id from ++zoneCount, so seed the counter before
+      // each call to reproduce the exact saved id — including the gaps left by
+      // a deleted middle zone.
+      var maxN = 0;
+      for (var i = 0; i < ids.length; i++) {
+        var n = parseInt(ids[i].slice(1), 10);
+        zoneCount = n - 1;
+        addZone();
+        if (n > maxN) maxN = n;
+      }
+      zoneCount = maxN;      // so a later + Add Zone cannot collide
+
+      if (gbN > 0) {
+        var cnt = document.getElementById('gbCount');
+        if (cnt) cnt.value = gbN;
+        buildGBTable();                                    // also builds the pier table
+      }
+    },
+    runAndSettle: function () {
+      if (typeof runAllChecks === 'function' && gbIds.length) runAllChecks();
+    }
+  });
+})();
+</script>
 </body>
 </html>

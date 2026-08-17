@@ -1515,32 +1515,16 @@ function drawMabDiagram() {
 
 <script src="/are-utils-v2.js"></script>
 <script>
-// Calculator-specific v2 save schema layered onto the shared ARE toolbar.
-(function(){
-  var file=(window.location.pathname.split('/').pop()||'calc');
-  var key='are_v1_'+file;
-  var baseSave=window.areSave, baseLoad=window.areLoad;
-  if(typeof baseSave==='function') window.areSave=function(){
-    baseSave();
-    try{var data=JSON.parse(localStorage.getItem(key)||'{}');data.v=3;localStorage.setItem(key,JSON.stringify(data));}catch(e){}
-  };
-  if(typeof baseLoad==='function') window.areLoad=function(){
-    try{
-      var data=JSON.parse(localStorage.getItem(key)||'{}');
-      if(!data.v){
-        document.getElementById('bolt_count').value='1';
-        document.getElementById('demand_basis').value='per_bolt';
-      }
-      // v2 and earlier predate the shear-direction field; those saves always
-      // meant "toward free edge" (the only behavior that existed then).
-      if(!data.v || data.v<3){
-        document.getElementById('shear_direction').value='toward_edge';
-      }
-    }catch(e){}
-    baseLoad();
-    updateGroupUI();
-    updateShearDirectionUI();
-  };
+// Derived UI that plain input/change events do not rebuild. Previously this
+// wrapped window.areSave/areLoad to version-stamp localStorage payloads; that
+// migration died with the localStorage save, but the post-restore refresh is
+// still required after a saved file is loaded.
+(function () {
+  if (!window.AREv2 || !AREv2.onAfterRestore) return;
+  AREv2.onAfterRestore(function () {
+    if (typeof updateGroupUI === 'function') updateGroupUI();
+    if (typeof updateShearDirectionUI === 'function') updateShearDirectionUI();
+  });
 })();
 </script>
 </body>

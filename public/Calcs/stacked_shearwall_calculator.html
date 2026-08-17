@@ -1023,5 +1023,48 @@ window.onload=function(){render();};
 
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// Floors and their walls are rendered into #floor-con from the `floors` array;
+// edits flow back into it through updFloor()/updWall() onchange handlers, so the
+// array is authoritative and DOM-path capture would be both redundant and
+// unstable (rows are rebuilt wholesale by render()).
+//
+// The global selects (#species, #designCase, #wallWidth) sit OUTSIDE #floor-con
+// and are left to ordinary Tier-A capture — duplicating them here would store
+// the same state twice and risk the two copies disagreeing.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: ['#floor-con'],
+    schema: {
+      allowedKeys: ['floors', 'fCnt', 'wCnt'],
+      maxDepth: 6,
+      maxNodes: 8000,
+      maxStringLength: 80,
+      // Floor and wall names are free text and end up in innerHTML via render(),
+      // so constrain them rather than trusting a hand-edited file.
+      stringPattern: /^[A-Za-z0-9 ._#()\/+-]*$/
+    },
+    getModel: function () {
+      return { floors: JSON.parse(JSON.stringify(floors)), fCnt: fCnt, wCnt: wCnt };
+    },
+    setModel: function (m) {
+      if (!m || !Array.isArray(m.floors) || !m.floors.length) {
+        throw new Error('Saved file contains no floor data.');
+      }
+      floors = m.floors;
+      fCnt = m.floors.length;
+      wCnt = m.wCnt || m.floors.reduce(function (n, f) {
+        return n + ((f.walls && f.walls.length) || 0);
+      }, 0);
+      render();
+    },
+    runAndSettle: function () { render(); }
+  });
+})();
+</script>
 </body>
 </html>

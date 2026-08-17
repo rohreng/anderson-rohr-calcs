@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FSA spike — inner (iframed) document</title>
+<style>
+  body { font: 14px/1.5 system-ui, sans-serif; padding: 16px; }
+  button { font: inherit; padding: 8px 14px; cursor: pointer; }
+  #out { margin-top: 12px; white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 12px; }
+  .ok   { color: #0a6b2e; font-weight: 700; }
+  .bad  { color: #a10c0c; font-weight: 700; }
+</style>
+</head>
+<body>
+<p><strong>Inner document</strong> — this is what a calc page is: same-origin, iframed, unsandboxed.</p>
+
+<p>
+  <button id="dir">showDirectoryPicker()</button>
+  <button id="save">showSaveFilePicker()</button>
+</p>
+
+<div id="out">ready.</div>
+
+<script>
+(function () {
+  var out = document.getElementById('out');
+
+  function log(msg, cls) {
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    d.textContent = msg;
+    out.appendChild(d);
+    // Mirror to the parent harness so the outer page can display a verdict.
+    try { parent.postMessage({ fsaSpike: true, msg: msg, cls: cls || '' }, '*'); } catch (e) {}
+  }
+
+  // Structured result for automated runners (tools/spike-fsa-iframe.mjs).
+  window.__fsa = { verdict: null, detail: null, activation: null, api: null };
+
+  function verdict(v, detail) {
+    window.__fsa.verdict = v;
+    window.__fsa.detail = detail;
+  }
+
+  function report(label, apiName) {
+    return function () {
+      window.__fsa = { verdict: null, detail: null, activation: null, api: apiName };
+      window.__fsa.activation = navigator.userActivation ? navigator.userActivation.isActive : null;
+      log('--- ' + label + ' ---');
+      log('window.' + apiName + ' present: ' + (typeof window[apiName]));
+      log('userActivation.isActive at call time: ' + (navigator.userActivation ? navigator.userActivation.isActive : 'n/a'));
+
+      if (typeof window[apiName] !== 'function') {
+        log('VERDICT: API not available in this context at all.', 'bad');
+        verdict('UNAVAILABLE', apiName + ' is not a function');
+        return;
+      }
+
+      var settled = false;
+      var p;
+      try {
+        p = window[apiName]();
+      } catch (err) {
+        log('SYNCHRONOUS THROW: ' + err.name + ' — ' + err.message, 'bad');
+        verdict(err.name === 'SecurityError' ? 'BLOCKED' : 'ERROR', 'sync throw: ' + err.name + ' — ' + err.message);
+        return;
+      }
+
+      // If the promise is still pending after 1200ms, a native dialog is open —
+      // which means the call was PERMITTED in this iframe.
+      setTimeout(function () {
+        if (!settled) {
+          log('Promise still pending after 1200ms => native dialog opened.', 'ok');
+          log('VERDICT: PERMITTED in same-origin iframe. Press Esc to dismiss.', 'ok');
+          verdict('PERMITTED', 'native dialog opened (promise pending >1200ms)');
+        }
+      }, 1200);
+
+      p.then(function (handle) {
+        settled = true;
+        log('Resolved with: ' + (handle && handle.kind ? handle.kind : handle));
+        log('VERDICT: PERMITTED in same-origin iframe.', 'ok');
+        verdict('PERMITTED', 'resolved with a handle');
+      }).catch(function (err) {
+        settled = true;
+        log('Rejected: ' + err.name + ' — ' + err.message);
+        if (err.name === 'AbortError') {
+          log('VERDICT: PERMITTED (dialog opened, then dismissed).', 'ok');
+          verdict('PERMITTED', 'AbortError — dialog opened then dismissed');
+        } else if (err.name === 'SecurityError') {
+          log('VERDICT: BLOCKED by SecurityError in iframe.', 'bad');
+          verdict('BLOCKED', 'SecurityError: ' + err.message);
+        } else {
+          log('VERDICT: inconclusive — ' + err.name, 'bad');
+          verdict('INCONCLUSIVE', err.name + ' — ' + err.message);
+        }
+      });
+    };
+  }
+
+  document.getElementById('dir').addEventListener('click', report('showDirectoryPicker', 'showDirectoryPicker'));
+  document.getElementById('save').addEventListener('click', report('showSaveFilePicker', 'showSaveFilePicker'));
+
+  log('inner loaded. origin=' + location.origin + '  top===self: ' + (window.top === window.self));
+})();
+</script>
+</body>
+</html>

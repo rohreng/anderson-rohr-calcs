@@ -1009,48 +1009,19 @@
 
 <script src="/are-utils-v2.js"></script>
 <script>
-// ── ARE React compatibility patch: override Save/Load for React-controlled inputs ──
-(function(){
-  var KEY='are_v1_react_'+(window.location.pathname.split('/').pop()||'calc');
-  function fields(){
-    return Array.prototype.filter.call(document.querySelectorAll('input,select,textarea'),function(el){
-      return el.id!=='areJob' && el.type!=='file' && el.type!=='button';
-    });
+// React owns these inputs; DOM-level restore does not update component state, so
+// a Load would show the file's values while the results stayed computed from the
+// defaults. Refuse Load until in-component adapters exist (PLAN.md S-B2).
+// Save is unaffected — the snapshot is a frozen post-run DOM and is truthful.
+(function () {
+  function apply() {
+    if (window.AREv2 && AREv2.disableLoad) {
+      AREv2.disableLoad('Load is not yet supported on this React-based calculator — re-enter inputs manually. Save works normally.');
+    }
   }
-  window.areSave=function(){
-    var job=(document.getElementById('areJob')||{}).value||'';
-    var vals=fields().map(function(el){return el.type==='checkbox'?{c:el.checked}:{v:el.value};});
-    try{ localStorage.setItem(KEY,JSON.stringify({_job:job,_ts:Date.now(),vals:vals}));
-      if(window.areToastMsg)areToastMsg(); var t=document.getElementById('areToast');
-      if(t){t.textContent='\u2713 Saved'+(job?' \u2014 '+job:'');t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600);}
-    }catch(e){alert('Save failed');}
-  };
-  window.areLoad=function(){
-    var raw=localStorage.getItem(KEY); var t=document.getElementById('areToast');
-    function toast(m){if(t){t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},3000);}}
-    if(!raw){toast('No saved inputs found for this calculator.');return;}
-    var d; try{d=JSON.parse(raw);}catch(e){toast('\u26a0 Could not read saved data.');return;}
-    if(d._job){var j=document.getElementById('areJob'); if(j)j.value=d._job;}
-    var iSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set;
-    var sSet=Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,'value').set;
-    var tSet=Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype,'value').set;
-    var ckSet=Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'checked').set;
-    // restore in passes: conditional fields may appear after earlier ones update
-    var pass=0;
-    (function apply(){
-      var els=fields();
-      (d.vals||[]).forEach(function(s,i){
-        var el=els[i]; if(!el)return;
-        if(s.c!==undefined && el.type==='checkbox'){ ckSet.call(el,s.c); el.dispatchEvent(new Event('click',{bubbles:true})); }
-        else if(s.v!==undefined){
-          var st=el.tagName==='SELECT'?sSet:(el.tagName==='TEXTAREA'?tSet:iSet);
-          if(el.value!==s.v){ st.call(el,s.v); el.dispatchEvent(new Event(el.tagName==='SELECT'?'change':'input',{bubbles:true})); }
-        }
-      });
-      if(++pass<3)setTimeout(apply,120);
-      else toast('\u2713 Loaded'+(d._job?' \u2014 '+d._job:'')+'  (saved '+new Date(d._ts).toLocaleString()+')');
-    })();
-  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+  else apply();
+  setTimeout(apply, 300);
 })();
 </script>
 </body>

@@ -750,6 +750,32 @@ window.addEventListener('are:stateLoaded', function(e) {
   }
 });
 </script>
+<script>
+// The AISC workbook loads asynchronously (window 'load' + setTimeout -> fetch),
+// populating the shape selects. Nothing is exposed to await, so Save could
+// snapshot — and Load could restore a section value — while the dropdowns were
+// still empty, silently producing different results. Gate on the dropdowns
+// actually being populated. Fails open after the timeout.
+(function () {
+  window.AREv2 = window.AREv2 || {};
+  var promise = new Promise(function (resolve) {
+    var t0 = Date.now();
+    (function poll() {
+      // These calcs ship a SMALL HARDCODED FALLBACK shape table that populates
+      // the dropdowns immediately, so "options exist and a value is selected"
+      // is true long before the real workbook arrives. applyDb() then repopulates
+      // and resets the selection to its default, clobbering anything restored in
+      // between — silently changing the calculated result. The only trustworthy
+      // signal is applyDb's own status line; everything after it in applyDb is
+      // synchronous, so observing it on a later tick means population is done.
+      var st = document.getElementById('dbStatus');
+      if ((st && /^Loaded/.test(st.textContent || '')) || Date.now() - t0 > 20000) return resolve();
+      setTimeout(poll, 100);
+    })();
+  });
+  (AREv2._q = AREv2._q || []).push(promise);
+})();
+</script>
 <script src="/are-utils-v2.js"></script>
 </body>
 </html>

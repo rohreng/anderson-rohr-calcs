@@ -532,5 +532,51 @@
         document.addEventListener('DOMContentLoaded', initializeTable);
     </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// Joist rows exist only as DOM rows in #joistTableBody; runCalculation() reads
+// them at run time. Row count differs from a fresh page, so the rows themselves
+// are the model.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+  var body = function () { return document.getElementById('joistTableBody'); };
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: ['#joistTableBody'],
+    schema: { allowedKeys: ['joists'], maxDepth: 3, maxNodes: 800,
+              maxStringLength: 60, stringPattern: /^[A-Za-z0-9 ._#()-]*$/ },
+    getModel: function () {
+      // The leading cell is a DISPLAY row number. addJoistRow() does not reindex
+      // after a removal, so a list with a deleted middle row legitimately reads
+      // 1,3,4,... — carry it so the reloaded record matches the saved one rather
+      // than silently renumbering.
+      return { joists: Array.prototype.map.call(body().rows, function (r) {
+        return { num: (r.cells[0] || {}).textContent || '',
+                 name: (r.querySelector('.name-input') || {}).value || '',
+                 span: (r.querySelector('.span-input') || {}).value || '',
+                 spacing: (r.querySelector('.spacing-input') || {}).value || '' };
+      }) };
+    },
+    setModel: function (m) {
+      var list = (m && m.joists) || [];
+      if (!list.length) throw new Error('Saved file contains no joists.');
+      body().innerHTML = '';
+      for (var i = 1; i <= list.length; i++) addJoistRow(i);
+      var rws = body().rows;
+      for (var j = 0; j < list.length && j < rws.length; j++) {
+        var n = rws[j].querySelector('.name-input');
+        var s = rws[j].querySelector('.span-input');
+        var g = rws[j].querySelector('.spacing-input');
+        if (rws[j].cells[0] && list[j].num) rws[j].cells[0].textContent = list[j].num;
+        if (n) n.value = list[j].name;
+        if (s) s.value = list[j].span;
+        if (g) g.value = list[j].spacing;
+      }
+    },
+    runAndSettle: function () { if (typeof runCalculation === 'function') runCalculation(); }
+  });
+})();
+</script>
 </body>
 </html>

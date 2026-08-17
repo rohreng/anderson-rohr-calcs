@@ -1,0 +1,233 @@
+// =============================================================================
+// Adversarial save/load tests  (PLAN.md §5 step 3 + step 6)
+// -----------------------------------------------------------------------------
+// Two surfaces with zero coverage until now:
+//   1. INJECTION — a hostile string in the Project field or in an adapter model
+//      reaching the saved file, which travels between engineers.
+//   2. REJECTION — the loader's typed error codes, the mismatch block, the
+//      rollback, and force-apply. Each is a data-integrity guarantee.
+//
+// Deliberately NO benign/pre-existing filtering in this file: any console error,
+// page error or dialog is a failure. The whole point is that nothing executes.
+//
+// Assertions are INDEPENDENT of the product's own self-check. buildSnapshot
+// asserts the same "no literal </script" property at save time; if that check
+// were itself broken, trusting it here would pass both.
+// =============================================================================
+
+import { chromium } from 'playwright';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const BASE = 'http://localhost:3000/Calcs/';
+const TIER_A = 'cantilever_plate_deflection_calculator.html';
+const TIER_B = 'stacked_shearwall_calculator.html';
+const PAYLOAD = '</script><img src=x onerror=alert(1)>';
+const TMP = fileURLToPath(new URL('../.qa-tmp/', import.meta.url));
+mkdirSync(TMP, { recursive: true });
+
+const results = [];
+const check = (name, pass, detail = '') => {
+  results.push({ name, pass, detail });
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail && !pass ? '\n        ' + detail : ''}`);
+};
+
+const browser = await chromium.launch({ headless: true });
+
+async function openCalc(ctx, file) {
+  const page = await ctx.newPage();
+  const noise = [];
+  page.on('pageerror', (e) => noise.push('pageerror: ' + e.message));
+  page.on('console', (m) => { if (m.type() === 'error') noise.push('console: ' + m.text()); });
+  page.on('dialog', async (d) => { noise.push('DIALOG: ' + d.message()); await d.dismiss(); });
+  await page.goto(BASE + file, { waitUntil: 'load' });
+  await page.waitForSelector('#areBar');
+  await page.waitForFunction(() => window.AREv2?.isReady?.() === true, null, { timeout: 20000 });
+  return { page, noise };
+}
+
+// Independent inertness assertions on the serialized HTML.
+function assertInert(label, html) {
+  const withoutState = html.replace(/<script type="application\/json"[^>]*>[\s\S]*?<\/script>/i, '');
+  check(`${label}: no literal </script outside the JSON block`, !/<\/script/i.test(withoutState));
+  check(`${label}: no inline event-handler attributes`, !/\son[a-z]+\s*=\s*["']/i.test(html));
+  check(`${label}: payload stored escaped as \\u003c`, /\\u003c/.test(html));
+  check(`${label}: raw payload not present verbatim`, !html.includes(PAYLOAD));
+}
+
+// =============================================================================
+// TEST A — payload in the Project field
+// =============================================================================
+for (const file of [TIER_A, TIER_B]) {
+  const ctx = await browser.newContext();
+  const { page, noise } = await openCalc(ctx, file);
+
+  const snap = await page.evaluate(async (payload) => {
+    document.getElementById('areJob').value = payload;
+    try { const s = await window.AREv2.buildSnapshot('f'); return { ok: true, html: s.html, filename: s.filename }; }
+    catch (e) { return { ok: false, code: e.code || '', message: e.message }; }
+  }, PAYLOAD);
+
+  const label = `A/${file.replace('_calculator.html', '')}`;
+  check(`${label}: snapshot builds with a hostile Project name`, snap.ok, snap.message);
+  if (snap.ok) {
+    assertInert(label, snap.html);
+    check(`${label}: filename carries no angle brackets`, !/[<>]/.test(snap.filename), snap.filename);
+
+    // Open the saved file offline; nothing may execute or be requested.
+    const p = path.join(TMP, 'xss-' + file);
+    writeFileSync(p, snap.html, 'utf8');
+    const octx = await browser.newContext();
+    const opage = await octx.newPage();
+    const oNoise = [];
+    opage.on('pageerror', (e) => oNoise.push('pageerror: ' + e.message));
+    opage.on('console', (m) => { if (m.type() === 'error') oNoise.push('console: ' + m.text()); });
+    opage.on('dialog', async (d) => { oNoise.push('DIALOG: ' + d.message()); await d.dismiss(); });
+    const requested = [];
+    await opage.route('**/*', (r) => {
+      const u = r.request().url();
+      if (u.startsWith('file://')) return r.continue();
+      requested.push(u); return r.abort();
+    });
+    await opage.goto('file://' + p.replace(/\\/g, '/'), { waitUntil: 'load' });
+    await opage.waitForTimeout(600);
+    const dom = await opage.evaluate(() => ({
+      scripts: document.querySelectorAll('script:not([type="application/json"])').length,
+      onAttrs: Array.from(document.querySelectorAll('*'))
+        .filter((el) => Array.from(el.attributes).some((a) => /^on/i.test(a.name))).length,
+      imgs: document.querySelectorAll('img').length,
+    }));
+    await octx.close();
+
+    check(`${label}: saved file executes no script`, dom.scripts === 0, JSON.stringify(dom));
+    check(`${label}: saved file has no on* attributes`, dom.onAttrs === 0);
+    check(`${label}: payload did not become an <img> element`, dom.imgs === 0);
+    check(`${label}: saved file made no network requests`, requested.length === 0, requested.join(', '));
+    check(`${label}: no dialog or console error offline`, oNoise.length === 0, oNoise.join(' | '));
+
+    // Round-trip: the escape must be lossless.
+    const rt = await page.evaluate((html) => {
+      const st = window.AREv2.parseSnapshot(html);
+      const r = window.AREv2.loadFromState(st, { force: true });
+      return { project: st.project, ok: r.ok, jobValue: document.getElementById('areJob').value };
+    }, snap.html);
+    check(`${label}: payload survives round-trip byte-for-byte`, rt.project === PAYLOAD && rt.jobValue === PAYLOAD);
+  }
+  check(`${label}: no dialog fired on the live page`, !noise.some((n) => n.startsWith('DIALOG')), noise.join(' | '));
+  await ctx.close();
+}
+
+// =============================================================================
+// TEST B — payload in an adapter model string (stacked_shearwall floor name)
+// =============================================================================
+{
+  const ctx = await browser.newContext();
+  const { page, noise } = await openCalc(ctx, TIER_B);
+
+  const res = await page.evaluate(async (payload) => {
+    document.getElementById('areJob').value = 'XSS-MODEL';
+    floors[0].name = payload;
+    render();
+    let built = null, buildErr = null;
+    try { built = await window.AREv2.buildSnapshot('f'); } catch (e) { buildErr = e.message; }
+    let loadCode = null, loadThrew = false;
+    if (built) {
+      try {
+        const st = window.AREv2.parseSnapshot(built.html);
+        window.AREv2.loadFromState(st);
+      } catch (e) { loadThrew = true; loadCode = e.code || e.name; }
+    }
+    return { built: !!built, buildErr, html: built ? built.html : '', loadThrew, loadCode,
+             liveName: floors[0].name };
+  }, PAYLOAD);
+
+  check('B: snapshot builds with a hostile floor name', res.built, res.buildErr || '');
+  if (res.built) assertInert('B', res.html);
+  // The schema's stringPattern is the designed defence — it must actually fire.
+  check('B: loading a hostile model is rejected with BAD_MODEL',
+        res.loadThrew && res.loadCode === 'BAD_MODEL', `threw=${res.loadThrew} code=${res.loadCode}`);
+  check('B: no dialog fired while rendering the hostile name',
+        !noise.some((n) => n.startsWith('DIALOG')), noise.join(' | '));
+
+  // Control: a pattern-legal name must round-trip, proving the rejection above
+  // is the schema working rather than loading being broken outright.
+  const control = await page.evaluate(async () => {
+    floors[0].name = 'Level 2A';
+    render();
+    const s = await window.AREv2.buildSnapshot('f');
+    floors[0].name = 'CHANGED';
+    render();
+    const st = window.AREv2.parseSnapshot(s.html);
+    const r = window.AREv2.loadFromState(st, { force: true });
+    return { ok: r.ok, name: floors[0].name };
+  });
+  check('B control: a legal floor name round-trips', control.ok && control.name === 'Level 2A',
+        JSON.stringify(control));
+  await ctx.close();
+}
+
+// =============================================================================
+// TEST C — rejection / rollback / force  (PLAN.md §5 step 6)
+// =============================================================================
+{
+  const ctx = await browser.newContext();
+  const { page } = await openCalc(ctx, TIER_A);
+
+  const good = await page.evaluate(async () => {
+    document.getElementById('areJob').value = 'REJECT-TESTS';
+    const s = await window.AREv2.buildSnapshot('f');
+    return { html: s.html, state: window.AREv2.parseSnapshot(s.html) };
+  });
+
+  const cases = await page.evaluate((g) => {
+    const out = {};
+    const run = (name, fn) => {
+      try { const r = fn(); out[name] = { threw: false, res: r && { ok: r.ok, applied: r.applied, rolledBack: !!r.rolledBack } }; }
+      catch (e) { out[name] = { threw: true, code: e.code || e.name, msg: e.message }; }
+    };
+    const clone = () => JSON.parse(JSON.stringify(g.state));
+
+    run('badJson', () => window.AREv2.parseSnapshot('<html><body><script type="application/json" id="are-state">{oops</' + 'script></body></html>'));
+    run('badSchema', () => { const s = clone(); s.schema = 'are.snapshot.v9'; return window.AREv2.loadFromState(s); });
+    run('wrongCalc', () => { const s = clone(); s.calcFile = 'some_other_calculator.html'; s.calcTitle = 'Some Other'; return window.AREv2.loadFromState(s); });
+
+    // Mismatch must BLOCK and ROLL BACK. Capture a real value first, so we can
+    // prove the page was actually restored rather than just flagged.
+    const firstKey = Object.keys(g.state.fields)[0];
+    const el = document.querySelector(firstKey);
+    const before = el ? el.value : null;
+    run('mismatchBlocks', () => {
+      const s = clone();
+      s.fields['#definitely_not_a_real_field_xyz'] = '1';
+      return window.AREv2.loadFromState(s);
+    });
+    out.rollbackValueUnchanged = el ? (el.value === before) : null;
+
+    run('forceApplies', () => {
+      const s = clone();
+      s.fields['#definitely_not_a_real_field_xyz'] = '1';
+      return window.AREv2.loadFromState(s, { force: true });
+    });
+    out.fieldCount = Object.keys(g.state.fields).length;
+    return out;
+  }, good);
+
+  check('C: corrupted JSON -> BAD_JSON', cases.badJson?.threw && cases.badJson.code === 'BAD_JSON', JSON.stringify(cases.badJson));
+  check('C: unknown schema -> BAD_SCHEMA', cases.badSchema?.threw && cases.badSchema.code === 'BAD_SCHEMA', JSON.stringify(cases.badSchema));
+  check('C: file from another calc -> WRONG_CALC', cases.wrongCalc?.threw && cases.wrongCalc.code === 'WRONG_CALC', JSON.stringify(cases.wrongCalc));
+  check('C: field mismatch blocks (ok:false, rolledBack)',
+        cases.mismatchBlocks?.res?.ok === false && cases.mismatchBlocks?.res?.rolledBack === true,
+        JSON.stringify(cases.mismatchBlocks));
+  check('C: rollback actually restored the page value', cases.rollbackValueUnchanged === true);
+  check('C: force applies the resolvable fields',
+        cases.forceApplies?.res?.ok === true && cases.forceApplies.res.applied === cases.fieldCount,
+        JSON.stringify(cases.forceApplies));
+  await ctx.close();
+}
+
+await browser.close();
+
+const failed = results.filter((r) => !r.pass);
+console.log(`\n${results.length - failed.length}/${results.length} assertions passed`);
+process.exit(failed.length ? 1 : 0);

@@ -1233,5 +1233,56 @@ function exportToFoundation(){
 
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
+// #floorsContainer is rebuilt wholesale by render() from `floors`, so DOM-path
+// keys are unstable: the same td position holds an <input> in one state and a
+// <select> in another. The array is the truth.
+//
+// LV (the load values) is deliberately NOT in the model. Those are ordinary
+// top-level inputs with ids, so Tier A captures them, and restoring them fires
+// the change handlers that keep LV in sync. Putting them in both places would
+// store the same state twice and let the copies disagree.
+(function () {
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+
+  AREv2.registerAdapter({
+    version: 1,
+    ownedFields: ['#floorsContainer'],
+    schema: {
+      allowedKeys: ['floors', 'hCnt', 'fCnt', 'sCnt'],
+      maxDepth: 8, maxNodes: 20000, maxStringLength: 80,
+      stringPattern: /^[A-Za-z0-9 ._#()\/+x-]*$/i
+    },
+    getModel: function () {
+      return { floors: JSON.parse(JSON.stringify(floors)), hCnt: hCnt, fCnt: fCnt, sCnt: sCnt };
+    },
+    setModel: function (m) {
+      if (!m || !Array.isArray(m.floors) || !m.floors.length) {
+        throw new Error('Saved file contains no floor data.');
+      }
+      floors = m.floors;
+      if (typeof m.hCnt === 'number') hCnt = m.hCnt;
+      if (typeof m.fCnt === 'number') fCnt = m.fCnt;
+      if (typeof m.sCnt === 'number') sCnt = m.sCnt;
+      render();
+    },
+    // A COLLAPSED FLOOR IS NOT RENDERED AT ALL (render(): `if(fl.exp){...}`), so
+    // a snapshot taken with a floor collapsed would silently omit it from the
+    // permanent record. Expand everything before capture, then put the
+    // engineer's view back exactly as it was.
+    expandAll: function () {
+      var prev = floors.map(function (f) { return !!f.exp; });
+      floors.forEach(function (f) { f.exp = true; });
+      render();
+      return function undo() {
+        floors.forEach(function (f, i) { f.exp = prev[i]; });
+        render();
+      };
+    },
+    runAndSettle: function () { render(); }
+  });
+})();
+</script>
 </body>
 </html>
