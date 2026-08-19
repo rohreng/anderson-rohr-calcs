@@ -944,12 +944,17 @@
         if (el.checked) el.setAttribute('checked', 'checked'); else el.removeAttribute('checked');
       } else {
         el.setAttribute('value', el.value == null ? '' : el.value);
+        // The record has no scripts: an edit here recalculates nothing, and a
+        // colleague mistook that for the live calc going stale. readonly blocks
+        // keyboard edits; the snapshot CSS blocks pointer interaction.
+        el.setAttribute('readonly', 'readonly');
       }
     });
     root.querySelectorAll('textarea').forEach(function (el) {
       // A textarea's serialized default is its TEXT CONTENT, not a value attr.
       el.removeAttribute('value');
       el.textContent = el.value == null ? '' : el.value;
+      el.setAttribute('readonly', 'readonly');
     });
     root.querySelectorAll('select').forEach(function (sel) {
       Array.prototype.forEach.call(sel.options, function (opt) { opt.removeAttribute('selected'); });
@@ -1010,6 +1015,15 @@
     '.are-snap-controls{font:13px/1.4 system-ui,sans-serif;padding:8px 0 12px;border-bottom:1px solid #dde;margin-bottom:12px}' +
     '.are-snap-controls label{margin-right:14px;cursor:pointer}' +
     '@media print{.are-snap-controls{display:none!important}}' +
+    // The record must not masquerade as the live calculator. A colleague opened
+    // a saved file directly, edited a trib length, and read the unchanged
+    // results as "the calc went stale" — the snapshot has no scripts by design.
+    // Banner on screen (never in print), and record inputs are inert to clicks.
+    '.are-snap-banner{font:13px/1.5 system-ui,sans-serif;background:#fff7e6;border:1px solid #e6c97a;' +
+    'border-radius:6px;padding:10px 14px;margin:0 0 10px;color:#5c4400}' +
+    '.are-snap-banner strong{color:#3d2e00}' +
+    '@media print{.are-snap-banner{display:none!important}}' +
+    '.' + SNAP_WRAP_CLASS + ' input,.' + SNAP_WRAP_CLASS + ' select,.' + SNAP_WRAP_CLASS + ' textarea{pointer-events:none}' +
     // General-sibling selectors only. Deliberately NOT :has() — this record must
     // stay readable in whatever browser exists years from now.
     '#are-mode-s:checked ~ .' + SNAP_WRAP_CLASS + ' .det-row{display:none!important}' +
@@ -1075,6 +1089,22 @@
         delete state._problems;
         state.mode = mode;
 
+        // SAVE-TIME model validation — symmetric with load. A file must never
+        // be born unloadable: the 2026-08-18 field report was a colleague's
+        // save whose stud labels ("GL A6 - A14, & GL A24") passed Save but were
+        // rejected at Load by an over-tight schema, on another engineer's
+        // machine, days later. Validate NOW, on the author's machine, where the
+        // label can still be fixed.
+        if (adapter && state.model != null && adapter.schema) {
+          var modelIssues = validateModel(state.model, adapter.schema);
+          if (modelIssues.length) {
+            var eM = new Error('Cannot save: ' + modelIssues.slice(0, 3).join('; ') +
+              '. Labels and names cannot contain "<" or ">".');
+            eM.code = 'MODEL_INVALID';
+            throw eM;
+          }
+        }
+
         var css = inlineAllCss();
         var cssText = css.text.join('\n');
         var badUrls = auditCssUrls(cssText);
@@ -1115,6 +1145,19 @@
         wrap.className = SNAP_WRAP_CLASS;
         while (body.firstChild) wrap.appendChild(body.firstChild);
 
+        // On-screen banner so the record cannot be mistaken for the live calc.
+        // Values are inserted via textContent — project names are user text.
+        var banner = clone.ownerDocument.createElement('div');
+        banner.className = 'are-snap-banner ' + SNAP_WRAP_CLASS + '-controls';
+        var bStrong = clone.ownerDocument.createElement('strong');
+        bStrong.textContent = 'Saved calculation record — inputs here do not recalculate.';
+        var bRest = clone.ownerDocument.createElement('span');
+        bRest.textContent = ' ' + (state.project ? state.project + ' · ' : '') +
+          'saved ' + isoDate() + '. To revise this calculation, open the live ' +
+          'calculator on calcs.andersonrohr.com and use Load with this file.';
+        banner.appendChild(bStrong);
+        banner.appendChild(bRest);
+
         var controls = clone.ownerDocument.createElement('div');
         controls.className = 'are-snap-controls ' + SNAP_WRAP_CLASS + '-controls';
         controls.innerHTML =
@@ -1136,6 +1179,7 @@
         };
         body.appendChild(mk('are-mode-s', mode === 's'));
         body.appendChild(mk('are-mode-f', mode === 'f'));
+        body.appendChild(banner);
         body.appendChild(controls);
         body.appendChild(wrap);
 

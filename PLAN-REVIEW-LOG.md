@@ -407,3 +407,49 @@ the 25-calc redundant print-button cleanup (deferred by design); rasterized PDF 
 Fable's advice — the print-mode assertion covers the motivating failure).
 
 **Final state: 55/55 round-trip, 40/40 adversarial, activation ordering verified, manifest gate green.**
+
+---
+
+## Field report — first real multi-engineer file exchange (2026-08-18)
+
+The first file another engineer saved and handed over broke both ways, one real
+defect and one UX trap, diagnosed from the actual file
+(26-038-HNR (ZONE A) - Wood Headers, Jambs & Studs - 2026-08-18.html):
+
+1. **Load rejected legitimate labels.** His stud labels — "GL A6 - A14, & GL A24
+   (interior wall)" — were refused with BAD_MODEL because the adapter's
+   stringPattern allowlist did not include "&" or ",". The allowlist was
+   arbitrarily tighter than the security requirement: every label reaches
+   innerHTML through xe() escaping, so the schema only needs to deny
+   markup-capable characters. Worse, the failure was ASYMMETRIC — Save accepted
+   what Load rejects, so the file was born unloadable and the author never knew.
+
+2. **The frozen record masqueraded as a stale calculator.** Because Load refused
+   his file, he opened the saved .html directly, edited a trib length, and read
+   the unchanged results as "the calculations went stale." The record has no
+   scripts by design; nothing announced that.
+
+Fixes (deployed as one commit):
+- Free-text stringPatterns on stacked_headers_studs, stacked_shearwall,
+  steel_joist_selector and asce716_mwfrs loosened to deny only "<", ">" and
+  control characters. Enum/id patterns (web_opening shape, gradebeam zone ids,
+  React designations) stay strict.
+- buildSnapshot now runs validateModel at SAVE time (MODEL_INVALID, names the
+  field) — save/load symmetry is structural now; a file can never again pass
+  Save and fail Load on schema grounds.
+- Saved records carry an on-screen banner (hidden in print) stating they are
+  frozen and pointing to Load on the live site, and record inputs are readonly
+  with pointer-events disabled — the "edit the record" trap is closed.
+- Adversarial tests restructured: hostile model string blocks at save
+  (MODEL_INVALID); hand-edited file still rejected at load (BAD_MODEL); the
+  field report's exact label round-trips (B3).
+
+Verified: his unmodified file loads against the fixed build (14 fields, zero
+mismatches) and the page still recalculates afterward.
+
+Process note: an earlier attempt to patch the patterns via a bash heredoc
+corrupted four calc files with raw NUL bytes (the shell collapsed doubled
+backslashes, so a unicode escape that should have stayed literal text was
+interpreted and written as real control bytes). Caught by grep flagging the
+files as binary; reverted from HEAD and re-applied with the backslash sequences
+built programmatically.

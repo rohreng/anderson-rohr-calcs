@@ -125,30 +125,58 @@ for (const file of [TIER_A, TIER_B]) {
   const ctx = await browser.newContext();
   const { page, noise } = await openCalc(ctx, TIER_B);
 
+  // B1 — a hostile model string now blocks at SAVE TIME (MODEL_INVALID), on
+  // the author's machine, symmetric with load. This is the fix for the
+  // 2026-08-18 field report: a file must never be born unloadable.
   const res = await page.evaluate(async (payload) => {
     document.getElementById('areJob').value = 'XSS-MODEL';
     floors[0].name = payload;
     render();
-    let built = null, buildErr = null;
-    try { built = await window.AREv2.buildSnapshot('f'); } catch (e) { buildErr = e.message; }
-    let loadCode = null, loadThrew = false;
-    if (built) {
-      try {
-        const st = window.AREv2.parseSnapshot(built.html);
-        window.AREv2.loadFromState(st);
-      } catch (e) { loadThrew = true; loadCode = e.code || e.name; }
-    }
-    return { built: !!built, buildErr, html: built ? built.html : '', loadThrew, loadCode,
-             liveName: floors[0].name };
+    let built = null, buildCode = null;
+    try { built = await window.AREv2.buildSnapshot('f'); }
+    catch (e) { buildCode = e.code || e.name; }
+    return { built: !!built, buildCode, liveName: floors[0].name };
   }, PAYLOAD);
 
-  check('B: snapshot builds with a hostile floor name', res.built, res.buildErr || '');
-  if (res.built) assertInert('B', res.html);
-  // The schema's stringPattern is the designed defence — it must actually fire.
-  check('B: loading a hostile model is rejected with BAD_MODEL',
-        res.loadThrew && res.loadCode === 'BAD_MODEL', `threw=${res.loadThrew} code=${res.loadCode}`);
-  check('B: no dialog fired while rendering the hostile name',
+  check('B1: hostile floor name blocks the SAVE with MODEL_INVALID',
+        !res.built && res.buildCode === 'MODEL_INVALID', JSON.stringify(res));
+  check('B1: no dialog fired while rendering the hostile name',
         !noise.some((n) => n.startsWith('DIALOG')), noise.join(' | '));
+
+  // B2 — a HAND-EDITED file (clean save, payload spliced into the state) must
+  // still be rejected at load: the schema is the defence for files that never
+  // went through our Save.
+  const b2 = await page.evaluate(async (payload) => {
+    floors[0].name = 'Level 1';
+    render();
+    const s = await window.AREv2.buildSnapshot('f');
+    const st = window.AREv2.parseSnapshot(s.html);
+    st.model.floors[0].name = payload;          // simulate hand-editing the file
+    try { window.AREv2.loadFromState(st); return { threw: false }; }
+    catch (e) { return { threw: true, code: e.code || e.name }; }
+  }, PAYLOAD);
+  check('B2: hand-edited hostile model rejected at load with BAD_MODEL',
+        b2.threw && b2.code === 'BAD_MODEL', JSON.stringify(b2));
+
+  // B3 — REAL-WORLD labels must round-trip. These are the exact characters from
+  // the field report ("GL A6 - A14, & GL A24") plus quotes/apostrophes/dashes
+  // engineers actually type. The over-tight allowlist that rejected them is the
+  // regression this guards against.
+  const REAL = 'GL A6 - A14, & GL A24 (interior wall) — 3\'-6" o.c.';
+  const b3 = await page.evaluate(async (name) => {
+    floors[0].name = name;
+    render();
+    let s;
+    try { s = await window.AREv2.buildSnapshot('f'); }
+    catch (e) { return { saved: false, code: e.code || e.name, message: e.message }; }
+    floors[0].name = 'OVERWRITTEN';
+    render();
+    const st = window.AREv2.parseSnapshot(s.html);
+    const r = window.AREv2.loadFromState(st, { force: true });
+    return { saved: true, ok: r.ok, name: floors[0].name };
+  }, REAL);
+  check('B3: real-world label (& , quotes dashes) saves and round-trips',
+        b3.saved && b3.ok && b3.name === REAL, JSON.stringify(b3));
 
   // Control: a pattern-legal name must round-trip, proving the rejection above
   // is the schema working rather than loading being broken outright.
