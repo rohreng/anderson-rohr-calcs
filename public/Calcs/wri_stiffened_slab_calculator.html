@@ -120,12 +120,12 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 
   <div class="header">
     <h1>WRI Stiffened Slab Foundation</h1>
-    <p>Ribbed slab-on-ground design — WRI Design Guide (Snowden) · ACI 318-19 reinforcement checks</p>
+    <p>Ribbed slab-on-ground design — WRI Design Guide (Snowden) · ACI 318-14/19 reinforcement checks</p>
     <div class="ref-tags">
       <span class="tag">WRI Design Guide</span>
-      <span class="tag">ACI 318-19</span>
+      <span class="tag">ACI 318-14/19</span>
       <span class="tag">Long &amp; Short Direction</span>
-      <span class="tag">Flexure · Deflection</span>
+      <span class="tag">Flexure · Shear · Deflection</span>
     </div>
   </div>
 
@@ -188,17 +188,17 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <div class="ig">
           <label>Plasticity Index (PI) <span class="unit">—</span></label>
           <input type="number" id="PI" value="30" min="0" max="100">
-          <div class="hint">From geotechnical report; used with WRI Fig 12 &amp; 15</div>
+          <div class="hint">Record only — from geotechnical report; used with WRI Fig 12/15/18 to select l<sub>c</sub>, S, K, and slab A<sub>s</sub>f<sub>y</sub> entered below</div>
         </div>
         <div class="ig">
           <label>Climatic Rating C<sub>w</sub> <span class="unit">—</span></label>
           <input type="number" id="Cw" value="20" min="0">
-          <div class="hint">From WRI Figure 15</div>
+          <div class="hint">Record only — from WRI Figure 15; used with PI to select l<sub>c</sub>, S, K entered below</div>
         </div>
         <div class="ig">
           <label>(1-C) Support Index (Fig 15) <span class="unit">—</span></label>
           <input type="number" id="lc_factor" value="0.23" step="0.01" min="0" max="1">
-          <div class="hint">Soil-climate support index from Figure 15 (PI vs. C<sub>w</sub>); typical range 0.05–0.50</div>
+          <div class="hint">Record only — soil-climate support index from Figure 15 (PI vs. C<sub>w</sub>); typical range 0.05–0.50; used to select l<sub>c</sub>, S, K entered below</div>
         </div>
         <div class="ig">
           <label>Max Beam Spacing S <span class="unit">ft</span></label>
@@ -212,13 +212,20 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         </div>
         <div class="ig">
           <label>K<sub>Long</sub> — Long Direction <span class="unit">—</span></label>
-          <input type="number" id="k_long" value="1.1" step="0.05">
-          <div class="hint">From WRI Figure 13</div>
+          <input type="number" id="k_long" value="0.95" step="0.05" oninput="checkKWarn('k_long','kWarnLong')">
+          <div class="hint">WRI Fig 13 — k = 0.5–1.0, read from L (long) / L&#8217; (short). E.g. L=42&#8242;&rarr;0.95, L&#8217;=24&#8242;&rarr;0.80</div>
+          <div class="hint" id="kWarnLong" style="display:none;color:#b45309;font-weight:600">&#9888; k &gt; 1.0 is outside WRI Fig 13</div>
         </div>
         <div class="ig">
           <label>K<sub>Short</sub> — Short Direction <span class="unit">—</span></label>
-          <input type="number" id="k_short" value="0.9" step="0.05">
-          <div class="hint">From WRI Figure 13</div>
+          <input type="number" id="k_short" value="0.90" step="0.05" oninput="checkKWarn('k_short','kWarnShort')">
+          <div class="hint">WRI Fig 13 — k = 0.5–1.0, read from L (long) / L&#8217; (short). E.g. L=42&#8242;&rarr;0.95, L&#8217;=24&#8242;&rarr;0.80</div>
+          <div class="hint" id="kWarnShort" style="display:none;color:#b45309;font-weight:600">&#9888; k &gt; 1.0 is outside WRI Fig 13</div>
+        </div>
+        <div class="ig">
+          <label>Slab A<sub>s</sub>f<sub>y</sub> <span class="unit">lb/ft</span></label>
+          <input type="number" id="slab_asfy" value="3900" min="0" step="50">
+          <div class="hint">By PI from WRI Fig 5 (2600&#8211;5400 typical); Fig 18 max bar spacing 18&#8243; o.c.</div>
         </div>
       </div>
     </div>
@@ -262,8 +269,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <div class="g3">
         <div class="ig">
           <label>Applied Load w <span class="unit">psf</span></label>
-          <input type="number" id="w" value="150" min="1" step="5">
-          <div class="hint">Total load per unit area (dead + live + soil pressure)</div>
+          <input type="number" id="w" value="200" min="1" step="5">
+          <div class="hint">WRI: total weight of house + foundation, uniform. Guide values 200 psf (1-story), 275 (2-story), 350 (3-story) &#8212; TF700-R-03 Update p.5</div>
         </div>
         <div class="ig">
           <label>f&#8217;<sub>c</sub> — Concrete Strength <span class="unit">psi</span></label>
@@ -276,6 +283,14 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <div class="ig">
           <label>Cover <span class="unit">in</span></label>
           <input type="number" id="cover" value="3" min="1.5" step="0.5">
+        </div>
+        <div class="ig">
+          <label>Deflection Limit <span class="unit">L / n</span></label>
+          <select id="defl_ratio">
+            <option value="480" selected>L / 480</option>
+            <option value="360">L / 360</option>
+          </select>
+          <div class="hint">WRI basis is L/480; the WRI depth formula is calibrated to it. L/360 is the ACI 318 §24.2.2 floor limit.</div>
         </div>
         <div class="ig">
           <label>Top Bar Size</label>
@@ -350,11 +365,16 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
         <strong>Engineering Notes &amp; Assumptions:</strong>
         <ul>
           <li>WRI beam depth formula d&nbsp;=&nbsp;&#x221B;(664 M l<sub>c</sub>&nbsp;/&nbsp;B) — empirical WRI constant for reinforced concrete grade beams; units: M in kip-ft, l<sub>c</sub> in ft, B in in, d in in</li>
-          <li>Flexure per ACI 318-19 §22.2 rectangular stress block; &#x3D5;&nbsp;=&nbsp;0.90 for tension-controlled sections</li>
+          <li>The WRI moment M and shear V are service-level. A blanket load factor of <strong>1.6</strong> is applied to both (M<sub>u,beam</sub>&nbsp;=&nbsp;1.6&nbsp;M<sub>beam</sub>, V<sub>u</sub>&nbsp;=&nbsp;1.6&nbsp;wL&#8217;l<sub>c</sub>/N) — conservative relative to the ACI 318-14/19 §5.3.1 combinations because w is predominantly dead load</li>
+          <li>Flexure per ACI 318-14/19 §22.2 rectangular stress block. &#x3D5; is computed from the net tensile strain per Table 21.2.2 (&#x3D5;&nbsp;=&nbsp;0.90 only when &#x3B5;<sub>t</sub>&nbsp;&#8805;&nbsp;0.005); a warning is shown when the section is not tension-controlled</li>
+          <li>Two effective depths are used: d<sub>bot</sub>&nbsp;=&nbsp;h&nbsp;&#8722;&nbsp;cover for bottom steel and shear, d<sub>top</sub>&nbsp;=&nbsp;h&nbsp;&#8722;&nbsp;cover&nbsp;&#8722;&nbsp;1&#8243; for top steel (top bars sit one bar layer below the top face)</li>
           <li>Same moment demand used for both top and bottom steel (WRI assumes both faces experience uplift/settlement reversals)</li>
-          <li>Deflection uses simplified uniform-load beam formula (5qL&#x2074;/384EI); T-beam composite action and cracked section are not included — verify critical deflections with detailed analysis</li>
-          <li>Shear capacity of grade beams should be verified separately per ACI 318-19 §22.5</li>
-          <li>Minimum steel per ACI 318-19 §9.6 and bar spacing per §25.2 must be confirmed for final design</li>
+          <li>Minimum flexural steel per ACI 318-14/19 §9.6.1.2 is checked, with the §9.6.1.3 waiver: the governing area is max(A<sub>s,req</sub>, min(A<sub>s,min</sub>, 4/3&nbsp;A<sub>s,req</sub>)). A minimum of two bars top and two bottom is enforced in every beam per WRI TF700 p.16</li>
+          <li>Deflection uses the WRI TF700 Appendix A cantilever formula &#916;&nbsp;=&nbsp;1728&nbsp;w&nbsp;L&#8217;&nbsp;l<sub>c</sub><sup>4</sup>&nbsp;/&nbsp;(4&nbsp;E<sub>c,creep</sub>&nbsp;&#931;I), with E<sub>c,creep</sub>&nbsp;=&nbsp;E<sub>c</sub>/2 for long-term creep (equivalent to &#955;<sub>&#916;</sub>&nbsp;&#8776;&nbsp;2.0, ACI 318-14/19 §24.2.4) and &#931;I taken as all beams in the direction, rectangular, slab flange ignored</li>
+          <li>One-way shear is checked per ACI 318-14/19 §22.5.5.1 (&#x3D5;V<sub>c</sub>&nbsp;=&nbsp;0.75&nbsp;&#215;&nbsp;2&#8730;f&#8217;<sub>c</sub>b<sub>w</sub>d, &#955;&nbsp;=&nbsp;1.0). Where V<sub>u</sub> exceeds &#x3D5;V<sub>c</sub> but stays within the §22.5.1.2 limit, the required A<sub>v</sub>/s and a #3 U-stirrup spacing are reported; this is a reinforcement requirement, not a section failure, and does not fail the summary</li>
+          <li>Per WRI TF700 Note &#8220;A&#8221; (detailing minimum, independent of the calculated shear check above): grade beams 36&#8211;54&#8243; deep &#8212; #3 stirrups @ 24&#8243; o.c. max; 54&#8211;72&#8243; deep &#8212; #3 stirrups @ 18&#8243; o.c. max; over 72&#8243; deep &#8212; engineer review required. In addition, provide one #3 horizontal bar each face per 18&#8243; of depth beyond 36&#8243;</li>
+          <li>Slab reinforcement A<sub>s,slab</sub>&nbsp;=&nbsp;A<sub>s</sub>f<sub>y</sub>/f<sub>y</sub> (A<sub>s</sub>f<sub>y</sub> entered by PI per WRI Fig 5), same each way; #3 bar spacing capped at 18&#8243; o.c. per Fig 18; an equivalent-area WWR is an acceptable substitute per WRI TF705</li>
+          <li>Bar spacing and cover per ACI 318-14/19 §25.2 must still be confirmed for final detailing</li>
           <li>This calculator implements the WRI Design Guide procedure by Walter L. Snowden, P.E.</li>
         </ul>
       </div>
@@ -367,9 +387,28 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 <script>
 var rebarAreas = {'4':0.20,'5':0.31,'6':0.44,'7':0.60,'8':0.79,'9':1.00,'10':1.27,'11':1.56};
 
+// Blanket load factor applied to the WRI service-level moment/shear.
+// WRI TF700 App. B works at service level; w is predominantly dead load, so a
+// single 1.6 is conservative relative to the ACI 318 §5.3.1 combinations.
+var LOAD_FACTOR = 1.6;
+
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A';}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A';}
 function f3(v){return isFinite(v)?v.toFixed(3):'N/A';}
+function f5(v){return isFinite(v)?v.toFixed(5):'N/A';}
+function f0(v){return isFinite(v)?Math.round(v).toLocaleString('en-US'):'N/A';}
+
+// ACI 318-14/19 §22.2.2.4.3 — stress-block depth factor
+function beta1Of(fc){
+  return fc<=4000 ? 0.85 : Math.max(0.65, 0.85 - 0.05*(fc-4000)/1000);
+}
+// ACI 318-14/19 Table 21.2.2 — strength reduction factor from net tensile strain
+function phiFromEt(et){
+  if(!isFinite(et)) return 0.65;
+  if(et>=0.005) return 0.90;
+  if(et<=0.002) return 0.65;
+  return 0.65 + (et-0.002)*(0.25/0.003);
+}
 
 function fr(n,d){
   return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';
@@ -382,6 +421,12 @@ function toggleDet(i){
   var btn=document.getElementById('dbtn_'+i);
   var open=el.classList.toggle('open');
   btn.textContent=open?'\u25BE Calc':'\u25B6 Calc';
+}
+
+// F8 \u2014 non-blocking warning when a K factor (Fig 13) is entered outside 0.5\u20131.0
+function checkKWarn(inputId, warnId){
+  var v=parseFloat(document.getElementById(inputId).value);
+  document.getElementById(warnId).style.display=(isFinite(v)&&v>1.0)?'block':'none';
 }
 
 function updatePlan(){
@@ -422,59 +467,104 @@ function drawPlan(L,Lp,NL,NS){
     +'<text x="'+W/2+'" y="'+(H-4)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#1e3c72">Foundation Plan</text>';
 }
 
-function calcSteel(M, bw, d, fy, fc, barSizeStr){
-  // ACI 318-19 §22.2 rectangular stress block
-  var Mu = M * 12000; // kip-ft → lb-in
-  // First estimate: assume lever arm = d - 3"
-  var AsEst = Mu / (fy * (d - 3));
+function calcSteel(Mu_kft, bw, d, fy, fc, barSizeStr){
+  // Mu_kft = FACTORED moment per beam (kip-ft). ACI 318-14/19 §22.2 rectangular stress block.
+  var Mu = Mu_kft * 12000; // kip-ft → lb-in
+  // First estimate: assume lever arm = d - 3", phi = 0.90
+  var AsEst = Mu / (0.9 * fy * (d - 3));
   var aEst = AsEst * fy / (0.85 * fc * bw);
-  var jd = d - aEst / 2;
-  var AsRequired = Mu / (fy * jd);
+  var jdEst = d - aEst / 2;
+  var AsRequired = Mu / (0.9 * fy * jdEst);
+
+  // ACI 318-14/19 §9.6.1.2 — minimum flexural reinforcement
+  var AsMin   = Math.max(3 * Math.sqrt(fc), 200) / fy * bw * d;
+  var AsMin43 = (4/3) * AsRequired;              // §9.6.1.3 waiver
+  var AsMinGov = Math.min(AsMin, AsMin43);       // governing minimum
+  var AsGov = Math.max(AsRequired, AsMinGov);    // steel actually sized to
+  var govBy = (AsGov > AsRequired * (1 + 1e-9))
+              ? (AsMin <= AsMin43 ? 'A<sub>s,min</sub> §9.6.1.2' : '4/3 A<sub>s,req</sub> §9.6.1.3')
+              : 'A<sub>s,req</sub> (flexure)';
+
   var barArea = rebarAreas[barSizeStr] || 0.79;
-  var numBars = Math.max(1, Math.ceil(AsRequired / barArea));
+  // WRI TF700 p.16 — minimum two bars top and two bars bottom in every beam
+  var numBars = Math.max(2, Math.ceil(AsGov / barArea));
   var AsProvided = numBars * barArea;
   var aActual = AsProvided * fy / (0.85 * fc * bw);
+
+  // ACI 318-14/19 Table 21.2.2 — phi from net tensile strain
+  var b1 = beta1Of(fc);
+  var cNA = aActual / b1;
+  var et  = 0.003 * (d - cNA) / cNA;
+  var phi = phiFromEt(et);
+
   var Mn = AsProvided * fy * (d - aActual / 2) / 12000; // kip-ft
-  return {AsRequired:AsRequired, AsProvided:AsProvided, numBars:numBars,
-          barSize:barSizeStr, barArea:barArea, a:aActual, jd:(d - aActual/2), Mn:Mn};
+  return {Mu:Mu_kft, d:d,
+          AsEst:AsEst, aEst:aEst, jdEst:jdEst,
+          AsRequired:AsRequired, AsMin:AsMin, AsMin43:AsMin43, AsMinGov:AsMinGov,
+          AsGov:AsGov, govBy:govBy,
+          AsProvided:AsProvided, numBars:numBars,
+          barSize:barSizeStr, barArea:barArea, a:aActual, jd:(d - aActual/2),
+          beta1:b1, c:cNA, et:et, phi:phi, Mn:Mn, phiMn:phi*Mn};
 }
 
-function calcWRI(span, width, lc, w, bw, fy, fc, cover, maxSpacing, topBar, botBar, userDepth){
+function calcWRI(span, width, lc, w, bw, fy, fc, cover, maxSpacing, topBar, botBar, userDepth, deflRatio){
   // Number of beams in this direction = spaced across the PERPENDICULAR dimension
   // (TF700-R-07 App. B: N_L = W_short/S + 1, N_S = L_long/S + 1)
   var numBeamsCalc = width / maxSpacing + 1;
   var N = Math.ceil(numBeamsCalc);
   // Total beam width (in)
   var B = N * bw;
-  // Design moment (kip-ft) — WRI formula
+  // Design moment (kip-ft) — WRI formula (service level)
   var M = w * Math.pow(lc, 2) * width / 2000;
   // WRI minimum beam depth (in)
   var dCalc = Math.pow(664 * M * lc / B, 1/3);
   var beamDepthMin = Math.ceil(dCalc / 2) * 2; // WRI minimum, rounded up to nearest 2"
   // Design depth: use user override if > 0, otherwise use WRI minimum
   var beamDepth = (userDepth > 0) ? userDepth : beamDepthMin;
-  // Effective depth
-  var d = beamDepth - cover;
-  // Concrete modulus (psi)
+  // Effective depths — bottom steel in one layer at cover; top steel one bar
+  // layer higher (WRI App. B uses d-3" bottom / d-4" top at 3" cover)
+  var d_bot = beamDepth - cover;
+  var d_top = beamDepth - cover - 1;
+
+  // ── Flexure — per beam, factored ────────────────────────────────────────
+  var M_beam  = M / N;
+  var Mu_beam = LOAD_FACTOR * M_beam;
+  var botSteel = calcSteel(Mu_beam, bw, d_bot, fy, fc, botBar);
+  var topSteel = calcSteel(Mu_beam, bw, d_top, fy, fc, topBar);
+  var phiMn_bot = botSteel.phiMn;
+  var phiMn_top = topSteel.phiMn;
+
+  // ── Deflection — WRI TF700 App. A cantilever formula ────────────────────
+  // Δ = 1728 w L' lc^4 / (4 Ec_creep ΣI)   [w psf, L' & lc ft, ΣI in^4 → Δ in]
   var Ec = 57000 * Math.sqrt(fc);
-  // Gross moment of inertia (rectangular beam, in^4) — uses design depth
-  var I = bw * Math.pow(beamDepth, 3) / 12;
-  // Deflection: simplified beam formula (q in lb/in, L in in)
-  var q = w * width / 12; // lb/in (tributary width load on beam)
-  var Lbeam = lc * 12;    // cantilever length in inches
-  var delta = 5 * q * Math.pow(Lbeam, 4) / (384 * Ec * I);
-  var allowDelta = span * 12 / 360; // L/360 in inches
-  // Steel design — per beam (M_total / N gives moment per beam)
-  var M_beam = M / N;
-  var botSteel = calcSteel(M_beam, bw, d, fy, fc, botBar);
-  var topSteel = calcSteel(M_beam, bw, d, fy, fc, topBar);
-  var phiMn_bot = 0.9 * botSteel.Mn;
-  var phiMn_top = 0.9 * topSteel.Mn;
-  return {numBeamsCalc:numBeamsCalc, N:N, B:B, M:M, M_beam:M_beam, dCalc:dCalc,
-          beamDepthMin:beamDepthMin, beamDepth:beamDepth,
-          d:d, Ec:Ec, I:I, q:q, Lbeam:Lbeam, delta:delta, allowDelta:allowDelta,
+  var EcCreep = Ec / 2;                              // creep modulus (≈ λΔ = 2.0)
+  var sumI = N * bw * Math.pow(beamDepth, 3) / 12;   // all beams, rectangular, flange ignored
+  var delta = 1728 * w * width * Math.pow(lc, 4) / (4 * EcCreep * sumI);
+  var allowDelta = span * 12 / deflRatio;
+
+  // ── One-way shear — ACI 318-14/19 §22.5 ────────────────────────────────────
+  var Vu    = LOAD_FACTOR * w * width * lc / N;      // lb per beam (WRI total V = w L' lc)
+  var Vc    = 2 * Math.sqrt(fc) * bw * d_bot;        // λ = 1.0, normalweight
+  var phiVc = 0.75 * Vc;
+  var VsMax = 8 * Math.sqrt(fc) * bw * d_bot;        // §22.5.1.2 upper limit on Vs
+  var phiVnMax = 0.75 * (Vc + VsMax);
+  var shearStatus = (Vu <= phiVc) ? 'ok' : (Vu <= phiVnMax ? 'stirrups' : 'fail');
+  var AvS = Math.max(0, (Vu - phiVc) / (0.75 * fy * d_bot)); // in²/in required
+  var sMaxCode = Math.min(d_bot / 2, 24);                    // §9.7.6.2.2
+  var Av3 = 2 * 0.11;                                        // #3 U-stirrup, two legs
+  var sFromAv = (AvS > 0) ? Av3 / AvS : Infinity;
+  var stirSpacing = Math.max(3, Math.floor(Math.min(sFromAv, sMaxCode)));
+
+  return {numBeamsCalc:numBeamsCalc, N:N, B:B, M:M, M_beam:M_beam, Mu_beam:Mu_beam,
+          dCalc:dCalc, beamDepthMin:beamDepthMin, beamDepth:beamDepth,
+          d_bot:d_bot, d_top:d_top, d:d_bot, cover:cover,
+          Ec:Ec, EcCreep:EcCreep, sumI:sumI, delta:delta, allowDelta:allowDelta,
+          deflRatio:deflRatio,
+          Vu:Vu, Vc:Vc, phiVc:phiVc, VsMax:VsMax, phiVnMax:phiVnMax,
+          shearStatus:shearStatus, AvS:AvS, sMaxCode:sMaxCode, sFromAv:sFromAv,
+          stirSpacing:stirSpacing,
           botSteel:botSteel, topSteel:topSteel, phiMn_bot:phiMn_bot, phiMn_top:phiMn_top,
-          span:span, width:width, lc:lc, bw:bw, w:w, maxSpacing:maxSpacing};
+          span:span, width:width, lc:lc, bw:bw, w:w, fc:fc, fy:fy, maxSpacing:maxSpacing};
 }
 
 function makeDets(dir, fc, fy, cover, r){
@@ -489,7 +579,8 @@ function makeDets(dir, fc, fy, cover, r){
   det0+='<div class="mrow"><span class="ceq">Step 2 \u2014 Design Moment M = w l<sub>c</sub><sup>2</sup> L\u2019/2000:</span></div>';
   det0+='<div class="mrow ind">M = '+fr(f1(r.w)+' \u00d7 ('+f2(r.lc)+')<sup>2</sup> \u00d7 '+f1(r.width),'2000')+'</div>';
   det0+='<div class="mrow ind">M = '+fr(f1(r.w)+' \u00d7 '+f2(r.lc*r.lc)+' \u00d7 '+f1(r.width),'2000')+' = <span class="cval">'+f1(r.M)+' kip-ft (total)</span></div>';
-  det0+='<div class="mrow ind">M<sub>beam</sub> = M/N = '+f1(r.M)+'/'+r.N+' = <span class="cval">'+f1(r.M_beam)+' kip-ft per beam</span> (used for steel design)</div>';
+  det0+='<div class="mrow ind">M<sub>beam</sub> = M/N = '+f1(r.M)+'/'+r.N+' = <span class="cval">'+f1(r.M_beam)+' kip-ft per beam</span> (service)</div>';
+  det0+='<div class="mrow ind">M<sub>u,beam</sub> = 1.6 × M<sub>beam</sub> = 1.6 × '+f1(r.M_beam)+' = <span class="cval">'+f1(r.Mu_beam)+' kip-ft per beam</span> (used for steel design)</div>';
   det0+='<hr class="csep">';
   det0+='<div class="mrow"><span class="ceq">Step 3 \u2014 WRI Beam Depth d = \u221B(664 M l<sub>c</sub> / B):</span></div>';
   det0+='<div class="mrow ind">d = \u221B'+fr('664 \u00d7 '+f1(r.M)+' \u00d7 '+f2(r.lc), f1(r.B))+' = \u221B'+f1(664*r.M*r.lc/r.B)+'</div>';
@@ -500,58 +591,99 @@ function makeDets(dir, fc, fy, cover, r){
   det0+='<div class="mrow">D/C = '+fr('d<sub>min</sub> = '+r.beamDepthMin+'"','d<sub>used</sub> = '+r.beamDepth+'"')+' = <span class="cval">'+f3(r.beamDepthMin/r.beamDepth)+'</span> \u2192 '+(r.beamDepth>=r.beamDepthMin?'<span style="color:#16a34a;font-weight:700">\u2713 PASS (d<sub>used</sub> \u2265 d<sub>min</sub>)</span>':'<span style="color:#dc2626;font-weight:700">\u2718 FAIL \u2014 increase beam depth to \u2265 '+r.beamDepthMin+'"</span>')+'</div>';
   det0+='</div>';
 
-  // det1 — bottom steel flexure
-  var bs=r.botSteel;
-  var det1='';
-  det1+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Bottom Steel, Positive Moment (per beam)</div>';
-  det1+='<div class="cbox">';
-  det1+='<div class="mrow">Beam depth = '+r.beamDepth+'", cover = '+f1(cover)+'", effective depth d = <span class="cval">'+f1(r.d)+'"</span></div>';
-  det1+='<div class="mrow">M<sub>total</sub> = '+f1(r.M)+' kip-ft, N = '+r.N+' beams \u2192 M<sub>u,beam</sub> = '+f1(r.M)+'/'+r.N+' = <span class="cval">'+f1(r.M_beam)+' kip-ft</span></div>';
-  det1+='<hr class="csep">';
-  det1+='<div class="mrow"><span class="ceq">ACI 318-19 \u00a722.2.2 \u2014 Rectangular stress block iteration (per beam):</span></div>';
-  det1+='<div class="mrow ind">A<sub>s,est</sub> = '+fr('M<sub>u,beam</sub>','f<sub>y</sub>(d\u22123")')+' = '+fr(f1(r.M_beam*12000/1000)+' k-in', f1(fy/1000)+' ksi \u00d7 '+f1(r.d-3)+'"')+' = '+f3(r.M_beam*12000/(fy*(r.d-3)))+' in\u00b2</div>';
-  det1+='<div class="mrow ind">a = '+fr('A<sub>s</sub>f<sub>y</sub>','0.85f\u2019<sub>c</sub>b<sub>w</sub>')+', refine \u2192 A<sub>s,req</sub> = '+fr('M<sub>u,beam</sub>','f<sub>y</sub>(d\u2212a/2)')+' = <span class="cval">'+f3(bs.AsRequired)+' in\u00b2</span></div>';
-  det1+='<div class="mrow">Provide '+bs.numBars+' \u2013 #'+bs.barSize+' bars per beam, A<sub>s,prov</sub> = '+bs.numBars+' \u00d7 '+bs.barArea+' = <span class="cval">'+f2(bs.AsProvided)+' in\u00b2</span></div>';
-  det1+='<div class="mrow">a<sub>actual</sub> = '+fr(f2(bs.AsProvided)+' \u00d7 '+f1(fy/1000)+' ksi','0.85 \u00d7 '+f1(fc/1000)+' ksi \u00d7 '+f1(r.bw)+'"')+' = <span class="cval">'+f3(bs.a)+'"</span></div>';
-  det1+='<div class="mrow">M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d\u2212a/2)/12 = '+f2(bs.AsProvided)+' \u00d7 '+f1(fy/1000)+' \u00d7 '+f2(bs.jd)+'/12 = <span class="cval">'+f1(bs.Mn)+' kip-ft</span></div>';
-  det1+='<hr class="csep">';
-  det1+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(bs.Mn)+' = <span class="cval">'+f1(r.phiMn_bot)+' kip-ft</span> (per beam)</div>';
-  det1+='<div class="mrow">D/C = '+fr('M<sub>u,beam</sub> = '+f1(r.M_beam)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_bot)+' k-ft')+' = <span class="cval">'+f3(r.M_beam/r.phiMn_bot)+'</span></div>';
-  det1+='</div>';
+  // det1 / det2 -- flexure (shared builder; bottom uses d_bot, top uses d_top)
+  function flexDet(face, s, phiMn){
+    var isTop = (face === 'Top');
+    var t='';
+    t+='<div class="cref-hdr">ACI 318-14/19 §22.2 / §9.6 / Table 21.2.2 — '+dir+' Direction: '+face+' Steel, '+(isTop?'Negative':'Positive')+' Moment (per beam)</div>';
+    t+='<div class="cbox">';
+    t+='<div class="mrow">Beam depth h = '+r.beamDepth+'", cover = '+f1(cover)+'"'+(isTop?', top bars one layer down':'')+' → d<sub>'+(isTop?'top':'bot')+'</sub> = h − cover'+(isTop?' − 1"':'')+' = <span class="cval">'+f1(s.d)+'"</span></div>';
+    t+='<div class="mrow">M<sub>beam</sub> = M<sub>total</sub>/N = '+f1(r.M)+'/'+r.N+' = '+f1(r.M_beam)+' kip-ft (service)</div>';
+    t+='<div class="mrow">M<sub>u,beam</sub> = 1.6 × M<sub>beam</sub> = 1.6 × '+f1(r.M_beam)+' = <span class="cval">'+f1(r.Mu_beam)+' kip-ft</span></div>';
+    t+='<hr class="csep">';
+    t+='<div class="mrow"><span class="ceq">ACI 318-14/19 §22.2.2 — Rectangular stress block iteration (per beam):</span></div>';
+    t+='<div class="mrow ind">A<sub>s,est</sub> = '+fr('M<sub>u,beam</sub>','φ f<sub>y</sub>(d−3")')+' = '+fr(f1(r.Mu_beam*12)+' k-in','0.9 × '+f1(fy/1000)+' ksi × '+f1(s.d-3)+'"')+' = '+f3(s.AsEst)+' in²</div>';
+    t+='<div class="mrow ind">a<sub>est</sub> = '+fr('A<sub>s,est</sub>f<sub>y</sub>','0.85f’<sub>c</sub>b<sub>w</sub>')+' = '+fr(f3(s.AsEst)+' × '+f1(fy/1000),'0.85 × '+f1(fc/1000)+' × '+f1(r.bw))+' = '+f3(s.aEst)+'" → jd = '+f2(s.jdEst)+'"</div>';
+    t+='<div class="mrow ind">A<sub>s,req</sub> = '+fr('M<sub>u,beam</sub>','φ f<sub>y</sub>(d−a/2)')+' = '+fr(f1(r.Mu_beam*12)+' k-in','0.9 × '+f1(fy/1000)+' × '+f2(s.jdEst))+' = <span class="cval">'+f3(s.AsRequired)+' in²</span></div>';
+    t+='<hr class="csep">';
+    t+='<div class="mrow"><span class="ceq">ACI 318-14/19 §9.6.1.2 / §9.6.1.3 — Minimum flexural steel:</span></div>';
+    t+='<div class="mrow ind">A<sub>s,min</sub> = '+fr('max(3'+ov('f’<sub>c</sub>')+', 200)','f<sub>y</sub>')+'b<sub>w</sub>d = '+fr('max(3×'+f1(Math.sqrt(fc))+' = '+f1(3*Math.sqrt(fc))+', 200) = '+f1(Math.max(3*Math.sqrt(fc),200)),f0(fy))+' × '+f1(r.bw)+'" × '+f1(s.d)+'" = <span class="cval">'+f3(s.AsMin)+' in²</span></div>';
+    t+='<div class="mrow ind">§9.6.1.3 waiver: 4/3 × A<sub>s,req</sub> = 4/3 × '+f3(s.AsRequired)+' = <span class="cval">'+f3(s.AsMin43)+' in²</span></div>';
+    t+='<div class="mrow ind">Governing minimum = min('+f3(s.AsMin)+', '+f3(s.AsMin43)+') = '+f3(s.AsMinGov)+' in²</div>';
+    t+='<div class="mrow ind">A<sub>s,gov</sub> = max(A<sub>s,req</sub> = '+f3(s.AsRequired)+', '+f3(s.AsMinGov)+') = <span class="cval">'+f3(s.AsGov)+' in²</span> — governed by '+s.govBy+'</div>';
+    t+='<hr class="csep">';
+    t+='<div class="mrow">n = max(2, ⌈'+f3(s.AsGov)+' / '+s.barArea+'⌉) = <span class="cval">'+s.numBars+' bars</span> <small style="color:#555">(two-bar minimum per beam face, WRI TF700 p.16)</small></div>';
+    t+='<div class="mrow">Provide '+s.numBars+' – #'+s.barSize+' bars per beam, A<sub>s,prov</sub> = '+s.numBars+' × '+s.barArea+' = <span class="cval">'+f2(s.AsProvided)+' in²</span></div>';
+    t+='<div class="mrow">a<sub>actual</sub> = '+fr(f2(s.AsProvided)+' × '+f1(fy/1000)+' ksi','0.85 × '+f1(fc/1000)+' ksi × '+f1(r.bw)+'"')+' = <span class="cval">'+f3(s.a)+'"</span></div>';
+    t+='<hr class="csep">';
+    t+='<div class="mrow"><span class="ceq">ACI 318-14/19 Table 21.2.2 — φ from net tensile strain:</span></div>';
+    t+='<div class="mrow ind">β<sub>1</sub> = '+f3(s.beta1)+' (f’<sub>c</sub> = '+f0(fc)+' psi), &nbsp; c = a/β<sub>1</sub> = '+f3(s.a)+'/'+f3(s.beta1)+' = <span class="cval">'+f3(s.c)+'"</span></div>';
+    t+='<div class="mrow ind">ε<sub>t</sub> = 0.003'+fr('d − c','c')+' = 0.003'+fr(f2(s.d)+' − '+f3(s.c),f3(s.c))+' = <span class="cval">'+f5(s.et)+'</span></div>';
+    t+='<div class="mrow ind">φ = <span class="cval">'+f3(s.phi)+'</span> '+(s.et>=0.005?'<small style="color:#16a34a">(tension-controlled, ε<sub>t</sub> ≥ 0.005)</small>':'<small style="color:#b45309">(transition / compression-controlled zone)</small>')+'</div>';
+    if(s.phi < 0.90){
+      t+='<div class="mrow" style="color:#b45309;font-weight:700">⚠ Section is not tension-controlled (ε<sub>t</sub> = '+f5(s.et)+' &lt; 0.005) — increase depth or reduce steel.</div>';
+    }
+    t+='<hr class="csep">';
+    t+='<div class="mrow">M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d−a/2)/12 = '+f2(s.AsProvided)+' × '+f1(fy/1000)+' × '+f2(s.jd)+'/12 = <span class="cval">'+f1(s.Mn)+' kip-ft</span></div>';
+    t+='<div class="mrow">φM<sub>n</sub> = '+f3(s.phi)+' × '+f1(s.Mn)+' = <span class="cval">'+f1(phiMn)+' kip-ft</span> (per beam)</div>';
+    t+='<div class="mrow">D/C = '+fr('M<sub>u,beam</sub> = '+f1(r.Mu_beam)+' k-ft','φM<sub>n</sub> = '+f1(phiMn)+' k-ft')+' = <span class="cval">'+f3(r.Mu_beam/phiMn)+'</span></div>';
+    t+='</div>';
+    return t;
+  }
+  var det1 = flexDet('Bottom', r.botSteel, r.phiMn_bot);
+  var det2 = flexDet('Top',    r.topSteel, r.phiMn_top);
 
-  // det2 — top steel flexure
-  var ts=r.topSteel;
-  var det2='';
-  det2+='<div class="cref-hdr">ACI 318-19 \u00a722.2 \u2014 '+dir+' Direction: Top Steel, Negative Moment (per beam)</div>';
-  det2+='<div class="cbox">';
-  det2+='<div class="mrow">d = '+f1(r.d)+'", M<sub>u,beam</sub> = '+f1(r.M_beam)+' kip-ft (M<sub>total</sub>/N = '+f1(r.M)+'/'+r.N+')</div>';
-  det2+='<div class="mrow">A<sub>s,req</sub> = <span class="cval">'+f3(ts.AsRequired)+' in\u00b2</span> per beam</div>';
-  det2+='<div class="mrow">Provide '+ts.numBars+' \u2013 #'+ts.barSize+' bars per beam, A<sub>s,prov</sub> = <span class="cval">'+f2(ts.AsProvided)+' in\u00b2</span></div>';
-  det2+='<div class="mrow">a<sub>actual</sub> = <span class="cval">'+f3(ts.a)+'"</span>, \u2003 jd = <span class="cval">'+f2(ts.jd)+'"</span></div>';
-  det2+='<div class="mrow">M<sub>n</sub> = A<sub>s</sub>f<sub>y</sub>(d\u2212a/2)/12 = <span class="cval">'+f1(ts.Mn)+' kip-ft</span></div>';
-  det2+='<div class="mrow">\u03c6M<sub>n</sub> = 0.90 \u00d7 '+f1(ts.Mn)+' = <span class="cval">'+f1(r.phiMn_top)+' kip-ft</span> (per beam)</div>';
-  det2+='<hr class="csep">';
-  det2+='<div class="mrow">D/C = '+fr('M<sub>u,beam</sub> = '+f1(r.M_beam)+' k-ft','\u03c6M<sub>n</sub> = '+f1(r.phiMn_top)+' k-ft')+' = <span class="cval">'+f3(r.M_beam/r.phiMn_top)+'</span></div>';
-  det2+='</div>';
-
-  // det3 — deflection
+  // det3 -- one-way shear
   var det3='';
-  det3+='<div class="cref-hdr">ACI 318-19 \u2014 '+dir+' Direction: Deflection Check (\u03b4 \u2264 L/360)</div>';
+  det3+='<div class="cref-hdr">ACI 318-14/19 §22.5 — '+dir+' Direction: One-Way Shear (per beam)</div>';
   det3+='<div class="cbox">';
-  det3+='<div class="mrow">E<sub>c</sub> = 57,000'+ov('f\u2019<sub>c</sub>')+' = 57,000\u00d7'+ov(fc)+' = <span class="cval">'+f1(r.Ec)+' psi</span></div>';
-  det3+='<div class="mrow">I<sub>g</sub> = b<sub>w</sub>d<sup>3</sup>/12 = '+f1(r.bw)+'" \u00d7 ('+f1(r.beamDepth)+'")<sup>3</sup>/12 = <span class="cval">'+f1(r.I)+' in\u2074</span></div>';
-  det3+='<div class="mrow">Beam load q = w \u00d7 L\u2019/12 = '+f1(r.w)+' psf \u00d7 '+f1(r.width)+"' / 12 = <span class=\"cval\">"+f3(r.q)+' lb/in</span></div>';
-  det3+='<div class="mrow">Cantilever length l<sub>c</sub> = '+f1(r.lc)+"' = <span class=\"cval\">"+f1(r.Lbeam)+'"</span></div>';
+  det3+='<div class="mrow"><span class="ceq">Step 1 — Factored shear per beam (WRI TF700 p.11: V<sub>total</sub> = w L’ l<sub>c</sub>):</span></div>';
+  det3+='<div class="mrow ind">V<sub>u</sub> = '+fr('1.6 × '+f1(r.w)+' psf × '+f1(r.width)+"' × "+f2(r.lc)+"'",'N = '+r.N)+' = <span class="cval">'+f0(r.Vu)+' lb</span></div>';
   det3+='<hr class="csep">';
-  det3+='<div class="mrow"><span class="ceq">\u03b4 = 5qL<sup>4</sup> / (384 E<sub>c</sub> I):</span></div>';
-  det3+='<div class="mrow ind">\u03b4 = '+fr('5 \u00d7 '+f3(r.q)+' \u00d7 ('+f1(r.Lbeam)+')<sup>4</sup>','384 \u00d7 '+f1(r.Ec)+' \u00d7 '+f1(r.I))+'</div>';
-  det3+='<div class="mrow ind">= <span class="cval">'+f3(r.delta)+'"</span></div>';
+  det3+='<div class="mrow"><span class="ceq">Step 2 — Concrete shear strength, §22.5.5.1 (λ = 1.0, normalweight):</span></div>';
+  det3+='<div class="mrow ind">V<sub>c</sub> = 2λ'+ov('f’<sub>c</sub>')+'b<sub>w</sub>d<sub>bot</sub> = 2 × '+f1(Math.sqrt(r.fc))+' × '+f1(r.bw)+'" × '+f1(r.d_bot)+'" = <span class="cval">'+f0(r.Vc)+' lb</span></div>';
+  det3+='<div class="mrow ind">φV<sub>c</sub> = 0.75 × '+f0(r.Vc)+' = <span class="cval">'+f0(r.phiVc)+' lb</span> &nbsp;<small style="color:#555">(φ = 0.75, §21.2.1)</small></div>';
   det3+='<hr class="csep">';
-  det3+='<div class="mrow">Allowable \u03b4 = L/360 = '+f1(r.span*12)+'"/360 = <span class="cval">'+f3(r.allowDelta)+'"</span></div>';
-  det3+='<div class="mrow">D/C = '+fr('\u03b4 = '+f3(r.delta)+'"','\u03b4<sub>allow</sub> = '+f3(r.allowDelta)+'"')+' = <span class="cval">'+f3(r.delta/r.allowDelta)+'</span></div>';
+  det3+='<div class="mrow">D/C = '+fr('V<sub>u</sub> = '+f0(r.Vu)+' lb','φV<sub>c</sub> = '+f0(r.phiVc)+' lb')+' = <span class="cval">'+f3(r.Vu/r.phiVc)+'</span></div>';
+  if(r.shearStatus==='ok'){
+    det3+='<div class="mrow" style="color:#16a34a;font-weight:700">✓ V<sub>u</sub> ≤ φV<sub>c</sub> — no shear reinforcement required by strength.</div>';
+    det3+='<div class="mrow"><small style="color:#555">Detailing stirrups may still be required for deep grade beams; see WRI TF700 Note “A”.</small></div>';
+  } else {
+    det3+='<hr class="csep">';
+    det3+='<div class="mrow"><span class="ceq">Step 3 — Required shear reinforcement, §22.5.10.5.3:</span></div>';
+    det3+='<div class="mrow ind">A<sub>v</sub>/s = '+fr('V<sub>u</sub> − φV<sub>c</sub>','φ f<sub>y</sub> d<sub>bot</sub>')+' = '+fr(f0(r.Vu)+' − '+f0(r.phiVc),'0.75 × '+f0(r.fy)+' × '+f1(r.d_bot))+' = <span class="cval">'+f5(r.AvS)+' in²/in</span></div>';
+    det3+='<div class="mrow ind">#3 U-stirrup: A<sub>v</sub> = 2 × 0.11 = 0.22 in² → s = 0.22 / '+f5(r.AvS)+' = '+(isFinite(r.sFromAv)?f1(r.sFromAv)+'"':'—')+'</div>';
+    det3+='<div class="mrow ind">s<sub>max</sub> = min(d/2, 24") = min('+f1(r.d_bot/2)+'", 24") = '+f1(r.sMaxCode)+'" &nbsp;<small style="color:#555">(§9.7.6.2.2)</small></div>';
+    det3+='<div class="mrow ind">Provide <span class="cval">#3 U-stirrups @ '+r.stirSpacing+'" o.c.</span> (spacing governed by '+(r.sFromAv<r.sMaxCode?'strength':'code maximum')+')</div>';
+    det3+='<hr class="csep">';
+    det3+='<div class="mrow ind">§22.5.1.2 upper limit: φ(V<sub>c</sub> + 8'+ov('f’<sub>c</sub>')+'b<sub>w</sub>d) = 0.75 × ('+f0(r.Vc)+' + '+f0(r.VsMax)+') = <span class="cval">'+f0(r.phiVnMax)+' lb</span></div>';
+    if(r.shearStatus==='stirrups'){
+      det3+='<div class="mrow" style="color:#b45309;font-weight:700">▲ φV<sub>c</sub> &lt; V<sub>u</sub> ≤ φ(V<sub>c</sub>+V<sub>s,max</sub>) — STIRRUPS REQ’D. The section size is adequate; this is a reinforcement requirement, not a section failure.</div>';
+    } else {
+      det3+='<div class="mrow" style="color:#dc2626;font-weight:700">✘ FAIL — V<sub>u</sub> = '+f0(r.Vu)+' lb exceeds φ(V<sub>c</sub>+V<sub>s,max</sub>) = '+f0(r.phiVnMax)+' lb. Section too small per §22.5.1.2 — increase b<sub>w</sub> or beam depth.</div>';
+    }
+  }
   det3+='</div>';
 
-  return [det0, det1, det2, det3];
+  // det4 -- deflection (WRI TF700 Appendix A)
+  var det4='';
+  det4+='<div class="cref-hdr">WRI TF700 App. A — '+dir+' Direction: Cantilever Deflection (Δ ≤ L/'+r.deflRatio+')</div>';
+  det4+='<div class="cbox">';
+  det4+='<div class="mrow">E<sub>c</sub> = 57,000'+ov('f’<sub>c</sub>')+' = 57,000×'+ov(fc)+' = <span class="cval">'+f0(r.Ec)+' psi</span></div>';
+  det4+='<div class="mrow">E<sub>c,creep</sub> = E<sub>c</sub>/2 = <span class="cval">'+f0(r.EcCreep)+' psi</span> &nbsp;<small style="color:#555">(long-term creep modulus, WRI TF700 App. A; equivalent to λ<sub>Δ</sub> ≈ 2.0 per ACI 318-14/19 §24.2.4)</small></div>';
+  det4+='<div class="mrow">ΣI = N b<sub>w</sub> h<sup>3</sup>/12 = '+r.N+' × '+f1(r.bw)+'" × ('+f1(r.beamDepth)+'")<sup>3</sup>/12 = <span class="cval">'+f0(r.sumI)+' in⁴</span></div>';
+  det4+='<div class="mrow"><small style="color:#555">All beams in the direction acting together, rectangular section; slab flange conservatively ignored.</small></div>';
+  det4+='<hr class="csep">';
+  det4+='<div class="mrow"><span class="ceq">WRI: Δ = 1728 w L’ l<sub>c</sub><sup>4</sup> / (4 E<sub>c,creep</sub> ΣI) &nbsp; [w psf; L’, l<sub>c</sub> ft; ΣI in⁴ → Δ in]:</span></div>';
+  det4+='<div class="mrow ind">Δ = '+fr('1728 × '+f1(r.w)+' × '+f1(r.width)+' × ('+f2(r.lc)+')<sup>4</sup>','4 × '+f0(r.EcCreep)+' × '+f0(r.sumI))+'</div>';
+  det4+='<div class="mrow ind">= '+fr(f0(1728*r.w*r.width*Math.pow(r.lc,4)),f0(4*r.EcCreep*r.sumI))+' = <span class="cval">'+f3(r.delta)+'"</span></div>';
+  det4+='<hr class="csep">';
+  det4+='<div class="mrow">Allowable Δ = L/'+r.deflRatio+' = '+f1(r.span*12)+'"/'+r.deflRatio+' = <span class="cval">'+f3(r.allowDelta)+'"</span></div>';
+  det4+='<div class="mrow">D/C = '+fr('Δ = '+f3(r.delta)+'"','Δ<sub>allow</sub> = '+f3(r.allowDelta)+'"')+' = <span class="cval">'+f3(r.delta/r.allowDelta)+'</span></div>';
+  det4+='<div class="mrow"><small style="color:#555">The WRI depth formula d = ∛(664 M l<sub>c</sub>/B) is calibrated to hold the cantilever deflection near l<sub>c</sub>/480, so Δ is normally well inside the allowable at the WRI minimum depth.</small></div>';
+  det4+='</div>';
+
+  return [det0, det1, det2, det3, det4];
 }
 
 function runCalcs(){
@@ -573,14 +705,20 @@ function runCalcs(){
   var botBar    = document.getElementById('bottom_bar_size').value;
   var depthLong  = parseFloat(document.getElementById('depth_long').value)  || 0;
   var depthShort = parseFloat(document.getElementById('depth_short').value) || 0;
+  var deflRatio  = parseFloat(document.getElementById('defl_ratio').value)  || 480;
+  var slabAsfy   = parseFloat(document.getElementById('slab_asfy').value)   || 0;
+
+  // F11 — WRI slab reinforcement (Fig 5/18): same both ways, so computed once
+  var slabAs = slabAsfy / fy;                                    // in²/ft each way
+  var slabBarSpacing = (slabAs>0) ? Math.min(Math.floor(0.11*12/slabAs), 18) : null; // #3 @ s o.c., capped at Fig 18 max of 18"
 
   var lcLong  = kL * lcBase;
   var lcShort = kS * lcBase;
 
   // Long direction: beams run parallel to Lp; span counted along L; moment uses Lp tributary
-  var lng = calcWRI(L,  Lp, lcLong,  w, bw, fy, fc, cover, maxS, topBar, botBar, depthLong);
+  var lng = calcWRI(L,  Lp, lcLong,  w, bw, fy, fc, cover, maxS, topBar, botBar, depthLong,  deflRatio);
   // Short direction: beams run parallel to L; span counted along Lp; moment uses L tributary
-  var sht = calcWRI(Lp, L,  lcShort, w, bw, fy, fc, cover, maxS, topBar, botBar, depthShort);
+  var sht = calcWRI(Lp, L,  lcShort, w, bw, fy, fc, cover, maxS, topBar, botBar, depthShort, deflRatio);
 
   drawPlan(L, Lp, lng.N, sht.N);
 
@@ -599,23 +737,35 @@ function runCalcs(){
       '<strong>'+f1(lng.M)+' kip-ft</strong>',
       '<strong>'+f1(sht.M)+' kip-ft</strong>'],
     ['Moment per beam M<sub>beam</sub>','M<sub>total</sub> / N',
-      '<strong>'+f1(lng.M_beam)+' kip-ft</strong>',
-      '<strong>'+f1(sht.M_beam)+' kip-ft</strong>'],
+      '<strong>'+f1(lng.M_beam)+' kip-ft</strong> (service)',
+      '<strong>'+f1(sht.M_beam)+' kip-ft</strong> (service)'],
+    ['Factored moment M<sub>u,beam</sub>','1.6 \u00D7 M<sub>beam</sub>',
+      '<strong>'+f1(lng.Mu_beam)+' kip-ft</strong>',
+      '<strong>'+f1(sht.Mu_beam)+' kip-ft</strong>'],
     ['WRI minimum beam depth d<sub>min</sub>','WRI: \u221B(664 M l<sub>c</sub>/B)',
       f2(lng.dCalc)+'" \u2192 <strong>'+lng.beamDepthMin+'"</strong>',
       f2(sht.dCalc)+'" \u2192 <strong>'+sht.beamDepthMin+'"</strong>'],
     ['Design beam depth used','User input (0 = WRI min)',
       '<strong>'+lng.beamDepth+'"</strong>'+(lng.beamDepth<lng.beamDepthMin?' <span style="color:#dc2626">\u26a0 &lt; d<sub>min</sub></span>':' <span style="color:#16a34a">\u2713</span>'),
       '<strong>'+sht.beamDepth+'"</strong>'+(sht.beamDepth<sht.beamDepthMin?' <span style="color:#dc2626">\u26a0 &lt; d<sub>min</sub></span>':' <span style="color:#16a34a">\u2713</span>')],
-    ['Bottom steel','ACI 318-19 \u00a722.2',
-      '<strong>'+lng.botSteel.numBars+' \u2013 #'+lng.botSteel.barSize+' per beam</strong>',
-      '<strong>'+sht.botSteel.numBars+' \u2013 #'+sht.botSteel.barSize+' per beam</strong>'],
-    ['Top steel','ACI 318-19 \u00a722.2',
-      '<strong>'+lng.topSteel.numBars+' \u2013 #'+lng.topSteel.barSize+' per beam</strong>',
-      '<strong>'+sht.topSteel.numBars+' \u2013 #'+sht.topSteel.barSize+' per beam</strong>'],
-    ['Calculated deflection','\u03b4 = 5qL\u2074/(384EI)',
-      f3(lng.delta)+'" \u2264 '+f3(lng.allowDelta)+'" ?',
-      f3(sht.delta)+'" \u2264 '+f3(sht.allowDelta)+'" ?'],
+    ['Effective depth d<sub>bot</sub> / d<sub>top</sub>','h \u2212 cover / h \u2212 cover \u2212 1"',
+      '<strong>'+f1(lng.d_bot)+'" / '+f1(lng.d_top)+'"</strong>',
+      '<strong>'+f1(sht.d_bot)+'" / '+f1(sht.d_top)+'"</strong>'],
+    ['Bottom steel','ACI 318-14/19 \u00a722.2 / \u00a79.6',
+      '<strong>'+lng.botSteel.numBars+' \u2013 #'+lng.botSteel.barSize+' per beam</strong> <small>(gov: '+lng.botSteel.govBy+')</small>',
+      '<strong>'+sht.botSteel.numBars+' \u2013 #'+sht.botSteel.barSize+' per beam</strong> <small>(gov: '+sht.botSteel.govBy+')</small>'],
+    ['Top steel','ACI 318-14/19 \u00a722.2 / \u00a79.6',
+      '<strong>'+lng.topSteel.numBars+' \u2013 #'+lng.topSteel.barSize+' per beam</strong> <small>(gov: '+lng.topSteel.govBy+')</small>',
+      '<strong>'+sht.topSteel.numBars+' \u2013 #'+sht.topSteel.barSize+' per beam</strong> <small>(gov: '+sht.topSteel.govBy+')</small>'],
+    ['Factored shear V<sub>u</sub> (per beam)','1.6 w L\u2019 l<sub>c</sub> / N',
+      '<strong>'+f0(lng.Vu)+' lb</strong> vs \u03c6V<sub>c</sub> = '+f0(lng.phiVc)+' lb',
+      '<strong>'+f0(sht.Vu)+' lb</strong> vs \u03c6V<sub>c</sub> = '+f0(sht.phiVc)+' lb'],
+    ['Calculated deflection','WRI: \u0394 = 1728 w L\u2019 l<sub>c</sub>\u2074/(4 E<sub>c,creep</sub> \u03a3I)',
+      f3(lng.delta)+'" \u2264 '+f3(lng.allowDelta)+'" (L/'+deflRatio+') ?',
+      f3(sht.delta)+'" \u2264 '+f3(sht.allowDelta)+'" (L/'+deflRatio+') ?'],
+    ['Slab reinforcement A<sub>s,slab</sub>','A<sub>s</sub>f<sub>y</sub> / f<sub>y</sub> (WRI Fig 5)',
+      '<strong>'+f3(slabAs)+' in\u00b2/ft each way</strong> \u2014 #3 @ '+(slabBarSpacing!==null?slabBarSpacing+'"':'\u2014')+' o.c. max (Fig 18) <small style="color:#555">(same both directions; WWR of equivalent A<sub>s</sub> per WRI TF705 acceptable)</small>',
+      '<strong>'+f3(slabAs)+' in\u00b2/ft each way</strong> \u2014 #3 @ '+(slabBarSpacing!==null?slabBarSpacing+'"':'\u2014')+' o.c. max (Fig 18) <small style="color:#555">(same both directions; WWR of equivalent A<sub>s</sub> per WRI TF705 acceptable)</small>'],
   ].map(function(r){
     return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';
   }).join('');
@@ -626,8 +776,10 @@ function runCalcs(){
     {v:f2(lcShort)+" ft", l:'l<sub>c</sub> Short Direction'},
     {v:f1(lng.M)+' k-ft', l:'M<sub>total</sub> Long Direction'},
     {v:f1(sht.M)+' k-ft', l:'M<sub>total</sub> Short Direction'},
-    {v:f1(lng.M_beam)+' k-ft', l:'M<sub>beam</sub> Long (per beam)'},
-    {v:f1(sht.M_beam)+' k-ft', l:'M<sub>beam</sub> Short (per beam)'},
+    {v:f1(lng.Mu_beam)+' k-ft', l:'M<sub>u,beam</sub> Long (1.6 × '+f1(lng.M_beam)+')'},
+    {v:f1(sht.Mu_beam)+' k-ft', l:'M<sub>u,beam</sub> Short (1.6 × '+f1(sht.M_beam)+')'},
+    {v:f0(lng.Vu)+' lb', l:'V<sub>u</sub> Long (per beam)'},
+    {v:f0(sht.Vu)+' lb', l:'V<sub>u</sub> Short (per beam)'},
     {v:lng.beamDepth+'"', l:'Beam Depth — Long Dir'},
     {v:sht.beamDepth+'"', l:'Beam Depth — Short Dir'},
     {v:lng.N, l:'Beams — Long Direction'},
@@ -640,65 +792,58 @@ function runCalcs(){
   var ld = makeDets('Long',  fc, fy, cover, lng);
   var sd = makeDets('Short', fc, fy, cover, sht);
 
-  // Checks
-  var chks=[
-    {n:'Long Dir \u2014 Beam Depth (WRI)',
-     r:'WRI Design Guide',
-     d:'d<sub>min</sub> = '+f2(lng.dCalc)+'" \u2192 '+lng.beamDepthMin+'"',
-     c:'d<sub>used</sub> = '+lng.beamDepth+'"',
-     dc:lng.beamDepthMin/lng.beamDepth,
-     nt:'N<sub>L</sub> = '+lng.N+' beams, B = '+f1(lng.B)+'"',
-     det:ld[0]},
-    {n:'Long Dir \u2014 Bottom Steel \u03c6M<sub>n</sub> (per beam)',
-     r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u,beam</sub> = '+f1(lng.M_beam)+' k-ft',
-     c:'\u03c6M<sub>n</sub> = '+f1(lng.phiMn_bot)+' k-ft',
-     dc:lng.M_beam/lng.phiMn_bot,
-     nt:lng.botSteel.numBars+' \u2013 #'+lng.botSteel.barSize+'/beam, A<sub>s</sub> = '+f2(lng.botSteel.AsProvided)+' in\u00b2',
-     det:ld[1]},
-    {n:'Long Dir \u2014 Top Steel \u03c6M<sub>n</sub> (per beam)',
-     r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u,beam</sub> = '+f1(lng.M_beam)+' k-ft',
-     c:'\u03c6M<sub>n</sub> = '+f1(lng.phiMn_top)+' k-ft',
-     dc:lng.M_beam/lng.phiMn_top,
-     nt:lng.topSteel.numBars+' \u2013 #'+lng.topSteel.barSize+'/beam, A<sub>s</sub> = '+f2(lng.topSteel.AsProvided)+' in\u00b2',
-     det:ld[2]},
-    {n:'Long Dir \u2014 Deflection',
-     r:'ACI 318-19 (L/360)',
-     d:'\u03b4 = '+f3(lng.delta)+'"',
-     c:'\u03b4<sub>allow</sub> = L/360 = '+f3(lng.allowDelta)+'"',
-     dc:lng.delta/lng.allowDelta,
-     nt:'E<sub>c</sub> = '+f1(lng.Ec/1000)+' ksi, I<sub>g</sub> = '+f1(lng.I)+' in\u2074 (simplified)',
-     det:ld[3]},
-    {n:'Short Dir \u2014 Beam Depth (WRI)',
-     r:'WRI Design Guide',
-     d:'d<sub>min</sub> = '+f2(sht.dCalc)+'" \u2192 '+sht.beamDepthMin+'"',
-     c:'d<sub>used</sub> = '+sht.beamDepth+'"',
-     dc:sht.beamDepthMin/sht.beamDepth,
-     nt:'N<sub>S</sub> = '+sht.N+' beams, B = '+f1(sht.B)+'"',
-     det:sd[0]},
-    {n:'Short Dir \u2014 Bottom Steel \u03c6M<sub>n</sub> (per beam)',
-     r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u,beam</sub> = '+f1(sht.M_beam)+' k-ft',
-     c:'\u03c6M<sub>n</sub> = '+f1(sht.phiMn_bot)+' k-ft',
-     dc:sht.M_beam/sht.phiMn_bot,
-     nt:sht.botSteel.numBars+' \u2013 #'+sht.botSteel.barSize+'/beam, A<sub>s</sub> = '+f2(sht.botSteel.AsProvided)+' in\u00b2',
-     det:sd[1]},
-    {n:'Short Dir \u2014 Top Steel \u03c6M<sub>n</sub> (per beam)',
-     r:'ACI 318-19 \u00a722.2',
-     d:'M<sub>u,beam</sub> = '+f1(sht.M_beam)+' k-ft',
-     c:'\u03c6M<sub>n</sub> = '+f1(sht.phiMn_top)+' k-ft',
-     dc:sht.M_beam/sht.phiMn_top,
-     nt:sht.topSteel.numBars+' \u2013 #'+sht.topSteel.barSize+'/beam, A<sub>s</sub> = '+f2(sht.topSteel.AsProvided)+' in\u00b2',
-     det:sd[2]},
-    {n:'Short Dir \u2014 Deflection',
-     r:'ACI 318-19 (L/360)',
-     d:'\u03b4 = '+f3(sht.delta)+'"',
-     c:'\u03b4<sub>allow</sub> = L/360 = '+f3(sht.allowDelta)+'"',
-     dc:sht.delta/sht.allowDelta,
-     nt:'E<sub>c</sub> = '+f1(sht.Ec/1000)+' ksi, I<sub>g</sub> = '+f1(sht.I)+' in\u2074 (simplified)',
-     det:sd[3]},
-  ];
+  // Checks — built per direction (depth, bottom flexure, top flexure, shear, deflection)
+  var chks=[];
+  [{dir:'Long', r:lng, D:ld},{dir:'Short', r:sht, D:sd}].forEach(function(p){
+    var r=p.r, D=p.D, pre=p.dir+' Dir — ';
+    var bs=r.botSteel, ts=r.topSteel;
+
+    chks.push({n:pre+'Beam Depth (WRI)',
+      r:'WRI Design Guide',
+      d:'d<sub>min</sub> = '+f2(r.dCalc)+'" → '+r.beamDepthMin+'"',
+      c:'d<sub>used</sub> = '+r.beamDepth+'"',
+      dc:r.beamDepthMin/r.beamDepth,
+      nt:'N = '+r.N+' beams, B = '+f1(r.B)+'"',
+      det:D[0]});
+
+    chks.push({n:pre+'Bottom Steel φM<sub>n</sub> (per beam)',
+      r:'ACI 318-14/19 §22.2 / §9.6',
+      d:'M<sub>u,beam</sub> = 1.6 × '+f1(r.M_beam)+' = '+f1(r.Mu_beam)+' k-ft',
+      c:'φM<sub>n</sub> = '+f1(r.phiMn_bot)+' k-ft',
+      dc:r.Mu_beam/r.phiMn_bot,
+      nt:bs.numBars+' – #'+bs.barSize+'/beam, A<sub>s</sub> = '+f2(bs.AsProvided)+' in² &nbsp;|&nbsp; d<sub>bot</sub> = '+f1(r.d_bot)+'", φ = '+f2(bs.phi)+' &nbsp;|&nbsp; governed by '+bs.govBy,
+      det:D[1]});
+
+    chks.push({n:pre+'Top Steel φM<sub>n</sub> (per beam)',
+      r:'ACI 318-14/19 §22.2 / §9.6',
+      d:'M<sub>u,beam</sub> = 1.6 × '+f1(r.M_beam)+' = '+f1(r.Mu_beam)+' k-ft',
+      c:'φM<sub>n</sub> = '+f1(r.phiMn_top)+' k-ft',
+      dc:r.Mu_beam/r.phiMn_top,
+      nt:ts.numBars+' – #'+ts.barSize+'/beam, A<sub>s</sub> = '+f2(ts.AsProvided)+' in² &nbsp;|&nbsp; d<sub>top</sub> = '+f1(r.d_top)+'", φ = '+f2(ts.phi)+' &nbsp;|&nbsp; governed by '+ts.govBy,
+      det:D[2]});
+
+    chks.push({n:pre+'One-Way Shear (per beam)',
+      r:'ACI 318-14/19 §22.5.5.1',
+      d:'V<sub>u</sub> = 1.6 w L’ l<sub>c</sub>/N = '+f0(r.Vu)+' lb',
+      c:'φV<sub>c</sub> = 2×0.75'+ov('f’<sub>c</sub>')+'b<sub>w</sub>d = '+f0(r.phiVc)+' lb',
+      dc:r.Vu/r.phiVc,
+      soft:(r.shearStatus==='stirrups'),
+      softLabel:'STIRRUPS REQ’D',
+      nt:(r.shearStatus==='ok'
+          ? 'd<sub>bot</sub> = '+f1(r.d_bot)+'" — no stirrups required by strength'
+          : (r.shearStatus==='stirrups'
+             ? 'A<sub>v</sub>/s = '+f5(r.AvS)+' in²/in → #3 U-stirrups @ '+r.stirSpacing+'" o.c. (s<sub>max</sub> = min(d/2, 24") = '+f1(r.sMaxCode)+'")'
+             : 'V<sub>u</sub> &gt; φ(V<sub>c</sub>+8'+ov('f’<sub>c</sub>')+'b<sub>w</sub>d) = '+f0(r.phiVnMax)+' lb — section too small, §22.5.1.2')),
+      det:D[3]});
+
+    chks.push({n:pre+'Deflection',
+      r:'WRI TF700 (Δ = wL’l<sub>c</sub>⁴/4E<sub>c</sub>I)',
+      d:'Δ = '+f3(r.delta)+'"',
+      c:'Δ<sub>allow</sub> = L/'+r.deflRatio+' = '+f3(r.allowDelta)+'"',
+      dc:r.delta/r.allowDelta,
+      nt:'E<sub>c,creep</sub> = E<sub>c</sub>/2 = '+f1(r.EcCreep/1000)+' ksi, ΣI = '+f0(r.sumI)+' in⁴ ('+r.N+' beams)',
+      det:D[4]});
+  });
 
   // Render check table
   var tb=document.getElementById('chkTb');
@@ -706,8 +851,9 @@ function runCalcs(){
   chks.forEach(function(c,i){
     var dv=(c.dc!==null&&isFinite(c.dc)&&c.dc>=0)?c.dc:null;
     var pct=dv!==null?Math.min(dv*100,150):0;
-    var col=dv===null?'#9ca3af':dv<=0.8?'#16a34a':dv<=1.0?'#d97706':'#dc2626';
-    var stxt=dv===null?'<span class="na">&mdash;</span>':dv<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
+    var soft=(c.soft===true)&&dv!==null&&dv>1.0;
+    var col=dv===null?'#9ca3af':soft?'#d97706':dv<=0.8?'#16a34a':dv<=1.0?'#d97706':'#dc2626';
+    var stxt=dv===null?'<span class="na">&mdash;</span>':soft?'<span style="color:#b45309;font-weight:700">▲ '+(c.softLabel||'REVIEW')+'</span>':dv<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
     var dtxt=dv!==null?f3(dv):'&mdash;';
     tb.innerHTML+=
       '<tr>'
@@ -724,15 +870,38 @@ function runCalcs(){
       +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
   });
 
-  // Summary banner
-  var dcs=chks.map(function(c){return c.dc;}).filter(function(v){return v!==null&&isFinite(v)&&v>=0;});
+  // Summary banner \u2014 a "stirrups required" row is a detailing requirement, not a
+  // section failure, so it is excluded from maxDC and surfaced as an amber note.
+  var dcs=chks.filter(function(c){
+      return !(c.soft===true && c.dc!==null && isFinite(c.dc) && c.dc>1.0);
+    }).map(function(c){return c.dc;})
+      .filter(function(v){return v!==null&&isFinite(v)&&v>=0;});
   var maxDC=dcs.length?Math.max.apply(null,dcs):0;
   var pass=maxDC<=1.0;
+
+  var softNotes=[];
+  [{dir:'Long',r:lng},{dir:'Short',r:sht}].forEach(function(p){
+    var r=p.r;
+    if(r.shearStatus==='stirrups'){
+      softNotes.push('<strong>'+p.dir+' direction:</strong> V<sub>u</sub> = '+f0(r.Vu)
+        +' lb &gt; \u03c6V<sub>c</sub> = '+f0(r.phiVc)+' lb \u2014 shear reinforcement required. '
+        +'A<sub>v</sub>/s = '+f5(r.AvS)+' in\u00b2/in \u2192 provide <strong>#3 U-stirrups @ '
+        +r.stirSpacing+'" o.c.</strong> (s<sub>max</sub> = min(d/2, 24") = '+f1(r.sMaxCode)+'"). '
+        +'Section size is adequate (V<sub>u</sub> \u2264 \u03c6(V<sub>c</sub>+V<sub>s,max</sub>) = '+f0(r.phiVnMax)+' lb).');
+    }
+  });
+
   var sb=document.getElementById('sumBox');
   sb.className='summary '+(pass?'sum-pass':'sum-fail');
   sb.innerHTML='<h3>'+(pass?'\u2714 All Checks Pass':'\u2718 One or More Checks Fail')+'</h3>'
     +"<p>Max D/C = <strong>"+f3(maxDC)+"</strong> &nbsp;|&nbsp; Foundation "+f1(L)+"' \u00d7 "+f1(Lp)+"'"
-    +", f\u2019c = "+f1(fc/1000)+" ksi, fy = "+f1(fy/1000)+" ksi</p>";
+    +", f\u2019c = "+f1(fc/1000)+" ksi, fy = "+f1(fy/1000)+" ksi</p>"
+    +(softNotes.length
+      ? '<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:10px 12px;margin-top:10px;font-size:.85em;color:#78350f">'
+        +'<strong>\u25b2 Shear reinforcement required</strong><ul style="padding-left:18px;margin-top:5px">'
+        +softNotes.map(function(t){return '<li style="margin-bottom:3px">'+t+'</li>';}).join('')
+        +'</ul></div>'
+      : '');
 
   document.getElementById('results').classList.add('show');
 }
