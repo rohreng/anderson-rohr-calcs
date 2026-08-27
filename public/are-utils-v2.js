@@ -110,6 +110,9 @@
     bar.innerHTML =
       '<label for="areJob">Project</label>' +
       '<input class="are-bar-job" id="areJob" type="text" placeholder="e.g. 2024-012 · Col C3" />' +
+      '<label for="areMark">Mark</label>' +
+      '<input class="are-bar-job are-bar-mark" id="areMark" type="text" placeholder="e.g. SW-4 @ GL B" ' +
+        'title="This calculation&#39;s mark / location — names the saved file and labels the sheet" />' +
       '<div class="are-bar-sep"></div>' +
       '<button class="are-btn" id="areSaveBtn" onclick="areSave(\'f\')" disabled>&#128190; Save</button>' +
       '<button class="are-btn" id="areSaveAsBtn" onclick="areSaveAs(\'f\')" title="Save to a different folder">&#8230;</button>' +
@@ -131,7 +134,26 @@
       var saved = localStorage.getItem(STORE_KEY);
       if (saved) { var d = JSON.parse(saved); if (d._job) document.getElementById('areJob').value = d._job; }
     } catch (e) {}
+    // The Mark input is deliberately NOT prefilled from any prior session. A
+    // mark that silently survives into the next job is the exact failure this
+    // field exists to fix — a wall labelled GLA on a project that has no GLA.
+
+    // Two-class rule (0,2,0) so it outranks are-theme-v2.css's
+    // `.are-bar-job{width:210px!important}` regardless of stylesheet order.
+    // Injected on BOTH theme paths — the minimal-bar CSS is only added when a
+    // calc opts out of the theme, so it cannot be the only home for this.
+    if (!document.getElementById('are-mark-css')) {
+      var ms = document.createElement('style');
+      ms.id = 'are-mark-css';
+      ms.textContent = MARK_CSS;
+      document.head.appendChild(ms);
+    }
+    wireMarkBindings();
   }
+
+  var MARK_CSS =
+    '.are-bar-job.are-bar-mark{width:150px!important;max-width:170px!important;' +
+    'flex:0 1 150px!important;min-width:90px}';
 
   function showToast(msg, ms) {
     var el = document.getElementById('areToast'); if (!el) return;
@@ -165,6 +187,119 @@
               '). Save to a project file to keep it.', 6000);
   };
 
+  // ── CALCULATION IDENTITY: Project + Mark ──────────────────────────────────
+  // "Mark" is this calculation's instance identity — the shearwall, footing or
+  // node it describes (SW-4, HD-2, F3 @ GL B). Before it existed the identity
+  // token in a saved filename came from document.title, so a calc whose title
+  // was hardcoded to one project's grid line ("SW-GLA — Holdown Spread Footing
+  // Design") named EVERY save on EVERY job after that grid line, with no way to
+  // correct it. Marks are read live from the DOM rather than cached: the field
+  // is a plain input the engineer edits at any moment.
+
+  window.AREv2 = window.AREv2 || {};
+
+  /** This calculation's mark, or '' when unset. Safe before toolbar injection. */
+  AREv2.getMark = function () {
+    var el = document.getElementById('areMark');
+    return el && el.value ? el.value.trim() : '';
+  };
+
+  /** The Project field's value, or '' when unset. */
+  AREv2.getProject = function () {
+    var el = document.getElementById('areJob');
+    return el && el.value ? el.value.trim() : '';
+  };
+
+  /**
+   * The mark, escaped for interpolation into an innerHTML string.
+   * A calc that builds its check headers by string concatenation MUST use this
+   * and not getMark(): a mark like `SW-4 <TYP>` would otherwise be swallowed as
+   * a tag, so the sheet's H1 and its check headers would name the same panel
+   * differently — and a mark arriving from a shared save file would inject live
+   * markup when the record is reloaded and re-run.
+   */
+  AREv2.getMarkHTML = function () {
+    return AREv2.getMark()
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  };
+
+  var markHooks = [];
+  /** Register a callback fired (debounced) whenever the mark changes. */
+  AREv2.onMarkChange = function (fn) {
+    if (typeof fn === 'function') markHooks.push(fn);
+  };
+
+  // Declarative text binding. An element carrying data-are-mark shows the mark;
+  // when the mark is blank it falls back to whatever text the author wrote in
+  // the markup, which is why the ORIGINAL text is captured once, on first scan,
+  // before anything overwrites it. Same contract for data-are-project.
+  //
+  // data-are-prefix is emitted ONLY alongside a non-empty value. An element that
+  // appends to a sentence needs its separator to disappear with the value, or a
+  // blank field leaves a dangling "  |  Project:" — or, worse, runs the value
+  // straight onto the preceding word.
+  function applyBinding(attr, value) {
+    var nodes = document.querySelectorAll('[' + attr + ']');
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (el._areFallback === undefined) el._areFallback = el.textContent;
+      var prefix = el.getAttribute('data-are-prefix') || '';
+      el.textContent = value ? (prefix + value) : el._areFallback;
+    }
+  }
+
+  /** Push the current Project + Mark into every bound element. */
+  AREv2.refreshIdentity = function () {
+    applyBinding('data-are-mark', AREv2.getMark());
+    applyBinding('data-are-project', AREv2.getProject());
+  };
+
+  // A calc's run function typically ends by revealing its results and scrolling
+  // them into view — correct when the engineer pressed "Run", wrong when the run
+  // was incidental to relabelling. Without this the page would scroll out from
+  // under someone still typing in the toolbar, on every mark edit. The patch is
+  // synchronous and restored in a finally, so a calc that scrolls on a timer is
+  // simply unaffected rather than broken.
+  function autoRunQuiet() {
+    var orig = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function () {};
+    AREv2._identityRun = true;
+    try { autoRun(); }
+    finally { Element.prototype.scrollIntoView = orig; AREv2._identityRun = false; }
+  }
+
+  // Text bindings update on every keystroke (cheap). The full recalculation —
+  // which is what redraws JS-built check headers and SVG labels — is debounced
+  // so typing "SW-4" does not run the calc four times.
+  var markTimer = null;
+  function onMarkInput() {
+    AREv2.refreshIdentity();
+    clearTimeout(markTimer);
+    markTimer = setTimeout(function () {
+      markHooks.forEach(function (fn) { try { fn(AREv2.getMark()); } catch (e) {} });
+      autoRunQuiet();
+    }, 400);
+  }
+
+  // Project deliberately does NOT trigger a run. It feeds no calculation and no
+  // generated content — only the declarative bindings — so re-running ~52 calcs
+  // on Project keystrokes would be a fleet-wide behaviour change bought for
+  // nothing.
+  function onProjectInput() {
+    AREv2.refreshIdentity();
+  }
+
+  function wireMarkBindings() {
+    var m = document.getElementById('areMark');
+    var j = document.getElementById('areJob');
+    if (m) m.addEventListener('input', onMarkInput);
+    if (j) j.addEventListener('input', onProjectInput);
+    AREv2.refreshIdentity();
+  }
+
   function autoRun() {
     if (typeof window.runCalcs === 'function') window.runCalcs();
     else if (typeof window.runAll === 'function') window.runAll();
@@ -176,9 +311,14 @@
   window.arePrint = function (mode) {
     var metaEl = document.getElementById('arePHmeta');
     if (metaEl) {
-      var jobEl = document.getElementById('areJob');
-      var jobStr = (jobEl && jobEl.value.trim()) ? jobEl.value.trim() + '  ·  ' : '';
-      metaEl.textContent = jobStr + 'Anderson Rohr Engineers  ·  ' + new Date().toLocaleDateString();
+      // Project · Mark · firm · date — each leading segment dropped when blank so
+      // an unmarked calc never prints a dangling separator.
+      var parts = [];
+      if (AREv2.getProject()) parts.push(AREv2.getProject());
+      if (AREv2.getMark()) parts.push(AREv2.getMark());
+      parts.push('Anderson Rohr Engineers');
+      parts.push(new Date().toLocaleDateString());
+      metaEl.textContent = parts.join('  ·  ');
     }
     if (mode === 'f') {
       document.querySelectorAll('.det-row').forEach(function (el) { el.style.setProperty('display', 'table-row', 'important'); });
@@ -230,7 +370,7 @@
       var key = FILE + '|' + r.symbol;
       list = list.filter(function (e) { return e.key !== key; });
       list.unshift({
-        key: key, file: FILE, calc: document.title, job: job,
+        key: key, file: FILE, calc: document.title, job: job, mark: AREv2.getMark(),
         symbol: r.symbol, label: r.label || r.symbol,
         value: Math.round(r.value * 1000) / 1000, unit: r.unit || '', kind: r.kind || 'other',
         ts: Date.now()
@@ -709,6 +849,8 @@
     if (tag !== 'input' && tag !== 'select' && tag !== 'textarea') return false;
     if (el.type === 'file' || el.type === 'button' || el.type === 'submit' || el.type === 'reset') return false;
     if (el.id === 'areJob') return false;                       // carried as metadata
+    if (el.id === 'areMark') return false;                      // carried as metadata
+
     if (el.closest('.are-bar, .are-hub, .are-results-bar, .are-send-menu, .are-hss-chooser')) return false;
     if (el.closest('.' + SNAP_WRAP_CLASS + '-controls')) return false;
     if (el.hasAttribute('data-are-ignore')) return false;
@@ -825,6 +967,11 @@
       adapterVersion: adapter ? adapter.version : 0,
       shapeHash: shapeHash(cap.fields),
       project: jobEl ? jobEl.value.trim() : '',
+      // Additive key — no SNAP_SCHEMA bump. loadFromState rejects on schema
+      // INEQUALITY, so bumping the version would orphan every file already
+      // sitting in a project folder. Files written before Mark existed simply
+      // have no `mark`, and load fine.
+      mark: AREv2.getMark(),
       savedAt: new Date().toISOString(),
       fields: cap.fields,
       model: adapter ? adapter.getModel() : null,
@@ -1002,9 +1149,15 @@
   // the name cannot come out of the async buildSnapshot. One helper keeps Save
   // and Save-as… naming identical — a generic "calculation.html" default was
   // producing anonymous files in project folders.
+  // The Mark segment is read straight from the DOM (not passed in) so this stays
+  // synchronous, and is OMITTED entirely when blank rather than emitted as an
+  // empty token — an unmarked save must produce the pre-Mark filename exactly,
+  // not "Project -  - 2026-08-26".
   function snapshotBasename(project) {
+    var mark = sanitizeFilename(AREv2.getMark());
     return sanitizeFilename(project) + ' - ' +
-           sanitizeFilename((document.title || FILE).replace(/\s*[—–|].*$/, '')) + ' - ' +
+           sanitizeFilename((document.title || FILE).replace(/\s*[—–|].*$/, '')) +
+           (mark ? ' - ' + mark : '') + ' - ' +
            isoDate();
   }
 
@@ -1408,6 +1561,13 @@
     try {
       var jobEl = document.getElementById('areJob');
       if (jobEl && state.project) jobEl.value = state.project;
+      // Assigned unconditionally, unlike project: a file saved before Mark
+      // existed carries no mark, and must CLEAR whatever mark is sitting in the
+      // bar rather than inherit it. Carrying the previous job's mark onto a
+      // freshly loaded record is precisely the mislabelling this field fixes.
+      var markEl = document.getElementById('areMark');
+      if (markEl) markEl.value = (state.mark != null ? String(state.mark) : '');
+      AREv2.refreshIdentity();
       fireAfterRestore();
     } finally {
       AREv2.endRestore();
