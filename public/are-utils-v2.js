@@ -1154,12 +1154,61 @@
   // empty token — an unmarked save must produce the pre-Mark filename exactly,
   // not "Project -  - 2026-08-26".
   function snapshotBasename(project) {
-    var mark = sanitizeFilename(AREv2.getMark());
-    return sanitizeFilename(project) + ' - ' +
-           sanitizeFilename((document.title || FILE).replace(/\s*[—–|].*$/, '')) +
-           (mark ? ' - ' + mark : '') + ' - ' +
-           isoDate();
+    return AREv2.snapshotName({ project: project, title: (document.title || FILE), mark: AREv2.getMark() });
   }
+  // Test seam: tools/test-snapshot-name.mjs checks the toolbar-fed name.
+  AREv2._snapshotBasenameForTest = function () {
+    var jobEl = document.getElementById('areJob');
+    return snapshotBasename(jobEl ? jobEl.value.trim() : '');
+  };
+
+  // Windows caps a full path at MAX_PATH (260). Project folders on OneDrive run
+  // 160+ chars deep, so the basename gets 90: 163 + "\" + 90 + ".html" = 259.
+  // Past that, the Windows save dialog hands Chrome an 8.3 / \\?\ path and
+  // Chrome's File System Access blocklist refuses it with the misleading
+  // "can't open files in this folder because it contains system files" dialog
+  // (2026-09-01: a 281-char save on 26-038 failed this way, and the one file
+  // that did land was literally named "26-038~1.HTM").
+  // Trim order: title, then mark, then project. Date and the project number
+  // always survive. Cuts land on word boundaries, never mid-word.
+  var NAME_MAX = 90;
+  function cutWords(s, n) {
+    if (s.length <= n) return s;
+    var cut = s.slice(0, n);
+    var sp = cut.lastIndexOf(' ');
+    if (sp > 0) cut = cut.slice(0, sp);
+    cut = cut.replace(/[\s\-\u2013\u2014:,.&+(\/]+$/, '');
+    return cut || s.slice(0, n);
+  }
+  // The calc title splits into segments at an em dash, en dash, pipe, or a
+  // spaced hyphen. "Through-Plate" and "ASCE 7-16" have no spaces around the
+  // hyphen and are kept whole. The first segment is the stem; a stem under 18
+  // chars ("Masonry", "HSS Column", "Channel Beam") says nothing on its own,
+  // so the next segment is pulled in until it is long enough.
+  var STEM_MIN = 18;
+  function titleStem(title) {
+    var segs = String(title || '').split(/\s*(?:[\u2014\u2013|]|\s-\s)\s*/).filter(function (s) { return s.trim(); });
+    var stem = segs.length ? segs[0].trim() : '';
+    for (var i = 1; i < segs.length && stem.length < STEM_MIN; i++) stem += ' - ' + segs[i].trim();
+    return stem;
+  }
+  AREv2.snapshotName = function (o) {
+    o = o || {};
+    var project = sanitizeFilename(o.project || '');
+    var title = sanitizeFilename(titleStem(o.title)) || 'calc';
+    var mark = sanitizeFilename(o.mark || '');
+    var date = o.date || isoDate();
+    function join() { return project + ' - ' + title + (mark ? ' - ' + mark : '') + ' - ' + date; }
+    var out = join();
+    if (out.length > NAME_MAX) { title = cutWords(title, 30); out = join(); }
+    if (out.length > NAME_MAX && mark) { mark = cutWords(mark, 20); out = join(); }
+    if (out.length > NAME_MAX) {
+      var room = NAME_MAX - (out.length - project.length);
+      project = cutWords(project, Math.max(room, 10));
+      out = join();
+    }
+    return out;
+  };
 
   var PRINT_TOGGLE_CSS =
     '.are-snap-radio{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}' +
