@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>APA Wood Structural Panel — Uniform Load Calculator</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
+.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.97em;opacity:.9}
+.hdr-mark{font-size:.9em;font-weight:600;margin-top:6px;opacity:.95;min-height:1em}
+.hdr-mark:empty{display:none}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:28px}
+.blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
+.blk.alt-blk{border-left-color:#16a34a}
+.blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-green{font-size:.7em;background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-weight:600}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
+.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input:disabled,.ig select:disabled{background:#f0f0f0;color:#999}
+.unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.hint{font-size:.75em;color:#888;margin-top:3px}
+.chk-line{display:flex;align-items:center;gap:8px;font-size:.87em;color:#333;margin-top:8px}
+.chk-line input[type=checkbox]{width:auto!important;margin:0}
+.calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
+.calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
+.results{display:none}.results.show{display:block}
+.err-box{display:none;background:#fee2e2;border:2px solid #dc2626;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#7f1d1d;font-weight:600}
+.err-box.show{display:block}
+.summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.summary h3{font-size:1.15em;margin-bottom:5px}
+.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table tr.alt-row td{background:#f0fdf4!important;border-left:3px solid #16a34a}
+.chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
+.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
+.dem-card.alt{border-color:#16a34a;background:#f0fdf4}
+.dem-card.alt .v{color:#166534}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
+.dc-fill{height:100%;border-radius:7px}
+.dc-cell{display:flex;align-items:center;gap:7px}
+.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
+.note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
+.sep{border:none;border-top:1px dashed #ccc;margin:10px 0}
+.sub-head{font-size:.8em;color:#2a5298;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:10px 0 6px 0}
+.callout{background:#fff8e1;border:1px solid #fbbf24;border-radius:6px;padding:9px 12px;font-size:.82em;color:#78350f;margin-bottom:10px}
+/* Math display */
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
+.calc-det.open{display:block}
+.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
+.det-btn:hover{background:#dbeafe}
+.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
+.ceq{color:#1e3c72;font-style:italic}
+.cval{color:#15803d;font-weight:700}
+.csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
+.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.factor-table{width:100%;border-collapse:collapse;font-size:.85em;margin-top:8px}
+.factor-table th{background:#eef2ff;color:#1e3c72;padding:6px 9px;text-align:right;border-bottom:2px solid #c7d2e8}
+.factor-table th:first-child,.factor-table td:first-child{text-align:left}
+.factor-table td{padding:6px 9px;text-align:right;border-bottom:1px solid #eee}
+.factor-table tr.final td{font-weight:700;color:#1e3c72;background:#eef2ff}
+@media(max-width:640px){.header h1{font-size:1.4em}.content{padding:16px}}
+</style>
+<link rel="stylesheet" href="./are-calc.css">
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>APA Wood Structural Panel — Uniform Load Calculator</h1>
+    <p>Checks applied uniform dead + live/snow load against APA allowable uniform loads (deflection, bending, shear) from the Load‑Span Tables</p>
+    <div class="hdr-mark" data-are-mark data-are-prefix="Mark: "></div>
+    <div class="ref-tags">
+      <span class="tag">APA Form Q225J (Dec 2024)</span>
+      <span class="tag">Panel Design Specification, Form D510 (2020)</span>
+      <span class="tag">Anderson Rohr Engineering</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="schema-wrap">
+      <svg viewBox="0 0 850 200" style="width:100%;height:auto;max-height:220px">
+        <defs>
+          <marker id="arrDn" markerWidth="7" markerHeight="7" refX="3" refY="6" orient="auto">
+            <path d="M0,0 L6,0 L3,7z" fill="#374151"/>
+          </marker>
+        </defs>
+        <!-- Elevation: panel across multiple supports with uniform load arrows -->
+        <text x="15" y="16" font-size="12" font-weight="700" fill="#1e3c72">ELEVATION — Panel Spanning Supports</text>
+        <g transform="translate(30,44)">
+          <g stroke="#374151" stroke-width="1.3">
+            <line x1="0" y1="0" x2="0" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="45" y1="0" x2="45" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="90" y1="0" x2="90" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="135" y1="0" x2="135" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="180" y1="0" x2="180" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="225" y1="0" x2="225" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="270" y1="0" x2="270" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="315" y1="0" x2="315" y2="22" marker-end="url(#arrDn)"/>
+            <line x1="360" y1="0" x2="360" y2="22" marker-end="url(#arrDn)"/>
+          </g>
+          <text x="180" y="-8" font-size="11" fill="#374151" text-anchor="middle">w = Dead + Live (psf, uniform)</text>
+          <rect x="0" y="22" width="360" height="12" fill="#d9c9a3" stroke="#8a6d3b"/>
+          <g fill="#1e3c72">
+            <polygon points="0,34 -8,52 8,52"/>
+            <polygon points="120,34 112,52 128,52"/>
+            <polygon points="240,34 232,52 248,52"/>
+            <polygon points="360,34 352,52 368,52"/>
+          </g>
+          <g stroke="#f59e0b" stroke-width="1" fill="none">
+            <line x1="0" y1="66" x2="120" y2="66"/>
+            <line x1="0" y1="60" x2="0" y2="72"/>
+            <line x1="120" y1="60" x2="120" y2="72"/>
+          </g>
+          <text x="60" y="80" font-size="11" fill="#b45309" text-anchor="middle">span = support spacing</text>
+          <text x="180" y="104" font-size="10" fill="#555" text-anchor="middle">Tables assume 3 spans (perp. ≤ 32", parallel ≤ 16") or 2 spans otherwise — Table 5 adjusts to 2-span or 1-span field conditions</text>
+        </g>
+        <!-- Cross-section : strength axis orientation -->
+        <text x="470" y="16" font-size="12" font-weight="700" fill="#1e3c72">STRENGTH AXIS ORIENTATION</text>
+        <g transform="translate(490,44)">
+          <rect x="0" y="0" width="130" height="80" fill="#f4f0e6" stroke="#8a6d3b"/>
+          <line x1="0" y1="0" x2="130" y2="80" stroke="#c9bfa5"/>
+          <text x="65" y="45" font-size="10" fill="#78350f" text-anchor="middle">panel</text>
+          <line x1="20" y1="95" x2="110" y2="95" stroke="#1e3c72" stroke-width="2"/>
+          <polygon points="110,90 120,95 110,100" fill="#1e3c72"/>
+          <text x="65" y="112" font-size="10" fill="#1e3c72" text-anchor="middle">supports run this way</text>
+        </g>
+        <g transform="translate(660,44)">
+          <text x="0" y="-2" font-size="10" fill="#555">Strength axis (long panel dim.)</text>
+          <line x1="10" y1="10" x2="10" y2="80" stroke="#dc2626" stroke-width="2"/>
+          <polygon points="5,10 10,0 15,10" fill="#dc2626"/>
+          <text x="20" y="48" font-size="9" fill="#dc2626">strength axis</text>
+          <text x="0" y="98" font-size="9" fill="#666">"Perpendicular to Supports" = strength axis crosses supports (typical roof/floor sheathing).</text>
+          <text x="0" y="112" font-size="9" fill="#666">"Parallel to Supports" = strength axis runs along the supports.</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Block 1: Panel Selection -->
+    <div class="blk">
+      <h2>1. Panel Selection <span class="badge">APA Q225J Tables 1–3</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Panel Category</label>
+          <select id="cat" onchange="onCatChange()">
+            <option value="1a">APA Rated Sheathing — Plywood (Table 1a)</option>
+            <option value="1b">APA Rated Structural I Sheathing — Plywood (Table 1b)</option>
+            <option value="1c">APA Rated Sturd-I-Floor — Plywood (Table 1c)</option>
+            <option value="1d">APA Rated Structural I Sturd-I-Floor — Plywood (Table 1d)</option>
+            <option value="2a">APA Rated OSB Sheathing (Table 2a)</option>
+            <option value="2b">APA Rated OSB Structural I Sheathing (Table 2b)</option>
+            <option value="2c">APA Rated OSB Sturd-I-Floor (Table 2c)</option>
+            <option value="2d">APA Rated OSB Structural I Sturd-I-Floor (Table 2d)</option>
+            <option value="3">Sanded Plywood — Group 1 basis (Table 3, adjusted by Table 4)</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label id="ratingLbl">Span Rating</label>
+          <select id="rating" onchange="onRatingChange()"></select>
+        </div>
+        <div class="ig" id="thicknessBlk">
+          <label>Nominal Panel Thickness <span class="unit">(Performance Category)</span></label>
+          <select id="thickness" onchange="onThicknessChange()"></select>
+        </div>
+        <div class="ig">
+          <label>Strength Axis Relative to Supports</label>
+          <select id="axis" onchange="onAxisChange()">
+            <option value="perp">Perpendicular to Supports</option>
+            <option value="para">Parallel to Supports</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Support Spacing <span class="unit">(in., center-to-center)</span></label>
+          <select id="spacing" onchange="onSpacingChange()"></select>
+        </div>
+      </div>
+      <div id="catHint" class="hint" style="margin-top:8px"></div>
+      <div id="spanHint" class="hint"></div>
+      <div id="thicknessHint" class="hint"></div>
+    </div>
+
+    <!-- Block 1b: species/grade (sanded plywood only) -->
+    <div class="blk alt-blk" id="speciesBlk" style="display:none">
+      <h2>1b. Sanded Plywood Species &amp; Grade <span class="badge-green">Table 4 Adjustment, C<sub>C</sub></span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Veneer Species Group</label>
+          <select id="species" onchange="onSpeciesChange()">
+            <option value="1">Group 1</option>
+            <option value="2">Group 2</option>
+            <option value="3">Group 3</option>
+            <option value="4">Group 4</option>
+            <option value="SI">Structural I</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Grade</label>
+          <select id="grade">
+            <option value="AA">A-A, A-C</option>
+            <option value="Marine">Marine</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">Table 3 base values are tabulated on Group 1, A‑A/A‑C design capacities. Select the actual species group and grade to apply the Table 4 adjustment factors (C<sub>C</sub>) to stiffness, bending and shear. Marine grade is always Group 1 (Table 4: NA for Groups 2–4).</div>
+    </div>
+
+    <!-- Block 2: Span / Support Condition -->
+    <div class="blk">
+      <h2>2. Span Condition <span class="badge">Table 5 Span Adjustments</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Field Span Condition</label>
+          <select id="spanCond" onchange="onSpanCondChange()">
+            <option value="tabulated">As Tabulated (multi-span, per Q225J span-count note)</option>
+            <option value="two">Two Spans (apply Table 5 "3-Span to 2-Span" where tabulated basis is 3-span)</option>
+            <option value="single">Single Span (apply Table 5 "to 1-Span" reduction)</option>
+          </select>
+        </div>
+      </div>
+      <div id="baseSpanHint" class="hint" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Block 3: Duration & Moisture -->
+    <div class="blk">
+      <h2>3. Load Duration &amp; Moisture <span class="badge">Table 5 Application Factors</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Duration of Load, C<sub>D</sub> <span class="unit">(applies to Bending &amp; Shear only)</span></label>
+          <select id="duration">
+            <option value="normal">Normal (10-yr) — C_D = 1.00 [tabulated basis]</option>
+            <option value="permanent">Permanent (&gt;10 yr) — C_D = 0.90</option>
+            <option value="twoMonth">2 Months, as for Snow — C_D = 1.15</option>
+            <option value="sevenDay">7 Days — C_D = 1.25</option>
+            <option value="windEQ">Wind or Earthquake — C_D = 1.60</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Moisture Condition, C<sub>M</sub></label>
+          <select id="moisture">
+            <option value="dry">Dry (tabulated basis, MC &lt; 16%)</option>
+            <option value="wet">Wet or Damp — Moisture Content ≥ 16%</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Block 4: Deflection criteria -->
+    <div class="blk">
+      <h2>4. Deflection Criteria</h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Live Load Deflection Limit</label>
+          <select id="liveDefl">
+            <option value="L360" selected>L/360 (typical — floor live load)</option>
+            <option value="L240">L/240 (typical — roof live/snow)</option>
+            <option value="L180">L/180</option>
+          </select>
+        </div>
+        <div class="ig">
+          <label>Total Load Deflection Limit</label>
+          <select id="totalDefl">
+            <option value="L240" selected>L/240 (typical — floor total load)</option>
+            <option value="L180">L/180 (typical — roof total load)</option>
+            <option value="L360">L/360</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">Per APA Q225J (Examples 1 and 2): allowable total load is the least of the selected total-load deflection capacity, adjusted bending capacity and adjusted shear capacity; allowable live load is the least of the selected live-load deflection capacity and (allowable total load − dead load).</div>
+    </div>
+
+    <!-- Block 5: Applied loads -->
+    <div class="blk">
+      <h2>5. Applied Design Loads <span class="badge">ASD, unfactored</span></h2>
+      <div class="g3">
+        <div class="ig">
+          <label>Superimposed Dead Load, D <span class="unit">(psf, excluding panel)</span></label>
+          <input type="number" id="deadLoad" value="10" step="0.5" min="0">
+        </div>
+        <div class="ig">
+          <label>Live / Snow / Roof Load, L <span class="unit">(psf)</span></label>
+          <input type="number" id="liveLoad" value="40" step="0.5" min="0">
+        </div>
+        <div class="ig">
+          <label>Total Applied Load <span class="unit">(psf, computed)</span></label>
+          <input type="text" id="totalLoadDisplay" disabled value="50.0">
+        </div>
+      </div>
+      <label class="chk-line"><input type="checkbox" id="inclSelfWt" onchange="updateTotalDisplay()"> <span id="selfWtLbl">Include panel self-weight in dead load (D510 Table 13)</span></label>
+    </div>
+
+    <button class="calc-btn" onclick="runCalc()">&#9654;&nbsp; Check Panel Loading</button>
+
+    <div id="errBox" class="err-box"></div>
+
+    <!-- Results -->
+    <div id="results" class="results">
+      <div id="sumBox" class="summary"></div>
+
+      <div class="blk">
+        <h2>Adjusted Allowable Panel Loads <span class="badge">at selected spacing</span></h2>
+        <div id="factorOut"></div>
+      </div>
+
+      <div class="blk"><h2>Design Demands</h2><div id="demOut"></div></div>
+
+      <div class="blk">
+        <h2>Check Results
+          <span style="font-size:.75em;font-weight:400;color:#555">
+            &mdash; click &ldquo;&#9656; Calc&rdquo; to expand any check
+          </span>
+        </h2>
+        <table class="chk-table">
+          <thead>
+            <tr><th style="width:26%">Check</th><th>Reference</th>
+            <th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th>
+            <th style="width:70px">Detail</th></tr>
+          </thead>
+          <tbody id="chkTb"></tbody>
+        </table>
+      </div>
+
+      <div class="note-box" id="noteBox">
+        <strong>Engineering Notes:</strong>
+        <ul id="noteList"></ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+/* ================================================================================================
+   APA Wood Structural Panel — Uniform Load Calculator
+   Data: APA Technical Note Q225J (Dec 2024) Tables 1a–2d, 3, 4, 5; APA Panel Design Specification
+   D510F (2020) Tables 6, 8, 12, 13 and §4.7.  All table values verified against the source PDFs
+   on 2026-09-04 (see QAQC report).  Engine is DOM-free: APA.compute(inputs) → results object.
+   ================================================================================================ */
+const RAW_TABLES = {"1a":{"label":"APA Rated Sheathing — Plywood","order":["24/0","32/16","40/20","48/24"],"data":{"24/0":{"L360":[287,108,59,29,14,11,10,null,null,null,16,null,null],"L240":[431,162,89,43,21,17,15,null,null,null,23,null,null],"L180":[574,216,118,57,28,23,20,null,null,null,31,null,null],"Bending":[208,117,81,52,33,29,19,null,null,null,45,null,null],"Shear":[295,214,175,138,109,102,86,null,null,null,524,null,null]},"32/16":{"L360":[544,205,112,54,27,22,19,14,null,null,35,13,null],"L240":[816,307,168,81,40,32,29,21,null,null,53,20,null],"L180":[1088,409,224,108,53,43,38,27,null,null,70,27,null],"Bending":[308,173,120,77,49,43,27,22,null,null,77,43,null],"Shear":[381,276,226,178,140,131,111,100,null,null,314,228,null]},"40/20":{"L360":[1088,409,224,108,53,43,38,27,18,null,78,29,10],"L240":[1631,614,336,163,80,65,57,41,27,null,117,44,15],"L180":[2175,818,448,217,106,87,76,55,36,null,157,59,20],"Bending":[521,293,203,130,83,73,46,38,26,null,125,70,25],"Shear":[467,338,277,218,172,161,136,122,106,null,390,283,175]},"48/24":{"L360":[1914,720,394,191,94,76,67,48,31,15,283,106,36],"L240":[2871,1080,591,286,140,114,100,72,47,23,424,160,54],"L180":[3828,1440,788,382,187,152,134,96,63,31,566,213,72],"Bending":[775,436,303,194,124,109,69,56,39,25,225,127,45],"Shear":[571,414,339,267,211,197,167,150,129,102,476,345,213]}}},"1b":{"label":"APA Rated Structural I Sheathing — Plywood","order":["24/0","32/16","40/20","48/24"],"data":{"24/0":{"L360":[287,108,59,29,14,11,10,null,null,null,23,null,null],"L240":[431,162,89,43,21,17,15,null,null,null,35,null,null],"L180":[574,216,118,57,28,23,20,null,null,null,47,null,null],"Bending":[208,117,81,52,33,29,19,null,null,null,59,null,null],"Shear":[413,299,245,193,152,142,121,null,null,null,733,null,null]},"32/16":{"L360":[544,205,112,54,27,22,19,14,null,null,117,44,15],"L240":[816,307,168,81,40,32,29,21,null,null,176,66,22],"L180":[1088,409,224,108,53,43,38,27,null,null,235,88,30],"Bending":[338,190,132,84,54,47,30,24,null,null,128,72,26],"Shear":[533,386,316,249,196,184,156,140,null,null,314,228,141]},"40/20":{"L360":[1088,409,224,108,53,43,38,27,18,null,390,147,50],"L240":[1631,614,336,163,80,65,57,41,27,null,585,220,74],"L180":[2175,818,448,217,106,87,76,55,36,null,780,293,99],"Bending":[625,352,244,156,100,88,56,45,31,null,338,190,68],"Shear":[707,512,419,330,260,243,206,185,160,null,390,283,175]},"48/24":{"L360":[1914,720,394,191,94,76,67,48,31,15,637,240,81],"L240":[2871,1080,591,286,140,114,100,72,47,23,955,359,121],"L180":[3828,1440,788,382,187,152,134,96,63,31,1274,479,162],"Bending":[833,469,326,208,133,117,74,60,42,27,506,285,101],"Shear":[867,628,514,404,319,298,253,227,196,155,476,345,213]}}},"1c":{"label":"APA Rated Sturd-I-Floor — Plywood","order":["20 o.c.","24 o.c.","32 o.c.","48 o.c."],"data":{"20 o.c.":{"L360":[1001,376,206,100,49,40,35,25,16,null,124,47,16],"L240":[1501,565,309,150,73,60,53,38,25,null,186,70,24],"L180":[2001,753,412,200,98,80,70,50,33,null,248,93,31],"Bending":[442,248,173,110,71,62,39,32,22,null,142,80,28],"Shear":[467,338,277,218,172,161,136,122,106,null,390,283,175]},"24 o.c.":{"L360":[1436,540,295,143,70,57,50,36,24,11,248,93,31],"L240":[2154,810,443,215,105,86,75,54,35,17,372,140,47],"L180":[2871,1080,591,286,140,114,100,72,47,23,496,187,63],"Bending":[588,330,229,147,94,83,52,42,29,19,217,122,43],"Shear":[571,414,339,267,211,197,167,150,129,102,476,345,213]},"32 o.c.":{"L360":[3111,1170,640,310,152,124,109,78,51,25,1022,385,130],"L240":[4666,1755,960,465,228,186,163,117,77,37,1534,577,195],"L180":[6221,2340,1280,620,304,248,218,156,102,50,2045,769,260],"Bending":[875,492,342,219,140,123,78,63,44,28,571,321,114],"Shear":[743,538,441,347,274,256,217,194,168,133,571,414,256]},"48 o.c.":{"L360":[5503,2070,1133,549,269,219,193,138,90,44,2154,810,273],"L240":[8255,3105,1699,823,403,329,289,208,135,66,3230,1215,410],"L180":[11007,4141,2265,1097,538,438,385,277,181,88,4307,1620,547],"Bending":[1583,891,618,396,253,223,141,114,79,51,1000,563,200],"Shear":[952,690,565,444,351,328,278,249,216,170,733,531,329]}}},"1d":{"label":"APA Rated Structural I Sturd-I-Floor — Plywood","order":["20 o.c.","24 o.c.","32 o.c.","48 o.c."],"data":{"20 o.c.":{"L360":[1001,376,206,100,49,40,35,25,16,null,282,106,36],"L240":[1501,565,309,150,73,60,53,38,25,null,423,159,54],"L180":[2001,753,412,200,98,80,70,50,33,null,564,212,72],"Bending":[479,270,187,120,77,67,43,35,24,null,313,176,63],"Shear":[707,512,419,330,260,243,206,185,160,null,390,283,175]},"24 o.c.":{"L360":[1436,540,295,143,70,57,50,36,24,11,560,211,71],"L240":[2154,810,443,215,105,86,75,54,35,17,841,316,107],"L180":[2871,1080,591,286,140,114,100,72,47,23,1121,422,142],"Bending":[642,361,251,160,103,90,57,46,32,21,481,271,96],"Shear":[867,628,514,404,319,298,253,227,196,155,476,345,213]},"32 o.c.":{"L360":[3111,1170,640,310,152,124,109,78,51,25,1636,615,208],"L240":[4666,1755,960,465,228,186,163,117,77,37,2454,923,312],"L180":[6221,2340,1280,620,304,248,218,156,102,50,3272,1231,415],"Bending":[875,492,342,219,140,123,78,63,44,28,856,482,171],"Shear":[1040,753,617,485,383,358,304,272,236,186,571,414,256]},"48 o.c.":{"L360":[5503,2070,1133,549,269,219,193,138,90,44,3446,1296,438],"L240":[8255,3105,1699,823,403,329,289,208,135,66,5168,1944,656],"L180":[11007,4141,2265,1097,538,438,385,277,181,88,6891,2592,875],"Bending":[1583,891,618,396,253,223,141,114,79,51,1500,844,300],"Shear":[1333,966,791,622,491,459,390,349,302,238,733,531,329]}}},"2a":{"label":"APA Rated OSB Sheathing","order":["W24","24/0","24/16","32/16","40/20","48/24"],"data":{"W24":{"L360":[226,85,47,23,null,null,null,null,null,null,48,18,null],"L240":[339,128,70,34,null,null,null,null,null,null,72,27,null],"L180":[452,170,93,45,null,null,null,null,null,null,96,36,null],"Bending":[250,141,98,63,null,null,null,null,null,null,81,45,null],"Shear":[248,179,147,116,null,null,null,null,null,null,248,179,null]},"24/0":{"L360":[261,98,54,26,13,10,null,null,null,null,48,18,null],"L240":[392,147,81,39,19,16,null,null,null,null,72,27,null],"L180":[522,196,107,52,26,21,null,null,null,null,96,36,null],"Bending":[250,141,98,63,40,35,null,null,null,null,81,45,null],"Shear":[248,179,147,116,91,85,null,null,null,null,248,179,null]},"24/16":{"L360":[339,128,70,34,17,14,12,null,null,null,70,26,null],"L240":[509,191,105,51,25,20,18,null,null,null,104,39,null],"L180":[679,255,140,68,33,27,24,null,null,null,139,52,null],"Bending":[321,180,125,80,51,45,29,null,null,null,96,54,null],"Shear":[286,207,169,133,105,98,83,null,null,null,286,207,null]},"32/16":{"L360":[500,188,103,50,24,20,18,13,null,null,109,41,14],"L240":[750,282,154,75,37,30,26,19,null,null,163,61,21],"L180":[1001,376,206,100,49,40,35,25,null,null,218,82,28],"Bending":[371,209,145,93,59,52,33,27,null,null,138,77,28],"Shear":[314,228,186,147,116,108,92,82,null,null,314,228,141]},"40/20":{"L360":[870,327,179,87,43,35,30,22,14,null,244,92,31],"L240":[1305,491,269,130,64,52,46,33,21,null,365,137,46],"L180":[1740,655,358,174,85,69,61,44,29,null,487,183,62],"Bending":[625,352,244,156,100,88,56,45,31,null,225,127,45],"Shear":[390,283,232,182,144,134,114,102,88,null,390,283,175]},"48/24":{"L360":[1523,573,313,152,74,61,53,38,25,12,398,150,51],"L240":[2284,859,470,228,112,91,80,57,37,18,597,225,76],"L180":[3045,1146,627,304,149,121,107,77,50,24,796,300,101],"Bending":[833,469,326,208,133,117,74,60,42,27,338,190,68],"Shear":[476,345,282,222,175,164,139,125,108,85,476,345,213]}}},"2b":{"label":"APA Rated OSB Structural I Sheathing","order":["24/0","24/16","32/16","40/20","48/24"],"data":{"24/0":{"L360":[261,98,54,26,13,10,null,null,null,null,77,29,10],"L240":[392,147,81,39,19,16,null,null,null,null,115,43,15],"L180":[522,196,107,52,26,21,null,null,null,null,153,58,19],"Bending":[250,141,98,63,40,35,null,null,null,null,121,68,24],"Shear":[248,179,147,116,91,85,null,null,null,null,248,179,111]},"24/16":{"L360":[339,128,70,34,17,14,12,null,null,null,111,42,14],"L240":[509,191,105,51,25,20,18,null,null,null,167,63,21],"L180":[679,255,140,68,33,27,24,null,null,null,223,84,28],"Bending":[321,180,125,80,51,45,29,null,null,null,144,81,29],"Shear":[286,207,169,133,105,98,83,null,null,null,286,207,128]},"32/16":{"L360":[500,188,103,50,24,20,18,13,null,null,174,65,22],"L240":[750,282,154,75,37,30,26,19,null,null,261,98,33],"L180":[1001,376,206,100,49,40,35,25,null,null,348,131,44],"Bending":[371,209,145,93,59,52,33,27,null,null,206,116,41],"Shear":[314,228,186,147,116,108,92,82,null,null,314,228,141]},"40/20":{"L360":[870,327,179,87,43,35,30,22,14,null,390,147,50],"L240":[1305,491,269,130,64,52,46,33,21,null,585,220,74],"L180":[1740,655,358,174,85,69,61,44,29,null,780,293,99],"Bending":[625,352,244,156,100,88,56,45,31,null,338,190,68],"Shear":[390,283,232,182,144,134,114,102,88,null,390,283,175]},"48/24":{"L360":[1523,573,313,152,74,61,53,38,25,12,637,240,81],"L240":[2284,859,470,228,112,91,80,57,37,18,955,359,121],"L180":[3045,1146,627,304,149,121,107,77,50,24,1274,479,162],"Bending":[833,469,326,208,133,117,74,60,42,27,506,285,101],"Shear":[476,345,282,222,175,164,139,125,108,85,476,345,213]}}},"2c":{"label":"APA Rated OSB Sturd-I-Floor","order":["20 o.c.","24 o.c.","32 o.c.","48 o.c."],"data":{"20 o.c.":{"L360":[848,319,175,85,41,34,30,21,14,null,176,66,22],"L240":[1273,479,262,127,62,51,45,32,21,null,264,99,34],"L180":[1697,638,349,169,83,68,59,43,28,null,352,133,45],"Bending":[479,270,187,120,77,67,43,35,24,null,208,117,42],"Shear":[390,283,232,182,144,134,114,102,88,null,390,283,175]},"24 o.c.":{"L360":[1305,491,269,130,64,52,46,33,21,10,350,132,44],"L240":[1958,736,403,195,96,78,69,49,32,16,525,198,67],"L180":[2610,982,537,260,128,104,91,66,43,21,700,263,89],"Bending":[642,361,251,160,103,90,57,46,32,21,321,180,64],"Shear":[476,345,282,222,175,164,139,125,108,85,476,345,213]},"32 o.c.":{"L360":[2828,1064,582,282,138,113,99,71,46,23,1022,385,130],"L240":[4242,1596,873,423,207,169,148,107,70,34,1534,577,195],"L180":[5656,2128,1164,564,276,225,198,142,93,45,2045,769,260],"Bending":[875,492,342,219,140,123,78,63,44,28,571,321,114],"Shear":[571,414,339,267,211,197,167,150,129,102,571,414,256]},"48 o.c.":{"L360":[5003,1882,1030,499,244,199,175,126,82,40,2154,810,273],"L240":[7505,2823,1545,748,367,299,263,189,123,60,3230,1215,410],"L180":[10006,3764,2060,998,489,399,350,252,164,80,4307,1620,547],"Bending":[1583,891,618,396,253,223,141,114,79,51,1000,563,200],"Shear":[733,531,435,342,270,252,214,192,166,131,733,531,329]}}},"2d":{"label":"APA Rated OSB Structural I Sturd-I-Floor","order":["20 o.c.","24 o.c.","32 o.c.","48 o.c."],"data":{"20 o.c.":{"L360":[848,319,175,85,41,34,30,21,14,null,282,106,36],"L240":[1273,479,262,127,62,51,45,32,21,null,423,159,54],"L180":[1697,638,349,169,83,68,59,43,28,null,564,212,72],"Bending":[479,270,187,120,77,67,43,35,24,null,313,176,63],"Shear":[390,283,232,182,144,134,114,102,88,null,390,283,175]},"24 o.c.":{"L360":[1305,491,269,130,64,52,46,33,21,10,560,211,71],"L240":[1958,736,403,195,96,78,69,49,32,16,841,316,107],"L180":[2610,982,537,260,128,104,91,66,43,21,1121,422,142],"Bending":[642,361,251,160,103,90,57,46,32,21,481,271,96],"Shear":[476,345,282,222,175,164,139,125,108,85,476,345,213]},"32 o.c.":{"L360":[2828,1064,582,282,138,113,99,71,46,23,1636,615,208],"L240":[4242,1596,873,423,207,169,148,107,70,34,2454,923,312],"L180":[5656,2128,1164,564,276,225,198,142,93,45,3272,1231,415],"Bending":[875,492,342,219,140,123,78,63,44,28,856,482,171],"Shear":[571,414,339,267,211,197,167,150,129,102,571,414,256]},"48 o.c.":{"L360":[5003,1882,1030,499,244,199,175,126,82,40,3446,1296,438],"L240":[7505,2823,1545,748,367,299,263,189,123,60,5168,1944,656],"L180":[10006,3764,2060,998,489,399,350,252,164,80,6891,2592,875],"Bending":[1583,891,618,396,253,223,141,114,79,51,1500,844,300],"Shear":[733,531,435,342,270,252,214,192,166,131,733,531,329]}}},"3":{"label":"Sanded Plywood — Group 1 (A-A, A-C basis; adjust via species/grade)","order":["1/4","11/32","3/8","15/32","1/2","19/32","5/8","23/32","3/4","7/8","1","1-1/8"],"data":{"1/4":{"L360":[65,25,13,null,null,null,null,null,null,null,null,null,null],"L240":[98,37,20,null,null,null,null,null,null,null,null,null,null],"L180":[131,49,27,null,null,null,null,null,null,null,null,null,null],"Bending":[96,54,37,null,null,null,null,null,null,null,null,null,null],"Shear":[200,145,119,null,null,null,null,null,null,null,null,null,null]},"11/32":{"L360":[148,56,30,15,null,null,null,null,null,null,null,null,null],"L240":[222,83,46,22,null,null,null,null,null,null,null,null,null],"L180":[296,111,61,29,null,null,null,null,null,null,null,null,null],"Bending":[154,87,60,39,null,null,null,null,null,null,null,null,null],"Shear":[276,200,164,129,null,null,null,null,null,null,null,null,null]},"3/8":{"L360":[213,80,44,21,10,null,null,null,null,null,12,null,null],"L240":[320,120,66,32,16,null,null,null,null,null,18,null,null],"L180":[426,160,88,43,21,null,null,null,null,null,24,null,null],"Bending":[204,115,80,51,33,null,null,null,null,null,37,null,null],"Shear":[314,228,186,147,116,null,null,null,null,null,314,null,null]},"15/32":{"L360":[522,196,107,52,26,21,18,13,null,null,48,18,null],"L240":[783,295,161,78,38,31,27,20,null,null,72,27,null],"L180":[1044,393,215,104,51,42,37,26,null,null,96,36,null],"Bending":[354,199,138,89,57,50,31,26,null,null,108,61,null],"Shear":[419,303,249,196,154,144,122,110,null,null,419,303,null]},"1/2":{"L360":[609,229,125,61,30,24,21,15,10,null,67,25,null],"L240":[914,344,188,91,45,36,32,23,15,null,101,38,null],"L180":[1218,458,251,121,60,49,43,31,20,null,135,51,null],"Bending":[392,220,153,98,63,55,35,28,20,null,146,82,null],"Shear":[448,324,266,209,165,154,131,117,101,null,448,324,null]},"19/32":{"L360":[892,336,184,89,44,36,31,22,15,null,163,61,21],"L240":[1338,503,275,133,65,53,47,34,22,null,245,92,31],"L180":[1784,671,367,178,87,71,62,45,29,null,326,123,41],"Bending":[521,293,203,130,83,73,46,38,26,null,225,127,45],"Shear":[552,400,328,258,204,190,161,145,125,null,552,400,247]},"5/8":{"L360":[1001,376,206,100,49,40,35,25,16,null,211,79,27],"L240":[1501,565,309,150,73,60,53,38,25,null,317,119,40],"L180":[2001,753,412,200,98,80,70,50,33,null,422,159,54],"Bending":[558,314,218,140,89,79,50,40,28,null,271,152,54],"Shear":[590,428,350,276,218,203,173,155,134,null,590,428,265]},"23/32":{"L360":[1392,524,287,139,68,55,49,35,23,11,394,148,50],"L240":[2088,786,430,208,102,83,73,53,34,17,591,222,75],"L180":[2784,1047,573,278,136,111,97,70,46,22,787,296,100],"Bending":[646,363,252,161,103,91,57,47,32,21,379,213,76],"Shear":[667,483,395,311,246,230,195,175,151,119,667,483,299]},"3/4":{"L360":[1544,581,318,154,75,62,54,39,25,12,500,188,64],"L240":[2317,871,477,231,113,92,81,58,38,19,750,282,95],"L180":[3089,1162,636,308,151,123,108,78,51,25,1001,376,127],"Bending":[679,382,265,170,109,96,60,49,34,22,471,265,94],"Shear":[686,497,407,320,253,236,200,180,155,122,686,497,307]},"7/8":{"L360":[2175,818,448,217,106,87,76,55,36,17,805,303,102],"L240":[3263,1227,672,325,159,130,114,82,54,26,1207,454,153],"L180":[4351,1637,895,434,213,173,152,109,71,35,1610,606,204],"Bending":[833,469,326,208,133,117,74,60,42,27,650,366,130],"Shear":[810,586,480,378,298,279,237,212,183,144,810,586,363]},"1":{"L360":[3306,1244,681,330,162,132,116,83,54,26,1436,540,182],"L240":[4960,1866,1021,495,242,198,174,125,81,40,2154,810,273],"L180":[6613,2488,1361,659,323,263,231,166,109,53,2871,1080,365],"Bending":[1083,609,423,271,173,152,96,78,54,35,958,539,192],"Shear":[895,648,531,418,330,308,262,234,203,160,895,648,401]},"1-1/8":{"L360":[4285,1612,882,427,209,171,150,108,70,34,2132,802,271],"L240":[6428,2418,1323,641,314,256,225,162,105,51,3198,1203,406],"L180":[8571,3224,1764,855,419,341,300,216,141,68,4264,1604,541],"Bending":[1333,750,521,333,213,188,119,96,67,43,1250,703,250],"Shear":[1000,724,593,467,368,344,292,262,227,178,1000,724,448]}}}};
+
+const SPACINGS_PERP = [12,16,19.2,24,30,32,36,40,48,60];
+const SPACINGS_PARA = [12,16,24];
+
+// Q225J Table 4 — Sanded Plywood Panel Adjustments, C_C (Species Group x Grade x Axis)
+// stiff = applies to L/360, L/240, L/180 ; bend = Bending ; shear = Shear ; null = NA
+const CC = {
+  '1':  { perp:{AA:{stiff:1.00,bend:1.00,shear:1.00}, Marine:{stiff:1.00,bend:0.91,shear:1.29}, Other:{stiff:1.00,bend:0.83,shear:1.00}},
+          para:{AA:{stiff:1.00,bend:1.00,shear:1.00}, Marine:{stiff:1.38,bend:1.15,shear:1.29}, Other:{stiff:1.00,bend:0.82,shear:1.00}} },
+  '2':  { perp:{AA:{stiff:0.83,bend:0.70,shear:1.00}, Marine:null, Other:{stiff:0.83,bend:0.61,shear:1.00}},
+          para:{AA:{stiff:0.83,bend:0.70,shear:1.00}, Marine:null, Other:{stiff:0.83,bend:0.60,shear:1.00}} },
+  '3':  { perp:{AA:{stiff:0.67,bend:0.70,shear:1.00}, Marine:null, Other:{stiff:0.67,bend:0.61,shear:1.00}},
+          para:{AA:{stiff:0.67,bend:0.70,shear:1.00}, Marine:null, Other:{stiff:0.67,bend:0.60,shear:1.00}} },
+  '4':  { perp:{AA:{stiff:0.56,bend:0.67,shear:1.00}, Marine:null, Other:{stiff:0.56,bend:0.56,shear:1.00}},
+          para:{AA:{stiff:0.56,bend:0.67,shear:1.00}, Marine:null, Other:{stiff:0.56,bend:0.55,shear:1.00}} },
+  'SI': { perp:{AA:{stiff:1.00,bend:1.00,shear:1.30}, Marine:{stiff:1.00,bend:1.00,shear:1.00}, Other:{stiff:1.00,bend:1.10,shear:1.30}},
+          para:{AA:{stiff:1.40,bend:1.40,shear:1.40}, Marine:{stiff:1.00,bend:1.00,shear:1.00}, Other:{stiff:1.40,bend:1.40,shear:1.40}} }
+};
+
+// Q225J Table 5 — Application Adjustment Factors
+const DURATION = { // C_D applies to Bending & Shear only (D510 Table 6)
+  normal:    {v:1.00, label:'Normal (10-yr, tabulated basis)'},
+  permanent: {v:0.90, label:'Permanent (>10 yr)'},
+  twoMonth:  {v:1.15, label:'2 Months, as for Snow'},
+  sevenDay:  {v:1.25, label:'7 Days'},
+  windEQ:    {v:1.60, label:'Wind or Earthquake'}
+};
+const SPAN_ADJ = {
+  '2to1': {defl:0.42, bend:1.00, shear:1.25, label:'2-Span to 1-Span'},
+  '3to1': {defl:0.53, bend:0.80, shear:1.20, label:'3-Span to 1-Span'},
+  '3to2': {defl:1.28, bend:0.80, shear:0.96, label:'3-Span to 2-Span'}
+};
+const WET_CM = {defl:0.85, bend:0.75, shear:0.75};   // Table 5 / D510 Table 8 (stiffness 0.85, strength 0.75)
+
+// Q225J p.2 / D510 §4.7.1 span-count basis of the tabulated values
+function baseSpanCount(axis, spacing){
+  if (axis === 'perp') return spacing <= 32 ? 3 : 2;
+  return spacing <= 16 ? 3 : 2; // parallel: 3-span ≤ 16", 2-span at 24"
+}
+
+// D510 Table 12 — Performance Category by span rating (options thinnest→thickest; predominant = bold in D510)
+const THICKNESS_BY_RATING = {
+  sheathing: {
+    'W24':   {options:['3/8','7/16','15/32'],              predominant:'3/8'},
+    '24/0':  {options:['3/8','7/16','15/32','1/2'],        predominant:'3/8'},
+    '24/16': {options:['7/16','15/32','1/2'],               predominant:'7/16'},
+    '32/16': {options:['15/32','1/2','19/32','5/8'],        predominant:'15/32'},
+    '40/20': {options:['19/32','5/8','23/32','3/4'],        predominant:'19/32'},
+    '48/24': {options:['23/32','3/4','7/8'],                predominant:'23/32'}
+  },
+  floor: {
+    '16 o.c.': {options:['19/32','5/8'],       predominant:'19/32'},
+    '20 o.c.': {options:['19/32','5/8'],       predominant:'19/32'},
+    '24 o.c.': {options:['23/32','3/4'],       predominant:'23/32'},
+    '32 o.c.': {options:['7/8','1'],            predominant:'7/8'},
+    '48 o.c.': {options:['1-1/8'],              predominant:'1-1/8'}
+  }
+};
+// D510 Table 13 — approximate panel weight (psf) by Performance Category
+const THICKNESS_WEIGHT = {
+  '3/8':   {ply:1.1, osb:1.2},
+  '7/16':  {ply:1.3, osb:1.4},
+  '15/32': {ply:1.4, osb:1.5},
+  '1/2':   {ply:1.5, osb:1.7},
+  '19/32': {ply:1.8, osb:2.0},
+  '5/8':   {ply:1.9, osb:2.1},
+  '23/32': {ply:2.2, osb:2.4},
+  '3/4':   {ply:2.3, osb:2.5},
+  '7/8':   {ply:2.6, osb:2.9},
+  '1':     {ply:3.0, osb:3.3},
+  '1-1/8': {ply:3.4, osb:3.7}
+};
+const CAT_GROUP    = {'1a':'sheathing','1b':'sheathing','1c':'floor','1d':'floor','2a':'sheathing','2b':'sheathing','2c':'floor','2d':'floor'};
+const CAT_MATERIAL = {'1a':'ply','1b':'ply','1c':'ply','1d':'ply','2a':'osb','2b':'osb','2c':'osb','2d':'osb','3':'ply'};
+
+function colIndex(axis, spacing){
+  if (axis === 'perp') return SPACINGS_PERP.indexOf(spacing);
+  var j = SPACINGS_PARA.indexOf(spacing);
+  return j < 0 ? -1 : 10 + j;
+}
+function panelWeight(cat, thickness){
+  var w = THICKNESS_WEIGHT[thickness];
+  if (!w) return null;
+  return CAT_MATERIAL[cat] === 'osb' ? w.osb : w.ply;
+}
+
+// ---------- Pure engine ----------
+var APA = { TABLES: RAW_TABLES, CC: CC, DURATION: DURATION, SPAN_ADJ: SPAN_ADJ, WET_CM: WET_CM,
+            baseSpanCount: baseSpanCount, panelWeight: panelWeight };
+
+/**
+ * inputs: {cat, rating, thickness, axis, spacing, species, grade, spanCond ('tabulated'|'two'|'single'),
+ *          duration, moisture ('dry'|'wet'), liveDefl, totalDefl, deadInput, live, inclSelfWt}
+ * returns {ok:false, error} or the full results object.
+ */
+APA.compute = function (inp) {
+  var tblMeta = RAW_TABLES[inp.cat];
+  if (!tblMeta) return {ok:false, error:'Unknown panel category.'};
+  var tbl = tblMeta.data[inp.rating];
+  if (!tbl) return {ok:false, error:'Unknown span rating / thickness "' + inp.rating + '" for ' + tblMeta.label + '.'};
+  var spacing = parseFloat(inp.spacing);
+  var ci = colIndex(inp.axis, spacing);
+  if (!isFinite(spacing) || ci < 0) return {ok:false, error:'Select a valid support spacing.'};
+
+  var raw = { L360:tbl.L360[ci], L240:tbl.L240[ci], L180:tbl.L180[ci], Bending:tbl.Bending[ci], Shear:tbl.Shear[ci] };
+  if (raw.L180 == null || raw.Bending == null || raw.Shear == null){
+    return {ok:false, error:'APA Q225J publishes no uniform-load values for ' + tblMeta.label + ' ' + inp.rating +
+      ' at ' + spacing + '" o.c. ' + (inp.axis==='perp'?'perpendicular':'parallel') + ' to supports. Choose a listed spacing or orientation.'};
+  }
+
+  // Table 4 species / grade adjustment — sanded plywood only
+  var speciesFactors = {stiff:1, bend:1, shear:1}, speciesLabel = null;
+  if (inp.cat === '3'){
+    var byAxis = CC[inp.species] && CC[inp.species][inp.axis];
+    var f = byAxis ? byAxis[inp.grade] : undefined;
+    if (f === undefined) return {ok:false, error:'Unknown species group / grade combination.'};
+    if (f === null) return {ok:false, error:'Marine grade is Not Applicable (NA) for Species Group ' + inp.species +
+      ' per Table 4 — Marine grade is always Group 1. Choose Group 1 or Structural I, or a different grade.'};
+    speciesFactors = f;
+    speciesLabel = 'Group ' + inp.species + ', ' + (inp.grade==='AA'?'A-A/A-C':inp.grade) + ' (' + (inp.axis==='perp'?'perp.':'parallel') + ')';
+  }
+
+  // Table 5 span adjustment
+  var base = baseSpanCount(inp.axis, spacing);
+  var spanKey = null;
+  if (inp.spanCond === 'single') spanKey = base === 3 ? '3to1' : '2to1';
+  else if (inp.spanCond === 'two') spanKey = base === 3 ? '3to2' : null;
+  var spanFactors = spanKey ? SPAN_ADJ[spanKey] : {defl:1, bend:1, shear:1};
+  var fieldSpans = inp.spanCond === 'single' ? 1 : inp.spanCond === 'two' ? 2 : base;
+  var spanLabel = spanKey
+    ? SPAN_ADJ[spanKey].label + ' (tabulated ' + base + '-span → ' + fieldSpans + '-span)'
+    : (inp.spanCond === 'two' && base === 2
+        ? 'Two spans — same as tabulated basis (2-span), no adjustment'
+        : 'As Tabulated (' + base + '-span, no adjustment)');
+
+  // Duration (bending & shear only) and moisture
+  var dur = DURATION[inp.duration] || DURATION.normal;
+  var durFactor = dur.v;
+  var wet = inp.moisture === 'wet';
+  var wetFactors = wet ? WET_CM : {defl:1, bend:1, shear:1};
+
+  var deflMult  = speciesFactors.stiff * spanFactors.defl  * wetFactors.defl;
+  var bendMult  = speciesFactors.bend  * spanFactors.bend  * durFactor * wetFactors.bend;
+  var shearMult = speciesFactors.shear * spanFactors.shear * durFactor * wetFactors.shear;
+
+  var adj = {
+    L360: raw.L360 == null ? null : raw.L360 * deflMult,
+    L240: raw.L240 == null ? null : raw.L240 * deflMult,
+    L180: raw.L180 * deflMult,
+    Bending: raw.Bending * bendMult,
+    Shear: raw.Shear * shearMult
+  };
+  var liveDeflKey = inp.liveDefl, totalDeflKey = inp.totalDefl;
+  if (adj[totalDeflKey] == null || adj[liveDeflKey] == null)
+    return {ok:false, error:'No tabulated value for the selected deflection limit at this spacing.'};
+
+  // Loads
+  var deadInput = Math.max(0, parseFloat(inp.deadInput) || 0);
+  var live = Math.max(0, parseFloat(inp.live) || 0);
+  var selfWt = 0;
+  if (inp.inclSelfWt){
+    var pw = panelWeight(inp.cat, inp.thickness);
+    if (pw != null) selfWt = pw;
+  }
+  var dead = deadInput + selfWt;
+  var total = dead + live;
+
+  // Allowable total load = least of (selected total-defl capacity, bending, shear)
+  var totalCandidates = [
+    {v: adj[totalDeflKey], src: totalDeflKey},
+    {v: adj.Bending, src: 'Bending'},
+    {v: adj.Shear, src: 'Shear'}
+  ];
+  var allowTotal = totalCandidates[0], i;
+  for (i = 1; i < totalCandidates.length; i++) if (totalCandidates[i].v < allowTotal.v) allowTotal = totalCandidates[i];
+
+  // Allowable live load = least of (selected live-defl capacity, allowable total − dead)
+  var liveFromTotal = allowTotal.v - dead;
+  var allowLive = {v: adj[liveDeflKey], src: liveDeflKey};
+  if (liveFromTotal < allowLive.v) allowLive = {v: liveFromTotal, src: 'Total − Dead'};
+
+  var dcTotal = total / allowTotal.v;
+  var dcLive = allowLive.v > 0 ? live / allowLive.v : (live > 0 || allowLive.v < 0 ? Infinity : 1);
+  var passTotal = dcTotal <= 1.0;
+  var passLive = isFinite(dcLive) && dcLive <= 1.0;
+
+  return {
+    ok: true,
+    cat: inp.cat, tableLabel: tblMeta.label, rating: inp.rating, thickness: inp.thickness,
+    axis: inp.axis, spacing: spacing, base: base, fieldSpans: fieldSpans,
+    raw: raw, adj: adj,
+    speciesFactors: speciesFactors, speciesLabel: speciesLabel,
+    spanKey: spanKey, spanFactors: spanFactors, spanLabel: spanLabel, spanCond: inp.spanCond,
+    durKey: inp.duration, durFactor: durFactor, durLabel: dur.label,
+    wet: wet, wetFactors: wetFactors,
+    deflMult: deflMult, bendMult: bendMult, shearMult: shearMult,
+    liveDeflKey: liveDeflKey, totalDeflKey: totalDeflKey,
+    deadInput: deadInput, selfWt: selfWt, dead: dead, live: live, total: total,
+    allowTotal: allowTotal.v, allowTotalSrc: allowTotal.src,
+    liveFromTotal: liveFromTotal,
+    allowLive: allowLive.v, allowLiveSrc: allowLive.src,
+    dcTotal: dcTotal, dcLive: dcLive, passTotal: passTotal, passLive: passLive,
+    pass: passTotal && passLive,
+    maxDC: Math.max(dcTotal, dcLive)
+  };
+};
+
+// ---------- Number / math display helpers ----------
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function deflName(k){ return k.replace('L','L/'); }
+function toggleDet(i){
+  var el=document.getElementById('det_'+i);
+  var btn=document.getElementById('dbtn_'+i);
+  var open=el.classList.toggle('open');
+  btn.textContent=open?'▾ Calc':'▶ Calc';
+}
+function showError(msg){
+  var eb = document.getElementById('errBox');
+  eb.textContent = msg;
+  eb.classList.add('show');
+  document.getElementById('results').className = 'results';
+}
+function clearError(){
+  var eb = document.getElementById('errBox');
+  eb.textContent = '';
+  eb.classList.remove('show');
+}
+
+// ---------- UI population ----------
+function onCatChange(){
+  var cat = document.getElementById('cat').value;
+  var tbl = RAW_TABLES[cat];
+  var ratingSel = document.getElementById('rating');
+  ratingSel.innerHTML = '';
+  tbl.order.forEach(function(r){
+    var opt = document.createElement('option');
+    opt.value = r; opt.textContent = r;
+    ratingSel.appendChild(opt);
+  });
+  document.getElementById('ratingLbl').textContent = (cat === '3') ? 'Nominal Panel Thickness' : 'Span Rating';
+  document.getElementById('speciesBlk').style.display = (cat === '3') ? 'block' : 'none';
+  // For category 3 (sanded plywood) the "rating" dropdown IS the nominal thickness —
+  // hide the separate thickness selector to avoid a duplicate field.
+  document.getElementById('thicknessBlk').style.display = (cat === '3') ? 'none' : 'flex';
+  var hint = '';
+  if (cat === '2a') hint = 'Table 2a footnote (e): the wall-sheathing deflection limits (L/360, L/240, L/180 rows) are not a code requirement — for wall applications the bending and shear rows govern. Footnote (d): W24 is not recommended for roof or floor applications.';
+  document.getElementById('catHint').textContent = hint;
+  onRatingChange();
+}
+
+function onRatingChange(){
+  populateThickness();
+  onAxisChange();
+}
+
+function populateThickness(){
+  var cat = document.getElementById('cat').value;
+  var sel = document.getElementById('thickness');
+  if (cat === '3'){
+    sel.innerHTML = '';
+    document.getElementById('thicknessHint').textContent = '';
+    updateWeightHint();
+    return;
+  }
+  var rating = document.getElementById('rating').value;
+  var group = CAT_GROUP[cat];
+  var entry = THICKNESS_BY_RATING[group] && THICKNESS_BY_RATING[group][rating];
+  sel.innerHTML = '';
+  if (!entry){
+    document.getElementById('thicknessHint').textContent = '';
+    updateWeightHint();
+    return;
+  }
+  entry.options.forEach(function(t){
+    var opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t + '"' + (t === entry.predominant ? ' (typical)' : '');
+    if (t === entry.predominant) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  document.getElementById('thicknessHint').textContent =
+    'Per APA Panel Design Specification (Form D510) Table 12: span rating ' + rating + ' is predominantly manufactured at ' + entry.predominant + '" (typical), with ' +
+    (entry.options.length > 1 ? 'other listed Performance Categories of ' + entry.options.filter(function(t){return t!==entry.predominant;}).join('", ') + '".' : 'no other listed Performance Category for this rating.') +
+    ' Thickness does not change the tabulated allowable load (which is governed by span rating); it is used here for specification and panel self-weight.';
+  onThicknessChange();
+}
+
+function onThicknessChange(){
+  updateWeightHint();
+}
+
+function currentThickness(){
+  var cat = document.getElementById('cat').value;
+  return (cat === '3') ? document.getElementById('rating').value : document.getElementById('thickness').value;
+}
+
+function updateWeightHint(){
+  var cat = document.getElementById('cat').value;
+  var t = currentThickness();
+  var wt = panelWeight(cat, t);
+  var lbl = document.getElementById('selfWtLbl');
+  if (wt == null){
+    lbl.textContent = 'Include panel self-weight in dead load (D510 Table 13) — no weight listed for this thickness';
+  } else {
+    lbl.textContent = 'Include panel self-weight in dead load: ' + wt.toFixed(1) + ' psf for ' + t + '" ' +
+      (CAT_MATERIAL[cat]==='osb'?'OSB':'plywood') + ' (D510 Table 13)';
+  }
+  updateTotalDisplay();
+}
+
+function updateTotalDisplay(){
+  var cat = document.getElementById('cat').value;
+  var d = parseFloat(document.getElementById('deadLoad').value) || 0;
+  var l = parseFloat(document.getElementById('liveLoad').value) || 0;
+  var sw = document.getElementById('inclSelfWt').checked ? (panelWeight(cat, currentThickness()) || 0) : 0;
+  document.getElementById('totalLoadDisplay').value = f1(d + sw + l);
+}
+
+function onAxisChange(){
+  populateSpacing();
+}
+
+function populateSpacing(){
+  var cat = document.getElementById('cat').value;
+  var rating = document.getElementById('rating').value;
+  var axis = document.getElementById('axis').value;
+  var tbl = RAW_TABLES[cat].data[rating];
+  var list = axis === 'perp' ? SPACINGS_PERP : SPACINGS_PARA;
+  var sel = document.getElementById('spacing');
+  sel.innerHTML = '';
+  list.forEach(function(sp, i){
+    var ci = axis === 'perp' ? i : 10 + i;
+    if (tbl.L180[ci] !== null){
+      var opt = document.createElement('option');
+      opt.value = sp; opt.textContent = sp + '"';
+      sel.appendChild(opt);
+    }
+  });
+  onSpacingChange();
+}
+
+function onSpacingChange(){
+  var axis = document.getElementById('axis').value;
+  var sp = parseFloat(document.getElementById('spacing').value);
+  if (!isFinite(sp)) {
+    document.getElementById('spanHint').textContent =
+      'APA Q225J publishes no values for this panel with the strength axis ' + (axis==='perp'?'perpendicular':'parallel') + ' to supports. Change the orientation or panel.';
+    document.getElementById('baseSpanHint').textContent = '';
+    return;
+  }
+  var base = baseSpanCount(axis, sp);
+  document.getElementById('spanHint').textContent =
+    'Table basis at ' + sp + '" o.c., ' + (axis==='perp'?'perpendicular':'parallel') + ' to supports: ' + base + '-span condition (Q225J p.2; D510 §4.7.1). ' +
+    'Supports assumed 2x nominal for spans < 48" and 4x nominal for spans ≥ 48" (D510 §4.7.2).';
+  onSpanCondChange();
+}
+
+function onSpanCondChange(){
+  var axis = document.getElementById('axis').value;
+  var sp = parseFloat(document.getElementById('spacing').value);
+  var cond = document.getElementById('spanCond').value;
+  var el = document.getElementById('baseSpanHint');
+  if (!isFinite(sp)) { el.textContent = ''; return; }
+  var base = baseSpanCount(axis, sp);
+  var txt = 'Tabulated basis at this spacing = ' + base + '-span. ';
+  if (cond === 'single') txt += 'Single span applies the Table 5 "' + base + '-Span to 1-Span" factors (deflection ' + SPAN_ADJ[base===3?'3to1':'2to1'].defl + ', bending ' + SPAN_ADJ[base===3?'3to1':'2to1'].bend.toFixed(2) + ', shear ' + SPAN_ADJ[base===3?'3to1':'2to1'].shear + ').';
+  else if (cond === 'two') txt += base === 3
+    ? 'Two spans applies the Table 5 "3-Span to 2-Span" factors (deflection 1.28, bending 0.80, shear 0.96).'
+    : 'The tabulated basis is already 2-span — no adjustment applies.';
+  else txt += 'No span adjustment applied.';
+  el.textContent = txt;
+}
+
+function onSpeciesChange(){
+  var sp = document.getElementById('species').value;
+  var gradeSel = document.getElementById('grade');
+  var marineNA = !!(CC[sp] && CC[sp].perp.Marine === null);
+  for (var i = 0; i < gradeSel.options.length; i++){
+    if (gradeSel.options[i].value === 'Marine') gradeSel.options[i].disabled = marineNA;
+  }
+  if (marineNA && gradeSel.value === 'Marine') gradeSel.value = 'AA';
+}
+
+// ---------- Read inputs from the DOM ----------
+function readInputs(){
+  var cat = document.getElementById('cat').value;
+  return {
+    cat: cat,
+    rating: document.getElementById('rating').value,
+    thickness: currentThickness(),
+    axis: document.getElementById('axis').value,
+    spacing: parseFloat(document.getElementById('spacing').value),
+    species: document.getElementById('species').value,
+    grade: document.getElementById('grade').value,
+    spanCond: document.getElementById('spanCond').value,
+    duration: document.getElementById('duration').value,
+    moisture: document.getElementById('moisture').value,
+    liveDefl: document.getElementById('liveDefl').value,
+    totalDefl: document.getElementById('totalDefl').value,
+    deadInput: parseFloat(document.getElementById('deadLoad').value) || 0,
+    live: parseFloat(document.getElementById('liveLoad').value) || 0,
+    inclSelfWt: document.getElementById('inclSelfWt').checked
+  };
+}
+
+// ---------- Run: read → compute → render ----------
+function runCalc(){
+  updateTotalDisplay();
+  var inp = readInputs();
+  var r = APA.compute(inp);
+  if (!r.ok){ showError(r.error); return; }
+  clearError();
+  render(r);
+}
+
+function render(r){
+  var markHTML = (window.AREv2 && AREv2.getMarkHTML) ? AREv2.getMarkHTML() : '';
+  var tableRef = 'APA Q225J Table ' + r.cat.toUpperCase();
+
+  // ---- adjusted-load factor table ----
+  var rowsHtml = '';
+  var metrics = [
+    {key:'L360', label:'L/360 (deflection)', mult:r.deflMult},
+    {key:'L240', label:'L/240 (deflection)', mult:r.deflMult},
+    {key:'L180', label:'L/180 (deflection)', mult:r.deflMult},
+    {key:'Bending', label:'Bending', mult:r.bendMult},
+    {key:'Shear', label:'Shear', mult:r.shearMult}
+  ];
+  metrics.forEach(function(m){
+    var isGov = (m.key === r.allowTotalSrc);
+    rowsHtml += '<tr' + (isGov ? ' class="final"' : '') + '>'
+      + '<td>' + m.label + (isGov ? ' — governs total' : '') + (m.key === r.allowLiveSrc ? ' — governs live' : '') + '</td>'
+      + '<td>' + (r.raw[m.key] == null ? '—' : f1(r.raw[m.key])) + '</td>'
+      + '<td>' + f3(m.mult) + '</td>'
+      + '<td>' + (r.adj[m.key] == null ? '—' : f1(r.adj[m.key]) + ' psf') + '</td>'
+      + '</tr>';
+  });
+  var factorHtml = ''
+    + '<div class="callout">Base tabulated values from ' + tableRef + ' (' + r.tableLabel + '), rating <strong>' + r.rating + '</strong>'
+    + (r.cat !== '3' && r.thickness ? ' at nominal thickness <strong>' + r.thickness + '"</strong>' : '') + ', '
+    + (r.axis==='perp'?'perpendicular':'parallel') + ' to supports at <strong>' + r.spacing + '" o.c.</strong>'
+    + (r.speciesLabel ? ' &mdash; species/grade: ' + r.speciesLabel : '') + ' &mdash; span condition: ' + r.spanLabel + '.'
+    + (r.cat!=='3' ? ' Tabulated values are based on the most conservative construction for the span rating (Q225J Table 6); thickness does not by itself change the load capacity shown below.' : '')
+    + '</div>'
+    + '<table class="factor-table"><thead><tr><th>Load Governed By</th><th>Table Base (psf)</th><th>Combined Factor</th><th>Adjusted Allowable (psf)</th></tr></thead><tbody>'
+    + rowsHtml
+    + '</tbody></table>'
+    + '<div class="hint" style="margin-top:8px">Deflection factor = C<sub>C</sub> (' + f3(r.speciesFactors.stiff) + ') &times; span adj. (' + f3(r.spanFactors.defl) + ') &times; C<sub>M</sub> (' + f3(r.wetFactors.defl) + ') = ' + f3(r.deflMult) + '. '
+    + 'Bending factor = C<sub>C</sub> (' + f3(r.speciesFactors.bend) + ') &times; span adj. (' + f3(r.spanFactors.bend) + ') &times; C<sub>D</sub> (' + f3(r.durFactor) + ') &times; C<sub>M</sub> (' + f3(r.wetFactors.bend) + ') = ' + f3(r.bendMult) + '. '
+    + 'Shear factor = C<sub>C</sub> (' + f3(r.speciesFactors.shear) + ') &times; span adj. (' + f3(r.spanFactors.shear) + ') &times; C<sub>D</sub> (' + f3(r.durFactor) + ') &times; C<sub>M</sub> (' + f3(r.wetFactors.shear) + ') = ' + f3(r.shearMult) + '.</div>';
+  document.getElementById('factorOut').innerHTML = factorHtml;
+
+  // ---- demand cards ----
+  document.getElementById('demOut').innerHTML =
+    '<div class="dem-grid">'
+    + '<div class="dem-card"><div class="v">' + f1(r.dead) + '</div><div class="l">Dead Load, D (psf)' + (r.selfWt ? '<br>' + f1(r.deadInput) + ' + ' + f1(r.selfWt) + ' panel' : '') + '</div></div>'
+    + '<div class="dem-card"><div class="v">' + f1(r.live) + '</div><div class="l">Live/Snow Load, L (psf)</div></div>'
+    + '<div class="dem-card alt"><div class="v">' + f1(r.total) + '</div><div class="l">Total Applied Load, D+L (psf)</div></div>'
+    + '<div class="dem-card"><div class="v">' + f1(r.allowTotal) + '</div><div class="l">Allowable Total Load (psf)<br>governed by ' + r.allowTotalSrc + '</div></div>'
+    + '<div class="dem-card"><div class="v">' + f1(r.allowLive) + '</div><div class="l">Allowable Live Load (psf)<br>governed by ' + r.allowLiveSrc + '</div></div>'
+    + '</div>';
+
+  // ---- checks ----
+  var chks = [];
+  chks.push({
+    n: 'Total Load (D + L)',
+    r: tableRef + ' / Table 5',
+    d: f1(r.total) + ' psf',
+    c: f1(r.allowTotal) + ' psf',
+    dc: r.dcTotal,
+    nt: 'governed by ' + r.allowTotalSrc,
+    det: buildDetailTotal(r)
+  });
+  chks.push({
+    n: 'Live / Snow Load Only',
+    r: tableRef + ' / Table 5',
+    d: f1(r.live) + ' psf',
+    c: (r.allowLive > 0 ? f1(r.allowLive) : '0.0') + ' psf',
+    dc: r.dcLive,
+    nt: r.allowLive > 0 ? 'governed by ' + r.allowLiveSrc : 'dead load alone uses the full allowable total load',
+    det: buildDetailLive(r)
+  });
+
+  var tb = document.getElementById('chkTb');
+  tb.innerHTML = '';
+  chks.forEach(function(c, i){
+    var dc_v = (c.dc !== null && !isNaN(c.dc) && c.dc >= 0) ? c.dc : null;
+    var inf = dc_v !== null && !isFinite(dc_v);
+    var pct = dc_v === null ? 0 : inf ? 150 : Math.min(dc_v*100,150);
+    var col = dc_v === null ? '#9ca3af' : (!inf && dc_v <= 0.8) ? '#16a34a' : (!inf && dc_v <= 1.0) ? '#d97706' : '#dc2626';
+    var stxt = dc_v === null ? '<span class="na">&mdash;</span>' : (!inf && dc_v <= 1.0) ? '<span class="pass">PASS</span>' : '<span class="fail">FAIL</span>';
+    var dtxt = dc_v === null ? '&mdash;' : inf ? '&infin;' : f3(dc_v);
+    tb.innerHTML +=
+      '<tr>'
+      + '<td><strong>' + c.n + '</strong>' + (c.nt ? '<br><small style="color:#555">' + c.nt + '</small>' : '') + '</td>'
+      + '<td><code>' + c.r + '</code></td>'
+      + '<td>' + c.d + '</td>'
+      + '<td>' + c.c + '</td>'
+      + '<td><div class="dc-cell"><span style="color:' + col + ';font-weight:700">' + dtxt + '</span>'
+      + (dc_v !== null ? '<div class="dc-bar"><div class="dc-fill" style="width:' + pct + '%;background:' + col + '"></div></div>' : '')
+      + '</div></td>'
+      + '<td>' + stxt + '</td>'
+      + '<td><button class="det-btn" id="dbtn_' + i + '" onclick="toggleDet(' + i + ')">▶ Calc</button></td>'
+      + '</tr>'
+      + '<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_' + i + '">' + c.det + '</div></td></tr>';
+  });
+
+  // ---- summary ----
+  var sb = document.getElementById('sumBox');
+  sb.className = 'summary ' + (r.pass ? 'sum-pass' : 'sum-fail');
+  sb.innerHTML = '<h3>' + (r.pass ? '✔ Panel Loading OK' : '✘ Panel Loading Exceeds Allowable') + (markHTML ? ' — ' + markHTML : '') + '</h3>'
+    + '<p>Max D/C = <strong>' + (isFinite(r.maxDC) ? f3(r.maxDC) : '&infin; (dead load exceeds allowable total)') + '</strong> &nbsp;|&nbsp; ' + r.tableLabel + ', ' + r.rating
+    + (r.cat !== '3' && r.thickness ? ' (' + r.thickness + '")' : '')
+    + ', ' + r.spacing + '" o.c. ' + (r.axis==='perp'?'perpendicular':'parallel') + ' to supports'
+    + ' &nbsp;|&nbsp; ' + r.spanLabel
+    + ' &nbsp;|&nbsp; C<sub>D</sub> = ' + f2(r.durFactor) + (r.wet ? ', wet service' : ', dry service') + '</p>';
+
+  // ---- notes ----
+  var notes = [
+    'Tabulated values assume dry conditions, normal (10-year) duration of load and untreated Exposure 1 panels; the Table 5 duration (C<sub>D</sub>, bending and shear only) and moisture (C<sub>M</sub>) factors are applied as selected above. Allowable loads are ASD — compare against unfactored service loads.',
+    'Do not increase the panel span beyond its rated span even if the allowable uniform load exceeds the applied design load &mdash; span ratings also reflect concentrated-load, impact and "feel" performance not captured by this uniform-load check. Verify maximum floor/roof spans per APA Engineered Wood Construction Guide (Form E30).',
+    'Actual 3-, 4-, or 5-ply / OSB construction may permit higher capacities than tabulated (Table 1/2 values use the most conservative construction per Table 6). Consult APA Panel Design Specification, Form D510, if the actual panel construction is known.',
+    'Support-width effects assume nominal 2x members for spans under 48" and nominal 4x members for 48"+ spans (D510 §4.7.2). Loads are for the panel only and do not address the framing.',
+    'APA worked examples round the allowable live load to the nearest 5 psf; this tool reports the unrounded values.'
+  ];
+  if (r.durKey === 'permanent'){
+    notes.push('Permanent load selected: per D510 §4.5.1 / Table 7, where a permanent load stresses the panel to one-half or more of its design capacity, creep should be allowed for in deflection (bending stiffness EI &times; 1/2 for plywood or dry OSB, &times; 1/6 for OSB at MC ≥ 16%). Q225J Table 5 does not include this adjustment; check deflection separately if it applies.');
+  }
+  if (r.cat === '2a'){
+    notes.push('Table 2a footnote (e): wall-sheathing deflection is not a code requirement' + (r.rating === 'W24' ? '; footnote (d): W24 is not recommended for roof or floor applications' : '') + '.');
+  }
+  notes.push('This tool encodes uniform load values published in APA Form Q225J (Dec. 2024) for engineering convenience; verify against the current APA publication and Panel Design Specification (Form D510) before finalizing a design.');
+  document.getElementById('noteList').innerHTML = notes.map(function(n){return '<li>'+n+'</li>';}).join('');
+
+  document.getElementById('results').className = 'results show';
+  document.getElementById('results').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function buildDetailTotal(r){
+  var det = '<div class="cref-hdr">Allowable Total Load — APA Q225J Table ' + r.cat.toUpperCase() + ' with Table 5 factors</div><div class="cbox">';
+  det += '<div class="mrow"><span class="ceq">Base values at ' + r.spacing + '" o.c.</span>: ' + deflName(r.totalDeflKey) + ' = ' + f1(r.raw[r.totalDeflKey]) + ', Bending = ' + f1(r.raw.Bending) + ', Shear = ' + f1(r.raw.Shear) + ' psf</div>';
+  det += '<div class="mrow"><span class="ceq">Adjusted</span>: ' + deflName(r.totalDeflKey) + ' = ' + f1(r.raw[r.totalDeflKey]) + ' &times; ' + f3(r.deflMult) + ' = ' + f1(r.adj[r.totalDeflKey])
+       + '; Bending = ' + f1(r.raw.Bending) + ' &times; ' + f3(r.bendMult) + ' = ' + f1(r.adj.Bending)
+       + '; Shear = ' + f1(r.raw.Shear) + ' &times; ' + f3(r.shearMult) + ' = ' + f1(r.adj.Shear) + ' psf</div>';
+  det += '<hr class="csep">';
+  det += '<div class="mrow"><span class="ceq">Allowable Total Load</span> = min( Load at ' + deflName(r.totalDeflKey) + ', Adjusted Bending, Adjusted Shear )</div>';
+  det += '<div class="mrow ind">= min( ' + f1(r.adj[r.totalDeflKey]) + ', ' + f1(r.adj.Bending) + ', ' + f1(r.adj.Shear) + ' )</div>';
+  det += '<div class="mrow ind">= <span class="cval">' + f1(r.allowTotal) + ' psf</span> (governed by ' + r.allowTotalSrc + ')</div>';
+  det += '<hr class="csep">';
+  det += '<div class="mrow"><span class="ceq">Applied total</span> = D + L = ' + f1(r.deadInput) + (r.selfWt ? ' + ' + f1(r.selfWt) + ' (panel)' : '') + ' + ' + f1(r.live) + ' = ' + f1(r.total) + ' psf</div>';
+  det += '<div class="mrow">D/C = ' + fr(f1(r.total)+' psf', f1(r.allowTotal)+' psf') + ' = <span class="cval">' + f3(r.dcTotal) + '</span></div>';
+  det += '</div>';
+  return det;
+}
+function buildDetailLive(r){
+  var det = '<div class="cref-hdr">Allowable Live Load — APA Q225J Table ' + r.cat.toUpperCase() + ' with Table 5 factors</div><div class="cbox">';
+  det += '<div class="mrow"><span class="ceq">Allowable Live Load</span> = min( Load at ' + deflName(r.liveDeflKey) + ', Allowable Total − Dead )</div>';
+  det += '<div class="mrow ind">= min( ' + f1(r.raw[r.liveDeflKey]) + ' &times; ' + f3(r.deflMult) + ' = ' + f1(r.adj[r.liveDeflKey]) + ', ' + f1(r.allowTotal) + ' − ' + f1(r.dead) + ' = ' + f1(r.liveFromTotal) + ' )</div>';
+  det += '<div class="mrow ind">= <span class="cval">' + f1(r.allowLive) + ' psf</span> (governed by ' + r.allowLiveSrc + ')</div>';
+  det += '<hr class="csep">';
+  if (r.allowLive > 0){
+    det += '<div class="mrow">D/C = ' + fr(f1(r.live)+' psf', f1(r.allowLive)+' psf') + ' = <span class="cval">' + f3(r.dcLive) + '</span></div>';
+  } else {
+    det += '<div class="mrow">Allowable live load ≤ 0: the dead load alone consumes the allowable total load — <span class="fail">no live-load capacity remains</span>.</div>';
+  }
+  det += '</div>';
+  return det;
+}
+
+// init
+onCatChange();
+onSpeciesChange();
+document.getElementById('deadLoad').addEventListener('input', updateTotalDisplay);
+document.getElementById('liveLoad').addEventListener('input', updateTotalDisplay);
+</script>
+<script src="/are-utils-v2.js"></script>
+</body>
+</html>

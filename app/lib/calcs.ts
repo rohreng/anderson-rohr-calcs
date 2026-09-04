@@ -158,6 +158,19 @@ export const CALCS: CalcMeta[] = [
     calcType: "Beams & Flexure",
     icon: "beam-udl",
   },
+  {
+    slug: "apa-panel-uniform-load",
+    label: "APA Panel Uniform Load (Sheathing / Sturd-I-Floor)",
+    subtitle: "Plywood & OSB roof/floor sheathing — APA Q225J load-span tables, Table 4/5 species, span, duration & moisture factors",
+    htmlFile: "/Calcs/apa_panel_uniform_load_calculator.html",
+    category: "Members",
+    spec: "APA Q225J (2024) / D510 (2020)",
+    status: "ready",
+    keywords: ["APA", "plywood", "OSB", "sheathing", "Sturd-I-Floor", "roof deck", "floor deck", "panel", "span rating", "uniform load", "load-span", "deflection", "wood structural panel", "WSP", "Q225J", "D510", "wood", "sanded plywood", "Structural I", "snow"],
+    material: "Wood",
+    calcType: "Beams & Flexure",
+    icon: "beam-udl",
+  },
   // ── Connections ──────────────────────────────────────────────
   {
     slug: "base-plate",
