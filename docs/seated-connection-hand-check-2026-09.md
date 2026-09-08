@@ -1,6 +1,6 @@
 # Hand check — Seated Beam Connection Calculator
 
-_2026-09-07 · `public/Calcs/seated_beam_connection_calculator.html`_
+_2026-09-07, revised 2026-09-08 (F15 bolted stiffened seat) · `public/Calcs/seated_beam_connection_calculator.html`_
 
 Basis: AISC 360-22; AISC Companion v15.1 Design Examples II.A-12A pp. IIA-124–127, II.A-13
 pp. IIA-134–136, II.A-14 pp. IIA-137–140, II.A-15 pp. IIA-141–144, II.A-16 pp. IIA-145–147,
@@ -55,8 +55,46 @@ Ex. 6.6.7.1. Fixture definitions are `docs/superpowers/specs/2026-09-07-seated-b
 | F13 | baseline (II.A-14 defaults) | defaults compute without error | no error | ok | — | PASS |
 | F13 | baseline (II.A-14 defaults) | summary banner | PASS | PASS, maxDC = 1.000 | — | PASS |
 | F14 | NaN guard | `Ru = NaN` | blocking error | blocked | — | PASS |
+| F15 | hand computed (§1.1) | `T_top` | 8.96 | 8.960 | 1% | PASS |
+| F15 | hand computed (§1.1) | `F'nt` | 41.6 | 41.55 | 1% | PASS |
+| F15 | hand computed (§1.1) | `φr_nt` | 13.78 | 13.767 | 1% | PASS |
+| F15 | hand computed (§1.1) | wrench clearance row status | PASS | PASS | — | PASS |
 
-All 41 assertions pass. No FAIL or REVIEW rows in the fixture set.
+All 45 assertions pass. No FAIL rows in the fixture set; F15 raises no REVIEW row either.
+
+### 1.1 F15 — bolted rectangular stiffened seat, hand computation
+
+Added with the 2026-09-08 revision (spec §3.6, §4.7). No Design Example covers a bolted
+stiffened seat, so this fixture is hand computed and the arithmetic is written out here.
+
+Inputs: rectangular stiffened seat, bolted to the support. W21X68 beam, `Ru = 60` kips,
+`e = 5.6` in (entered, not the 0.8W default). Stiffener `PL 5/8 × 7 × 15`, one plate,
+`Fy = 36`, `Fu = 58` ksi. Support `t = 0.710` in, `Fu = 65` ksi. Bolts: four 3/4 in.
+Group A, threads included (N), two rows of two straddling the stiffener stem, row spacing
+`s = 3` in, gage `g = 5.5` in, top row `le = 3` in below the top of the seat plate.
+
+The seat rotates about the bottom of the vertical plate, `L = 15` in below the top of the
+seat plate, so the row heights above that pivot are
+
+- `y_1 = 15 − 3 − 0 = 12.0` in, `y_2 = 15 − 3 − 3 = 9.0` in
+- `Σy² = 12.0² + 9.0² = 144 + 81 = 225` in²
+- `M = Ru·e = 60 × 5.6 = 336` kip-in
+- `T_top = M·y_1/(perRow·Σy²) = 336 × 12/(2 × 225) = 8.96` kips/bolt
+
+Combined tension and shear, AISC 360-22 §J3.8 Eq. J3-3a, with `Ab = π(0.75)²/4 = 0.4418` in²,
+`Fnt = 90` ksi, `Fnv = 54` ksi:
+
+- `frv = Ru/(n·Ab) = 60/(4 × 0.4418) = 33.95` ksi
+- `F'nt = 1.3 × 90 − 90 × 33.95/(0.75 × 54) = 117 − 75.4 = 41.6` ksi ≤ `Fnt` ✓
+- `φr_nt = 0.75 × 41.6 × 0.4418 = 13.78` kips/bolt
+- `D/C = 8.96/13.78 = 0.650`
+
+Wrench clearance beside the stem (AISC Manual Table 7-16, C1 for 3/4 in bolts):
+`(g − t)/2 = (5.5 − 0.625)/2 = 2.44` in ≥ 1.25 in → PASS.
+
+The calculator returns `T_top = 8.960`, `F'nt = 41.55`, `φr_nt = 13.767`, `D/C = 0.651` and a
+PASS on the clearance row — all within 1 %. The 41.55 vs 41.6 difference is rounding of `frv`
+in the hand arithmetic only.
 
 ---
 
@@ -94,10 +132,16 @@ the last few percent. The two ends of that band are the two shear distributions:
 the vertical welds alone gives 130.8, and letting the returns carry shear as well reproduces the
 tabulated 139.
 
-**(c) Bolted seats.** Seated-connection bolts are checked in shear only, per Manual practice for
-Tables 10-5 and 10-7 (bolt tension from eccentricity is only added when the optional `bTension` box is
+**(c) Bolted seats.** Seat-**angle** bolts are checked in shear only, per Manual practice for Tables
+10-5 and 10-7 (bolt tension from eccentricity is only added when the optional `bTension` box is
 checked, which is off in F3). Shear capacity is `φRn = 0.75·Fnv·Ab·bN`; for 4 bolts, 3/4 in. Group A-N
 (`Fnv = 54` ksi), `φRn = 0.75 × 54 × 0.4418 × 4 = 71.6` kips, an exact match to II.A-12A.
+
+For a bolted **stiffened** seat (2026-09-08 revision) the bolts are one each side of the stiffener
+stem at gage `g`, in one or two rows, so `bN = 2·bRows` is derived rather than entered, and the
+tension row is always reported: the vertical plate is a flexural element and the seat moment `Ru·e`
+has to go somewhere. The pivot is the bottom of the vertical plate, `L` below the top of the seat
+plate, and `le` positions the top row below that same top edge. F15 above is the hand check.
 
 ---
 
@@ -105,8 +149,9 @@ checked, which is off in F3). Shear capacity is `φRn = 0.75·Fnv·Ab·bN`; for 
 
 - Rectangular-stiffener shear and flexure rows (§4.4) — Manual Eq. 15-2 form applied to a rectangular
   plate; no Design Example carries this exact geometry through to a published number.
-- Optional bolt tension + shear interaction (`bTension`, §4.7, J3-3a prying-free reduction) — no
-  fixture exercises this path.
+- Bolt tension + shear interaction on a **seat angle** (`bTension`, §4.7) — no fixture exercises
+  the optional angle path. The stiffened-seat path, where the row is always computed, is covered
+  by the hand-computed F15 above but not by any published example.
 - J2.4 directional weld strength increase (`wDir`) — not exercised by any fixture; all F5/F6/F8 cases
   run with the increase off.
 - INFO → REVIEW promotion logic for informational rows exceeding D/C = 1.0 (minimum/maximum fillet

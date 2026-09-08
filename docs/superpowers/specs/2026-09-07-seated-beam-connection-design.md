@@ -73,7 +73,8 @@ Triangular stiffener:
 
 ### 3.6 Bolted attachment (shown when `attach = bolted`)
 - `bGrade`: `A307` | `A-N` | `A-X` | `B-N` | `B-X` [`A-N`]; `bDia` [0.75]; `bN` bolts [4]; `bRows` rows [2]; `bPitch` vertical pitch [3]; `bGage` [5.5]
-- `bLe` vertical edge distance from the bolt to the loaded edge of the seat element [1.25]
+- `bLe` top bolt row below the top of the seat element (top of seat plate for stiffened seats, top of the vertical leg for angles); also the loaded-edge distance for tearout [1.25 angle; 3.0 stiffened]
+- Stiffened seats (2026-09-08 revision): bolts are placed one each side of the stiffener at gage `g`, so bolts per row is fixed at 2 and `bN = 2·bRows` (`bRows` 1 or 2, `bN` auto-filled and read-only). `bPitch` is the row spacing. Bolt tension from `Ru·e` is always computed for stiffened seats (see §4.7); the `bTension` checkbox applies to seat angles only. Wrench clearance: `(g − t)/2 ≥ 1.25 in` else REVIEW (Manual Table 7-16 entering/tightening clearance for 3/4 in bolts).
 - `bLeSup` vertical edge distance on the support, blank = not an edge [blank]
 - `supT`, `FuSup`: the same single pair of fields as §3.5 (one support, one thickness; the II.A-14 default 0.710 applies to both modes)
 - `bTension` checkbox "add bolt tension from R·e (elastic, neutral axis at bottom edge, J3.7)" [off]
@@ -148,7 +149,7 @@ Section numbers are 360-22 (§J3.7 strength of bolts, §J3.8 combined tension an
 - **Bolt spacing and edge distance** (§J3.4, §J3.5 Table J3.4): `pitch ≥ 2.67·d` when more than one row; `bLe ≥ Table J3.4 minimum` (3/4 in for 1/2 in bolts … 1.25d above 1 1/4 in); `bLeSup` likewise when given. PASS or REVIEW (lesser distances need EOR approval per Table J3.4 note a); no D/C.
 - **Bearing and tearout on the seat element** (§J3.11, Eq. J3-6a bearing, J3-6c tearout, deformation a design consideration): per bolt `rn = min(2.4·d·t·Fu, 1.2·lc·t·Fu)`, `lc = bLe − dh/2` for the edge row, `bPitch − dh` for interior rows; `φ = 0.75`; sum over bolts.
 - **Bearing and tearout on the support**: same, with `supT`, `FuSup`, `bLeSup` (blank → bearing only).
-- **Bolt tension + shear** (§J3.8, only with `bTension`): `M = Ru·e`; bolt rows at heights `y_i` above the bottom edge of the seat element (from `bLe`, `bPitch`, `bRows`); `T_i = M·y_i/(Σ y_j²)·(1/bolts per row)`; `frv = Ru/(bN·Ab)`; `F'nt = 1.3·Fnt − Fnt·frv/(0.75·Fnv) ≤ Fnt` (J3-3a); `φrnt = 0.75·F'nt·Ab`; `dc = max T_i/φrnt`. If `F'nt ≤ 0` (shear stress beyond `φFnv`, which the bolt-shear row already fails) the row is `FAIL` with `dc = null` and the note "no tension capacity at this shear stress". Prying not evaluated — stated in the row note.
+- **Bolt tension + shear** (§J3.8; always for stiffened seats, for seat angles only with `bTension`): `M = Ru·e`; bolt rows at heights `y_i` above the bottom edge of the seat element (from `bLe`, `bPitch`, `bRows`); `T_i = M·y_i/(Σ y_j²)·(1/bolts per row)`; `frv = Ru/(bN·Ab)`; `F'nt = 1.3·Fnt − Fnt·frv/(0.75·Fnv) ≤ Fnt` (J3-3a); `φrnt = 0.75·F'nt·Ab`; `dc = max T_i/φrnt`. If `F'nt ≤ 0` (shear stress beyond `φFnv`, which the bolt-shear row already fails) the row is `FAIL` with `dc = null` and the note "no tension capacity at this shear stress". Prying not evaluated — stated in the row note.
 - Seat element for bolts: angle vertical leg, or the vertical plate / tee stem of a stiffened seat (`stT` used).
 
 ### 4.8 Validation (blocking errors, red box, no results)
@@ -164,6 +165,8 @@ NaN or ≤ 0 on any required numeric (including beam `bf`, and seat plate `t` an
 6. `AREv2.publish([...])` with `Ru`, `lb,min`, governing D/C.
 
 ## 6. Schematic (inline SVG, hand-built, redraws on any input change)
+
+Revision 2026-09-08 (Nick's markup): the beam is a true elevation resting on the seat plate, flanges and web, running to the right edge of the panel and ending in a break line. The section panel shows the seat plate and the stiffener stem (or the angle legs) only, never the beam, with bolt holes as circles one each side of the stiffener at gage `g` and at the row depths; welded seats show no holes.
 
 Elevation: support face as a hatched vertical band; beam end with setback and underrun dimension; seat (angle or seat plate + stiffener drawn to the entered proportions); reaction arrow `Ru` at `e` from the support face; `lb` bracket; for `tri`, the free edge with `a`, `b`, `θ` and the section B-B trace; for welds, the L-shaped weld lines highlighted with `l`, `h`; for bolts, bolt symbols at the row heights. A second small panel shows the section through the seat (angle legs or seat plate + stiffener plates). Uses `AREv2.getMark()` for the title text when present.
 

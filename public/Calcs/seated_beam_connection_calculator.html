@@ -209,7 +209,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     </div>
 
     <div class="blk" id="blkBolt">
-      <h2><span id="numBolt">6.</span> Bolts to Support <span class="badge">&sect;J3, shear only per Manual Part 10</span></h2>
+      <h2><span id="numBolt">6.</span> Bolts to Support <span class="badge" id="boltBadge">&sect;J3, shear only per Manual Part 10</span></h2>
       <div class="g3">
         <div class="ig"><label>Bolt grade / thread condition</label>
           <select id="bGrade">
@@ -220,14 +220,15 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
             <option value="B-X">Group B (A490), X</option>
           </select></div>
         <div class="ig"><label>Diameter d<sub>b</sub> <span class="unit">(in)</span></label><input type="number" id="bDia" value="0.75" step="0.125"></div>
-        <div class="ig"><label>Number of bolts</label><input type="number" id="bN" value="4" min="1" step="1"></div>
-        <div class="ig"><label>Rows (vertical)</label><input type="number" id="bRows" value="2" min="1" step="1"></div>
-        <div class="ig"><label>Vertical pitch s <span class="unit">(in)</span></label><input type="number" id="bPitch" value="3" step="0.25"></div>
-        <div class="ig"><label>Gage g <span class="unit">(in)</span></label><input type="number" id="bGage" value="5.5" step="0.25"></div>
-        <div class="ig"><label>Edge distance to loaded (top) edge of seat element, l<sub>e</sub> <span class="unit">(in)</span></label><input type="number" id="bLe" value="1.25" step="0.125"></div>
+        <div class="ig"><label id="lblBN">Number of bolts</label><input type="number" id="bN" value="4" min="1" step="1"></div>
+        <div class="ig"><label id="lblBRows">Rows (vertical)</label><input type="number" id="bRows" value="2" min="1" step="1"></div>
+        <div class="ig"><label id="lblBPitch">Vertical pitch s <span class="unit">(in)</span></label><input type="number" id="bPitch" value="3" step="0.25"></div>
+        <div class="ig"><label id="lblBGage">Gage g <span class="unit">(in)</span></label><input type="number" id="bGage" value="5.5" step="0.25"></div>
+        <div class="ig"><label id="lblBLe">Edge distance to loaded (top) edge of seat element, l<sub>e</sub> <span class="unit">(in)</span></label><input type="number" id="bLe" value="1.25" step="0.125"></div>
         <div class="ig"><label>Edge distance on support <span class="unit">(in, blank = not near an edge)</span></label><input type="number" id="bLeSup" value="" step="0.125" placeholder="none"></div>
       </div>
-      <label class="chk-inline"><input type="checkbox" id="bTension"> Add bolt tension from R<sub>u</sub>&middot;e (elastic, neutral axis at bottom edge, &sect;J3.7) &mdash; Manual practice is shear only</label>
+      <label class="chk-inline" id="bTensionWrap"><input type="checkbox" id="bTension"> Add bolt tension from R<sub>u</sub>&middot;e (elastic, neutral axis at bottom edge, &sect;J3.7) &mdash; Manual practice is shear only</label>
+      <div class="subnote" id="boltNote"></div>
     </div>
 
     <button class="calc-btn" onclick="run()">Run All Checks</button>
@@ -461,6 +462,11 @@ window.SEAT = (function(){
       if (!isNum(bo.n)||bo.n<1||bo.n%1) err.push('Number of bolts must be an integer >= 1.');
       if (!isNum(bo.rows)||bo.rows<1||bo.rows%1) err.push('Rows must be an integer >= 1.');
       if (isNum(bo.n)&&isNum(bo.rows)&&bo.rows>0&&(bo.n/bo.rows)%1) err.push('Bolts per row (n / rows) must be a whole number.');
+      // stiffened seats: one bolt each side of the stiffener stem, 1 or 2 rows (spec 3.6)
+      if (inp.seatType!=='angle'){
+        if (!isNum(bo.rows)||(bo.rows!==1&&bo.rows!==2)) err.push('A bolted stiffened seat takes 1 or 2 bolt rows.');
+        if (isNum(bo.n)&&isNum(bo.rows)&&bo.n!==2*bo.rows) err.push('A bolted stiffened seat carries 2 bolts per row (one each side of the stiffener): number of bolts must equal 2 x rows.');
+      }
       if (isNum(bo.d)&&isNum(bo.le)&&bo.le<=holeDia(bo.d)/2) err.push('Edge distance must exceed half the hole diameter.');
       if (bo.leSup!==null && (!isNum(bo.leSup)||bo.leSup<=0)) err.push('Support edge distance must be blank or positive.');
       if (bo.leSup!==null && isNum(bo.d) && isNum(bo.leSup) && bo.leSup<=holeDia(bo.d)/2) err.push('Support edge distance must exceed half the hole diameter.');
@@ -733,9 +739,10 @@ window.SEAT = (function(){
       C.push(mk('Welds to support','seatBM','Seat element base metal at weld','AISC Manual Eq. 9-2 / 9-3','t<sub>min</sub> = '+f3(tSeatMin)+' in','t = '+f3(tSeat)+' in',tSeatMin/tSeat,det));
       if (!isAngle && h < 0.2*vlen-1e-9) C.push(mk('Welds to support','retNote','Seat plate return length','AISC Manual Part 10','h = '+f2(h)+' in','&ge; 0.2L = '+f2(0.2*vlen)+' in',null,H('Detailing note')+R('Return (seat-plate-to-support weld each side of the stiffener) is below the Manual minimum of 0.2L.')+END(),{status:'REVIEW',note:'increase return',informational:true}));
     } else {
-      var Bo=inp.bolt, G=BOLT[Bo.grade], Ab=Math.PI*Bo.d*Bo.d/4, dh=holeDia(Bo.d), perRow=Bo.n/Bo.rows;
+      // stiffened seats put one bolt each side of the stiffener stem, so a row always holds 2
+      var Bo=inp.bolt, G=BOLT[Bo.grade], Ab=Math.PI*Bo.d*Bo.d/4, dh=holeDia(Bo.d), perRow=isAngle?Bo.n/Bo.rows:2;
       var phiRv = 0.75*G.Fnv*Ab, phiRvG = phiRv*Bo.n;
-      vals.bolt = {Ab:Ab,dh:dh,phiRv:phiRv,phiRvG:phiRvG};
+      vals.bolt = {Ab:Ab,dh:dh,phiRv:phiRv,phiRvG:phiRvG,perRow:perRow};
       det = H('AISC 360-22 &sect;J3.7 Eq. J3-1 &mdash; bolt shear, '+G.label+' (Table J3.2 F<sub>nv</sub> = '+G.Fnv+' ksi)')
         + R('A<sub>b</sub> = &pi;d&sup2;/4 = '+f4(Ab)+' in&sup2;; &phi;r<sub>n</sub> = 0.75F<sub>nv</sub>A<sub>b</sub> = 0.75 &times; '+G.Fnv+' &times; '+f4(Ab)+' = '+f2(phiRv)+' kips/bolt')
         + R('Group (Manual Tables 10-5 / 10-7 practice: shear only, eccentricity neglected): &phi;R<sub>n</sub> = '+Bo.n+' &times; '+f2(phiRv)+' = '+V(f1(phiRvG),'kips'))
@@ -770,6 +777,24 @@ window.SEAT = (function(){
                     ? 'gage required for the in-row spacing check'
                     : 'below &sect;J3.4/&sect;J3.5 minimum &mdash; permitted only with EOR approval (Table J3.4 note a)'}));
 
+      if (!isAngle){
+        // the two bolts of a row straddle the stiffener stem, so the clear space from the
+        // stem face to the bolt centreline has to take an impact wrench socket
+        var clr = (gage - tSeat)/2, clrMin = 1.25, clrKnown = isFinite(clr);
+        det = H('AISC Manual Table 7-16 &mdash; entering and tightening clearance beside the stiffener stem')
+          + R('Bolts sit one each side of the stiffener at gage g, so each bolt centreline is g/2 = '+(gageKnown?f3(gage/2):'n/a')+' in from the stem centreline')
+          + R('Clear distance from the face of the '+f3(tSeat)+' in stem to the bolt centreline: (g &minus; t)/2 = ('+(gageKnown?f3(gage):'n/a')+' &minus; '+f3(tSeat)+')/2 = '+V(clrKnown?f3(clr):'n/a','in'))
+          + R('C<sub>1</sub> clearance for a 3/4 in bolt with an impact wrench = '+V(f2(clrMin),'in')+' &rarr; '+(clrKnown?(clr>=clrMin-1e-9?'satisfied':'tight &mdash; check the wrench and socket to be used, or open the gage'):'gage not entered'))
+          + END();
+        C.push(mk('Bolts to support','boltClear','Wrench clearance at stiffener','AISC Manual Table 7-16, C1 for 3/4 in bolts',
+          'g = '+(gageKnown?f3(gage)+' in':'not entered')+', t = '+f3(tSeat)+' in',
+          '(g &minus; t)/2 '+(clrKnown?'= '+f3(clr):'')+' &ge; '+f2(clrMin)+' in',
+          null, det,
+          clrKnown ? (clr>=clrMin-1e-9 ? {status:'PASS',informational:true}
+                                       : {status:'REVIEW',note:'less than the Table 7-16 C1 clearance for a 3/4 in bolt',informational:true})
+                   : {status:'N/A',note:'gage not entered',informational:true}));
+      }
+
       function bearing(tp, Fup, le, label, ref){
         var brg = 2.4*Bo.d*tp*Fup, lcE = le!==null ? le-dh/2 : null, lcI = Bo.pitch-dh;
         var rEdge = le!==null ? Math.min(brg, 1.2*lcE*tp*Fup) : brg;
@@ -789,23 +814,30 @@ window.SEAT = (function(){
       var bsup = bearing(inp.sup.t, inp.sup.Fu, Bo.leSup, 'support (t = '+f3(inp.sup.t)+' in)');
       vals.bearSup = bsup.phiRn;
       C.push(mk('Support','brgSup','Bearing / tearout on support','AISC 360-22 &sect;J3.11 Eq. J3-6a, J3-6c','R<sub>u</sub> = '+f2(Ru)+' k','&phi;R<sub>n</sub> = '+f1(bsup.phiRn)+' k',Ru/bsup.phiRn,bsup.det));
-      if (Bo.tension){
+      // stiffened seats always report the tension row (the stem is the flexural element);
+      // for a seat angle it stays optional behind the bTension checkbox
+      if (Bo.tension || !isAngle){
         var M = Ru*e, ys=[], sum2=0, i;
         for (i=0;i<Bo.rows;i++){ var y = vlen-Bo.le-i*Bo.pitch; ys.push(y); sum2 += y*y; }
         var yTop = ys[0], Tmax = M*yTop/(perRow*sum2);
         var frv = Ru/(Bo.n*Ab), Fnt2 = Math.max(0, Math.min(G.Fnt, 1.3*G.Fnt - G.Fnt*frv/(0.75*G.Fnv))), phiRt = 0.75*Fnt2*Ab;
         var okRows = ys.every(function(y){return y>0;});
-        det = H('AISC 360-22 &sect;J3.8 Eq. J3-3a &mdash; optional bolt tension from R<sub>u</sub>e (elastic distribution, neutral axis at the bottom edge of the seat element, no prying)')
-          + R('M = R<sub>u</sub>e = '+f2(Ru)+' &times; '+f3(e)+' = '+f2(M)+' kip-in; row heights above bottom edge y<sub>i</sub> = '+ys.map(f2).join(', ')+' in; &Sigma;y&sup2; = '+f2(sum2)+' in&sup2;')
+        vals.bolt.Tmax = Tmax; vals.bolt.phiRt = phiRt; vals.bolt.Fnt2 = Fnt2; vals.bolt.frv = frv; vals.bolt.sum2 = sum2; vals.bolt.ys = ys;
+        var pivotTxt = isAngle
+          ? 'neutral axis at the bottom edge of the angle&rsquo;s vertical leg'
+          : 'the seat rotates about the bottom of the vertical plate, '+f2(vlen)+' in below the top of the seat plate; bolt row heights above that pivot are y<sub>i</sub> = l &minus; l<sub>e</sub> &minus; is';
+        det = H('AISC 360-22 &sect;J3.8 Eq. J3-3a &mdash; bolt tension from R<sub>u</sub>e (elastic distribution, '+pivotTxt+', no prying)')
+          + R('M = R<sub>u</sub>e = '+f2(Ru)+' &times; '+f3(e)+' = '+f2(M)+' kip-in; row heights above the pivot y<sub>i</sub> = '+ys.map(f2).join(', ')+' in; &Sigma;y&sup2; = '+f2(sum2)+' in&sup2;')
           + R('T<sub>max</sub> = My<sub>top</sub>/(bolts per row &times; &Sigma;y&sup2;) = '+f2(M)+' &times; '+f2(yTop)+'/('+perRow+' &times; '+f2(sum2)+') = '+V(f2(Tmax),'kips/bolt'))
           + R('f<sub>rv</sub> = R<sub>u</sub>/(nA<sub>b</sub>) = '+f2(frv)+' ksi; F&prime;<sub>nt</sub> = 1.3F<sub>nt</sub> &minus; F<sub>nt</sub>f<sub>rv</sub>/(&phi;F<sub>nv</sub>) = 1.3 &times; '+G.Fnt+' &minus; '+G.Fnt+' &times; '+f2(frv)+'/(0.75 &times; '+G.Fnv+') = '+f2(Fnt2)+' ksi &le; F<sub>nt</sub>')
           + R('&phi;r<sub>nt</sub> = 0.75F&prime;<sub>nt</sub>A<sub>b</sub> = '+V(f2(phiRt),'kips/bolt'))
           + (Fnt2<=0 ? SEP()+R('F&prime;<sub>nt</sub> &le; 0: the shear stress f<sub>rv</sub> exceeds &phi;F<sub>nv</sub>, so no tension capacity remains (the bolt shear row governs).')+END()
                      : (okRows ? DC('T<sub>max</sub> = '+f2(Tmax),'&phi;r<sub>nt</sub> = '+f2(phiRt),Tmax/phiRt) : SEP()+R('A bolt row falls below the bottom edge: check l<sub>e</sub>, pitch and rows.')+END()));
+        var tenName = isAngle ? 'Bolt tension + shear (optional)' : 'Bolt tension + shear';
         if (Fnt2<=0){
-          C.push(mk('Bolts to support','boltTen','Bolt tension + shear (optional)','AISC 360-22 &sect;J3.8 Eq. J3-3a','T<sub>max</sub> = '+f2(Tmax)+' k/bolt','&phi;r<sub>nt</sub> = 0 k/bolt',null,det,{status:'FAIL',note:'no tension capacity: f<sub>rv</sub> exceeds &phi;F<sub>nv</sub> (bolt shear row governs)'}));
+          C.push(mk('Bolts to support','boltTen',tenName,'AISC 360-22 &sect;J3.8 Eq. J3-3a','T<sub>max</sub> = '+f2(Tmax)+' k/bolt','&phi;r<sub>nt</sub> = 0 k/bolt',null,det,{status:'FAIL',note:'no tension capacity: f<sub>rv</sub> exceeds &phi;F<sub>nv</sub> (bolt shear row governs)'}));
         } else {
-          C.push(mk('Bolts to support','boltTen','Bolt tension + shear (optional)','AISC 360-22 &sect;J3.8 Eq. J3-3a','T<sub>max</sub> = '+f2(Tmax)+' k/bolt','&phi;r<sub>nt</sub> = '+f2(phiRt)+' k/bolt',okRows?Tmax/phiRt:null,det,okRows?{note:'prying not evaluated'}:{status:'N/A',note:'row geometry invalid'}));
+          C.push(mk('Bolts to support','boltTen',tenName,'AISC 360-22 &sect;J3.8 Eq. J3-3a','T<sub>max</sub> = '+f2(Tmax)+' k/bolt','&phi;r<sub>nt</sub> = '+f2(phiRt)+' k/bolt',okRows?Tmax/phiRt:null,det,okRows?{note:'prying not evaluated'}:{status:'N/A',note:'row geometry invalid'}));
         }
       }
     }
@@ -888,7 +920,17 @@ window.SEAT = (function(){
     {id:'F13', src:'baseline', inp:{},
       expect:function(r){ return [['defaults compute without error', r.ok===true, r.ok?'ok':r.errors.join('; ')], ['baseline banner PASS', r.banner==='PASS', r.banner+' maxDC='+f3(r.maxDC)]]; }},
     {id:'F14', src:'NaN guard', inp:{Ru:NaN},
-      expect:function(r){ return [['NaN Ru blocked', r.ok===false && r.errors.length>0, r.errors.join('; ')]]; }}
+      expect:function(r){ return [['NaN Ru blocked', r.ok===false && r.errors.length>0, r.errors.join('; ')]]; }},
+    // F15 hand check (docs/seated-connection-hand-check-2026-09.md §1): bolted rectangular
+    // stiffened seat, 2 rows of 2 bolts straddling the stem, pivot at the bottom of the plate.
+    // y = 15 - 3 - {0,3} = 12, 9; Sy2 = 225; M = 60 x 5.6 = 336 kip-in.
+    {id:'F15', src:'hand check', inp:{seatType:'rect', attach:'bolted', Ru:60, eSeat:5.6,
+        st:{W:7, L:15, t:0.625, n:1}, bolt:{grade:'A-N', d:0.75, n:4, rows:2, pitch:3, gage:5.5, le:3}, sup:{t:0.710, Fu:65}},
+      expect:function(r){ var v=r.vals.bolt||{}, cl=r.checks.filter(function(c){return c.id==='boltClear';})[0];
+        return [['T_top = 8.96 k/bolt', near(v.Tmax,8.96,0.0896), f3(v.Tmax)],
+                ['F\'nt = 41.6 ksi', near(v.Fnt2,41.6,0.416), f2(v.Fnt2)],
+                ['phi r_nt = 13.78 k/bolt', near(v.phiRt,13.78,0.1378), f3(v.phiRt)],
+                ['wrench clearance (5.5 - 0.625)/2 = 2.44 PASS', !!cl && cl.status==='PASS', cl?cl.status:'row missing']]; }}
   ];
   function runFixtures(){
     var lines=[], pass=0, total=0;
@@ -925,26 +967,45 @@ function draw(res){
   var e;
   if (haveRes && isFinite(res.vals.e)) e=res.vals.e;
   else { e=optv('eSeat'); if (e===null||!isFinite(e)) e=0.8*proj; }
-  // scale: fit (proj + 2.3*proj beam stub) wide and the whole (d + vlen + tS) stack tall
-  // inside the fixed 1000x400 viewBox. 70 px of top margin is reserved for the reaction
-  // arrow and its label; 245 px of stack leaves room for the two dimension lines below.
-  var sc = Math.min(560/(proj*3.4), 245/(d + vlen + tS + 1));
+  // deepest bolt row below the top of the seat element: it can sit below the seat itself if
+  // the entered l_e and pitch are larger than the plate, so it joins the vertical stack
+  var nRowsB = at==='bolted' ? (numv('bRows')||1) : 0;
+  var leMax = at==='bolted' ? (fv(numv('bLe'),0) + (nRowsB-1)*fv(numv('bPitch'),0)) : 0;
+  if (!isFinite(leMax) || leMax<0) leMax = 0;
+  // scale: the projection has to fit left of the beam break and the whole
+  // (d + max(vlen + tS, deepest bolt row)) stack tall inside the fixed 1000x400 viewBox.
+  // 70 px of top margin is reserved for the reaction arrow and its label; 245 px of stack
+  // leaves room for the two dimension lines below.
+  var sc = Math.min(560/(proj*3.4), 245/(d + Math.max(vlen + tS, leMax) + 1));
   var X0 = 200, Yseat = 70 + d*sc;      // support face x, seat top y
   var s='';
   var mark=(window.AREv2&&AREv2.getMark)?AREv2.getMark():'';
   mark=String(mark||'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  // beam elevation: bottom flange bearing on the seat plate, running from the beam end to a
+  // break line at x = 620. The break is a zig-zag whose polygon also clips the beam fills, so
+  // nothing is drawn past it and the right end never closes with a straight edge.
+  var bx=X0+sb*sc, tf=Math.max(4,fv(numv('btf'),0)*sc);
+  var yTopB=Yseat-d*sc, yBotB=Yseat, xBrk=606, zAmp=14, nz=8, zi, zPts=[];
+  for (zi=0; zi<=nz; zi++) zPts.push(((zi%2)?xBrk+zAmp:xBrk)+','+(yTopB+(yBotB-yTopB)*zi/nz));
+  var beamOK=[bx,yTopB,yBotB,tf].every(isFinite);
   // every referenced def first, ahead of anything that points at it
   s+='<defs><pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#64748b" stroke-width="1.5"/></pattern>'
-    +'<marker id="arr" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L8,0 L4,8 z" fill="#c42b2b"/></marker></defs>';
+    +'<marker id="arr" markerWidth="8" markerHeight="8" refX="4" refY="7" orient="auto"><path d="M0,0 L8,0 L4,8 z" fill="#c42b2b"/></marker>'
+    +(beamOK?'<clipPath id="beamClip"><polygon points="'+bx+','+yTopB+' '+zPts.join(' ')+' '+bx+','+yBotB+'"/></clipPath>':'')
+    +'</defs>';
   s+='<text x="20" y="28" font-size="15" font-weight="700" fill="#1e3c72">'+(mark?mark+' — ':'')+'Seated connection — elevation</text>';
   // support (hatched band left of X0)
   s+='<rect x="160" y="10" width="40" height="380" fill="url(#hatch)" stroke="#334155"/>';
-  // beam stub: bottom flange on seat top
-  var bx=X0+sb*sc, bw=proj*2.3*sc, tf=Math.max(4,fv(numv('btf'),0)*sc), tw=Math.max(3,fv(numv('btw'),0)*sc);
-  s+='<rect x="'+bx+'" y="'+(Yseat-d*sc)+'" width="'+bw+'" height="'+tf+'" fill="#cbd5e1" stroke="#334155"/>';
-  s+='<rect x="'+bx+'" y="'+(Yseat-tf)+'" width="'+bw+'" height="'+tf+'" fill="#cbd5e1" stroke="#334155"/>';
-  s+='<rect x="'+(bx+bw/2-tw/2)+'" y="'+(Yseat-d*sc+tf)+'" width="'+tw+'" height="'+(d*sc-2*tf)+'" fill="#e2e8f0" stroke="#334155"/>';
-  s+='<line x1="'+(bx+ur*sc)+'" y1="'+(Yseat-d*sc-6)+'" x2="'+(bx+ur*sc)+'" y2="'+(Yseat+6)+'" stroke="#94a3b8" stroke-dasharray="4 3"/>';
+  if (beamOK){
+    var xOver=660;                                  // rects run past the break; the clip trims them
+    s+='<g clip-path="url(#beamClip)">'
+      +'<rect x="'+bx+'" y="'+yTopB+'" width="'+(xOver-bx)+'" height="'+(d*sc)+'" fill="#e2e8f0" stroke="#334155"/>'
+      +'<rect x="'+bx+'" y="'+yTopB+'" width="'+(xOver-bx)+'" height="'+tf+'" fill="#cbd5e1" stroke="#334155"/>'
+      +'<rect x="'+bx+'" y="'+(yBotB-tf)+'" width="'+(xOver-bx)+'" height="'+tf+'" fill="#cbd5e1" stroke="#334155"/>'
+      +'</g>'
+      +'<polyline points="'+zPts.join(' ')+'" fill="none" stroke="#334155" stroke-width="1.2"/>';
+    s+='<line x1="'+(bx+ur*sc)+'" y1="'+(yTopB-6)+'" x2="'+(bx+ur*sc)+'" y2="'+(Yseat+6)+'" stroke="#94a3b8" stroke-dasharray="4 3"/>';
+  }
   // seat
   var ts=Math.max(3,tS*sc), sptPx=Math.max(3,spT*sc);
   if (st==='angle'){
@@ -971,11 +1032,13 @@ function draw(res){
     var y0 = st==='angle' ? Yseat : Yseat+sptPx;
     s+='<line x1="'+X0+'" y1="'+y0+'" x2="'+X0+'" y2="'+(y0+l*sc)+'" stroke="#dc2626" stroke-width="4"/>';
     s+='<line x1="'+X0+'" y1="'+y0+'" x2="'+(X0+h*sc)+'" y2="'+y0+'" stroke="#dc2626" stroke-width="4"/>';
-    s+='<text x="'+(X0-8)+'" y="'+(y0+l*sc/2)+'" font-size="11" fill="#dc2626" text-anchor="end">l = '+f2(l)+'"</text>';
-    s+='<text x="'+(X0+h*sc+4)+'" y="'+(y0-4)+'" font-size="11" fill="#dc2626">h = '+f2(h)+'"</text>';
+    s+='<text x="'+(X0-8)+'" y="'+(y0+l*sc/2)+'" font-size="11" fill="#dc2626" text-anchor="end" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">l = '+f2(l)+'"</text>';
+    s+='<text x="'+(X0+h*sc+4)+'" y="'+(y0-4)+'" font-size="11" fill="#dc2626" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">h = '+f2(h)+'"</text>';
   } else {
+    // l_e is measured below the top of the seat plate (stiffened) or the vertical leg (angle),
+    // so both cases hang the rows off Yseat
     var rows=numv('bRows')||1, pitch=numv('bPitch')||3, le=numv('bLe')||1.25, r, yb;
-    for (r=0;r<rows;r++){ yb = st==='angle' ? Yseat+(le+r*pitch)*sc : Yseat+sptPx+(le+r*pitch)*sc;
+    for (r=0;r<rows;r++){ yb = Yseat+(le+r*pitch)*sc;
       if (!isFinite(yb)) continue;
       s+='<circle cx="'+(X0+ts/2)+'" cy="'+yb+'" r="5" fill="#1e3c72"/><line x1="'+(X0-40)+'" y1="'+yb+'" x2="'+(X0+ts)+'" y2="'+yb+'" stroke="#1e3c72" stroke-width="2"/>'; }
   }
@@ -993,7 +1056,7 @@ function draw(res){
     s+='<line x1="'+xEnd+'" y1="'+ylb+'" x2="'+xTip+'" y2="'+ylb+'" stroke="#0f766e"/>'
       +'<line x1="'+xEnd+'" y1="'+(ylb-6)+'" x2="'+xEnd+'" y2="'+(ylb+2)+'" stroke="#0f766e"/>'
       +'<line x1="'+xTip+'" y1="'+(ylb-6)+'" x2="'+xTip+'" y2="'+(ylb+2)+'" stroke="#0f766e"/>'
-      +'<text x="'+((xEnd+xTip)/2)+'" y="'+(ylb+11)+'" font-size="11" text-anchor="middle" fill="#0f766e">l_b = '+f2(lbVal)+'"</text>';
+      +'<text x="'+((xEnd+xTip)/2)+'" y="'+(ylb+11)+'" font-size="11" text-anchor="middle" fill="#0f766e" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">l_b = '+f2(lbVal)+'"</text>';
   // setback + underrun: support face to the beam end, above the beam top flange. The gap is
   // usually only a few pixels, so the label is carried out to the left on a masking rect
   // (clear of the reaction arrow, which lands anywhere from the support face outward).
@@ -1007,21 +1070,42 @@ function draw(res){
   s+='<line x1="'+X0+'" y1="'+yd+'" x2="'+(X0+proj*sc)+'" y2="'+yd+'" stroke="#334155"/><text x="'+(X0+proj*sc/2)+'" y="'+(yd+14)+'" font-size="11" text-anchor="middle">'+(st==='angle'?'OSL':'W')+' = '+f2(proj)+'"</text>';
   s+='<line x1="'+X0+'" y1="'+(yd+30)+'" x2="'+ax+'" y2="'+(yd+30)+'" stroke="#c42b2b"/><text x="'+((X0+ax)/2)+'" y="'+(yd+44)+'" font-size="11" text-anchor="middle" fill="#c42b2b">e = '+f2(e)+'"</text>';
   s+='<line x1="'+(X0+proj*sc+16)+'" y1="'+Yseat+'" x2="'+(X0+proj*sc+16)+'" y2="'+(Yseat+ts+vlen*sc)+'" stroke="#334155"/><text x="'+(X0+proj*sc+22)+'" y="'+(Yseat+vlen*sc/2)+'" font-size="11">'+(st==='tri'?'a':st==='rect'?'L':'leg')+' = '+f2(vlen)+'"</text>';
-  // section panel (right): drawn about the centreline px+110 = 810, so the widest element
-  // may be 330 px (x stays inside 645..975) and the stack below py may be 300 px tall
-  // (the two Math.max(3,...) floors add at most 6 px, so y stays inside 60..386).
-  var px=700, py=80;
-  var bfIn=numv('bbf'), plIn=(st==='angle'?numv('angL'):numv('spB')), tfIn=fv(numv('btf'),0);
-  var ps=Math.min(220/(proj+2), 200/(vlen+1), 330/bfIn, 330/plIn, 300/(vlen+tfIn+spT));
+  // section panel (right): seat plate, the stiffener stem (or the angle's vertical leg) and
+  // the bolt holes only — the beam is not cut here. Drawn about the centreline px+110 = 810,
+  // so the widest element may be 330 px (x stays inside 645..975) and the stack below py may
+  // be 300 px tall (the Math.max(3,...) floors add at most 6 px, so y stays inside 60..386).
+  var px=700, py=80, cx=px+110;
+  var plIn=(st==='angle'?numv('angL'):numv('spB'));
+  var gIn=numv('bGage'), dbIn=numv('bDia'), bolted=(at==='bolted');
+  // the drawn width has to hold the seat plate and, when bolted, the bolt pair at gage g
+  var wIn=plIn, hIn=Math.max(vlen, leMax);
+  if (bolted && isFinite(gIn) && isFinite(dbIn)) wIn=Math.max(plIn, gIn+2*dbIn+0.5);
+  var ps=Math.min(200/(hIn+1), 330/wIn, 300/(hIn+spT+1));
   s+='<text x="'+px+'" y="'+(py-20)+'" font-size="13" font-weight="700" fill="#1e3c72">Section through seat</text>';
-  var bfw=bfIn*ps, spw=plIn*ps;
-  var tfPs=Math.max(3,tfIn*ps), sptPs=Math.max(3,spT*ps);
-  if ([bfw,spw,ps,tfPs,sptPs].every(isFinite)){
-    s+='<rect x="'+(px+110-bfw/2)+'" y="'+(py)+'" width="'+bfw+'" height="'+tfPs+'" fill="#cbd5e1" stroke="#334155"/>';
-    s+='<rect x="'+(px+110-spw/2)+'" y="'+(py+tfPs)+'" width="'+spw+'" height="'+sptPs+'" fill="#fde68a" stroke="#92400e"/>';
+  var spw=plIn*ps, sptPs=Math.max(3,spT*ps), stemPs=Math.max(3,tS*ps);
+  if ([spw,ps,sptPs,stemPs].every(isFinite)){
+    // seat plate (angle: the outstanding leg seen edge-on) as the top bar
+    s+='<rect x="'+(cx-spw/2)+'" y="'+py+'" width="'+spw+'" height="'+sptPs+'" fill="#fde68a" stroke="#92400e"/>';
     if (st!=='angle'){ var n=numv('stN')||1, k, gap=spw/(n+1);
-      for (k=1;k<=n;k++) s+='<rect x="'+(px+110-spw/2+k*gap-tS*ps/2)+'" y="'+(py+tfPs+sptPs)+'" width="'+Math.max(3,tS*ps)+'" height="'+(vlen*ps)+'" fill="#fcd34d" stroke="#92400e"/>'; }
-    else s+='<rect x="'+(px+110-spw/2)+'" y="'+(py+tfPs+sptPs)+'" width="'+spw+'" height="'+(vlen*ps)+'" fill="none" stroke="#92400e" stroke-dasharray="3 3"/>';
+      for (k=1;k<=n;k++) s+='<rect x="'+(cx-spw/2+k*gap-stemPs/2)+'" y="'+(py+sptPs)+'" width="'+stemPs+'" height="'+(vlen*ps)+'" fill="#fcd34d" stroke="#92400e"/>'; }
+    else s+='<rect x="'+(cx-spw/2)+'" y="'+(py+sptPs)+'" width="'+spw+'" height="'+(vlen*ps)+'" fill="#fcd34d" stroke="#92400e"/>';
+    // bolt holes: one each side of the stem (or of the leg centreline) at g/2, one pair per row
+    if (bolted && isFinite(gIn) && isFinite(dbIn)){
+      var rw=numv('bRows')||1, pt=numv('bPitch')||3, lee=numv('bLe')||1.25;
+      var hr=Math.max(3,0.4*dbIn*ps), hx1=cx-gIn*ps/2, hx2=cx+gIn*ps/2, ri, hy, yTopRow=NaN;
+      for (ri=0; ri<rw; ri++){
+        hy=py+(lee+ri*pt)*ps;
+        if (!isFinite(hy)||!isFinite(hx1)) continue;
+        if (ri===0) yTopRow=hy;
+        s+='<circle cx="'+hx1+'" cy="'+hy+'" r="'+hr+'" fill="#ffffff" stroke="#1e3c72" stroke-width="1.4"/>'
+          +'<circle cx="'+hx2+'" cy="'+hy+'" r="'+hr+'" fill="#ffffff" stroke="#1e3c72" stroke-width="1.4"/>';
+      }
+      if (isFinite(yTopRow))
+        s+='<line x1="'+hx1+'" y1="'+yTopRow+'" x2="'+hx2+'" y2="'+yTopRow+'" stroke="#1e3c72"/>'
+          +'<line x1="'+hx1+'" y1="'+(yTopRow-6)+'" x2="'+hx1+'" y2="'+(yTopRow+6)+'" stroke="#1e3c72"/>'
+          +'<line x1="'+hx2+'" y1="'+(yTopRow-6)+'" x2="'+hx2+'" y2="'+(yTopRow+6)+'" stroke="#1e3c72"/>'
+          +'<text x="'+cx+'" y="'+(yTopRow-8)+'" font-size="11" text-anchor="middle" fill="#1e3c72" stroke="#ffffff" stroke-width="2.5" paint-order="stroke">g = '+f2(gIn)+'"</text>';
+    }
   }
   // bounds: the lowest thing drawn is the "e = ..." dimension text at yd+44 and the highest
   // is the reaction arrow at Yseat-d*sc-55 = 15; both stay inside the 1000x400 viewBox.
@@ -1045,6 +1129,42 @@ function onBeamChange(){
   $('bd').value=r[1]; $('bbf').value=r[2]; $('btf').value=r[3]; $('btw').value=r[4]; $('bkdes').value=r[5];
   onInputChanged();
 }
+// Bolted attachment differs by seat type. A stiffened seat carries the bolts in the vertical
+// plate / tee flange with one bolt each side of the stem at gage g, so a row always holds two
+// bolts and #bN is derived (read-only) from #bRows, which is limited to 1 or 2. A seat angle
+// keeps the free bolt layout it always had.
+var _lastSeatType = null;
+function applyBoltMode(){
+  var st=$('seatType').value, at=$('attach').value, stiff = st!=='angle';
+  var bN=$('bN'), bRows=$('bRows');
+  if (stiff && at==='bolted'){
+    bRows.min='1'; bRows.max='2';
+    var r=parseFloat(bRows.value);
+    if (isFinite(r)){                                   // a blank field is left alone to type in
+      r = r<1 ? 1 : r>2 ? 2 : Math.round(r);
+      if (String(r)!==bRows.value) bRows.value=String(r);
+      bN.value=String(2*r);
+    }
+    bN.readOnly=true; bN.setAttribute('aria-readonly','true');
+    $('lblBN').innerHTML='Number of bolts <span class="unit">(2 per row)</span>';
+    $('lblBPitch').innerHTML='Row spacing s <span class="unit">(in)</span>';
+    $('lblBGage').innerHTML='Gage g across stiffener <span class="unit">(in)</span>';
+    $('lblBLe').innerHTML='Top bolt row below top of seat, l<sub>e</sub> <span class="unit">(in)</span>';
+  } else {
+    bRows.min='1'; bRows.removeAttribute('max');
+    bN.readOnly=false; bN.removeAttribute('aria-readonly');
+    $('lblBN').innerHTML='Number of bolts';
+    $('lblBPitch').innerHTML='Vertical pitch s <span class="unit">(in)</span>';
+    $('lblBGage').innerHTML='Gage g <span class="unit">(in)</span>';
+    $('lblBLe').innerHTML='Top bolt row below top of vertical leg, l<sub>e</sub> <span class="unit">(in)</span>';
+  }
+  // tension is always computed for a stiffened seat, so the opt-in checkbox is angle-only
+  $('bTensionWrap').classList.toggle('mode-hide', stiff);
+  $('boltBadge').innerHTML = stiff ? '&sect;J3, shear + tension from R<sub>u</sub>e' : '&sect;J3, shear only per Manual Part 10';
+  $('boltNote').innerHTML = stiff
+    ? 'The seat plate sits on a vertical plate or tee flange bolted to the support: one bolt each side of the stiffener stem at gage g (g/2 from the stem centreline), in one or two rows, the top row l<sub>e</sub> below the top of the seat plate, and the seat moment R<sub>u</sub>e taken about the bottom of the vertical plate.'
+    : 'Bolts through the angle&rsquo;s vertical leg. l<sub>e</sub> is both the top bolt row position and the loaded-edge distance for tearout.';
+}
 function onModeChange(){
   var st=$('seatType').value, at=$('attach').value, su=$('support').value;
   $('blkAngle').classList.toggle('mode-hide', st!=='angle');
@@ -1062,6 +1182,11 @@ function onModeChange(){
   $('numBolt').textContent = at==='bolted' ? '5.' : '';
   $('bothSidesWrap').classList.toggle('mode-hide', su==='colFlange');
   if (su==='colFlange') $('bothSides').checked=false;
+  // moving to a stiffened seat takes the 3 in default top-row position, but only while the
+  // field still holds the angle default — a value the user typed is never overwritten
+  if (st!=='angle' && _lastSeatType!==st && Math.abs(parseFloat($('bLe').value)-1.25)<1e-9) $('bLe').value='3';
+  _lastSeatType = st;
+  applyBoltMode();
   onInputChanged();
 }
 // Results freshness: any input/select/checkbox edit redraws immediately and, when results
@@ -1139,7 +1264,10 @@ function run(){
   $('noteOut').innerHTML='<b>Assumptions and limits</b><ul>'
     +'<li>Reaction at the beam end; setback '+f2(inp.setback)+' in plus '+f2(inp.underrun)+' in underrun (Manual Part 10 uses 1/2 + 1/4 in).</li>'
     +'<li>Reaction eccentricity e = '+f2(v.e)+' in from the support face'+(v.eAuto?' = 0.8 &times; projection (Manual Part 10 assumption: end rotation shifts the contact toward the seat edge)':' (user value)')+'.</li>'
-    +(inp.attach==='welded' ? '<li>Weld model: two L-shaped lines, elastic, bending resisted at the top (tension) fiber with the compression side bearing on the support, shear on the vertical welds only, no directional increase unless selected. Reproduces Manual Tables 10-6 and 10-8 within the tolerances recorded in docs/seated-connection-hand-check-2026-09.md.</li>' : '<li>Bolts checked for shear only per Manual Tables 10-5 / 10-7 practice'+(inp.bolt.tension?', plus the optional elastic tension check (no prying)':'')+'.</li>')
+    +(inp.attach==='welded' ? '<li>Weld model: two L-shaped lines, elastic, bending resisted at the top (tension) fiber with the compression side bearing on the support, shear on the vertical welds only, no directional increase unless selected. Reproduces Manual Tables 10-6 and 10-8 within the tolerances recorded in docs/seated-connection-hand-check-2026-09.md.</li>'
+        : (inp.seatType==='angle'
+            ? '<li>Bolts checked for shear only per Manual Tables 10-5 / 10-7 practice'+(inp.bolt.tension?', plus the optional elastic tension check (no prying)':'')+'.</li>'
+            : '<li>Bolted stiffened seat: two bolts per row, one each side of the stiffener at gage '+f2(inp.bolt.gage)+' in, '+inp.bolt.rows+' row(s) at '+f2(inp.bolt.pitch)+' in. Bolt tension from R<sub>u</sub>e is always reported, taken about the bottom of the vertical plate '+f2(v.vlen)+' in below the top of the seat plate, elastic distribution with no prying. Prying and the vertical plate / tee stem itself are not checked here.</li>'))
     +(inp.seatType==='tri' ? '<li>Triangular stiffener per Manual Part 15 bracket-plate equations (Ex. II.A-23). PCI Eq. 6-47/6-48 shown for reference only.</li>' : '')
     +(inp.seatType==='rect' ? '<li>Rectangular stiffener: no local-buckling check is applied; the Manual Part 10 procedure relies on the thickness rules above (t &ge; t<sub>w</sub>&middot;F<sub>y,beam</sub>/F<sub>y,stiff</sub> and the 2w/1.5w weld-development rule).</li>' : '')
     +'<li>Not checked here: top stability angle (use L4&times;4&times;1/4 with two bolts or 3/16 in fillet per Manual Part 10), beam-to-seat bolts, column-web local yielding/crippling and the Sputo&ndash;Ellifritt (1991) limits for stiffened seats on column webs, seat plate bending, beam flange block shear (structural integrity, Ex. II.A-12B), ASD.</li>'
@@ -1172,6 +1300,9 @@ function runSelftest(){
       if (el.closest && el.closest('#areBar, .are-bar, .are-hub')) return;
       el.addEventListener('change', onInputChanged);
     });
+    // #bN is derived from #bRows for a stiffened seat, so keep it in step as rows is edited
+    $('bRows').addEventListener('input', applyBoltMode);
+    $('bRows').addEventListener('change', applyBoltMode);
   }
   // the are-utils toolbar (loaded after this script) owns #areMark; delegate so the schematic title follows Mark edits
   document.addEventListener('input', function(ev){ if (ev.target && ev.target.id==='areMark') draw(); });
