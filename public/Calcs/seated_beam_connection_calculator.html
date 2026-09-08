@@ -1195,8 +1195,11 @@ var _rerunT=null;
 function onInputChanged(){
   draw();
   if (_rerunT){ clearTimeout(_rerunT); _rerunT=null; }
-  var r=$('results');
-  if (r && r.classList.contains('show')) _rerunT=setTimeout(function(){ _rerunT=null; run(); }, 250);
+  var r=$('results'), e=$('errOut');
+  // re-run while results are on screen, and also while an input-error box is showing so a
+  // corrected input clears (or updates) the message without another click on Run
+  var live = (r && r.classList.contains('show')) || (e && e.innerHTML.length>0);
+  if (live) _rerunT=setTimeout(function(){ _rerunT=null; run(); }, 250);
 }
 function readInputs(){
   return {
