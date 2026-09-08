@@ -40,6 +40,9 @@ All lengths inches, forces kips, stresses ksi. Defaults in brackets reproduce De
 - `attach`: `welded` | `bolted` [`welded`]
 - `support`: `colFlange` | `colWeb` | `beamWeb` [`colFlange`]
 - `bothSides`: checkbox, seats on both sides of a web [off]. Enabled only for `colWeb`/`beamWeb`.
+- `supT` support thickness at the seat [0.710], `FuSup` [65] — one pair of fields serving both attachments (§3.5, §3.6).
+- `FySup` support yield strength [50] (2026-09-08 revision) — required whenever `attach = welded`; drives the support side of the seat moment couple (§4.6).
+- `supK` `kdes` of the support member [1.31] (2026-09-08 revision) — shown only for `support = colWeb | beamWeb`, and validated only for those supports when `attach = welded`. Feeds Eq. J10-2 in the couple check (§4.6). Both reach the engine as `sup.Fy` and `sup.k`.
 
 ### 3.2 Supported beam
 - `wsec`: W-shape select from the embedded `W_DB` (108 shapes W8–W36, copied verbatim from the HSS-column-bearing calc: `[A, d, bf, tf, tw, kdes, Zx, h, Sx]`), plus option `custom`.
@@ -142,6 +145,25 @@ Model (basis of Manual Tables 10-6 and 10-8, Blodgett §5.3): two L-shaped weld 
 - Angle: vertical welds at both ends of the vertical leg; `wRet` is the return along the top of the leg (Manual minimum 2w; default 0.2·l reproduces Table 10-6).
 - Stiffened: `wRet` is the seat-plate-to-support weld each side (Manual minimum 0.2·L). A note flags when `wRet < 0.2·l`.
 
+#### Seat moment couple (stiffened seats only, `!isAngle && attach = welded`; 2026-09-08 revision)
+
+The line-weld row above reports a stress, not the force the seat moment actually delivers to the support. These two rows report that force and check the tension side of it. Both are skipped for seat angles (an unstiffened angle is a flexural element, not a couple) and for bolted seats (the bolt-tension row of §4.7 already carries the moment).
+
+`M = Ru·e`; the couple arm is the stiffener height at the support, `arm = stL` (rect) or `stA` (tri); `T = M/arm`. `l` and `h` are the vertical weld length and return already established above, `nPl = stN`.
+
+- Row **`coupleT`** — "Seat moment couple, tension at top of stiffener", section *Welds to support*, placed immediately after `weldMain`. Ref "AISC 360-22 §J2.4, §J4.1; couple over stiffener height".
+  - Tension-zone length per plate = the two returns plus the top half of both vertical welds, `2h + 2·(l/2) = 2h + l`; total `Lz = nPl·(2h + l)`. When `h = 0` the returns term drops out and the row stays valid.
+  - Weld: `φRw = 0.75·0.6·Fexx·0.707·w · [nPl·(2h·kt_ret + l·1.0)]`, `kt_ret = 1.5` when `wDir` is on (the returns are transverse) and `1` otherwise; the vertical portions always take 1.0.
+  - Base metal in tension (§J4.1): `A = nPl·(spT·2h + stT·l/2)`; yielding `0.90·FySeat·A`, rupture `0.75·FuSeat·A`; `φRbm = min`.
+  - `φRn = min(φRw, φRbm)`, `dc = T/φRn`. Detail panel states that the compression at the bottom of the stiffener bears on the support, so the tension zone is the returns plus the top half of the vertical welds — the returns alone cannot develop this force in the Manual Table 10-8 designs.
+  - Exposes `vals.couple = {M, arm, T, Lz, phiRw, phiRbm, phiRn}`.
+- Row **`supCouple`** — section *Support*, placed immediately after `supBM`. Same demand `T`, `dc = T/φRn`.
+  - Column flange: "Support flange local bending at couple tension", ref "AISC 360-22 §J10.1 Eq. J10-1", `φRn = 0.90·6.25·FySup·supT²`. Note: assumes the seat is more than `10·tf` from the column end.
+  - Column web or girder web: "Support web local yielding at couple tension", ref "AISC 360-22 §J10.2 Eq. J10-2", `lb = nPl·(2h + stT)`, `φRn = 1.00·FySup·supT·(5·supK + lb)`. Note: assumes the seat is more than the member depth from the member end.
+  - Exposes `vals.supCouple = {phiRn, model}` with `model ∈ 'J10-1' | 'J10-2'`.
+
+Results wiring: `run()` adds a `T` demand card when `vals.couple` exists, and the assumptions note carries a bullet describing the couple model whenever those rows are present. For a **bolted stiffened seat** the assumptions note instead states that the support flange/web is not checked for the bolt tension. The schematic is unchanged.
+
 ### 4.7 Bolts to the support (`attach = bolted`)
 Table J3.2 values: A307 `Fnt 45 / Fnv 27`; Group A `Fnt 90`, `Fnv 54 (N) / 68 (X)`; Group B `Fnt 113`, `Fnv 68 (N) / 84 (X)`. `Ab = π·d²/4`. Standard hole `dh` per Table J3.3 (`d + 1/16` up to 7/8 in., `1 1/8` for 1 in., `d + 1/8` above).
 Section numbers are 360-22 (§J3.7 strength of bolts, §J3.8 combined tension and shear, §J3.11 bearing and tearout, §J3.4 spacing, §J3.5 edge distance); the Design Examples cite the 360-16 numbering, which is one lower.
@@ -204,6 +226,8 @@ Any input change after a run re-runs the checks automatically (debounced) so the
 | F12 | PCI 6.6.7.1 | b 8, a 10, t 0.375, Fy 36 | `z = 0.315`, `φVn = 28.9` | ±0.002 / ±0.1 |
 | F13 | baseline | defaults (II.A-14 case) | banner PASS, no errors | — |
 | F14 | NaN guard | `Ru = NaN` | blocking error | — |
+
+No Design Example covers a bolted stiffened seat or the seat moment couple, so F15 (bolted stiffened seat, §4.7) and F16–F18 (couple rows, §4.6 — defaults on a column flange, the same case on a column web, and Nick's shallow joist-seat bracket) are hand computed. Their arithmetic is written out in `docs/seated-connection-hand-check-2026-09.md` §1.1 and §1.2 rather than repeated here. The full set is 62 assertions.
 
 ## 10. Out of scope (stated in the page notes)
 

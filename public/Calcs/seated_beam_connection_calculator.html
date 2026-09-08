@@ -135,6 +135,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           </select></div>
         <div class="ig"><label>Support thickness at seat, t<sub>sup</sub> <span class="unit">(in)</span></label><input type="number" id="supT" value="0.710" step="0.005"></div>
         <div class="ig"><label>F<sub>u</sub> support <span class="unit">(ksi)</span></label><input type="number" id="FuSup" value="65"></div>
+        <div class="ig"><label>F<sub>y</sub> support <span class="unit">(ksi)</span></label><input type="number" id="FySup" value="50"></div>
+        <div class="ig" id="supKWrap"><label>k<sub>des</sub> of support member <span class="unit">(in)</span></label><input type="number" id="supK" value="1.31" step="0.005"></div>
       </div>
       <label class="chk-inline" id="bothSidesWrap"><input type="checkbox" id="bothSides"> Seats on both sides of the web (doubles the base-metal demand, Manual Eq. 9-3)</label>
     </div>
@@ -375,7 +377,7 @@ let W_DB = {
      FySeat, FuSeat, eSeat:null|num,
      angle:{leg,osl,t,L}, lbReq:null|num,
      st:{W,L,A,t,n}, sp:{t,B},
-     weld:{w,Fexx,len:null|num,ret:null|num,dir:bool}, sup:{t,Fu},
+     weld:{w,Fexx,len:null|num,ret:null|num,dir:bool}, sup:{t,Fu,Fy,k},
      bolt:{grade,d,n,rows,pitch,gage,le,leSup:null|num,tension:bool} }
    ============================================================ */
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
@@ -453,6 +455,10 @@ window.SEAT = (function(){
     }
     if (inp.attach==='welded'){
       req(inp.weld.w,'Weld size'); req(inp.weld.Fexx,'F_EXX'); req(inp.sup.t,'Support thickness'); req(inp.sup.Fu,'Support F_u');
+      // the seat moment couple bears on the support, so the support yield strength is always
+      // needed and k_des is needed as well when that support is a web (Eq. J10-2)
+      req(inp.sup.Fy,'Support F_y');
+      if (inp.support==='colWeb'||inp.support==='beamWeb') req(inp.sup.k,'Support k_des');
       if (inp.weld.len!==null && (!isNum(inp.weld.len)||inp.weld.len<=0)) err.push('Weld length must be blank or positive.');
       if (inp.weld.ret!==null && (!isNum(inp.weld.ret)||inp.weld.ret<0)) err.push('Weld return must be blank or >= 0.');
     } else {
@@ -718,6 +724,39 @@ window.SEAT = (function(){
         + R('Required leg D = 16f<sub>r</sub>/[0.75(0.6F<sub>EXX</sub>)(0.707)'+(W.dir?'k<sub>t</sub>':'')+'] = '+f2(wg.Dreq)+' sixteenths; equivalent group strength &phi;R<sub>n</sub> = '+f1(wg.phiRn)+' kips (compare '+tableRef+')')
         + DC('f<sub>r</sub> = '+f3(wg.fr),'&phi;r<sub>n</sub> = '+f3(wg.phirn),wg.dc);
       C.push(mk('Welds to support','weldMain',(isAngle?'Seat angle':'Stiffener')+' to support weld','AISC 360-22 &sect;J2.4; Manual Part 10','f<sub>r</sub> = '+f3(wg.fr)+' k/in','&phi;r<sub>n</sub> = '+f3(wg.phirn)+' k/in',wg.dc,det,{note:'e = '+f2(e)+' in, D<sub>req</sub> = '+f1(wg.Dreq)+'/16'}));
+
+      // ---- seat moment couple on a stiffened seat: R_u*e is carried as a tension force at the
+      // top of the stiffener against bearing at the bottom. The elastic line-weld row above
+      // reports a stress; this row reports the force itself and checks the tension zone of the
+      // weld group and its base metal, which the line-weld model does not do.
+      if (!isAngle){
+        var cM = Ru*e, cArm = vlen, cT = cM/cArm;
+        var ktRet = W.dir ? 1.5 : 1;                 // returns are transverse; the verticals stay 1.0
+        var cLz = nPl*(2*h + l);                     // returns + top half of both vertical welds
+        var cLeff = nPl*(2*h*ktRet + l);
+        var cUnit = 0.75*0.6*W.Fexx*0.707;
+        var cPhiRw = cUnit*W.w*cLeff;
+        var cA = nPl*(inp.sp.t*2*h + tSeat*l/2);     // J4.1 tension area behind the tension-zone weld
+        var cYld = 0.90*Fy*cA, cRup = 0.75*Fu*cA, cPhiRbm = Math.min(cYld, cRup);
+        var cPhiRn = Math.min(cPhiRw, cPhiRbm);
+        vals.couple = {M:cM, arm:cArm, T:cT, Lz:cLz, phiRw:cPhiRw, phiRbm:cPhiRbm, phiRn:cPhiRn};
+        det = H('AISC 360-22 &sect;J2.4, &sect;J4.1 &mdash; seat moment couple over the stiffener height')
+          + R('M = R<sub>u</sub>e = '+f2(Ru)+' &times; '+f3(e)+' = '+V(f2(cM),'kip-in')+'; couple arm = stiffener height at the support = '+V(f2(cArm),'in'))
+          + R('T = M/arm = '+fr(f2(cM),f2(cArm))+' = '+V(f2(cT),'kips'))
+          + R('Compression at the bottom of the stiffener bears on the support; tension zone = returns + top half of the vertical welds (the returns alone cannot develop this force in the Manual Table 10-8 designs).')
+          + R('Tension-zone weld length L<sub>z</sub> = n(2h + l) = '+nPl+' &times; (2 &times; '+f2(h)+' + '+f2(l)+') = '+V(f2(cLz),'in'))
+          + R('&phi;R<sub>w</sub> = 0.75(0.6F<sub>EXX</sub>)(0.707w) &times; n(2h&middot;k<sub>t</sub> + l) = '+f3(cUnit*W.w)+' &times; '+f2(cLeff)+' = '+V(f1(cPhiRw),'kips')+(W.dir?' (k<sub>t</sub> = 1.5 on the transverse returns, 1.0 on the vertical welds)':''))
+          + R('Base metal in tension, &sect;J4.1: A = n(t<sub>sp</sub>&middot;2h + t&middot;l/2) = '+nPl+' &times; ('+f3(inp.sp.t)+' &times; '+f2(2*h)+' + '+f3(tSeat)+' &times; '+f2(l/2)+') = '+V(f4(cA),'in&sup2;'))
+          + I('Yielding &phi;R<sub>n</sub> = 0.90F<sub>y</sub>A = 0.90 &times; '+f1(Fy)+' &times; '+f4(cA)+' = '+f1(cYld)+' kips; rupture &phi;R<sub>n</sub> = 0.75F<sub>u</sub>A = 0.75 &times; '+f1(Fu)+' &times; '+f4(cA)+' = '+f1(cRup)+' kips')
+          + I('&phi;R<sub>bm</sub> = min = '+V(f1(cPhiRbm),'kips'))
+          + R('&phi;R<sub>n</sub> = min(&phi;R<sub>w</sub>, &phi;R<sub>bm</sub>) = min('+f1(cPhiRw)+', '+f1(cPhiRbm)+') = '+V(f1(cPhiRn),'kips'))
+          + DC('T = '+f2(cT),'&phi;R<sub>n</sub> = '+f1(cPhiRn),cT/cPhiRn);
+        C.push(mk('Welds to support','coupleT','Seat moment couple, tension at top of stiffener',
+          'AISC 360-22 &sect;J2.4, &sect;J4.1; couple over stiffener height',
+          'T = '+f2(cT)+' k','&phi;R<sub>n</sub> = '+f1(cPhiRn)+' k',cT/cPhiRn,det,
+          {note:'arm = '+f2(cArm)+' in, L<sub>z</sub> = '+f2(cLz)+' in'}));
+      }
+
       var tThin = Math.min(tSeat, inp.sup.t), wMin = minFillet(tThin), wMax = maxFillet(tSeat);
       det = H('AISC 360-22 Table J2.4 and &sect;J2.2b(b) &mdash; fillet size limits')
         + R('Thinner part joined = '+f3(tThin)+' in &rarr; minimum fillet = '+V(f4(wMin),'in'))
@@ -731,6 +770,36 @@ window.SEAT = (function(){
         + R('t<sub>min</sub> = '+f2(kSup)+'D/F<sub>u</sub> = '+f2(kSup)+' &times; '+f1(D)+'/'+f1(inp.sup.Fu)+' = '+V(f3(tSupMin),'in'))
         + DC('t<sub>min</sub> = '+f3(tSupMin),'t<sub>sup</sub> = '+f3(inp.sup.t),tSupMin/inp.sup.t);
       C.push(mk('Support','supBM','Support base metal at weld','AISC Manual Eq. 9-2 / 9-3','t<sub>min</sub> = '+f3(tSupMin)+' in','t<sub>sup</sub> = '+f3(inp.sup.t)+' in',tSupMin/inp.sup.t,det,{note:inp.bothSides?'seats both sides':''}));
+
+      // ---- the couple tension pulls on the support itself: flange local bending on a column
+      // flange, web local yielding on a column or girder web
+      if (!isAngle){
+        var cTd = vals.couple.T, scName, scRef, scPhiRn, scModel, scNote;
+        if (inp.support==='colFlange'){
+          scModel='J10-1'; scName='Support flange local bending at couple tension';
+          scRef='AISC 360-22 &sect;J10.1 Eq. J10-1';
+          scPhiRn = 0.90*6.25*inp.sup.Fy*inp.sup.t*inp.sup.t;
+          scNote='assumes the seat is more than 10t<sub>f</sub> from the column end';
+          det = H('AISC 360-22 &sect;J10.1 Eq. J10-1 &mdash; flange local bending under the couple tension')
+            + R('&phi;R<sub>n</sub> = 0.90 &times; 6.25F<sub>y,sup</sub>t<sub>f</sub>&sup2; = 0.90 &times; 6.25 &times; '+f1(inp.sup.Fy)+' &times; '+f3(inp.sup.t)+'&sup2; = '+V(f1(scPhiRn),'kips'))
+            + R('Assumes the seat is more than 10t<sub>f</sub> = '+f2(10*inp.sup.t)+' in from the end of the column; if it is closer, &sect;J10.1 halves this strength.')
+            + DC('T = '+f2(cTd),'&phi;R<sub>n</sub> = '+f1(scPhiRn),cTd/scPhiRn);
+        } else {
+          scModel='J10-2'; scName='Support web local yielding at couple tension';
+          scRef='AISC 360-22 &sect;J10.2 Eq. J10-2';
+          var scLb = nPl*(2*h + tSeat);
+          scPhiRn = 1.00*inp.sup.Fy*inp.sup.t*(5*inp.sup.k + scLb);
+          scNote='assumes the seat is more than the member depth from the member end';
+          det = H('AISC 360-22 &sect;J10.2 Eq. J10-2 &mdash; web local yielding under the couple tension')
+            + R('Bearing length delivered to the web l<sub>b</sub> = n(2h + t) = '+nPl+' &times; (2 &times; '+f2(h)+' + '+f3(tSeat)+') = '+V(f3(scLb),'in'))
+            + R('&phi;R<sub>n</sub> = 1.00 &times; F<sub>y,sup</sub>t<sub>w</sub>(5k<sub>des</sub> + l<sub>b</sub>) = '+f1(inp.sup.Fy)+' &times; '+f3(inp.sup.t)+' &times; (5 &times; '+f3(inp.sup.k)+' + '+f3(scLb)+') = '+V(f1(scPhiRn),'kips'))
+            + R('Assumes the seat is more than the member depth from the end of the member; nearer the end &sect;J10.2 uses the 2.5k<sub>des</sub> branch.')
+            + DC('T = '+f2(cTd),'&phi;R<sub>n</sub> = '+f1(scPhiRn),cTd/scPhiRn);
+        }
+        vals.supCouple = {phiRn:scPhiRn, model:scModel};
+        C.push(mk('Support','supCouple',scName,scRef,'T = '+f2(cTd)+' k','&phi;R<sub>n</sub> = '+f1(scPhiRn)+' k',cTd/scPhiRn,det,{note:scNote}));
+      }
+
       var kSeat = isAngle?3.09:6.19, tSeatMin = kSeat*D/Fu;
       vals.tSeatMin = tSeatMin;
       det = H('AISC Manual Eq. 9-'+(isAngle?'2':'3')+' &mdash; seat element base metal at the weld ('+(isAngle?'single-sided weld on the vertical leg':'stiffener welded both sides')+')')
@@ -860,7 +929,7 @@ window.SEAT = (function(){
     Ru:125, setback:0.5, underrun:0.25, FySeat:36, FuSeat:58, eSeat:null,
     angle:{leg:8, osl:4, t:0.625, L:8}, lbReq:null,
     st:{W:7, L:15, A:15, t:0.625, n:1}, sp:{t:0.375, B:9},
-    weld:{w:0.3125, Fexx:70, len:null, ret:null, dir:false}, sup:{t:0.710, Fu:65},
+    weld:{w:0.3125, Fexx:70, len:null, ret:null, dir:false}, sup:{t:0.710, Fu:65, Fy:50, k:1.31},
     bolt:{grade:'A-N', d:0.75, n:4, rows:2, pitch:3, gage:5.5, le:1.25, leSup:null, tension:false}
   };
   function merge(base, over){
@@ -930,7 +999,38 @@ window.SEAT = (function(){
         return [['T_top = 8.96 k/bolt', near(v.Tmax,8.96,0.0896), f3(v.Tmax)],
                 ['F\'nt = 41.6 ksi', near(v.Fnt2,41.6,0.416), f2(v.Fnt2)],
                 ['phi r_nt = 13.78 k/bolt', near(v.phiRt,13.78,0.1378), f3(v.phiRt)],
-                ['wrench clearance (5.5 - 0.625)/2 = 2.44 PASS', !!cl && cl.status==='PASS', cl?cl.status:'row missing']]; }}
+                ['wrench clearance (5.5 - 0.625)/2 = 2.44 PASS', !!cl && cl.status==='PASS', cl?cl.status:'row missing']]; }},
+    // F16-F18 hand checks (docs/seated-connection-hand-check-2026-09.md §1.2): seat moment
+    // couple rows on a welded stiffened seat, and the support limit state they load.
+    {id:'F16', src:'hand check', inp:{},
+      expect:function(r){ var c=r.vals.couple||{}, sc=r.vals.supCouple||{},
+          cr=r.checks.filter(function(x){return x.id==='coupleT';})[0],
+          sr=r.checks.filter(function(x){return x.id==='supCouple';})[0];
+        return [['T = 46.67 k', near(c.T,46.67,0.4667), f3(c.T)],
+                ['Lz = 21.0 in', near(c.Lz,21.0,0.21), f3(c.Lz)],
+                ['phi Rw = 146.2 k', near(c.phiRw,146.2,1.462), f2(c.phiRw)],
+                ['base metal A = 6.9375 in2 -> phi Rbm = 224.8 k (yield 224.8, rupture 301.8)', near(c.phiRbm,224.8,2.248), f2(c.phiRbm)],
+                ['phi Rn = 146.2 k (weld governs)', near(c.phiRn,146.2,1.462), f2(c.phiRn)],
+                ['coupleT D/C = 0.319', !!cr && near(cr.dc,0.319,0.00319), cr?f3(cr.dc):'row missing'],
+                ['flange J10-1 phi Rn = 141.8 k', sc.model==='J10-1' && near(sc.phiRn,141.8,1.418), f2(sc.phiRn)+' '+sc.model],
+                ['supCouple D/C = 0.329', !!sr && near(sr.dc,0.329,0.00329), sr?f3(sr.dc):'row missing']]; }},
+    {id:'F17', src:'hand check', inp:{support:'colWeb', sup:{t:0.440, Fu:65, Fy:50, k:1.31}},
+      expect:function(r){ var sc=r.vals.supCouple||{}, sr=r.checks.filter(function(x){return x.id==='supCouple';})[0];
+        return [['web J10-2, lb = 6.625 in -> phi Rn = 289.9 k', sc.model==='J10-2' && near(sc.phiRn,289.9,2.899), f2(sc.phiRn)+' '+sc.model],
+                ['supCouple D/C = 0.161', !!sr && near(sr.dc,0.161,0.00161), sr?f3(sr.dc):'row missing']]; }},
+    // Nick's open-web-joist seat: shallow chord, long setback, triangular bracket
+    {id:'F18', src:'hand check (joist seat)', inp:{seatType:'tri', attach:'welded',
+        beam:{label:'custom', d:2.5, tw:0.2, tf:0.225, kdes:0.525, bf:4, Fy:50, Fu:65},
+        Ru:3, setback:6, underrun:0, st:{W:8, A:6, t:0.4375, n:1}, sp:{t:0.5, B:5},
+        weld:{w:0.25}, eSeat:null},
+      expect:function(r){ var c=r.vals.couple||{}, cr=r.checks.filter(function(x){return x.id==='coupleT';})[0];
+        return [['computes without error', r.ok===true, r.ok?'ok':r.errors.join('; ')],
+                ['M = 19.2 kip-in', near(c.M,19.2,0.192), f3(c.M)],
+                ['T = 3.2 k', near(c.T,3.2,0.032), f3(c.T)],
+                ['h = 1.2 in', near(r.vals.weld?r.vals.weld.h:NaN,1.2,0.012), f3(r.vals.weld?r.vals.weld.h:NaN)],
+                ['Lz = 8.4 in', near(c.Lz,8.4,0.084), f3(c.Lz)],
+                ['phi Rw = 46.8 k', near(c.phiRw,46.8,0.468), f2(c.phiRw)],
+                ['coupleT D/C = 0.068', !!cr && near(cr.dc,0.068,0.00068), cr?f3(cr.dc):'row missing']]; }}
   ];
   function runFixtures(){
     var lines=[], pass=0, total=0;
@@ -1182,6 +1282,8 @@ function onModeChange(){
   $('numBolt').textContent = at==='bolted' ? '5.' : '';
   $('bothSidesWrap').classList.toggle('mode-hide', su==='colFlange');
   if (su==='colFlange') $('bothSides').checked=false;
+  // k_des of the support member is only used by the Eq. J10-2 couple check on a web support
+  $('supKWrap').classList.toggle('mode-hide', su!=='colWeb' && su!=='beamWeb');
   // moving to a stiffened seat takes the 3 in default top-row position, but only while the
   // field still holds the angle default — a value the user typed is never overwritten
   if (st!=='angle' && _lastSeatType!==st && Math.abs(parseFloat($('bLe').value)-1.25)<1e-9) $('bLe').value='3';
@@ -1209,7 +1311,8 @@ function readInputs(){
     FySeat:numv('FySeat'), FuSeat:numv('FuSeat'), eSeat:optv('eSeat'),
     angle:{leg:numv('angLeg'), osl:numv('angOSL'), t:numv('angT'), L:numv('angL')}, lbReq:optv('lbReq'),
     st:{W:numv('stW'), L:numv('stL'), A:numv('stA'), t:numv('stT'), n:numv('stN')}, sp:{t:numv('spT'), B:numv('spB')},
-    weld:{w:numv('wSize'), Fexx:numv('Fexx'), len:optv('wLen'), ret:optv('wRet'), dir:$('wDir').checked}, sup:{t:numv('supT'), Fu:numv('FuSup')},
+    weld:{w:numv('wSize'), Fexx:numv('Fexx'), len:optv('wLen'), ret:optv('wRet'), dir:$('wDir').checked},
+    sup:{t:numv('supT'), Fu:numv('FuSup'), Fy:numv('FySup'), k:numv('supK')},
     bolt:{grade:$('bGrade').value, d:numv('bDia'), n:numv('bN'), rows:numv('bRows'), pitch:numv('bPitch'), gage:numv('bGage'), le:numv('bLe'), leSup:optv('bLeSup'), tension:$('bTension').checked}
   };
 }
@@ -1232,6 +1335,7 @@ function run(){
   var v=res.vals, cards='';
   cards+=card(f1(inp.Ru)+' k','R<sub>u</sub>')+card(f3(v.bb.lbMin)+' in','l<sub>b,min</sub> (J10)')+card(f3(v.lbProv)+' in','l<sub>b</sub> provided')+card(f2(v.e)+' in','e from support'+(v.eAuto?' (0.8&times;proj.)':''));
   if (v.weld) cards+=card(f3(v.weld.wg.fr)+' k/in','weld resultant f<sub>r</sub>')+card(f1(v.weld.wg.Dreq)+'/16','required fillet');
+  if (v.couple) cards+=card(f2(v.couple.T)+' k','T, seat couple = R<sub>u</sub>e &divide; '+f2(v.couple.arm)+' in');
   if (v.bolt) cards+=card(f2(inp.Ru/inp.bolt.n)+' k','shear per bolt');
   if (v.tri) cards+=card(f1(v.tri.theta)+'&deg;','&theta; free edge')+card(f3(v.tri.lam),'&lambda; (Eq. 15-18)')+card(f1(v.tri.Fcr)+' ksi','F<sub>cr</sub> = QF<sub>y</sub>');
   $('demOut').innerHTML=cards;
@@ -1270,7 +1374,8 @@ function run(){
     +(inp.attach==='welded' ? '<li>Weld model: two L-shaped lines, elastic, bending resisted at the top (tension) fiber with the compression side bearing on the support, shear on the vertical welds only, no directional increase unless selected. Reproduces Manual Tables 10-6 and 10-8 within the tolerances recorded in docs/seated-connection-hand-check-2026-09.md.</li>'
         : (inp.seatType==='angle'
             ? '<li>Bolts checked for shear only per Manual Tables 10-5 / 10-7 practice'+(inp.bolt.tension?', plus the optional elastic tension check (no prying)':'')+'.</li>'
-            : '<li>Bolted stiffened seat: two bolts per row, one each side of the stiffener at gage '+f2(inp.bolt.gage)+' in, '+inp.bolt.rows+' row(s) at '+f2(inp.bolt.pitch)+' in. Bolt tension from R<sub>u</sub>e is always reported, taken about the bottom of the vertical plate '+f2(v.vlen)+' in below the top of the seat plate, elastic distribution with no prying. Prying and the vertical plate / tee stem itself are not checked here.</li>'))
+            : '<li>Bolted stiffened seat: two bolts per row, one each side of the stiffener at gage '+f2(inp.bolt.gage)+' in, '+inp.bolt.rows+' row(s) at '+f2(inp.bolt.pitch)+' in. Bolt tension from R<sub>u</sub>e is always reported, taken about the bottom of the vertical plate '+f2(v.vlen)+' in below the top of the seat plate, elastic distribution with no prying. Prying and the vertical plate / tee stem itself are not checked here. The support flange or web is not checked for that bolt tension &mdash; verify flange local bending (&sect;J10.1) or web local yielding (&sect;J10.2) at the bolt row separately.</li>'))
+    +(v.couple ? '<li>Seat moment couple: R<sub>u</sub>e = '+f2(v.couple.M)+' kip-in is resolved into a tension T = '+f2(v.couple.T)+' kips at the top of the stiffener acting over the '+f2(v.couple.arm)+' in stiffener height, with the compression side bearing on the support. The tension zone is taken as the two returns plus the top half of the two vertical welds (L<sub>z</sub> = '+f2(v.couple.Lz)+' in); the weld and its base metal (&sect;J4.1 yielding and rupture) are both checked, and the tension is carried into the support through '+(v.supCouple&&v.supCouple.model==='J10-1'?'flange local bending, Eq. J10-1':'web local yielding, Eq. J10-2')+'. This is a check beyond the Manual Part 10 table procedure, which reports a single weld strength only.</li>' : '')
     +(inp.seatType==='tri' ? '<li>Triangular stiffener per Manual Part 15 bracket-plate equations (Ex. II.A-23). PCI Eq. 6-47/6-48 shown for reference only.</li>' : '')
     +(inp.seatType==='rect' ? '<li>Rectangular stiffener: no local-buckling check is applied; the Manual Part 10 procedure relies on the thickness rules above (t &ge; t<sub>w</sub>&middot;F<sub>y,beam</sub>/F<sub>y,stiff</sub> and the 2w/1.5w weld-development rule).</li>' : '')
     +'<li>Not checked here: top stability angle (use L4&times;4&times;1/4 with two bolts or 3/16 in fillet per Manual Part 10), beam-to-seat bolts, column-web local yielding/crippling and the Sputo&ndash;Ellifritt (1991) limits for stiffened seats on column webs, seat plate bending, beam flange block shear (structural integrity, Ex. II.A-12B), ASD.</li>'

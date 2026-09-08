@@ -1,6 +1,6 @@
 # Hand check — Seated Beam Connection Calculator
 
-_2026-09-07, revised 2026-09-08 (F15 bolted stiffened seat) · `public/Calcs/seated_beam_connection_calculator.html`_
+_2026-09-07, revised 2026-09-08 (F15 bolted stiffened seat; F16–F18 seat moment couple) · `public/Calcs/seated_beam_connection_calculator.html`_
 
 Basis: AISC 360-22; AISC Companion v15.1 Design Examples II.A-12A pp. IIA-124–127, II.A-13
 pp. IIA-134–136, II.A-14 pp. IIA-137–140, II.A-15 pp. IIA-141–144, II.A-16 pp. IIA-145–147,
@@ -59,8 +59,25 @@ Ex. 6.6.7.1. Fixture definitions are `docs/superpowers/specs/2026-09-07-seated-b
 | F15 | hand computed (§1.1) | `F'nt` | 41.6 | 41.55 | 1% | PASS |
 | F15 | hand computed (§1.1) | `φr_nt` | 13.78 | 13.767 | 1% | PASS |
 | F15 | hand computed (§1.1) | wrench clearance row status | PASS | PASS | — | PASS |
+| F16 | hand computed (§1.2) | couple `T` | 46.67 | 46.667 | 1% | PASS |
+| F16 | hand computed (§1.2) | tension-zone length `Lz` | 21.0 | 21.000 | 1% | PASS |
+| F16 | hand computed (§1.2) | weld `φRw` | 146.2 | 146.15 | 1% | PASS |
+| F16 | hand computed (§1.2) | base metal `φRbm` | 224.8 | 224.77 | 1% | PASS |
+| F16 | hand computed (§1.2) | `φRn` (weld governs) | 146.2 | 146.15 | 1% | PASS |
+| F16 | hand computed (§1.2) | `coupleT` D/C | 0.319 | 0.319 | 1% | PASS |
+| F16 | hand computed (§1.2) | flange Eq. J10-1 `φRn` | 141.8 | 141.78 | 1% | PASS |
+| F16 | hand computed (§1.2) | `supCouple` D/C | 0.329 | 0.329 | 1% | PASS |
+| F17 | hand computed (§1.3) | web Eq. J10-2 `φRn` | 289.9 | 289.85 | 1% | PASS |
+| F17 | hand computed (§1.3) | `supCouple` D/C | 0.161 | 0.161 | 1% | PASS |
+| F18 | hand computed (§1.4) | computes without error | no error | ok | — | PASS |
+| F18 | hand computed (§1.4) | `M` | 19.2 | 19.200 | 1% | PASS |
+| F18 | hand computed (§1.4) | couple `T` | 3.2 | 3.200 | 1% | PASS |
+| F18 | hand computed (§1.4) | weld return `h` | 1.2 | 1.200 | 1% | PASS |
+| F18 | hand computed (§1.4) | `Lz` | 8.4 | 8.400 | 1% | PASS |
+| F18 | hand computed (§1.4) | weld `φRw` | 46.8 | 46.77 | 1% | PASS |
+| F18 | hand computed (§1.4) | `coupleT` D/C | 0.068 | 0.068 | 1% | PASS |
 
-All 45 assertions pass. No FAIL rows in the fixture set; F15 raises no REVIEW row either.
+All 62 assertions pass. No FAIL rows in the fixture set; F15–F18 raise no REVIEW row either.
 
 ### 1.1 F15 — bolted rectangular stiffened seat, hand computation
 
@@ -95,6 +112,91 @@ Wrench clearance beside the stem (AISC Manual Table 7-16, C1 for 3/4 in bolts):
 The calculator returns `T_top = 8.960`, `F'nt = 41.55`, `φr_nt = 13.767`, `D/C = 0.651` and a
 PASS on the clearance row — all within 1 %. The 41.55 vs 41.6 difference is rounding of `frv`
 in the hand arithmetic only.
+
+### 1.2 F16 — seat moment couple, welded rectangular stiffened seat on a column flange
+
+Added with the 2026-09-08 couple revision (spec §3.1, §4.6). The elastic line-weld row
+(`weldMain`) reports a stress, not the force the seat moment delivers to the support, and no
+Design Example carries that force through, so these fixtures are hand computed.
+
+Inputs are the calculator defaults, i.e. the II.A-14 case: W21X68, `Ru = 125` kips, rectangular
+stiffener `PL 5/8 × 7 × 15`, one plate, seat plate `PL 3/8 × 9`, `Fy = 36`, `Fu = 58` ksi,
+5/16 in E70 fillets, `l = L = 15` in and `h = 0.2·l = 3` in (both auto), `e = 0.8·W = 5.6` in
+(auto). Support: column flange `t = 0.710` in, `Fy = 50`, `Fu = 65` ksi.
+
+The moment is carried as a couple over the stiffener height — tension at the top of the
+stiffener, compression bearing on the support at the bottom:
+
+- `M = Ru·e = 125 × 5.6 = 700` kip-in
+- `arm = L = 15` in, `T = M/arm = 700/15 = 46.67` kips
+
+Tension zone of the weld group = the two returns plus the top half of the two vertical welds:
+
+- `Lz = n·(2h + 2·l/2) = 1 × (2 × 3 + 15) = 21.0` in
+- unit fillet strength `0.75 × 0.6 × 70 × 0.707 × 0.3125 = 6.960` kip/in
+- `φRw = 6.960 × 21.0 = 146.2` kips (`wDir` off, so `kt = 1` on both returns and verticals)
+
+Base metal behind that weld, AISC 360-22 §J4.1, with the returns bearing on the seat plate and
+the vertical welds on the stiffener:
+
+- `A = n·(t_sp·2h + t·l/2) = 0.375 × 6 + 0.625 × 7.5 = 2.250 + 4.688 = 6.9375` in²
+- yielding `0.90 × 36 × 6.9375 = 224.8` kips; rupture `0.75 × 58 × 6.9375 = 301.8` kips
+- `φRbm = 224.8` kips
+
+`φRn = min(146.2, 224.8) = 146.2` kips — the weld governs — and `D/C = 46.67/146.2 = 0.319`.
+
+The same tension pulls on the column flange, AISC 360-22 §J10.1 Eq. J10-1:
+
+- `φRn = 0.90 × 6.25 × Fy,sup · tf² = 0.90 × 6.25 × 50 × 0.710² = 141.8` kips
+- `D/C = 46.67/141.8 = 0.329`
+
+The calculator returns `T = 46.667`, `Lz = 21.000`, `φRw = 146.15`, `φRbm = 224.77`,
+`φRn = 146.15`, `coupleT` D/C `0.319`, flange `φRn = 141.78` and `supCouple` D/C `0.329` — all
+within 1 %. The flange row carries a note that Eq. J10-1 assumes the seat is more than `10·tf`
+from the end of the column.
+
+### 1.3 F17 — the same seat on a column web
+
+F16 with the support changed to a column web, `t = 0.440` in, `Fy = 50` ksi, `kdes = 1.31` in.
+The couple tension is unchanged at `T = 46.67` kips; only the support limit state changes, to
+web local yielding, AISC 360-22 §J10.2 Eq. J10-2. The bearing length delivered to the web is
+the two returns plus the stiffener thickness:
+
+- `lb = n·(2h + t) = 2 × 3 + 0.625 = 6.625` in
+- `φRn = 1.00 × Fy,sup · tw · (5·kdes + lb) = 50 × 0.440 × (6.55 + 6.625) = 22.0 × 13.175 = 289.9` kips
+- `D/C = 46.67/289.9 = 0.161`
+
+The calculator returns `289.85` and `0.161`. The row carries a note that Eq. J10-2 assumes the
+seat is more than the member depth from the end of the member; nearer the end the `2.5·kdes`
+branch applies instead.
+
+### 1.4 F18 — shallow joist-seat bracket (Nick's case)
+
+A triangular bracket carrying an open-web joist chord rather than a rolled beam: a shallow
+chord and a long setback, well outside the geometry any Design Example covers. It exercises the
+couple rows at the opposite end of the size range from F16 and confirms the auto `l`/`h`/`e`
+defaults hold up when the vertical dimension is smaller than the projection.
+
+Inputs: triangular stiffener, welded, column flange. Custom supported member `d = 2.5`,
+`tw = 0.2`, `tf = 0.225`, `kdes = 0.525`, `bf = 4` in, `Fy = 50`, `Fu = 65` ksi. `Ru = 3` kips,
+setback 6 in, underrun 0. Stiffener `a = 6`, `b = W = 8`, `t = 7/16` in, one plate; seat plate
+`PL 1/2 × 5`; 1/4 in E70 fillet. `e` left blank → `0.8 × 8 = 6.4` in; `l` blank → `a = 6` in;
+`h` blank → `0.2 × 6 = 1.2` in.
+
+- `M = Ru·e = 3 × 6.4 = 19.2` kip-in
+- `arm = a = 6` in, `T = 19.2/6 = 3.2` kips
+- `Lz = 1 × (2 × 1.2 + 6) = 8.4` in
+- unit fillet strength `0.75 × 0.6 × 70 × 0.707 × 0.25 = 5.568` kip/in
+- `φRw = 5.568 × 8.4 = 46.8` kips
+- `A = 0.5 × 2.4 + 0.4375 × 3.0 = 2.5125` in² → yielding `81.4`, rupture `109.3`, `φRbm = 81.4` kips
+- `φRn = 46.8` kips (weld governs), `D/C = 3.2/46.8 = 0.068`
+
+The calculator returns `M = 19.200`, `T = 3.200`, `h = 1.200`, `Lz = 8.400`, `φRw = 46.77` and
+`coupleT` D/C `0.068`, and `compute` returns `ok = true` — the case is valid input, not an
+error. Its overall banner is FAIL, but on an unrelated row: a 1/4 in fillet needs `t ≥ 2w =
+0.5` in to develop it and the plate is 7/16 in, so `stTweld` reports D/C 1.14. That is the
+correct answer for the geometry as entered; the fixture asserts only the couple quantities and
+`ok === true`, not the banner.
 
 ---
 
@@ -143,6 +245,20 @@ tension row is always reported: the vertical plate is a flexural element and the
 has to go somewhere. The pivot is the bottom of the vertical plate, `L` below the top of the seat
 plate, and `le` positions the top row below that same top edge. F15 above is the hand check.
 
+**(d) Seat moment couple (2026-09-08 revision).** Table 10-8 publishes one weld strength per
+stiffener size and weld leg, and the elastic line-weld model in (b) reproduces the stress that
+sits behind it — but it never reports the force the seat moment actually delivers to the
+support, and it does not check the base metal on the tension side of the weld group. The couple
+rows do both: `T = Ru·e / (stiffener height at the support)` in tension at the top of the
+stiffener against bearing at the bottom, resisted by the two returns plus the top half of the
+two vertical welds and by the §J4.1 tension area behind them, then carried into the support by
+flange local bending (Eq. J10-1) or web local yielding (Eq. J10-2). The tension zone deliberately
+includes the top half of the verticals: the returns alone are 2h ≈ 0.4·l of weld and cannot
+develop `T` in the Table 10-8 designs, which would report a false failure on every tabulated
+seat. Rows are added for welded stiffened seats only — a seat angle is a flexural element rather
+than a couple, and a bolted stiffened seat already carries the moment in its bolt-tension row.
+F16–F18 are the hand checks.
+
 ---
 
 ## 3. Not verified against a published example
@@ -152,7 +268,14 @@ plate, and `le` positions the top row below that same top edge. F15 above is the
 - Bolt tension + shear interaction on a **seat angle** (`bTension`, §4.7) — no fixture exercises
   the optional angle path. The stiffened-seat path, where the row is always computed, is covered
   by the hand-computed F15 above but not by any published example.
+- Seat moment couple rows (`coupleT`, `supCouple`, §4.6) — hand computed in §1.2–§1.4 above, but the
+  couple model itself is an ARE addition beyond the Manual Part 10 table procedure; no Design Example
+  reports the couple force or checks the support for it. The split of the tension zone (returns plus
+  the top half of the vertical welds) is a modeling choice, calibrated so the Table 10-8 seats do not
+  report a false failure — treat a D/C near 1.0 on `coupleT` as a prompt to look at the detail rather
+  than a code-published limit.
 - J2.4 directional weld strength increase (`wDir`) — not exercised by any fixture; all F5/F6/F8 cases
-  run with the increase off.
+  run with the increase off, and the `kt = 1.5` transverse factor on the couple returns is likewise
+  untested.
 - INFO → REVIEW promotion logic for informational rows exceeding D/C = 1.0 (minimum/maximum fillet
   size notes, PCI cross-check row) — logic only, not driven to that state by any fixture.
