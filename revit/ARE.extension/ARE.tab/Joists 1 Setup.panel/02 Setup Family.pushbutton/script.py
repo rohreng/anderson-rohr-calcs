@@ -117,8 +117,11 @@ FORMULAS = [
      "+ if(ARE_J_is_Floor, ARE_J_DLfloor_psf, 0) "
      "+ if(ARE_J_has_Solar, ARE_J_Solar_psf, 0)) "
      "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
+    # Roof live = project Lr + per-joist extra (ARE_J_Lr_extra_psf, NOT tied to
+    # a global) so a local heavier zone (lighting, mechanical) can be loaded
+    # without flipping the joist to is_Floor, which would drop wind/snow.
     ("ARE_J_Lr_plf",
-     "roundup((if(ARE_J_is_Roof, ARE_J_Lr_psf, 0) "
+     "roundup((if(ARE_J_is_Roof, ARE_J_Lr_psf + ARE_J_Lr_extra_psf, 0) "
      "* (ARE_J_Spacing / ARE_J_ref_1ft)) / 5) * 5"),
     ("ARE_J_LL_plf",
      "roundup((if(ARE_J_is_Floor, ARE_J_LL_psf, 0) "
@@ -194,7 +197,7 @@ PARAM_ORDER = [
     "ARE_J_is_Roof", "ARE_J_is_Floor", "ARE_J_has_Solar", "ARE_J_is_EdgeZone",
     "ARE_J_Spacing", "ARE_J_Spacing_Source",
     "ARE_J_DLroof_psf", "ARE_J_DLfloor_psf", "ARE_J_Solar_psf",
-    "ARE_J_Lr_psf", "ARE_J_LL_psf", "ARE_J_Snow_psf",
+    "ARE_J_Lr_psf", "ARE_J_Lr_extra_psf", "ARE_J_LL_psf", "ARE_J_Snow_psf",
     "ARE_J_WindULT_psf", "ARE_J_Wind2ULT_psf", "ARE_J_WindDownULT_psf",
     "ARE_J_Axial_Wind_k", "ARE_J_Axial_Seismic_k",
     "ARE_J_Sched_Depth", "ARE_J_Sched_Series", "ARE_J_Grid_Ref",
