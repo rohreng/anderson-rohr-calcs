@@ -395,7 +395,7 @@ export const CALCS: CalcMeta[] = [
     subtitle: "Accumulates DL · LL · Snow jamb loads floor-by-floor at stacked openings",
     htmlFile: "/Calcs/stacked_headers_studs_calculator.html",
     category: "Members",
-    spec: "ASCE 7-22",
+    spec: "NDS 2018",
     status: "ready",
     keywords: ["wood", "header", "jamb", "stud", "lumber", "opening", "window", "door", "load accumulation", "dead load", "live load", "snow", "NDS", "floor"],
     material: "Wood",

@@ -353,3 +353,24 @@ Normalize to `AISC_Manual_Label`:
 - [ ] Auth: machine path uses `x-api-key`/`ARE_API_KEY`; humans use Clerk; middleware updated.
 - [ ] `results.status` defaults to `PENDING` in store-only v1 (never silently `PASS`).
 ```
+
+---
+
+## 9. Wood calculators — browser save adapters (not part of the Revit contract)
+
+*Added 2026-09-14 with the stacked-headers / stacked-shearwall Phase 2 fix.*
+
+`stacked-headers` and `stacked-shearwall` are **not** `are.calc.v1` calc types: they have no Revit member
+mapping and no `/api/calc/run` path. Their persistence is the in-page AREv2 adapter (`are-utils-v2.js`
+`registerAdapter`) plus, for the shearwall, its own JSON export. This section records those contracts so a
+future contributor does not confuse them with the schema above.
+
+| Calc | Adapter version | Owned DOM | Model keys | Legacy handling |
+|---|---|---|---|---|
+| `stacked-headers` (`public/Calcs/engines/stacked-headers.js`, `HDR.ENGINE.version = 2`) | 2 | `#floorsContainer` | `floors` (each floor: `headers[] {id, stack_id, label, span, tribs, trialSz, rowWallSz, jambSz, jambCount, kingSz, kingCount, studSpacing, topOfOpening, braced_edge, transfer, kingAxialExtra}`, `studs[] {id, sid, label, size, spacing, tribs}`), `hCnt`, `fCnt`, `sCnt`; page-level Tier-A inputs `#weakBraceIn #plateSpecies #finishType #windDeflBasis #dryInstall #windOpen #windStud` | v1 records (label-keyed, no ids) are migrated in a page-local `AREv2.loadFromState` wrapper (labels → stable ids, new fields defaulted) and a banner states that results were recomputed with engine v2. |
+| `stacked-shearwall` (`public/Calcs/engines/stacked-shearwall.js`, `SW.ENGINE.version = 2`) | 2 | `#floor-con` | `version`, `floors` (each: `id, name, h_ft, P_wind_lb, P_seis_lb, walls[] {id, label, L_ft, segments_ft[], openings[], unsheathed_ft2, sheathing{face1, face2, blocked, insideFaceHoldown}, endPost{n,size}, holdown, sill{conn, spacing_in}, sillSpecies, dead{w_plf, P_end_lb, source}, transfer}`), `wCnt`; page-level Tier-A `#sfrs #sdc #species` | v1 records are **refused** (engine `SW.V1_REFUSAL`, same string in the JSON import and the adapter); no legacy records existed. |
+
+Both engines write a result snapshot (`engine`, `codes`, hardware edition, `inputs_hash`, `assumptions`,
+`checks[]`, `governing`, `timestamp`) into the rendered "Calculation record" so a saved (frozen) record is
+self-describing. Fixtures with provenance: `docs/stacked-wood-qaqc-2026-09/E-fixtures.json` and
+`D-shearwall-fixtures.json`; tests `npm run test:hdr`, `npm run test:sw`.

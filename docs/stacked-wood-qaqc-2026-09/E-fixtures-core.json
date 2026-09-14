@@ -1,0 +1,565 @@
+[
+ {
+  "id": "HDR-DEFAULT-ROOF",
+  "kind": "header",
+  "provenance": "Calculator shipped defaults read live (roofTrib 10 ft, wallTrib 8 ft @15 psf, roofDL 20 / roofLL 20 / snow 25 psf), 3-ply 2x8 DFL No.2, 8 ft span, 9 ft story. NDS 2018 Sec 3.3.3 / 3.4.2 / 3.10 + ASCE 7-16 Sec 2.4.1 + Table 2.3.2.",
+  "inputs": {
+   "size": "2x8",
+   "n_plies": 3,
+   "span_ft": 8.0,
+   "lu_ft": 8.0,
+   "species": "DFL",
+   "D_plf": 320.0,
+   "L_plf": 0.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "n_jambs_bearing": 1,
+   "Cr": 1.0
+  },
+  "expected": {
+   "governing_combo": "D+S",
+   "w_plf": 570.0,
+   "C_D": 1.15,
+   "M_lb_in": 54720.0,
+   "V_lb": 2280.0,
+   "le_in": 178.23,
+   "le_branch": "lu/d >= 7 -> le = 1.63 lu + 3d  (Table 3.3.3, single span, UDL)",
+   "R_B": 7.9882,
+   "R_B_le_50": true,
+   "F_bE_psi": 10907.2547,
+   "C_L": 0.9937,
+   "Fb_star_psi": 1242.0,
+   "Fb_prime_psi": 1234.1273,
+   "fb_psi": 1388.0618,
+   "DC_flexure": 1.1247,
+   "fv_psi": 104.8276,
+   "Fv_prime_psi": 207.0,
+   "DC_shear": 0.5064,
+   "bearing_lb_in": 1.5,
+   "C_b": 1.0,
+   "C_b_basis": "1.0 - Sec 3.10.4 excludes bearings at member ends",
+   "fcperp_psi": 337.7778,
+   "Fcperp_prime_psi": 625.0,
+   "DC_bearing": 0.5404,
+   "defl_live_in": 0.1008,
+   "defl_live_allow_in": 0.2667,
+   "defl_total_in": 0.2297,
+   "defl_total_allow_in": 0.4,
+   "governing_DC": 1.1247,
+   "passes": false
+  },
+  "calculator_today": {
+   "w_plf": 770,
+   "C_D": 1.0,
+   "C_L": 0.9946,
+   "fb_psi": 1875.0476,
+   "Fb_prime_psi": 1074.1333,
+   "DC_flexure": 1.7456,
+   "DC_shear": 0.7867,
+   "DC_bearing": 0.7301,
+   "deflection": "NOT CHECKED"
+  }
+ },
+ {
+  "id": "JAMB-DEFAULT-ROOF",
+  "kind": "jamb_pack",
+  "provenance": "Same defaults; jamb reaction = (D or Lr or S) x span/2. NDS 2018 Sec 3.7.1, Eq. 3.7-1, c=0.8, K_cE=0.822; applicability per Sec 3.7.1.4.",
+  "inputs": {
+   "size": "2x6",
+   "n": 1,
+   "P_D_lb": 1280.0,
+   "P_L_lb": 0.0,
+   "P_Lr_lb": 800.0,
+   "P_S_lb": 1000.0,
+   "story_ft": 9.0,
+   "species": "DFL",
+   "weak_axis_brace_in": 48.0,
+   "Ke": 1.0
+  },
+  "expected": {
+   "governing_combo": "D+S",
+   "P_lb": 2280.0,
+   "C_D": 1.15,
+   "Fc_star_psi": 1707.75,
+   "weak_braced": {
+    "le_in": 48.0,
+    "le_over_d": 32.0,
+    "F_cE_psi": 465.5859,
+    "C_P": 0.2552
+   },
+   "strong": {
+    "le_in": 108.0,
+    "le_over_d": 19.6364,
+    "F_cE_psi": 1236.4532,
+    "C_P": 0.5715
+   },
+   "weak_unbraced_le_over_d": 72.0,
+   "weak_unbraced_applicable": false,
+   "governing_axis": "weak(braced)",
+   "C_P": 0.2552,
+   "Fc_prime_psi": 435.7335,
+   "fc_psi": 276.3636,
+   "DC": 0.6342,
+   "min_jambs_required": 1
+  },
+  "calculator_today": {
+   "le_over_d_reported": 50.0,
+   "C_P": 0.1249,
+   "Fc_prime_psi": 185.41,
+   "DC_n1": 2.0135,
+   "min_jambs_chosen": 3
+  }
+ },
+ {
+  "id": "KING-DEFAULT-ROOF",
+  "kind": "king_stud",
+  "provenance": "Same defaults. 25 psf is the ASCE 7-16 Ch.30 STRENGTH-level C&C pressure handed over by asce716_cc_wind_calculator.html sendToHeaders(), so the ASD wind is 0.6 x 25 = 15 psf. NDS 2018 Eq. 3.9-3, bending about the STRONG axis.",
+  "inputs": {
+   "size": "2x6",
+   "species": "DFL",
+   "story_ft": 9.0,
+   "opening_ft": 8.0,
+   "stud_spacing_in": 16.0,
+   "trib_width_ft": 4.6667,
+   "p_strength_psf": 25.0,
+   "P_gravity_lb": 0.0,
+   "Cr": 1.0,
+   "weak_axis": "sheathed"
+  },
+  "expected": {
+   "governing_combo": "D+0.6W",
+   "C_D": 1.6,
+   "w_ASD_plf": 70.0,
+   "M_lb_in": 8505.0,
+   "S_x_in3": 7.5625,
+   "fb_psi": 1124.6281,
+   "Fb_prime_psi": 1872.0,
+   "C_P": 0.4478,
+   "Fc_prime_psi": 1063.9159,
+   "F_cE1_psi": 1236.4532,
+   "term1": 0.0,
+   "term2": 0.6008,
+   "interaction_DC": 0.6008,
+   "passes": true
+  },
+  "calculator_today": {
+   "model": "whole trib AREA (18 sf) as one POINT load at 6 ft",
+   "S_used_in3": 2.0625,
+   "S_axis": "WEAK (d b^2/6)",
+   "M_lb_in": 10800.0,
+   "fb_psi": 5236.4,
+   "Cr": 1.15,
+   "interaction_DC": 2.4324
+  }
+ },
+ {
+  "id": "STUD-DEFAULT-ROOF",
+  "kind": "wall_stud",
+  "provenance": "Calculator default stud row \"Exterior Long Side\", loads accumulated floor to floor. NDS 2018 Eq. 3.9-3; C_r = 1.15 per Sec 4.3.9 (>=3 members, 16 in o.c., sheathed). Weak axis braced by sheathing per NDS A.11.3 / Commentary C3.6.7.",
+  "inputs": {
+   "size": "2x6",
+   "spacing_in": 16.0,
+   "species": "DFL",
+   "story_ft": 9.0,
+   "D_plf": 320.0,
+   "L_plf": 0.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "p_strength_psf": 25.0,
+   "Cr": 1.15,
+   "weak_axis": "sheathed"
+  },
+  "expected": {
+   "governing_combo": "D+0.6W",
+   "C_D": 1.6,
+   "C_P": 0.4478,
+   "C_P_axis": "strong (weak axis sheathed)",
+   "fc_psi": 51.7172,
+   "fb_psi": 321.3223,
+   "Fc_prime_psi": 1063.9159,
+   "Fb_prime_psi": 2152.8,
+   "F_cE1_psi": 1236.4532,
+   "term1": 0.0024,
+   "term2": 0.1558,
+   "interaction_DC": 0.1581,
+   "wind_defl_in": 0.0887,
+   "wind_defl_allow_L240_in": 0.45,
+   "passes": true
+  },
+  "calculator_today": {
+   "C_P": 0.0789,
+   "le_over_d_reported": 50.0,
+   "le_over_d_true": 72.0,
+   "fc_psi": 124.4444,
+   "fb_psi": 535.5372,
+   "DC_wind": 0.7171,
+   "DC_axial_gravity": 0.6712,
+   "gov": 0.7171
+  }
+ },
+ {
+  "id": "STUD-DEFAULT-3RD",
+  "kind": "wall_stud",
+  "provenance": "Calculator default stud row \"Exterior Long Side\", loads accumulated floor to floor. NDS 2018 Eq. 3.9-3; C_r = 1.15 per Sec 4.3.9 (>=3 members, 16 in o.c., sheathed). Weak axis braced by sheathing per NDS A.11.3 / Commentary C3.6.7.",
+  "inputs": {
+   "size": "2x6",
+   "spacing_in": 16.0,
+   "species": "DFL",
+   "story_ft": 9.0,
+   "D_plf": 515.0,
+   "L_plf": 200.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "p_strength_psf": 25.0,
+   "Cr": 1.15,
+   "weak_axis": "sheathed"
+  },
+  "expected": {
+   "governing_combo": "D+0.6W",
+   "C_D": 1.6,
+   "C_P": 0.4478,
+   "C_P_axis": "strong (weak axis sheathed)",
+   "fc_psi": 83.2323,
+   "fb_psi": 321.3223,
+   "Fc_prime_psi": 1063.9159,
+   "Fb_prime_psi": 2152.8,
+   "F_cE1_psi": 1236.4532,
+   "term1": 0.0061,
+   "term2": 0.16,
+   "interaction_DC": 0.1662,
+   "wind_defl_in": 0.0887,
+   "wind_defl_allow_L240_in": 0.45,
+   "passes": true
+  },
+  "calculator_today": {
+   "C_P": 0.0789,
+   "le_over_d_reported": 50.0,
+   "le_over_d_true": 72.0,
+   "fc_psi": 188.2828,
+   "fb_psi": 535.5372,
+   "DC_wind": 1.3019,
+   "DC_axial_gravity": 1.0155,
+   "gov": 1.3019
+  }
+ },
+ {
+  "id": "STUD-DEFAULT-2ND",
+  "kind": "wall_stud",
+  "provenance": "Calculator default stud row \"Exterior Long Side\", loads accumulated floor to floor. NDS 2018 Eq. 3.9-3; C_r = 1.15 per Sec 4.3.9 (>=3 members, 16 in o.c., sheathed). Weak axis braced by sheathing per NDS A.11.3 / Commentary C3.6.7.",
+  "inputs": {
+   "size": "2x6",
+   "spacing_in": 16.0,
+   "species": "DFL",
+   "story_ft": 9.0,
+   "D_plf": 710.0,
+   "L_plf": 400.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "p_strength_psf": 25.0,
+   "Cr": 1.15,
+   "weak_axis": "sheathed"
+  },
+  "expected": {
+   "governing_combo": "D+0.6W",
+   "C_D": 1.6,
+   "C_P": 0.4478,
+   "C_P_axis": "strong (weak axis sheathed)",
+   "fc_psi": 114.7475,
+   "fb_psi": 321.3223,
+   "Fc_prime_psi": 1063.9159,
+   "Fb_prime_psi": 2152.8,
+   "F_cE1_psi": 1236.4532,
+   "term1": 0.0116,
+   "term2": 0.1645,
+   "interaction_DC": 0.1762,
+   "wind_defl_in": 0.0887,
+   "wind_defl_allow_L240_in": 0.45,
+   "passes": true
+  },
+  "calculator_today": {
+   "C_P": 0.0789,
+   "le_over_d_reported": 50.0,
+   "le_over_d_true": 72.0,
+   "fc_psi": 252.1212,
+   "fb_psi": 535.5372,
+   "DC_wind": 2.1207,
+   "DC_axial_gravity": 1.3598,
+   "gov": 2.1207
+  }
+ },
+ {
+  "id": "JAMB-2X6-9FT",
+  "kind": "jamb_pack",
+  "provenance": "Case 4: 2x6 jamb pack, weak axis blocked at 48 in vs unbraced full story. Demonstrates that story height must change the answer.",
+  "inputs": {
+   "size": "2x6",
+   "n": 2,
+   "story_ft": 9.0,
+   "species": "DFL",
+   "P_D_lb": 1280.0,
+   "P_Lr_lb": 800.0,
+   "P_S_lb": 1000.0,
+   "weak_axis_brace_in": 48.0
+  },
+  "expected": {
+   "C_P_weak_braced_48in": 0.2552,
+   "C_P_strong": 0.5715,
+   "C_P_governing": 0.2552,
+   "weak_unbraced_le_over_d": 72.0,
+   "weak_unbraced_applicable": false,
+   "Fc_prime_psi": 435.7335,
+   "fc_psi": 138.1818,
+   "DC": 0.3171
+  },
+  "calculator_today": {
+   "C_P": 0.1249,
+   "le_over_d_reported": 50.0,
+   "DC": 1.0068,
+   "note": "byte-identical at 9 ft and 10 ft - the le/d clamp saturates above a 6.25 ft story"
+  }
+ },
+ {
+  "id": "JAMB-2X6-10FT",
+  "kind": "jamb_pack",
+  "provenance": "Case 4: 2x6 jamb pack, weak axis blocked at 48 in vs unbraced full story. Demonstrates that story height must change the answer.",
+  "inputs": {
+   "size": "2x6",
+   "n": 2,
+   "story_ft": 10.0,
+   "species": "DFL",
+   "P_D_lb": 1280.0,
+   "P_Lr_lb": 800.0,
+   "P_S_lb": 1000.0,
+   "weak_axis_brace_in": 48.0
+  },
+  "expected": {
+   "C_P_weak_braced_48in": 0.2552,
+   "C_P_strong": 0.4915,
+   "C_P_governing": 0.2552,
+   "weak_unbraced_le_over_d": 80.0,
+   "weak_unbraced_applicable": false,
+   "Fc_prime_psi": 435.7335,
+   "fc_psi": 138.1818,
+   "DC": 0.3171
+  },
+  "calculator_today": {
+   "C_P": 0.1249,
+   "le_over_d_reported": 50.0,
+   "DC": 1.0068,
+   "note": "byte-identical at 9 ft and 10 ft - the le/d clamp saturates above a 6.25 ft story"
+  }
+ },
+ {
+  "id": "HDR-BAND-2X8-4FT",
+  "kind": "header",
+  "provenance": "Case 5: Table 3.3.3, single span, uniformly distributed load. lu/d = 6.62. NOTE: the NAMED uniform row has only two branches (<7, >=7); the 1.84 lu form above lu/d = 14.3 is footnote 1, for loading conditions NOT listed.",
+  "inputs": {
+   "size": "2x8",
+   "n_plies": 3,
+   "span_ft": 4.0,
+   "lu_ft": 4.0,
+   "species": "DFL",
+   "D_plf": 320.0,
+   "L_plf": 0.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "n_jambs_bearing": 1
+  },
+  "expected": {
+   "lu_over_d": 6.6207,
+   "le_branch": "lu/d < 7 -> le = 2.06 lu  (Table 3.3.3, single span, UDL)",
+   "le_in": 98.88,
+   "R_B": 5.9499,
+   "R_B_le_50": true,
+   "F_bE_psi": 19660.1942,
+   "C_L": 0.9967,
+   "Fb_prime_psi": 1237.8413,
+   "fb_psi": 347.0155,
+   "DC_flexure": 0.2803,
+   "DC_shear": 0.2532,
+   "DC_bearing": 0.2702,
+   "defl_total_in": 0.0144,
+   "defl_total_allow_in": 0.2,
+   "DC_defl_total": 0.0718,
+   "governing_DC": 0.2803
+  },
+  "calculator_today": {
+   "le_in": 99.99,
+   "R_B": 5.9832,
+   "F_bE_psi": 19441.9442,
+   "C_L": 0.9971,
+   "DC_flexure": 0.4353,
+   "gov": 0.4353
+  }
+ },
+ {
+  "id": "HDR-BAND-2X10-8FT",
+  "kind": "header",
+  "provenance": "Case 5: Table 3.3.3, single span, uniformly distributed load. lu/d = 10.38. NOTE: the NAMED uniform row has only two branches (<7, >=7); the 1.84 lu form above lu/d = 14.3 is footnote 1, for loading conditions NOT listed.",
+  "inputs": {
+   "size": "2x10",
+   "n_plies": 3,
+   "span_ft": 8.0,
+   "lu_ft": 8.0,
+   "species": "DFL",
+   "D_plf": 320.0,
+   "L_plf": 0.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "n_jambs_bearing": 1
+  },
+  "expected": {
+   "lu_over_d": 10.3784,
+   "le_branch": "lu/d >= 7 -> le = 1.63 lu + 3d  (Table 3.3.3, single span, UDL)",
+   "le_in": 184.23,
+   "R_B": 9.1736,
+   "R_B_le_50": true,
+   "F_bE_psi": 8270.5079,
+   "C_L": 0.9922,
+   "Fb_prime_psi": 1129.5662,
+   "fb_psi": 852.71,
+   "DC_flexure": 0.7549,
+   "DC_shear": 0.3969,
+   "DC_bearing": 0.5404,
+   "defl_total_in": 0.1106,
+   "defl_total_allow_in": 0.4,
+   "DC_defl_total": 0.2766,
+   "governing_DC": 0.7549
+  },
+  "calculator_today": {
+   "le_in": 184.23,
+   "R_B": 9.1736,
+   "F_bE_psi": 8270.5079,
+   "C_L": 0.9933,
+   "DC_flexure": 1.1714,
+   "gov": 1.1714
+  }
+ },
+ {
+  "id": "HDR-BAND-2X12-16FT",
+  "kind": "header",
+  "provenance": "Case 5: Table 3.3.3, single span, uniformly distributed load. lu/d = 17.07. NOTE: the NAMED uniform row has only two branches (<7, >=7); the 1.84 lu form above lu/d = 14.3 is footnote 1, for loading conditions NOT listed.",
+  "inputs": {
+   "size": "2x12",
+   "n_plies": 3,
+   "span_ft": 16.0,
+   "lu_ft": 16.0,
+   "species": "DFL",
+   "D_plf": 320.0,
+   "L_plf": 0.0,
+   "Lr_plf": 200.0,
+   "S_plf": 250.0,
+   "n_jambs_bearing": 1
+  },
+  "expected": {
+   "lu_over_d": 17.0667,
+   "le_branch": "lu/d >= 7 -> le = 1.63 lu + 3d  (Table 3.3.3, single span, UDL)",
+   "le_in": 346.71,
+   "R_B": 13.8786,
+   "R_B_le_50": true,
+   "F_bE_psi": 3613.3945,
+   "C_L": 0.9808,
+   "Fb_prime_psi": 1015.1679,
+   "fb_psi": 2305.8963,
+   "DC_flexure": 2.2714,
+   "DC_shear": 0.6527,
+   "DC_bearing": 1.0809,
+   "defl_total_in": 0.9838,
+   "defl_total_allow_in": 0.8,
+   "DC_defl_total": 1.2298,
+   "governing_DC": 2.2714
+  },
+  "calculator_today": {
+   "le_in": 346.71,
+   "R_B": 10,
+   "F_bE_psi": 6960,
+   "C_L": 0.9927,
+   "DC_flexure": 3.4865,
+   "gov": 3.4865
+  }
+ },
+ {
+  "id": "HDR-RB-OVER-50-NOT-APPLICABLE",
+  "kind": "header_applicability",
+  "provenance": "NDS 2018 Sec 3.3.3.7 verbatim: \"The slenderness ratio for bending members, R_B, shall not exceed 50.\" Single-ply 2x12, 24 ft unbraced span.",
+  "inputs": {
+   "size": "2x12",
+   "n_plies": 1,
+   "span_ft": 24.0,
+   "lu_ft": 24.0,
+   "species": "DFL"
+  },
+  "expected": {
+   "le_in": 503.19,
+   "le_branch": "lu/d >= 7 -> le = 1.63 lu + 3d  (Table 3.3.3, single span, UDL)",
+   "R_B": 50.1592,
+   "R_B_le_50": false,
+   "result": "NOT APPLICABLE - the engine must refuse, not return a D/C"
+  },
+  "calculator_today": {
+   "R_B_reported": 10.0,
+   "C_L": 0.9927,
+   "C_L_correct": 0.3009,
+   "note": "R_B silently clamped to 10; C_L overstated +230%"
+  }
+ },
+ {
+  "id": "STUD-LE-OVER-D-OVER-50-NOT-APPLICABLE",
+  "kind": "stud_applicability",
+  "provenance": "NDS 2018 Sec 3.7.1.4 verbatim: \"The slenderness ratio for solid columns, le/d, shall not exceed 50, except that during construction le/d shall not exceed 75.\" 2x6 stud, 20 ft unbraced, weak axis, Ke = 1.0.",
+  "inputs": {
+   "size": "2x6",
+   "spacing_in": 16.0,
+   "story_ft": 20.0,
+   "species": "DFL",
+   "axial_plf": 1000.0,
+   "p_strength_psf": 25.0,
+   "weak_axis": "UNBRACED"
+  },
+  "expected": {
+   "le_in": 240.0,
+   "d_in": 1.5,
+   "le_over_d": 160.0,
+   "le_over_d_le_50": false,
+   "result": "NOT APPLICABLE - the engine must refuse, not return a D/C"
+  },
+  "calculator_today": {
+   "le_over_d_reported": 50.0,
+   "C_P": 0.1249,
+   "DC_axial_gravity": 0.8717,
+   "note": "the axial-only check reports PASS at a true le/d of 160"
+  }
+ },
+ {
+  "id": "HDR-DEFLECTION-GOVERNS",
+  "kind": "header",
+  "provenance": "Found by sweeping the live engine: both stress checks pass but IBC Table 1604.3 L/240 total-load does not. SPF has the lowest E (1.4e6). NDS Sec 3.5.1 prescribes no numeric limit and defers to the building code (Sec 1.4.2).",
+  "inputs": {
+   "size": "2x10",
+   "n_plies": 4,
+   "span_ft": 28.0,
+   "species": "SPF",
+   "D_plf": 60.0,
+   "L_plf": 0.0,
+   "Lr_plf": 0.0,
+   "S_plf": 0.0,
+   "n_jambs_bearing": 2
+  },
+  "expected": {
+   "governing_combo": "D",
+   "C_D": 0.9,
+   "DC_flexure": 0.9644,
+   "DC_shear": 0.1869,
+   "defl_total_in": 1.4978,
+   "defl_total_allow_in": 1.4,
+   "DC_defl_total": 1.0698,
+   "governing_DC": 1.0698,
+   "passes": false
+  },
+  "calculator_today": {
+   "gov": 0.865,
+   "verdict": "PASS",
+   "deflection": "NOT CHECKED"
+  }
+ }
+]

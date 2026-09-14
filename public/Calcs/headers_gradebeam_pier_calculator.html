@@ -635,17 +635,39 @@ function loadFromStorage(){
   // Clear existing zones
   zoneIds.slice().forEach(function(id){ removeZone(id); });
 
-  // Add a zone per stud row from the lowest floor
+  /* Two payload versions are accepted.
+
+     v1 (no `version` key): {label, dlPlf, llPlf, slPlf}. llPlf already held the
+     roof live load merged into the floor live load, so LL = llPlf + slPlf, as
+     it always was.
+
+     v2: {label, D, L, Lr, S} in plf, kept separate by the sending calculator so
+     an ASCE 7-16 Sec 2.4.1 envelope can be built downstream. This zone model has
+     only a DL and an LL column, so it cannot carry four components. Nothing is
+     dropped: Lr and S are ALTERNATIVES under Sec 2.4.1, never additive, so the
+     larger of the two is combined with the floor live load —
+         LL = L + max(Lr, S)
+     which is the governing gravity companion for a two-column model. The jamb
+     point reactions in a v2 payload are not zones and are not imported here;
+     enter them as point loads if they matter to the foundation. */
+  var v2 = (+data.version === 2);
   data.studs.forEach(function(s){
-    var llTotal = (s.llPlf||0) + (s.slPlf||0);  // combine LL + Snow
-    addZone(s.label, s.dlPlf||0, llTotal);
+    if(v2){
+      var live = (+s.L||0) + Math.max(+s.Lr||0, +s.S||0);
+      addZone(s.label, +s.D||0, live);
+    } else {
+      addZone(s.label, s.dlPlf||0, (s.llPlf||0) + (s.slPlf||0));
+    }
   });
 
   // Show banner
   var banner=document.getElementById('importBanner');
   if(banner) banner.style.display='flex';
   var detail=document.getElementById('importDetail');
-  if(detail) detail.textContent='Floor: '+data.floorName+' | '+data.studs.length+' zones | Exported: '+data.exported;
+  if(detail) detail.textContent='Floor: '+data.floorName+' | '+data.studs.length+' zones | Exported: '+data.exported
+    + (v2 ? ' | payload v2 (' + (data.units||'plf') + '): LL = L + the larger of Lr or S'
+              + (data.jambs && data.jambs.length ? '; ' + data.jambs.length + ' jamb point reaction(s) NOT imported — enter as point loads' : '')
+          : ' | payload v1: LL = LL + Snow');
 }
 
 function clearImport(){

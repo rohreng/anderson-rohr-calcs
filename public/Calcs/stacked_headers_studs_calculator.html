@@ -154,6 +154,13 @@ body.col-resizing{user-select:none;cursor:col-resize}
 .btn-resetcol:hover{background:#dbeafe}
 
 
+#selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.72em;
+  background:#111827;color:#d1d5db;padding:12px;border-radius:8px;margin-bottom:16px;max-height:420px;overflow:auto}
+.err-box{display:none;background:#fee2e2;border:2px solid #dc2626;border-radius:8px;padding:12px 16px;
+  font-size:.85em;color:#7f1d1d;margin-bottom:14px}
+.mig-box{display:none;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 14px;
+  font-size:.84em;color:#78350f;margin-bottom:14px}
+
 /* ── Print / PDF — letter portrait, fills 8.5×11 ───────────────────────── */
 @page {
   size: letter portrait;
@@ -229,14 +236,23 @@ body.col-resizing{user-select:none;cursor:col-resize}
 <div class="container">
 <div class="header">
   <h1>Wood Headers, Jambs &amp; Studs &mdash; Load &amp; Design Calculator</h1>
-  <p>Stacked load accumulation &middot; NDS 2018 per-row checks &middot; Custom king/jamb sizes &middot; Add/remove stud scenarios</p>
+  <p>Stacked load accumulation &middot; ASCE 7-16 &sect;2.4.1 combination envelope &middot; NDS 2018 per-row checks &middot; Custom king/jamb sizes</p>
   <div class="ref-tags">
-    <span class="tag">NDS 2018</span><span class="tag">ASCE 7-22</span><span class="tag">IBC 2021</span>
+    <span class="tag">NDS 2018</span><span class="tag">ASCE 7-16</span><span class="tag">IBC 2021</span>
     <span class="tag">DFL &middot; SYP &middot; SPF</span><span class="tag">ASD Method</span>
     <span class="tag">Per-Row Wall Size &amp; King/Jamb Qty</span><span class="tag">Per-Row &#9654; Check</span>
   </div>
 </div>
 <div class="content">
+
+<div id="v1MigrationBanner" class="mig-box">
+  <strong>Loaded from engine v1 inputs; results recomputed with engine v2 (NDS 2018 / ASCE 7-16).</strong>
+  Header stacks were re-keyed from their labels to stable ids, and the new fields
+  (braced compression edge, transfer, stud spacing at the opening, separate jamb and king sizes)
+  took their defaults. Any "King Axial" value you had typed is now the <em>additional</em> king axial —
+  the engine supplies the wall gravity itself. Re-check every row before relying on the output.
+</div>
+<pre id="selftest-result"></pre>
 
 <div class="blk">
   <h2>&#9312; Floor &amp; Roof Loads <span class="badge">psf</span></h2>
@@ -275,19 +291,59 @@ body.col-resizing{user-select:none;cursor:col-resize}
         <option value="2x6" selected>2&times;6 wall (3-ply headers)</option>
         <option value="2x8">2&times;8 wall (4-ply headers)</option>
       </select>
-      <span class="hint">Sets header ply count; jamb/king sizes set per-row below</span>
+      <span class="hint">Default for new header and stud rows. The <strong>ply count comes from each row's own Wall Size</strong> (2x4&rarr;2, 2x6&rarr;3, 2x8&rarr;4).</span>
     </div>
     <div class="ig">
       <label>Floor-to-Floor Height <span style="font-size:.78em;color:#777">(ft)</span></label>
       <input type="number" id="flrHt" value="9" step="0.5">
     </div>
     <div class="ig">
-      <label>Wind on Openings <span style="font-size:.78em;color:#777">(psf)</span></label>
+      <label>W on Openings &mdash; strength level <span style="font-size:.78em;color:#777">(psf)</span></label>
       <input type="number" id="windOpen" value="25" step="1">
+      <span class="hint">ASCE 7-16 &sect;30.3 C&amp;C pressure; the engine applies the 0.6 of &sect;2.4.1</span>
     </div>
     <div class="ig">
-      <label>Wind on Wall Studs <span style="font-size:.78em;color:#777">(psf)</span></label>
+      <label>W on Wall Studs &mdash; strength level <span style="font-size:.78em;color:#777">(psf)</span></label>
       <input type="number" id="windStud" value="25" step="1">
+      <span class="hint">ASCE 7-16 &sect;30.3 C&amp;C pressure; the engine applies the 0.6 of &sect;2.4.1</span>
+    </div>
+    <div class="ig">
+      <label>Weak-Axis Bracing <span style="font-size:.78em;color:#777">(in o.c.)</span></label>
+      <input type="number" id="weakBraceIn" value="48" min="0" step="4">
+      <span class="hint">Blocking or sheathing on jambs, kings and studs. 0 = continuously braced (NDS A.11.3). Show it on the drawings.</span>
+    </div>
+    <div class="ig">
+      <label>Plate Species <span style="font-size:.78em;color:#777">(F<sub>c&perp;</sub>)</span></label>
+      <select id="plateSpecies">
+        <option value="">Same as wall species</option>
+        <option value="DFL">Douglas Fir-Larch (DFL)</option>
+        <option value="SYP">Southern Pine (SYP)</option>
+        <option value="SPF">Spruce-Pine-Fir (SPF)</option>
+      </select>
+      <span class="hint">Used for jamb and stud bearing on the plate</span>
+    </div>
+    <div class="ig">
+      <label>Wall Finish <span style="font-size:.78em;color:#777">(deflection limit)</span></label>
+      <select id="finishType">
+        <option value="brittle">Brittle &mdash; H/240</option>
+        <option value="flexible">Flexible &mdash; H/120</option>
+      </select>
+      <span class="hint">IBC 2021 Table 1604.3, wind on the stud</span>
+    </div>
+    <div class="ig">
+      <label>Wind Deflection Basis</label>
+      <select id="windDeflBasis">
+        <option value="0.42">0.42 W &mdash; IBC T1604.3 fn. (f)</option>
+        <option value="0.6">0.60 W &mdash; ASD combination</option>
+      </select>
+      <span class="hint">Strength-level W factored for the deflection check only</span>
+    </div>
+    <div class="ig">
+      <label style="display:flex;align-items:center;gap:7px">
+        <input type="checkbox" id="dryInstall" checked style="width:auto">
+        Dry at installation
+      </label>
+      <span class="hint">IBC T1604.3 fn. (d): 0.5D in the header total-load deflection row</span>
     </div>
   </div>
   <div id="windSrcBanner" style="display:none;margin-top:12px;background:#dcfce7;border:1.5px solid #16a34a;border-radius:8px;padding:10px 14px;font-size:.84em;color:#166534">
@@ -297,9 +353,13 @@ body.col-resizing{user-select:none;cursor:col-resize}
     &nbsp;&bull;&nbsp; <span style="color:#374151">Adjust values above if a different zone applies.</span>
   </div>
   <div class="callout" style="margin-top:12px;margin-bottom:0">
-    <strong>Assumptions:</strong> Dry service, Normal temp. C<sub>D</sub>=1.0 gravity; C<sub>D</sub>=1.6 wind. C<sub>r</sub>=1.15 repetitive. Headers unbraced full span.
-    <strong>Per header row:</strong> set Wall Size (drives jamb &amp; king lumber), # Jambs (0=auto), and # Kings.
-    <strong>Per stud row:</strong> editable label, add/remove rows, select trial size + spacing.
+    <strong>Assumptions:</strong> Dry service, normal temperature, non-incised &mdash; C<sub>M</sub>=C<sub>t</sub>=C<sub>i</sub>=C<sub>T</sub>=1.0.
+    Every member is checked against the full ASCE 7-16 &sect;2.4.1 envelope with the NDS Table 2.3.2 C<sub>D</sub> for each
+    combination (D 0.9 &middot; D+L 1.0 &middot; S 1.15 &middot; L<sub>r</sub> 1.25 &middot; W 1.6). L<sub>r</sub> and S are alternatives, never summed. Rain (R) is not an input.
+    <strong>Per header row:</strong> Wall Size drives the ply count (2x4&rarr;2, 2x6&rarr;3, 2x8&rarr;4) and the default jamb/king size;
+    set Top of Opening (the trimmer length), Stud Spacing at the opening, # Jambs (0=auto &mdash; the smallest count
+    that passes axial, plate bearing <em>and</em> the header end bearing that lands on it) and # Kings.
+    <strong>Per stud row:</strong> editable label, trial size, spacing and finish.
   </div>
 </div>
 
@@ -315,6 +375,7 @@ body.col-resizing{user-select:none;cursor:col-resize}
     Use <strong>+ Stud Row</strong> to add custom scenarios (e.g. a special bearing wall).
     <br><strong>Columns:</strong> drag the right edge of any column heading to widen or narrow it &mdash; double-click that edge to restore one column, or use <strong>Reset column widths</strong> above for all of them. Widths apply to every floor and are remembered on this browser.
   </div>
+  <div id="engineErrors" class="err-box"></div>
   <div id="floorsContainer"></div>
   <button class="btn-add-floor" onclick="addFloor()">+ Add Floor Level Below</button>
 </div>
@@ -324,7 +385,7 @@ body.col-resizing{user-select:none;cursor:col-resize}
 <div id="exportBanner" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff;border-radius:10px;padding:18px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
   <div>
     <div style="font-weight:700;font-size:1.05em;margin-bottom:4px">&#9670; Export Lowest Floor Loads → Foundation Design</div>
-    <div style="font-size:.85em;opacity:.9">Sends accumulated DL + LL + Snow (plf) for each wall segment at the <strong>lowest floor</strong> to the Integrated Foundation Calculator.</div>
+    <div style="font-size:.85em;opacity:.9">Sends the accumulated D, L, L<sub>r</sub> and S (plf) for each wall segment, plus the jamb point reactions (lb), at the <strong>lowest floor</strong> to the Integrated Foundation Calculator. Payload v2 &mdash; loads stay separate so the receiving calculator can build its own combinations.</div>
   </div>
   <button onclick="exportToFoundation()" style="background:#fff;color:#5b21b6;border:none;padding:10px 22px;border-radius:7px;font-weight:700;font-size:.93em;cursor:pointer;white-space:nowrap;flex-shrink:0">
     &#9654;&nbsp; Export to Foundation Design &rarr;
@@ -332,58 +393,72 @@ body.col-resizing{user-select:none;cursor:col-resize}
 </div>
 
 <div class="note-box">
-  <strong>Engineering Notes (NDS 2018 ASD):</strong>
+  <strong>Engineering Notes &mdash; NDS 2018 / ASCE 7-16 / IBC 2021, ASD:</strong>
   <ul>
-    <li><strong>Headers:</strong> Ply count from Wall Width. Trial size per row. C<sub>L</sub> per §3.3.3 (unbraced full span). C<sub>D</sub>=1.0.</li>
-    <li><strong>Jambs:</strong> Size and count set per header row (0=auto-find minimum). K<sub>e</sub>=1.0 weak-axis C<sub>P</sub> per §3.7.1. C<sub>D</sub>=1.0.</li>
-    <li><strong>King studs:</strong> Size set per header row. Wind trib=(open/2)&times;(ht/2). Point load at top-of-opening. §3.9 combined. C<sub>D</sub>=1.6.</li>
-    <li><strong>Wall studs:</strong> Named rows editable; add/remove per floor. Loads stack floor-to-floor. Trial size+spacing per row. Max D/C=0.96. C<sub>r</sub>=1.15.</li>
-    <li><strong>All loads UNFACTORED (ASD). Verify load combinations per ASCE 7-22 §2.4.</strong></li>
-    <li><strong>Export:</strong> Click "Export to Foundation Design" above to send the lowest floor's accumulated wall loads (plf) to the integrated grade beam &amp; pier calculator.</li>
+    <li><strong>Load combinations.</strong> Every member is checked against the ASCE 7-16 &sect;2.4.1 envelope, each
+      combination carrying its own NDS Table 2.3.2 C<sub>D</sub>: D 0.9 &middot; D+L 1.0 &middot; D+S / D+0.75L+0.75S 1.15 &middot;
+      D+L<sub>r</sub> / D+0.75L+0.75L<sub>r</sub> 1.25 &middot; D+0.6W, D+0.75L+0.75(0.6W)+0.75(L<sub>r</sub> or S) and
+      0.6D+0.6W 1.6. The governing combination is reported for each check. L<sub>r</sub> and S are alternatives and are never
+      summed. <strong>Rain (R) is not an input and is not enveloped.</strong> Headers and jamb packs carry no wind, so
+      combinations 5&ndash;7 are reported n/a for them. No live-load reduction (&sect;4.7 / &sect;4.8) is taken.</li>
+    <li><strong>Wind.</strong> Both wind inputs are <strong>strength-level</strong> ASCE 7-16 &sect;30.3 component-and-cladding
+      pressures &mdash; the value the C&amp;C calculator hands over. The engine applies the 0.6 of combinations 5&ndash;7;
+      do not pre-factor them.</li>
+    <li><strong>Unbraced lengths.</strong> Strong axis: header = the span, jamb pack = the top-of-opening (trimmer) height,
+      king and wall stud = the story height. Weak axis: the bracing spacing entered above, 48 in by default &mdash; blocking or
+      sheathing, and it must be shown on the drawings as a construction note. Enter 0 only where the sheathing genuinely braces
+      the member continuously (NDS A.11.3). Both axes are computed and the smaller C<sub>P</sub> governs; the true
+      l<sub>e</sub>/d is printed for each axis and <strong>anything above 50 is refused, not clamped</strong> (&sect;3.7.1.4).
+      R<sub>B</sub> is likewise refused above 50 (&sect;3.3.3.7).</li>
+    <li><strong>C<sub>L</sub>.</strong> Computed unbraced per &sect;3.3.3 unless the row's "Br" box is ticked, which invokes
+      &sect;3.3.3.3 (compression edge supported throughout its length) and sets C<sub>L</sub>=1.0. l<sub>e</sub> is the
+      Table 3.3.3 single-span uniform row: 2.06 l<sub>u</sub> below l<sub>u</sub>/d = 7, 1.63 l<sub>u</sub> + 3d at or above.</li>
+    <li><strong>C<sub>r</sub>.</strong> 1.15 on wall studs at &le; 24 in o.c. (&sect;4.3.9 &mdash; 3+ members, &le; 24 in o.c.,
+      joined by load-distributing sheathing; the predicate is printed with the check). <strong>1.0 on headers, jamb packs and
+      king studs</strong>, which do not meet it.</li>
+    <li><strong>King studs</strong> take half a stud spacing of the header row's accumulated tributary gravity &mdash; the
+      wall strip plus the roof and floor tributaries entered on that row &mdash; and the wind over (opening/2 + spacing/2)
+      for the full story height. Where more than one king is provided <strong>each is checked for the whole strip</strong>;
+      the count is redundancy, not a division of the demand. The <strong>jamb pack carries 100 % of the header reaction</strong>. Kings bend about the
+      <strong>strong</strong> axis with C<sub>L</sub>=1.0 (sheathed compression edge). Eq. 3.9-3 is refused, never zeroed,
+      when f<sub>c</sub> reaches F<sub>cE1</sub>. Top of opening above the story height is an input error, not a silent rewrite.</li>
+    <li><strong>Deflection</strong> (IBC 2021 Table 1604.3). Headers: L/360 on the live row (L with the larger of L<sub>r</sub>
+      or S) and L/240 on the total row, using 0.5D when "Dry at installation" is ticked (footnote d). Wall studs: H/240 brittle
+      finish or H/120 flexible, at the wind deflection basis selected above (footnote f permits 0.42W).</li>
+    <li><strong>Bearing.</strong> F<sub>c&perp;</sub> takes no C<sub>D</sub> (Table 2.3.2 fn. 1), so the largest
+      <em>unfactored</em> combination governs it. With # Jambs left at 0 the pack is designed for this interface as well as
+      for axial, so the auto-selected count is never smaller than R / (F<sub>c&perp;</sub> &middot; b<sub>eff</sub> &middot; 1.5). C<sub>b</sub>=1.0 everywhere here &mdash; &sect;3.10.4 excludes bearings at
+      the end of a member. Header bearing length = (# jambs) &times; 1.5 in; jamb packs and studs are also checked on the
+      bottom plate using the plate species selected above.</li>
+    <li><strong>Built-up headers.</strong> Equal load sharing between plies is assumed and <strong>no ply fastening is
+      designed</strong> &mdash; specify the nailing or bolting separately. Header self-weight is not added automatically; type
+      it into DL<sub>add</sub>.</li>
+    <li><strong>Stacking.</strong> Header stacks and stud rows are correlated across floors by a stable id, not by label text.
+      A stack that skips a level is an input error unless that row is marked "Tr" (transfer). Changing species, wall size,
+      story height, wind or any load clears every result panel so a printed sheet cannot show superseded numbers.</li>
+    <li><strong>Scope.</strong> No.2 grade, 2x sawn lumber only; dry service and normal temperature; concrete, foundations and
+      the connection of the header to its supports are out of scope. Shear is taken at the reaction (the &sect;3.4.3.1(a)
+      reduction is not used &mdash; conservative). Jamb packs are assumed concentrically loaded.</li>
+    <li><strong>Export.</strong> "Export to Foundation Design" sends the lowest floor's accumulated D, L, L<sub>r</sub> and S
+      (plf) and the jamb point reactions (lb) to the integrated grade beam &amp; pier calculator.</li>
   </ul>
 </div>
 
 </div>
 </div>
+<script src="/Calcs/engines/stacked-headers.js"></script>
 <script>
 
 // ══════════════════════════════════════════════════════════════════════════════
-// NDS 2018 REFERENCE DATA — No. 2 Grade (psi)
+// PAGE ADAPTER
+// ---------------------------------------------------------------------------
+// All engineering lives in /Calcs/engines/stacked-headers.js (window.HDR). This
+// file builds `state` from the inputs, calls HDR.compute(state) and renders the
+// result. No design value, factor or equation is duplicated here.
 // ══════════════════════════════════════════════════════════════════════════════
-var NDS_REF = {
-  DFL: {
-    name: 'Douglas Fir-Larch',
-    Fb:  {'2x4':1000,'2x6':900, '2x8':900, '2x10':900, '2x12':900 },
-    Fv:  180, FcP: 625,
-    Fc:  {'2x4':1350,'2x6':1350,'2x8':1350,'2x10':1350,'2x12':1350},
-    E:   1600000, Emin: 580000, useCF: true
-  },
-  SYP: {
-    name: 'Southern Yellow Pine',
-    Fb:  {'2x4':1500,'2x6':1250,'2x8':1250,'2x10':1050,'2x12':1050},
-    Fv:  175, FcP: 565,
-    Fc:  {'2x4':1650,'2x6':1500,'2x8':1500,'2x10':1500,'2x12':1500},
-    E:   1600000, Emin: 580000, useCF: false
-  },
-  SPF: {
-    name: 'Spruce-Pine-Fir',
-    Fb:  {'2x4':875, '2x6':875, '2x8':875, '2x10':875, '2x12':875 },
-    Fv:  135, FcP: 425,
-    Fc:  {'2x4':1150,'2x6':1150,'2x8':1150,'2x10':1150,'2x12':1150},
-    E:   1400000, Emin: 510000, useCF: true
-  }
-};
-var CF_Fb = {'2x4':1.5,'2x6':1.3,'2x8':1.2,'2x10':1.1,'2x12':1.0};
-var CF_Fc = {'2x4':1.15,'2x6':1.1,'2x8':1.05,'2x10':1.0,'2x12':1.0};
-var LBR = {
-  '2x4':  {b:1.5, d:3.5,  A:5.25,   S:3.0625,  I:5.359  },
-  '2x6':  {b:1.5, d:5.5,  A:8.25,   S:7.5625,  I:20.797 },
-  '2x8':  {b:1.5, d:7.25, A:10.875, S:13.141,  I:47.635 },
-  '2x10': {b:1.5, d:9.25, A:13.875, S:21.391,  I:98.932 },
-  '2x12': {b:1.5, d:11.25,A:16.875, S:31.641,  I:177.979}
-};
-var SIZES = ['2x4','2x6','2x8','2x10','2x12'];
-var PLIES_MAP = {'2x4':2,'2x6':3,'2x8':4};
+var SIZES = HDR.SIZES;
+var WALL_SIZES = HDR.WALL_SIZES;
+var LBR = HDR.LBR;
 
 var DEFAULT_STUDS = [
   'Exterior Long Side',
@@ -393,353 +468,26 @@ var DEFAULT_STUDS = [
   'Corridor Studs'
 ];
 
-// ══════════════════════════════════════════════════════════════════════════════
-// NDS CALCULATION HELPERS
-// ══════════════════════════════════════════════════════════════════════════════
-function getCF_Fb(sz, sp){ return NDS_REF[sp].useCF ? CF_Fb[sz] : 1.0; }
-function getCF_Fc(sz, sp){ return NDS_REF[sp].useCF ? CF_Fc[sz] : 1.0; }
+var LV = { roofDL:20, floorDL:15, roofLL:20, floorLL1:40, floorLL2:100, snowLoad:25,
+           wall1DL:15, wall2DL:25, wall3DL:10 };
 
-function calcCL(Fb, Emin, Cd, CFb, span_in, d_in, b_in){
-  var lu = span_in, le = 1.63*lu + 3*d_in;
-  var RB = Math.min(Math.sqrt(le*d_in/(b_in*b_in)), 10);
-  var Fstar_b = Fb*Cd*CFb, FbE = 1.20*Emin/(RB*RB);
-  var ratio = FbE/Fstar_b, A = (1+ratio)/1.9;
-  var CL = Math.min(A - Math.sqrt(A*A - ratio/0.95), 1.0);
-  return {le:le,RB:RB,FbE:FbE,Fstar_b:Fstar_b,CL:CL,ratio:ratio};
+// The page-level Wall Width is the DEFAULT for new rows only; every check reads
+// the row's own Wall Size. Before DOMContentLoaded the select does not exist yet,
+// so the initial rows fall back to 2x6.
+function defaultWallSz(){
+  var e=el('wallWidth');
+  return (e && WALL_SIZES.indexOf(e.value)>=0) ? e.value : '2x6';
 }
 
-function calcCP(Fc, Emin, Cd, CFc, Le_in, d_in){
-  var c=0.8, KcE=0.822, slen=Math.min(Le_in/d_in,50);
-  var FcE=KcE*Emin/(slen*slen), Fstar_c=Fc*Cd*CFc;
-  var ratio=FcE/Fstar_c, A=(1+ratio)/(2*c);
-  var CP=Math.min(A-Math.sqrt(A*A-ratio/c),1.0);
-  return {slen:slen,FcE:FcE,Fstar_c:Fstar_c,CP:CP,ratio:ratio};
+function mkStudRows(fi){
+  var isRoof=(fi===0);
+  return DEFAULT_STUDS.map(function(lbl,i){
+    return {sid:'S'+(i+1), id:HDR.uid('s'), label:lbl,
+      roofTrib:isRoof?10:0, floorTrib1:isRoof?0:5, floorTrib2:0,
+      wallTrib:8, wallType:1, dlAdd:0, llAdd:0, slAdd:0,
+      trialSz:defaultWallSz(), trialSpacing:16, finish:''};
+  });
 }
-
-// ── Header check (trial size) ─────────────────────────────────────────────────
-function checkOneHeader(sz, n_plies, span_ft, w_DL, w_LL, w_SL, sp){
-  var sp_data=NDS_REF[sp], lb=LBR[sz], CFb=getCF_Fb(sz,sp), Cd=1.0;
-  var b_eff=n_plies*1.5, d=lb.d, A_eff=n_plies*lb.A, S_eff=n_plies*lb.S;
-  var span_in=span_ft*12, Fb=sp_data.Fb[sz], Fv=sp_data.Fv, FcP=sp_data.FcP, Emin=sp_data.Emin;
-  var cl=calcCL(Fb,Emin,Cd,CFb,span_in,d,b_eff);
-  var Fb_p=Fb*Cd*CFb*cl.CL, Fv_p=Fv*Cd, FcP_p=FcP;
-  var w_total=w_DL+w_LL+w_SL;
-  var M_in=w_total*span_ft*span_ft/8*12, V_lb=w_total*span_ft/2;
-  var A_bear=b_eff*1.5;
-  var fb=M_in/S_eff, fv=1.5*V_lb/A_eff, fc_perp=V_lb/A_bear;
-  var dc_b=Fb_p>0?fb/Fb_p:999, dc_v=Fv_p>0?fv/Fv_p:999, dc_p=FcP_p>0?fc_perp/FcP_p:999;
-  var gov=Math.max(dc_b,dc_v,dc_p);
-  return {sz:sz,n_plies:n_plies,pass:gov<=1.0,gov:gov,
-    fb:fb,Fb_p:Fb_p,dc_b:dc_b,fv:fv,Fv_p:Fv_p,dc_v:dc_v,
-    fc_perp:fc_perp,FcP_p:FcP_p,dc_p:dc_p,
-    cl:cl,M_in:M_in,V_lb:V_lb,b_eff:b_eff,d:d,A_eff:A_eff,S_eff:S_eff,
-    span_in:span_in,w_total:w_total};
-}
-
-// ── Jamb check — custom size, optional forced count ───────────────────────────
-function checkJambGroup(n_jambs, P_total_lbs, sp, jambSz, flrHt_ft){
-  var sp_data=NDS_REF[sp], sz=jambSz, lb=LBR[sz];
-  var CFc=getCF_Fc(sz,sp), Cd=1.0, Fc=sp_data.Fc[sz], Emin=sp_data.Emin;
-  var Le_in=flrHt_ft*12;
-  var cp=calcCP(Fc,Emin,Cd,CFc,Le_in,lb.b);
-  var A_total=n_jambs*lb.A, Fc_p=Fc*Cd*CFc*cp.CP;
-  var fc=P_total_lbs/A_total, dc=Fc_p>0?fc/Fc_p:999;
-  return {n:n_jambs,sz:sz,pass:dc<=1.0,fc:fc,Fc_p:Fc_p,dc:dc,cp:cp,
-          A_total:A_total,Le_in:Le_in,lb:lb,CFc:CFc,Cd:Cd,Fc:Fc};
-}
-
-function designJambs(P_DL_k, P_LL_k, P_SL_k, sp, jambSz, flrHt_ft, forceCount){
-  var P_total=(P_DL_k+P_LL_k+P_SL_k)*1000;
-  var result={P_total:P_total,chosen:null,checks:[]};
-  if(forceCount && forceCount>0){
-    // User-specified count: just check that specific count
-    var chk=checkJambGroup(forceCount,P_total,sp,jambSz,flrHt_ft);
-    result.checks.push(chk);
-    result.chosen=chk;
-    return result;
-  }
-  for(var n=1;n<=8;n++){
-    var chk2=checkJambGroup(n,P_total,sp,jambSz,flrHt_ft);
-    result.checks.push(chk2);
-    if(!result.chosen && chk2.pass){result.chosen=chk2; break;}
-  }
-  if(!result.chosen) result.chosen=result.checks[result.checks.length-1];
-  return result;
-}
-
-// ── King stud — custom size ───────────────────────────────────────────────────
-function designKingStud(flr_ft, opening_ft, top_open_ft, P_axial_lbs, sp, kingStudSz, windOpen_psf, kingCount){
-  var kn=Math.max(1,+(kingCount)||1);
-  var P_axial_each=P_axial_lbs/kn;
-  var sp_data=NDS_REF[sp], sz=kingStudSz, lb=LBR[sz];
-  var CFb=getCF_Fb(sz,sp), CFc=getCF_Fc(sz,sp);
-  var Fb=sp_data.Fb[sz], Fc=sp_data.Fc[sz], Fv=sp_data.Fv, Emin=sp_data.Emin;
-  var Cd=1.6, Cr=1.15;
-  var trib_area=(opening_ft/2)*(flr_ft/2);
-  var F_wind_total=trib_area*windOpen_psf;
-  var F_wind=F_wind_total/kn;
-  var L_in=flr_ft*12, a_in=top_open_ft*12;
-  if(a_in>L_in) a_in=L_in*0.9;
-  var b_in=L_in-a_in;
-  var R_bot=F_wind*b_in/L_in, R_top=F_wind*a_in/L_in;
-  var M_max_in=R_bot*a_in, V_max=Math.max(R_bot,R_top);
-  var Le_in=L_in;
-  var cp=calcCP(Fc,Emin,Cd,CFc,Le_in,lb.b);
-  var S_weak=lb.d*lb.b*lb.b/6;
-  var Fb_p=Fb*Cd*CFb*1.0*Cr, Fc_p=Fc*Cd*CFc*cp.CP, Fv_p=Fv*Cd;
-  var fc_k=P_axial_each/lb.A, fb_k=M_max_in/S_weak, fv_k=1.5*V_max/lb.A;
-  var FcE_k=0.822*Emin/Math.pow(Le_in/lb.b,2);
-  var term1=Fc_p>0?Math.pow(fc_k/Fc_p,2):0;
-  var denom2=Fb_p*(1-fc_k/Math.max(FcE_k,1));
-  var term2=denom2>0&&fb_k>0?fb_k/denom2:0;
-  var DC_combined=term1+term2, dc_shear=Fv_p>0?fv_k/Fv_p:0;
-  return {sz:sz,kn:kn,Cd:Cd,Cr:Cr,trib_area:trib_area,F_wind:F_wind,F_wind_total:F_wind_total,
-    L_in:L_in,a_in:a_in,b_in:b_in,R_bot:R_bot,R_top:R_top,
-    M_max_in:M_max_in,V_max:V_max,cp:cp,Fb_p:Fb_p,Fc_p:Fc_p,Fv_p:Fv_p,
-    fc_k:fc_k,fb_k:fb_k,fv_k:fv_k,FcE_k:FcE_k,S_weak:S_weak,
-    DC_combined:DC_combined,dc_shear:dc_shear,
-    pass:DC_combined<=1.0&&dc_shear<=1.0,
-    lb:lb,Fb:Fb,Fc:Fc,CFb:CFb,CFc:CFc,Le_in:Le_in};
-}
-
-// ── Wall stud single check ────────────────────────────────────────────────────
-function checkWallStudSingle(sz, spacing, windPsf, flrHt_ft, totAxialPlf, sp){
-  var sp_data=NDS_REF[sp], lb=LBR[sz];
-  var Fb=sp_data.Fb[sz], Fc=sp_data.Fc[sz], Fv=sp_data.Fv, Emin=sp_data.Emin;
-  var CFb=getCF_Fb(sz,sp), CFc=getCF_Fc(sz,sp), Cr=1.15;
-  var L_in=flrHt_ft*12, Le_in=L_in, s_ft=spacing/12;
-  var P_grav=totAxialPlf*s_ft, w_wind=windPsf*s_ft;
-  var cp_g=calcCP(Fc,Emin,1.0,CFc,Le_in,lb.b);
-  var Fc_p_g=Fc*1.0*CFc*cp_g.CP, fc_g=lb.A>0?P_grav/lb.A:0;
-  var dc_axial_g=Fc_p_g>0?fc_g/Fc_p_g:999;
-  var cp_w=calcCP(Fc,Emin,1.6,CFc,Le_in,lb.b);
-  var Fc_p_w=Fc*1.6*CFc*cp_w.CP, Fb_p_w=Fb*1.6*CFb*1.0*Cr;
-  var FcE_str=0.822*Emin/Math.pow(Le_in/lb.d,2);
-  var M_wind_in=w_wind*(flrHt_ft*flrHt_ft)/8*12;
-  var fc_w=fc_g, fb_w=lb.S>0?M_wind_in/lb.S:0;
-  var term1=Fc_p_w>0?Math.pow(fc_w/Fc_p_w,2):0;
-  var denom2=Fb_p_w*(1-fc_w/Math.max(FcE_str,1));
-  var term2=denom2>0&&fb_w>0?fb_w/denom2:0;
-  var DC_wind=term1+term2, gov_dc=Math.max(dc_axial_g,DC_wind);
-  return {sz:sz,spacing:spacing,P_grav:P_grav,w_wind:w_wind,
-    M_wind_in:M_wind_in,fb_w:fb_w,fc_w:fc_w,
-    cp_g:cp_g,cp_w:cp_w,Fc_p_g:Fc_p_g,Fc_p_w:Fc_p_w,Fb_p_w:Fb_p_w,
-    FcE_str:FcE_str,dc_axial_g:dc_axial_g,DC_wind:DC_wind,gov_dc:gov_dc,
-    L_in:L_in,lb:lb,Fb:Fb,Fc:Fc,CFb:CFb,CFc:CFc,pass:gov_dc<=0.96};
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// RENDER HELPERS
-// ══════════════════════════════════════════════════════════════════════════════
-var _dc=0;
-function f0(v){return isFinite(v)?Math.round(v).toString():'N/A'}
-function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
-function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
-function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
-function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
-function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
-
-function togD(id,btnId){
-  var el=document.getElementById(id), open=el.classList.toggle('open');
-  document.getElementById(btnId).textContent=open?'\u25BE Calc':'\u25B6 Calc';
-}
-function dcBar(dc,lim){
-  lim=lim||1.0;
-  if(!isFinite(dc)) return '<span class="na">&mdash;</span>';
-  var pct=Math.min(dc/lim*100,150);
-  var col=dc<=0.8*lim?'#16a34a':dc<=lim?'#d97706':'#dc2626';
-  return '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span>'
-       + '<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
-}
-function chkRow(name,ref,demand,capacity,dc,note,detHTML,altRow,lim){
-  lim=lim||1.0;
-  var cls=altRow?' class="alt-row"':'';
-  var dc_str=(dc!==null&&isFinite(dc))?dcBar(dc,lim):'<span class="na">&mdash;</span>';
-  var status=(dc!==null&&isFinite(dc))?(dc<=lim?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>'):'<span class="na">&mdash;</span>';
-  var detId='det_'+(_dc), btnId='dbtn_'+(_dc++);
-  return '<tr'+cls+'>'
-    +'<td><strong>'+name+'</strong>'+(note?'<br><small style="color:#555">'+note+'</small>':'')+'</td>'
-    +'<td><code>'+ref+'</code></td><td>'+demand+'</td><td>'+capacity+'</td>'
-    +'<td>'+dc_str+'</td><td>'+status+'</td>'
-    +'<td><button class="det-btn" id="'+btnId+'" onclick="togD(\''+detId+'\',\''+btnId+'\')">\u25B6 Calc</button></td>'
-    +'</tr>'
-    +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="'+detId+'">'+detHTML+'</div></td></tr>';
-}
-function chkTable(rows){
-  return '<div style="overflow-x:auto"><table class="chk-table"><thead><tr>'
-    +'<th style="width:27%">Check</th><th>Code Ref.</th><th>Demand</th>'
-    +'<th>Capacity</th><th>D/C</th><th>Status</th><th style="width:58px">Detail</th>'
-    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DETAIL PANEL BUILDERS
-// ══════════════════════════════════════════════════════════════════════════════
-function detHeader(chk,sp,n_plies,Cd){
-  var sp_data=NDS_REF[sp], cl=chk.cl, cb='<div class="cbox">', ce='</div>', d='';
-  d+='<div class="cref-hdr">NDS 2018 §3.3 — Bending (C<sub>D</sub>='+Cd+')</div>';
-  d+=cb;
-  d+='<div class="mrow">'+n_plies+'-ply '+chk.sz+': b='+f1(chk.b_eff)+'" d='+f1(chk.d)+'" S='+f2(chk.S_eff)+' in&sup3;</div>';
-  d+='<div class="mrow">w<sub>tot</sub>='+f0(chk.w_total)+' plf | M=wL&sup2;/8&times;12=<span class="cval">'+f0(chk.M_in)+' lb&middot;in</span></div>';
-  d+='<hr class="csep">';
-  d+='<div class="mrow"><span class="ceq">C<sub>L</sub> (NDS 3.3.3):</span></div>';
-  d+='<div class="mrow ind">l<sub>e</sub>=1.63l<sub>u</sub>+3d=<span class="cval">'+f1(cl.le)+'"</span> | R<sub>B</sub>='+ov('l<sub>e</sub>d/b&sup2;')+'=<span class="cval">'+f2(cl.RB)+'</span></div>';
-  d+='<div class="mrow ind">F*<sub>b</sub>='+f0(sp_data.Fb[chk.sz])+'&times;'+Cd+'&times;'+f2(getCF_Fb(chk.sz,sp))+'='+f0(cl.Fstar_b)+' | F<sub>bE</sub>=1.20E\'<sub>min</sub>/R<sub>B</sub>&sup2;='+f0(cl.FbE)+' psi</div>';
-  d+='<div class="mrow ind">C<sub>L</sub>=<span class="cval">'+f3(cl.CL)+'</span> (NDS Eq. 3.3-6)</div>';
-  d+='<hr class="csep">';
-  d+='<div class="mrow">F\'<sub>b</sub>=F<sub>b</sub>C<sub>D</sub>C<sub>F</sub>C<sub>L</sub>=<span class="cval">'+f0(chk.Fb_p)+' psi</span> | f<sub>b</sub>=M/S=<span class="cval">'+f0(chk.fb)+' psi</span> | D/C=<span class="cval">'+f3(chk.dc_b)+'</span></div>';
-  d+=ce;
-  d+='<div class="cref-hdr" style="margin-top:8px">§3.4 Shear &amp; §3.10 Bearing</div>';
-  d+=cb;
-  d+='<div class="mrow">V=wL/2=<span class="cval">'+f0(chk.V_lb)+' lbs</span> | f<sub>v</sub>=1.5V/A=<span class="cval">'+f1(chk.fv)+' psi</span> | F\'<sub>v</sub>='+f0(chk.Fv_p)+' psi | D/C=<span class="cval">'+f3(chk.dc_v)+'</span></div>';
-  d+='<div class="mrow">A<sub>b</sub>=b&times;1.5"='+f2(chk.b_eff*1.5)+' in&sup2; | f<sub>c&perp;</sub>=<span class="cval">'+f1(chk.fc_perp)+' psi</span> | F\'<sub>c&perp;</sub>='+f0(chk.FcP_p)+' psi | D/C=<span class="cval">'+f3(chk.dc_p)+'</span></div>';
-  d+=ce;
-  return d;
-}
-
-function detJamb(jc,sp,P_total_lbs){
-  var sp_data=NDS_REF[sp], cp=jc.cp, cb='<div class="cbox">', ce='</div>', d='';
-  d+='<div class="cref-hdr">NDS 2018 §3.7 — Jamb Column Stability (C<sub>D</sub>=1.0)</div>';
-  d+=cb;
-  d+='<div class="mrow">'+jc.n+'&times;'+jc.sz+': A<sub>tot</sub>='+f2(jc.A_total)+' in&sup2; | L<sub>e</sub>/b='+f0(jc.Le_in)+'/'+f2(jc.lb.b)+'=<span class="cval">'+f1(cp.slen)+'</span></div>';
-  d+='<div class="mrow">F<sub>cE</sub>=0.822&times;E\'<sub>min</sub>/'+f1(cp.slen)+'&sup2;=<span class="cval">'+f0(cp.FcE)+' psi</span></div>';
-  d+='<div class="mrow">F*<sub>c</sub>='+sp_data.Fc[jc.sz]+'&times;1.0&times;'+f2(jc.CFc)+'=<span class="cval">'+f0(cp.Fstar_c)+' psi</span> | C<sub>P</sub>=<span class="cval">'+f3(cp.CP)+'</span></div>';
-  d+='<div class="mrow">F\'<sub>c</sub>=<span class="cval">'+f0(jc.Fc_p)+' psi</span> | f<sub>c</sub>=P/A='+f0(P_total_lbs)+'/'+f2(jc.A_total)+'=<span class="cval">'+f1(jc.fc)+' psi</span> | D/C=<span class="cval">'+f3(jc.dc)+'</span></div>';
-  d+=ce;
-  return d;
-}
-
-function detKingStud(kr,sp){
-  var sp_data=NDS_REF[sp], cp=kr.cp, cb='<div class="cbox">', ce='</div>', d='';
-  d+='<div class="cref-hdr">NDS 2018 §3.9 — King Stud Combined (C<sub>D</sub>=1.6)</div>';
-  d+=cb;
-  d+='<div class="mrow">Sz: '+kr.sz+' | Trib=('+f1(kr.F_wind/kr.trib_area)+' psf)&times;(open/2)&times;(ht/2)=<span class="cval">'+f1(kr.trib_area)+' ft&sup2;</span> &rarr; F<sub>w</sub>=<span class="cval">'+f0(kr.F_wind)+' lbs</span></div>';
-  d+='<div class="mrow">a='+f1(kr.a_in/12)+"' | R<sub>bot</sub>="+f0(kr.R_bot)+' lbs | M=R<sub>bot</sub>&times;a=<span class="cval">'+f0(kr.M_max_in)+' lb&middot;in</span></div>';
-  d+='<hr class="csep">';
-  d+='<div class="mrow">C<sub>P</sub> weak axis: L<sub>e</sub>/b='+f1(cp.slen)+' &rarr; <span class="cval">'+f3(cp.CP)+'</span></div>';
-  d+='<div class="mrow">F\'<sub>c</sub>='+sp_data.Fc[kr.sz]+'&times;1.6&times;'+f2(kr.CFc)+'&times;C<sub>P</sub>=<span class="cval">'+f1(kr.Fc_p)+' psi</span></div>';
-  d+='<div class="mrow">F\'<sub>b</sub>='+sp_data.Fb[kr.sz]+'&times;1.6&times;'+f2(kr.CFb)+'&times;C<sub>r</sub>=<span class="cval">'+f1(kr.Fb_p)+' psi</span></div>';
-  d+='<div class="mrow">S<sub>w</sub>=db&sup2;/6='+f2(kr.S_weak)+' in&sup3; | f<sub>c</sub>='+f1(kr.fc_k)+' psi | f<sub>b</sub>=<span class="cval">'+f1(kr.fb_k)+' psi</span></div>';
-  d+='<div class="mrow">[f<sub>c</sub>/F\'<sub>c</sub>]&sup2;+f<sub>b</sub>/(F\'<sub>b</sub>(1-f<sub>c</sub>/F<sub>cE</sub>))=<span class="cval">'+f3(kr.DC_combined)+'</span></div>';
-  d+=ce;
-  return d;
-}
-
-function detStudSingle(r,sp,sz){
-  var sp_data=NDS_REF[sp], cb='<div class="cbox">', ce='</div>', d='';
-  d+='<div class="cref-hdr">NDS 2018 §3.9 — Wall Stud at '+r.spacing+'" o.c. (C<sub>D</sub>=1.6 wind)</div>';
-  d+=cb;
-  d+='<div class="mrow">'+sz+': A='+f2(r.lb.A)+' S='+f2(r.lb.S)+' | P<sub>grav</sub>='+f0(r.P_grav)+' lbs | w<sub>wind</sub>='+f1(r.w_wind)+' plf</div>';
-  d+='<div class="mrow">M<sub>wind</sub>=wL&sup2;/8=<span class="cval">'+f0(r.M_wind_in)+' lb&middot;in</span></div>';
-  d+='<hr class="csep">';
-  d+='<div class="mrow">C<sub>P,w</sub>: '+f1(r.cp_w.slen)+' &rarr; <span class="cval">'+f3(r.cp_w.CP)+'</span></div>';
-  d+='<div class="mrow">F\'<sub>c</sub>='+sp_data.Fc[sz]+'&times;1.6&times;'+f2(r.CFc)+'&times;C<sub>P</sub>=<span class="cval">'+f1(r.Fc_p_w)+' psi</span></div>';
-  d+='<div class="mrow">F\'<sub>b</sub>='+sp_data.Fb[sz]+'&times;1.6&times;'+f2(r.CFb)+'&times;1.15=<span class="cval">'+f1(r.Fb_p_w)+' psi</span></div>';
-  d+='<div class="mrow">f<sub>c</sub>='+f1(r.fc_w)+' | f<sub>b</sub>='+f1(r.fb_w)+' | D/C<sub>wind</sub>=<span class="cval">'+f3(r.DC_wind)+'</span></div>';
-  d+='<div class="mrow">Gravity D/C=<span class="cval">'+f3(r.dc_axial_g)+'</span> | <strong>Gov D/C=<span class="cval">'+f3(r.gov_dc)+'</span></strong> vs 0.96</div>';
-  d+=ce;
-  return d;
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PER-ROW CHECK FUNCTIONS
-// ══════════════════════════════════════════════════════════════════════════════
-function checkHeaderRow(fi,hi){
-  _dc=fi*2000+hi*100;
-  var sp=document.getElementById('species').value;
-  var wallW=document.getElementById('wallWidth').value;
-  var windOpn=+document.getElementById('windOpen').value;
-  var flrHt=+document.getElementById('flrHt').value;
-  var n_plies=PLIES_MAP[wallW];
-  var h=floors[fi].headers[hi];
-  var trialSz=h.trialSz||'2x8';
-  var rowWallSz=h.rowWallSz||wallW;
-  var jambCountOverride=+(h.jambCount||0);
-  var kingCountOverride=Math.max(1,+(h.kingCount||1));
-  var lds=calcLoads(h,fi);
-  var hChk=checkOneHeader(trialSz,n_plies,h.span,lds.dlPlf,lds.llPlf,lds.slPlf,sp);
-  var jRes=designJambs(lds.jDL,lds.jLL,lds.jSL,sp,rowWallSz,flrHt,jambCountOverride||null);
-  var jc=jRes.chosen;
-  var topOpen=+(h.topOfOpening||(h.openType==='door'?7.0:6.0));
-  var kAxial=+(h.kingAxial||0);
-  var kr=designKingStud(flrHt,h.span,topOpen,kAxial,sp,rowWallSz,windOpn,kingCountOverride);
-  var allPass=hChk.pass&&jc.pass&&kr.pass;
-  var html='', bgCls=allPass?'pass-bg':'fail-bg';
-  html+='<div class="inline-res-inner '+bgCls+'">';
-  html+='<div class="'+(allPass?'sum-pass':'sum-fail')+'"><strong>'+(allPass?'\u2714 All PASS':'\u2718 One or More FAIL')+'</strong>'
-      +' | '+n_plies+'-ply '+trialSz+' hdr | '+jc.n+'x '+rowWallSz+' jambs | '+kingCountOverride+'x '+rowWallSz+' king'
-      +' | Loads: DL='+f1(lds.dlPlf)+' LL='+f1(lds.llPlf)+' SL='+f1(lds.slPlf)+' plf</div>';
-  html+='<div class="dem-grid">';
-  html+='<div class="dem-card"><div class="v">'+h.span+' ft</div><div class="l">Span</div></div>';
-  html+='<div class="dem-card"><div class="v">'+f0(lds.dlPlf+lds.llPlf+lds.slPlf)+' plf</div><div class="l">Header Load</div></div>';
-  html+='<div class="dem-card warn"><div class="v">'+f2(lds.jTot)+' k</div><div class="l">Jamb Rxn</div></div>';
-  html+='<div class="dem-card'+(hChk.pass?' alt':' warn')+'"><div class="v">'+(hChk.pass?'PASS':'FAIL')+'</div><div class="l">Hdr '+n_plies+'-ply '+trialSz+'</div></div>';
-  html+='<div class="dem-card'+(jc.pass?' alt':' warn')+'"><div class="v">'+(jc.pass?'PASS':'FAIL')+'</div><div class="l">Jambs '+jc.n+'x '+rowWallSz+'</div></div>';
-  html+='<div class="dem-card'+(kr.pass?' alt':' warn')+'"><div class="v">'+(kr.pass?'PASS':'FAIL')+'</div><div class="l">'+kingCountOverride+'x King '+rowWallSz+'</div></div>';
-  html+='</div>';
-  // Header checks
-  html+='<strong style="font-size:.84em;color:#1e3c72">HEADER: '+n_plies+'-ply '+trialSz+'</strong>';
-  var hDet=detHeader(hChk,sp,n_plies,1.0), rows='';
-  rows+=chkRow('Flexure f<sub>b</sub>&le;F\'<sub>b</sub>','§3.3','f<sub>b</sub>='+f0(hChk.fb)+' psi','F\'<sub>b</sub>='+f0(hChk.Fb_p)+' psi',hChk.dc_b,'C<sub>L</sub>='+f3(hChk.cl.CL)+' C<sub>D</sub>=1.0',hDet,hChk.dc_b<=0.8);
-  rows+=chkRow('Shear f<sub>v</sub>&le;F\'<sub>v</sub>','§3.4','f<sub>v</sub>='+f1(hChk.fv)+' psi','F\'<sub>v</sub>='+f0(hChk.Fv_p)+' psi',hChk.dc_v,'','',false);
-  rows+=chkRow('Bearing f<sub>c&perp;</sub>&le;F\'<sub>c&perp;</sub>','§3.10','f<sub>c&perp;</sub>='+f1(hChk.fc_perp)+' psi','F\'<sub>c&perp;</sub>='+f0(hChk.FcP_p)+' psi',hChk.dc_p,'L<sub>b</sub>=1.5"','',false);
-  html+=chkTable(rows);
-  // Jamb checks
-  html+='<strong style="font-size:.84em;color:#b45309;margin-top:10px;display:block">JAMBS: '+jc.n+'x '+rowWallSz+' (P='+f1(jRes.P_total/1000)+' k)</strong>';
-  var jDet=detJamb(jc,sp,jRes.P_total), jRows='';
-  jRows+=chkRow('Axial f<sub>c</sub>&le;F\'<sub>c</sub>','§3.7','f<sub>c</sub>='+f1(jc.fc)+' psi','F\'<sub>c</sub>='+f0(jc.Fc_p)+' psi',jc.dc,'C<sub>P</sub>='+f3(jc.cp.CP)+' L<sub>e</sub>/d='+f1(jc.cp.slen),jDet,jc.pass);
-  jRows+=chkRow('Slenderness L<sub>e</sub>/d&le;50','§3.7.1.4','L<sub>e</sub>/d='+f1(jc.cp.slen),'50',jc.cp.slen/50,'K<sub>e</sub>=1.0','',jc.cp.slen<=40);
-  html+=chkTable(jRows);
-  if(!jambCountOverride){
-    html+='<div style="font-size:.77em;color:#555;margin:3px 0 7px">Auto-check: ';
-    jRes.checks.forEach(function(jc2){html+=jc2.n+'x:'+f2(jc2.dc)+(jc2.pass?' <span class="pass">&#10003;</span>':' <span class="fail">&#10007;</span>')+' &nbsp;';});
-    html+='</div>';
-  }
-  // King checks
-  html+='<strong style="font-size:.84em;color:#4338ca;display:block">KING STUD: '+kingCountOverride+'x '+rowWallSz+' (C<sub>D</sub>=1.6, ea. carries 1/'+kingCountOverride+' load)</strong>';
-  var kDet=detKingStud(kr,sp), kRows='';
-  kRows+=chkRow('Combined Axial+Bending','§3.9','f<sub>c</sub>='+f1(kr.fc_k)+' psi, f<sub>b</sub>='+f1(kr.fb_k)+' psi','F\'<sub>c</sub>='+f1(kr.Fc_p)+', F\'<sub>b</sub>='+f1(kr.Fb_p)+' psi',kr.DC_combined,'F<sub>w</sub>='+f0(kr.F_wind)+' lbs @'+f1(kr.a_in/12)+"'",kDet,kr.DC_combined<=0.8);
-  kRows+=chkRow('Shear f<sub>v</sub>&le;F\'<sub>v</sub>','§3.4','f<sub>v</sub>='+f1(kr.fv_k)+' psi','F\'<sub>v</sub>='+f1(kr.Fv_p)+' psi',kr.dc_shear,'V='+f0(kr.V_max)+' lbs','',false);
-  html+=chkTable(kRows);
-  html+='</div>';
-  var el=document.getElementById('hchk_'+fi+'_'+hi);
-  if(el){el.innerHTML=html; el.style.display='';}
-}
-
-function checkStudRow(fi,si){
-  _dc=fi*2000+si*100+1000;
-  var sp=document.getElementById('species').value;
-  var windPsf=+document.getElementById('windStud').value;
-  var flrHt=+document.getElementById('flrHt').value;
-  var s=floors[fi].studs[si];
-  var trialSz=s.trialSz||document.getElementById('wallWidth').value;
-  var trialSpc=+(s.trialSpacing||16);
-  var sLoads=calcStudLoads(s,fi);
-  var totPlf=sLoads.dlPlf+sLoads.llPlf+sLoads.slPlf;
-  var r=checkWallStudSingle(trialSz,trialSpc,windPsf,flrHt,totPlf,sp);
-  var html='', bgCls=r.pass?'pass-bg':'fail-bg';
-  html+='<div class="inline-res-inner '+bgCls+'">';
-  html+='<div class="'+(r.pass?'sum-pass':'sum-fail')+'"><strong>'+(r.pass?'\u2714 PASS':'\u2718 FAIL')+'</strong>'
-      +' | '+trialSz+' @ '+trialSpc+'" o.c. | Total axial='+f0(totPlf)+' plf accumulated</div>';
-  html+='<div class="dem-grid">';
-  html+='<div class="dem-card"><div class="v">'+f0(totPlf)+'</div><div class="l">plf Axial Total</div></div>';
-  html+='<div class="dem-card warn"><div class="v">'+f0(r.P_grav)+'</div><div class="l">lbs Per-Stud Axial</div></div>';
-  html+='<div class="dem-card warn"><div class="v">'+f1(r.w_wind)+'</div><div class="l">plf Wind per Stud</div></div>';
-  html+='<div class="dem-card'+(r.pass?' alt':' warn')+'"><div class="v">'+f3(r.gov_dc)+'</div><div class="l">Gov D/C (lim 0.96)</div></div>';
-  html+='</div>';
-  var det=detStudSingle(r,sp,trialSz), rows='';
-  rows+=chkRow('Combined Axial+Wind Bending','§3.9','f<sub>c</sub>='+f1(r.fc_w)+', f<sub>b</sub>='+f1(r.fb_w)+' psi','F\'<sub>c</sub>='+f1(r.Fc_p_w)+', F\'<sub>b</sub>='+f1(r.Fb_p_w)+' psi',r.DC_wind,'C<sub>D</sub>=1.6 C<sub>r</sub>=1.15',det,r.DC_wind<=0.8,0.96);
-  rows+=chkRow('Axial Only Gravity (C<sub>D</sub>=1.0)','§3.7','f<sub>c</sub>='+f1(r.fc_w)+' psi','F\'<sub>c</sub>='+f1(r.Fc_p_g)+' psi',r.dc_axial_g,'','',false,0.96);
-  html+=chkTable(rows);
-  html+='</div>';
-  var el=document.getElementById('schk_'+fi+'_'+si);
-  if(el){el.innerHTML=html; el.style.display='';}
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// LOAD ACCUMULATION ENGINE
-// ══════════════════════════════════════════════════════════════════════════════
-var LV={roofDL:20,floorDL:15,roofLL:20,floorLL1:40,floorLL2:100,snowLoad:25,wall1DL:15,wall2DL:25,wall3DL:10};
 
 var floors=[
   {id:1,name:'Roof',      exp:true,headers:[],studs:mkStudRows(0)},
@@ -748,80 +496,444 @@ var floors=[
 ];
 var hCnt=1, fCnt=10, sCnt=10;
 
-function mkStudRows(fi){
-  var isRoof=(fi===0);
-  return DEFAULT_STUDS.map(function(lbl,i){
-    return {sid:'S'+(i+1),label:lbl,
-      roofTrib:isRoof?10:0,floorTrib1:isRoof?0:5,floorTrib2:0,
-      wallTrib:8,wallType:1,dlAdd:0,llAdd:0,slAdd:0,
-      trialSz:'2x6',trialSpacing:16};
-  });
-}
-
 function xe(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function el(id){return document.getElementById(id);}
+function val(id){var e=el(id);return e?e.value:'';}
 
-document.addEventListener('DOMContentLoaded',function(){
-  // ── Read URL params from C&C Wind Calculator ───────────────────────────────
-  (function(){
-    var p=new URLSearchParams(window.location.search);
-    var src=p.get('src');
-    if(src==='cc-wind'){
-      var wOpen=parseFloat(p.get('windOpen'));
-      var wStud=parseFloat(p.get('windStud'));
-      var zone=p.get('zone')||'';
-      if(isFinite(wOpen)&&wOpen>0){
-        var elO=document.getElementById('windOpen');
-        if(elO){ elO.value=wOpen; }
-      }
-      if(isFinite(wStud)&&wStud>0){
-        var elS=document.getElementById('windStud');
-        if(elS){ elS.value=wStud; }
-      }
-      // Show banner
-      var banner=document.getElementById('windSrcBanner');
-      var zoneSpan=document.getElementById('windSrcZone');
-      if(banner){ banner.style.display=''; }
-      if(zoneSpan){ zoneSpan.textContent = zone ? 'Zone: '+zone+' (gov. |p| = '+wOpen+' psf)' : wOpen+' psf'; }
-      // Keep the link pointing back to the C&C calc
-      var lnk=document.getElementById('windSrcLink');
-      if(lnk){
-        var back=location.href.replace(/[^/]*\?.*$/,'').replace(/[^/]*$/,'')+'asce716_cc_wind_calculator.html';
-        lnk.href=back;
-      }
+// ── state -> engine ─────────────────────────────────────────────────────────
+function pageState(){
+  var dry=el('dryInstall');
+  return {
+    species: val('species'), wallWidth: val('wallWidth'),
+    flrHt: parseFloat(val('flrHt')),
+    windOpenW: parseFloat(val('windOpen')), windStudW: parseFloat(val('windStud')),
+    weakBraceIn: parseFloat(val('weakBraceIn')),
+    dryInstall: dry ? !!dry.checked : true,
+    plateSpecies: val('plateSpecies'),
+    finishType: val('finishType'),
+    windDeflBasis: parseFloat(val('windDeflBasis')),
+    LV: LV, floors: floors
+  };
+}
+
+var RESULT=null, ENGERR=null;
+function runEngine(){
+  try { RESULT=HDR.compute(pageState()); ENGERR=null; }
+  catch(e){ RESULT=null; ENGERR=e; }
+  showEngineErrors();
+  return RESULT;
+}
+function showEngineErrors(){
+  var box=el('engineErrors');
+  if(!box) return;
+  if(!ENGERR){ box.style.display='none'; box.innerHTML=''; return; }
+  var list=(ENGERR.issues||[]).map(function(i){
+    return '<li><code>'+xe(i.path)+'</code> — '+xe(i.message)+'</li>';
+  }).join('');
+  box.innerHTML='<strong>&#9888; Input errors — nothing was computed:</strong><ul style="margin:6px 0 0 18px">'
+    + (list || '<li>'+xe(ENGERR.message)+'</li>') + '</ul>';
+  box.style.display='';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// RENDER HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+var _dc=0;                      // monotonic — detail-panel ids can never collide
+function f0(v){return isFinite(v)?Math.round(v).toString():'N/A'}
+function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
+function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
+function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A'}
+function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>';}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>';}
+
+function togD(id,btnId){
+  var e=el(id), open=e.classList.toggle('open');
+  el(btnId).textContent=open?'▾ Calc':'▶ Calc';
+}
+function dcBar(dc,lim){
+  lim=lim||1.0;
+  if(dc===null||!isFinite(dc)) return '<span class="na">&mdash;</span>';
+  var pct=Math.min(dc/lim*100,150);
+  var col=dc<=0.8*lim?'#16a34a':dc<=lim?'#d97706':'#dc2626';
+  return '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span>'
+       + '<div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
+}
+function chkRow(name,ref,demand,capacity,dc,note,detHTML,altRow,lim){
+  lim=lim||1.0;
+  var cls=altRow?' class="alt-row"':'';
+  var ok=(dc!==null&&dc!==undefined&&isFinite(dc));
+  var dc_str=ok?dcBar(dc,lim):'<span class="na">&mdash;</span>';
+  // A null D/C means the row has nothing to check (see the R_B row on a braced
+  // header). A member the code REFUSES never reaches chkRow — it is rendered by
+  // notRun()/errList() instead — so this is neutral, not a hidden failure.
+  var status=ok?(dc<=lim?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>')
+               :'<span class="na">n/a</span>';
+  var detId='det_'+(_dc), btnId='dbtn_'+(_dc++);
+  return '<tr'+cls+'>'
+    +'<td><strong>'+name+'</strong>'+(note?'<br><small style="color:#555">'+note+'</small>':'')+'</td>'
+    +'<td><code>'+ref+'</code></td><td>'+demand+'</td><td>'+capacity+'</td>'
+    +'<td>'+dc_str+'</td><td>'+status+'</td>'
+    +'<td>'+(detHTML?'<button class="det-btn" id="'+btnId+'" onclick="togD(\''+detId+'\',\''+btnId+'\')">▶ Calc</button>':'')+'</td>'
+    +'</tr>'
+    +(detHTML?'<tr class="det-row"><td colspan="7"><div class="calc-det" id="'+detId+'">'+detHTML+'</div></td></tr>':'');
+}
+function chkTable(rows){
+  return '<div style="overflow-x:auto"><table class="chk-table"><thead><tr>'
+    +'<th style="width:27%">Check</th><th>Code Ref.</th><th>Demand</th>'
+    +'<th>Capacity</th><th>D/C</th><th>Status</th><th style="width:58px">Detail</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+// A member is only rendered as a check table when the engine actually produced
+// a governing combination. NOT APPLICABLE (R_B or l_e/d over the limit) and
+// NO LOAD both land here instead of dereferencing a null result.
+function notRun(m,what){
+  if(m&&m.errors&&m.errors.length) return errList(m.errors);
+  return '<div class="sum-fail" style="background:#f3f4f6;border-color:#9ca3af;color:#374151">'
+    +'<strong>'+xe(what)+': '+xe(m?m.status:'no result')+'</strong> &mdash; no load combination to check.</div>';
+}
+function errList(errs){
+  if(!errs||!errs.length) return '';
+  return '<div class="sum-fail"><strong>&#9888; NOT APPLICABLE</strong><ul style="margin:5px 0 0 18px">'
+    + errs.map(function(e){return '<li><code>'+xe(e.ref)+'</code> '+xe(e.message)+'</li>';}).join('')
+    + '</ul></div>';
+}
+
+// One row per ASCE 7-16 §2.4.1 combination, including the ones reported n/a.
+function comboTable(combos, cols){
+  var h='<table class="chk-table" style="font-size:.78em"><thead><tr><th>#</th><th>Combination</th><th>C<sub>D</sub></th>'
+      + cols.map(function(c){return '<th>'+c[0]+'</th>';}).join('') + '</tr></thead><tbody>';
+  combos.forEach(function(c){
+    if(c.skipped){
+      h+='<tr><td>'+c.id+'</td><td>'+c.tag+'</td><td>'+c.CD+'</td>'
+        +'<td colspan="'+cols.length+'" class="na">n/a &mdash; '+xe(c.note||'')+'</td></tr>';
+      return;
     }
-  })();
-
-  Object.keys(LV).forEach(function(k){
-    var el=document.getElementById(k);
-    if(el) el.addEventListener('change',function(e){LV[k]=parseFloat(e.target.value)||0;render();});
+    h+='<tr><td>'+c.id+'</td><td>'+c.tag+'</td><td>'+c.CD+'</td>'
+      + cols.map(function(col){return '<td>'+col[1](c)+'</td>';}).join('') + '</tr>';
   });
-  render();
-});
-
-function calcLoads(h,fi){
-  var wallDL=h.wallType==1?LV.wall1DL:h.wallType==2?LV.wall2DL:LV.wall3DL;
-  var dlPlf=wallDL*h.wallTrib+h.roofTrib*LV.roofDL+(h.floorTrib1+h.floorTrib2)*LV.floorDL+h.dlAdd;
-  var llPlf=h.roofTrib*LV.roofLL+h.floorTrib1*LV.floorLL1+h.floorTrib2*LV.floorLL2+h.llAdd;
-  var slPlf=h.roofTrib*LV.snowLoad+h.slAdd;
-  var jDL=dlPlf*h.span/2/1000, jLL=llPlf*h.span/2/1000, jSL=slPlf*h.span/2/1000;
-  if(fi>0){
-    var hAbove=floors[fi-1].headers.filter(function(x){return x.label===h.label;})[0];
-    if(hAbove){var ab=calcLoads(hAbove,fi-1);jDL+=ab.jDL;jLL+=ab.jLL;jSL+=ab.jSL;}
-  }
-  return{dlPlf:dlPlf,llPlf:llPlf,slPlf:slPlf,jDL:jDL,jLL:jLL,jSL:jSL,jTot:jDL+jLL+jSL};
+  return h+'</tbody></table>';
 }
 
-function calcStudLoads(s,fi){
-  var wallDL=s.wallType==1?LV.wall1DL:s.wallType==2?LV.wall2DL:LV.wall3DL;
-  var dlPlf=wallDL*s.wallTrib+s.roofTrib*LV.roofDL+(s.floorTrib1+s.floorTrib2)*LV.floorDL+s.dlAdd;
-  var llPlf=s.roofTrib*LV.roofLL+s.floorTrib1*LV.floorLL1+s.floorTrib2*LV.floorLL2+s.llAdd;
-  var slPlf=s.roofTrib*LV.snowLoad+s.slAdd;
-  if(fi>0){
-    var sAbove=floors[fi-1].studs.filter(function(x){return x.sid===s.sid;})[0];
-    if(sAbove){var ab=calcStudLoads(sAbove,fi-1);dlPlf+=ab.dlPlf;llPlf+=ab.llPlf;slPlf+=ab.slPlf;}
+// ══════════════════════════════════════════════════════════════════════════════
+// DETAIL PANEL BUILDERS
+// ══════════════════════════════════════════════════════════════════════════════
+function detHeader(h){
+  var g=h.governing, cb='<div class="cbox">', ce='</div>', d='';
+  d+='<div class="cref-hdr">ASCE 7-16 §2.4.1 combination envelope &mdash; NDS Table 2.3.2 C<sub>D</sub></div>'+cb;
+  d+=comboTable(h.combos,[
+    ['w (plf)',function(c){return f0(c.w)}],
+    ['f<sub>b</sub>',function(c){return f0(c.fb)}],
+    ["F'<sub>b</sub>",function(c){return f0(c.Fb_p)}],
+    ['D/C<sub>b</sub>',function(c){return f3(c.dc_b)}],
+    ['D/C<sub>v</sub>',function(c){return f3(c.dc_v)}]]);
+  d+='<div class="mrow">Governing: <span class="cval">'+g.tag+'</span> at C<sub>D</sub>='+g.CD
+    +'. L<sub>r</sub> and S are alternatives and are never summed. Rain (R) is not an input.</div>'+ce;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.3 &mdash; Bending, C<sub>L</sub> per §3.3.3</div>'+cb;
+  d+='<div class="mrow">'+f1(h.n_plies)+'-ply '+h.size+': b<sub>eff</sub>='+f2(h.b_eff)+'" d='+f2(h.d)
+    +'" S='+f3(h.S_eff)+' in&sup3; A='+f3(h.A_eff)+' in&sup2; I='+f2(h.I_eff)+' in&#8308;</div>';
+  d+='<div class="mrow">M=wL&sup2;/8='+f0(g.M_in)+' lb&middot;in | V=wL/2='+f0(g.V)+' lb (taken at the reaction &mdash; §3.4.3.1(a) reduction not taken, conservative)</div>';
+  d+='<hr class="csep">';
+  if(g.cl.braced){
+    d+='<div class="mrow ind">Compression edge continuously braced &rarr; C<sub>L</sub>=<span class="cval">1.000</span> (NDS §3.3.3.3)</div>';
+  } else if(g.cl.RB===0){
+    d+='<div class="mrow ind">'+xe(g.cl.branch)+' &rarr; C<sub>L</sub>=<span class="cval">1.000</span></div>';
+  } else {
+    d+='<div class="mrow ind">'+xe(h.le_branch)+' &rarr; l<sub>e</sub>=<span class="cval">'+f2(h.le_in)+'"</span></div>';
+    d+='<div class="mrow ind">R<sub>B</sub>='+ov('l<sub>e</sub>d/b&sup2;')+'=<span class="cval">'+f3(h.R_B)+'</span> &le; 50 (§3.3.3.7) &mdash; unclamped</div>';
+    d+='<div class="mrow ind">F*<sub>b</sub>=F<sub>b</sub>C<sub>D</sub>C<sub>F</sub>='+f0(g.Fb_star)
+      +' psi | F<sub>bE</sub>=1.20E\'<sub>min</sub>/R<sub>B</sub>&sup2;='+f0(g.cl.FbE)+' psi</div>';
+    d+='<div class="mrow ind">C<sub>L</sub>=<span class="cval">'+f4(g.cl.CL)+'</span> (Eq. 3.3-6)</div>';
   }
-  return{dlPlf:dlPlf,llPlf:llPlf,slPlf:slPlf,totPlf:dlPlf+llPlf+slPlf};
+  d+='<div class="mrow">F\'<sub>b</sub>=<span class="cval">'+f1(g.Fb_p)+' psi</span> | f<sub>b</sub>=M/S=<span class="cval">'
+    +f1(g.fb)+' psi</span> | D/C=<span class="cval">'+f3(g.dc_b)+'</span></div>';
+  d+='<div class="mrow">F\'<sub>v</sub>=F<sub>v</sub>C<sub>D</sub>='+f0(g.Fv_p)+' psi | f<sub>v</sub>=1.5V/A=<span class="cval">'
+    +f1(g.fv)+' psi</span> | D/C=<span class="cval">'+f3(g.dc_v)+'</span> (§3.4.2)</div>';
+  d+='<div class="mrow">C<sub>r</sub>=1.0 &mdash; §4.3.9 does not apply to a header.</div>'+ce;
+  var b=h.bearing;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.10 &mdash; Bearing on the jamb pack</div>'+cb;
+  d+='<div class="mrow">F<sub>c&perp;</sub> carries no C<sub>D</sub> (Table 2.3.2 fn.1), so the largest <em>unfactored</em> combination governs: <span class="cval">'
+    +b.combo+'</span>, w='+f0(b.w)+' plf &rarr; R='+f0(b.R_lb)+' lb</div>';
+  d+='<div class="mrow">l<sub>b</sub>=n<sub>jambs</sub>&times;1.5"=<span class="cval">'+f2(b.lb_in)+'"</span> | A<sub>b</sub>=l<sub>b</sub>&times;b<sub>eff</sub>='
+    +f2(b.A_bear)+' in&sup2; | '+xe(b.Cb_basis)+'</div>';
+  d+='<div class="mrow">f<sub>c&perp;</sub>=<span class="cval">'+f1(b.fcperp)+' psi</span> | F\'<sub>c&perp;</sub>='+f0(b.FcP_p)
+    +' psi | D/C=<span class="cval">'+f3(b.dc)+'</span> | l<sub>b</sub> required = '+f2(b.lb_req_in)+'"</div>'+ce;
+  var df=h.deflection;
+  d+='<div class="cref-hdr" style="margin-top:8px">IBC 2021 Table 1604.3 &mdash; Deflection</div>'+cb;
+  d+='<div class="mrow">&Delta;=5wL&#8308;/(384EI), E='+f0(df.E)+' psi, I='+f2(df.I_eff)+' in&#8308;</div>';
+  d+='<div class="mrow">Live (L with the larger of L<sub>r</sub> or S) w='+f0(df.w_live)+' plf: &Delta;=<span class="cval">'
+    +f3(df.live)+'"</span> vs L/'+df.live_denom+'='+f3(df.live_allow)+'" &rarr; D/C='+f3(df.dc_live)+'</div>';
+  d+='<div class="mrow">Total '+(df.dryInstall?'(0.5D per fn. d &mdash; dry at installation)':'(full D)')+' w='+f0(df.w_total)
+    +' plf: &Delta;=<span class="cval">'+f3(df.total)+'"</span> vs L/'+df.total_denom+'='+f3(df.total_allow)
+    +'" &rarr; D/C='+f3(df.dc_total)+'</div>'+ce;
+  return d;
 }
+
+function detJamb(j,jd){
+  var g=j.governing, cb='<div class="cbox">', ce='</div>', d='';
+  d+='<div class="cref-hdr">ASCE 7-16 §2.4.1 envelope &mdash; jamb pack axial (NDS §3.7.1)</div>'+cb;
+  d+=comboTable(j.combos,[
+    ['P (lb)',function(c){return f0(c.P)}],
+    ['C<sub>P</sub>',function(c){return f4(c.CP)}],
+    ['axis',function(c){return c.axis}],
+    ["F'<sub>c</sub>",function(c){return f1(c.Fc_p)}],
+    ['f<sub>c</sub>',function(c){return f1(c.fc)}],
+    ['D/C',function(c){return f3(c.dc)}]]);
+  d+=ce;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.7.1 &mdash; C<sub>P</sub>, both axes (Eq. 3.7-1, c=0.8, K<sub>cE</sub>=0.822)</div>'+cb;
+  d+='<div class="mrow">'+j.n+'&times;'+j.size+': A<sub>tot</sub>='+f3(j.A_tot)+' in&sup2; | F*<sub>c</sub>=F<sub>c</sub>C<sub>D</sub>C<sub>F</sub>='+f1(g.Fc_star)+' psi</div>';
+  d+='<div class="mrow ind">Strong axis (trimmer length, top of opening): l<sub>e1</sub>='+f1(j.le1_in)+'" &rarr; l<sub>e</sub>/d='
+    +f2(j.slenderness.strong)+' &rarr; F<sub>cE</sub>='+f0(g.strong.FcE)+' psi &rarr; C<sub>P</sub>=<span class="cval">'+f4(g.strong.CP)+'</span></div>';
+  d+='<div class="mrow ind">Weak axis (blocking / sheathing at '+f0(j.le2_in)+'"): l<sub>e2</sub>='+f1(j.le2_in)+'" &rarr; l<sub>e</sub>/d='
+    +f2(j.slenderness.weak)+' &rarr; F<sub>cE</sub>='+(isFinite(g.weak.FcE)?f0(g.weak.FcE):'&infin;')
+    +' psi &rarr; C<sub>P</sub>=<span class="cval">'+f4(g.weak.CP)+'</span></div>';
+  if(j.weak_unbraced){
+    d+='<div class="mrow ind">For reference, weak axis unbraced over the full story: l<sub>e</sub>/d='+f1(j.weak_unbraced.slen)
+      +(j.weak_unbraced.ok?'':' &mdash; <strong>above the §3.7.1.4 limit of 50</strong>, which is what the bracing is for')+'</div>';
+  }
+  d+='<div class="mrow">Governing C<sub>P</sub>=min(both axes)=<span class="cval">'+f4(g.CP)+'</span> ('+g.axis+') | F\'<sub>c</sub>=<span class="cval">'
+    +f1(g.Fc_p)+' psi</span> | f<sub>c</sub>=P/A=<span class="cval">'+f1(g.fc)+' psi</span> | D/C=<span class="cval">'+f3(g.dc)+'</span></div>';
+  d+='<div class="mrow">C<sub>r</sub>=1.0; loading assumed concentric.</div>'+ce;
+  var p=j.plateBearing;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.10 &mdash; Jamb pack bearing on the bottom plate</div>'+cb;
+  d+='<div class="mrow">Plate species '+xe(HDR.NDS_REF[p.species].name)+', F<sub>c&perp;</sub>='+f0(p.FcP_p)
+    +' psi (no C<sub>D</sub>). Largest unfactored combination: '+p.combo+' &rarr; P='+f0(p.P_lb)+' lb</div>';
+  d+='<div class="mrow">A=n&times;A<sub>1</sub>='+f3(p.A_bear)+' in&sup2; | '+xe(p.Cb_basis)+' | f<sub>c&perp;</sub>=<span class="cval">'
+    +f1(p.fcperp)+' psi</span> | D/C=<span class="cval">'+f3(p.dc)+'</span></div>'+ce;
+  if(jd&&jd.auto&&jd.tried.length>1){
+    d+='<div class="mrow">Auto-search: '+jd.tried.map(function(t){
+      return t.n+'&times;: '+(t.governing?f3(t.governing.dc):'n/a')+(t.pass?' &#10003;':' &#10007;');}).join(' &nbsp; ')+'</div>';
+  }
+  return d;
+}
+
+function detBeamCol(m,title){
+  var g=m.governing, cb='<div class="cbox">', ce='</div>', d='';
+  d+='<div class="cref-hdr">ASCE 7-16 §2.4.1 envelope &mdash; '+title+' (NDS Eq. 3.9-3)</div>'+cb;
+  d+=comboTable(m.combos,[
+    ['P (lb)',function(c){return f0(c.P)}],
+    ['w (plf)',function(c){return f1(c.w)}],
+    ['C<sub>P</sub>',function(c){return f4(c.CP)}],
+    ['f<sub>c</sub>',function(c){return f1(c.fc)}],
+    ['f<sub>b</sub>',function(c){return f1(c.fb)}],
+    ['term 1',function(c){return c.dc==null?'&mdash;':f4(c.term1)}],
+    ['term 2',function(c){return c.dc==null?'&mdash;':f4(c.term2)}],
+    ['D/C',function(c){return c.dc==null?'<span class="fail">N/A</span>':f3(c.dc)}]]);
+  d+='<div class="mrow">Wind is entered at <strong>strength level</strong> (ASCE 7-16 §30.3); the engine applies the 0.6 of combinations 5&ndash;7. w<sub>strength</sub>='
+    +f1(m.w_strength_plf)+' plf over a '+f3(m.trib_ft)+' ft tributary. <strong>Every member of the group is checked for the whole strip</strong> &mdash; a second king is redundancy, not a halving of the demand.</div>'+ce;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.7.1 / §3.9.2</div>'+cb;
+  d+='<div class="mrow">'+m.size+': A='+f3(m.A)+' in&sup2; S<sub>x</sub>='+f4(m.Sx)+' in&sup3; I<sub>x</sub>='+f3(m.Ix)
+    +' in&#8308; | M=wh&sup2;/8='+f0(g.M_in)+' lb&middot;in, simply supported plate to plate</div>';
+  d+='<div class="mrow ind">Strong axis (bending axis): l<sub>e1</sub>/d='+f2(m.slenderness.strong)
+    +' &rarr; C<sub>P</sub>='+f4(g.strong.CP)+' | F<sub>cE1</sub>=0.822E\'<sub>min</sub>/(l<sub>e1</sub>/d)&sup2;=<span class="cval">'+f1(m.FcE1)+' psi</span></div>';
+  d+='<div class="mrow ind">Weak axis (braced at '+f0(m.le2_in)+'"): l<sub>e2</sub>/d='+f2(m.slenderness.weak)
+    +' &rarr; C<sub>P</sub>='+f4(g.weak.CP)+'</div>';
+  d+='<div class="mrow ind">Governing C<sub>P</sub>=<span class="cval">'+f4(g.CP)+'</span> ('+g.axis+')</div>';
+  d+='<div class="mrow">'+xe(m.CL_basis)+'</div>';
+  d+='<div class="mrow">'+xe(m.Cr_basis)+'</div>';
+  d+='<div class="mrow">F\'<sub>c</sub>='+f1(g.Fc_p)+' psi | F\'<sub>b</sub>='+f1(g.Fb_p)+' psi | f<sub>c</sub>='+f1(g.fc)
+    +' psi | f<sub>b</sub>=M/S<sub>x</sub>='+f1(g.fb)+' psi</div>';
+  d+='<div class="mrow">[f<sub>c</sub>/F\'<sub>c</sub>]&sup2;+f<sub>b</sub>/(F\'<sub>b</sub>(1&minus;f<sub>c</sub>/F<sub>cE1</sub>))='
+    +f4(g.term1)+'+'+f4(g.term2)+'=<span class="cval">'+f3(g.dc)+'</span></div>';
+  d+='<div class="mrow">f<sub>v</sub>=1.5V/A='+f1(g.fv)+' psi vs F\'<sub>v</sub>='+f0(g.Fv_p)+' psi &rarr; D/C='+f3(g.dc_v)+' (§3.4.2)</div>'+ce;
+  var p=m.plateBearing;
+  d+='<div class="cref-hdr" style="margin-top:8px">NDS §3.10 &mdash; Bearing on the plate</div>'+cb;
+  d+='<div class="mrow">Plate '+xe(HDR.NDS_REF[p.species].name)+', F<sub>c&perp;</sub>='+f0(p.FcP_p)+' psi (no C<sub>D</sub>), '
+    +p.combo+' &rarr; P='+f0(p.P_lb)+' lb | f<sub>c&perp;</sub>='+f1(p.fcperp)+' psi | D/C=<span class="cval">'+f3(p.dc)+'</span></div>'+ce;
+  if(m.deflection){
+    var df=m.deflection;
+    d+='<div class="cref-hdr" style="margin-top:8px">IBC 2021 Table 1604.3 &mdash; Wind deflection</div>'+cb;
+    d+='<div class="mrow">'+xe(df.basis)+': w='+f2(df.w_plf)+' plf | &Delta;=5wh&#8308;/(384EI)=<span class="cval">'+f3(df.delta)
+      +'"</span> vs H/'+df.denom+'='+f3(df.allow)+'" ('+df.finish+' finish) &rarr; D/C=<span class="cval">'+f3(df.dc)+'</span></div>'+ce;
+  }
+  return d;
+}
+
+// Collapsed, print-expanding record of what produced the numbers above.
+function calcRecord(res, rowChecks, title){
+  var detId='det_'+(_dc), btnId='dbtn_'+(_dc++);
+  var snap=HDR.snapshot(res), a=snap.assumptions;
+  res=snap;
+  var h='<div style="margin-top:10px">'
+    +'<button class="det-btn" id="'+btnId+'" onclick="togD(\''+detId+'\',\''+btnId+'\')">▶ Calc</button> '
+    +'<strong style="font-size:.84em;color:#1e3c72">Calculation record &mdash; '+xe(title)+'</strong>'
+    +'<div class="calc-det" id="'+detId+'">';
+  h+='<div class="cbox"><div class="mrow">Engine <code>'+xe(res.engine.name)+'</code> v'+res.engine.version
+    +' build '+xe(res.engine.build)+' &middot; codes: '+res.codes.map(xe).join(' &middot; ')+'</div>';
+  h+='<div class="mrow">Inputs hash <code>'+xe(res.inputs_hash)+'</code> &middot; '+xe(res.timestamp)+'</div>';
+  h+='<div class="mrow">Assumptions: species '+xe(a.species)+', plate species '+xe(a.plateSpecies)
+    +', weak-axis bracing '+a.weakBraceIn+' in, '+(a.dryInstall?'dry at installation (0.5D in the total-load deflection row)':'full D in the total-load deflection row')
+    +', '+xe(a.finishType)+' finish, wind deflection at '+a.windDeflBasis+'W.</div>';
+  h+='<div class="mrow">'+xe(a.adjustments)+' &middot; '+xe(a.wind_basis)+' &middot; '+xe(a.rain)+' &middot; live load reduction: '+xe(a.live_load_reduction)+'</div></div>';
+  h+='<table class="chk-table" style="font-size:.76em;margin-top:6px"><thead><tr><th>Check</th><th>Combination</th>'
+    +'<th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th></tr></thead><tbody>';
+  rowChecks.forEach(function(c){
+    h+='<tr><td>'+xe(c.member)+'</td><td>'+xe(c.combination)+'</td>'
+      +'<td>'+(c.demand==null?'&mdash;':f3(c.demand))+'</td>'
+      +'<td>'+(c.capacity==null?'&mdash;':f3(c.capacity))+'</td>'
+      +'<td>'+(c.dc==null?'&mdash;':f3(c.dc))+'</td>'
+      +'<td class="'+(c.status==='PASS'?'pass':'fail')+'">'+c.status+'</td></tr>';
+    if(c.errors&&c.errors.length){
+      h+='<tr><td colspan="6"><small>'+c.errors.map(function(e){return xe(e.ref+' '+e.message);}).join('<br>')+'</small></td></tr>';
+    }
+  });
+  h+='</tbody></table></div></div>';
+  return h;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PER-ROW CHECKS
+// ══════════════════════════════════════════════════════════════════════════════
+function checkHeaderRow(fi,hi){
+  var res=runEngine();
+  var target=el('hchk_'+fi+'_'+hi);
+  if(!target) return;
+  if(!res){ target.innerHTML='<div class="inline-res-inner fail-bg">'+errMsgHTML()+'</div>'; target.style.display=''; return; }
+  var row=res.floors[fi].headers[hi];
+  var h=row.header, j=row.jamb, k=row.king;
+  var allPass=row.status==='PASS';
+  var html='<div class="inline-res-inner '+(allPass?'pass-bg':'fail-bg')+'">';
+  html+='<div class="'+(allPass?'sum-pass':'sum-fail')+'"><strong>'
+      +(row.status==='NOT APPLICABLE'?'⚠ NOT APPLICABLE':(allPass?'✔ All PASS':'✘ One or More FAIL'))+'</strong>'
+      +' | '+row.n_plies+'-ply '+h.size+' hdr | '+(j?j.n+'x '+j.size:'—')+' jambs | '+row.input.kingCount+'x '+k.size+' king'
+      +' | Loads D='+f1(row.loads.D)+' L='+f1(row.loads.L)+' L<sub>r</sub>='+f1(row.loads.Lr)+' S='+f1(row.loads.S)+' plf'
+      +' | Governing D/C '+f3(row.dc_max)+'</div>';
+  html+='<div class="dem-grid">';
+  html+='<div class="dem-card"><div class="v">'+row.input.span+' ft</div><div class="l">Span</div></div>';
+  html+='<div class="dem-card warn"><div class="v">'+f2(row.jambP.D/1000)+' k</div><div class="l">Jamb Rxn D</div></div>';
+  html+='<div class="dem-card warn"><div class="v">'+f2((row.jambP.D+Math.max(row.jambP.Lr,row.jambP.S)+row.jambP.L)/1000)+' k</div><div class="l">Jamb Rxn D+L+(L<sub>r</sub>|S)</div></div>';
+  html+='<div class="dem-card'+(h.status==='PASS'?' alt':' warn')+'"><div class="v">'+h.status+'</div><div class="l">Hdr '+row.n_plies+'-ply '+h.size+'</div></div>';
+  html+='<div class="dem-card'+((j&&j.status==='PASS')?' alt':' warn')+'"><div class="v">'+(j?j.status:'—')+'</div><div class="l">Jambs '+(j?j.n+'x '+j.size:'—')+'</div></div>';
+  html+='<div class="dem-card'+(k.status==='PASS'?' alt':' warn')+'"><div class="v">'+k.status+'</div><div class="l">'+row.input.kingCount+'x King '+k.size+'</div></div>';
+  html+='</div>';
+
+  // ── header ──
+  html+='<strong style="font-size:.84em;color:#1e3c72">HEADER: '+row.n_plies+'-ply '+h.size+' &mdash; '+xe(HDR.NDS_REF[res.state.species].name)+'</strong>';
+  if(!h.governing){ html+=notRun(h,'Header'); }
+  else {
+    var g=h.governing, det=detHeader(h), rows='';
+    rows+=chkRow('Flexure f<sub>b</sub>&le;F\'<sub>b</sub>','NDS §3.3','f<sub>b</sub>='+f0(g.fb)+' psi','F\'<sub>b</sub>='+f0(g.Fb_p)+' psi',
+      g.dc_b,g.tag+' &middot; C<sub>D</sub>='+g.CD+' &middot; C<sub>L</sub>='+f4(g.cl.CL),det,g.dc_b<=0.8);
+    rows+=chkRow('Shear f<sub>v</sub>&le;F\'<sub>v</sub>','NDS §3.4.2','f<sub>v</sub>='+f1(g.fv)+' psi','F\'<sub>v</sub>='+f0(g.Fv_p)+' psi',
+      g.dc_v,g.tag+' &middot; V at the reaction','',false);
+    if(h.R_B>0){
+      rows+=chkRow('R<sub>B</sub> &le; 50','NDS §3.3.3.7','R<sub>B</sub>='+f2(h.R_B),'50',h.R_B/50,'unclamped','',h.R_B<=40);
+    } else {
+      // C_L = 1.0 by §3.3.3.3 (braced edge) or §3.3.3.1 (d <= b): there is no
+      // slenderness to check, so print that rather than "R_B = 0.00".
+      rows+=chkRow('R<sub>B</sub> &le; 50','NDS §3.3.3.7','n/a &mdash; '+xe(g.cl.branch),'50',null,
+        'C<sub>L</sub>=1.0','',false);
+    }
+    var lbNote=h.bearing.combo+' &middot; l<sub>b</sub>='+f2(h.bearing.lb_in)+'" &middot; C<sub>b</sub>=1.0';
+    if(h.bearing.dc>1) lbNote+=' &middot; <strong>needs l<sub>b</sub>&ge;'+f2(h.bearing.lb_req_in)
+      +'" &rarr; '+Math.ceil(h.bearing.lb_req_in/1.5)+' jambs</strong>';
+    rows+=chkRow('End bearing f<sub>c&perp;</sub>&le;F\'<sub>c&perp;</sub>','NDS §3.10','f<sub>c&perp;</sub>='+f1(h.bearing.fcperp)+' psi',
+      'F\'<sub>c&perp;</sub>='+f0(h.bearing.FcP_p)+' psi',h.bearing.dc,lbNote,'',false);
+    rows+=chkRow('Deflection &Delta;<sub>live</sub>','IBC T1604.3','&Delta;='+f3(h.deflection.live)+'"','L/'+h.deflection.live_denom+'='+f3(h.deflection.live_allow)+'"',
+      h.deflection.dc_live,'L with the larger of L<sub>r</sub> or S','',false);
+    rows+=chkRow('Deflection &Delta;<sub>total</sub>','IBC T1604.3','&Delta;='+f3(h.deflection.total)+'"','L/'+h.deflection.total_denom+'='+f3(h.deflection.total_allow)+'"',
+      h.deflection.dc_total,(h.deflection.dryInstall?'0.5D per fn. (d)':'full D')+' + live','',false);
+    html+=chkTable(rows);
+  }
+
+  // ── jambs ──
+  html+='<strong style="font-size:.84em;color:#b45309;margin-top:10px;display:block">JAMB PACK: '+(j?j.n+'x '+j.size:'—')
+      +' (P<sub>D</sub>='+f0(row.jambP.D)+' lb, accumulated)</strong>';
+  if(!j||!j.governing){ html+=notRun(j,'Jamb pack'); }
+  else {
+    var jg=j.governing, jDet=detJamb(j,row.jambDesign), jRows='';
+    jRows+=chkRow('Axial f<sub>c</sub>&le;F\'<sub>c</sub>','NDS §3.7','f<sub>c</sub>='+f1(jg.fc)+' psi','F\'<sub>c</sub>='+f0(jg.Fc_p)+' psi',
+      jg.dc,jg.tag+' &middot; C<sub>D</sub>='+jg.CD+' &middot; C<sub>P</sub>='+f4(jg.CP)+' ('+jg.axis+')',jDet,jg.dc<=0.8);
+    jRows+=chkRow('Slenderness l<sub>e</sub>/d &le; 50','NDS §3.7.1.4',
+      'strong '+f1(j.slenderness.strong)+' &middot; weak '+f1(j.slenderness.weak),'50',
+      Math.max(j.slenderness.strong,j.slenderness.weak)/50,'true ratios, K<sub>e</sub>=1.0','',false);
+    jRows+=chkRow('Bearing on bottom plate','NDS §3.10','f<sub>c&perp;</sub>='+f1(j.plateBearing.fcperp)+' psi',
+      'F\'<sub>c&perp;</sub>='+f0(j.plateBearing.FcP_p)+' psi',j.plateBearing.dc,
+      'plate: '+xe(HDR.NDS_REF[j.plateBearing.species].name),'',false);
+    html+=chkTable(jRows);
+  }
+
+  // ── king ──
+  html+='<strong style="font-size:.84em;color:#4338ca;display:block">KING STUD: '+row.input.kingCount+'x '+k.size
+      +' (P<sub>D</sub>='+f0(row.kingP.D)+' lb = the header row&rsquo;s tributary gravity &times; s/2)</strong>';
+  if(!k.governing){ html+=notRun(k,'King stud'); }
+  else {
+    var kg=k.governing, kDet=detBeamCol(k,'king stud'), kRows='';
+    kRows+=chkRow('Combined axial + bending','NDS Eq. 3.9-3','f<sub>c</sub>='+f1(kg.fc)+', f<sub>b</sub>='+f1(kg.fb)+' psi',
+      'F\'<sub>c</sub>='+f1(kg.Fc_p)+', F\'<sub>b</sub>='+f1(kg.Fb_p)+' psi',kg.dc,
+      kg.tag+' &middot; C<sub>D</sub>='+kg.CD+' &middot; strong axis',kDet,kg.dc<=0.8);
+    kRows+=chkRow('Shear f<sub>v</sub>&le;F\'<sub>v</sub>','NDS §3.4.2','f<sub>v</sub>='+f1(kg.fv)+' psi','F\'<sub>v</sub>='+f0(kg.Fv_p)+' psi',
+      kg.dc_v,'','',false);
+    kRows+=chkRow('Slenderness l<sub>e</sub>/d &le; 50','NDS §3.7.1.4',
+      'strong '+f1(k.slenderness.strong)+' &middot; weak '+f1(k.slenderness.weak),'50',
+      Math.max(k.slenderness.strong,k.slenderness.weak)/50,'true ratios','',false);
+    kRows+=chkRow('Bearing on plate','NDS §3.10','f<sub>c&perp;</sub>='+f1(k.plateBearing.fcperp)+' psi',
+      'F\'<sub>c&perp;</sub>='+f0(k.plateBearing.FcP_p)+' psi',k.plateBearing.dc,'','',false);
+    html+=chkTable(kRows);
+  }
+
+  html+=calcRecord(res,res.checks.filter(function(c){return c.id.indexOf(row.id)===0||c.member.indexOf(row.floor+' / '+row.label)===0;}),
+                   row.floor+' / '+row.label);
+  html+='</div>';
+  target.innerHTML=html; target.style.display='';
+}
+
+function checkStudRow(fi,si){
+  var res=runEngine();
+  var target=el('schk_'+fi+'_'+si);
+  if(!target) return;
+  if(!res){ target.innerHTML='<div class="inline-res-inner fail-bg">'+errMsgHTML()+'</div>'; target.style.display=''; return; }
+  var row=res.floors[fi].studs[si], m=row.stud;
+  var html='<div class="inline-res-inner '+(row.pass?'pass-bg':'fail-bg')+'">';
+  html+='<div class="'+(row.pass?'sum-pass':'sum-fail')+'"><strong>'
+      +(m.status==='NOT APPLICABLE'?'⚠ NOT APPLICABLE':(row.pass?'✔ PASS':'✘ FAIL'))+'</strong>'
+      +' | '+m.size+' @ '+row.input.trialSpacing+'" o.c. | accumulated D='+f0(row.accum.D)+' L='+f0(row.accum.L)
+      +' L<sub>r</sub>='+f0(row.accum.Lr)+' S='+f0(row.accum.S)+' plf</div>';
+  if(!m.governing){ html+=notRun(m,'Wall stud'); }
+  else {
+    var g=m.governing;
+    html+='<div class="dem-grid">';
+    html+='<div class="dem-card"><div class="v">'+f0(g.P)+'</div><div class="l">lb axial, '+g.tag+'</div></div>';
+    html+='<div class="dem-card warn"><div class="v">'+f1(g.w)+'</div><div class="l">plf wind (ASD) per stud</div></div>';
+    html+='<div class="dem-card warn"><div class="v">'+f4(g.CP)+'</div><div class="l">C<sub>P</sub> ('+g.axis+')</div></div>';
+    html+='<div class="dem-card'+(row.pass?' alt':' warn')+'"><div class="v">'+f3(m.dc_max)+'</div><div class="l">Governing D/C (limit 1.00)</div></div>';
+    html+='</div>';
+    var det=detBeamCol(m,'wall stud'), rows='';
+    rows+=chkRow('Combined axial + bending','NDS Eq. 3.9-3','f<sub>c</sub>='+f1(g.fc)+', f<sub>b</sub>='+f1(g.fb)+' psi',
+      'F\'<sub>c</sub>='+f1(g.Fc_p)+', F\'<sub>b</sub>='+f1(g.Fb_p)+' psi',g.dc,
+      g.tag+' &middot; C<sub>D</sub>='+g.CD+' &middot; C<sub>r</sub>='+m.Cr,det,g.dc<=0.8);
+    rows+=chkRow('Shear f<sub>v</sub>&le;F\'<sub>v</sub>','NDS §3.4.2','f<sub>v</sub>='+f1(g.fv)+' psi','F\'<sub>v</sub>='+f0(g.Fv_p)+' psi',
+      g.dc_v,'','',false);
+    rows+=chkRow('Slenderness l<sub>e</sub>/d &le; 50','NDS §3.7.1.4',
+      'strong '+f1(m.slenderness.strong)+' &middot; weak '+f1(m.slenderness.weak),'50',
+      Math.max(m.slenderness.strong,m.slenderness.weak)/50,'true ratios','',false);
+    rows+=chkRow('Bearing on plate','NDS §3.10','f<sub>c&perp;</sub>='+f1(m.plateBearing.fcperp)+' psi',
+      'F\'<sub>c&perp;</sub>='+f0(m.plateBearing.FcP_p)+' psi',m.plateBearing.dc,
+      'plate: '+xe(HDR.NDS_REF[m.plateBearing.species].name),'',false);
+    if(m.deflection){
+      rows+=chkRow('Wind deflection','IBC T1604.3','&Delta;='+f3(m.deflection.delta)+'"','H/'+m.deflection.denom+'='+f3(m.deflection.allow)+'"',
+        m.deflection.dc,m.deflection.finish+' finish &middot; '+m.deflection.factor+'W','',false);
+    }
+    html+=chkTable(rows);
+  }
+  html+=calcRecord(res,res.checks.filter(function(c){return c.member.indexOf(row.floor+' / '+row.label)===0;}),
+                   row.floor+' / '+row.label);
+  html+='</div>';
+  target.innerHTML=html; target.style.display='';
+}
+
+function errMsgHTML(){
+  var list=(ENGERR&&ENGERR.issues||[]).map(function(i){return '<li><code>'+xe(i.path)+'</code> — '+xe(i.message)+'</li>';}).join('');
+  return '<div class="sum-fail"><strong>&#9888; Cannot compute</strong><ul style="margin:5px 0 0 18px">'
+    + (list||'<li>'+xe(ENGERR?ENGERR.message:'unknown error')+'</li>')+'</ul></div>';
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LOAD ACCUMULATION — display only. HDR.rowLoads is the engine's own splitter,
+// so the table and the checks can never disagree about what D / L / Lr / S are.
+// ══════════════════════════════════════════════════════════════════════════════
+function rowPlf(r){ return HDR.rowLoads(r, LV); }
 
 function addFloor(){
   fCnt++;
@@ -829,20 +941,22 @@ function addFloor(){
   var newHdrs=[], newStuds=[];
   if(floors.length>0){
     floors[floors.length-1].headers.forEach(function(h){
-      newHdrs.push({id:Date.now()+Math.random(),label:h.label,description:h.description,
-        span:h.span,roofTrib:0,floorTrib1:5,floorTrib2:0,wallTrib:h.wallTrib,wallType:h.wallType,
-        dlAdd:0,llAdd:0,slAdd:0,openType:h.openType||'window',topOfOpening:h.topOfOpening||6.0,
-        kingAxial:h.kingAxial||0,trialSz:h.trialSz||'2x8',rowWallSz:h.rowWallSz||'2x6',
-        jambCount:h.jambCount||0,kingCount:+(h.kingCount||1)});
+      newHdrs.push({id:HDR.uid('h'), stack_id:h.stack_id, label:h.label, description:h.description,
+        span:h.span, roofTrib:0, floorTrib1:5, floorTrib2:0, wallTrib:h.wallTrib, wallType:h.wallType,
+        dlAdd:0, llAdd:0, slAdd:0, openType:h.openType||'window', topOfOpening:h.topOfOpening||6.0,
+        kingAxialExtra:0, trialSz:h.trialSz||'2x8', rowWallSz:h.rowWallSz||'2x6',
+        jambSz:h.jambSz||h.rowWallSz||'2x6', kingSz:h.kingSz||h.rowWallSz||'2x6',
+        jambCount:h.jambCount||0, kingCount:+(h.kingCount||1), studSpacing:+(h.studSpacing||16),
+        braced_edge:!!h.braced_edge, transfer:false});
     });
     floors[floors.length-1].studs.forEach(function(s){
-      newStuds.push({sid:s.sid,label:s.label,
-        roofTrib:0,floorTrib1:5,floorTrib2:0,wallTrib:s.wallTrib,wallType:s.wallType,
-        dlAdd:0,llAdd:0,slAdd:0,trialSz:s.trialSz,trialSpacing:s.trialSpacing});
+      newStuds.push({sid:s.sid, id:HDR.uid('s'), label:s.label,
+        roofTrib:0, floorTrib1:5, floorTrib2:0, wallTrib:s.wallTrib, wallType:s.wallType,
+        dlAdd:0, llAdd:0, slAdd:0, trialSz:s.trialSz, trialSpacing:s.trialSpacing, finish:s.finish||''});
     });
   }
   if(newStuds.length===0) newStuds=mkStudRows(fi_new);
-  floors.push({id:fCnt,name:'Floor '+floors.length,exp:true,headers:newHdrs,studs:newStuds});
+  floors.push({id:fCnt, name:'Floor '+floors.length, exp:true, headers:newHdrs, studs:newStuds});
   render();
 }
 
@@ -852,33 +966,38 @@ function delFloor(fi){
   floors.splice(fi,1); render();
 }
 
+function newHeader(stackId,label,isRoof){
+  var wz=defaultWallSz();
+  return {id:HDR.uid('h'), stack_id:stackId, label:label, description:'New Header',
+    span:8, roofTrib:isRoof?10:0, floorTrib1:isRoof?0:5, floorTrib2:0,
+    wallTrib:8, wallType:1, dlAdd:0, llAdd:0, slAdd:0,
+    openType:'window', topOfOpening:6.0, kingAxialExtra:0,
+    trialSz:'2x8', rowWallSz:wz, jambSz:wz, kingSz:wz,
+    jambCount:0, kingCount:1, studSpacing:16, braced_edge:false, transfer:false};
+}
+
 function addHeader(fi){
   var lbl='H-'+hCnt++;
-  var isRoof=fi===0;
-  var wallW=document.getElementById('wallWidth').value;
-  if(isRoof){
-    floors.forEach(function(fl,idx){
-      fl.headers.push({id:Date.now()+idx*17+Math.random(),label:lbl,description:'New Header',
-        span:8,roofTrib:idx===0?10:0,floorTrib1:idx>0?5:0,floorTrib2:0,
-        wallTrib:8,wallType:1,dlAdd:0,llAdd:0,slAdd:0,
-        openType:'window',topOfOpening:6.0,kingAxial:0,
-        trialSz:'2x8',rowWallSz:'2x6',jambCount:0,kingCount:1});
-    });
+  var stackId=HDR.uid('stk');
+  if(fi===0){
+    // A header at the roof belongs to a stack that runs all the way down.
+    floors.forEach(function(fl,idx){ fl.headers.push(newHeader(stackId,lbl,idx===0)); });
   } else {
-    floors[fi].headers.push({id:Date.now()+Math.random(),label:lbl,description:'New Header',
-      span:8,roofTrib:0,floorTrib1:5,floorTrib2:0,wallTrib:8,wallType:1,
-      dlAdd:0,llAdd:0,slAdd:0,openType:'window',topOfOpening:6.0,kingAxial:0,
-      trialSz:'2x8',rowWallSz:'2x6',jambCount:0,kingCount:1});
+    floors[fi].headers.push(newHeader(stackId,lbl,false));
   }
   render();
 }
 
 function delHeader(fi,hi){
-  var lbl=floors[fi].headers[hi].label;
+  var h=floors[fi].headers[hi];
   if(fi===0){
-    if(!confirm('Delete "'+lbl+'" from ALL floors?'))return;
-    floors.forEach(function(fl){fl.headers=fl.headers.filter(function(h){return h.label!==lbl;});});
-  } else { floors[fi].headers.splice(hi,1); }
+    if(!confirm('Delete "'+h.label+'" from ALL floors?'))return;
+    floors.forEach(function(fl){fl.headers=fl.headers.filter(function(x){return x.stack_id!==h.stack_id;});});
+  } else {
+    // Only this row goes. If floors below still carry the stack the engine
+    // reports the continuity error rather than silently dropping the load.
+    floors[fi].headers.splice(hi,1);
+  }
   render();
 }
 
@@ -886,18 +1005,14 @@ function addStudRow(fi){
   sCnt++;
   var newSid='SC'+sCnt;
   var isRoof=fi===0;
-  var newRow={sid:newSid,label:'Custom Stud Row',
-    roofTrib:isRoof?10:0,floorTrib1:isRoof?0:5,floorTrib2:0,
-    wallTrib:8,wallType:1,dlAdd:0,llAdd:0,slAdd:0,trialSz:'2x6',trialSpacing:16};
-  if(isRoof){
-    // propagate to all floors
-    floors.forEach(function(fl,idx){
-      var r=Object.assign({},newRow,{roofTrib:idx===0?10:0,floorTrib1:idx>0?5:0});
-      fl.studs.push(r);
-    });
-  } else {
-    floors[fi].studs.push(Object.assign({},newRow));
+  function mk(idx){
+    return {sid:newSid, id:HDR.uid('s'), label:'Custom Stud Row',
+      roofTrib:idx===0?10:0, floorTrib1:idx>0?5:0, floorTrib2:0,
+      wallTrib:8, wallType:1, dlAdd:0, llAdd:0, slAdd:0,
+      trialSz:defaultWallSz(), trialSpacing:16, finish:''};
   }
+  if(isRoof){ floors.forEach(function(fl,idx){ fl.studs.push(mk(idx)); }); }
+  else { floors[fi].studs.push(mk(fi)); }
   render();
 }
 
@@ -912,18 +1027,26 @@ function delStudRow(fi,si){
   render();
 }
 
+var HDR_STR_FIELDS={description:1,openType:1,trialSz:1,rowWallSz:1,jambSz:1,kingSz:1};
+var HDR_BOOL_FIELDS={braced_edge:1,transfer:1};
 function updHdr(fi,hi,fld,val){
-  var strFields={description:1,openType:1,trialSz:1,rowWallSz:1};
-  floors[fi].headers[hi][fld]=strFields[fld]?val:(parseFloat(val)||0);
+  var h=floors[fi].headers[hi];
+  if(HDR_BOOL_FIELDS[fld]) h[fld]=!!val;
+  else if(HDR_STR_FIELDS[fld]){
+    h[fld]=val;
+    // Wall Size drives the ply count, and changing it re-sets the jamb and king
+    // sizes to match — a 2x6 jamb does not fit in a 2x4 wall. Override them
+    // afterwards in their own cells if the detail really is mixed.
+    if(fld==='rowWallSz'){ h.jambSz=val; h.kingSz=val; }
+  }
+  else h[fld]=parseFloat(val)||0;
   render();
 }
-
 function updStud(fi,si,fld,val){
-  var strFields={label:1,sid:1,trialSz:1};
+  var strFields={label:1,sid:1,trialSz:1,finish:1};
   floors[fi].studs[si][fld]=strFields[fld]?val:(parseFloat(val)||0);
   render();
 }
-
 function togFloor(fi){floors[fi].exp=!floors[fi].exp;render();}
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -936,24 +1059,18 @@ function togFloor(fi){floors[fi].exp=!floors[fi].exp;render();}
 var COLW_KEY='areCalcs_shjs_colWidths';
 var COLW={};
 try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
-// Guard the shape too, not just the parse: a stored string or array would make
-// COLW[key]= a silent no-op and drag would look dead.
 if(typeof COLW!=='object'||!COLW||Array.isArray(COLW)) COLW={};
 function saveColW(){ try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){} }
 
-// Emits one <th> carrying its column key, its default width, and a drag grip.
 function thc(key,dw,label,cls){
   return '<th class="'+(cls||'')+'" data-ck="'+key+'" data-dw="'+dw+'">'+label
        + '<div class="col-grip" title="Drag to resize — double-click to reset"></div></th>';
 }
-
-// Push COLW onto the DOM and set each table's min-width to its column sum.
 function applyColW(){
   var tbls=document.querySelectorAll('.load-table');
   for(var i=0;i<tbls.length;i++){
     var ths=tbls[i].querySelectorAll('thead th[data-ck]'), sum=0;
     for(var j=0;j<ths.length;j++){
-      // Coerce: a corrupt stored value would otherwise string-concatenate sum.
       var w=+COLW[ths[j].getAttribute('data-ck')];
       if(!isFinite(w)||w<32) w=+ths[j].getAttribute('data-dw');
       ths[j].style.width=w+'px'; sum+=w;
@@ -961,10 +1078,7 @@ function applyColW(){
     tbls[i].style.minWidth=sum+'px';
   }
 }
-
 function resetColW(){ COLW={}; saveColW(); applyColW(); }
-
-// Delegated so the handlers survive every re-render.
 function gripOf(e){ return e.target&&e.target.closest?e.target.closest('.col-grip'):null; }
 
 document.addEventListener('mousedown',function(e){
@@ -975,8 +1089,6 @@ document.addEventListener('mousedown',function(e){
   grip.classList.add('dragging');
   document.body.classList.add('col-resizing');
   function mv(ev){
-    // Releasing outside the window fires no mouseup — without this the column
-    // would keep resizing when the pointer comes back.
     if(ev.buttons===0){ up(); return; }
     COLW[ck]=Math.max(32,startW+(ev.clientX-startX)); applyColW();
   }
@@ -990,8 +1102,6 @@ document.addEventListener('mousedown',function(e){
   document.addEventListener('mousemove',mv);
   document.addEventListener('mouseup',up);
 });
-
-// Double-click a grip to restore that one column's default width.
 document.addEventListener('dblclick',function(e){
   var grip=gripOf(e); if(!grip) return;
   var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
@@ -999,10 +1109,11 @@ document.addEventListener('dblclick',function(e){
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-// RENDER
+// RENDER — rebuilding floorsContainer also discards every result panel, so a
+// stale PASS computed with the old species / height / wind can never remain.
 // ══════════════════════════════════════════════════════════════════════════════
 function render(){
-  var wallW=document.getElementById('wallWidth')?document.getElementById('wallWidth').value:'2x6';
+  var res=runEngine();                 // also refreshes the input-error banner
   var out='';
   floors.forEach(function(fl,fi){
     var isRoof=fi===0;
@@ -1022,55 +1133,54 @@ function render(){
       if(fl.headers.length===0){
         out+='<p class="empty-state">No headers — click "+ Header" above.</p>';
       } else {
-        out+='<div style="overflow-x:auto"><table class="load-table"><thead><tr>';
-        out+=thc('hdr:desc',170,'Description','th-desc');
-        out+=thc('hdr:lbl',44,'Lbl');
-        out+=thc('hdr:span',58,'Span<br>ft');
-        out+=thc('hdr:roofTrib',62,'Roof<br>Trib');
+        var th=[];
+        th.push(thc('hdr:desc',170,'Description','th-desc'));
+        th.push(thc('hdr:lbl',44,'Lbl'));
+        th.push(thc('hdr:span',58,'Span<br>ft'));
+        th.push(thc('hdr:roofTrib',62,'Roof<br>Trib'));
         if(!isRoof){
-          out+=thc('hdr:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1');
-          out+=thc('hdr:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2');
+          th.push(thc('hdr:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1'));
+          th.push(thc('hdr:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2'));
         }
-        out+=thc('hdr:wallTrib',62,'Wall<br>Trib');
-        out+=thc('hdr:wallType',58,'Wall<br>Type');
-        out+=thc('hdr:dlAdd',60,'DL<sub>add</sub>');
-        out+=thc('hdr:llAdd',60,'LL<sub>add</sub>');
-        out+=thc('hdr:slAdd',60,'SL<sub>add</sub>');
-        out+=thc('hdr:wDL',66,'w<sub>DL</sub>');
-        out+=thc('hdr:wLL',66,'w<sub>LL</sub>');
-        out+=thc('hdr:wSL',66,'w<sub>SL</sub>');
-        out+=thc('hdr:jDL',58,'&#8595;jDL<br>k','th-jamb');
-        out+=thc('hdr:jLL',58,'&#8595;jLL<br>k','th-jamb');
-        out+=thc('hdr:jSL',58,'&#8595;jSL<br>k','th-jamb');
-        out+=thc('hdr:jTot',64,'&#8595;Total<br>k','th-tot');
-        out+=thc('hdr:openType',66,'Open<br>Type','th-open');
-        out+=thc('hdr:topOpen',62,'Top<br>Open ft','th-open');
-        out+=thc('hdr:kingAxial',66,'King<br>Axial lb','th-open');
-        // Trial section
-        out+=thc('hdr:trialSz',78,'Hdr<br>Trial Sz','th-trial');
-        out+=thc('hdr:wallSz',78,'Wall<br>Size','th-king');
-        out+=thc('hdr:nJambs',56,'#<br>Jambs','th-king');
-        out+=thc('hdr:nKings',56,'#<br>Kings','th-king');
-        out+=thc('hdr:check',80,'&#9654; Check','th-trial');
-        out+=thc('hdr:del',32,'');
-        out+='</tr></thead><tbody>';
+        th.push(thc('hdr:wallTrib',62,'Wall<br>Trib'));
+        th.push(thc('hdr:wallType',58,'Wall<br>Type'));
+        th.push(thc('hdr:dlAdd',60,'DL<sub>add</sub>'));
+        th.push(thc('hdr:llAdd',60,'LL<sub>add</sub>'));
+        th.push(thc('hdr:slAdd',60,'SL<sub>add</sub>'));
+        th.push(thc('hdr:wD',60,'w<sub>D</sub>'));
+        th.push(thc('hdr:wL',60,'w<sub>L</sub>'));
+        th.push(thc('hdr:wLr',60,'w<sub>Lr</sub>'));
+        th.push(thc('hdr:wS',60,'w<sub>S</sub>'));
+        th.push(thc('hdr:jD',58,'&#8595;j<sub>D</sub><br>k','th-jamb'));
+        th.push(thc('hdr:jL',58,'&#8595;j<sub>L</sub><br>k','th-jamb'));
+        th.push(thc('hdr:jLr',58,'&#8595;j<sub>Lr</sub><br>k','th-jamb'));
+        th.push(thc('hdr:jS',58,'&#8595;j<sub>S</sub><br>k','th-jamb'));
+        th.push(thc('hdr:openType',66,'Open<br>Type','th-open'));
+        th.push(thc('hdr:topOpen',62,'Top<br>Open ft','th-open'));
+        th.push(thc('hdr:studSp',62,'Stud<br>Sp in','th-open'));
+        th.push(thc('hdr:kingAx',66,'King<br>Axial+ lb','th-open'));
+        th.push(thc('hdr:trialSz',78,'Hdr<br>Trial Sz','th-trial'));
+        th.push(thc('hdr:wallSz',78,'Wall<br>Size','th-king'));
+        th.push(thc('hdr:jambSz',70,'Jamb<br>Size','th-king'));
+        th.push(thc('hdr:kingSz',70,'King<br>Size','th-king'));
+        th.push(thc('hdr:nJambs',56,'#<br>Jambs','th-king'));
+        th.push(thc('hdr:nKings',56,'#<br>Kings','th-king'));
+        th.push(thc('hdr:braced',44,'Br<br><small>§3.3.3.3</small>','th-trial'));
+        th.push(thc('hdr:transfer',44,'Tr<br><small>xfer</small>','th-trial'));
+        th.push(thc('hdr:check',80,'&#9654; Check','th-trial'));
+        th.push(thc('hdr:del',32,''));
+        out+='<div style="overflow-x:auto"><table class="load-table"><thead><tr>'+th.join('')+'</tr></thead><tbody>';
 
         fl.headers.forEach(function(h,hi){
-          var ld=calcLoads(h,fi);
-          var totCol=ld.jTot<10?'#16a34a':ld.jTot<25?'#d97706':'#dc2626';
-          var trSz=h.trialSz||'2x8';
-          var rWallSz=h.rowWallSz||'2x6';
-          var jCnt=h.jambCount||0;
-          var kCnt=+(h.kingCount||1);
+          var w=rowPlf(h);
+          var eng=res?res.floors[fi].headers[hi]:null;
+          var jp=eng?eng.jambP:null;
           out+='<tr>';
           out+='<td><input class="ti ti-desc" type="text" value="'+xe(h.description)+'" onchange="updHdr('+fi+','+hi+',\'description\',this.value)"></td>';
           out+='<td><input class="ti ti-dis" type="text" value="'+xe(h.label)+'" disabled></td>';
           out+='<td><input class="ti" type="number" value="'+h.span+'" min="1" step="0.5" onchange="updHdr('+fi+','+hi+',\'span\',this.value)"></td>';
-          if(isRoof){
-            out+='<td><input class="ti" type="number" value="'+h.roofTrib+'" min="0" step="0.5" onchange="updHdr('+fi+','+hi+',\'roofTrib\',this.value)"></td>';
-          } else {
-            out+='<td><input class="ti ti-dis" type="number" value="'+h.roofTrib+'" disabled></td>';
-          }
+          if(isRoof) out+='<td><input class="ti" type="number" value="'+h.roofTrib+'" min="0" step="0.5" onchange="updHdr('+fi+','+hi+',\'roofTrib\',this.value)"></td>';
+          else out+='<td><input class="ti ti-dis" type="number" value="'+h.roofTrib+'" disabled></td>';
           if(!isRoof){
             out+='<td style="background:#fef3c7"><input class="ti" type="number" value="'+h.floorTrib1+'" min="0" step="0.5" onchange="updHdr('+fi+','+hi+',\'floorTrib1\',this.value)" style="background:transparent"></td>';
             out+='<td style="background:#f0fdf4"><input class="ti" type="number" value="'+h.floorTrib2+'" min="0" step="0.5" onchange="updHdr('+fi+','+hi+',\'floorTrib2\',this.value)" style="background:transparent"></td>';
@@ -1084,81 +1194,95 @@ function render(){
           out+='<td><input class="ti" type="number" value="'+h.dlAdd+'" step="1" onchange="updHdr('+fi+','+hi+',\'dlAdd\',this.value)"></td>';
           out+='<td><input class="ti" type="number" value="'+h.llAdd+'" step="1" onchange="updHdr('+fi+','+hi+',\'llAdd\',this.value)"></td>';
           out+='<td><input class="ti" type="number" value="'+h.slAdd+'" step="1" onchange="updHdr('+fi+','+hi+',\'slAdd\',this.value)"></td>';
-          out+='<td class="td-calc">'+f1(ld.dlPlf)+'</td>';
-          out+='<td class="td-calc">'+f1(ld.llPlf)+'</td>';
-          out+='<td class="td-calc">'+f1(ld.slPlf)+'</td>';
-          out+='<td class="td-jamb">'+f2(ld.jDL)+'</td>';
-          out+='<td class="td-jamb">'+f2(ld.jLL)+'</td>';
-          out+='<td class="td-jamb">'+f2(ld.jSL)+'</td>';
-          out+='<td class="td-tot" style="color:'+totCol+'">'+f2(ld.jTot)+'</td>';
+          out+='<td class="td-calc">'+f1(w.D)+'</td>';
+          out+='<td class="td-calc">'+f1(w.L)+'</td>';
+          out+='<td class="td-calc">'+f1(w.Lr)+'</td>';
+          out+='<td class="td-calc">'+f1(w.S)+'</td>';
+          out+='<td class="td-jamb">'+(jp?f2(jp.D/1000):'&mdash;')+'</td>';
+          out+='<td class="td-jamb">'+(jp?f2(jp.L/1000):'&mdash;')+'</td>';
+          out+='<td class="td-jamb">'+(jp?f2(jp.Lr/1000):'&mdash;')+'</td>';
+          out+='<td class="td-jamb">'+(jp?f2(jp.S/1000):'&mdash;')+'</td>';
           out+='<td style="background:#ede9fe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'openType\',this.value)">'
              + '<option value="window"'+((h.openType||'window')==='window'?' selected':'')+'>Win</option>'
              + '<option value="door"'+(h.openType==='door'?' selected':'')+'>Door</option>'
              + '</select></td>';
-          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(h.topOfOpening||6.0)+'" min="1" max="20" step="0.25" onchange="updHdr('+fi+','+hi+',\'topOfOpening\',this.value)" style="background:transparent"></td>';
-          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(h.kingAxial||0)+'" min="0" step="10" onchange="updHdr('+fi+','+hi+',\'kingAxial\',this.value)" style="background:transparent"></td>';
-          // Header trial size
-          out+='<td style="background:#dbeafe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'trialSz\',this.value)">';
-          SIZES.forEach(function(s){out+='<option value="'+s+'"'+(trSz===s?' selected':'')+'>'+s+'</option>';});
-          out+='</select></td>';
-          // Wall size (drives jamb & king)
-          out+='<td style="background:#ede9fe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'rowWallSz\',this.value)">';
-          ['2x4','2x6','2x8'].forEach(function(sz2){out+='<option value="'+sz2+'"'+(sz2===rWallSz?' selected':'')+'>'+sz2+'</option>';});
-          out+='</select></td>';
-          // # Jambs (0=auto)
-          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+jCnt+'" min="0" max="8" step="1" title="0 = auto-design" onchange="updHdr('+fi+','+hi+',\'jambCount\',this.value)" style="background:transparent"></td>';
-          // # King studs
-          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+kCnt+'" min="1" max="4" step="1" title="# of king studs (each carries 1/n load)" onchange="updHdr('+fi+','+hi+',\'kingCount\',this.value)" style="background:transparent"></td>';
-          // Check button
+          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+h.topOfOpening+'" min="0.5" step="0.25" title="Top of opening — the trimmer length, and the jamb strong-axis unbraced length" onchange="updHdr('+fi+','+hi+',\'topOfOpening\',this.value)" style="background:transparent"></td>';
+          out+='<td style="background:#ede9fe"><select class="ti" title="Stud spacing in the wall at this opening — sets the king wind tributary and the king gravity strip" onchange="updHdr('+fi+','+hi+',\'studSpacing\',this.value)">'
+             + [12,16,24].map(function(s){return '<option value="'+s+'"'+(+h.studSpacing===s?' selected':'')+'>'+s+'</option>';}).join('')
+             + '</select></td>';
+          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(h.kingAxialExtra||0)+'" min="0" step="10" title="ADDITIONAL king axial load (lb), on top of the wall gravity the engine already applies. 0 unless something else lands on the king." onchange="updHdr('+fi+','+hi+',\'kingAxialExtra\',this.value)" style="background:transparent"></td>';
+          out+='<td style="background:#dbeafe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'trialSz\',this.value)">'
+             + SIZES.map(function(s){return '<option value="'+s+'"'+(h.trialSz===s?' selected':'')+'>'+s+'</option>';}).join('')
+             + '</select></td>';
+          out+='<td style="background:#ede9fe"><select class="ti" title="Wall size — sets the header ply count (2x4=2, 2x6=3, 2x8=4) and the default jamb/king size" onchange="updHdr('+fi+','+hi+',\'rowWallSz\',this.value)">'
+             + WALL_SIZES.map(function(s){return '<option value="'+s+'"'+(h.rowWallSz===s?' selected':'')+'>'+s+'</option>';}).join('')
+             + '</select></td>';
+          out+='<td style="background:#ede9fe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'jambSz\',this.value)">'
+             + WALL_SIZES.map(function(s){return '<option value="'+s+'"'+((h.jambSz||h.rowWallSz)===s?' selected':'')+'>'+s+'</option>';}).join('')
+             + '</select></td>';
+          out+='<td style="background:#ede9fe"><select class="ti" onchange="updHdr('+fi+','+hi+',\'kingSz\',this.value)">'
+             + WALL_SIZES.map(function(s){return '<option value="'+s+'"'+((h.kingSz||h.rowWallSz)===s?' selected':'')+'>'+s+'</option>';}).join('')
+             + '</select></td>';
+          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(h.jambCount||0)+'" min="0" max="8" step="1" title="0 = auto-design the minimum count" onchange="updHdr('+fi+','+hi+',\'jambCount\',this.value)" style="background:transparent"></td>';
+          out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(+h.kingCount||1)+'" min="1" max="4" step="1" title="# of king studs provided. Each one is checked for the WHOLE strip — the wind tributary and the gravity strip are not divided among them." onchange="updHdr('+fi+','+hi+',\'kingCount\',this.value)" style="background:transparent"></td>';
+          out+='<td style="text-align:center"><input type="checkbox"'+(h.braced_edge?' checked':'')+' title="Compression edge continuously braced (NDS §3.3.3.3) — C_L = 1.0" onchange="updHdr('+fi+','+hi+',\'braced_edge\',this.checked)"></td>';
+          out+='<td style="text-align:center"><input type="checkbox"'+(h.transfer?' checked':'')+' title="This header is a transfer — the stack above it is allowed to skip a level" onchange="updHdr('+fi+','+hi+',\'transfer\',this.checked)"></td>';
           out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkHeaderRow('+fi+','+hi+')">&#9654; Check</button></td>';
           out+='<td><button class="btn-x" onclick="delHeader('+fi+','+hi+')">&#10005;</button></td>';
           out+='</tr>';
-          var ncols=isRoof?25:27;   // must equal the <th> count above
-          out+='<tr><td colspan="'+ncols+'" style="padding:0"><div id="hchk_'+fi+'_'+hi+'" style="display:none"></div></td></tr>';
+          out+='<tr><td colspan="'+th.length+'" style="padding:0"><div id="hchk_'+fi+'_'+hi+'" style="display:none"></div></td></tr>';
         });
         out+='</tbody></table></div>';
-        var maxJ=Math.max.apply(null,fl.headers.map(function(h,hi){return calcLoads(h,fi).jTot;}));
-        var mCol=maxJ<10?'#16a34a':maxJ<25?'#d97706':'#dc2626';
-        out+='<div class="floor-summary">Max cumulative jamb rxn: <strong style="color:'+mCol+'">'+f2(maxJ)+' k</strong></div>';
+        if(res){
+          var maxJ=0;
+          res.floors[fi].headers.forEach(function(r){
+            var t=(r.jambP.D+r.jambP.L+Math.max(r.jambP.Lr,r.jambP.S))/1000;
+            if(t>maxJ) maxJ=t;
+          });
+          var mCol=maxJ<10?'#16a34a':maxJ<25?'#d97706':'#dc2626';
+          out+='<div class="floor-summary">Max cumulative jamb reaction D+L+(L<sub>r</sub> or S): <strong style="color:'+mCol+'">'+f2(maxJ)+' k</strong> (unfactored)</div>';
+        }
       }
 
       // ── WALL STUDS ────────────────────────────────────────────────────────
       out+='<span class="sec-label grn" style="margin-top:14px">&#9632; Wall Studs</span>';
       out+=' <button class="btn-sm btn-grn" style="margin-left:8px;margin-top:14px;margin-bottom:4px" onclick="addStudRow('+fi+')">+ Stud Row</button>';
-      out+='<div style="overflow-x:auto;margin-top:4px"><table class="load-table"><thead><tr>';
-      out+=thc('stud:loc',190,'Stud Location','th-desc th-stud');
-      out+=thc('stud:roofTrib',62,'Roof<br>Trib','th-stud');
+      var sth=[];
+      sth.push(thc('stud:loc',190,'Stud Location','th-desc th-stud'));
+      sth.push(thc('stud:roofTrib',62,'Roof<br>Trib','th-stud'));
       if(!isRoof){
-        out+=thc('stud:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1');
-        out+=thc('stud:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2');
+        sth.push(thc('stud:flTrib1',66,'FlTrib1<br><small>L='+LV.floorLL1+'</small>','th-fl1'));
+        sth.push(thc('stud:flTrib2',66,'FlTrib2<br><small>L='+LV.floorLL2+'</small>','th-fl2'));
       }
-      out+=thc('stud:wallTrib',62,'Wall<br>Trib','th-stud');
-      out+=thc('stud:wallType',58,'Wall<br>Type','th-stud');
-      out+=thc('stud:dlAdd',60,'DL<sub>add</sub>','th-stud');
-      out+=thc('stud:llAdd',60,'LL<sub>add</sub>','th-stud');
-      out+=thc('stud:slAdd',60,'SL<sub>add</sub>','th-stud');
-      out+=thc('stud:wDL',66,'w<sub>DL</sub>','th-stud');
-      out+=thc('stud:wLL',66,'w<sub>LL</sub>','th-stud');
-      out+=thc('stud:wSL',66,'w<sub>SL</sub>','th-stud');
-      out+=thc('stud:tot',70,'&#8595;Total<br>plf','th-tot');
-      out+=thc('stud:trialSz',78,'Trial<br>Size','th-trial');
-      out+=thc('stud:spacing',72,'Spacing<br>in o.c.','th-trial');
-      out+=thc('stud:check',80,'&#9654; Check','th-trial');
-      out+=thc('stud:del',32,'');
-      out+='</tr></thead><tbody>';
+      sth.push(thc('stud:wallTrib',62,'Wall<br>Trib','th-stud'));
+      sth.push(thc('stud:wallType',58,'Wall<br>Type','th-stud'));
+      sth.push(thc('stud:dlAdd',60,'DL<sub>add</sub>','th-stud'));
+      sth.push(thc('stud:llAdd',60,'LL<sub>add</sub>','th-stud'));
+      sth.push(thc('stud:slAdd',60,'SL<sub>add</sub>','th-stud'));
+      sth.push(thc('stud:wD',58,'w<sub>D</sub>','th-stud'));
+      sth.push(thc('stud:wL',58,'w<sub>L</sub>','th-stud'));
+      sth.push(thc('stud:wLr',58,'w<sub>Lr</sub>','th-stud'));
+      sth.push(thc('stud:wS',58,'w<sub>S</sub>','th-stud'));
+      sth.push(thc('stud:aD',60,'&#8595;D<br>plf','th-tot'));
+      sth.push(thc('stud:aL',60,'&#8595;L<br>plf','th-tot'));
+      sth.push(thc('stud:aLr',60,'&#8595;L<sub>r</sub><br>plf','th-tot'));
+      sth.push(thc('stud:aS',60,'&#8595;S<br>plf','th-tot'));
+      sth.push(thc('stud:trialSz',78,'Trial<br>Size','th-trial'));
+      sth.push(thc('stud:spacing',72,'Spacing<br>in o.c.','th-trial'));
+      sth.push(thc('stud:finish',78,'Finish','th-trial'));
+      sth.push(thc('stud:check',80,'&#9654; Check','th-trial'));
+      sth.push(thc('stud:del',32,''));
+      out+='<div style="overflow-x:auto;margin-top:4px"><table class="load-table"><thead><tr>'+sth.join('')+'</tr></thead><tbody>';
 
       fl.studs.forEach(function(s,si){
-        var sLd=calcStudLoads(s,fi);
-        var totCol=sLd.totPlf<400?'#16a34a':sLd.totPlf<700?'#d97706':'#dc2626';
-        var trSz=s.trialSz||'2x6', trSpc=+(s.trialSpacing||16);
+        var w=rowPlf(s);
+        var eng=res?res.floors[fi].studs[si]:null;
+        var acc=eng?eng.accum:null;
+        var totCol=!acc?'#374151':((acc.D+acc.L+Math.max(acc.Lr,acc.S))<400?'#16a34a':(acc.D+acc.L+Math.max(acc.Lr,acc.S))<700?'#d97706':'#dc2626');
         out+='<tr>';
-        // Editable label
         out+='<td class="td-stud-lbl"><input class="ti ti-desc" type="text" value="'+xe(s.label)+'" onchange="updStud('+fi+','+si+',\'label\',this.value)" style="font-weight:700;color:#065f46"></td>';
-        if(isRoof){
-          out+='<td><input class="ti" type="number" value="'+s.roofTrib+'" min="0" step="0.5" onchange="updStud('+fi+','+si+',\'roofTrib\',this.value)"></td>';
-        } else {
-          out+='<td><input class="ti ti-dis" type="number" value="'+s.roofTrib+'" disabled></td>';
-        }
+        if(isRoof) out+='<td><input class="ti" type="number" value="'+s.roofTrib+'" min="0" step="0.5" onchange="updStud('+fi+','+si+',\'roofTrib\',this.value)"></td>';
+        else out+='<td><input class="ti ti-dis" type="number" value="'+s.roofTrib+'" disabled></td>';
         if(!isRoof){
           out+='<td style="background:#fef3c7"><input class="ti" type="number" value="'+s.floorTrib1+'" min="0" step="0.5" onchange="updStud('+fi+','+si+',\'floorTrib1\',this.value)" style="background:transparent"></td>';
           out+='<td style="background:#f0fdf4"><input class="ti" type="number" value="'+s.floorTrib2+'" min="0" step="0.5" onchange="updStud('+fi+','+si+',\'floorTrib2\',this.value)" style="background:transparent"></td>';
@@ -1172,25 +1296,29 @@ function render(){
         out+='<td><input class="ti" type="number" value="'+s.dlAdd+'" step="1" onchange="updStud('+fi+','+si+',\'dlAdd\',this.value)"></td>';
         out+='<td><input class="ti" type="number" value="'+s.llAdd+'" step="1" onchange="updStud('+fi+','+si+',\'llAdd\',this.value)"></td>';
         out+='<td><input class="ti" type="number" value="'+s.slAdd+'" step="1" onchange="updStud('+fi+','+si+',\'slAdd\',this.value)"></td>';
-        out+='<td class="td-calc">'+f1(sLd.dlPlf)+'</td>';
-        out+='<td class="td-calc">'+f1(sLd.llPlf)+'</td>';
-        out+='<td class="td-calc">'+f1(sLd.slPlf)+'</td>';
-        out+='<td class="td-tot" style="color:'+totCol+'">'+f0(sLd.totPlf)+'</td>';
-        // Trial size
-        out+='<td style="background:#dbeafe"><select class="ti" onchange="updStud('+fi+','+si+',\'trialSz\',this.value)">';
-        SIZES.forEach(function(sz){out+='<option value="'+sz+'"'+(trSz===sz?' selected':'')+'>'+sz+'</option>';});
-        out+='</select></td>';
-        // Spacing
+        out+='<td class="td-calc">'+f1(w.D)+'</td>';
+        out+='<td class="td-calc">'+f1(w.L)+'</td>';
+        out+='<td class="td-calc">'+f1(w.Lr)+'</td>';
+        out+='<td class="td-calc">'+f1(w.S)+'</td>';
+        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.D):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.L):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.Lr):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.S):'&mdash;')+'</td>';
+        out+='<td style="background:#dbeafe"><select class="ti" onchange="updStud('+fi+','+si+',\'trialSz\',this.value)">'
+           + SIZES.map(function(sz){return '<option value="'+sz+'"'+(s.trialSz===sz?' selected':'')+'>'+sz+'</option>';}).join('')
+           + '</select></td>';
         out+='<td style="background:#dbeafe"><select class="ti" onchange="updStud('+fi+','+si+',\'trialSpacing\',this.value)">'
-           + '<option value="12"'+(trSpc==12?' selected':'')+'>12</option>'
-           + '<option value="16"'+(trSpc==16?' selected':'')+'>16</option>'
-           + '<option value="24"'+(trSpc==24?' selected':'')+'>24</option>'
+           + [12,16,24].map(function(sp){return '<option value="'+sp+'"'+(+s.trialSpacing===sp?' selected':'')+'>'+sp+'</option>';}).join('')
+           + '</select></td>';
+        out+='<td style="background:#dbeafe"><select class="ti" title="Finish for the IBC Table 1604.3 wind-deflection limit" onchange="updStud('+fi+','+si+',\'finish\',this.value)">'
+           + '<option value=""'+(!s.finish?' selected':'')+'>page</option>'
+           + '<option value="brittle"'+(s.finish==='brittle'?' selected':'')+'>brittle</option>'
+           + '<option value="flexible"'+(s.finish==='flexible'?' selected':'')+'>flexible</option>'
            + '</select></td>';
         out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="checkStudRow('+fi+','+si+')">&#9654; Check</button></td>';
         out+='<td><button class="btn-x" onclick="delStudRow('+fi+','+si+')" title="Remove row">&#10005;</button></td>';
         out+='</tr>';
-        var scols=isRoof?15:17;   // must equal the <th> count above
-        out+='<tr><td colspan="'+scols+'" style="padding:0"><div id="schk_'+fi+'_'+si+'" style="display:none"></div></td></tr>';
+        out+='<tr><td colspan="'+sth.length+'" style="padding:0"><div id="schk_'+fi+'_'+si+'" style="display:none"></div></td></tr>';
       });
 
       out+='</tbody></table></div>';
@@ -1198,56 +1326,144 @@ function render(){
     }
     out+='</div>'; // floor-blk
   });
-  document.getElementById('floorsContainer').innerHTML=out;
-  applyColW();   // innerHTML wiped the inline widths — put them back
+  el('floorsContainer').innerHTML=out;
+  applyColW();
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   EXPORT TO FOUNDATION DESIGN
-   Saves lowest-floor accumulated stud loads (plf) to localStorage and opens
-   the integrated grade beam / pier calculator in a new tab.
+   EXPORT TO FOUNDATION DESIGN — payload v2 (spec §6). D, L, Lr and S stay
+   separate so the receiving calculator can build its own §2.4.1 envelope.
 ═══════════════════════════════════════════════════════════════════════════ */
 function exportToFoundation(){
-  var lastFi = floors.length - 1;
-  var lastFloor = floors[lastFi];
-  var studsData = lastFloor.studs.map(function(s){
-    var ld = calcStudLoads(s, lastFi);
-    return {
-      label: s.label,
-      dlPlf: Math.round(ld.dlPlf),
-      llPlf: Math.round(ld.llPlf),
-      slPlf: Math.round(ld.slPlf)
-    };
-  });
-  var payload = {
-    source: 'stacked-headers',
-    floorName: lastFloor.name,
-    exported: new Date().toLocaleString(),
-    studs: studsData
-  };
-  try { localStorage.setItem('areCalcs_foundationExport', JSON.stringify(payload)); }
+  var res=runEngine();
+  if(!res){ alert('Fix the input errors listed at the top of the Floor Configuration block before exporting.'); return; }
+  try { localStorage.setItem('areCalcs_foundationExport', JSON.stringify(res.export)); }
   catch(e){ alert('Could not save to localStorage. Open the integrated calc manually.'); return; }
-  var base = location.href.replace(/[^/]*$/, '');
-  window.open(base + 'headers_gradebeam_pier_calculator.html', '_blank');
+  var base=location.href.replace(/[^/]*$/,'');
+  window.open(base+'headers_gradebeam_pier_calculator.html','_blank');
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',function(){
+  // ── Read URL params from the C&C Wind Calculator (strength-level §30.3) ────
+  (function(){
+    var p=new URLSearchParams(window.location.search);
+    if(p.get('src')!=='cc-wind') return;
+    var wOpen=parseFloat(p.get('windOpen')), wStud=parseFloat(p.get('windStud')), zone=p.get('zone')||'';
+    if(isFinite(wOpen)&&wOpen>0&&el('windOpen')) el('windOpen').value=wOpen;
+    if(isFinite(wStud)&&wStud>0&&el('windStud')) el('windStud').value=wStud;
+    if(el('windSrcBanner')) el('windSrcBanner').style.display='';
+    if(el('windSrcZone')) el('windSrcZone').textContent=zone?('Zone: '+zone+' (gov. |p| = '+wOpen+' psf, strength level)'):(wOpen+' psf, strength level');
+    var lnk=el('windSrcLink');
+    if(lnk) lnk.href=location.href.replace(/[^/]*\?.*$/,'').replace(/[^/]*$/,'')+'asce716_cc_wind_calculator.html';
+  })();
+
+  // Every input that feeds a check re-renders, which also clears the result
+  // panels — a printed sheet can never show results from superseded inputs.
+  Object.keys(LV).forEach(function(k){
+    var e=el(k);
+    if(e) e.addEventListener('change',function(ev){LV[k]=parseFloat(ev.target.value)||0;render();});
+  });
+  ['species','wallWidth','flrHt','windOpen','windStud','weakBraceIn','dryInstall',
+   'plateSpecies','finishType','windDeflBasis'].forEach(function(id){
+    var e=el(id);
+    if(e) e.addEventListener('change',render);
+  });
+
+  render();
+  try { if(new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
+});
+
+function runSelftest(){
+  var r=HDR.runFixtures(), ok=r.pass===r.total;
+  var title=(ok?'SELFTEST PASS ':'SELFTEST FAIL ')+r.pass+'/'+r.total;
+  document.title=title;
+  var box=el('selftest-result');
+  if(box){ box.style.display='block'; box.textContent=title+'\n'+r.lines.join('\n'); }
+  console.log(title);
+  return r;
+}
 </script>
 <script src="/are-utils-v2.js"></script>
 <script>
+
 // ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
 // #floorsContainer is rebuilt wholesale by render() from `floors`, so DOM-path
 // keys are unstable: the same td position holds an <input> in one state and a
 // <select> in another. The array is the truth.
 //
-// LV (the load values) is deliberately NOT in the model. Those are ordinary
-// top-level inputs with ids, so Tier A captures them, and restoring them fires
-// the change handlers that keep LV in sync. Putting them in both places would
-// store the same state twice and let the copies disagree.
+// LV and the page-level settings (species, wall width, story height, wind,
+// weak-axis bracing, dry-at-installation, plate species, finish, wind
+// deflection basis) are NOT in the model. They are ordinary top-level inputs
+// with ids, so Tier A captures them and restoring them fires the change
+// handlers that keep LV in sync and re-render. Storing them twice would let the
+// copies disagree.
 (function () {
   if (!window.AREv2 || !AREv2.registerAdapter) return;
 
+  var v1Loaded = false;
+
+  /**
+   * v1 -> v2 model migration (spec §6).
+   * v1 correlated header stacks by LABEL TEXT and had no stable row id, no
+   * braced-edge flag, no transfer flag, no stud spacing at the opening, no
+   * separate jamb/king sizes, and a manual "King Axial" cell that defaulted to
+   * zero. Labels become stack ids; every other new field takes its default; a
+   * King Axial the engineer actually typed is preserved as the ADDITIONAL
+   * axial, since the engine now supplies the wall gravity itself.
+   */
+  function migrateModel(m) {
+    if (!m || !Array.isArray(m.floors)) return m;
+    m.floors.forEach(function (fl) {
+      (fl.headers || []).forEach(function (h) {
+        if (typeof h.id !== 'string') h.id = HDR.uid('h');
+        if (!h.stack_id) h.stack_id = String(h.label || 'H');
+        if (h.braced_edge === undefined) h.braced_edge = false;
+        if (h.transfer === undefined) h.transfer = false;
+        if (h.studSpacing === undefined) h.studSpacing = 16;
+        if (!h.jambSz) h.jambSz = h.rowWallSz || '2x6';
+        if (!h.kingSz) h.kingSz = h.rowWallSz || '2x6';
+        if (h.kingAxialExtra === undefined) h.kingAxialExtra = +(h.kingAxial || 0);
+        if ('kingAxial' in h) delete h.kingAxial;
+        if (h.topOfOpening === undefined) h.topOfOpening = (h.openType === 'door' ? 7.0 : 6.0);
+      });
+      (fl.studs || []).forEach(function (s) {
+        if (typeof s.id !== 'string') s.id = HDR.uid('s');
+        if (s.finish === undefined) s.finish = '';
+      });
+    });
+    return m;
+  }
+
+  /**
+   * are-utils-v2.js rejects a version mismatch in loadFromState (~:1501) BEFORE
+   * the adapter's setModel is ever reached, so a v1 file could not be migrated
+   * from inside setModel alone. This wrapper migrates the parsed state on the
+   * way in and leaves every other file untouched. are-utils-v2.js itself is not
+   * modified.
+   */
+  (function installV1Shim() {
+    if (!AREv2.loadFromState || AREv2._hdrV1Shim) return;
+    var inner = AREv2.loadFromState;
+    AREv2.loadFromState = function (state, opts) {
+      // Per load, not per session: loading a v2 file after a v1 one must not
+      // keep claiming the inputs were migrated.
+      v1Loaded = false;
+      if (state && state.adapterVersion === 1 && state.model && state.calcFile === 'stacked_headers_studs_calculator.html') {
+        state = JSON.parse(JSON.stringify(state));
+        migrateModel(state.model);
+        state.adapterVersion = 2;
+        v1Loaded = true;
+      }
+      return inner.call(AREv2, state, opts);
+    };
+    AREv2._hdrV1Shim = true;
+  })();
+
   AREv2.registerAdapter({
-    version: 1,
+    version: 2,
     ownedFields: ['#floorsContainer'],
     schema: {
       allowedKeys: ['floors', 'hCnt', 'fCnt', 'sCnt'],
@@ -1261,10 +1477,14 @@ function exportToFoundation(){
       if (!m || !Array.isArray(m.floors) || !m.floors.length) {
         throw new Error('Saved file contains no floor data.');
       }
-      floors = m.floors;
+      // Belt and braces: the shim above normally migrates first, but a direct
+      // setModel call (or a future loader) still gets a complete v2 model.
+      floors = migrateModel(JSON.parse(JSON.stringify(m))).floors;
       if (typeof m.hCnt === 'number') hCnt = m.hCnt;
       if (typeof m.fCnt === 'number') fCnt = m.fCnt;
       if (typeof m.sCnt === 'number') sCnt = m.sCnt;
+      var banner = document.getElementById('v1MigrationBanner');
+      if (banner) banner.style.display = v1Loaded ? '' : 'none';
       render();
     },
     // A COLLAPSED FLOOR IS NOT RENDERED AT ALL (render(): `if(fl.exp){...}`), so
