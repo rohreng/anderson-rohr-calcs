@@ -52,7 +52,7 @@ function check(label, ok, detail) {
 }
 async function fresh() {
   await page.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
-  await page.waitForSelector('#roofType');
+  await page.waitForSelector('#areBar');
 }
 async function setIf(sel, val) { if (await page.$(sel)) await page.selectOption(sel, val); }
 async function fillIf(sel, val) { if (await page.$(sel)) await page.fill(sel, String(val)); }
