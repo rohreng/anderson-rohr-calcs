@@ -85,7 +85,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 <div class="container">
 <div class="header">
   <h1>ASCE 7-16 MWFRS Wind Pressure Calculator</h1>
-  <div class="sub">Chapter 27, Part 1 — Directional Procedure, All Heights | Enclosed &amp; Partially Enclosed Buildings</div>
+  <div class="sub">Chapter 27, Part 1 — Directional Procedure, All Heights | Enclosed, Partially Enclosed, Partially Open &amp; Open Buildings (free roofs per Figs. 27.3-4 to 27.3-7, §28.3.5 frames)</div>
 </div>
 
 <!-- PROJECT INFO -->
@@ -125,15 +125,18 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       </div>
       <div class="ig">
         <label>Enclosure Classification</label>
-        <select id="encl">
+        <select id="encl" onchange="toggleRoofInputs()">
           <option value="enclosed" selected>Enclosed</option>
           <option value="partial">Partially Enclosed</option>
+          <option value="partialOpen">Partially Open</option>
+          <option value="open">Open (free roof)</option>
         </select>
       </div>
       <div class="ig"><label>Kzt (Topo Factor)</label><input type="number" id="Kzt" value="1.00" min="1" max="3" step="0.01"/></div>
-      <div class="ig"><label>Ke (Ground Elev. Factor)</label><input type="number" id="Ke" value="1.00" min="0.8" max="1.0" step="0.01"/></div>
+      <div class="ig"><label>Ground Elev. (ft)</label><input type="number" id="groundElev" value="0" min="-1000" max="12000" step="10" oninput="updateKeFromElev()"/></div>
+      <div class="ig"><label>Ke (Ground Elev. Factor)</label><input type="number" id="Ke" value="1.00" min="0.6" max="1.05" step="0.001"/></div>
     </div>
-    <div class="ref">Kd = 0.85 (Table 26.6-1, Buildings) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Kd·Ke·V²</div>
+    <div class="ref">Kd = 0.85 (Table 26.6-1, Buildings) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Kd·Ke·V² | Ke = e<sup>−0.0000362·z<sub>g</sub></sup> (Table 26.9-1) — computed from ground elevation, editable | GCpi per Table 26.13-1: Enclosed ±0.18, Partially Enclosed ±0.55, Partially Open ±0.18, Open 0</div>
   </div>
 </div>
 
@@ -145,19 +148,55 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       <div class="ig"><label>Width B (ft) — EW</label><input type="number" id="B" value="60" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig"><label>Depth D (ft) — NS</label><input type="number" id="D" value="120" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig">
+      <div class="ig" id="closedRoofGroup">
         <label>Roof Type</label>
         <select id="roofType" onchange="toggleRoofInputs()">
           <option value="flat">Flat / Low-slope (θ &lt; 10°)</option>
-          <option value="sloped">Sloped (θ ≥ 10°)</option>
+          <option value="gablehip">Gable / Hip</option>
+          <option value="monoslope">Monoslope</option>
+          <option value="mansard">Mansard</option>
         </select>
       </div>
-      <div class="ig" id="thetaRow" style="display:none"><label>Roof Pitch θ (deg)</label><input type="number" id="theta" value="18" min="10" max="60" step="1"/></div>
+      <div class="ig" id="openRoofGroup" style="display:none">
+        <label>Free Roof Shape</label>
+        <select id="freeRoofShape" onchange="toggleRoofInputs()">
+          <option value="monoslope">Monoslope</option>
+          <option value="pitched" selected>Pitched</option>
+          <option value="troughed">Troughed</option>
+        </select>
+      </div>
+      <div class="ig" id="windFlowGroup" style="display:none">
+        <label>Wind Flow (Figs. 27.3-4/5/6)</label>
+        <select id="windFlow">
+          <option value="clear" selected>Clear (≤ 50% blocked)</option>
+          <option value="obstructed">Obstructed (&gt; 50% blocked)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" id="ridgeAngleRow">
+      <div class="ig" id="ridgeRow">
+        <label>Ridge Runs Along</label>
+        <select id="ridgeDir">
+          <option value="D" selected>Depth D (NS) — Wind-X normal to ridge</option>
+          <option value="B">Width B (EW) — Wind-Y normal to ridge</option>
+        </select>
+      </div>
+      <div class="ig" id="angleModeRow">
+        <label>Roof Angle Input</label>
+        <select id="roofAngleMode" onchange="toggleRoofInputs()">
+          <option value="deg" selected>Degrees</option>
+          <option value="pitch">Pitch (rise / 12)</option>
+        </select>
+      </div>
+      <div class="ig" id="thetaRow"><label>Roof Angle θ (deg)</label><input type="number" id="theta" value="18" min="0" max="80" step="0.5"/></div>
+      <div class="ig" id="pitchRow" style="display:none"><label>Rise per 12 <span id="pitchThetaOut" style="font-weight:400;color:#718096"></span></label><input type="number" id="pitchRise" value="4" min="0" max="24" step="0.5" oninput="toggleRoofInputs()"/></div>
     </div>
     <div class="row">
-      <div class="ig"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
+      <div class="ig" id="hpRow"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
+      <div class="ig" id="frameRowN" style="display:none"><label>Transverse Frames n (§28.3.5)</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
+      <div class="ig" id="frameRowAs" style="display:none"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
     </div>
-    <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B)</div>
+    <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure</div>
     <div id="mwfrsDiagWrap" style="margin-top:12px;text-align:center"></div>
   </div>
 </div>
@@ -352,9 +391,39 @@ function togBlk(hd){
   var body=hd.nextElementSibling;
   if(body) body.style.display=hd.classList.contains('open')?'':'none';
 }
+function isOpenEncl(){ return document.getElementById('encl').value==='open'; }
+function getRoofType(){ var rt=document.getElementById('roofType').value; return rt==='sloped'?'gablehip':rt; }
+function getTheta(){
+  if(!isOpenEncl() && getRoofType()==='flat') return 0;
+  if(document.getElementById('roofAngleMode').value==='pitch'){
+    var rise=parseFloat(document.getElementById('pitchRise').value)||0;
+    return Math.atan(rise/12)*180/Math.PI;
+  }
+  return parseFloat(document.getElementById('theta').value)||0;
+}
+// §28.3.5 applies to open or partially enclosed buildings with transverse frames and a pitched roof
+function frameEligible(){
+  var encl=document.getElementById('encl').value;
+  var pitched=isOpenEncl()?document.getElementById('freeRoofShape').value==='pitched':getRoofType()==='gablehip';
+  return (encl==='open'||encl==='partial')&&pitched;
+}
+function updateKeFromElev(){
+  var zg=parseFloat(document.getElementById('groundElev').value)||0;
+  document.getElementById('Ke').value=Math.exp(-0.0000362*zg).toFixed(3);
+}
+function setBlk(id, show){ var el=document.getElementById(id); if(el) el.style.display=show?'':'none'; }
 function toggleRoofInputs(){
-  var rt=document.getElementById('roofType').value;
-  document.getElementById('thetaRow').style.display=rt==='sloped'?'':'none';
+  var open=isOpenEncl(), rt=getRoofType();
+  var show=function(id,on){ var el=document.getElementById(id); if(el) el.style.display=on?'':'none'; };
+  show('closedRoofGroup',!open); show('openRoofGroup',open); show('windFlowGroup',open);
+  var angled=open||rt!=='flat';
+  show('ridgeRow',angled); show('angleModeRow',angled);
+  var mode=document.getElementById('roofAngleMode').value;
+  show('thetaRow',angled&&mode==='deg'); show('pitchRow',angled&&mode==='pitch');
+  show('hpRow',!open);
+  var fe=frameEligible(); show('frameRowN',fe); show('frameRowAs',fe);
+  var rise=parseFloat(document.getElementById('pitchRise').value)||0;
+  document.getElementById('pitchThetaOut').textContent='(θ = '+f2(Math.atan(rise/12)*180/Math.PI)+'°)';
 }
 function addStory(){
   var rows=document.getElementById('storyRows');
