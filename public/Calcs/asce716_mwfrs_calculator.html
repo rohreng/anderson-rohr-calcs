@@ -454,10 +454,10 @@ function openRoofCN(shape, flow, theta){
   var out=[];
   var push=function(g,k,w,l,note){ out.push({gamma:g,kase:k,CNW:w,CNL:l,note:note||''}); };
   if(shape==='monoslope'){
-    var row=cnRow(CN_MONO, theta<7.5?0:theta);
+    var row=cnRow(CN_MONO, theta<7.5?0:theta), nm=theta<7.5?'θ < 7.5°: monoslope 0° coefficients apply (Fig. 27.3-4 Note 3)':'';
     var ix=flow==='clear'?[0,1,4,5]:[2,3,6,7];
-    push('0°','A',row.A[ix[0]],row.A[ix[1]]);   push('0°','B',row.B[ix[0]],row.B[ix[1]]);
-    push('180°','A',row.A[ix[2]],row.A[ix[3]]); push('180°','B',row.B[ix[2]],row.B[ix[3]]);
+    push('0°','A',row.A[ix[0]],row.A[ix[1]],nm);   push('0°','B',row.B[ix[0]],row.B[ix[1]],nm);
+    push('180°','A',row.A[ix[2]],row.A[ix[3]],nm); push('180°','B',row.B[ix[2]],row.B[ix[3]],nm);
   } else {
     var ix2=flow==='clear'?[0,1]:[2,3];
     if(theta<7.5){
@@ -494,11 +494,11 @@ function longFrameForce(o){
   var gcpfW=(GCPF_LC_B.z5*Abulk+GCPF_LC_B.z5E*Aedge)/AE;
   var gcpfL=(GCPF_LC_B.z6*Abulk+GCPF_LC_B.z6E*Aedge)/AE;
   var KB=o.Wperp<100?1.8-0.01*o.Wperp:0.8;
-  var n=Math.max(3,o.n||3), phi=AE>0?(o.AS||0)/AE:0;
+  var n=Math.max(3,o.n||3), phiRaw=AE>0?(o.AS||0)/AE:0, phi=Math.min(1,phiRaw);   // φ = solid fraction of the end wall, ≤ 1
   var KS=0.60+0.073*(n-3)+1.25*Math.pow(phi,1.8);
   var p=o.qh*(gcpfW-gcpfL)*KB*KS;
   return {Wperp:o.Wperp,Lridge:o.Lridge,theta:o.theta,rise:rise,eaveH:eaveH,AE:AE,a:a,Aedge:Aedge,Abulk:Abulk,
-          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,qh:o.qh,Kh:o.Kh,p:p,F:p*AE};
+          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kh:o.Kh,p:p,F:p*AE};
 }
 
 // ─── UI HELPERS ──────────────────────────────────────────────────────────────
@@ -524,7 +524,7 @@ function frameEligible(){
   return (encl==='open'||encl==='partial')&&pitched;
 }
 function updateKeFromElev(){
-  var zg=parseFloat(document.getElementById('groundElev').value)||0;
+  var zg=Math.max(0, parseFloat(document.getElementById('groundElev').value)||0);   // Table 26.9-1: z_g < 0 ft → Ke = 1.00
   document.getElementById('Ke').value=Math.exp(-0.0000362*zg).toFixed(3);
 }
 function setBlk(id, show){ var el=document.getElementById(id); if(el) el.style.display=show?'':'none'; }
@@ -533,7 +533,7 @@ function toggleRoofInputs(){
   var show=function(id,on){ var el=document.getElementById(id); if(el) el.classList.toggle('hide',!on); };
   show('closedRoofGroup',!open); show('openRoofGroup',open); show('windFlowGroup',open);
   var angled=open||rt!=='flat';
-  show('ridgeRow',angled); show('angleModeRow',angled);
+  show('ridgeAngleRow',angled); show('ridgeRow',angled); show('angleModeRow',angled);
   var mode=document.getElementById('roofAngleMode').value;
   show('thetaRow',angled&&mode==='deg'); show('pitchRow',angled&&mode==='pitch');
   show('hpRow',!open);
@@ -608,7 +608,11 @@ function calculate(){
   // Chapter 28 velocity pressure: Table 26.10-1 footnote a — Exposure B, z < 30 ft → Kz = 0.70 (Gate 1 S-01)
   var Kh28 = (exp==='B' && hVal<30) ? 0.70 : Kh;
   var qh28 = 0.00256*Kh28*Kzt*Kd*Ke*V*V;
-  var frame = (frameEligible() && theta>0 && theta<=45)
+  // Geometry guard: eave height = h − rise/2 must be positive, else AE / GCpf weighting are meaningless
+  var frameElig = frameEligible() && theta>0 && theta<=45;
+  var riseChk=(Wperp/2)*Math.tan(theta*Math.PI/180);
+  var frameReason = (frameElig && hVal - riseChk/2 <= 0) ? 'geometry' : null;
+  var frame = (frameElig && !frameReason)
     ? longFrameForce({Wperp:Wperp, Lridge:Lridge, h:hVal, theta:theta,
                       n:parseInt(document.getElementById('numFrames').value)||3,
                       AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28})
@@ -630,7 +634,7 @@ function calculate(){
     setBlk('openBlk',true); setBlk('openTransBlk',true); setBlk('frameBlk',true); setBlk('minBlk',true);
     renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp,{open:open,ridgeDir:ridgeDir,groundElev:groundElev});
     renderOpen(open, document.getElementById('openBody'), document.getElementById('openTransBody'));
-    renderFrame(frame, document.getElementById('frameBody'), true);
+    renderFrame(frame, document.getElementById('frameBody'), true, frameReason);
     renderMinLoads(true, document.getElementById('minBody'));
     if (typeof AREv2!=='undefined') {
       var _pMin=1e9,_pMax=-1e9;
@@ -810,7 +814,7 @@ function calculate(){
   setBlk('parapetBlk',!!parapetData); setBlk('openBlk',false); setBlk('openTransBlk',false);
   setBlk('frameBlk',!!frame); setBlk('minBlk',true);
   renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp,{ridgeDir:ridgeDir,groundElev:groundElev});
-  renderFrame(frame, document.getElementById('frameBody'), false);
+  renderFrame(frame, document.getElementById('frameBody'), false, frameReason);
   renderMinLoads(false, document.getElementById('minBody'));
   renderDir(wx, document.getElementById('wxBody'));
   renderDir(wy, document.getElementById('wyBody'));
@@ -1030,7 +1034,8 @@ function renderOpen(o, bodyN, bodyT){
     ? '<div class="warn">h/L = '+f2(o.hL)+' (wind normal to ridge) is outside 0.25 ≤ h/L ≤ 1.0 — Figs. 27.3-4/5/6 do not apply directly; verify by other means.</div>' : '';
   var warn90 = (o.hL90<0.25||o.hL90>1.0)
     ? '<div class="warn">h/L = '+f2(o.hL90)+' (wind parallel to ridge, L = ridge length) is outside 0.25 ≤ h/L ≤ 1.0 — Fig. 27.3-7 does not apply directly; verify by other means.</div>' : '';
-  var html=warn+'<div class="kv">'
+  var warnT = o.theta>45 ? '<div class="warn">θ = '+f1(o.theta)+'° exceeds the 45° limit of Figs. 27.3-4/5/6 — coefficients shown are the 45° row; verify by other means.</div>' : '';
+  var html=warnT+warn+'<div class="kv">'
     +'<div class="kv-item">Normal-to-ridge direction = <span>'+o.normalLabel+'</span></div>'
     +'<div class="kv-item">L (along-wind, normal to ridge) = <span>'+f1(o.Wperp)+' ft</span></div>'
     +'<div class="kv-item">h/L = <span>'+f2(o.hL)+'</span></div>'
@@ -1058,12 +1063,17 @@ function renderOpen(o, bodyN, bodyT){
   bodyT.innerHTML=t;
 }
 
-function renderFrame(fr, body, isOpen){
+function renderFrame(fr, body, isOpen, reason){
   if(!fr){
-    body.innerHTML='<div class="ref">§28.3.5 not applicable: requires an open or partially enclosed building with transverse frames and a pitched (gable) roof, 0° &lt; θ ≤ 45°.</div>';
+    if(reason==='geometry'){
+      body.innerHTML='<div class="warn">§28.3.5 not evaluated: mean roof height h must exceed half the gable rise ((B/2)·tanθ / 2) so the eave height is positive.</div>';
+    } else {
+      body.innerHTML='<div class="ref">§28.3.5 not applicable: requires an open or partially enclosed building with transverse frames and a pitched (gable) roof, 0° &lt; θ ≤ 45°.</div>';
+    }
     return;
   }
-  var html='<div class="kv">'
+  var html = fr.phiRaw>1 ? '<div class="warn">A<sub>S</sub> exceeds A<sub>E</sub> — φ capped at 1.0 (A<sub>S</sub> is the solid part of the end wall and cannot exceed its area).</div>' : '';
+  html+='<div class="kv">'
     +'<div class="kv-item">B (normal to ridge) = <span>'+f1(fr.Wperp)+' ft</span></div>'
     +'<div class="kv-item">Eave ht = <span>'+f1(fr.eaveH)+' ft</span></div>'
     +'<div class="kv-item">Rise = <span>'+f1(fr.rise)+' ft</span></div>'
@@ -1204,7 +1214,7 @@ function drawMWFRSDiagram(){
   var B    = parseFloat(document.getElementById('B').value)||60;
   var Ddim = parseFloat(document.getElementById('D').value)||120;
   var hVal = parseFloat(document.getElementById('h').value)||40;
-  var hp   = parseFloat(document.getElementById('hp').value)||0;
+  var hp   = isOpenEncl() ? 0 : (parseFloat(document.getElementById('hp').value)||0);
   var wrap = document.getElementById('mwfrsDiagWrap');
   if(!wrap) return;
 
