@@ -245,6 +245,23 @@ if (!CAPTURE) {
     const txt = await page.$eval('#results', (e) => e.innerText);
     check(`sweep ${JSON.stringify(cb)}`, !/NaN|undefined/.test(txt) && txt.length > 200, txt.slice(0, 160));
   }
+  // ── 7. input-row visibility by COMPUTED style (are-theme-v2 forces .ig display:flex !important) ──
+  const vis = (id) => page.$eval('#' + id, (e) => getComputedStyle(e).display !== 'none');
+  await fresh();
+  await page.selectOption('#encl', 'enclosed'); await page.selectOption('#roofType', 'flat');
+  check('vis enclosed/flat: theta, ridge, angle, frame hidden; hp shown',
+    !(await vis('thetaRow')) && !(await vis('ridgeRow')) && !(await vis('angleModeRow')) && !(await vis('frameRowN')) && (await vis('hpRow')), 'computed display wrong');
+  await page.selectOption('#roofType', 'gablehip');
+  check('vis enclosed/gablehip: theta+ridge shown, frame hidden', (await vis('thetaRow')) && (await vis('ridgeRow')) && !(await vis('frameRowN')), 'computed display wrong');
+  await page.selectOption('#roofAngleMode', 'pitch');
+  check('vis pitch mode: rise shown, theta hidden', (await vis('pitchRow')) && !(await vis('thetaRow')), 'computed display wrong');
+  await page.selectOption('#encl', 'partial');
+  check('vis partial/gablehip: frame rows shown', (await vis('frameRowN')) && (await vis('frameRowAs')), 'computed display wrong');
+  await page.selectOption('#encl', 'open');
+  check('vis open: hp + closed roof hidden; free roof, flow, ridge, frame shown',
+    !(await vis('hpRow')) && !(await vis('closedRoofGroup')) && (await vis('openRoofGroup')) && (await vis('windFlowGroup')) && (await vis('ridgeRow')) && (await vis('frameRowN')), 'computed display wrong');
+  await page.selectOption('#freeRoofShape', 'monoslope');
+  check('vis open/monoslope: frame rows hidden', !(await vis('frameRowN')), 'computed display wrong');
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }
 
