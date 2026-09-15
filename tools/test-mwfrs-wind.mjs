@@ -33,8 +33,8 @@ const CASES = [
   { name: 'partial-sloped35-3story',      encl: 'partial',  roof: 'sloped', theta: 35, hp: 0, V: 115, exp: 'C', B: 40,  D: 90,  h: 36, stories: [12, 12, 12] },
 ];
 // Paths that may legitimately differ from baseline for the sloped cases (see header).
-const ALLOW_SLOPED = [/^last\.roofType$/, /^last\.roofY(\.|$)/, /^revit\.inputs\.roofType$/, /^revit\.roof(\.|$)/, /^revit\.revit(\.|$)/];
-const ALLOW_HL = [/^last\.roofX(\.|$)/, /^revit\.roof(\.|$)/, /^revit\.revit(\.|$)/];   // L-02: only case 1 has h/L > 0.5 in a zone-table direction
+const ALLOW_SLOPED = [/^root\.last\.roofType$/, /^root\.last\.roofY(\.|$)/, /^root\.revit\.inputs\.roofType$/, /^root\.revit\.roof(\.|$)/, /^root\.revit\.revit(\.|$)/];
+const ALLOW_HL = [/^root\.last\.roofX(\.|$)/, /^root\.revit\.roof(\.|$)/, /^root\.revit\.revit(\.|$)/];   // L-02: only case 1 has h/L > 0.5 in a zone-table direction
 const ALLOW = { 'enclosed-sloped20-2story': ALLOW_SLOPED, 'partial-sloped35-3story': ALLOW_SLOPED, 'enclosed-flat-3story-parapet': ALLOW_HL };
 
 const browser = await chromium.launch({ headless: true });
@@ -110,7 +110,7 @@ if (CAPTURE) {
   const base = JSON.parse(readFileSync(FIX, 'utf8')).cases;
   for (const c of CASES) {
     const out = [];
-    diff(base[c.name], results[c.name], '', out, ALLOW[c.name] || []);
+    diff(base[c.name], results[c.name], 'root', out, ALLOW[c.name] || []);
     check(`baseline ${c.name}`, out.length === 0, out.slice(0, 12).join('\n      '));
   }
 }
@@ -210,23 +210,27 @@ if (!CAPTURE) {
   check('frame: Exp B page qh still Table 26.10-1', Math.abs(oB.last.qh - 0.00256 * (0.57 + (0.62 - 0.57) * 3 / 5) * 0.85 * 115 * 115) < 1e-6, String(oB.last.qh));
   await page.selectOption('#exp', 'C'); await page.fill('#h', '20'); await page.click('button.calc-btn');
 
-  // ── 4. save/load round-trip on the open case ─────────────────────────────
-  const saved = await page.evaluate(() => collectInputsMWFRS());
-  await fresh();
-  await page.evaluate((d) => { applyInputsMWFRS(d); calculate(); }, saved);
-  const o2 = await snapshot();
-  const rt = []; diff(o.last, o2.last, 'last', rt, []);
-  check('round-trip: open case identical', rt.length === 0, rt.slice(0, 8).join('\n      '));
+  try {
+    // ── 4. save/load round-trip on the open case ─────────────────────────────
+    const saved = await page.evaluate(() => collectInputsMWFRS());
+    await fresh();
+    await page.evaluate((d) => { applyInputsMWFRS(d); calculate(); }, saved);
+    const o2 = await snapshot();
+    const rt = []; diff(o.last, o2.last, 'last', rt, []);
+    check('round-trip: open case identical', rt.length === 0, rt.slice(0, 8).join('\n      '));
 
-  // ── 5. legacy save file (roofType 'sloped') loads as gablehip ───────────
-  await fresh();
-  await page.evaluate(() => applyInputsMWFRS({ _version: 1, _calc: 'mwfrs', V: '120', exp: 'B', encl: 'enclosed', Kzt: '1', Ke: '1', B: '50', D: '80', h: '30', roofType: 'sloped', theta: '20', hp: '0', stories: [{ label: 'Roof', h: '15' }, { label: 'Floor 1', h: '15' }] }));
-  check('legacy: roofType mapped', (await page.$eval('#roofType', (e) => e.value)) === 'gablehip', 'not gablehip');
-  check('legacy: theta row visible', await page.$eval('#thetaRow', (e) => e.style.display !== 'none'), 'theta hidden');
-  await page.click('button.calc-btn');
-  const o3 = await snapshot();
-  const lg = []; diff(results['enclosed-sloped20-2story'].last, o3.last, 'last', lg, []);
-  check('legacy: matches the gablehip case', lg.length === 0, lg.slice(0, 8).join('\n      '));
+    // ── 5. legacy save file (roofType 'sloped') loads as gablehip ───────────
+    await fresh();
+    await page.evaluate(() => applyInputsMWFRS({ _version: 1, _calc: 'mwfrs', V: '120', exp: 'B', encl: 'enclosed', Kzt: '1', Ke: '1', B: '50', D: '80', h: '30', roofType: 'sloped', theta: '20', hp: '0', stories: [{ label: 'Roof', h: '15' }, { label: 'Floor 1', h: '15' }] }));
+    check('legacy: roofType mapped', (await page.$eval('#roofType', (e) => e.value)) === 'gablehip', 'not gablehip');
+    check('legacy: theta row visible', await page.$eval('#thetaRow', (e) => e.style.display !== 'none'), 'theta hidden');
+    await page.click('button.calc-btn');
+    const o3 = await snapshot();
+    const lg = []; diff(results['enclosed-sloped20-2story'].last, o3.last, 'last', lg, []);
+    check('legacy: matches the gablehip case', lg.length === 0, lg.slice(0, 8).join('\n      '));
+  } catch (e) {
+    check('round-trip/legacy (Task 5 functions)', false, String(e.message || e).split('\n')[0]);
+  }
 
   // ── 6. UI sweep — every enclosure × roof combination renders, no NaN ────
   const combos = [];
