@@ -1,0 +1,165 @@
+# MWFRS open-building merge — QAQC
+
+## Gate 1 — source file (2026-09-15)
+
+**SOURCE:** `RE CODING\ASCE\ASCE 7-16 Ch27 Pt1 Wind Loading Calculator - html.html` (JS from line 411)
+**LIVE:** `public/Calcs/asce716_mwfrs_calculator.html`
+**CODE:** ASCE/SEI 7-16 (`RE CODING\ASCE\ASCE 7-16.pdf`). Page references are given as *PDF page (printed page)*; printed = PDF − 55.
+
+Method: every constant table in SOURCE and the Fig. 27.3-1 / Table 26.10-1 tables in LIVE were read against the figure images (Read tool, plus 3x crops of Fig. 27.3-1, 27.3-7 and Fig. 28.3-1 Load Case B) and cross-checked against pypdf text extraction. Three open-building cases were hand-computed and then run in headless Chromium (`tools/_gate1-source.mjs`, deleted after use) against SOURCE.
+
+Severity: **BLOCKER** = wrong number/logic that changes a design pressure; **MAJOR** = wrong applicability/limit; **MINOR** = label/note.
+
+### Findings
+
+| ID | Sev. | Code reference | File : line | What the file has | What the code says | Fix |
+|---|---|---|---|---|---|---|
+| S-01 | BLOCKER | Table 26.10-1 footnote *a*, PDF 323 (p.268); §28.3.5, PDF 369 (p.314) | SOURCE : 848 (`qh28 = qCalc(h, exp, …)`) via `Kz()` 525-530 | §28.3.5 q<sub>h</sub> uses the Note 1 power-law K<sub>z</sub> for every exposure (Exp B, h = 18 ft → K<sub>z</sub> = 0.605, q<sub>h</sub> = 22.27 psf) | "Use 0.70 in Chapter 28, Exposure B, when z < 30 ft (9.1 m)." §28.3.5 is Chapter 28. | In `runLongFrame` only: `Kz28 = (exp==='B' && h<30) ? 0.70 : Kz(h,exp)`. Case B in Exp B: F = 13,894 lb (file) vs 16,063 lb (code), −13.5%. |
+| L-01 | BLOCKER | Fig. 27.3-1, ≥60° column + footnote *c*, PDF 331 (p.276) | LIVE : 256 (`[60, [0.34,0.34,-0.6] ×3]`), 310-311 clamp, 155 input max 60 | Windward C<sub>p</sub> at θ = 60° stored as 0.34; θ clamped to 60 | "≥60<sup>c</sup>: 0.01 θ" for all h/L (= 0.60 at 60°, 0.80 at 80°); footnote c: "For roof slopes greater than 80°, use C<sub>p</sub> = 0.8." | Row: `[60, [0.6,0.6,-0.6], [0.6,0.6,-0.6], [0.6,0.6,-0.6]]`; for 60 ≤ θ ≤ 80 use 0.01θ; θ > 80 use 0.8; raise input max to 90. Interpolation 45→60 is currently *decreasing* (0.4→0.34; at 50° file gives 0.38, code 0.467). Also between 45° and 60° the first (negative/zero) series has no value → assume 0.0 (Note 2), not an interpolated positive. |
+| L-02 | BLOCKER | Fig. 27.3-1 zone table, h/L ≥ 1.0 rows, PDF 331 (p.276) | LIVE : 294-304 `flatRoofCp(h,L)` | Always returns the h/L ≤ 0.5 zones (−0.9, −0.9, −0.5, −0.3 / −0.18) regardless of h/L | h/L ≥ 1.0: "0 to h/2: −1.3<sup>b</sup>, −0.18; >h/2: −0.7, −0.18". Note 2 permits linear interpolation in h/L between 0.5 and 1.0. | Branch on h/L: ≤ 0.5 → 4-zone table; ≥ 1.0 → 2-zone table; between → interpolate (or step to the ≥1.0 table as SOURCE does, conservative). A 40 ft tall × 40 ft along-wind building gets −0.9 instead of −1.3 (31% under on the windward h/2 zone). |
+| L-03 | BLOCKER | Fig. 27.3-1 zone table heading "Normal to Ridge for θ < 10° **and Parallel to Ridge for All θ**", PDF 331 (p.276) | LIVE : 533-566 (`getRoofPressures` uses `slopedRoofCp` for both `roofX` and `roofY`) | Sloped (θ ≥ 10°) roof gets the *normal-to-ridge* windward/leeward table in **both** wind directions; no ridge-orientation input | For wind parallel to the ridge on any pitched roof, C<sub>p</sub> comes from the zone table (by horizontal distance from the windward edge, L = along-wind = ridge length, h/L ≤ 0.5 vs ≥ 1.0). The windward/leeward table applies only to wind normal to the ridge. | Add a ridge-direction input (ridge ∥ X or ∥ Y). Normal-to-ridge direction → `slopedRoofCp`; parallel direction → zone table with L = ridge length. |
+| S-02 | BLOCKER (closed path) | Fig. 27.3-1 Note 4, PDF 331 (p.276) | SOURCE : 683-689 | Monoslope reports one C<sub>p</sub> (`A ?? B`, i.e., the first series only) labelled "windward/leeward surface"; monoslope with θ < 10° also bypasses the zone table | "For monoslope roofs, entire roof surface is either a windward or leeward surface." Note 3: where two values are listed the roof shall be designed for both. | Output three rows: windward value 1, windward value 2, leeward (e.g., θ = 18.4°, h/L = 0.5: −0.50 / −0.06 / −0.60; file shows −0.50 only and misses the −0.60 suction). Route θ < 10° monoslope to the zone table. Not in the open merge scope, but do not port this branch as-is. |
+| S-03 / L-04 | BLOCKER (narrow: 35° < θ < 45°, h/L ≤ 0.25) | Fig. 27.3-1 Note 2 and footnote *a*, PDF 331 (p.276) | SOURCE : 435 (series A ends at 35°), 686-699 (`interpSeries` → `null`); LIVE : 254-255 (interpolates 0.0 → 0.4) | At h/L ≤ 0.25 the first series is 0.0<sup>a</sup> at 35° and blank at 45°. LIVE interpolates 0.0→0.4 (0.2 at 40°). SOURCE returns `null` and **drops the row** at h/L ≤ 0.25 (only 0.4 shown). | "Where no value of the same sign is given, assume 0.0 for interpolation purposes." → first design value = 0.0 for 35° < θ < 45° at h/L ≤ 0.25; both values must be designed for (Note 3). | Treat a blank cell as 0.0 explicitly in both files. Effect: windward-roof suction case is −0.18q<sub>h</sub> (C<sub>p</sub> = 0 with +GC<sub>pi</sub>); LIVE gives −0.01q<sub>h</sub>, SOURCE gives nothing. |
+| S-04 | MAJOR | §28.3.5 (title: "…with Transverse Frames and Pitched Roofs"), PDF 369 (p.314); Fig. 28.3-2 | SOURCE : 820 (`eligible = (Open \|\| PartiallyEnclosed) && theta < 45`) | §28.3.5 card runs for monoslope and troughed free roofs (Case A monoslope produced F = 17.7 kips using a gable-triangle A<sub>E</sub>) | Applies to "an open or partially enclosed building with transverse frames and a pitched roof (θ < 45°)". A<sub>E</sub> is the gable end-wall area (Fig. 28.3-2). | Gate on roof form: open → `freeRoofShape==='pitched'`; partially enclosed → `roofType==='gablehip'`. Hide the card otherwise. |
+| S-05 | MAJOR | Figs. 27.3-4/5/6 Notation "h = Mean roof height" and diagrams (h to mid-slope), PDF 334-336 (pp.279-281); §26.2 MEAN ROOF HEIGHT, PDF 302 (p.247) | SOURCE : 590 (`hEff = theta > 10 ? h : eaveH`), 638 (`runOpenBuilding(L, W, hEff, …)`) | For an open free roof with θ ≤ 10° the calc silently substitutes eave height for h in q<sub>h</sub>, h/L, and the Fig. 27.3-7 zone widths. Probe (Case C with eaveH = 16): q<sub>h</sub> = 16.85 psf instead of 19.14 psf (−12%), h/L 0.27 instead of 0.42, transverse zones shrink to 16/32 ft. | §26.2: eave height is "permitted" for θ ≤ 10°; the free-roof figures define h as mean roof height with no eave exception, and for a troughed roof the eave is the *high* point (eave > mean). | For open buildings pass the mean roof height `h` (not `hEff`) to `runOpenBuilding`. If the eave substitution is kept for enclosed roofs, say so in the h label and never apply it to free roofs. |
+| S-07 | MAJOR | Fig. 27.3-7 title "(0.25 ≤ h/L ≤ 1.0)", Notation "L = Horizontal dimension of roof, measured in the along-wind direction", PDF 337 (p.282) | SOURCE : 742-745 (`hL = hEff / W` only) | h/L applicability is checked only for γ = 0/180 (L = W). For γ = 90/270, L = ridge length; Case A gives h/L = 20/100 = 0.20 and Case B 18/120 = 0.15 — outside range with no warning. | Fig. 27.3-7 carries the same 0.25–1.0 applicability with L along-wind (= ridge length). Note 5: monoslope θ < 5°, γ = 0, 0.05 ≤ h/L ≤ 0.25 may use the Fig. 27.3-7 values. | Compute and display h/L<sub>90</sub> = h/L<sub>ridge</sub> on the transverse card with the same range warning. Optionally implement Note 5. |
+| S-08 | MAJOR (closed path) | Fig. 27.3-1 zone table "Parallel to Ridge for All θ", PDF 331 (p.276) | SOURCE : 613-618, 659-736 | Closed-building results cover the normal-to-ridge direction only (L/B = W/L, h/L = h/W). No parallel-to-ridge wall or roof case. | Both principal directions must be designed (Fig. 27.3-8 Case 1); the along-ridge roof case uses the zone table with L = ridge length. | Keep LIVE's two-direction structure in the merge; fix L-03 so the parallel direction uses the zone table. |
+| S-06 | MINOR | §27.3.2 "(θ ≤ 45°)", PDF 329 (p.274) vs §28.3.5 "(θ < 45°)", PDF 369 (p.314); Fig. 27.3-5 title "θ ≤ 45°" | SOURCE : 820 (`theta < 45`), 354 label | Card hidden at θ = 45.0° exactly | The two sections disagree; §27.3.2 and Fig. 27.3-5 include 45°. | Use `theta <= 45` (includes the input max). |
+| S-09 | MINOR (F +0.3%) | Fig. 28.3-1 Load Case B diagrams, PDF 367 (p.312) (5E/6E strip width **a**; 1E/4E strips are 2a); §28.3.5 "average windward end wall pressure" | SOURCE : 838 (`Aedge = a * eaveH`) | Edge strip = a × eave height; omits the gable sliver above the eave within the strip | Zone 5E (and 6E) is the end-wall strip of width *a* at the windward corner, full height to the roof line, one per end wall per load pattern (Note 3: each corner in turn). Area-weighting 5/5E and 6/6E is the correct reading of "average … end wall pressure". | `Aedge = a*eaveH + 0.5*a*a*Math.tan(theta)` (valid for a ≤ B/2). Case B: 64.11 → 69.29 ft²; F = 24,403 → 24,472 lb. The strip width *a* in the file is **correct**. |
+| S-11 | MINOR | Fig. 27.3-1 Note 2 | SOURCE : 475-481 (`interpHL`), 461-464 | When series A terminates, `null` is coerced to 0 by `interpLin` arithmetic for 0.25 < h/L < 0.5 (accidentally matches "assume 0.0"), and dropped at h/L ≤ 0.25 (S-03). | — | Replace `null` with an explicit 0.0 for blank cells; keep the row. |
+| S-12 | MINOR | Table 26.10-1 Note 1 | SOURCE : 527 | `zEff` computed and never used (`zmin` is a gust-effect constant, not a K<sub>z</sub> floor) | K<sub>z</sub> = 2.01(15/z<sub>g</sub>)<sup>2/α</sup> for z < 15 ft | Delete line 527. |
+| S-13 | MINOR | Fig. 27.3-1 ≥60° column | SOURCE : 176 (`max="45"`), 434-441 (no ≥60 column) | Closed roofs > 45° cannot be entered; table lacks 0.01θ column | 0.01θ for θ ≥ 60°, 0.8 for θ > 80° | Add the column and raise the closed-roof input cap (open free roofs stay ≤ 45° per Figs. 27.3-4/5/6). |
+| S-14 | MINOR | §27.1.5, PDF 328 (p.273) | SOURCE : 388-390 | 16 psf × A<sub>f</sub> for open buildings is displayed as text only; A<sub>f</sub> not computed or compared. 16/8 psf shown for "partially open" too. | "…enclosed or partially enclosed building… 16 lb/ft² × wall area and 8 lb/ft² × roof area projected onto a vertical plane… The design wind force for open buildings shall be not less than 16 lb/ft² multiplied by the area A<sub>f</sub>." A<sub>f</sub> = area of open buildings normal to the wind or projected on a plane normal to the wind (§26.3). | Compute A<sub>f</sub> (projected roof area per direction) and show the 16 psf × A<sub>f</sub> floor next to the resultant of the C<sub>N</sub> pressures. Applying 16/8 to partially open is conservative; keep, but note it. |
+| S-15 | MINOR | §27.3.2 second paragraph, PDF 329 (p.274) | SOURCE : runOpenBuilding | Fascia panels on free roofs with θ ≤ 5° ("inverted parapet", §27.3.4 with q<sub>p</sub> = q<sub>h</sub>) not covered | "…the fascia panel shall be considered an inverted parapet… determined using Section 27.3.5 [sic], with q<sub>p</sub> equal to q<sub>h</sub>." | Add a note or a fascia-height input. |
+| S-17 | MINOR | Fig. 27.3-1 Notation, PDF 330 (p.275) | SOURCE : 184 (hint) | "h is used for θ ≥ 10°; eave height is used for θ ≤ 10°" (overlap at 10°) | "h = Mean roof height… except that eave height shall be used for θ ≤ 10 degrees." Code at line 590 uses eave at exactly 10° (correct). | Hint: "θ > 10° → h; θ ≤ 10° → eave height". |
+| L-05 | MINOR | §27.3.4 Parapets (Eq. 27.3-3), PDF 329 (p.274) | LIVE : 507 comment | "§27.3.5: pp = qp × GCpn" | Parapets are §27.3.4; §27.3.5 is Design Wind Load Cases. | Fix the comment/label. |
+| L-06 | MINOR | §26.2 / §26.3 h definition, PDF 302-303 (pp.247-248); Figs. 27.3-4 to 27.3-7 | LIVE : 147 (single "Mean Roof Height h" input, no eave input) | Acceptable as-is for enclosed buildings **if** the user enters eave height when θ ≤ 10°; nothing tells them to. | "h = mean roof height… except that eave height shall be used for roof angle θ less than or equal to 10°" (§26.3). Free-roof figures: h = mean roof height. | Merged calc note under h: "Enter mean roof height. For enclosed roofs with θ ≤ 10°, enter the eave height (Fig. 27.3-1 notation). For open free roofs always enter the mean roof height (Figs. 27.3-4 to 27.3-7)." |
+| L-07 | MINOR | Fig. 27.3-1 footnote *b* | LIVE : 298, 301; SOURCE : 456 | −1.3 area reduction (≤100 ft² 1.0, 250 ft² 0.9, ≥1,000 ft² 0.8) not applied | Optional reduction | Conservative; note it. |
+| L-08 | MINOR | Table 26.13-1, PDF 326 (p.271) | LIVE : 128-131, 411 | Only Enclosed (±0.18) and Partially Enclosed (±0.55) offered | Partially open = ±0.18; Open = 0.00 | Add "Partially open" (±0.18) when merging; open = 0 with C<sub>N</sub> path. |
+
+### Gate 1 decisions (controller, 2026-09-15)
+
+| ID | Decision | Where |
+|---|---|---|
+| S-01 | Fix in merge — §28.3.5 qh uses Kz = 0.70 for Exposure B when h < 30 ft (Table 26.10-1 fn. a). | Task 3 `longFrameForce` caller |
+| L-01 | Fix in merge — ROOF_CP_SLOPED row 60 → [0.6,0.6,−0.6]×3, add row 80 → [0.8,0.8,−0.6]×3; clamp θ at 80 (>80 → 0.8). Baseline cases are 20°/35°, unaffected. | Task 3 |
+| L-02 | Fix in merge — `flatRoofCp(h,L)` branches on h/L: ≤0.5 four-zone table; ≥1.0 two-zone (−1.3 / −0.7); 0.5–1.0 linear interpolation per zone. Changes baseline case `enclosed-flat-3story-parapet` Wind-X roof (h/L = 0.667) — allowlisted with a hand-checked expectation in the harness. | Task 3 + harness |
+| L-03 | Fix in merge (approved by Nick) — ridge-direction input; parallel direction uses the zone table. | Tasks 2–3 |
+| S-02 | Superseded — merged calc keeps LIVE's two-value windward + leeward output; monoslope/mansard labelled per Notes 4/6. | Task 4 |
+| S-03 / L-04 | Fix in merge — ROOF_CP_SLOPED row 45, h/L ≤ 0.25 → [0.0, 0.4, −0.6] (blank = 0.0). 45→60 interpolates 0.0→0.6 on the first value. | Task 3 |
+| S-04 | Already in plan — `frameEligible()` gates on pitched free roof / gable-hip. | Task 2 |
+| S-05 | Already in plan — merged calc uses the single mean-roof-height input h for the open path. | — |
+| S-06 | Fix in merge — §28.3.5 eligibility θ ≤ 45. | Task 3 |
+| S-07 | Fix in merge — open object carries hL90 = h / Lridge; renderOpen warns when either h/L is outside 0.25–1.0. | Tasks 3–4 |
+| S-08 | Already in plan — two-direction structure retained. | — |
+| S-09 | Fix in merge — Aedge = a·eaveH + 0.5·a²·tanθ. Harness constants updated. | Task 3 + harness |
+| S-11, S-12, S-13, S-17 | Not applicable — SOURCE-internal; merged calc does not reuse that code (S-13 covered by L-01). | — |
+| S-14 | Note only — min-load block states 16 psf × Af for open buildings and defines Af; not computed. | Task 4 |
+| S-15 | Note only — fascia case (θ ≤ 5°) mentioned in the open block ref line. | Task 4 |
+| L-05 | Fix in merge — parapet references relabelled §27.3.4. | Task 4 |
+| L-06 | Fix in merge — note under the geometry block: h = mean roof height; eave height for θ ≤ 10° on walled buildings; free roofs use mean h. | Task 2 |
+| L-07 | Note only — −1.3 area reduction (fn. b) not applied, conservative. | Task 4 |
+| L-08 | Already in plan. | Task 2 |
+
+### Hand checks (code equations and figure values)
+
+Common: K<sub>d</sub> = 0.85, K<sub>zt</sub> = 1.0, K<sub>e</sub> = e<sup>−0.0000362·0</sup> = 1.000, G = 0.85 (§26.11.1). q = 0.00256 K<sub>z</sub> K<sub>zt</sub> K<sub>d</sub> K<sub>e</sub> V² (Eq. 26.10-1). p = q<sub>h</sub> G C<sub>N</sub> (Eq. 27.3-2). Two q<sub>h</sub> values are carried: Table 26.10-1 (interpolated) and the Note 1 formula K<sub>z</sub> = 2.01(z/z<sub>g</sub>)<sup>2/α</sup> that SOURCE uses.
+
+#### A. Open, monoslope, clear, θ = 15°, V = 115, Exp C, h = 20 ft, L = 40 ft along-wind, ridge 100 ft
+
+- K<sub>z</sub>(20, C): table 0.90; formula 2.01(20/900)<sup>2/9.5</sup> = 0.9019.
+- q<sub>h</sub> = 0.00256 × 0.90 × 1 × 0.85 × 1 × 115² = **25.90 psf** (formula K<sub>z</sub>: 25.95 psf). q<sub>h</sub>G = 22.015 (22.061).
+- h/L = 20/40 = 0.50 (in range). h/L for γ = 90/270 = 20/100 = 0.20 (outside 0.25–1.0, S-07).
+- Fig. 27.3-4, θ = 15°, clear: γ=0 A: C<sub>NW</sub> −0.9, C<sub>NL</sub> −1.3; B: −1.9, 0.0. γ=180 A: 1.3, 1.6; B: 1.8, 0.6.
+
+| γ / case | C<sub>NW</sub> | C<sub>NL</sub> | p<sub>W</sub> (psf, table q<sub>h</sub>) | p<sub>L</sub> | p<sub>W</sub> (formula q<sub>h</sub>) | p<sub>L</sub> |
+|---|---|---|---|---|---|---|
+| 0 A | −0.9 | −1.3 | −19.81 | −28.62 | −19.85 | −28.68 |
+| 0 B | −1.9 | 0.0 | −41.83 | 0.00 | −41.92 | 0.00 |
+| 180 A | 1.3 | 1.6 | +28.62 | +35.22 | +28.68 | +35.30 |
+| 180 B | 1.8 | 0.6 | +39.63 | +13.21 | +39.71 | +13.24 |
+
+- Fig. 27.3-7 (clear), zones by distance from windward edge, h = 20: ≤h (0–20 ft) A −0.8 → −17.61 (−17.65); B 0.8 → +17.61 (+17.65). h–2h (20–40) A −0.6 → −13.21 (−13.24); B 0.5 → +11.01 (+11.03). >2h (40–100) A −0.3 → −6.60 (−6.62); B 0.3 → +6.60 (+6.62).
+
+#### B. Open, pitched, obstructed, θ = 22.5°, V = 130, Exp D, h = 18 ft, L = 50 ft normal to ridge, ridge 120 ft; §28.3.5 with n = 5, A<sub>S</sub> = 0
+
+- K<sub>z</sub>(18, D): table 1.03 + (1.08−1.03)(3/5) = 1.060; formula 2.01(18/700)<sup>2/11.5</sup> = 1.0634.
+- q<sub>h</sub> = 0.00256 × 1.060 × 0.85 × 130² = **38.98 psf** (formula: 39.11 psf). q<sub>h</sub>G = 33.134 (33.241).
+- h/L = 18/50 = 0.36 (in range); transverse h/L = 18/120 = 0.15 (outside range).
+- Fig. 27.3-5, θ = 22.5°, obstructed: A: −1.2, −1.2; B: −0.8, −1.7 (γ = 0 and 180 identical).
+
+| case | C<sub>NW</sub> | C<sub>NL</sub> | p<sub>W</sub> (table) | p<sub>L</sub> | p<sub>W</sub> (formula) | p<sub>L</sub> |
+|---|---|---|---|---|---|---|
+| A | −1.2 | −1.2 | −39.76 | −39.76 | −39.89 | −39.89 |
+| B | −0.8 | −1.7 | −26.51 | −56.33 | −26.59 | −56.51 |
+
+- Fig. 27.3-7 (obstructed), h = 18: ≤h A −1.2 → −39.76 (−39.89); B 0.5 → +16.57 (+16.62). h–2h A −0.9 → −29.82 (−29.92); B 0.5 → +16.57. >2h A −0.6 → −19.88 (−19.94); B 0.3 → +9.94 (+9.97).
+
+§28.3.5 (Eqs. 28.3-3, 28.3-4). Eave height taken so that the mean roof height is 18 ft: rise = 25·tan 22.5° = 10.355 ft; eave = 18 − 5.178 = 12.822 ft.
+- A<sub>E</sub> = 50 × 12.822 + ½ × 50 × 10.355 = 641.1 + 258.9 = **900.0 ft²**.
+- a = min(0.1 × 50 = 5, 0.4 × 18 = 7.2) = 5; ≥ max(0.04 × 50 = 2, 3) → **a = 5.0 ft**.
+- K<sub>B</sub> = 1.8 − 0.01 × 50 = **1.30**. φ = 0/900 = 0. K<sub>S</sub> = 0.60 + 0.073(5−3) + 1.25·0<sup>1.8</sup> = **0.746**.
+- GC<sub>pf</sub> Load Case B: 5 = 0.40, 5E = 0.61, 6 = −0.29, 6E = −0.43.
+
+| Edge-area basis | A<sub>5E</sub> (ft²) | (GC<sub>pf</sub>)<sub>ww</sub> | (GC<sub>pf</sub>)<sub>lw</sub> | Δ | q<sub>h</sub> | p (psf) | F (lb) |
+|---|---|---|---|---|---|---|---|
+| SOURCE a·eave (formula q<sub>h</sub>) | 64.11 | (0.40·835.89 + 0.61·64.11)/900 = 0.41496 | (−0.29·835.89 − 0.43·64.11)/900 = −0.29997 | 0.71493 | 39.11 | 27.11 | **24,403** |
+| SOURCE a·eave (table q<sub>h</sub>) | 64.11 | 0.41496 | −0.29997 | 0.71493 | 38.98 | 27.03 | 24,324 |
+| Correct a·eave + ½a²tanθ (formula q<sub>h</sub>) | 69.29 | 0.41617 | −0.30078 | 0.71695 | 39.11 | 27.19 | **24,472** |
+| Correct (table q<sub>h</sub>) | 69.29 | 0.41617 | −0.30078 | 0.71695 | 38.98 | 27.10 | 24,393 |
+
+Same case in Exposure B (probe for S-01): SOURCE K<sub>z</sub> = 0.605, q<sub>h</sub> = 22.27 psf, F = 13,894 lb. Table 26.10-1 footnote a (Chapter 28, Exp B, z < 30 ft): K<sub>z</sub> = 0.70, q<sub>h</sub> = 25.74 psf, p = 17.85 psf, **F = 16,063 lb** (file is 13.5% low).
+
+#### C. Open, troughed, clear, θ = 10°, V = 115, Exp B, h = 25 ft, L = 60 ft normal to ridge, ridge 80 ft
+
+- K<sub>z</sub>(25, B): table 0.66; formula 2.01(25/1200)<sup>2/7</sup> = 0.6650.
+- q<sub>h</sub> = 0.00256 × 0.66 × 0.85 × 115² = **18.99 psf** (formula: 19.14 psf). q<sub>h</sub>G = 16.144 (16.267).
+- h/L = 25/60 = 0.417; transverse h/L = 25/80 = 0.313 (both in range).
+- Fig. 27.3-6, clear, θ = 10° → linear interpolation between 7.5° and 15° rows, t = (10 − 7.5)/7.5 = 1/3:
+  - A: C<sub>NW</sub> = −1.1 + (−1.1 − (−1.1))/3 = **−1.100**; C<sub>NL</sub> = 0.3 + (0.4 − 0.3)/3 = **+0.333**.
+  - B: C<sub>NW</sub> = −0.2 + (0.1 − (−0.2))/3 = **−0.100**; C<sub>NL</sub> = 1.2 + (1.1 − 1.2)/3 = **+1.167**.
+
+| case | C<sub>NW</sub> | C<sub>NL</sub> | p<sub>W</sub> (table) | p<sub>L</sub> | p<sub>W</sub> (formula) | p<sub>L</sub> |
+|---|---|---|---|---|---|---|
+| A | −1.100 | +0.333 | −17.76 | +5.38 | −17.89 | +5.42 |
+| B | −0.100 | +1.167 | −1.61 | +18.83 | −1.63 | +18.98 |
+
+- Fig. 27.3-7 (clear), h = 25: ≤h A −0.8 → −12.92 (−13.01); B 0.8 → +12.92 (+13.01). h–2h (25–50) A −0.6 → −9.69 (−9.76); B 0.5 → +8.07 (+8.13). >2h (50–80) A −0.3 → −4.84 (−4.88); B 0.3 → +4.84 (+4.88).
+
+### Browser comparison (SOURCE in headless Chromium, playwright, `file://` load, inputs set by id, `change` dispatched, `button.calc-btn` clicked)
+
+| Case | SOURCE displayed | Hand (formula q<sub>h</sub>) | Match |
+|---|---|---|---|
+| A | K<sub>h</sub> 0.902, q<sub>h</sub> 25.95; C<sub>N</sub> 0A −0.90/−1.30, 0B −1.90/0.00, 180A 1.30/1.60, 180B 1.80/0.60; p 0A −19.85/−28.68, 0B −41.92/+0.00, 180A +28.68/+35.30, 180B +39.71/+13.24; γ90: −17.65/+17.65, −13.24/+11.03, −6.62/+6.62 | identical | Yes |
+| B | K<sub>h</sub> 1.063, q<sub>h</sub> 39.11; A −1.20/−1.20 → −39.89/−39.89; B −0.80/−1.70 → −26.59/−56.51; γ90: −39.89/+16.62, −29.92/+16.62, −19.94/+9.97; §28.3.5: A<sub>E</sub> 900.0, a 5.00, A<sub>edge</sub> 64.1, GC<sub>pf</sub> +0.415/−0.300, K<sub>B</sub> 1.300, K<sub>S</sub> 0.746, p +27.11, F +24,402.77 lb | identical to the "SOURCE a·eave" row; correct F = 24,472 lb (S-09) | Yes (to its own formula) |
+| C (eaveH set = 25) | K<sub>h</sub> 0.665, q<sub>h</sub> 19.14; A −1.10/0.33 → −17.89/+5.42; B −0.10/1.17 → −1.63/+18.98; γ90: −13.01/+13.01, −9.76/+8.13, −4.88/+4.88 | identical | Yes |
+| C (eaveH left at 16) | h reported 16.0 ft, K<sub>h</sub> 0.585, q<sub>h</sub> 16.85; p A −15.75/+4.77, B −1.43/+16.71; γ90 zones 16/32 ft | h should be 25 (mean roof height) | **No** → S-05 |
+| A, B, C | §28.3.5 card shown as applicable for monoslope (F 17.7 k) and troughed (F 20.5 k) free roofs | §28.3.5 is for pitched roofs | **No** → S-04 |
+| B in Exp B | q<sub>h</sub> 22.27 (K<sub>z</sub> 0.605), F 13,894 lb | K<sub>z</sub> = 0.70 → F 16,063 lb | **No** → S-01 |
+
+SOURCE's K<sub>z</sub> is the Table 26.10-1 Note 1 formula, not the tabulated value; it runs 0.2% (Exp C, 20 ft) to 0.8% (Exp B, 25 ft) above the table. Both are permitted for Chapter 27 (Note 1); only the Chapter 28 / Exposure B / z < 30 ft footnote is a hard requirement (S-01).
+
+### Verified correct (matched the code, item by item)
+
+1. **Table 26.13-1** (PDF 326): Enclosed +0.18/−0.18; Partially enclosed +0.55/−0.55; Partially open +0.18/−0.18; Open 0.00 — SOURCE `GCPI` 424-429 exact. LIVE enclosed/partial values exact (partially open not offered, L-08).
+2. **Table 26.9-1** (PDF 323): 0 → 1.00, 1,000 → 0.96, 2,000 → 0.93, 3,000 → 0.90, 4,000 → 0.86, 5,000 → 0.83, 6,000 → 0.80; Note 2 formula K<sub>e</sub> = e<sup>−0.0000362 z<sub>g</sub></sup>. SOURCE line 589 matches the formula; formula reproduces every table value (0.9644, 0.9302, 0.8971, 0.8652, 0.8344, 0.8048). <0 and >6,000 ft go to the formula, which SOURCE does.
+3. **Table 26.11-1** (PDF 324): B α 7.0, z<sub>g</sub> 1,200, z<sub>min</sub> 30; C 9.5, 900, 15; D 11.5, 700, 7 — SOURCE `EXPOSURE` exact.
+4. **Table 26.10-1 Note 1** K<sub>z</sub> = 2.01(z/z<sub>g</sub>)<sup>2/α</sup> for 15 ≤ z ≤ z<sub>g</sub>, = 2.01(15/z<sub>g</sub>)<sup>2/α</sup> for z < 15 — SOURCE `Kz()` 528-529 exact. **Eq. 26.10-1** q<sub>z</sub> = 0.00256 K<sub>z</sub> K<sub>zt</sub> K<sub>d</sub> K<sub>e</sub> V² — SOURCE `qCalc` and LIVE `qz` exact.
+5. **Table 26.10-1** all 17 rows (0–15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200 ft) × B/C/D — LIVE `KZ_TABLE` exact (B 0.57…1.20; C 0.85…1.46; D 1.03…1.61). Linear interpolation per Note 3.
+6. **§26.11.1**: "The gust-effect factor for a rigid building or other structure is permitted to be taken as 0.85." G = 0.85 in both files.
+7. **Fig. 27.3-1 walls** (PDF 331): windward 0.8 with q<sub>z</sub>; leeward −0.5 (L/B 0–1), −0.3 (2), −0.2 (≥4) with q<sub>h</sub>; sidewall −0.7 with q<sub>h</sub>. SOURCE 663-669 and LIVE `lerpCpLW` exact including interpolation.
+8. **Fig. 27.3-1 roof, normal to ridge, θ ≥ 10°**, all 24 windward cells for θ = 10, 15, 20, 25, 30, 35, 45 at h/L ≤ 0.25 / 0.5 / ≥ 1.0 and all 9 leeward cells (−0.3, −0.5, −0.6 / −0.5, −0.5, −0.6 / −0.7, −0.6, −0.6): SOURCE `ROOF_WINDWARD`/`ROOF_LEEWARD` exact; LIVE `ROOF_CP_SLOPED` rows 10–45 exact (the 45° / ≤0.25 pair stored as [0.4, 0.4] is equivalent to the single listed 0.4; the θ = 60 row is wrong, L-01).
+9. **Fig. 27.3-1 zone table** (θ < 10° normal to ridge, and parallel to ridge for all θ): h/L ≤ 0.5: 0–h/2 −0.9/−0.18; h/2–h −0.9/−0.18; h–2h −0.5/−0.18; >2h −0.3/−0.18. h/L ≥ 1.0: 0–h/2 −1.3<sup>b</sup>/−0.18; >h/2 −0.7/−0.18. SOURCE `ROOF_ZONE` exact for both buckets (step to the ≥1.0 table for 0.5 < h/L < 1.0 is conservative). LIVE has only the ≤0.5 bucket (L-02).
+10. **Fig. 27.3-1 Notes** as printed: 2 (interpolate L/B, h/L, θ; same sign only; assume 0.0 where none), 3 (two values → design for both; h/L interpolation between like signs), 4 (monoslope: entire roof is windward or leeward), 6 (mansard: top horizontal and leeward inclined surfaces are leeward), 7 (horizontal shear not less than neglecting roof, except moment frames). SOURCE's method notes (691, 711) and mansard note (708) state these correctly.
+11. **What Fig. 27.3-1 says for wind parallel to the ridge**: the zone table applies "Parallel to Ridge for All θ" — C<sub>p</sub> by horizontal distance from the windward edge (item 9), with L = along-wind dimension (the ridge length) and h = mean roof height (eave height if θ ≤ 10°); the windward/leeward table is for wind normal to the ridge only.
+12. **Fig. 27.3-4** (PDF 334) all 7 θ rows × 16 values (A/B × clear/obstructed × γ 0/180) — SOURCE `CN_MONO` exact. Note 3 (interpolate 7.5°–45°; θ < 7.5° use 0°) implemented at 774.
+13. **Fig. 27.3-5** (PDF 335) all 6 rows × 8 values — SOURCE `CN_PITCHED` exact. **Fig. 27.3-6** (PDF 336) all 6 rows × 8 values — SOURCE `CN_TROUGHED` exact. Note 3 (θ < 7.5° → monoslope coefficients, which at θ < 7.5° are the 0° row) implemented at 786-790; γ = 0 and 180 share one table (figure heading "γ = 0°, 180°").
+14. **Figs. 27.3-4/5/6** applicability 0.25 ≤ h/L ≤ 1.0, θ ≤ 45°; L = horizontal dimension of roof in the along-wind direction; h = mean roof height. SOURCE range warning 742-745 correct for γ = 0/180.
+15. **Fig. 27.3-7** (PDF 337): zones ≤h / >h,≤2h / >2h; A clear −0.8, −0.6, −0.3; A obstructed −1.2, −0.9, −0.6; B clear 0.8, 0.5, 0.3; B obstructed 0.5, 0.5, 0.3 — SOURCE `CN_TRANSVERSE` exact; applied to all shapes.
+16. **§27.3.2 / Eq. 27.3-2** p = q<sub>h</sub> G C<sub>N</sub>, q<sub>h</sub> at mean roof height using the exposure giving the highest loads, G from §26.11 — SOURCE 769, 805 exact; no GC<sub>pi</sub> term (Table 26.13-1 open = 0.00).
+17. **§28.3.5 / Eqs. 28.3-3, 28.3-4**: p = q<sub>h</sub>[(GC<sub>pf</sub>)<sub>ww</sub> − (GC<sub>pf</sub>)<sub>lw</sub>]K<sub>B</sub>K<sub>S</sub>; F = pA<sub>E</sub>; K<sub>B</sub> = 1.8 − 0.01B (B < 100) / 0.8; K<sub>S</sub> = 0.60 + 0.073(n − 3) + 1.25φ<sup>1.8</sup>; φ = A<sub>S</sub>/A<sub>E</sub>; n ≥ 3; B = width perpendicular to ridge; A<sub>E</sub> = end wall area as if fully enclosed (rectangle + gable). SOURCE 826-850 exact. **Fig. 28.3-1 Load Case B** (PDF 368): zone 5 = 0.40, 6 = −0.29, 5E = 0.61, 6E = −0.43, constant for θ 0–90 — SOURCE `GCPF_LC_B` exact. Edge strip width *a* per notation (10% least dim or 0.4h, not less than 4% or 3 ft) — SOURCE 835-837 exact. Area-weighted average of 5/5E and 6/6E, strip at one (windward) corner per end wall, is the correct reading; only the gable sliver is missing (S-09).
+18. **§27.1.5** (PDF 328) 16 psf × wall area and 8 psf × projected roof area, simultaneously, for enclosed/partially enclosed; 16 psf × A<sub>f</sub> for open — SOURCE 388-390 text correct.
+19. **Fig. 27.3-8** (PDF 338) Cases 1–4 as printed (Case 2: 0.75P with M<sub>T</sub> = 0.75(P<sub>WX</sub> + P<sub>LX</sub>)B<sub>X</sub>e<sub>X</sub>, e = ±0.15B; Case 4: 0.563P on both axes) and the §27.3.5 exception for Appendix D §D1.1 (Cases 1 and 3 only) — SOURCE 392-399 correct.
+20. **§27.3.4 / Eq. 27.3-3** parapets: p<sub>p</sub> = q<sub>p</sub>(GC<sub>pn</sub>), q<sub>p</sub> at the top of the parapet, +1.5 windward, −1.0 leeward — SOURCE 607-608, 647-648 and LIVE 504-513 exact. LIVE's net parapet force (1.5 + 1.0)q<sub>p</sub>h<sub>p</sub>B<sub>⊥</sub> at the roof diaphragm is the correct combination.
+21. **h definition**: §26.2 "MEAN ROOF HEIGHT, h: The average of the roof eave height and the height to the highest point on the roof surface, except that, for roof angles of less than or equal to 10°, the mean roof height is permitted to be taken as the roof eave height." §26.3: "h = mean roof height … except that eave height shall be used for roof angle θ less than or equal to 10°." Fig. 27.3-1 and Fig. 28.3-1 notation: "eave height shall be used for θ ≤ 10°." SOURCE `theta > 10 ? h : eaveH` (590) is correct including the ≤ (only Fig. 28.5-1, not used here, says "< 10°"). LIVE's single h input is acceptable with the L-06 note.
+22. **Ground elevation**: SOURCE K<sub>e</sub> formula; LIVE takes K<sub>e</sub> as an input (0.8–1.0) — both consistent with Table 26.9-1 Notes 1–3.
