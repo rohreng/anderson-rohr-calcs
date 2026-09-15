@@ -1603,34 +1603,24 @@ function drawMWFRSDiagram(){
 }
 
 // ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
-function saveInputsMWFRS(){
+var MWFRS_INPUT_IDS=['V','exp','encl','Kzt','groundElev','Ke','B','D','h','roofType','freeRoofShape','windFlow','ridgeDir','roofAngleMode','theta','pitchRise','hp','numFrames','AsArea'];
+function collectInputsMWFRS(){
   var storyRows=document.getElementById('storyRows').children;
   var stories=[];
   for(var i=0;i<storyRows.length;i++){
-    stories.push({
-      label: storyRows[i].querySelector('input[type=text]').value,
-      h: storyRows[i].querySelector('.sh').value
-    });
+    stories.push({ label: storyRows[i].querySelector('input[type=text]').value, h: storyRows[i].querySelector('.sh').value });
   }
-  var data={
-    _version:1, _calc:'mwfrs',
+  var data={ _version:2, _calc:'mwfrs',
     projName: document.getElementById('projName').value,
     projNum:  document.getElementById('projNum').value,
     projDate: document.getElementById('projDate').value,
     projEng:  document.getElementById('projEng').value,
-    V:     document.getElementById('V').value,
-    exp:   document.getElementById('exp').value,
-    encl:  document.getElementById('encl').value,
-    Kzt:   document.getElementById('Kzt').value,
-    Ke:    document.getElementById('Ke').value,
-    B:     document.getElementById('B').value,
-    D:     document.getElementById('D').value,
-    h:     document.getElementById('h').value,
-    roofType: document.getElementById('roofType').value,
-    theta: document.getElementById('theta').value,
-    hp:    document.getElementById('hp').value,
-    stories: stories
-  };
+    stories: stories };
+  MWFRS_INPUT_IDS.forEach(function(id){ data[id]=document.getElementById(id).value; });
+  return data;
+}
+function saveInputsMWFRS(){
+  var data=collectInputsMWFRS();
   var proj=data.projName||data.projNum||'mwfrs';
   var fname=proj.replace(/[^a-z0-9_\-]/gi,'_').replace(/_+/g,'_')+'_mwfrs.json';
   var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
@@ -1804,39 +1794,36 @@ function copyRevitWind(){
   }
 }
 
+// Applies a saved input object (v1 or v2). v1 files carry roofType 'sloped' → gablehip; missing v2 keys keep the page default.
+function applyInputsMWFRS(d){
+  if(d._calc!=='mwfrs') throw new Error('This file is not an MWFRS calculator save file.');
+  var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined&&v!==null)el.value=v;};
+  set('projName',d.projName); set('projNum',d.projNum); set('projDate',d.projDate); set('projEng',d.projEng);
+  MWFRS_INPUT_IDS.forEach(function(id){ set(id, id==='roofType'&&d.roofType==='sloped'?'gablehip':d[id]); });
+  if(d.groundElev===undefined) set('groundElev', 0);   // v1: Ke was a direct input; keep it, do not overwrite from elevation
+  toggleRoofInputs();
+  if(d.stories&&d.stories.length){
+    var container=document.getElementById('storyRows');
+    container.innerHTML='';
+    d.stories.forEach(function(s,i){
+      var div=document.createElement('div');
+      div.className='story-row row'; div.dataset.idx=i;
+      div.innerHTML='<div class="ig" style="flex:0 0 70px"><label>Story</label>'
+        +'<input type="text" value="'+s.label+'" '+(i===0?'readonly ':'')+'style="background:#f7fafc"/></div>'
+        +'<div class="ig"><label>Floor-to-Floor Height (ft)</label>'
+        +'<input type="number" class="sh" value="'+s.h+'" min="1" step="0.5"/></div>'
+        +'<button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>';
+      container.appendChild(div);
+    });
+  }
+  drawMWFRSDiagram();
+}
 function loadInputsMWFRS(input){
   var file=input.files[0]; if(!file) return;
   var reader=new FileReader();
   reader.onload=function(e){
-    try{
-      var d=JSON.parse(e.target.result);
-      if(d._calc!=='mwfrs'){alert('This file is not an MWFRS calculator save file.');return;}
-      var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined)el.value=v;};
-      set('projName',d.projName); set('projNum',d.projNum);
-      set('projDate',d.projDate); set('projEng',d.projEng);
-      set('V',d.V); set('exp',d.exp); set('encl',d.encl);
-      set('Kzt',d.Kzt); set('Ke',d.Ke);
-      set('B',d.B); set('D',d.D); set('h',d.h);
-      set('roofType',d.roofType); set('theta',d.theta); set('hp',d.hp);
-      toggleRoofInputs();
-      // Rebuild story rows
-      if(d.stories&&d.stories.length){
-        var container=document.getElementById('storyRows');
-        container.innerHTML='';
-        d.stories.forEach(function(s,i){
-          var div=document.createElement('div');
-          div.className='story-row row'; div.dataset.idx=i;
-          div.innerHTML='<div class="ig" style="flex:0 0 70px"><label>Story</label>'
-            +'<input type="text" value="'+s.label+'" '+(i===0?'readonly ':'')+'style="background:#f7fafc"/></div>'
-            +'<div class="ig"><label>Floor-to-Floor Height (ft)</label>'
-            +'<input type="number" class="sh" value="'+s.h+'" min="1" step="0.5"/></div>'
-            +'<button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>';
-          container.appendChild(div);
-        });
-      }
-      drawMWFRSDiagram();
-      alert('Inputs loaded successfully.');
-    }catch(err){alert('Error reading file: '+err.message);}
+    try{ applyInputsMWFRS(JSON.parse(e.target.result)); alert('Inputs loaded successfully.'); }
+    catch(err){ alert('Error reading file: '+err.message); }
   };
   reader.readAsText(file);
   input.value=''; // reset so same file can be re-loaded
@@ -1850,12 +1837,12 @@ document.addEventListener('DOMContentLoaded',function(){
 
   // URL-query-param prefill (e.g. pyRevit opens this calc pre-filled with model geometry)
   var qp=new URLSearchParams(window.location.search);
-  ['projName','projNum','projEng','V','exp','encl','Kzt','Ke','B','D','h','roofType','theta','hp'].forEach(function(key){
+  ['projName','projNum','projEng'].concat(MWFRS_INPUT_IDS).forEach(function(key){
     if(qp.has(key)){
       var val=qp.get(key);
       if(val!==null&&val!==''){
         var el=document.getElementById(key);
-        if(el) el.value=val;
+        if(el) el.value=(key==='roofType'&&val==='sloped')?'gablehip':val;
       }
     }
   });
