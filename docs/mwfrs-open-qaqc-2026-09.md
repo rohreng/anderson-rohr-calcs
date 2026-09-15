@@ -163,3 +163,130 @@ SOURCE's K<sub>z</sub> is the Table 26.10-1 Note 1 formula, not the tabulated va
 20. **§27.3.4 / Eq. 27.3-3** parapets: p<sub>p</sub> = q<sub>p</sub>(GC<sub>pn</sub>), q<sub>p</sub> at the top of the parapet, +1.5 windward, −1.0 leeward — SOURCE 607-608, 647-648 and LIVE 504-513 exact. LIVE's net parapet force (1.5 + 1.0)q<sub>p</sub>h<sub>p</sub>B<sub>⊥</sub> at the roof diaphragm is the correct combination.
 21. **h definition**: §26.2 "MEAN ROOF HEIGHT, h: The average of the roof eave height and the height to the highest point on the roof surface, except that, for roof angles of less than or equal to 10°, the mean roof height is permitted to be taken as the roof eave height." §26.3: "h = mean roof height … except that eave height shall be used for roof angle θ less than or equal to 10°." Fig. 27.3-1 and Fig. 28.3-1 notation: "eave height shall be used for θ ≤ 10°." SOURCE `theta > 10 ? h : eaveH` (590) is correct including the ≤ (only Fig. 28.5-1, not used here, says "< 10°"). LIVE's single h input is acceptable with the L-06 note.
 22. **Ground elevation**: SOURCE K<sub>e</sub> formula; LIVE takes K<sub>e</sub> as an input (0.8–1.0) — both consistent with Table 26.9-1 Notes 1–3.
+
+## Gate 2 — merged calc (2026-09-15)
+
+**CALC:** `public/Calcs/asce716_mwfrs_calculator.html` at `302ad5a` (merge commits 43fa991..302ad5a). **CODE:** ASCE 7-16 PDF, page numbers as in Gate 1. **Method:** harness run; every constant table in CALC re-read against the figure images (Fig. 27.3-1 PDF 331, Figs. 27.3-4/5 PDF 334-335, Fig. 27.3-7 PDF 337, Fig. 28.3-1 LC B PDF 368, §28.3.5 PDF 369; CN_TROUGHED is byte-identical to SOURCE, which Gate 1 verified against PDF 336); six cases hand-computed in an independent script with constants typed from the PDF (own interpolation code, no calc functions), then driven in headless Chromium (`tools/_gate2.mjs`, deleted) with the harness's route-to-`public/` setup and compared against both `window.__mwfrsLast` and the rendered table text.
+
+### Harness
+
+`node tools/test-mwfrs-wind.mjs` → **62 PASS, 0 FAIL, `ALL PASS`** (4 baseline cases, no page errors, parallel-to-ridge ×2, L-02 ×3, open ×12, frame ×7 incl. S-01 ×2, round-trip, legacy ×3, sweep ×18, visibility ×6).
+
+### Gate 1 decision verification
+
+| ID | Verified where (CALC line) | Evidence |
+|---|---|---|
+| S-01 | 608-610 `Kh28 = (exp==='B' && hVal<30) ? 0.70 : Kh`, `qh28`; passed to `longFrameForce` at 618 | Case (d): frame block q<sub>h</sub> = 18.43 psf (K<sub>h</sub> 0.700) while page q<sub>h</sub> = 15.27 psf (K<sub>h</sub> 0.580). Harness S-01 checks pass. |
+| L-01 | 299-300 rows 60 → 0.6, 80 → 0.8; 396-397 clamp to the 80 row; input `max="80"` at 192 | Case (f) θ = 70° → windward 0.70 / 0.70, leeward −0.60. (θ > 80° cannot be entered; the clamp gives 0.8 = footnote c.) |
+| L-02 | 379-390 `flatRoofCp` interpolates each zone between the ≤0.5 and ≥1.0 tables | Case (e): 40×40×40 → −1.3 (0–h/2), −0.7 (h/2–h), two zones; 60×120×40 Wind-X → −1.033 / −0.833 / −0.567, Wind-Y (0.333) unchanged four-zone. |
+| L-03 | 178-183 `#ridgeDir`; 586-587 `normalX`; 776 `!normalToRidge` → zone table; 808-809 | Case (a) Wind-Y (parallel, L = 80, h/L = 0.375) renders the zone table; case (b) ridge along B → "Normal-to-ridge direction = Wind-Y (NS)". |
+| S-03 / L-04 | 298 row 45, h/L ≤ 0.25 → `[0.0, 0.4, −0.6]` | Case (f) θ = 40°, h/L = 0.15 → windward (low) 0.00, (high) 0.40, leeward −0.60. |
+| S-06 | 612 `theta>0 && theta<=45` | Code read. |
+| S-07 | 626 `hL90: hVal/Lridge`; 1035-1036 `warn90` | Case (b) h/L<sub>90</sub> = 0.225 → "h/L = 0.23 … outside 0.25 ≤ h/L ≤ 1.0 — Fig. 27.3-7 does not apply directly" rendered; case (d) 0.178 same. |
+| S-09 | 493 `Aedge = a*eaveH + 0.5*a*a*tanθ` | Case (c) A<sub>edge</sub> = 134.43 ft², case (d) 53.33 ft² — both match hand. |
+| L-05 | 243 block title "Parapet Pressures (§27.3.4)"; 749 comment; 955, 958, 980 | grep: "27.3.5" now appears only in the Fig. 27.3-8 / Appendix D exception (1106), which is correct. |
+| L-06 | 200 geometry note (mean h; eave for walled θ ≤ 10°; free roofs mean h) | Rendered under Building Geometry, prints. |
+| S-04 | 521-525 `frameEligible()` | UI walk: frame block visible only for Partially Enclosed + Gable/Hip and Open + Pitched. |
+| S-05 | 603 `qz(hVal…)`, 626 `hL: hVal/Wperp` | Open path uses the single mean-roof-height input. |
+| S-08 | 740-741 `calcDir` ×2; 808-809 `getRoofPressures` ×2 | Both directions rendered for every walled case. |
+| L-08 | 132 option "Partially Open"; 304 `GCPI_MAP.partialOpen = 0.18` | UI walk: Partially Open × 4 roof types → "GCpi = ±0.18". |
+| S-14 / S-15 / L-07 / S-02 (notes) | 1097-1098 (16 psf × A<sub>f</sub>, A<sub>f</sub> defined); 1054 (fascia / inverted parapet); 992 (fn. b not applied); 1005-1010 (Note 4 / Note 6 labels) | Rendered in the walk. |
+
+### Findings
+
+| ID | Sev. | Reference | File : line | What the file has | What it should be | Fix |
+|---|---|---|---|---|---|---|
+| G2-01 | MAJOR | Spec "Both paths keep … are-utils toolbar … save/load"; `are-utils-v2.js` 1479-1630 (`loadFromState`), 856 (`data-are-ignore`) | CALC 1892-1909 (adapter `setModel` → `calculate()`), 1127-1148 (`renderSend` selects) | **Toolbar Load of any Open-building snapshot is rejected and rolled back.** `loadFromState` runs `adapter.setModel()` → `calculate()` on the page's *current* inputs before the file's fields are applied; on a fresh page that is an Enclosed run, which materializes `#sendDir`, `#sendStory`, `#diaStoryX`, `#diaStoryY`. An Open snapshot carries no such keys (`captureState` on case (b): 23 fields, no send controls) → `notInFile` mismatch → `ok:false, rolledBack:true`. Probed three ways (fresh page; page that had already run a walled calc; snapshot captured before Calculate) — all roll back. The rollback then calls `setModel(backup)` → `calculate()` while the file's Open inputs are still in the DOM and only afterwards restores the input values, so the page is left showing **Open results (openBlk visible, `__mwfrsLast.encl='open'`, q<sub>h</sub> 23.12) above Enclosed default inputs (60×120×40)** — the inconsistent record the loader's own comments say it exists to prevent. `{force:true}` gives the mirror image (Open inputs, Enclosed results). A walled snapshot (case (a)) loads `ok:true, applied:27`. | Open snapshots load like walled ones. | Add `data-are-ignore` to the four result-derived selects built in `renderSend` (they are rebuilt by `calculate()` and carry no user data); are-utils then excludes them from capture and from the reverse diff. Add a toolbar `captureState()` → `loadFromState()` → `runAndSettle()` round trip for an Open case (and a walled case captured before Calculate, which fails the same way today) to the harness. The adapter block is byte-identical pre/post merge — the mechanism is pre-existing, but every Open snapshot hits it. |
+| G2-02 | MAJOR | Fig. 27.3-4 diagrams, PDF 334 (p.279) | CALC 1054 | "monoslope: γ = 0° wind into the low eave, γ = 180° into the high eave" | The γ = 0° sketch has the wind arriving at the **high** eave (roof falls away from the wind; θ is drawn at the low, leeward end); γ = 180° arrives at the low eave. The C<sub>N</sub> values in the calc are correct (verified cell by cell) — the note tells the engineer to put the γ = 0° pattern on the wrong edge, which is the whole point of listing γ. | Swap: "γ = 0° wind into the high eave, γ = 180° into the low eave". |
+| G2-03 | MINOR | Table 26.9-1; commit c55d3a3 ("URL prefill for new inputs") | CALC 1840-1848 | `?groundElev=5000` sets `#groundElev` = 5000 but `#Ke` stays 1.00 (`updateKeFromElev` is only wired to `oninput`) | K<sub>e</sub> = 0.834 | After the prefill loop: `if (qp.has('groundElev') && !qp.has('Ke')) updateKeFromElev();`. Conservative direction (K<sub>e</sub> ≤ 1), prefill path only. |
+| G2-04 | MINOR | Table 26.10-1 fn. a | CALC 1090 | §28.3.5 ref line always prints "Kh = … (Exposure B, h < 30 ft → Kz = 0.70 per Table 26.10-1 fn. a)" — case (c) shows "Kh = 1.144 (Exposure B, h < 30 ft → …)" in Exposure D | State the footnote only when it was applied; otherwise "Kh per Table 26.10-1" | Conditional on the footnote having been applied (store a flag in `longFrameForce` or pass `exp`/`h` to `renderFrame`). |
+| G2-05 | MINOR | Fig. 27.3-7, zones by distance from the windward edge along L = ridge length | CALC 475-479, 1057-1061 | Zones "> h, ≤ 2h" and "> 2h" are listed even when the ridge is shorter than them: L<sub>ridge</sub> = 30 ft, h = 20 ft → "> 2h" (beyond 40 ft) shown for a 30 ft roof | Only zones that exist on the roof; show the ft bounds (0–h, h–2h, >2h in ft) as the walled zone table does | Filter `from < Lridge`, clamp `to`, print bounds. |
+| G2-06 | MINOR | §28.3.5 geometry guard (commit 301386c) | CALC 815 `setBlk('frameBlk',!!frame)`, 1068-1069 | For a walled Gable/Hip with h ≤ rise/2 the "§28.3.5 not evaluated: … eave height is positive" warning is written into a block that is hidden — never seen (probe: Partially Enclosed, 30°, B = 60, h = 5 → `frame:null`, `frameBlk` display none) | Warning visible | `setBlk('frameBlk', !!frame || frameReason==='geometry')`. |
+| G2-07 | MINOR | Figs. 27.3-4 to 27.3-7 (free roof, no walls) | CALC 1211-1349 `drawMWFRSDiagram` | For Open the diagram draws two walls, "+p, WW" / "−p, LW" wall arrows and the caption "Fig. 27.3-1 \| Cp,WW = +0.8 (qz) \| Cp,LW per L/B" (prints on p.2 of the case (b) PDF) | A free roof on columns with the C<sub>N</sub> uplift/downward arrows, caption Figs. 27.3-4 to 27.3-7 | Branch on `isOpenEncl()`; at minimum drop the wall arrows/caption. (Pre-existing: pitched walled roofs are also drawn flat.) |
+| G2-08 | MINOR | Fig. 27.3-1 Note 2 (interpolation on h/L) | CALC 1008 `f1(r.hL)` | Sloped-roof note prints h/L to one decimal: case (c) h/L = 0.467 → "h/L = 0.5"; case (f) 0.15 → "0.2" — reads as if the 0.5 column were used unmodified | Two or three decimals | `f2(r.hL)` (the wall tables already use `f2` for L/B). |
+| G2-09 | MINOR | — | CALC 662 | `var cumH=hVal;` unused (`stories` at 591-597 is also gathered before the Open early-return and unused there — harmless) | — | Delete 662. |
+| G2-10 | MINOR (harness) | — | `tools/test-mwfrs-wind.mjs` 232 | `legacy: theta row visible` reads `e.style.display`, which the class-based toggle never sets → always passes; no toolbar save/load round trip (see G2-01) | Computed style; toolbar round trip | `getComputedStyle(e).display !== 'none'`; add `captureState`/`loadFromState` cases. |
+| G2-11 | MINOR (pre-existing, print) | — | CALC 11-12 + `are-theme-v2.css` | `.header h1` prints navy-on-navy (illegible) on page 1 of both PDFs; the AREv2 RESULTS chip row splits across a page break (case (b) p.5 has one orphan chip) | Legible title; keep the chip row together | Theme print rule for `.header h1`; `break-inside: avoid` on the results bar. Not merge-related. |
+
+No BLOCKER: every design pressure, coefficient, K<sub>z</sub>, K<sub>e</sub>, story shear and §28.3.5 quantity checked matches the code and the hand values.
+
+### Hand checks (constants typed from the PDF; page values from `__mwfrsLast` and the rendered tables)
+
+Common: K<sub>d</sub> = 0.85, G = 0.85, q = 0.00256 K<sub>z</sub> K<sub>zt</sub> K<sub>d</sub> K<sub>e</sub> V² (Eq. 26.10-1); walls WW = q<sub>z</sub>G(0.8) ∓ q<sub>h</sub>GC<sub>pi</sub>, LW = q<sub>h</sub>GC<sub>p,LW</sub> ± q<sub>h</sub>GC<sub>pi</sub>, SW = q<sub>h</sub>G(−0.7); p<sub>net</sub> = q<sub>z</sub>G(0.8) − q<sub>h</sub>GC<sub>p,LW</sub>; F = p<sub>net</sub> × h<sub>trib</sub> × B<sub>⊥</sub>.
+
+**(a) Enclosed, Gable/Hip θ = 20°, ridge along D, V = 120, Exp B, K<sub>zt</sub> = 1, z<sub>g</sub> = 0 (K<sub>e</sub> = 1.000), B = 50, D = 80, h = 30, stories 15/15, h<sub>p</sub> = 0.** K<sub>h</sub>(30, B) = 0.70 → q<sub>h</sub> = 0.00256 × 0.70 × 0.85 × 120² = **21.934 psf** (page 21.93). Story mids 22.5 ft (K<sub>z</sub> 0.64, q<sub>z</sub> 20.054) and 7.5 ft (0.57, 17.861). GC<sub>pi</sub> ±0.18 → q<sub>h</sub>GC<sub>pi</sub> = 3.948.
+
+| Dir | L/B → C<sub>p,LW</sub> | Story | WW A | WW B | LW A | LW B | SW | p<sub>net</sub> | F (lb) | V<sub>cum</sub> (lb) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| X (L 50, B<sub>⊥</sub> 80) | 0.625 → −0.50 | Roof | 9.689 (9.7) | 17.585 (17.6) | −5.374 (−5.4) | −13.270 | −13.051 (−13.1) | 22.959 (23.0) | 13,775 (13.78 k) | 13,775 |
+| | | Floor 1 | 8.197 (8.2) | 16.093 (16.1) | −5.374 | −13.270 | −13.051 | 21.467 (21.5) | 25,761 (25.76 k) | **39,536 (39.54 k)** |
+| Y (L 80, B<sub>⊥</sub> 50) | 1.6 → −0.38 | Roof | 9.689 | 17.585 | −3.137 (−3.1) | −11.033 | −13.051 | 20.721 (20.7) | 7,771 (7.77 k) | 7,771 |
+| | | Floor 1 | 8.197 | 16.093 | −3.137 | −11.033 | −13.051 | 19.230 (19.2) | 14,422 (14.42 k) | **22,193 (22.19 k)** |
+
+Roof, Wind-X normal to ridge (h/L = 30/50 = 0.6, column t = 0.2 between 0.5 and ≥1.0, θ row 20): C<sub>p</sub> = −0.4 + 0.2(−0.3) = **−0.46**; 0.0 + 0.2(−0.18) = **−0.036**; leeward **−0.60**. p<sub>A</sub> = q<sub>h</sub>G C<sub>p</sub> − 3.948 → **−12.524 / −4.619 / −15.135**; p<sub>B</sub> → −4.628 / +3.277 / −7.238. Page: −0.46 / −0.04 / −0.60; −12.5 / −4.6 / −15.1; −4.6 / 3.3 / −7.2 ✓.
+Roof, Wind-Y parallel to ridge (zone table, L = 80, h/L = 0.375 ≤ 0.5): 0–15 ft −0.9 → **−20.728**; 15–30 −0.9 → −20.728; 30–60 −0.5 → −13.270; 60–80 −0.3 → −9.541; Case B = q<sub>h</sub>(0.18 − 0.153) = +0.592 all zones. Page: −20.7 / −20.7 / −13.3 / −9.5; 0.6 ✓.
+Baseline `enclosed-sloped20-2story`: walls, story shears, q<sub>h</sub>, roofX identical to 1e-9; the only differences are `roofType` "sloped"→"gablehip", `roofY` (now the zone table) and the new keys `ridgeDir`, `frame:null`, `open:null`, `roofX.roofType` — exactly the allowlisted set.
+
+**(b) Open, monoslope, obstructed, θ = 10°, ridge along B, V = 115, Exp C, z<sub>g</sub> = 2,500 ft, B = 80, D = 30, h = 18.** K<sub>e</sub> = e<sup>−0.0000362 × 2500</sup> = 0.91347 → field shows **0.913** (3 dp) and the calc uses 0.913 (page shows "Ke = 0.913 (zg = 2500.0 ft)"). K<sub>h</sub>(18, C) = 0.85 + 0.05 × 3/5 = **0.880** → q<sub>h</sub> = 0.00256 × 0.88 × 0.85 × 0.913 × 115² = **23.121 psf** (page 23.12). q<sub>h</sub>G = 19.653. Ridge along B → normal-to-ridge = Wind-Y, L = D = 30 → h/L = **0.60** (in range); L<sub>ridge</sub> = 80 → h/L<sub>90</sub> = **0.225** → warning expected and rendered. θ = 10° → t = (10 − 7.5)/7.5 = 1/3 between the 7.5° and 15° rows of Fig. 27.3-4, obstructed:
+
+| γ / case | C<sub>NW</sub> | C<sub>NL</sub> | p<sub>W</sub> | p<sub>L</sub> | page |
+|---|---|---|---|---|---|
+| 0° A | −1.0 + (−1.1 + 1.0)/3 = **−1.033** | −1.5 | −20.308 | −29.479 | −1.03 / −1.50 / −20.3 / −29.5 ✓ |
+| 0° B | −1.7 + (−2.1 + 1.7)/3 = **−1.833** | −0.8 + (−0.6 + 0.8)/3 = **−0.733** | −36.030 | −14.412 | −1.83 / −0.73 / −36.0 / −14.4 ✓ |
+| 180° A | −0.2 + (0.4 + 0.2)/3 = **0.000** | −1.2 + (−1.1 + 1.2)/3 = **−1.167** | 0.000 | −22.928 | 0.00 / −1.17 / 0.0 / −22.9 ✓ |
+| 180° B | 0.8 + (1.2 − 0.8)/3 = **0.933** | −0.3 | 18.343 | −5.896 | 0.93 / −0.30 / 18.3 / −5.9 ✓ |
+
+Fig. 27.3-7 obstructed, zones 0–18 / 18–36 / 36–80 ft: A −1.2 → −23.583, −0.9 → −17.688, −0.6 → −11.792; B 0.5 → +9.826, 0.5 → +9.826, 0.3 → +5.896. Page: −23.6 / −17.7 / −11.8; 9.8 / 9.8 / 5.9 ✓. Frame block: "§28.3.5 not applicable" (monoslope) ✓. GC<sub>pi</sub> "0 (open)" ✓. `buildRevitWindPayload()` → null, `localStorage.ARE_mwfrs_wind` → null ✓.
+
+**(c) Partially Enclosed, Gable/Hip θ = 25°, ridge along D, V = 130, Exp D, B = 60, D = 150, h = 28, stories 10/9/9, h<sub>p</sub> = 0, n = 6, A<sub>S</sub> = 400 ft².** K<sub>h</sub>(28, D) = 1.12 + 0.04 × 3/5 = **1.144** → q<sub>h</sub> = **42.070 psf** (page 42.07). GC<sub>pi</sub> ±0.55 → q<sub>h</sub>GC<sub>pi</sub> = 23.138. Story mids 23 (K<sub>z</sub> 1.104, q<sub>z</sub> 40.599), 13.5 (1.03, 37.878), 4.5 (1.03, 37.878).
+
+| Dir | C<sub>p,LW</sub> | Story | WW A | WW B | LW A | SW | p<sub>net</sub> | F (lb) | V<sub>cum</sub> |
+|---|---|---|---|---|---|---|---|---|---|
+| X (L 60, B<sub>⊥</sub> 150, L/B 0.4) | −0.50 | Roof / F1 / F2 | 4.469 / 2.618 / 2.618 | 50.746 / 48.895 / 48.895 | +5.259 | −25.032 | 45.487 / 43.637 / 43.637 | 34,115 / 62,182 / 58,909 | 34,115 / 96,297 / **155,207 (155.21 k)** |
+| Y (L 150, B<sub>⊥</sub> 60, L/B 2.5) | −0.3 + 0.1 × 0.5/2 = −0.275 | Roof / F1 / F2 | same | same | +13.305 | −25.032 | 37.441 / 35.591 / 35.591 | 11,232 / 20,287 / 19,219 | 11,232 / 31,519 / **50,738 (50.74 k)** |
+
+Page: 4.5 / 50.7 / 5.3 / −25.0 / 45.5 …; 34.12 / 62.18 / 58.91 → 155.21 k; Wind-Y −0.28, 13.3, 37.4 …; 11.23 / 20.29 / 19.22 → 50.74 k ✓ (all).
+Roof, Wind-X normal (h/L = 28/60 = 0.4667, t = 0.8667 between the ≤0.25 and 0.5 columns, θ row 25): C<sub>p</sub> = −0.2 + 0.8667(−0.1) = **−0.2867**; 0.3 + 0.8667(−0.1) = **0.2133**; −0.60. p<sub>A</sub> = −33.390 / −15.510 / −44.594; p<sub>B</sub> = +12.887 / +30.767 / +1.683. Page −0.29 / 0.21 / −0.60; −33.4 / −15.5 / −44.6; 12.9 / 30.8 / 1.7 ✓ (note prints "h/L = 0.5", G2-08).
+Roof, Wind-Y parallel (L = 150, h/L = 0.187): 0–14 −0.9 → −55.322; 14–28 −0.9; 28–56 −0.5 → −41.018; 56–150 −0.3 → −33.866; Case B +16.702. Page −55.3 / −55.3 / −41.0 / −33.9; 16.7 ✓.
+§28.3.5: rise = 30 tan 25° = **13.989 ft**; eave = 28 − 6.995 = **21.005 ft**; A<sub>E</sub> = 60 × 21.005 + ½ × 60 × 13.989 = 1,260.3 + 419.7 = **1,680.0 ft²**; a = max(min(0.1 × 60, 0.4 × 28), max(0.04 × 60, 3)) = max(min(6, 11.2), 3) = **6.0 ft**; A<sub>edge</sub> = 6 × 21.005 + ½ × 36 × tan 25° = 126.03 + 8.39 = **134.43 ft²** (S-09); A<sub>bulk</sub> = 1,545.57. (GC<sub>pf</sub>)<sub>ww</sub> = (0.40 × 1,545.57 + 0.61 × 134.43)/1,680 = **0.4168**; (GC<sub>pf</sub>)<sub>lw</sub> = (−0.29 × 1,545.57 − 0.43 × 134.43)/1,680 = **−0.3012**; K<sub>B</sub> = 1.8 − 0.6 = **1.20**; φ = 400/1,680 = **0.2381**; K<sub>S</sub> = 0.60 + 0.073 × 3 + 1.25 × 0.2381<sup>1.8</sup> = 0.819 + 0.0944 = **0.9134**; q<sub>h</sub> = 42.070 (Exp D, no K<sub>z</sub> floor); p = 42.070 × 0.7180 × 1.20 × 0.9134 = **33.109 psf**; F = 33.109 × 1,680 = **55,624 lb**. Page: 14.0 / 21.0 / 1680.0 / 6.00 / 134.4 / 0.238 / 0.417 / −0.301 / 1.200 / 0.913 / 42.07 / 33.1 / 55,624 lb (55.62 kips) ✓. Frame block visible, "in addition to the wall pressures above" ✓.
+
+**(d) Open, pitched, clear, 4:12 (pitch mode), ridge along D, V = 110, Exp B, B = 40, D = 90, h = 16, n = 5, A<sub>S</sub> = 0.** θ = atan(4/12) = **18.435°** (label "(θ = 18.43°)", summary "θ=18.4°"). K<sub>z</sub>(16, B) = 0.57 + 0.05/5 = **0.58** → page q<sub>h</sub> = 0.00256 × 0.58 × 0.85 × 110² = **15.271 psf** (page 15.27, K<sub>h</sub> 0.580). §28.3.5: K<sub>z</sub> = **0.70** (fn. a) → q<sub>h,28</sub> = 0.00256 × 0.70 × 0.85 × 110² = **18.431 psf** (frame block 18.43, "Kh = 0.700") — both numbers confirmed on the same page. C<sub>N</sub> (Fig. 27.3-5 clear, t = 0.458 between 15° and 22.5°): A 1.1 / −0.4 + 0.458 × 0.5 = **−0.171**; B 0.1 − 0.458 × 0.2 = **0.0084** / −1.1 + 0.458 × 0.3 = **−0.963**. p (q<sub>h</sub>G = 12.980): A 14.278 / −2.220; B 0.109 / −12.495. Page 1.10 / −0.17 / 14.3 / −2.2; 0.01 / −0.96 / 0.1 / −12.5 ✓. Fig. 27.3-7 clear: −10.384 / −7.788 / −3.894; +10.384 / +6.490 / +3.894 → page −10.4 / −7.8 / −3.9; 10.4 / 6.5 / 3.9 ✓. h/L = 0.40; h/L<sub>90</sub> = 0.178 → warning ✓. Frame: rise = 20 × 1/3 = 6.667; eave 12.667; A<sub>E</sub> = 506.67 + 133.33 = **640.0**; a = max(min(4, 6.4), max(1.6, 3)) = **4.0**; A<sub>edge</sub> = 50.667 + 2.667 = **53.33**; GC<sub>pf</sub> **0.4175 / −0.3017**; K<sub>B</sub> **1.40**; K<sub>S</sub> = 0.60 + 0.146 = **0.746**; p = 18.431 × 0.7192 × 1.4 × 0.746 = **13.843**; F = **8,860 lb**. Page 6.7 / 12.7 / 640.0 / 4.00 / 53.3 / 0.418 / −0.302 / 1.400 / 0.746 / 18.43 / 13.8 / 8,860 lb ✓.
+
+**(e) Enclosed, Flat, V = 115, Exp C, h = 40.** K<sub>z</sub>(40, C) = 1.04 → q<sub>h</sub> = **29.929 psf**; Case B = +0.808 all zones. 40×40 (h/L = 1.0 both ways): two zones, 0–20 ft C<sub>p</sub> **−1.3** → −38.458; 20–40 **−0.7** → −23.195. Page −1.30 / −0.70; −38.5 / −23.2, both directions ✓. 60×120: Wind-X (h/L = 0.667, t = ⅓) 0–20 −0.9 + ⅓(−0.4) = **−1.033** → −31.675; 20–40 −0.9 + ⅓(0.2) = **−0.833** → −26.587; 40–60 −0.5 + ⅓(−0.2) = **−0.567** → −19.803 (>2h zone starts at 80 > L, dropped). Wind-Y (h/L = 0.333): −0.9 / −0.9 / −0.5 / −0.3 → −28.283 / −28.283 / −18.107 / −13.019. Page −1.03 / −0.83 / −0.57; −31.7 / −26.6 / −19.8; −0.90 / −0.90 / −0.50 / −0.30 ✓.
+
+**(f) Enclosed, Gable/Hip, B = D = 200, h = 30 (h/L = 0.15 ≤ 0.25), V = 115, Exp C.** K<sub>z</sub>(30, C) = 0.98 → q<sub>h</sub> = 28.202; q<sub>h</sub>GC<sub>pi</sub> = 5.076. θ = 40°: rows 35 and 45 at h/L ≤ 0.25 are both [0.0, 0.4, −0.6] → **0.00 / 0.40 / −0.60**; p<sub>A</sub> = −5.076 / +4.512 / −19.459; p<sub>B</sub> = +5.076 / +14.665 / −9.307. Page 0.00 / 0.40 / −0.60; −5.1 / 4.5 / −19.5; 5.1 / 14.7 / −9.3 ✓ (S-03/L-04). θ = 70°: rows 60 (0.6) and 80 (0.8), t = 0.5 → **0.70 / 0.70 / −0.60**; p<sub>A</sub> = +11.704 / +11.704 / −19.459. Page 0.70 / 0.70 / −0.60; 11.7 / 11.7 / −19.5 ✓ (L-01).
+
+### UI walk (headless Chromium, computed styles after Calculate; defaults h<sub>p</sub> = 3, θ = 18°, 60×120×40)
+
+| Enclosure × roof | Result blocks visible | Input rows visible | GCpi | Note | NaN / errors |
+|---|---|---|---|---|---|
+| Enclosed / Partially Enclosed / Partially Open × Flat | wx, wy, parapet, roof, min, send | closedRoofGroup, hpRow | ±0.18 / ±0.55 / ±0.18 | — | none |
+| … × Gable/Hip | wx, wy, parapet, roof, min, send (+ **frame** for Partially Enclosed only) | closedRoofGroup, ridgeRow, angleModeRow, thetaRow, hpRow (+ frameRowN, frameRowAs for Partially Enclosed only) | as above | — | none |
+| … × Monoslope | wx, wy, parapet, roof, min, send | closedRoofGroup, ridgeRow, angleModeRow, thetaRow, hpRow | as above | "Note 4" label present, rows "Entire roof as WW / LW" | none |
+| … × Mansard | same | same | as above | "Note 6" label present, rows "WW slope / Top + LW slope" | none |
+| Open × Monoslope / Troughed × Clear / Obstructed | open, openTrans, frame (text "not applicable"), min | openRoofGroup, windFlowGroup, ridgeRow, angleModeRow, thetaRow | 0 (open) | — | none |
+| Open × Pitched × Clear / Obstructed | open, openTrans, **frame (computed)**, min | as above + frameRowN, frameRowAs | 0 (open) | — | none |
+
+Hidden for every Open combination: wxBlk, wyBlk, roofBlk, parapetBlk, sendBlk, hpRow, closedRoofGroup ✓. Pitch mode: pitchRow shown, thetaRow hidden ✓. `#results` innerText free of "NaN"/"undefined" in all 18 combinations and all 8 hand-check runs. Console: zero errors other than 404s for the two external Google-font sheets `are-calc.css` imports (not on disk under the harness route); zero `pageerror`, zero dialogs. Open with θ = 50°: warning "θ = 50.0° exceeds the 45° limit …" rendered and C<sub>N</sub> clamped to the 45° row ✓.
+
+### Save / load
+
+- `collectInputsMWFRS()` on case (b) → reload → `applyInputsMWFRS(saved)` → Calculate: `__mwfrsLast` deep-diff **0 differences** (K<sub>e</sub> 0.913 and z<sub>g</sub> 2,500 both restored).
+- Legacy v1 object (`roofType:'sloped'`, no `groundElev`): `#roofType` = **gablehip**, `#thetaRow` computed display ≠ none, `#groundElev` = 0, `#Ke` = 1 (kept from the file, not overwritten); Calculate → deep-diff vs case (a) **0 differences**.
+- AREv2 toolbar: the file picker cannot be driven headlessly, so the state path was exercised directly — `AREv2.captureState()` → fresh page → `AREv2.loadFromState(state)` (what `loadFromHtml` calls). Walled case (a): `ok:true, applied:27`, inputs restored. Open case (b): **rejected and rolled back** — see **G2-01**. The toolbar Save itself (snapshot .html download) was not exercised.
+
+### Revit
+
+- Case (a) `buildRevitWindPayload()` vs baseline `cases["enclosed-sloped20-2story"].revit` (minus `generatedAt`): 10 differing paths, all in the expected set — `inputs.roofType` "sloped"→"gablehip"; `roof.directions[1]` type "sloped"→"flat", `theta_deg` dropped, zones 3→4 (Wind-Y is now the zone table); `roof.governing_uplift_psf` −15.1→**−20.7** and its zone "Wind-X / Leeward (Case A)"→"Wind-Y (L=80.0ft) / 0–h/2 (Case A)" (q<sub>h</sub>G(−0.9) − q<sub>h</sub>(0.18) = −20.73); `roof.governing_down_psf` 5.8→**3.3** and zone → "Wind-X / Windward (high) (Case B)" (the +0.1 Wind-Y windward value no longer exists; the largest positive is Wind-X WW-high Case B, +3.28); `revit.ARE_G_Wind_psf` 15.1→20.7 and `revit.ARE_G_WindDown_psf` 5.8→3.3 follow. `qh_psf`, `walls.*`, `parapet`, every other `inputs.*` and `roof.directions[0]` identical.
+- Case (b): payload **null**; `localStorage.getItem('ARE_mwfrs_wind')` **null** (removed by the Open path even after a walled run in the same origin).
+
+### Print (`page.pdf`, Letter, print media)
+
+- Case (b) `gate2_case_b.pdf` (5 pp.): p.1 project / wind parameters; p.2 geometry + diagram + story heights; p.3 parameters + free-roof normal table; p.4 parallel table with the h/L warning, frame ("not applicable"), minimum loads, RESULTS chips; p.5 one orphan chip. The hidden blocks (wx, wy, roof, parapet, send) are absent with no gaps. The ARE toolbar `#areBar` does not print (only are-calc.css's attribution header line); the Print button, Calculate button and Save/Load/Revit buttons do not print. Diagram shows walls and wall arrows for the free roof (G2-07).
+- Case (a) `gate2_case_a.pdf` (7 pp.): same structure; Wind-X, Wind-Y, roof (both tables), minimum loads, send-block base shears, RESULTS chips. Parapet block absent (h<sub>p</sub> = 0), no gap. Frame block absent (Enclosed). `.header h1` illegible in both (G2-11, theme, pre-existing).
+
+### Stale text / dead code sweep
+
+No "Enclosed & Partially Enclosed"-only wording remains (header line 89 lists all four classes). Parapet references are §27.3.4 throughout; "§27.3.5" appears only as the Fig. 27.3-8 / Appendix D exception. `'sloped'` survives only as the internal roof-object / Revit `type` tag and the legacy-file mapping (intended). Dead: `cumH` (G2-09). Misleading notes: G2-02, G2-04, G2-07, G2-08.
+
+**GATE 2: PASS** — 0 blockers; 2 MAJOR (G2-01 toolbar Load of Open snapshots, G2-02 reversed γ note) recommended before deploy, 9 MINOR.
