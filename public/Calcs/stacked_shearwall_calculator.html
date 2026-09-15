@@ -47,8 +47,23 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .floor-body{padding:12px 14px}
 .tbl-scroll{overflow-x:auto}
 /* Wall table */
-.wall-table{width:100%;border-collapse:collapse;font-size:.80em;min-width:1200px}
-.wall-table th{background:#1e3c72;color:#fff;padding:5px 4px;text-align:center;white-space:nowrap;font-size:.74em;font-weight:600}
+/* ── Resizable columns (same mechanism as the stacked headers/studs calc) ──
+   table-layout:fixed makes the <th> widths authoritative; applyColW() sets an
+   inline min-width equal to the column sum so the .tbl-scroll wrapper scrolls
+   instead of the columns compressing back down. Widths persist per browser. */
+.wall-table{width:100%;border-collapse:collapse;font-size:.80em;table-layout:fixed}
+.wall-table th{background:#1e3c72;color:#fff;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:break-word;overflow:hidden;position:relative;font-size:.74em;font-weight:600}
+.wall-table td{overflow:hidden}
+.col-grip{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
+.col-grip:hover,.col-grip.dragging{background:rgba(255,255,255,.55)}
+body.col-resizing{user-select:none;cursor:col-resize}
+.btn-resetcol{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:9px 14px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600}
+.btn-resetcol:hover{background:#dbeafe}
+@media print{
+  .col-grip,.btn-resetcol{display:none !important}
+  .wall-table{table-layout:auto !important;min-width:0 !important}
+  .wall-table th,.wall-table td{width:auto !important}
+}
 .wall-table th.thl{text-align:left;padding-left:7px}
 .wall-table td{padding:3px 3px;border-bottom:1px solid #eee;vertical-align:middle}
 .wall-table tr:nth-child(even) td{background:#f9fafb}
@@ -245,6 +260,7 @@ select.ti{cursor:pointer;padding:2px 1px}
           <label>Manage levels</label>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             <button class="btn-add-floor" id="addFloorBtn" onclick="addFloor()">+ Add Floor</button>
+            <button class="btn-resetcol" onclick="resetColW()" title="Restore every column to its default width">&#8596; Reset column widths</button>
           </div>
           <div class="hint">Inserts a new level at the top</div>
         </div>
@@ -473,6 +489,59 @@ function setDLSource(fi,wi,srcVal){
 }
 
 // ─── Render ───────────────────────────────────────────────────────────────────
+// ── Resizable wall-table columns ─────────────────────────────────────────────
+// Widths are stored per browser (not in the calc state) and re-applied after
+// every render(), exactly as in stacked_headers_studs_calculator.html.
+var COLW_KEY='areCalcs_sw_colWidths';
+var COLW={};
+try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
+if(typeof COLW!=='object'||!COLW||Array.isArray(COLW)) COLW={};
+function saveColW(){ try{ localStorage.setItem(COLW_KEY,JSON.stringify(COLW)); }catch(e){} }
+function thc(key,dw,label,cls,title){
+  return '<th class="'+(cls||'')+'" data-ck="'+key+'" data-dw="'+dw+'"'+(title?' title="'+title+'"':'')+'>'+label
+       + '<div class="col-grip" title="Drag to resize — double-click to reset"></div></th>';
+}
+function applyColW(){
+  var tbls=document.querySelectorAll('.wall-table');
+  for(var i=0;i<tbls.length;i++){
+    var ths=tbls[i].querySelectorAll('thead th[data-ck]'), sum=0;
+    for(var j=0;j<ths.length;j++){
+      var w=+COLW[ths[j].getAttribute('data-ck')];
+      if(!isFinite(w)||w<32) w=+ths[j].getAttribute('data-dw');
+      ths[j].style.width=w+'px'; sum+=w;
+    }
+    tbls[i].style.minWidth=sum+'px';
+  }
+}
+function resetColW(){ COLW={}; saveColW(); applyColW(); }
+function gripOf(e){ return e.target&&e.target.closest?e.target.closest('.col-grip'):null; }
+document.addEventListener('mousedown',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  e.preventDefault();
+  var startX=e.clientX, startW=grip.parentElement.offsetWidth;
+  grip.classList.add('dragging');
+  document.body.classList.add('col-resizing');
+  function mv(ev){
+    if(ev.buttons===0){ up(); return; }
+    COLW[ck]=Math.max(32,startW+(ev.clientX-startX)); applyColW();
+  }
+  function up(){
+    document.removeEventListener('mousemove',mv);
+    document.removeEventListener('mouseup',up);
+    grip.classList.remove('dragging');
+    document.body.classList.remove('col-resizing');
+    saveColW();
+  }
+  document.addEventListener('mousemove',mv);
+  document.addEventListener('mouseup',up);
+});
+document.addEventListener('dblclick',function(e){
+  var grip=gripOf(e); if(!grip) return;
+  var ck=grip.parentElement.getAttribute('data-ck'); if(!ck) return;
+  delete COLW[ck]; saveColW(); applyColW();
+});
+
 function render(){
   var con=document.getElementById('floor-con');
   if(!con)return;
@@ -504,26 +573,26 @@ function render(){
 
     out+='<div class="floor-body"><div class="tbl-scroll">';
     out+='<table class="wall-table"><thead><tr>';
-    out+='<th class="thl" style="min-width:95px">Wall Label</th>';
-    out+='<th style="min-width:55px">L (ft)</th>';
-    out+='<th class="th-sw" style="min-width:95px" title="Full-height segment widths, comma separated">b<sub>i</sub> (ft)</th>';
-    out+='<th class="th-sw" style="min-width:110px" title="width × clear height, comma separated">Openings w×h<sub>c</sub></th>';
-    out+='<th class="th-sw" style="min-width:60px" title="Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception)">Unsh. (sf)</th>';
-    out+='<th class="th-chk" style="min-width:150px">Face 1 (WSP)</th>';
-    out+='<th class="th-chk" style="min-width:150px">Face 2</th>';
-    out+='<th class="th-chk" style="min-width:52px" title="Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)">HD inside</th>';
-    out+='<th style="min-width:110px">End Post</th>';
-    out+='<th style="min-width:72px">Hold-down</th>';
-    out+='<th class="th-sh" style="min-width:130px">Sill connector</th>';
-    out+='<th class="th-sh" style="min-width:62px">Spacing</th>';
-    out+='<th class="th-sh" style="min-width:90px" title="LTP4 only — reduction for fastening through sheathing">Over sheathing</th>';
-    out+='<th class="th-sh" style="min-width:70px">Sill species</th>';
-    out+='<th class="th-sh" style="min-width:78px" title="Bottom-plate uplift connector, plf (§4.3.6.4.2.1)">Uplift (plf)</th>';
-    out+='<th class="th-dl" style="min-width:100px" title="Link dead load from a gravity wall — cascades to all levels below">Gravity DL source</th>';
-    out+='<th class="th-dl" style="min-width:62px" title="Uniform dead load along the wall">w<sub>D</sub> (plf)</th>';
-    out+='<th class="th-dl" style="min-width:70px" title="Point dead load at End 1">P<sub>D,end</sub> (lb)</th>';
-    out+='<th class="th-chk" style="min-width:64px">Detail</th>';
-    out+='<th style="min-width:28px"></th>';
+    out+=thc('wall_label',95,'Wall Label','thl');
+    out+=thc('l_ft',55,'L (ft)','');
+    out+=thc('bi_ft',95,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated');
+    out+=thc('openings_w_hc',110,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated');
+    out+=thc('unsh_sf',60,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception)');
+    out+=thc('face_1_wsp',150,'Face 1 (WSP)','th-chk');
+    out+=thc('face_2',150,'Face 2','th-chk');
+    out+=thc('hd_inside',52,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
+    out+=thc('end_post',110,'End Post','');
+    out+=thc('hold_down',72,'Hold-down','');
+    out+=thc('sill_connector',130,'Sill connector','th-sh');
+    out+=thc('spacing',62,'Spacing','th-sh');
+    out+=thc('over_sheathing',90,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
+    out+=thc('sill_species',70,'Sill species','th-sh');
+    out+=thc('uplift_plf',78,'Uplift (plf)','th-sh','Bottom-plate uplift connector, plf (§4.3.6.4.2.1)');
+    out+=thc('gravity_dl_source',100,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
+    out+=thc('wd_plf',62,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
+    out+=thc('pd_end_lb',70,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
+    out+=thc('detail',64,'Detail','th-chk');
+    out+=thc('x',28,'','');
     out+='</tr></thead><tbody>';
 
     for(var wi=0; wi<fl.walls.length; wi++){
@@ -582,6 +651,7 @@ function render(){
     out+='</div></div>';
   }
   con.innerHTML=out;
+  applyColW();
   renderResults();
 }
 
