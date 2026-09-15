@@ -498,7 +498,7 @@ function longFrameForce(o){
   var KS=0.60+0.073*(n-3)+1.25*Math.pow(phi,1.8);
   var p=o.qh*(gcpfW-gcpfL)*KB*KS;
   return {Wperp:o.Wperp,Lridge:o.Lridge,theta:o.theta,rise:rise,eaveH:eaveH,AE:AE,a:a,Aedge:Aedge,Abulk:Abulk,
-          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kh:o.Kh,p:p,F:p*AE};
+          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kh:o.Kh,kzFloor:!!o.Kh28Applied,p:p,F:p*AE};
 }
 
 // ─── UI HELPERS ──────────────────────────────────────────────────────────────
@@ -615,7 +615,8 @@ function calculate(){
   var frame = (frameElig && !frameReason)
     ? longFrameForce({Wperp:Wperp, Lridge:Lridge, h:hVal, theta:theta,
                       n:parseInt(document.getElementById('numFrames').value)||3,
-                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28})
+                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28,
+                      Kh28Applied:(exp==='B' && hVal<30)})
     : null;
 
   // ─── OPEN BUILDING PATH — free roof only, no walls / story shears / parapet ──
@@ -627,7 +628,12 @@ function calculate(){
       normalLabel: normalX ? 'Wind-X (EW)' : 'Wind-Y (NS)',
       parallelLabel: normalX ? 'Wind-Y (NS)' : 'Wind-X (EW)',
       rows: openRoofCN(shape,flow,theta).map(function(r){ r.pW=qh_val*G*r.CNW; r.pL=qh_val*G*r.CNL; return r; }),
-      trans: openTransverseCN(flow).map(function(z){ z.pA=qh_val*G*z.A; z.pB=qh_val*G*z.B; return z; })
+      // Fig. 27.3-7 zones measured from the windward edge along the ridge: 0–h, h–2h, 2h–Lridge.
+      // Zones that start at or beyond the ridge length do not exist on the roof (G2-05).
+      trans: openTransverseCN(flow).map(function(z,i){
+        z.from=[0,hVal,2*hVal][i]; z.to=Math.min([hVal,2*hVal,Lridge][i],Lridge);
+        z.pA=qh_val*G*z.A; z.pB=qh_val*G*z.B; return z;
+      }).filter(function(z){ return z.from<Lridge; })
     };
     document.getElementById('results').style.display='block';
     setBlk('wxBlk',false); setBlk('wyBlk',false); setBlk('roofBlk',false); setBlk('sendBlk',false); setBlk('parapetBlk',false);
@@ -659,7 +665,6 @@ function calculate(){
   // story elevation midpoints (from grade up)
   // stories[0]=top story, stories[n-1]=bottom story
   // elevations: top of each story
-  var cumH=hVal; // we work from top down
   var stElevTop=[]; // top elevation of each story
   var stElevMid=[]; // mid-height of each story
   stElevTop.push(hVal);
@@ -812,7 +817,7 @@ function calculate(){
   document.getElementById('results').style.display='block';
   setBlk('wxBlk',true); setBlk('wyBlk',true); setBlk('roofBlk',true); setBlk('sendBlk',true);
   setBlk('parapetBlk',!!parapetData); setBlk('openBlk',false); setBlk('openTransBlk',false);
-  setBlk('frameBlk',!!frame); setBlk('minBlk',true);
+  setBlk('frameBlk', !!frame || frameReason==='geometry'); setBlk('minBlk',true);
   renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp,{ridgeDir:ridgeDir,groundElev:groundElev});
   renderFrame(frame, document.getElementById('frameBody'), false, frameReason);
   renderMinLoads(false, document.getElementById('minBody'));
@@ -1005,7 +1010,7 @@ function renderRoof(roofs, container){
       var note = r.roofType==='monoslope' ? 'Monoslope: entire roof is windward OR leeward (Fig. 27.3-1 Note 4) — check both rows'
                : r.roofType==='mansard'   ? 'Mansard: top horizontal + leeward slope treated as leeward (Fig. 27.3-1 Note 6)'
                : 'Gable/Hip — wind normal to ridge';
-      html+='<p class="ref" style="margin-bottom:6px">'+note+' | θ='+f1(r.theta)+'° | h/L = '+f1(r.hL)+' | Fig. 27.3-1 bilinear interpolation | p = qh·G·Cp ± qh·GCpi</p>';
+      html+='<p class="ref" style="margin-bottom:6px">'+note+' | θ='+f1(r.theta)+'° | h/L = '+f2(r.hL)+' | Fig. 27.3-1 bilinear interpolation | p = qh·G·Cp ± qh·GCpi</p>';
       var wwLbl = r.roofType==='monoslope' ? 'Entire roof as WW' : r.roofType==='mansard' ? 'WW slope' : 'WW Roof';
       var lwLbl = r.roofType==='monoslope' ? 'Entire roof as LW' : r.roofType==='mansard' ? 'Top + LW slope' : 'LW Roof';
       html+='<table class="res-tbl"><thead><tr>'
@@ -1051,13 +1056,13 @@ function renderOpen(o, bodyN, bodyT){
   });
   html+='</tbody></table>';
   var notes=o.rows.filter(function(r){return r.note;}).map(function(r){return r.note;});
-  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind into the low eave, γ = 180° into the high eave). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Fascia panels on free roofs with θ ≤ 5° are designed as inverted parapets (§27.3.2, qp = qh, GCpn = +1.5 / −1.0) — not computed here. Ref: Figs. 27.3-4/5/6, Eq. 27.3-2, G = 0.85</div>';
+  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind arriving at the high eave, γ = 180° at the low eave — Fig. 27.3-4). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Fascia panels on free roofs with θ ≤ 5° are designed as inverted parapets (§27.3.2, qp = qh, GCpn = +1.5 / −1.0) — not computed here. Ref: Figs. 27.3-4/5/6, Eq. 27.3-2, G = 0.85</div>';
   bodyN.innerHTML=html;
 
   var t=warn90+'<div class="kv"><div class="kv-item">Parallel-to-ridge direction = <span>'+o.parallelLabel+'</span></div><div class="kv-item">L (ridge) = <span>'+f1(o.Lridge)+' ft</span></div><div class="kv-item">h/L = <span>'+f2(o.hL90)+'</span></div><div class="kv-item">Zones: <span>h and 2h from the windward edge</span></div></div>';
-  t+='<table class="res-tbl"><thead><tr><th>Distance from Windward Edge</th><th>Case A C<sub>N</sub></th><th>p<sub>A</sub> (psf)</th><th>Case B C<sub>N</sub></th><th>p<sub>B</sub> (psf)</th></tr></thead><tbody>';
+  t+='<table class="res-tbl"><thead><tr><th>Distance from Windward Edge</th><th>ft from windward edge</th><th>Case A C<sub>N</sub></th><th>p<sub>A</sub> (psf)</th><th>Case B C<sub>N</sub></th><th>p<sub>B</sub> (psf)</th></tr></thead><tbody>';
   o.trans.forEach(function(z){
-    t+='<tr><td>'+z.zone+'</td><td>'+f2(z.A)+'</td><td style="font-weight:700;color:#dc2626">'+f1(z.pA)+'</td><td>'+f2(z.B)+'</td><td style="font-weight:700;color:#1e3c72">'+f1(z.pB)+'</td></tr>';
+    t+='<tr><td>'+z.zone+'</td><td>'+f1(z.from)+'–'+f1(z.to)+'</td><td>'+f2(z.A)+'</td><td style="font-weight:700;color:#dc2626">'+f1(z.pA)+'</td><td>'+f2(z.B)+'</td><td style="font-weight:700;color:#1e3c72">'+f1(z.pB)+'</td></tr>';
   });
   t+='</tbody></table><div class="ref" style="margin-top:4px">Fig. 27.3-7 applies to all free-roof shapes for γ = 90°, 270°; CN applies to the full roof width. Ref: Eq. 27.3-2</div>';
   bodyT.innerHTML=t;
@@ -1087,7 +1092,7 @@ function renderFrame(fr, body, isOpen, reason){
   html+='<table class="res-tbl"><thead><tr><th>(GCpf)<sub>WW</sub></th><th>(GCpf)<sub>LW</sub></th><th>K<sub>B</sub></th><th>K<sub>S</sub></th><th>qh (psf)</th><th>p = qh[(GCpf)<sub>WW</sub>−(GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub> (psf)</th><th>F = p·A<sub>E</sub></th></tr></thead><tbody>'
     +'<tr><td>'+f3(fr.gcpfW)+'</td><td>'+f3(fr.gcpfL)+'</td><td>'+f3(fr.KB)+'</td><td>'+f3(fr.KS)+'</td><td>'+f2(fr.qh)+'</td>'
     +'<td style="font-weight:700;color:#1e3c72">'+f1(fr.p)+'</td><td style="font-weight:700;color:#0369a1">'+fi(fr.F)+' lb ('+f2(fr.F/1000)+' kips)</td></tr></tbody></table>';
-  html+='<div class="ref" style="margin-top:4px">Eq. 28.3-3: F = qh[(GCpf)<sub>WW</sub> − (GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>A<sub>E</sub> | Eq. 28.3-4: K<sub>S</sub> = 0.60 + 0.073(n−3) + 1.25φ<sup>1.8</sup> | K<sub>B</sub> = 1.8 − 0.01B (B &lt; 100 ft), 0.8 (B ≥ 100 ft) | qh at mean roof height with Kh = '+f3(fr.Kh)+' (Exposure B, h &lt; 30 ft → Kz = 0.70 per Table 26.10-1 fn. a) | GCpf from Fig. 28.3-1 Load Case B zones 5/6 (bulk) and 5E/6E (end zone, width a) area-weighted over A<sub>E</sub> | F is the total longitudinal force resisted by the MWFRS bracing (apply per §28.3.5 at the end-wall / frame line)'
+  html+='<div class="ref" style="margin-top:4px">Eq. 28.3-3: F = qh[(GCpf)<sub>WW</sub> − (GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>A<sub>E</sub> | Eq. 28.3-4: K<sub>S</sub> = 0.60 + 0.073(n−3) + 1.25φ<sup>1.8</sup> | K<sub>B</sub> = 1.8 − 0.01B (B &lt; 100 ft), 0.8 (B ≥ 100 ft) | qh at mean roof height with Kh = '+f3(fr.Kh)+(fr.kzFloor?' (Exposure B, h &lt; 30 ft → Kz = 0.70 per Table 26.10-1 fn. a)':' per Table 26.10-1')+' | GCpf from Fig. 28.3-1 Load Case B zones 5/6 (bulk) and 5E/6E (end zone, width a) area-weighted over A<sub>E</sub> | F is the total longitudinal force resisted by the MWFRS bracing (apply per §28.3.5 at the end-wall / frame line)'
     +(isOpen?'':' | Partially enclosed gable building: this force is in addition to the wall pressures above')+'</div>';
   body.innerHTML=html;
 }
@@ -1124,9 +1129,9 @@ function renderSend(wx,wy,container){
   html+='<h4>▶ Send Story Shear to Stacked Shearwall / Other Calculators</h4>';
   html+='<div class="send-row">';
   html+='<div class="ig" style="flex:0 0 160px"><label>Wind Direction</label>'
-    +'<select id="sendDir" onchange="updateSendPreview()"><option value="X">Wind-X (EW)</option><option value="Y">Wind-Y (NS)</option></select></div>';
+    +'<select id="sendDir" data-are-ignore onchange="updateSendPreview()"><option value="X">Wind-X (EW)</option><option value="Y">Wind-Y (NS)</option></select></div>';
   html+='<div class="ig" style="flex:0 0 160px"><label>Story Level</label>'
-    +'<select id="sendStory" onchange="updateSendPreview()">';
+    +'<select id="sendStory" data-are-ignore onchange="updateSendPreview()">';
   wx.rows.forEach(function(r,i){
     html+='<option value="'+i+'">'+r.label+' — V='+fi(r.V_cum)+' lbs</option>';
   });
@@ -1141,10 +1146,10 @@ function renderSend(wx,wy,container){
   html+='<h4 style="color:#15803d">▶ Send Both Directions to Diaphragm Designer</h4>';
   html+='<p style="font-size:.82em;color:#4a5568;margin-bottom:8px">Opens the Rectangular Diaphragm Designer pre-loaded with Wind-X, Wind-Y forces and building dimensions.</p>';
   html+='<div class="send-row">';
-  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-X</label><select id="diaStoryX">';
+  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-X</label><select id="diaStoryX" data-are-ignore>';
   wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
   html+='</select></div>';
-  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-Y</label><select id="diaStoryY">';
+  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-Y</label><select id="diaStoryY" data-are-ignore>';
   wy.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
   html+='</select></div>';
   html+='<button class="send-btn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="doSendDiaphragm()">▶ Diaphragm Designer →</button>';
@@ -1846,6 +1851,7 @@ document.addEventListener('DOMContentLoaded',function(){
       }
     }
   });
+  if(qp.has('groundElev')&&!qp.has('Ke')) updateKeFromElev();   // G2-03: Ke follows a prefilled elevation
 
   // Initialize block states
   document.querySelectorAll('.blk-hd').forEach(function(hd){
@@ -1901,10 +1907,10 @@ window.updateSendPreview=updateSendPreview;
         if (t) t.value = list[j].label;
         if (h) h.value = list[j].sh;
       }
-      // Several controls (#sendDir, #sendStory, #diaStoryX, #diaStoryY) are
-      // BUILT by calculate() from the story list, so they do not exist on a
-      // fresh page. Materialize them here; the core's iterative restore then
-      // resolves their saved values on a later pass.
+      // Rebuild the results (and the story-dependent send controls) from the
+      // restored story list. #sendDir/#sendStory/#diaStoryX/#diaStoryY carry
+      // data-are-ignore, so they are neither captured nor reverse-diffed — an
+      // Open snapshot (which never builds them) loads without a rollback (G2-01).
       if (typeof calculate === 'function') calculate();
     },
     runAndSettle: function () { if (typeof calculate === 'function') calculate(); }

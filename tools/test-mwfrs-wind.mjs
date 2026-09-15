@@ -223,13 +223,36 @@ if (!CAPTURE) {
     await fresh();
     await page.evaluate(() => applyInputsMWFRS({ _version: 1, _calc: 'mwfrs', V: '120', exp: 'B', encl: 'enclosed', Kzt: '1', Ke: '1', B: '50', D: '80', h: '30', roofType: 'sloped', theta: '20', hp: '0', stories: [{ label: 'Roof', h: '15' }, { label: 'Floor 1', h: '15' }] }));
     check('legacy: roofType mapped', (await page.$eval('#roofType', (e) => e.value)) === 'gablehip', 'not gablehip');
-    check('legacy: theta row visible', await page.$eval('#thetaRow', (e) => e.style.display !== 'none'), 'theta hidden');
+    check('legacy: theta row visible', await page.$eval('#thetaRow', (e) => getComputedStyle(e).display !== 'none'), 'theta hidden');
     await page.click('button.calc-btn');
     const o3 = await snapshot();
     const lg = []; diff(results['enclosed-sloped20-2story'].last, o3.last, 'last', lg, []);
     check('legacy: matches the gablehip case', lg.length === 0, lg.slice(0, 8).join('\n      '));
   } catch (e) {
     check('round-trip/legacy (Task 5 functions)', false, String(e.message || e).split('\n')[0]);
+  }
+
+  try {
+    // ── 5b. G2-01: AREv2 toolbar save/load of the open case (captureState → loadFromState) ──
+    // The four story-shear send selects are built by calculate() for walled runs only and
+    // carry data-are-ignore; an Open snapshot must load ok with no reverse-diff rollback.
+    await fresh();
+    await page.fill('#V', '115'); await page.selectOption('#exp', 'C'); await page.selectOption('#encl', 'open');
+    await page.fill('#B', '40'); await page.fill('#D', '100'); await page.fill('#h', '20');
+    await page.selectOption('#freeRoofShape', 'pitched'); await page.selectOption('#windFlow', 'clear');
+    await page.selectOption('#ridgeDir', 'D'); await page.selectOption('#roofAngleMode', 'deg'); await page.fill('#theta', '15');
+    await page.fill('#numFrames', '4'); await page.fill('#AsArea', '0');
+    await page.click('button.calc-btn');
+    const tbSnap = await page.evaluate(() => AREv2.captureState());
+    await fresh();
+    const tbRes = await page.evaluate((s) => JSON.parse(JSON.stringify(AREv2.loadFromState(s))), tbSnap);
+    await page.evaluate(() => calculate());
+    const o4 = await snapshot();
+    const tb = []; diff(o.last, o4.last, 'last', tb, []);
+    check('toolbar round-trip: open case identical', tbRes.ok === true && !tbRes.rolledBack && tb.length === 0,
+      JSON.stringify(tbRes) + (tb.length ? '\n      ' + tb.slice(0, 8).join('\n      ') : ''));
+  } catch (e) {
+    check('toolbar round-trip: open case identical', false, String(e.message || e).split('\n')[0]);
   }
 
   // ── 6. UI sweep — every enclosure × roof combination renders, no NaN ────
