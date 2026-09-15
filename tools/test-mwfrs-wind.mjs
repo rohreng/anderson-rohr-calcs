@@ -8,7 +8,10 @@
 // captured from the calc BEFORE the open-building merge (2026-09-15). The only
 // baseline paths allowed to differ after the merge are the parallel-to-ridge
 // roof block of the two sloped cases (agreed fix: Fig. 27.3-1 zone table applies
-// for wind parallel to the ridge) and the roofType label sloped→gablehip.
+// for wind parallel to the ridge), the roofType label sloped→gablehip, and the
+// Wind-X roof block of enclosed-flat-3story-parapet (h/L = 0.667: Gate 1 finding
+// L-02 — flatRoofCp must interpolate toward the h/L ≥ 1.0 zone table). Revit
+// roof/governing fields follow whichever roof block changed.
 // =============================================================================
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -30,7 +33,9 @@ const CASES = [
   { name: 'partial-sloped35-3story',      encl: 'partial',  roof: 'sloped', theta: 35, hp: 0, V: 115, exp: 'C', B: 40,  D: 90,  h: 36, stories: [12, 12, 12] },
 ];
 // Paths that may legitimately differ from baseline for the sloped cases (see header).
-const ALLOW_SLOPED = [/^last\.roofType$/, /^last\.roofY(\.|$)/, /^revit\.inputs\.roofType$/, /^revit\.roof(\.|$)/];
+const ALLOW_SLOPED = [/^last\.roofType$/, /^last\.roofY(\.|$)/, /^revit\.inputs\.roofType$/, /^revit\.roof(\.|$)/, /^revit\.revit(\.|$)/];
+const ALLOW_HL = [/^last\.roofX(\.|$)/, /^revit\.roof(\.|$)/, /^revit\.revit(\.|$)/];   // L-02: only case 1 has h/L > 0.5 in a zone-table direction
+const ALLOW = { 'enclosed-sloped20-2story': ALLOW_SLOPED, 'partial-sloped35-3story': ALLOW_SLOPED, 'enclosed-flat-3story-parapet': ALLOW_HL };
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -105,7 +110,7 @@ if (CAPTURE) {
   const base = JSON.parse(readFileSync(FIX, 'utf8')).cases;
   for (const c of CASES) {
     const out = [];
-    diff(base[c.name], results[c.name], '', out, c.roof === 'sloped' ? ALLOW_SLOPED : []);
+    diff(base[c.name], results[c.name], '', out, ALLOW[c.name] || []);
     check(`baseline ${c.name}`, out.length === 0, out.slice(0, 12).join('\n      '));
   }
 }
@@ -124,6 +129,23 @@ if (!CAPTURE) {
       if (Math.abs(z.pA - eA) > 1e-6 || Math.abs(z.pB - eB) > 1e-6) bad.push(`${z.zone}: pA ${z.pA} vs ${eA}, pB ${z.pB} vs ${eB}`);
     });
     check(`${c.name}: Wind-Y zone pressures`, bad.length === 0, bad.join('\n      '));
+  }
+
+  // ── 2b. L-02: enclosed-flat case, Wind-X h/L = 40/60 = 0.667 → per-zone interpolation between
+  //        the h/L ≤ 0.5 table (−0.9, −0.9, −0.5, −0.3) and the h/L ≥ 1.0 table (0–h/2: −1.3, >h/2: −0.7)
+  {
+    const r = results['enclosed-flat-3story-parapet'].last, rx = r.roofX;
+    const tt = (40 / 60 - 0.5) / 0.5;
+    const exp1 = { '0–h/2': -0.9 + tt * (-1.3 + 0.9), 'h/2–h': -0.9 + tt * (-0.7 + 0.9), 'h–2h': -0.5 + tt * (-0.7 + 0.5) };
+    const bad = [];
+    check('L-02: Wind-X has 3 zones (L = 2h)', rx.zones.length === 3, JSON.stringify(rx.zones.map((z) => z.zone)));
+    rx.zones.forEach((z) => {
+      const eA = r.qh * 0.85 * exp1[z.zone] - r.qh * 0.18, eB = r.qh * 0.85 * (-0.18) + r.qh * 0.18;
+      if (Math.abs(z.Cp1 - exp1[z.zone]) > 1e-9 || Math.abs(z.pA - eA) > 1e-6 || Math.abs(z.pB - eB) > 1e-6) bad.push(`${z.zone}: Cp1 ${z.Cp1} vs ${exp1[z.zone]}, pA ${z.pA} vs ${eA}`);
+    });
+    check('L-02: Wind-X interpolated zone Cp/pressures', bad.length === 0, bad.join('\n      '));
+    const ry = r.roofY;   // h/L = 40/120 = 0.333 → unchanged ≤ 0.5 table
+    check('L-02: Wind-Y (h/L 0.33) unchanged', ry.zones.length === 4 && Math.abs(ry.zones[0].Cp1 + 0.9) < 1e-9, JSON.stringify(ry.zones.map((z) => z.Cp1)));
   }
 
   // ── 3. open path — pitched, clear, θ = 15°, ridge along D ────────────────
@@ -166,7 +188,7 @@ if (!CAPTURE) {
   const Wp = 40, Lr = 100, h = 20, th = 15 * Math.PI / 180;
   const rise = (Wp / 2) * Math.tan(th), eave = h - rise / 2, AE = Wp * eave + 0.5 * Wp * rise;
   const least = Math.min(Wp, Lr), a = Math.max(Math.min(0.1 * least, 0.4 * h), Math.max(0.04 * least, 3));
-  const Aedge = a * eave, Abulk = AE - Aedge;
+  const Aedge = a * eave + 0.5 * a * a * Math.tan(th), Abulk = AE - Aedge;   // S-09: strip width a, full height to the roof line
   const gW = (0.40 * Abulk + 0.61 * Aedge) / AE, gL = (-0.29 * Abulk - 0.43 * Aedge) / AE;
   const KB = 1.8 - 0.01 * Wp, KS = 0.60 + 0.073 * (4 - 3) + 1.25 * Math.pow(0, 1.8);
   const F = qh * (gW - gL) * KB * KS * AE;
@@ -175,8 +197,18 @@ if (!CAPTURE) {
     check('frame: AE', Math.abs(f.AE - AE) < 1e-6, `${f.AE} vs ${AE}`);
     check('frame: a', Math.abs(f.a - a) < 1e-9, `${f.a} vs ${a}`);
     check('frame: KB, KS', Math.abs(f.KB - KB) < 1e-9 && Math.abs(f.KS - KS) < 1e-9, `${f.KB},${f.KS} vs ${KB},${KS}`);
+    check('frame: Aedge (incl. gable sliver)', Math.abs(f.Aedge - Aedge) < 1e-6, `${f.Aedge} vs ${Aedge}`);
     check('frame: F', Math.abs(f.F - F) < 1e-4, `${f.F} vs ${F}`);
   }
+
+  // S-01: §28.3.5 in Exposure B with h < 30 ft uses Kz = 0.70 (Table 26.10-1 fn. a), not the Ch. 27 table value
+  await page.selectOption('#exp', 'B'); await page.fill('#h', '18');
+  await page.click('button.calc-btn');
+  const oB = await snapshot();
+  const qh28 = 0.00256 * 0.70 * 1.0 * 0.85 * 1.0 * 115 * 115;
+  check('frame: Exp B h<30 uses Kz 0.70', oB.last.frame && Math.abs(oB.last.frame.qh - qh28) < 1e-6, JSON.stringify(oB.last.frame && oB.last.frame.qh) + ' vs ' + qh28);
+  check('frame: Exp B page qh still Table 26.10-1', Math.abs(oB.last.qh - 0.00256 * (0.57 + (0.62 - 0.57) * 3 / 5) * 0.85 * 115 * 115) < 1e-6, String(oB.last.qh));
+  await page.selectOption('#exp', 'C'); await page.fill('#h', '20'); await page.click('button.calc-btn');
 
   // ── 4. save/load round-trip on the open case ─────────────────────────────
   const saved = await page.evaluate(() => collectInputsMWFRS());

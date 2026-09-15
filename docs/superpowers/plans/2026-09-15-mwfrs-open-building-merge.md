@@ -459,7 +459,11 @@ Replace the geometry `.row`s (from `<div class="row">` containing `#B` through t
       <div class="ig" id="frameRowAs" style="display:none"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
     </div>
 ```
-Leave the following `.ref` line and `#mwfrsDiagWrap` unchanged.
+Replace the following `.ref` line with (Gate 1 L-06):
+```html
+    <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure</div>
+```
+`#mwfrsDiagWrap` unchanged.
 
 - [ ] **Step 4: Replace `toggleRoofInputs()` and add helpers** (UI HELPERS section, replaces the 4-line function)
 
@@ -619,14 +623,16 @@ function openTransverseCN(flow){
 // §28.3.5 — longitudinal force on transverse frames, Eqs. 28.3-3 / 28.3-4.
 // o = {Wperp (width normal to ridge), Lridge (length along ridge), h (mean roof ht), theta, n, AS, qh}
 // Gable end-wall geometry: rise = (Wperp/2)·tanθ, eave = h − rise/2, AE = Wperp·eave + ½·Wperp·rise.
-// Edge zone area per Fig. 28.3-1 LC B end zones — APPLY GATE 1 FINDING (item 8) HERE if it differs from a × eave.
+// Edge zone (5E/6E) = end-wall strip of width a at the windward corner, full height to the roof line (Gate 1 S-09):
+//   Aedge = a·eave + ½·a²·tanθ. GCpf windward/leeward are the area-weighted averages of zones 5/5E and 6/6E over AE.
+// o.qh must be the Chapter 28 qh: Exposure B with h < 30 ft uses Kz = 0.70 (Table 26.10-1 fn. a, Gate 1 S-01).
 function longFrameForce(o){
   var rise=(o.Wperp/2)*Math.tan(o.theta*Math.PI/180);
   var eaveH=o.h-rise/2;
   var AE=o.Wperp*eaveH+0.5*o.Wperp*rise;
   var least=Math.min(o.Wperp,o.Lridge);
   var a=Math.max(Math.min(0.1*least,0.4*o.h), Math.max(0.04*least,3));
-  var Aedge=a*eaveH, Abulk=Math.max(AE-Aedge,0);
+  var Aedge=a*eaveH+0.5*a*a*Math.tan(o.theta*Math.PI/180), Abulk=Math.max(AE-Aedge,0);
   var gcpfW=(GCPF_LC_B.z5*Abulk+GCPF_LC_B.z5E*Aedge)/AE;
   var gcpfL=(GCPF_LC_B.z6*Abulk+GCPF_LC_B.z6E*Aedge)/AE;
   var KB=o.Wperp<100?1.8-0.01*o.Wperp:0.8;
@@ -634,14 +640,39 @@ function longFrameForce(o){
   var KS=0.60+0.073*(n-3)+1.25*Math.pow(phi,1.8);
   var p=o.qh*(gcpfW-gcpfL)*KB*KS;
   return {Wperp:o.Wperp,Lridge:o.Lridge,theta:o.theta,rise:rise,eaveH:eaveH,AE:AE,a:a,Aedge:Aedge,Abulk:Abulk,
-          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,qh:o.qh,p:p,F:p*AE};
+          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,qh:o.qh,Kh:o.Kh,p:p,F:p*AE};
 }
 ```
 
-- [ ] **Step 3: Fix the LIVE `ROOF_CP_SLOPED` θ = 60 row only if Gate 1 confirmed it** — windward Cp = 0.01·θ = 0.60 at θ = 60 for all h/L:
+- [ ] **Step 3: Gate 1 fixes to the LIVE Fig. 27.3-1 tables (confirmed L-01, S-03/L-04, L-02)**
+
+(a) `ROOF_CP_SLOPED` — row 45 at h/L ≤ 0.25 gets a blank-cell first value of 0.0 (Fig. 27.3-1 Note 2: "where no value of the same sign is given, assume 0.0"); row 60 becomes 0.01θ = 0.60; add row 80 = 0.80 (footnote c: > 80° use 0.8). Replace the last two rows with:
 ```js
-  [60,  [ 0.6, 0.6,-0.6], [ 0.6, 0.6,-0.6], [ 0.6, 0.6,-0.6]]
+  [45,  [ 0.0, 0.4, -0.6], [ 0.0, 0.4, -0.6], [ 0.0, 0.3, -0.6]],
+  [60,  [ 0.6, 0.6, -0.6], [ 0.6, 0.6, -0.6], [ 0.6, 0.6, -0.6]],   // ≥60°: Cp = 0.01θ (Fig. 27.3-1)
+  [80,  [ 0.8, 0.8, -0.6], [ 0.8, 0.8, -0.6], [ 0.8, 0.8, -0.6]]    // >80°: Cp = 0.8 (footnote c); slopedRoofCp clamps θ to this row
 ```
+`slopedRoofCp` already clamps θ to the last row, so > 80° yields 0.8 with no other change.
+
+(b) `flatRoofCp(h,L)` — branch on h/L (Fig. 27.3-1 zone table has h/L ≤ 0.5 and ≥ 1.0 rows; Note 2 allows linear interpolation between). Replace the function with:
+```js
+// Flat / low-slope / parallel-to-ridge roof Cp zones (Fig. 27.3-1 zone table).
+// h/L ≤ 0.5: 0–h/2 −0.9, h/2–h −0.9, h–2h −0.5, >2h −0.3 (Cp2 = −0.18 throughout)
+// h/L ≥ 1.0: 0–h/2 −1.3, >h/2 −0.7. 0.5 < h/L < 1.0: linear interpolation per zone (Note 2).
+function flatRoofCp(h,L){
+  var hL=h/L, t=Math.max(0,Math.min(1,(hL-0.5)/0.5));
+  var cp=function(lo,hi){ return lo+t*(hi-lo); };
+  var z1=h/2, z2=h, z3=2*h;
+  return [
+    {zone:'0–h/2',  from:0,    to:z1, Cp1:cp(-0.9,-1.3), Cp2:-0.18},
+    {zone:'h/2–h',  from:z1,   to:z2, Cp1:cp(-0.9,-0.7), Cp2:-0.18},
+    {zone:'h–2h',   from:z2,   to:z3, Cp1:cp(-0.5,-0.7), Cp2:-0.18},
+    {zone:'>2h',    from:z3,   to:L,  Cp1:cp(-0.3,-0.7), Cp2:-0.18}
+  ].filter(function(z){return z.from<L})
+   .map(function(z){ z.to=Math.min(z.to,L); return z; });
+}
+```
+Baseline impact: only `enclosed-flat-3story-parapet` Wind-X (h/L = 40/60) changes; the harness allowlists it and checks the interpolated values (`L-02:` checks).
 
 - [ ] **Step 4: Rewire input gathering at the top of `calculate()`**
 
@@ -711,10 +742,13 @@ Insert immediately after `var Kh=getKz(hVal,exp);` (before the story elevation c
 ```js
   // ─── §28.3.5 longitudinal frame force (open + pitched free roof, or partially enclosed + gable) ──
   var Wperp = normalX ? B : Ddim, Lridge = normalX ? Ddim : B;
-  var frame = (frameEligible() && theta>0 && theta<45)
+  // Chapter 28 velocity pressure: Table 26.10-1 footnote a — Exposure B, z < 30 ft → Kz = 0.70 (Gate 1 S-01)
+  var Kh28 = (exp==='B' && hVal<30) ? 0.70 : Kh;
+  var qh28 = 0.00256*Kh28*Kzt*Kd*Ke*V*V;
+  var frame = (frameEligible() && theta>0 && theta<=45)
     ? longFrameForce({Wperp:Wperp, Lridge:Lridge, h:hVal, theta:theta,
                       n:parseInt(document.getElementById('numFrames').value)||3,
-                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh_val})
+                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28})
     : null;
 
   // ─── OPEN BUILDING PATH — free roof only, no walls / story shears / parapet ──
@@ -722,7 +756,7 @@ Insert immediately after `var Kh=getKz(hVal,exp);` (before the story elevation c
     var shape=document.getElementById('freeRoofShape').value;
     var flow=document.getElementById('windFlow').value;
     var open={
-      shape:shape, flow:flow, theta:theta, Wperp:Wperp, Lridge:Lridge, hL:hVal/Wperp,
+      shape:shape, flow:flow, theta:theta, Wperp:Wperp, Lridge:Lridge, hL:hVal/Wperp, hL90:hVal/Lridge,
       normalLabel: normalX ? 'Wind-X (EW)' : 'Wind-Y (NS)',
       parallelLabel: normalX ? 'Wind-Y (NS)' : 'Wind-X (EW)',
       rows: openRoofCN(shape,flow,theta).map(function(r){ r.pW=qh_val*G*r.CNW; r.pL=qh_val*G*r.CNL; return r; }),
@@ -898,7 +932,7 @@ In the `flat` branch replace the first `<p class="ref">` line with:
       var why = r.why==='parallel' ? 'Wind parallel to ridge — Fig. 27.3-1 zone table applies for all θ'
               : r.why==='lowslope' ? 'Low-slope roof (θ < 10°) — zone table, Fig. 27.3-1'
               : 'Flat/Low-slope roof (θ<10°) — Cp from Fig. 27.3-1';
-      html+='<p class="ref" style="margin-bottom:6px">'+why+' | p = qh·G·Cp ± qh·GCpi | Negative = uplift/suction</p>';
+      html+='<p class="ref" style="margin-bottom:6px">'+why+' | p = qh·G·Cp ± qh·GCpi | Negative = uplift/suction | −1.3 value not reduced with area (Fig. 27.3-1 fn. b), conservative</p>';
 ```
 In the `sloped` branch replace the `<p class="ref">` line and the three row labels:
 ```js
@@ -916,7 +950,9 @@ then use `wwLbl+' (low)'`, `wwLbl+' (high)'`, `lwLbl` in the three `<td>` labels
 ```js
 function renderOpen(o, bodyN, bodyT){
   var warn = (o.hL<0.25||o.hL>1.0)
-    ? '<div class="warn">h/L = '+f2(o.hL)+' is outside 0.25 ≤ h/L ≤ 1.0 — Figs. 27.3-4/5/6 do not apply directly; verify by other means.</div>' : '';
+    ? '<div class="warn">h/L = '+f2(o.hL)+' (wind normal to ridge) is outside 0.25 ≤ h/L ≤ 1.0 — Figs. 27.3-4/5/6 do not apply directly; verify by other means.</div>' : '';
+  var warn90 = (o.hL90<0.25||o.hL90>1.0)
+    ? '<div class="warn">h/L = '+f2(o.hL90)+' (wind parallel to ridge, L = ridge length) is outside 0.25 ≤ h/L ≤ 1.0 — Fig. 27.3-7 does not apply directly; verify by other means.</div>' : '';
   var html=warn+'<div class="kv">'
     +'<div class="kv-item">Normal-to-ridge direction = <span>'+o.normalLabel+'</span></div>'
     +'<div class="kv-item">L (along-wind, normal to ridge) = <span>'+f1(o.Wperp)+' ft</span></div>'
@@ -933,10 +969,10 @@ function renderOpen(o, bodyN, bodyT){
   });
   html+='</tbody></table>';
   var notes=o.rows.filter(function(r){return r.note;}).map(function(r){return r.note;});
-  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind into the low eave, γ = 180° into the high eave). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Ref: Figs. 27.3-4/5/6, Eq. 27.3-2, G = 0.85</div>';
+  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind into the low eave, γ = 180° into the high eave). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Fascia panels on free roofs with θ ≤ 5° are designed as inverted parapets (§27.3.2, qp = qh, GCpn = +1.5 / −1.0) — not computed here. Ref: Figs. 27.3-4/5/6, Eq. 27.3-2, G = 0.85</div>';
   bodyN.innerHTML=html;
 
-  var t='<div class="kv"><div class="kv-item">Parallel-to-ridge direction = <span>'+o.parallelLabel+'</span></div><div class="kv-item">h = <span>zone breakpoints at h and 2h from the windward edge</span></div></div>';
+  var t=warn90+'<div class="kv"><div class="kv-item">Parallel-to-ridge direction = <span>'+o.parallelLabel+'</span></div><div class="kv-item">L (ridge) = <span>'+f1(o.Lridge)+' ft</span></div><div class="kv-item">h/L = <span>'+f2(o.hL90)+'</span></div><div class="kv-item">Zones: <span>h and 2h from the windward edge</span></div></div>';
   t+='<table class="res-tbl"><thead><tr><th>Distance from Windward Edge</th><th>Case A C<sub>N</sub></th><th>p<sub>A</sub> (psf)</th><th>Case B C<sub>N</sub></th><th>p<sub>B</sub> (psf)</th></tr></thead><tbody>';
   o.trans.forEach(function(z){
     t+='<tr><td>'+z.zone+'</td><td>'+f2(z.A)+'</td><td style="font-weight:700;color:#dc2626">'+f1(z.pA)+'</td><td>'+f2(z.B)+'</td><td style="font-weight:700;color:#1e3c72">'+f1(z.pB)+'</td></tr>';
@@ -984,6 +1020,10 @@ function renderMinLoads(isOpen, body){
   body.innerHTML=html;
 }
 ```
+
+- [ ] **Step 4b: Parapet references — §27.3.4 (Gate 1 L-05)**
+
+Parapet pressures are §27.3.4 in ASCE 7-16 (§27.3.5 is design load cases). Replace every `§27.3.5` that refers to parapets — the `parapetBlk` header ("Parapet Pressures (§27.3.5)"), the `renderParapet` ref line, the `renderDir` story-shear ref line, and the `calculate()` comment — with `§27.3.4`. The new `minBlk` header keeps §27.3.5 (that one is the load-case section).
 
 - [ ] **Step 5: Revit export guard**
 
