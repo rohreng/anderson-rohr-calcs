@@ -170,7 +170,7 @@ SOURCE's K<sub>z</sub> is the Table 26.10-1 Note 1 formula, not the tabulated va
 
 ### Harness
 
-`node tools/test-mwfrs-wind.mjs` → **62 PASS, 0 FAIL, `ALL PASS`** (4 baseline cases, no page errors, parallel-to-ridge ×2, L-02 ×3, open ×12, frame ×7 incl. S-01 ×2, round-trip, legacy ×3, sweep ×18, visibility ×6).
+`node tools/test-mwfrs-wind.mjs` → **61 PASS, 0 FAIL, `ALL PASS`** (4 baseline cases, no page errors, parallel-to-ridge ×2, L-02 ×3, open ×12, frame ×7 incl. S-01 ×2, round-trip, legacy ×3, sweep ×18, visibility ×6).
 
 ### Gate 1 decision verification
 
@@ -290,3 +290,24 @@ Hidden for every Open combination: wxBlk, wyBlk, roofBlk, parapetBlk, sendBlk, h
 No "Enclosed & Partially Enclosed"-only wording remains (header line 89 lists all four classes). Parapet references are §27.3.4 throughout; "§27.3.5" appears only as the Fig. 27.3-8 / Appendix D exception. `'sloped'` survives only as the internal roof-object / Revit `type` tag and the legacy-file mapping (intended). Dead: `cumH` (G2-09). Misleading notes: G2-02, G2-04, G2-07, G2-08.
 
 **GATE 2: PASS** — 0 blockers; 2 MAJOR (G2-01 toolbar Load of Open snapshots, G2-02 reversed γ note) recommended before deploy, 9 MINOR.
+
+### Gate 2 re-check (commit 8866459)
+
+Diff read (`git show 8866459`: calc +23/−19, harness +24/−1); each item probed in headless Chromium against the current CALC (`tools/_gate2.mjs`, deleted). Harness: `node tools/test-mwfrs-wind.mjs` → **62 PASS, 0 FAIL, `ALL PASS`** (61 before + the new check), now including `toolbar round-trip: open case identical`. No console errors (other than the two external font 404s), no page errors, no NaN.
+
+| Item | Fix in 8866459 | Verified | Evidence |
+|---|---|---|---|
+| G2-01 toolbar Load of Open snapshot | `data-are-ignore` on `#sendDir`, `#sendStory`, `#diaStoryX`, `#diaStoryY` (renderSend); adapter comment updated | **Verified** | `captureState()` of case (b) → fresh page → `loadFromState()` → `ok:true, applied:23, notInFile:[], rolledBack` absent; same onto a page that had already run a walled calc. After `runAndSettle()` (what `loadFromHtml` calls on `ok`) the page shows the Open inputs (open / 80×30×18 / z<sub>g</sub> 2500 / K<sub>e</sub> 0.913 / monoslope / obstructed / ridge B / 10°) and Open results (openBlk visible, wx/send hidden, q<sub>h</sub> 23.12); `__mwfrsLast` byte-identical to the original run. All four send selects carry the attribute; a walled snapshot no longer captures them and still loads `ok:true` with q<sub>h</sub> 21.93 after settle (no regression). |
+| G2-02 γ note | Line 1059 text swapped | **Verified** | Rendered: "monoslope: γ = 0° wind arriving at the high eave, γ = 180° at the low eave — Fig. 27.3-4" — matches the Fig. 27.3-4 diagrams (PDF 334). |
+| G2-03 URL prefill K<sub>e</sub> | `if(qp.has('groundElev')&&!qp.has('Ke')) updateKeFromElev();` after the prefill loop | **Verified** | `?groundElev=5000` → `#Ke` = **0.834** (e<sup>−0.0000362×5000</sup> = 0.8344); `?groundElev=5000&Ke=0.9` → K<sub>e</sub> stays 0.9 (explicit override honoured). |
+| G2-04 K<sub>z</sub>-floor text | `kzFloor` flag from `Kh28Applied` in `longFrameForce`; conditional ref text | **Verified** | Exp D, h 28: "Kh = 1.144 per Table 26.10-1"; Exp B, h 16: "Kh = 0.700 (Exposure B, h < 30 ft → Kz = 0.70 per Table 26.10-1 fn. a)"; Exp B, h 40: "Kh = 0.760 per Table 26.10-1". |
+| G2-05 Fig. 27.3-7 zone bounds | `trans` rows carry `from`/`to`, filtered `from < Lridge`; table gains a "ft from windward edge" column | **Verified** | L<sub>ridge</sub> = 30, h = 20 → two rows: ≤ h 0.0–20.0, > h ≤ 2h 20.0–30.0 (the "> 2h" row is gone); h = 10 → three rows 0–10 / 10–20 / 20–30; L<sub>ridge</sub> = 80, h = 18 → 0–18 / 18–36 / 36–80 (unchanged pressures). |
+| G2-06 walled geometry warning | `setBlk('frameBlk', !!frame \|\| frameReason==='geometry')` | **Verified** | Partially Enclosed, Gable 30°, B = 60, h = 5 → `frame:null`, `frameBlk` display **block**, text "§28.3.5 not evaluated: mean roof height h must exceed half the gable rise…". Enclosed gable (not applicable, no geometry fault) still hides the block. |
+| G2-08 h/L 2 dp | `f2(r.hL)` at line 1013 | **Verified** | Case (c) note now "h/L = 0.47". |
+| G2-09 dead `cumH` | Line deleted | **Verified** | `grep cumH` → 0 matches. |
+| G2-10 harness | `legacy: theta row visible` uses `getComputedStyle`; new §5b toolbar `captureState → loadFromState → calculate` round trip | **Verified** | Both checks present in the diff and PASS in the run. |
+| G2-07, G2-11 | Deferred (out of scope) | — | Open-building diagram still draws walls; `.header h1` print contrast unchanged. Neither affects a number. |
+
+Hand-check numbers are unaffected by the commit (no engine change other than the zone bounds; harness baseline and open/frame checks unchanged and passing).
+
+**GATE 2: PASS** — 0 blockers; all nine applied fixes verified; G2-07 and G2-11 remain as deferred MINOR items.
