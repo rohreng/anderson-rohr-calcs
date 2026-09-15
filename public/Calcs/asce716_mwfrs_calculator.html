@@ -58,6 +58,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 .sl-btn.save{border-color:#15803d;color:#15803d}
 .sl-btn.save:hover{background:#f0fdf4}
 .sl-label{font-size:.77em;color:#718096}
+.hide,.ig.hide{display:none!important}   /* two-class rule (0,2,0) outranks are-theme-v2.css `.ig{display:flex!important}` regardless of sheet order */
 @page{size:letter portrait;margin:.45in .5in .45in .5in}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -157,7 +158,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
           <option value="mansard">Mansard</option>
         </select>
       </div>
-      <div class="ig" id="openRoofGroup" style="display:none">
+      <div class="ig hide" id="openRoofGroup">
         <label>Free Roof Shape</label>
         <select id="freeRoofShape" onchange="toggleRoofInputs()">
           <option value="monoslope">Monoslope</option>
@@ -165,7 +166,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
           <option value="troughed">Troughed</option>
         </select>
       </div>
-      <div class="ig" id="windFlowGroup" style="display:none">
+      <div class="ig hide" id="windFlowGroup">
         <label>Wind Flow (Figs. 27.3-4/5/6)</label>
         <select id="windFlow">
           <option value="clear" selected>Clear (≤ 50% blocked)</option>
@@ -189,12 +190,12 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
         </select>
       </div>
       <div class="ig" id="thetaRow"><label>Roof Angle θ (deg)</label><input type="number" id="theta" value="18" min="0" max="80" step="0.5"/></div>
-      <div class="ig" id="pitchRow" style="display:none"><label>Rise per 12 <span id="pitchThetaOut" style="font-weight:400;color:#718096"></span></label><input type="number" id="pitchRise" value="4" min="0" max="24" step="0.5" oninput="toggleRoofInputs()"/></div>
+      <div class="ig hide" id="pitchRow"><label>Rise per 12 <span id="pitchThetaOut" style="font-weight:400;color:#718096"></span></label><input type="number" id="pitchRise" value="4" min="0" max="24" step="0.5" oninput="toggleRoofInputs()"/></div>
     </div>
     <div class="row">
       <div class="ig" id="hpRow"><label>Parapet Height hp (ft) <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig" id="frameRowN" style="display:none"><label>Transverse Frames n (§28.3.5)</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
-      <div class="ig" id="frameRowAs" style="display:none"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
+      <div class="ig hide" id="frameRowN"><label>Transverse Frames n (§28.3.5)</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
+      <div class="ig hide" id="frameRowAs"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
     </div>
     <div class="ref">Wind-X: wind along EW axis (L=B, B_⊥=D) | Wind-Y: wind along NS axis (L=D, B_⊥=B) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure</div>
     <div id="mwfrsDiagWrap" style="margin-top:12px;text-align:center"></div>
@@ -529,7 +530,7 @@ function updateKeFromElev(){
 function setBlk(id, show){ var el=document.getElementById(id); if(el) el.style.display=show?'':'none'; }
 function toggleRoofInputs(){
   var open=isOpenEncl(), rt=getRoofType();
-  var show=function(id,on){ var el=document.getElementById(id); if(el) el.style.display=on?'':'none'; };
+  var show=function(id,on){ var el=document.getElementById(id); if(el) el.classList.toggle('hide',!on); };
   show('closedRoofGroup',!open); show('openRoofGroup',open); show('windFlowGroup',open);
   var angled=open||rt!=='flat';
   show('ridgeRow',angled); show('angleModeRow',angled);
