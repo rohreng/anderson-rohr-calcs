@@ -99,31 +99,54 @@
     return null;
   }
 
-  // ── hold-downs, Simpson ESR-2330 Table 2B (DF/SP, C_D = 1.6 included) ──────
-  // Allowable tension is tabulated against WOOD MEMBER THICKNESS — the dimension
-  // parallel to the SDS screws, i.e. the built-up thickness of the end post.
-  // The thickness columns are 3, 3.5, 4.5, 5.5, 7.25 and "5.5(7)". The plain
-  // columns apply at footnote 6's minimum member WIDTH of 3½"; the "5.5(7)"
-  // column carries a higher value at the same thickness but requires footnote
-  // 7's 5½" minimum width (6x6 nominal) — that is `wideStep` below.
+  // ── hold-downs, Simpson C-C-2026 p. 61, "Allowable Tension Loads (160)" ──
+  // Allowable tension is tabulated against the minimum WOOD MEMBER SIZE, thickness
+  // × width — thickness is the dimension parallel to the SDS screws, i.e. the
+  // built-up thickness of the end post. The catalog carries a DF/SP column and an
+  // SPF/HF column: DFL and SP read DF/SP, SPF reads SPF/HF (`bySpecies`). The
+  // DF/SP column is identical to ICC-ES ESR-2330 Table 2B (ESR not on disk):
+  // the 3 / 3.5 / 4.5 / 5.5 / 7.25 thickness steps apply at footnote 6's minimum
+  // member WIDTH of 3½"; the "5.5(7)" column carries a higher value at the same
+  // thickness but requires footnote 7's 5½" minimum width (6x6 nominal) — that is
+  // `wideStep`. Each species entry is { steps: [{ t, T }], wideStep?: { t, w, T } }.
+  // Catalog fn. 3 (hi-strength anchor rod) is printed on the DF/SP cells 7,015
+  // and 17,685 only; the ESR-2330 rod notes are kept on the row regardless.
+  var HD_COLUMN = { DFL: 'DF/SP', SP: 'DF/SP', SPF: 'SPF/HF' };   // catalog column read by each framing species
+  function hdCols(dfsp, spf) { return { DFL: dfsp, SP: dfsp, SPF: spf }; }
   var HOLDOWNS = [
-    { name: 'HDUE3-SDS3',    sds: '7 — SDS ¼×3',   rod: '⅝"',        steps: [{ t: 3.0, T: 3790 }], minWidth: 3.5, note: '' },
-    { name: 'HDUE5-SDS3',    sds: '10 — SDS ¼×3',  rod: '⅝"',        steps: [{ t: 3.0, T: 5375 }], minWidth: 3.5, note: '' },
-    { name: 'HDUE7-SDS3',    sds: '13 — SDS ¼×3',  rod: '⅝" hi-str', steps: [{ t: 3.0, T: 7015 }], minWidth: 3.5, note: 'High-strength anchor rod required (ESR-2330 Table 2B fn. 11)' },
-    { name: 'HDUE9-SDS3.5',  sds: '16 — SDS ¼×3½', rod: '⅞"',        steps: [{ t: 3.5, T: 8425 }, { t: 4.5, T: 9390 }], minWidth: 3.5, note: 'No 3" thickness column; 8,425 lb at 3½", 9,390 lb at member thickness ≥ 4½"' },
-    { name: 'HDUE13-SDS3.5', sds: '23 — SDS ¼×3½', rod: '1"',        steps: [{ t: 5.5, T: 11900 }, { t: 7.25, T: 12950 }], wideStep: { t: 5.5, w: 5.5, T: 13110 }, minWidth: 3.5, note: 'Heavy hex anchor nut required (fn. 10); 11,900 lb at 5½" thickness, 12,950 lb at 7¼", 13,110 lb on a 6×6 (5½" minimum width, fn. 7)' },
-    { name: 'HDUE17-SDS4.5', sds: '28 — SDS ¼×4½', rod: '1" hi-str', steps: [{ t: 5.5, T: 16040 }], wideStep: { t: 5.5, w: 5.5, T: 17685 }, minWidth: 3.5, note: '16,040 lb at 5½" or 7¼" thickness; 17,685 lb requires a 6×6 (5½" minimum width, fn. 7) and a high-strength anchor rod (fn. 11)' }
+    { name: 'HDUE3-SDS3',    sds: '7 — SDS ¼×3',   rod: '⅝"',        minWidth: 3.5, note: '',
+      bySpecies: hdCols({ steps: [{ t: 3.0, T: 3790 }] }, { steps: [{ t: 3.0, T: 3340 }] }) },
+    { name: 'HDUE5-SDS3',    sds: '10 — SDS ¼×3',  rod: '⅝"',        minWidth: 3.5, note: '',
+      bySpecies: hdCols({ steps: [{ t: 3.0, T: 5375 }] }, { steps: [{ t: 3.0, T: 4700 }] }) },
+    { name: 'HDUE7-SDS3',    sds: '13 — SDS ¼×3',  rod: '⅝" hi-str', minWidth: 3.5, note: 'High-strength anchor rod required (ESR-2330 Table 2B fn. 11; C-C-2026 p. 61 fn. 3 on the DF/SP value)',
+      bySpecies: hdCols({ steps: [{ t: 3.0, T: 7015 }] }, { steps: [{ t: 3.0, T: 6030 }] }) },
+    { name: 'HDUE9-SDS3.5',  sds: '16 — SDS ¼×3½', rod: '⅞"',        minWidth: 3.5, note: 'No 3" thickness column; DF/SP 8,425 lb at 3½", 9,390 lb at member thickness ≥ 4½" (SPF/HF 7,305 / 7,995 lb)',
+      bySpecies: hdCols({ steps: [{ t: 3.5, T: 8425 }, { t: 4.5, T: 9390 }] }, { steps: [{ t: 3.5, T: 7305 }, { t: 4.5, T: 7995 }] }) },
+    { name: 'HDUE13-SDS3.5', sds: '23 — SDS ¼×3½', rod: '1"',        minWidth: 3.5, note: 'Heavy hex anchor nut required (fn. 10); DF/SP 11,900 lb at 5½" thickness, 12,950 lb at 7¼", 13,110 lb on a 6×6 (5½" minimum width, fn. 7); SPF/HF 10,215 / 11,030 / 10,980 lb',
+      bySpecies: hdCols({ steps: [{ t: 5.5, T: 11900 }, { t: 7.25, T: 12950 }], wideStep: { t: 5.5, w: 5.5, T: 13110 } },
+                        { steps: [{ t: 5.5, T: 10215 }, { t: 7.25, T: 11030 }], wideStep: { t: 5.5, w: 5.5, T: 10980 } }) },
+    { name: 'HDUE17-SDS4.5', sds: '28 — SDS ¼×4½', rod: '1" hi-str', minWidth: 3.5, note: 'DF/SP 16,040 lb at 5½" or 7¼" thickness, 17,685 lb on a 6×6 (5½" minimum width, fn. 7) with a high-strength anchor rod (fn. 11; C-C-2026 p. 61 fn. 3); SPF/HF 13,545 / 14,775 lb',
+      bySpecies: hdCols({ steps: [{ t: 5.5, T: 16040 }], wideStep: { t: 5.5, w: 5.5, T: 17685 } },
+                        { steps: [{ t: 5.5, T: 13545 }], wideStep: { t: 5.5, w: 5.5, T: 14775 } }) }
   ];
-  // Allowable tension for a given end-post thickness and width, or 0 if the post
-  // does not reach the lowest tabulated thickness / footnote 6's minimum width.
-  function holdownCapacity(hd, thk, width) {
+  // Allowable tension for a given end-post thickness, width and framing species,
+  // or 0 if the catalog has no column for the species, or the post does not reach
+  // the lowest tabulated thickness / footnote 6's minimum width.
+  function holdownCapacity(hd, thk, width, speciesId) {
+    var col = hd.bySpecies[speciesId];
+    if (!col) return 0;
     if (isFinite(width) && width + 1e-9 < hd.minWidth) return 0;
     var cap = 0;
-    for (var i = 0; i < hd.steps.length; i++) if (thk + 1e-9 >= hd.steps[i].t) cap = hd.steps[i].T;
+    for (var i = 0; i < col.steps.length; i++) if (thk + 1e-9 >= col.steps[i].t) cap = col.steps[i].T;
     // "5.5(7)" column — same thickness, higher value, 6x6 minimum width.
-    var ws = hd.wideStep;
+    var ws = col.wideStep;
     if (ws && thk + 1e-9 >= ws.t && isFinite(width) && width + 1e-9 >= ws.w) cap = Math.max(cap, ws.T);
     return cap;
+  }
+  // True when at least one HDUE row carries a value for the species.
+  function holdownSpeciesCovered(speciesId) {
+    for (var i = 0; i < HOLDOWNS.length; i++) if (HOLDOWNS[i].bySpecies[speciesId]) return true;
+    return false;
   }
 
   // ── coil straps, Simpson ESR-2105 Table 4 (C_D = 1.6 included) ─────────────
@@ -136,11 +159,16 @@
   var STRAP_MIN_G = 0.50;   // ESR-2105: minimum member specific gravity 0.50
 
   // ── sill / bottom-plate shear connectors, per connector at C_D = 1.6 ───────
+  // `bySillSpecies` is keyed by the SILL species, except `16d` where the engine
+  // reads it with the LOWER-G of sill and framing species (NDS Table 12N is for
+  // "both members of identical specific gravity"; computeWall prints which governed).
   var SILL_CONN = [
-    { id: 'ltp4', label: 'LTP4 lateral tie plate', Vconn: 715, defaultSpacing: 16, base: false, sheathingReduction: true,
-      basis: 'Simpson C-C-2026 p. 309, 12 — 0.131×1½ nails, direction G, C_D 1.6' },
-    { id: '16d', label: '16d common nails', Vconn: 226, defaultSpacing: 16, base: false,
-      basis: 'NDS 2018 Table 12N, 16d common (D = 0.162"), t_s = 1½", G = 0.50, Z = 141 lb × C_D 1.6' },
+    { id: 'ltp4', label: 'LTP4 lateral tie plate', defaultSpacing: 16, base: false, sheathingReduction: true,
+      bySillSpecies: { DFL: 715, SP: 715, SPF: 615 },
+      basis: 'Simpson C-C-2026 p. 310, LTP4 with 12 — 0.131×1½ nails, direction G, "(160)" column: 715 lb DF/SP, 615 lb SPF/HF' },
+    { id: '16d', label: '16d common nails', defaultSpacing: 16, base: false, minG: true,
+      bySillSpecies: { DFL: 226, SP: 246, SPF: 192 },
+      basis: 'NDS 2018 Table 12N, 16d common (D = 0.162", Table L4), t_s = 1½": Z = 141 lb (G = 0.50 DF-L) / 154 lb (G = 0.55 SP) / 120 lb (G = 0.42 SPF) × C_D 1.6; the lower G of sill and framing species is used' },
     { id: 'sds14', label: 'SDS ¼×4½ screws', defaultSpacing: 12, base: false,
       bySillSpecies: { DFL: 400, SP: 400, SPF: 304 },
       basis: 'Simpson sole-to-rim table: 250 lb DF/SP-to-DF/SP, 190 lb where either member is SPF/HF, × C_D 1.6' },
@@ -151,7 +179,7 @@
       bySillSpecies: { DFL: 1488, SP: 1488, SPF: 1360 },
       basis: 'NDS 2018 Table 12E, 1½" sill to concrete, 6" embedment, Z∥ = 930 lb (G = 0.50) / 850 lb (G = 0.42) × C_D 1.6' }
   ];
-  // Simpson C-C-2026 LTP4 footnote: 0.72x over 3/8" WSP, 0.64x over 1/2" WSP.
+  // Simpson C-C-2026 p. 310 fn. 3: 0.72x over 3/8" WSP, 0.64x over 1/2" WSP.
   var LTP4_SHEATHING = { none: { f: 1.00, label: 'nailed direct to framing' }, '0.375': { f: 0.72, label: 'over ⅜" sheathing' }, '0.5': { f: 0.64, label: 'over ½" sheathing' } };
 
   function findSill(id) { for (var i = 0; i < SILL_CONN.length; i++) if (SILL_CONN[i].id === id) return SILL_CONN[i]; return null; }
@@ -433,6 +461,9 @@
           if (fi === floors.length - 1) errors.push(tag + ': coil straps are floor-to-floor only; the base level requires an HDUE hold-down to the foundation.');
           var G = (SPECIES[state.species] || SPECIES.DFL).G;
           if (G + 1e-9 < STRAP_MIN_G) errors.push(tag + ': coil straps require framing with specific gravity ≥ 0.50 (ESR-2105); ' + (SPECIES[state.species] || SPECIES.DFL).label + ' has G = ' + f2(G) + '.');
+        } else if (SPECIES[state.species] && !holdownSpeciesCovered(state.species)) {
+          // Unreachable with the C-C-2026 table (every row carries DF/SP and SPF/HF); kept for a species without a catalog column.
+          errors.push(tag + ': no HDUE hold-down value is on file for ' + SPECIES[state.species].label + ' framing — supply the Simpson catalog column for that species or change the framing species.');
         }
         if (!POST_SIZES[w.endPost && w.endPost.size]) errors.push(tag + ': unknown end post size "' + (w.endPost && w.endPost.size) + '".');
       });
@@ -642,27 +673,28 @@
       hardware.label = strap ? strap.name : 'Exceeds CMST12 (9,215 lb)';
       hardware.detail = strap ? strap.nails + ' — ' + strap.esr : '';
     } else {
+      var hdCol = HD_COLUMN[state.species];   // catalog column name, for the labels
       var pick = null;
       for (var hi = 0; hi < HOLDOWNS.length; hi++) {
-        var capH = holdownCapacity(HOLDOWNS[hi], postInfo.thk, postInfo.width);
+        var capH = holdownCapacity(HOLDOWNS[hi], postInfo.thk, postInfo.width, state.species);
         if (capH > 0 && capH >= out.gov.T) { pick = { hd: HOLDOWNS[hi], cap: capH }; break; }
       }
-      hardware.device = pick ? pick.hd : null; hardware.capacity = pick ? pick.cap : 0;
+      hardware.device = pick ? pick.hd : null; hardware.capacity = pick ? pick.cap : 0; hardware.column = hdCol;
       if (!pick) {
-        // Name the largest device the end post actually permits, not the largest in the catalogue.
+        // Name the largest device the end post and species actually permit, not the largest in the catalogue.
         var best = null;
         HOLDOWNS.forEach(function (hd) {
-          var c = holdownCapacity(hd, postInfo.thk, postInfo.width);
+          var c = holdownCapacity(hd, postInfo.thk, postInfo.width, state.species);
           if (c > 0 && (!best || c > best.cap)) best = { hd: hd, cap: c };
         });
         hardware.bestAvailable = best;
         hardware.label = best
-          ? 'Exceeds ' + best.hd.name + ' (' + f1(best.cap) + ' lb) — the largest hold-down permitted on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" end post'
-          : 'No HDUE qualifies on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" end post — the lightest HDUE needs 3½" member thickness (ESR-2330 Table 2B)';
+          ? 'Exceeds ' + best.hd.name + ' (' + f1(best.cap) + ' lb, ' + hdCol + ') — the largest hold-down permitted on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post'
+          : 'No HDUE qualifies on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post — the lightest HDUE needs 3" member thickness × 3½" width (C-C-2026 p. 61)';
       } else {
         hardware.label = pick.hd.name;
       }
-      hardware.detail = pick ? (pick.hd.sds + ', ' + pick.hd.rod + ' dia. anchor rod' + (pick.hd.note ? ' — ' + pick.hd.note : '')) : '';
+      hardware.detail = pick ? (pick.hd.sds + ', ' + pick.hd.rod + ' dia. anchor rod — ' + hdCol + ' column, C-C-2026 p. 61' + (pick.hd.note ? ' — ' + pick.hd.note : '')) : '';
       hardware.rod = pick ? pick.hd.rod : '';
     }
     out.holdown = hardware;
@@ -670,8 +702,20 @@
     // Sill shear connector.
     var scObj = findSill(w.sill.conn);
     var sillSpecies = SPECIES[w.sillSpecies] ? w.sillSpecies : state.species;
-    var Vconn = scObj.bySillSpecies ? scObj.bySillSpecies[sillSpecies] : scObj.Vconn;
     var sillNotes = [];
+    // Nails (Table 12N, "both members of identical specific gravity"): the lower G
+    // of the sill species and the framing species governs. Other connectors are
+    // tabulated against the sill member and read the sill species directly.
+    var valSpecies = sillSpecies, nailGov = '';
+    if (scObj.minG) {
+      var Gsill = SPECIES[sillSpecies].G, Gfrm = ctx.sp.G;
+      valSpecies = Gfrm + 1e-9 < Gsill ? state.species : sillSpecies;
+      nailGov = Gfrm + 1e-9 < Gsill ? 'framing' : (Gsill + 1e-9 < Gfrm ? 'sill' : 'both');
+      sillNotes.push('Nail value at the lower specific gravity: ' + SPECIES[valSpecies].label + ' G = ' + f2(SPECIES[valSpecies].G)
+        + (nailGov === 'both' ? ' (sill and framing alike)' : ' (' + nailGov + ' species governs; ' + (nailGov === 'sill' ? ctx.sp.label + ' framing G = ' + f2(Gfrm) : SPECIES[sillSpecies].label + ' sill G = ' + f2(Gsill)) + ')')
+        + ' — NDS Table 12N is for both members of identical specific gravity.');
+    }
+    var Vconn = scObj.bySillSpecies ? scObj.bySillSpecies[valSpecies] : scObj.Vconn;
     if (scObj.sheathingReduction) {
       var key = String((w.sill && w.sill.sheathing) || 'none');
       var red = LTP4_SHEATHING[key] || LTP4_SHEATHING.none;
@@ -680,7 +724,7 @@
     }
     var spacing = num(w.sill.spacing_in, scObj.defaultSpacing);
     var sillPlf = spacing > 0 ? Vconn / (spacing / 12) : NaN;
-    out.sill = { conn: scObj, Vconn: Vconn, spacing: spacing, plf: sillPlf, species: sillSpecies, notes: sillNotes, basis: scObj.basis };
+    out.sill = { conn: scObj, Vconn: Vconn, spacing: spacing, plf: sillPlf, species: sillSpecies, valueSpecies: valSpecies, nailGov: nailGov, notes: sillNotes, basis: scObj.basis };
     if (isBase) {
       // §4.3.6.4.3: the plate washer itself is unconditional; only the
       // extend-to-within-½"-of-the-edge clause is gated on 400 plf.
@@ -996,25 +1040,27 @@
                 ['reason stated', a.cap.faceNotes.some(function (x) { return x.indexOf('SDC E') >= 0; }), a.cap.faceNotes.join(' | ') || '(none)']]; } },
 
     // ── Hardware ──────────────────────────────────────────────────────────
-    // Every value below is the ESR-2330 Table 2B "Wood Member Thickness (in.)"
-    // grid: columns 3 / 3.5 / 4.5 / 5.5 / 7.25 / 5.5(7), footnote 6 minimum
-    // width 3½" on the plain columns, footnote 7 minimum width 5½" on 5.5(7).
-    { id: 'SW19', src: 'ESR-2330 Table 2B — thickness / width grid', run: function () { return null; },
+    // Every value below is the C-C-2026 p. 61 HDUE "Minimum Wood Member Size
+    // Thickness x Width" grid, DF/SP column (identical to ESR-2330 Table 2B:
+    // columns 3 / 3.5 / 4.5 / 5.5 / 7.25 / 5.5(7), footnote 6 minimum width 3½"
+    // on the plain columns, footnote 7 minimum width 5½" on 5.5(7)).
+    { id: 'SW19', src: 'C-C-2026 p. 61 / ESR-2330 Table 2B — thickness / width grid, DF/SP', run: function () { return null; },
       expect: function () {
         var hd3 = HOLDOWNS[0], hd5 = HOLDOWNS[1], hd7 = HOLDOWNS[2], hd9 = HOLDOWNS[3], hd13 = HOLDOWNS[4], hd17 = HOLDOWNS[5];
-        return [['HDUE3 at 3" thickness = 3,790 lb (the 3" column exists)', holdownCapacity(hd3, 3.0, 5.5) === 3790, String(holdownCapacity(hd3, 3.0, 5.5))],
-                ['HDUE5 at 3" thickness = 5,375 lb', holdownCapacity(hd5, 3.0, 5.5) === 5375, String(holdownCapacity(hd5, 3.0, 5.5))],
-                ['HDUE7 at 3" thickness = 7,015 lb', holdownCapacity(hd7, 3.0, 5.5) === 7015, String(holdownCapacity(hd7, 3.0, 5.5))],
-                ['HDUE9 at 3" thickness = 0 (no 3" column)', holdownCapacity(hd9, 3.0, 5.5) === 0, String(holdownCapacity(hd9, 3.0, 5.5))],
-                ['HDUE9 at 3½" thickness = 8,425 lb', holdownCapacity(hd9, 3.5, 5.5) === 8425, String(holdownCapacity(hd9, 3.5, 5.5))],
-                ['HDUE9 at 4½" thickness = 9,390 lb', holdownCapacity(hd9, 4.5, 5.5) === 9390, String(holdownCapacity(hd9, 4.5, 5.5))],
-                ['HDUE13 at 5½" thickness, 3½" width = 11,900 lb', holdownCapacity(hd13, 5.5, 3.5) === 11900, String(holdownCapacity(hd13, 5.5, 3.5))],
-                ['HDUE13 at 7¼" thickness, 3½" width = 12,950 lb', holdownCapacity(hd13, 7.25, 3.5) === 12950, String(holdownCapacity(hd13, 7.25, 3.5))],
-                ['HDUE13 on a 6×6 (5½" thick × 5½" wide) = 13,110 lb', holdownCapacity(hd13, 5.5, 5.5) === 13110, String(holdownCapacity(hd13, 5.5, 5.5))],
-                ['HDUE17 at 5½" thickness, 3½" width = 16,040 lb', holdownCapacity(hd17, 5.5, 3.5) === 16040, String(holdownCapacity(hd17, 5.5, 3.5))],
-                ['HDUE17 at 7¼" thickness, 3½" width = 16,040 lb', holdownCapacity(hd17, 7.25, 3.5) === 16040, String(holdownCapacity(hd17, 7.25, 3.5))],
-                ['HDUE17 on a 6×6 (5½" thick × 5½" wide) = 17,685 lb', holdownCapacity(hd17, 5.5, 5.5) === 17685, String(holdownCapacity(hd17, 5.5, 5.5))],
-                ['below footnote 6’s 3½" minimum width nothing qualifies', holdownCapacity(hd3, 5.5, 3.0) === 0, String(holdownCapacity(hd3, 5.5, 3.0))]]; } },
+        return [['HDUE3 at 3" thickness = 3,790 lb (the 3" column exists)', holdownCapacity(hd3, 3.0, 5.5, 'DFL') === 3790, String(holdownCapacity(hd3, 3.0, 5.5, 'DFL'))],
+                ['HDUE5 at 3" thickness = 5,375 lb', holdownCapacity(hd5, 3.0, 5.5, 'DFL') === 5375, String(holdownCapacity(hd5, 3.0, 5.5, 'DFL'))],
+                ['HDUE7 at 3" thickness = 7,015 lb', holdownCapacity(hd7, 3.0, 5.5, 'DFL') === 7015, String(holdownCapacity(hd7, 3.0, 5.5, 'DFL'))],
+                ['HDUE9 at 3" thickness = 0 (no 3" column)', holdownCapacity(hd9, 3.0, 5.5, 'DFL') === 0, String(holdownCapacity(hd9, 3.0, 5.5, 'DFL'))],
+                ['HDUE9 at 3½" thickness = 8,425 lb', holdownCapacity(hd9, 3.5, 5.5, 'DFL') === 8425, String(holdownCapacity(hd9, 3.5, 5.5, 'DFL'))],
+                ['HDUE9 at 4½" thickness = 9,390 lb', holdownCapacity(hd9, 4.5, 5.5, 'DFL') === 9390, String(holdownCapacity(hd9, 4.5, 5.5, 'DFL'))],
+                ['HDUE13 at 5½" thickness, 3½" width = 11,900 lb', holdownCapacity(hd13, 5.5, 3.5, 'DFL') === 11900, String(holdownCapacity(hd13, 5.5, 3.5, 'DFL'))],
+                ['HDUE13 at 7¼" thickness, 3½" width = 12,950 lb', holdownCapacity(hd13, 7.25, 3.5, 'DFL') === 12950, String(holdownCapacity(hd13, 7.25, 3.5, 'DFL'))],
+                ['HDUE13 on a 6×6 (5½" thick × 5½" wide) = 13,110 lb', holdownCapacity(hd13, 5.5, 5.5, 'DFL') === 13110, String(holdownCapacity(hd13, 5.5, 5.5, 'DFL'))],
+                ['HDUE17 at 5½" thickness, 3½" width = 16,040 lb', holdownCapacity(hd17, 5.5, 3.5, 'DFL') === 16040, String(holdownCapacity(hd17, 5.5, 3.5, 'DFL'))],
+                ['HDUE17 at 7¼" thickness, 3½" width = 16,040 lb', holdownCapacity(hd17, 7.25, 3.5, 'DFL') === 16040, String(holdownCapacity(hd17, 7.25, 3.5, 'DFL'))],
+                ['HDUE17 on a 6×6 (5½" thick × 5½" wide) = 17,685 lb', holdownCapacity(hd17, 5.5, 5.5, 'DFL') === 17685, String(holdownCapacity(hd17, 5.5, 5.5, 'DFL'))],
+                ['below footnote 6’s 3½" minimum width nothing qualifies', holdownCapacity(hd3, 5.5, 3.0, 'DFL') === 0, String(holdownCapacity(hd3, 5.5, 3.0, 'DFL'))],
+                ['SP reads the same DF/SP column (HDUE13 6×6 = 13,110 lb)', holdownCapacity(hd13, 5.5, 5.5, 'SP') === 13110, String(holdownCapacity(hd13, 5.5, 5.5, 'SP'))]]; } },
     { id: 'SW20', src: 'ESR-2330 Table 2B — HDUE9 pick on a 4x6 post', run: function () {
         var st = mkState(CASE_HD); st.floors[0].walls[0].endPost = { n: 1, size: '4x6' }; return compute(st); },
       expect: function (r) { var a = W(r, 0);
@@ -1208,7 +1254,56 @@
       expect: function (v) {
         return [['"abc" refused', v.bad.ok === false && v.bad.errors.some(function (e) { return e.indexOf('wall-line force') >= 0; }), v.bad.errors.join(' | ') || '(none)'],
                 ['negative refused', v.neg.ok === false && v.neg.errors.some(function (e) { return e.indexOf('wall-line force') >= 0; }), v.neg.errors.join(' | ') || '(none)'],
-                ['blank / undefined inherit and pass', v.blank.ok === true, v.blank.errors.join(' | ') || 'ok']]; } }
+                ['blank / undefined inherit and pass', v.blank.ok === true, v.blank.errors.join(' | ') || 'ok']]; } },
+
+    // ── Species-dependent hardware (C-C-2026 p. 61 / p. 310, NDS Table 12N) ──
+    { id: 'SW48', src: 'NDS Table 12N — 16d common by the lower G of sill and framing', run: function () {
+        var mk = function (species, sillSpecies) {
+          var st = mkState(CASE_HD); st.species = species;
+          st.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; st.floors[0].walls[0].sillSpecies = sillSpecies;
+          return compute(st); };
+        return { spfSill: mk('DFL', 'SPF'), spfFrame: mk('SPF', 'DFL'), sp: mk('SP', 'SP'), spSillDflFrame: mk('DFL', 'SP'), dfl: mk('DFL', 'DFL') }; },
+      expect: function (r) {
+        var a = W(r.spfSill, 0), b = W(r.spfFrame, 0), c = W(r.sp, 0), d = W(r.spSillDflFrame, 0), e = W(r.dfl, 0);
+        return [['SPF sill on DFL framing: 120 × 1.6 = 192 lb per nail', near(a.sill.Vconn, 192, 1e-9), f1(a.sill.Vconn)],
+                ['@ 16" o.c. = 144.0 plf', near(a.sill.plf, 144.0, 1e-6), f2(a.sill.plf)],
+                ['sill species governs, printed', a.sill.nailGov === 'sill' && a.sill.valueSpecies === 'SPF' && a.sill.notes.some(function (x) { return x.indexOf('sill species governs') >= 0; }), a.sill.notes.join(' | ')],
+                ['DFL sill on SPF framing: framing governs, 192 lb', near(b.sill.Vconn, 192, 1e-9) && b.sill.nailGov === 'framing', f1(b.sill.Vconn) + ' ' + b.sill.nailGov],
+                ['SP sill on SP framing: 154 × 1.6 = 246 lb (was 226)', near(c.sill.Vconn, 246, 1e-9) && c.sill.nailGov === 'both', f1(c.sill.Vconn) + ' ' + c.sill.nailGov],
+                ['SP sill on DFL framing: 226 lb (DFL governs)', near(d.sill.Vconn, 226, 1e-9) && d.sill.valueSpecies === 'DFL', f1(d.sill.Vconn) + ' ' + d.sill.valueSpecies],
+                ['DFL / DFL: 141 × 1.6 = 226 lb, 169.5 plf unchanged', near(e.sill.Vconn, 226, 1e-9) && near(e.sill.plf, 169.5, 1e-6), f1(e.sill.Vconn) + ' / ' + f2(e.sill.plf)],
+                ['basis names Table 12N and the three G values', e.sill.basis.indexOf('Table 12N') >= 0 && e.sill.basis.indexOf('154') >= 0 && e.sill.basis.indexOf('120') >= 0, e.sill.basis]]; } },
+    { id: 'SW49', src: 'C-C-2026 p. 61 — HDUE on SPF framing reads the SPF/HF column', run: function () {
+        // P = 9,400 lb ASD puts T = 3,583.75 lb between HDUE3's SPF/HF (3,340) and DF/SP (3,790) values.
+        var mk = function (species) { var st = mkState(CASE_HD); st.species = species; st.floors[0].P_wind_lb = 9400 / 0.6; st.floors[0].P_seis_lb = 9400 / 0.7; return compute(st); };
+        var big = mkState(CASE_HD); big.species = 'SPF';   // T = 8,006 lb: no SPF/HF value on a 3" post reaches it
+        return { r: mk('SPF'), dfl: mk('DFL'), big: compute(big), hd5: HOLDOWNS[1], hd13: HOLDOWNS[4], hd17: HOLDOWNS[5] }; },
+      expect: function (o) { var a = W(o.r, 0), b = W(o.big, 0), d = W(o.dfl, 0);
+        return [['model ok — SPF is covered, no refusal', o.r.ok === true, o.r.errors.join(' | ') || 'ok'],
+                ['T = 3,583.75 lb between 3,340 (HDUE3 SPF/HF) and 3,790 (HDUE3 DF/SP)', near(a.gov.T, 3583.75, 0.01), f2(a.gov.T)],
+                ['same wall on DFL framing: HDUE3-SDS3 at 3,790 lb', d.holdown.label === 'HDUE3-SDS3' && near(d.holdown.capacity, 3790, 1e-9) && d.holdown.column === 'DF/SP', d.holdown.label + ' ' + f1(d.holdown.capacity)],
+                ['on SPF framing: HDUE3 (3,340) is short → HDUE5-SDS3', a.holdown.label === 'HDUE5-SDS3', a.holdown.label],
+                ['capacity 4,700 lb (SPF/HF at 3" thickness), not 5,375', near(a.holdown.capacity, 4700, 1e-9) && a.holdown.column === 'SPF/HF', f1(a.holdown.capacity) + ' ' + a.holdown.column],
+                ['detail names the SPF/HF column and p. 61', a.holdown.detail.indexOf('SPF/HF') >= 0 && a.holdown.detail.indexOf('p. 61') >= 0, a.holdown.detail],
+                ['HDUE5 at 3" thickness = 4,700 lb SPF/HF', holdownCapacity(o.hd5, 3.0, 5.5, 'SPF') === 4700, String(holdownCapacity(o.hd5, 3.0, 5.5, 'SPF'))],
+                ['HDUE13 SPF/HF 10,215 / 11,030 / 10,980 (6×6)', holdownCapacity(o.hd13, 5.5, 3.5, 'SPF') === 10215 && holdownCapacity(o.hd13, 7.25, 3.5, 'SPF') === 11030 && holdownCapacity(o.hd13, 5.5, 5.5, 'SPF') === 10980,
+                  [holdownCapacity(o.hd13, 5.5, 3.5, 'SPF'), holdownCapacity(o.hd13, 7.25, 3.5, 'SPF'), holdownCapacity(o.hd13, 5.5, 5.5, 'SPF')].join('/')],
+                ['HDUE13 SPF/HF on a 7¼" × 5½" post = 11,030 (7¼" step beats the 6×6 value)', holdownCapacity(o.hd13, 7.25, 5.5, 'SPF') === 11030, String(holdownCapacity(o.hd13, 7.25, 5.5, 'SPF'))],
+                ['HDUE17 SPF/HF 13,545 / 14,775 (6×6)', holdownCapacity(o.hd17, 5.5, 3.5, 'SPF') === 13545 && holdownCapacity(o.hd17, 5.5, 5.5, 'SPF') === 14775,
+                  holdownCapacity(o.hd17, 5.5, 3.5, 'SPF') + '/' + holdownCapacity(o.hd17, 5.5, 5.5, 'SPF')],
+                ['over-capacity label names the SPF/HF column and the species', b.holdown.label.indexOf('Exceeds HDUE7-SDS3 (6030.0 lb, SPF/HF)') === 0 && b.holdown.label.indexOf('Spruce-Pine-Fir end post') > 0, b.holdown.label],
+                ['SPF steps are lower than DF/SP on every row', HOLDOWNS.every(function (hd) { return hd.bySpecies.SPF.steps.every(function (st, i) { return st.T < hd.bySpecies.DFL.steps[i].T && st.t === hd.bySpecies.DFL.steps[i].t; }); }), 'ok'],
+                ['every row carries a column for every species', ['DFL', 'SP', 'SPF'].every(holdownSpeciesCovered), 'ok']]; } },
+    { id: 'SW50', src: 'C-C-2026 p. 310 — LTP4 on an SPF sill reads the SPF/HF column', run: function () {
+        var mk = function (sillSpecies, thk) { var st = mkState(CASE_HD); st.floors[0].walls[0].sill = { conn: 'ltp4', spacing_in: 16, sheathing: thk }; st.floors[0].walls[0].sillSpecies = sillSpecies; return compute(st); };
+        return { spf: mk('SPF', 'none'), spf38: mk('SPF', '0.375'), sp: mk('SP', 'none') }; },
+      expect: function (r) { var a = W(r.spf, 0), b = W(r.spf38, 0), c = W(r.sp, 0);
+        return [['model ok — no refusal', r.spf.ok === true, r.spf.errors.join(' | ') || 'ok'],
+                ['LTP4 SPF/HF direct to framing = 615 lb', near(a.sill.Vconn, 615, 1e-9), f1(a.sill.Vconn)],
+                ['@ 16" o.c. = 461.25 plf', near(a.sill.plf, 461.25, 1e-6), f2(a.sill.plf)],
+                ['over ⅜" sheathing × 0.72 = 442.8 lb', near(b.sill.Vconn, 442.8, 1e-9), f1(b.sill.Vconn)],
+                ['SP sill = 715 lb (DF/SP column)', near(c.sill.Vconn, 715, 1e-9), f1(c.sill.Vconn)],
+                ['basis cites p. 310 and both columns', a.sill.basis.indexOf('p. 310') >= 0 && a.sill.basis.indexOf('615') >= 0, a.sill.basis]]; } }
   ];
 
   // Fixture input models.
@@ -1266,12 +1361,12 @@
     ENGINE: ENGINE, LOAD: LOAD, DEAD_FACTOR: DEAD_FACTOR, V1_REFUSAL: V1_REFUSAL,
     SPECIES: SPECIES, SFRS: SFRS, POST_SIZES: POST_SIZES, CF_FC: CF_FC,
     SHEATHING: SHEATHING, HOLDOWNS: HOLDOWNS, STRAPS: STRAPS, SILL_CONN: SILL_CONN,
-    LTP4_SHEATHING: LTP4_SHEATHING, STRAP_MIN_G: STRAP_MIN_G,
+    LTP4_SHEATHING: LTP4_SHEATHING, STRAP_MIN_G: STRAP_MIN_G, HD_COLUMN: HD_COLUMN,
     compute: compute, validate: validate, runFixtures: runFixtures, FIXTURES: FIXTURES,
     calcCo: calcCo, calcR: calcR, sumBi: sumBi, openingArea: openingArea,
     storyForces: storyForces, chordForce: chordForce,
     sheathingCapacity: sheathingCapacity, combineFaces: combineFaces,
-    holdownCapacity: holdownCapacity, endPostCheck: endPostCheck,
+    holdownCapacity: holdownCapacity, holdownSpeciesCovered: holdownSpeciesCovered, endPostCheck: endPostCheck,
     findSheathing: findSheathing, findSill: findSill, sheathingLabel: sheathingLabel,
     resolveDead: resolveDead, defaultState: defaultState, defaultWall: defaultWall,
     clone: clone

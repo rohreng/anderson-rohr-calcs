@@ -159,16 +159,19 @@ const refs = await page.evaluate(() => ({
   strap: document.querySelectorAll('#strapTbl tbody tr').length,
   sh: document.querySelectorAll('#shTbl tbody tr').length,
   shText: document.querySelector('#shTbl tbody').innerText,
-  sill: document.querySelectorAll('#sillTbl tbody tr').length
+  sill: document.querySelectorAll('#sillTbl tbody tr').length,
+  sillText: document.querySelector('#sillTbl tbody').innerText
 }));
-check('HDUE schedule rendered from SW.HOLDOWNS with the full ESR-2330 thickness grid',
-  refs.hd === 6 && ['3,790', '8,425', '9,390', '11,900', '12,950', '13,110', '16,040', '17,685']
+check('HDUE schedule rendered from SW.HOLDOWNS with the full C-C-2026 p. 61 grid, DF/SP and SPF/HF columns',
+  refs.hd === 6 && ['3,790', '8,425', '9,390', '11,900', '12,950', '13,110', '16,040', '17,685',
+                    '3,340', '4,700', '6,030', '7,305', '7,995', '10,215', '11,030', '10,980', '13,545', '14,775']
     .every((v) => refs.hdText.indexOf(v) >= 0),
   refs.hdText.slice(0, 400));
 check('strap schedule rendered from SW.STRAPS', refs.strap === 3, 'rows=' + refs.strap);
 check('sheathing table rendered from SW.SHEATHING with both ASD columns',
   refs.sh === 8 && refs.shText.indexOf('239.3') >= 0, 'rows=' + refs.sh);
-check('sill table rendered from SW.SILL_CONN', refs.sill === 5, 'rows=' + refs.sill);
+check('sill table rendered from SW.SILL_CONN with DF-L / SP / SPF columns',
+  refs.sill === 5 && ['715', '615', '226', '246', '192'].every((v) => refs.sillText.indexOf(v) >= 0), 'rows=' + refs.sill);
 
 // ── page text: the QAQC strings are gone, the new basis is stated ───────────
 const body = await page.evaluate(() => document.body.innerText);
