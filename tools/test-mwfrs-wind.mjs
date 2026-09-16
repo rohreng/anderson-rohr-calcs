@@ -234,8 +234,8 @@ if (!CAPTURE) {
 
   try {
     // ── 5b. G2-01: AREv2 toolbar save/load of the open case (captureState → loadFromState) ──
-    // The four story-shear send selects are built by calculate() for walled runs only and
-    // carry data-are-ignore; an Open snapshot must load ok with no reverse-diff rollback.
+    // The #diaStory send select is built by calculate() for walled runs only and carries
+    // data-are-ignore; an Open snapshot must load ok with no reverse-diff rollback.
     await fresh();
     await page.fill('#V', '115'); await page.selectOption('#exp', 'C'); await page.selectOption('#encl', 'open');
     await page.fill('#B', '40'); await page.fill('#D', '100'); await page.fill('#h', '20');
@@ -285,6 +285,65 @@ if (!CAPTURE) {
     !(await vis('hpRow')) && !(await vis('closedRoofGroup')) && (await vis('openRoofGroup')) && (await vis('windFlowGroup')) && (await vis('ridgeRow')) && (await vis('frameRowN')), 'computed display wrong');
   await page.selectOption('#freeRoofShape', 'monoslope');
   check('vis open/monoslope: frame rows hidden', !(await vis('frameRowN')), 'computed display wrong');
+
+  // ── 8. lateral handoff (Phase 3): buildLateralPayload + the single Diaphragm Designer send ──
+  {
+    const c = CASES[0];   // enclosed-flat-3story-parapet: stories 14/13/13, B 60, D 120
+    const snap = await runWalled(c);
+    const lat = await page.evaluate(() => JSON.parse(JSON.stringify(buildLateralPayload())));
+    check('lateral: schema are.lateral.v1', !!lat && lat.schema === 'are.lateral.v1', JSON.stringify(lat).slice(0, 200));
+    check('lateral: one level per story', !!lat && lat.levels.length === c.stories.length, String(lat && lat.levels.length));
+    const badLv = [];
+    (lat ? lat.levels : []).forEach((lv, i) => {
+      const rx = snap.last.wx.rows[i], ry = snap.last.wy.rows[i];
+      if (lv.label !== rx.label) badLv.push(`${i}: label ${lv.label} vs ${rx.label}`);
+      if (lv.F_wind_x_strength_lb !== Math.round(rx.F_net)) badLv.push(`${i}: Fx ${lv.F_wind_x_strength_lb} vs ${Math.round(rx.F_net)}`);
+      if (lv.F_wind_y_strength_lb !== Math.round(ry.F_net)) badLv.push(`${i}: Fy ${lv.F_wind_y_strength_lb} vs ${Math.round(ry.F_net)}`);
+      if (lv.F_parapet_x_strength_lb !== Math.round(rx.F_parapet || 0)) badLv.push(`${i}: parapet ${lv.F_parapet_x_strength_lb} vs ${Math.round(rx.F_parapet || 0)}`);
+      if (lv.V_cum_x_strength_lb !== Math.round(rx.V_cum)) badLv.push(`${i}: Vcum ${lv.V_cum_x_strength_lb} vs ${Math.round(rx.V_cum)}`);
+      if (lv.sh_ft !== c.stories[i]) badLv.push(`${i}: sh ${lv.sh_ft} vs ${c.stories[i]}`);
+    });
+    check('lateral: level F_net / F_parapet / V_cum / sh match __mwfrsLast + story inputs', badLv.length === 0, badLv.join('\n      '));
+    check('lateral: geometry B/D/h/hp', !!lat && lat.geometry.B_ft === c.B && lat.geometry.D_ft === c.D && lat.geometry.h_ft === c.h && lat.geometry.hp_ft === c.hp, JSON.stringify(lat && lat.geometry));
+    check('lateral: meta from the inputs', !!lat && lat.source.mwfrs.calcFile === FILE && lat.source.mwfrs.V_mph === c.V && lat.source.mwfrs.exposure === c.exp && lat.source.mwfrs.enclosure === c.encl, JSON.stringify(lat && lat.source));
+    const ui = await page.evaluate(() => {
+      const sel = document.querySelector('#sendBody #diaStory'), a = document.getElementById('diaSendLink');
+      return {
+        diaStory: !!sel, ignored: !!sel && sel.hasAttribute('data-are-ignore'),
+        opts: sel ? Array.from(sel.options).map((o) => o.text) : [],
+        dead: ['sendDir', 'sendStory', 'diaStoryX', 'diaStoryY'].filter((id) => document.getElementById(id)),
+        link: a ? getComputedStyle(a).display : 'missing'
+      };
+    });
+    check('send panel: one #diaStory select (data-are-ignore), one option per story, Roof first',
+      ui.diaStory && ui.ignored && ui.opts.length === 3 && ui.opts[0] === 'Roof', JSON.stringify(ui));
+    check('send panel: #sendDir/#sendStory/#diaStoryX/#diaStoryY gone', ui.dead.length === 0, ui.dead.join(', '));
+    check('send panel: popup-fallback link hidden by default', ui.link === 'none', ui.link);
+    // Click with window.open stubbed: localStorage record + URL for the chosen level.
+    await page.evaluate(() => { localStorage.removeItem('are_lateral_v1'); window.__opened = []; window.open = function (u) { window.__opened.push(u); return {}; }; });
+    await page.selectOption('#diaStory', '1');
+    await page.click('#diaSendBtn');
+    const sent = await page.evaluate(() => ({ ls: JSON.parse(localStorage.getItem('are_lateral_v1') || 'null'), urls: window.__opened, link: getComputedStyle(document.getElementById('diaSendLink')).display }));
+    check('send: localStorage.are_lateral_v1 written for the diaphragm file',
+      !!sent.ls && sent.ls.file === 'rectangular_diaphragm_calculator.html' && !!sent.ls.record && sent.ls.record.schema === 'are.lateral.v1' && sent.ls.record.levels.length === 3 && Date.now() - sent.ls.ts < 60000, JSON.stringify(sent.ls).slice(0, 200));
+    const u = sent.urls[0] || '';
+    check('send: URL carries lat=1 + legacy vx/vy/B/D/story for the chosen level',
+      sent.urls.length === 1 && /rectangular_diaphragm_calculator\.html\?src=mwfrs&lat=1&/.test(u) && u.indexOf('&vx=' + Math.round(snap.last.wx.rows[1].F_net)) > 0 && u.indexOf('&vy=' + Math.round(snap.last.wy.rows[1].F_net)) > 0 && u.indexOf('&B=60&D=120') > 0 && /&story=Floor(%20|\+)1$/.test(u), u);
+    check('send: link stays hidden when the popup opened', sent.link === 'none', sent.link);
+    // Popup blocked: window.open returns null -> the link is revealed with the same URL.
+    await page.evaluate(() => { window.open = function () { return null; }; });
+    await page.click('#diaSendBtn');
+    const blocked = await page.evaluate(() => { const a = document.getElementById('diaSendLink'); return { display: getComputedStyle(a).display, href: a.getAttribute('href'), target: a.target }; });
+    check('send: popup blocked reveals #diaSendLink with the URL', blocked.display !== 'none' && blocked.href === u && blocked.target === '_blank', JSON.stringify(blocked));
+    // Open building: no story rows -> null payload (caller alerts, like the Revit export).
+    await fresh();
+    await page.selectOption('#encl', 'open'); await page.click('button.calc-btn');
+    check('lateral: open building -> null payload', (await page.evaluate(() => buildLateralPayload())) === null, 'not null');
+    // Static: the dead shearwall send is gone from the source.
+    const src = readFileSync(PUBLIC_DIR + 'Calcs/' + FILE, 'utf8');
+    const deadSrc = ['sendDir', 'sendStory', 'diaStoryX', 'diaStoryY', 'updateSendPreview', 'doSendShear'].filter((w) => src.indexOf(w) >= 0);
+    check('source: no sendDir/sendStory/diaStoryX/diaStoryY/updateSendPreview/doSendShear', deadSrc.length === 0, deadSrc.join(', '));
+  }
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }
 

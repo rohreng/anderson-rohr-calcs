@@ -1113,103 +1113,54 @@ function renderMinLoads(isOpen, body){
 }
 
 function renderSend(wx,wy,container){
-  // Get base story shears for sending
+  // Base story shears for the summary
   var wxBase=wx.rows[wx.rows.length-1].V_cum; // base shear Wind-X
   var wyBase=wy.rows[wy.rows.length-1].V_cum; // base shear Wind-Y
 
-  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568"><b>Stacked Shearwall</b> receives the <b>cumulative story shear V</b> at the selected level (sum of all diaphragm forces above — what the shearwall below must resist). <b>Diaphragm Designer</b> receives the <b>diaphragm force F</b> at the selected level only (tributary wall wind + parapet at that level — what that diaphragm must span).</p>';
+  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568">The <b>Diaphragm Designer</b> receives the <b>diaphragm force F</b> at every level (tributary wall wind + parapet at that level — what each diaphragm must span). Story shears for the Stacked Shearwall come from the Diaphragm Designer once each level\'s walls are laid out.</p>';
 
   html+='<div class="kv" style="margin-bottom:14px">'
     +'<div class="kv-item">Wind-X Base Shear = <span>'+fi(wxBase)+' lbs ('+f2(wxBase/1000)+' kips)</span></div>'
     +'<div class="kv-item">Wind-Y Base Shear = <span>'+fi(wyBase)+' lbs ('+f2(wyBase/1000)+' kips)</span></div>'
     +'</div>';
 
-  // Story shear selector
-  html+='<div class="send-blk">';
-  html+='<h4>▶ Send Story Shear to Stacked Shearwall / Other Calculators</h4>';
+  // Diaphragm Designer send — all levels in one are.lateral.v1 record (doSendDiaphragm)
+  html+='<div class="send-blk" style="border-color:#86efac">';
+  html+='<h4 style="color:#15803d">▶ Send all levels to Diaphragm Designer</h4>';
+  html+='<p style="font-size:.82em;color:#4a5568;margin-bottom:8px">Sends every story\'s diaphragm force (strength level, lb) plus story heights and B/D. Pick the level to open first; switch levels inside the Diaphragm Designer.</p>';
   html+='<div class="send-row">';
-  html+='<div class="ig" style="flex:0 0 160px"><label>Wind Direction</label>'
-    +'<select id="sendDir" data-are-ignore onchange="updateSendPreview()"><option value="X">Wind-X (EW)</option><option value="Y">Wind-Y (NS)</option></select></div>';
-  html+='<div class="ig" style="flex:0 0 160px"><label>Story Level</label>'
-    +'<select id="sendStory" data-are-ignore onchange="updateSendPreview()">';
-  wx.rows.forEach(function(r,i){
-    html+='<option value="'+i+'">'+r.label+' — V='+fi(r.V_cum)+' lbs</option>';
-  });
+  html+='<div class="ig" style="flex:0 0 180px"><label>Open at level</label><select id="diaStory" data-are-ignore>';
+  wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+'</option>'; });
   html+='</select></div>';
-  html+='<button class="send-btn" onclick="doSendShear()">▶ Stacked Shearwall →</button>';
-  html+='</div>';
-  html+='<div id="sendPreview" style="font-size:.82em;color:#4a5568;margin-top:6px">Select direction and story level, then click Send.</div>';
-  html+='</div>';
-
-  // Diaphragm Designer send
-  html+='<div class="send-blk" style="margin-top:10px;border-color:#86efac">';
-  html+='<h4 style="color:#15803d">▶ Send Both Directions to Diaphragm Designer</h4>';
-  html+='<p style="font-size:.82em;color:#4a5568;margin-bottom:8px">Opens the Rectangular Diaphragm Designer pre-loaded with Wind-X, Wind-Y forces and building dimensions.</p>';
-  html+='<div class="send-row">';
-  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-X</label><select id="diaStoryX" data-are-ignore>';
-  wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
-  html+='</select></div>';
-  html+='<div class="ig" style="flex:0 0 180px"><label>Story Level — Wind-Y</label><select id="diaStoryY" data-are-ignore>';
-  wy.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+' ('+fi(r.V_cum)+' lbs)</option>'; });
-  html+='</select></div>';
-  html+='<button class="send-btn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="doSendDiaphragm()">▶ Diaphragm Designer →</button>';
+  html+='<button class="send-btn" id="diaSendBtn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="doSendDiaphragm()">▶ Diaphragm Designer →</button>';
+  html+='<a id="diaSendLink" href="#" target="_blank" style="display:none;font-size:.82em;font-weight:600;color:#b91c1c">Popup blocked — click to open the Diaphragm Designer</a>';
   html+='</div></div>';
 
-  // store data for send
-  window._wxRows=wx.rows;
-  window._wyRows=wy.rows;
-  window._wxDir=wx;
-  window._wyDir=wy;
-
   container.innerHTML=html;
-  updateSendPreview();
 }
 
-function updateSendPreview(){
-  var dir=document.getElementById('sendDir');
-  var stSel=document.getElementById('sendStory');
-  if(!dir||!stSel) return;
-  var rows=dir.value==='X'?window._wxRows:window._wyRows;
-  // repopulate story select
-  stSel.innerHTML='';
-  rows.forEach(function(r,i){
-    var opt=document.createElement('option');
-    opt.value=i;
-    opt.text=r.label+' — V='+fi(r.V_cum)+' lbs';
-    stSel.appendChild(opt);
-  });
-  var idx=parseInt(stSel.value)||0;
-  var r=rows[idx];
-  document.getElementById('sendPreview').textContent='Will send cumulative story shear V = '+fi(r?r.V_cum:0)+' lbs (for shearwall design below this level)';
-}
-
-function doSendShear(){
-  var dir=document.getElementById('sendDir').value;
-  var idx=parseInt(document.getElementById('sendStory').value)||0;
-  var rows=dir==='X'?window._wxRows:window._wyRows;
-  var r=rows[idx];
-  if(!r){alert('No data.');return;}
-  var shear=Math.round(r.V_cum);
-  var base=window.location.href.replace(/\/[^/]*$/,'/');
-  var url=base+'stacked_shearwall_calculator.html?lateral='+shear+'&src=mwfrs&dir=Wind-'+dir+'&story='+encodeURIComponent(r.label);
-  window.open(url,'_blank');
-}
-
+// Whole-building handoff: the record goes through localStorage (are_lateral_v1,
+// 10-minute TTL on the receiving side); the URL still carries the chosen
+// level's vx/vy/B/D/story so an expired or missing key falls back to the
+// single-level import the Diaphragm Designer has always had.
 function doSendDiaphragm(){
-  var idxX=parseInt(document.getElementById('diaStoryX').value)||0;
-  var idxY=parseInt(document.getElementById('diaStoryY').value)||0;
-  var rx=window._wxRows[idxX]; var ry=window._wyRows[idxY];
+  var record=buildLateralPayload();
+  if(!record){ alert(window.__mwfrsLast&&window.__mwfrsLast.encl==='open' ? 'Diaphragm send covers walled buildings only — not available for Open (free roof).' : 'Run Calculate first.'); return; }
+  var sel=document.getElementById('diaStory');
+  var idx=sel?(parseInt(sel.value)||0):0;
+  var L=window.__mwfrsLast, rx=L.wx.rows[idx], ry=L.wy.rows[idx];
   if(!rx||!ry){alert('No data.');return;}
-  var Bval=parseFloat(document.getElementById('B').value)||60;
-  var Dval=parseFloat(document.getElementById('D').value)||120;
+  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:record, ts:Date.now(), file:'rectangular_diaphragm_calculator.html'})); }catch(e){}
   var base=window.location.href.replace(/\/[^/]*$/,'/');
   var url=base+'rectangular_diaphragm_calculator.html'
-    +'?src=mwfrs'
+    +'?src=mwfrs&lat=1'
     +'&vx='+Math.round(rx.F_net)   // diaphragm force at this level (not cumulative)
     +'&vy='+Math.round(ry.F_net)
-    +'&B='+Bval+'&D='+Dval
+    +'&B='+record.geometry.B_ft+'&D='+record.geometry.D_ft
     +'&story='+encodeURIComponent(rx.label);
-  window.open(url,'_blank');
+  var w=window.open(url,'_blank');
+  var link=document.getElementById('diaSendLink');
+  if(link){ link.href=url; link.style.display=w?'none':''; }
 }
 
 // ─── MWFRS BUILDING ELEVATION DIAGRAM (AREDraw) ──────────────────────────────
@@ -1759,6 +1710,23 @@ function buildRevitWindPayload(){
   return payload;
 }
 
+// ─── LATERAL HANDOFF (Diaphragm Designer) ────────────────────────────────────
+// are.lateral.v1 record (engines/lateral-handoff.js) from the last calculate():
+// one level per story, F_net / F_parapet / V_cum as computed, story label and
+// height as calculate() read them. null before a run and for Open (free roof —
+// no story rows), same contract as buildRevitWindPayload.
+function buildLateralPayload(){
+  var L=window.__mwfrsLast;
+  if(typeof L==='undefined'||!L) return null;
+  if(L.encl==='open'||!L.wx||!window.LH) return null;
+  var stories=L.wx.rows.map(function(r){ return {label:r.label, sh:r.h}; });
+  return LH.fromMwfrs({
+    B:L.B, D:L.D, h:L.h, hp:L.hp, stories:stories, wx:L.wx, wy:L.wy,
+    project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
+    meta:{ calcFile:'asce716_mwfrs_calculator.html', V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
+  });
+}
+
 function exportRevitWind(){
   var payload=buildRevitWindPayload();
   if(!payload){ alert(window.__mwfrsLast&&window.__mwfrsLast.encl==='open' ? 'Revit export covers walled buildings only — not available for Open (free roof).' : 'Run Calculate first.'); return; }
@@ -1865,11 +1833,9 @@ document.addEventListener('DOMContentLoaded',function(){
   toggleRoofInputs();
   drawMWFRSDiagram();
 });
-
-// expose updateSendPreview to inline handlers
-window.updateSendPreview=updateSendPreview;
 </script>
 <script src="/are-draw.js"></script>
+<script src="./engines/lateral-handoff.js"></script>
 <script src="/are-utils-v2.js"></script>
 <script>
 // ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
@@ -1907,10 +1873,10 @@ window.updateSendPreview=updateSendPreview;
         if (t) t.value = list[j].label;
         if (h) h.value = list[j].sh;
       }
-      // Rebuild the results (and the story-dependent send controls) from the
-      // restored story list. #sendDir/#sendStory/#diaStoryX/#diaStoryY carry
-      // data-are-ignore, so they are neither captured nor reverse-diffed — an
-      // Open snapshot (which never builds them) loads without a rollback (G2-01).
+      // Rebuild the results (and the story-dependent send control) from the
+      // restored story list. #diaStory carries data-are-ignore, so it is
+      // neither captured nor reverse-diffed — an Open snapshot (which never
+      // builds it) loads without a rollback (G2-01).
       if (typeof calculate === 'function') calculate();
     },
     runAndSettle: function () { if (typeof calculate === 'function') calculate(); }

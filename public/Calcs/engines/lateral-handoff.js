@@ -17,18 +17,18 @@
    Wall identity across levels is direction + location (id 'X@15'), never the
    label.
 
-   Dependencies: RD (engines/rect-diaphragm.js) is resolved at load — reactions
-   are RECOMPUTED from the snapshot's inputs with the page's own calcDir, never
-   copied from rendered output.  SW (engines/stacked-shearwall.js) is resolved
-   lazily inside toShearwallState only: the diaphragm page loads LH without it.
+   Dependencies: both are resolved lazily, so each page loads only what it
+   needs.  RD (engines/rect-diaphragm.js) inside levelFromDiaphragmState —
+   reactions are RECOMPUTED from the snapshot's inputs with the page's own
+   calcDir, never copied from rendered output; the MWFRS page loads LH without
+   RD (fromMwfrs needs no engine).  SW (engines/stacked-shearwall.js) inside
+   toShearwallState only: the diaphragm page loads LH without it.
    ========================================================================== */
 (function (root, factory) {
-  var RD = root.RD || (typeof require === 'function' ? require('./rect-diaphragm.js') : null);
-  if (!RD || !RD.calcDir) throw new Error('lateral-handoff.js: RD engine (engines/rect-diaphragm.js) must be loaded first.');
-  var LH = factory(root, RD);
+  var LH = factory(root);
   root.LH = LH;
   if (typeof module !== 'undefined' && module.exports) module.exports = LH;
-})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function (root, RD) {
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function (root) {
   'use strict';
 
   var ENGINE = { name: 'lateral-handoff', version: 1 };
@@ -55,6 +55,12 @@
   var UNSAFE = new RegExp('[<>' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']', 'g');
   function safeName(p) { return basename(p).replace(UNSAFE, '').slice(0, 120); }
   function pct(a, b) { return b === 0 ? (a === 0 ? 0 : Infinity) : Math.abs(a - b) / Math.abs(b); }
+
+  function getRD() {
+    var RD = root.RD || (typeof require === 'function' ? require('./rect-diaphragm.js') : null);
+    if (!RD || !RD.calcDir) throw new Error('lateral-handoff.js: RD engine (engines/rect-diaphragm.js) is not loaded.');
+    return RD;
+  }
 
   // id = dir + '@' + loc rounded to 0.1 ft, trailing-zero free: 'X@15', 'Y@45.3'.
   function wallId(dir, loc) { return dir + '@' + String(Math.round(num(loc, 0) * 10) / 10); }
@@ -185,7 +191,7 @@
     var Vx = num(f['#Vx'], 0) * kW, Vy = num(f['#Vy'], 0) * kW;
     var Vx_s = num(f['#Vx_s'], 0) * kS, Vy_s = num(f['#Vy_s'], 0) * kS;
 
-    var rows = readRows(f, warnings);
+    var RD = getRD(), rows = readRows(f, warnings);
     DIRS.forEach(function (d) {
       var chk = RD.checkSwLocs(rows[d]);
       if (!chk.ok) throw new Error(label + ': duplicate ' + d + ' shearwall location(s) at ' + chk.dupes.join(', ') + ' ft.');
