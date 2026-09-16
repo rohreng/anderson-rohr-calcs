@@ -63,7 +63,7 @@ const ui = await page.evaluate(() => {
     panes: document.querySelectorAll('.wres .inline-res').length,
     baseTag: document.querySelectorAll('#floor-con .floor-blk')[3].innerText.indexOf('Base level (foundation)') >= 0,
     checkRows: document.querySelectorAll('#wres_3_0 .chk-tbl tr:not(.det-row)').length,
-    banner: document.querySelector('#wres_3_0 .sum-pass, #wres_3_0 .sum-fail').innerText,
+    banner: document.querySelector('#wres_3_0 .sum-pass, #wres_3_0 .sum-fail, #wres_3_0 .sum-req').innerText,
     Co: res.floors.map((f) => f.walls[0].geom.Co.toFixed(4)).join('/'),
     vmax: res.floors.map((f) => f.walls[0].cases.wind.vmax.toFixed(2)).join('/'),
     T: res.floors.map((f) => f.walls[0].cases.wind.Tgov.toFixed(1)).join('/'),
@@ -87,6 +87,40 @@ check('default T (wind) per level = appendix D Case 1',
 check('hold-down HDUE3-SDS3 at every level',
   ui.hd === 'HDUE3-SDS3/HDUE3-SDS3/HDUE3-SDS3/HDUE3-SDS3', ui.hd);
 check('banner shows C_o and v_max', /C.*o.*=.*0\.6703/.test(ui.banner) && ui.banner.indexOf('70.3') >= 0, ui.banner);
+
+// ── banner names the offending checks; a missing uplift value is "Specify", not FAIL ──
+const bn = await page.evaluate(() => {
+  const w = window.SW.compute(window.floors ? { version: 2, sfrs: 'A.15', sdc: 'D', species: 'DFL', floors: window.floors } : null).floors[3].walls[0];
+  const el = document.querySelector('#wres_3_0 .sum-pass, #wres_3_0 .sum-fail, #wres_3_0 .sum-req');
+  const pane = document.querySelector('#wres_3_0');
+  return { txt: el.innerText, cls: el.className, paneCls: pane.className, anyFail: w.checks.some((c) => c.pass === false), anyReq: w.checks.some((c) => c.pass === null) };
+});
+check('banner: default model has no failing check, only the unspecified uplift connector', !bn.anyFail && bn.anyReq, JSON.stringify(bn));
+check('banner reads "Specify: … uplift …" in the amber sum-req style, not FAIL', /Specify:.*uplift/i.test(bn.txt) && !/FAIL/.test(bn.txt) && bn.cls === 'sum-req' && /req-bg/.test(bn.paneCls), JSON.stringify(bn));
+const bn2 = await page.evaluate(() => {
+  document.querySelector('#wres_3_0'); // pane exists
+  // enter an uplift capacity on the base wall → banner flips to PASS
+  const inp = [...document.querySelectorAll('#floor-con input[title*="uplift connector"]')].pop();
+  inp.value = '500'; inp.dispatchEvent(new Event('change'));
+  const el = document.querySelector('#wres_3_0 .sum-pass, #wres_3_0 .sum-fail, #wres_3_0 .sum-req');
+  const out = { txt: el.innerText, cls: el.className };
+  inp.value = ''; inp.dispatchEvent(new Event('change'));   // restore
+  return out;
+});
+check('banner: entering an uplift capacity turns the base wall to "All checks PASS"', /All checks PASS/.test(bn2.txt) && bn2.cls === 'sum-pass', JSON.stringify(bn2));
+
+// ── full-width toggle: body.are-wide lifts the theme's 1280px cap ────────────
+const wide = await page.evaluate(() => {
+  const w0 = document.body.classList.contains('are-wide');
+  const cap0 = getComputedStyle(document.querySelector('.container')).maxWidth;
+  document.getElementById('wideBtn').click();
+  const w1 = document.body.classList.contains('are-wide');
+  const cap1 = getComputedStyle(document.querySelector('.container')).maxWidth;
+  document.getElementById('wideBtn').click();
+  return { w0, cap0, w1, cap1, stored: localStorage.getItem('areCalcs_sw_wide'), w2: document.body.classList.contains('are-wide') };
+});
+check('full width: on by default (cap lifted), toggles off to 1280px and back, remembered in localStorage',
+  wide.w0 && wide.cap0 === 'none' && !wide.w1 && wide.cap1 === '1280px' && wide.w2 && wide.stored === '1', JSON.stringify(wide));
 
 // ── reference tables are rendered from the engine arrays ────────────────────
 const refs = await page.evaluate(() => ({
@@ -269,7 +303,7 @@ const lf = await page.evaluate(() => {
     VBseis: f0.walls[1].cases.seismic.Vstrength,
     baseV: r.floors[3].walls[0].cases.wind.Vstrength,
     baseRowsP: r.floors[3].walls[0].cases.wind.rows.map((x) => Math.round(x.P)).join('/'),
-    paneB: document.querySelector('#wres_0_1 .sum-pass, #wres_0_1 .sum-fail').innerText
+    paneB: document.querySelector('#wres_0_1 .sum-pass, #wres_0_1 .sum-fail, #wres_0_1 .sum-req').innerText
   };
 });
 check('typed line force is stored on that wall only', lf.stored === 5000 && lf.cellValue === '5000' && lf.storedA === 4000 && lf.cellA === '4000', JSON.stringify(lf));

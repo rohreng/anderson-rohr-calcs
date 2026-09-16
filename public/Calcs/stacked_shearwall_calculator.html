@@ -100,9 +100,11 @@ select.ti{cursor:pointer;padding:2px 1px}
 .wres{border-top:2px solid #2a5298;margin-top:6px}
 .wres.pass-bg{border-color:#16a34a}
 .wres.fail-bg{border-color:#dc2626}
+.wres.req-bg{border-color:#d97706}
 .inline-res{padding:10px 13px;background:#f0f7ff}
 .inline-res.pass-bg{background:#f0fdf4}
 .inline-res.fail-bg{background:#fff1f2}
+.inline-res.req-bg{background:#fffbeb}
 .dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:10px}
 .dem-card{background:#fff;border-radius:7px;padding:8px;border:1px solid #dde;text-align:center}
 .dem-card .v{font-size:1.08em;font-weight:700;color:#1e3c72}
@@ -112,6 +114,7 @@ select.ti{cursor:pointer;padding:2px 1px}
 .dem-card.bad{border-color:#dc2626;background:#fff1f2}.dem-card.bad .v{color:#dc2626}
 .sum-pass{background:#dcfce7;border:2px solid #16a34a;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
 .sum-fail{background:#fee2e2;border:2px solid #dc2626;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.sum-req{background:#fef3c7;border:2px solid #d97706;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
 .chk-tbl{width:100%;border-collapse:collapse;font-size:.82em;margin-bottom:10px}
 .chk-tbl th{background:#1e3c72;color:#fff;padding:6px 8px;text-align:left;font-size:.8em}
 .chk-tbl td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}
@@ -180,7 +183,7 @@ select.ti{cursor:pointer;padding:2px 1px}
     padding: 0 !important;
   }
   /* Strip card rounding/shadow so blocks bleed to margins */
-  .blk, .floor-blk, .dem-card, .sum-pass, .sum-fail, .note-box, .callout, .info-box {
+  .blk, .floor-blk, .dem-card, .sum-pass, .sum-fail, .sum-req, .note-box, .callout, .info-box {
     border-radius: 0 !important;
     box-shadow: none !important;
   }
@@ -200,7 +203,7 @@ select.ti{cursor:pointer;padding:2px 1px}
   .wall-table { min-width: 0 !important; }
   /* Keep section colors exact */
   .header, .blk, .floor-hdr, .chk-table thead th,
-  .sum-pass, .sum-fail, .dem-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sum-pass, .sum-fail, .sum-req, .dem-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   /* Avoid mid-block page breaks */
   .blk, .floor-blk, .chk-table, .dem-grid, .floor-section {
     break-inside: avoid;
@@ -271,6 +274,7 @@ select.ti{cursor:pointer;padding:2px 1px}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             <button class="btn-add-floor" id="addFloorBtn" onclick="addFloor()">+ Add Floor</button>
             <button class="btn-resetcol" onclick="resetColW()" title="Restore every column to its default width">&#8596; Reset column widths</button>
+            <button class="btn-resetcol" id="wideBtn" onclick="toggleWide()" title="Use the whole browser width for the wall tables (remembered in this browser)">&#9974; Full width</button>
           </div>
           <div class="hint">Inserts a new level at the top</div>
         </div>
@@ -511,6 +515,23 @@ function setDLSource(fi,wi,srcVal){
 // ── Resizable wall-table columns ─────────────────────────────────────────────
 // Widths are stored per browser (not in the calc state) and re-applied after
 // every render(), exactly as in stacked_headers_studs_calculator.html.
+// ── Full-width toggle ────────────────────────────────────────────────────────
+// are-theme-v2.css caps .container at 1280px; the 22-column wall table needs
+// more. body.are-wide lifts the cap (rule in are-theme-v2.css). Default on;
+// the choice is per browser, not part of the calc state.
+var WIDE_KEY='areCalcs_sw_wide';
+function applyWide(on){
+  document.body.classList.toggle('are-wide',!!on);
+  var b=document.getElementById('wideBtn');
+  if(b) b.textContent=(on?'⬜':'⛶')+' Full width'+(on?' ✓':'');
+}
+function toggleWide(){
+  var on=!document.body.classList.contains('are-wide');
+  try{ localStorage.setItem(WIDE_KEY,on?'1':'0'); }catch(e){}
+  applyWide(on);
+}
+try{ applyWide(localStorage.getItem(WIDE_KEY)!=='0'); }catch(e){ applyWide(true); }
+
 var COLW_KEY='areCalcs_sw_colWidths';
 var COLW={};
 try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
@@ -902,7 +923,7 @@ function renderResults(){
   (res.floors||[]).forEach(function(fl,fi){
     (fl.walls||[]).forEach(function(w,wi){
       var pane=document.getElementById('wres_'+fi+'_'+wi);
-      if(pane){ pane.innerHTML=wallHtml(res,fl,w,fi,wi); pane.className='wres '+(w.allPass?'pass-bg':'fail-bg'); }
+      if(pane){ pane.innerHTML=wallHtml(res,fl,w,fi,wi); pane.className='wres '+(w.allPass?'pass-bg':(w.checks.some(function(c){return c.pass===false;})?'fail-bg':'req-bg')); }
     });
   });
 }
@@ -910,10 +931,19 @@ function renderResults(){
 function wallHtml(res,fl,w,fi,wi){
   _dc=fi*200+wi*10;
   var g=w.geom, gov=w.gov, wc=w.cases.wind, sc=w.cases.seismic;
-  var html='<div class="inline-res '+(w.allPass?'pass-bg':'fail-bg')+'">';
+  var anyFail=w.checks.some(function(c){return c.pass===false;});
+  var html='<div class="inline-res '+(w.allPass?'pass-bg':(anyFail?'fail-bg':'req-bg'))+'">';
 
-  html+='<div class="'+(w.allPass?'sum-pass':'sum-fail')+'"><strong>'
-      +(w.allPass?'✔ All checks PASS':'✘ One or more checks require attention')+'</strong>'
+  // Name the offenders: a failed check reads "FAIL: …", a check waiting on an
+  // input (uplift connector not yet chosen) reads "specify: …" — so a run with
+  // every numeric check passing does not look like a design failure.
+  var failNames=w.checks.filter(function(c){return c.pass===false;}).map(function(c){return xe(c.label);});
+  var reqNames=w.checks.filter(function(c){return c.pass===null;}).map(function(c){return xe(c.label);});
+  var bannerTxt=w.allPass?'✔ All checks PASS'
+    :(failNames.length?'✘ FAIL: '+failNames.join(', '):'')
+     +(failNames.length&&reqNames.length?' &nbsp;·&nbsp; ':'')
+     +(reqNames.length?'⚠ Specify: '+reqNames.join(', '):'');
+  html+='<div class="'+(w.allPass?'sum-pass':(failNames.length?'sum-fail':'sum-req'))+'"><strong>'+bannerTxt+'</strong>'
       +' &nbsp;|&nbsp; C<sub>o</sub> = '+f4(g.Co)
       +' &nbsp; Σb<sub>i</sub> = '+f2(g.sumBi)+' ft'
       +' &nbsp; v<sub>max</sub> = '+f1(gov.vmax)+' plf ('+xe(gov.vmaxCase)+')'
