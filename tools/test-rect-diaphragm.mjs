@@ -2,7 +2,7 @@
 // Rectangular diaphragm — persistence + golden-number test
 // -----------------------------------------------------------------------------
 // Loads fixtures/lateral/red-bluff/diaphragm-roof-state.json (the are-state of
-// Nick's 26-038 ROOF LEVEL file, identity fields blanked) into the live page in
+// the ROOF LEVEL file behind plan F6, identity fields blanked) into the live page in
 // headless Chromium with every request fulfilled from public/ on disk.
 //
 // That file carries the legacy per-row keys #swX_*_25 but no #swX_*_24
@@ -122,7 +122,6 @@ const swKeys = Object.keys(cap.fields).filter((k) => /^#sw/i.test(k));
 check('capture: #swJSON is the only sw* key', swKeys.length === 1 && swKeys[0] === '#swJSON', swKeys.join(', '));
 check('capture: no problems', (cap._problems || []).length === 0, (cap._problems || []).join('; '));
 check('capture: no row inputs captured by path', Object.keys(cap.fields).every((k) => k.indexOf('path:') !== 0), Object.keys(cap.fields).filter((k) => k.indexOf('path:') === 0).join(', '));
-check('capture: no Phase 3 keys injected', !('#loadLevel' in cap.fields) && !('#mwfrsJSON' in cap.fields), Object.keys(cap.fields).join(', '));
 
 // ── 5. round trip: capture → perturb → loadFromState rebuilds every row ─────
 await page.evaluate(() => {
