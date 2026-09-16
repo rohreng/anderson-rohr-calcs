@@ -54,6 +54,7 @@
   // control characters (built with fromCharCode so no control byte sits in this source).
   var UNSAFE = new RegExp('[<>' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']', 'g');
   function safeName(p) { return basename(p).replace(UNSAFE, '').slice(0, 120); }
+  function safeText(s) { return str(s).replace(UNSAFE, '').slice(0, 120); }   // wall label / floor name, same adapter rule
   function pct(a, b) { return b === 0 ? (a === 0 ? 0 : Infinity) : Math.abs(a - b) / Math.abs(b); }
 
   function getRD() {
@@ -390,7 +391,7 @@
       var isBase = i === n - 1;
       var walls = ((lv.walls && lv.walls[dir]) || []).map(function (wr) {
         var w = SW.defaultWall({
-          id: wr.id, label: wr.label || wr.id, L_ft: wr.L_ft, h_ft: h, segments_ft: [wr.L_ft], openings: [],
+          id: wr.id, label: safeText(wr.label) || wr.id, L_ft: wr.L_ft, h_ft: h, segments_ft: [wr.L_ft], openings: [],
           sill: isBase ? 'ab58' : 'sds14', spacing: isBase ? 20 : 12
         });
         w.P_wind_lb = num(wr.R_wind_strength_lb, 0) || 0;
@@ -399,7 +400,7 @@
         if (wr.sign === -1) w.sign = -1;   // past the resultant: the page's Σ wall lines sums it signed
         return w;
       });
-      return { id: i + 1, name: lv.label, h_ft: h, P_wind_lb: num(lv[fW], 0) || 0, P_seis_lb: num(lv[fS], 0) || 0, walls: walls };
+      return { id: i + 1, name: safeText(lv.label), h_ft: h, P_wind_lb: num(lv[fW], 0) || 0, P_seis_lb: num(lv[fS], 0) || 0, walls: walls };
     });
     return {
       version: 2, sfrs: o.sfrs || 'A.15', sdc: o.sdc || 'D', species: o.species || 'DFL',

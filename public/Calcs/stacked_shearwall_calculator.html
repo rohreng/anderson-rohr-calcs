@@ -858,12 +858,14 @@ function applyDiaphragmImport(){
 function takeQuickSend(){
   var KEY='are_lateral_v1', raw;
   try{ raw=localStorage.getItem(KEY); }catch(e){ return; }
-  if(!raw) return;
-  var x; try{ x=JSON.parse(raw); }catch(e){ x=null; }
-  if(!x||typeof x!=='object'||typeof x.file!=='string'){ localStorage.removeItem(KEY); return; }   // stray or fileless value
-  if(x.file!=='stacked_shearwall_calculator.html') return;
-  localStorage.removeItem(KEY);
-  if(!(Date.now()-x.ts<10*60*1000)) return;   // expired: silent, the sender's link has gone stale
+  var x=null; try{ x=raw?JSON.parse(raw):null; }catch(e){ x=null; }
+  if(raw&&(!x||typeof x!=='object'||typeof x.file!=='string')){ localStorage.removeItem(KEY); x=null; }   // stray or fileless value
+  if(x&&x.file!=='stacked_shearwall_calculator.html') x=null;   // another calc's record: left where it is
+  if(x){ localStorage.removeItem(KEY); if(!(Date.now()-x.ts<10*60*1000)) x=null; }   // expired
+  if(!x){
+    document.getElementById('modelMsgs').innerHTML+='<div class="warn-box">Nothing staged for this page \u2014 re-send from the Diaphragm Designer or use Import diaphragm levels.</div>';
+    return;
+  }
   var r=x.record;
   if(!r||r.schema!==LH_SCHEMA||!Array.isArray(r.levels)||!r.levels.length||!window.LH){
     alert('Quick send from the Diaphragm Designer could not be read \u2014 re-send, or save the level file and use Import diaphragm levels.');

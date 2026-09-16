@@ -298,6 +298,33 @@ const walk = [await val('level')];
 for (let i = 0; i < 3; i++) { await page.evaluate(() => window.nextLevel()); walk.push(await val('level')); }
 check('nextLevel(): Roof -> 3RD -> 2ND -> 2ND', walk.join(',') === 'Roof,3RD,2ND,2ND', walk.join(','));
 
+// ── 13b. quick send with a story table on the page: single level by design, so
+//        the other levels' "not imported" notes are filtered out of #swSendInfo ──
+await page.evaluate(() => { window.calculate(); localStorage.removeItem('are_lateral_v1'); window.open = function () { return {}; }; });
+await page.click('#swSendBtn');
+const qsT = await page.evaluate(() => ({ info: document.getElementById('swSendInfo').textContent, ls: JSON.parse(localStorage.getItem('are_lateral_v1') || 'null') }));
+check('quick send with story table: #swSendInfo has no "not imported" note', !/not imported/.test(qsT.info) && !!qsT.ls && qsT.ls.record.levels.length === 1 && qsT.ls.record.levels[0].label === '2ND', JSON.stringify(qsT).slice(0, 300));
+
+// ── 13c. toolbar Load of a pre-Phase-3 level file keeps the page's story table ──
+// Real workflow: MWFRS send opens the page with the table, then Nick loads his
+// ROOF file (25+5 rows, no #mwfrsJSON, project blank). The shim must default
+// #mwfrsJSON to the page's table (project matches or either is blank), not ''.
+const dlgKeep = dialogs.length;
+const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), page.click('#areLoadBtn')]);
+await chooser2.setFiles({ name: 'legacy-roof.html', mimeType: 'text/html', buffer: Buffer.from(legacyHtml) });
+await page.waitForFunction(() => document.querySelectorAll('#swX .sw-row').length === 25, null, { timeout: 5000 }).catch(() => {});
+const keep = await page.evaluate(() => ({ json: document.getElementById('mwfrsJSON').value, level: document.getElementById('level').value, rows: document.querySelectorAll('#swX .sw-row').length + '+' + document.querySelectorAll('#swY .sw-row').length }));
+check('load ROOF file over an imported table: 25+5 rows, #mwfrsJSON kept, #mwfrsRow visible with 3 options (Roof selected), no dialog',
+  keep.rows === '25+5' && keep.json.length > 0 && JSON.parse(keep.json).levels.length === 3 && (await shown('mwfrsRow')) && (await levelOpts()).join(',') === 'Roof*,3RD,2ND' && keep.level === 'Roof' && dialogs.length === dlgKeep,
+  JSON.stringify({ rows: keep.rows, json: keep.json.length, opts: await levelOpts(), dialogs: dialogs.slice(dlgKeep) }));
+// Negative: the page table belongs to another job -> dropped, row hidden.
+await page.evaluate(() => { const el = document.getElementById('mwfrsJSON'), t = JSON.parse(el.value); t.project = 'OTHER'; el.value = JSON.stringify(t); window.buildLevelSelect(); });
+const rOther = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(Object.assign({}, s, { project: 'X' })))), fixture);
+check('load a file for project "X" over a table for "OTHER": #mwfrsJSON cleared, #mwfrsRow hidden, load clean',
+  rOther.ok === true && !rOther.rolledBack && (await val('mwfrsJSON')) === '' && !(await shown('mwfrsRow')), JSON.stringify(rOther.mismatches) + ' json=' + (await val('mwfrsJSON')).length);
+// Restore the table for the sections below.
+await page.evaluate((s) => { document.getElementById('mwfrsJSON').value = JSON.stringify(s); window.buildLevelSelect(); window.applyMwfrsLevel(2); }, seeded);
+
 // ── 14. save capture carries #loadLevel/#mwfrsJSON; loading it rebuilds the row ──
 const capLat = await page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState())));
 check('capture: #loadLevel and #mwfrsJSON present', capLat.fields['#loadLevel'] === 'strength' && JSON.parse(capLat.fields['#mwfrsJSON']).levels.length === 3, Object.keys(capLat.fields).filter((k) => /loadLevel|mwfrs/.test(k)).join(', '));
@@ -309,6 +336,8 @@ check('load capture with #mwfrsJSON: ok, zero mismatches', rl.ok === true && !rl
 check('load capture with #mwfrsJSON: #mwfrsRow rebuilt, 3 options, 2ND selected', (await shown('mwfrsRow')) && (await levelOpts()).join(',') === 'Roof,3RD,2ND*', (await levelOpts()).join(','));
 
 // ── 15. ROOF fixture (Phase 0) still loads clean now that the shim defaults the new keys ──
+// (page table cleared first: with no table on the page the default is '')
+await page.evaluate(() => { document.getElementById('mwfrsJSON').value = ''; window.buildLevelSelect(); });
 const r0 = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), fixture);
 check('ROOF fixture after Phase 3: ok, missingOnPage/notInFile empty', r0.ok === true && !r0.rolledBack && r0.mismatches.missingOnPage.length === 0 && r0.mismatches.notInFile.length === 0, JSON.stringify(r0.mismatches));
 check('ROOF fixture after Phase 3: #loadLevel strength, #mwfrsRow hidden', (await val('loadLevel')) === 'strength' && !(await shown('mwfrsRow')) && (await val('mwfrsJSON')) === '', await val('loadLevel'));

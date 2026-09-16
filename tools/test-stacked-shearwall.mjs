@@ -521,8 +521,10 @@ const rxStale = await rx.evaluate(() => ({ panel: !!document.getElementById('dia
 check('receiver: an expired record shows no panel and is removed', rxStale.panel === false && rxStale.key === null, JSON.stringify(rxStale));
 await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'rectangular_diaphragm_calculator.html' })), oneLevel);
 await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
-const rxForeign = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: !!localStorage.getItem('are_lateral_v1') }));
+const rxForeign = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: !!localStorage.getItem('are_lateral_v1'), msgs: document.getElementById('modelMsgs').innerText }));
 check('receiver: a record addressed to another calc is left alone', rxForeign.panel === false && rxForeign.key === true, JSON.stringify(rxForeign));
+check('receiver: lat=1 with nothing usable shows the "Nothing staged for this page" line, no alert',
+  rxForeign.msgs.indexOf('Nothing staged for this page') >= 0 && rxDialogs.length === 1, JSON.stringify({ msgs: rxForeign.msgs.slice(0, 200), n: rxDialogs.length }));
 check('receiver page has no errors', rxErrors.length === 0, rxErrors.join('\n      '));
 await rx.close();
 

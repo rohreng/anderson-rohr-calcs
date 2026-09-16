@@ -132,6 +132,14 @@ check('assemble: roof warnings carried (loadLevel default)', has(asm.warnings, /
 
 // ── 6. toShearwallState dir X ───────────────────────────────────────────────
 const swX = LH.toShearwallState(rec, { dir: 'X', sfrs: 'A.15', sdc: 'D', species: 'DFL', files: files });
+// Wall labels and floor names go through the adapter's stringPattern strip (< > control chars, <= 120).
+{
+  const dirty = JSON.parse(JSON.stringify(rec));
+  dirty.levels[0].walls.X[0].label = 'A<2>';
+  dirty.levels[0].label = 'R\u0001oof<b>';
+  const sw = LH.toShearwallState(dirty, { dir: 'X' });
+  check('toShearwallState strips < > and control chars from wall labels and floor names', sw.floors[0].walls[0].label === 'A2' && sw.floors[0].name === 'Roofb', JSON.stringify([sw.floors[0].walls[0].label, sw.floors[0].name]));
+}
 check('toShearwallState X: version 2, 3 floors, 25 walls each', swX.version === 2 && swX.floors.length === 3 && swX.floors.every((f) => f.walls.length === 25), JSON.stringify(swX.floors.map((f) => f.walls.length)));
 check('toShearwallState X: h_ft 11 / 10.5 / 14, names Roof/3RD/2ND, ids 1..3', swX.floors.map((f) => f.h_ft).join(',') === '11,10.5,14' && swX.floors.map((f) => f.name).join(',') === 'Roof,3RD,2ND' && swX.floors.map((f) => f.id).join(',') === '1,2,3',
   JSON.stringify(swX.floors.map((f) => [f.id, f.name, f.h_ft])));

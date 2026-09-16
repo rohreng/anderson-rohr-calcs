@@ -1107,7 +1107,8 @@ function sendToShearwall(){
   try{ a=LH.assemble([LH.levelFromDiaphragmState(AREv2.captureState())],{files:[]}); }
   catch(e){ alert(e.message||String(e)); return; }
   if(a.errors.length){ alert(a.errors.join('\n')); return; }
-  document.getElementById('swSendInfo').textContent=a.warnings.join('  ');
+  // One level by design: the other levels' "not imported" notes are noise here.
+  document.getElementById('swSendInfo').textContent=a.warnings.filter(function(w){ return !/not imported — story shear below it will be short/.test(w); }).join('  ');
   try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:a.record, ts:Date.now(), file:'stacked_shearwall_calculator.html'})); }
   catch(e){ alert('Could not stage the record (browser storage full).'); return; }
   var url=location.href.replace(/[^/]*$/,'')+'stacked_shearwall_calculator.html?src=diaphragm&lat=1';
@@ -1154,17 +1155,30 @@ document.addEventListener('DOMContentLoaded',function(){
 // existed. The element check stays: applyIteratively marks a key done only on
 // an exactly-one resolveKey hit, so a defaulted key with no element would
 // itself land in missingOnPage.
+//
+// #mwfrsJSON defaults to the table already ON THE PAGE, not '': the real
+// workflow is MWFRS send (table arrives) -> Load the pre-Phase-3 level file
+// (25+5 wall rows). Defaulting to '' would wipe the table and hide the level
+// row. The page table is kept only when its project matches the file's
+// (case-insensitive, either blank passes); otherwise it is another job's and
+// is dropped.
 (function installDiaShim(){
   if(typeof AREv2==='undefined' || !AREv2.loadFromState || AREv2._diaShim) return;
   var inner=AREv2.loadFromState;
   var LEGACY_ROW_KEY=/^#sw[XY]_(label|len|loc)_\d+$/;
-  var DEFAULTS={'#loadLevel':'strength', '#mwfrsJSON':''};
+  function keepPageTable(state){
+    var t=readMwfrsTable();
+    if(!t) return '';
+    var a=String(t.project||'').trim().toLowerCase(), b=String(state.project||'').trim().toLowerCase();
+    return (!a||!b||a===b)?document.getElementById('mwfrsJSON').value:'';
+  }
   AREv2.loadFromState=function(state, opts){
     if(state && state.calcFile==='rectangular_diaphragm_calculator.html' && state.fields){
       state=JSON.parse(JSON.stringify(state));
       Object.keys(state.fields).forEach(function(k){
         if(LEGACY_ROW_KEY.test(k)) delete state.fields[k];
       });
+      var DEFAULTS={'#loadLevel':'strength', '#mwfrsJSON':keepPageTable(state)};
       Object.keys(DEFAULTS).forEach(function(k){
         if(!Object.prototype.hasOwnProperty.call(state.fields,k) && document.getElementById(k.slice(1))) state.fields[k]=DEFAULTS[k];
       });
