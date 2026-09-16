@@ -48,6 +48,7 @@ const has = (list, re) => list.some((s) => re.test(s));
 
 // ── 0. engines load ─────────────────────────────────────────────────────────
 check('RD engine loads (rect-diaphragm v1)', RD && RD.ENGINE && RD.ENGINE.name === 'rect-diaphragm' && RD.ENGINE.version === 1, JSON.stringify(RD && RD.ENGINE));
+check('LH engine tag', LH.ENGINE && LH.ENGINE.name === 'lateral-handoff' && LH.ENGINE.version === 1, JSON.stringify(LH.ENGINE));
 check('LH constants', LH.SCHEMA === 'are.lateral.v1' && LH.WIND_FACTOR === 0.6 && LH.SEIS_FACTOR === 0.7 && LH.LOC_TOL_FT === 0.5,
   JSON.stringify([LH.SCHEMA, LH.WIND_FACTOR, LH.SEIS_FACTOR, LH.LOC_TOL_FT]));
 check('wallId rounds to 0.1 ft, trailing-zero free', LH.wallId('X', 15) === 'X@15' && LH.wallId('Y', 45.26) === 'Y@45.3' && LH.wallId('X', 0) === 'X@0' && LH.wallId('X', 360.04) === 'X@360',
@@ -216,6 +217,29 @@ const tolState = clone(thirdState);
 { const rows = JSON.parse(tolState.fields['#swJSON']); rows.X[1].loc = 15.3; tolState.fields['#swJSON'] = JSON.stringify(rows); }
 const tolAsm = LH.assemble([roofRes, LH.levelFromDiaphragmState(tolState), secondRes]);
 check('loc 15.3 at 3RD vs 15 elsewhere (within 0.5 ft) -> same id X@15', tolAsm.record.levels[1].walls.X[1].id === 'X@15' && tolAsm.record.levels[1].walls.X[1].loc_ft === 15.3, JSON.stringify(tolAsm.record.levels[1].walls.X[1]));
+check('nonzero-distance stacking is reported', has(tolAsm.warnings, /3RD "A2" at 15\.3 ft stacked on X@15/), JSON.stringify(tolAsm.warnings));
+check('exact-loc stacking is silent', !has(asm.warnings, /stacked on/), JSON.stringify(asm.warnings));
+// two lines on ONE level within LOC_TOL_FT -> parser refuses (they would stack as one line)
+const nearDup = throwsWith(() => { const s2 = clone(thirdState); const r = JSON.parse(s2.fields['#swJSON']); r.X.push({ label: 'A2b', len: 20, loc: 15.4 }); s2.fields['#swJSON'] = JSON.stringify(r); LH.levelFromDiaphragmState(s2); }, /"A2" \(15 ft\) and "A2b" \(15\.4 ft\) are within 0\.5 ft/);
+check('two lines on one level 15 / 15.4 ft -> throws (would stack as one line)', nearDup.threw, nearDup.msg);
+const nearDup2 = throwsWith(() => { const s2 = clone(thirdState); const r = JSON.parse(s2.fields['#swJSON']); r.X[1].loc = 15.02; r.X.push({ label: 'A2b', len: 20, loc: 15.04 }); s2.fields['#swJSON'] = JSON.stringify(r); LH.levelFromDiaphragmState(s2); }, /within 0\.5 ft/);
+check('two lines on one level 15.02 / 15.04 ft (same wallId) -> throws', nearDup2.threw, nearDup2.msg);
+// unifyIds itself refuses a hand-built level whose walls resolve to one id
+const handRes = clone(thirdRes); handRes.level.walls.X.push({ id: 'X@15.4', label: 'A2b', L_ft: 20, loc_ft: 15.4, R_wind_strength_lb: 1, R_seis_strength_lb: 0 });
+const handAsm = LH.assemble([roofRes, handRes, secondRes]);
+check('assemble: two walls on one level resolving to one id -> error, no record', has(handAsm.errors, /"A2" and "A2b" both resolve to X@15/) && handAsm.record === null, JSON.stringify(handAsm.errors));
+// a second file carrying a DIFFERENT story table -> warning naming the file used
+const altTable = clone(mwfrsRecord); altTable.levels[1].sh_ft = 12;
+const altState = clone(secondState); altState.fields['#mwfrsJSON'] = JSON.stringify(altTable);
+const altAsm = LH.assemble([roofRes, thirdRes, LH.levelFromDiaphragmState(altState)], { files: ['roof.html', 'third.html', 'second.html'] });
+check('story tables disagree across files -> warning names the file used and the difference', altAsm.errors.length === 0 && has(altAsm.warnings, /Story table in second\.html differs from the one used \(third\.html\): 3RD sh_ft 12 vs 10\.5/) && altAsm.record.levels[1].sh_ft === 10.5, JSON.stringify(altAsm.warnings));
+check('story tables agree -> no table warning', !has(asm.warnings, /Story table in/), JSON.stringify(asm.warnings));
+// malformed embedded JSON
+const badMw = clone(thirdState); badMw.fields['#mwfrsJSON'] = '{not json';
+const badMwRes = LH.levelFromDiaphragmState(badMw);
+check('invalid #mwfrsJSON -> warning, storyTable null, level still parsed', badMwRes.storyTable === null && has(badMwRes.warnings, /#mwfrsJSON/) && badMwRes.level.walls.X.length === 25, JSON.stringify(badMwRes.warnings));
+const badSw = throwsWith(() => { const s2 = clone(thirdState); s2.fields['#swJSON'] = '{not json'; LH.levelFromDiaphragmState(s2); }, /#swJSON/);
+check('invalid #swJSON -> throws', badSw.threw, badSw.msg);
 // negative reaction: 2 lines at 0 and 20 of L = 120 -> R2 = 360w, R1 = -240w
 const negState = clone(roofState);
 negState.fields['#swJSON'] = JSON.stringify({ X: [{ label: 'N1', len: 20, loc: 0 }, { label: 'N2', len: 20, loc: 20 }], Y: roofRows.Y });

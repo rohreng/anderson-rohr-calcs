@@ -31,6 +31,7 @@
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this), function (root, RD) {
   'use strict';
 
+  var ENGINE = { name: 'lateral-handoff', version: 1 };
   var SCHEMA = 'are.lateral.v1';
   var WIND_FACTOR = 0.6;    // ASCE 7-16 §2.4.1  ASD wind    = 0.6 W
   var SEIS_FACTOR = 0.7;    // ASCE 7-16 §2.4.5  ASD seismic = 0.7 E
@@ -78,15 +79,15 @@
         index: i, label: str(stories[i].label).trim(), sh_ft: num(stories[i].sh, num(stories[i].h, null)),
         F_wind_x_strength_lb: fx, F_wind_y_strength_lb: fy,
         F_parapet_x_strength_lb: Math.round(num(rx[i].F_parapet, 0)), F_parapet_y_strength_lb: Math.round(num(ry[i].F_parapet, 0)),
-        V_cum_x_strength_lb: isFinite(num(rx[i].V_cum)) ? Math.round(rx[i].V_cum) : vcx,
-        V_cum_y_strength_lb: isFinite(num(ry[i].V_cum)) ? Math.round(ry[i].V_cum) : vcy,
+        V_cum_x_strength_lb: isFinite(num(rx[i].V_cum)) ? Math.round(num(rx[i].V_cum)) : vcx,
+        V_cum_y_strength_lb: isFinite(num(ry[i].V_cum)) ? Math.round(num(ry[i].V_cum)) : vcy,
         F_seis_x_strength_lb: 0, F_seis_y_strength_lb: 0
       });
     }
     return {
       schema: SCHEMA, loadLevel: 'strength', project: str(o.project),
       source: { mwfrs: o.meta || null, files: [] },
-      geometry: { B_ft: num(o.B, null), D_ft: num(o.D, null), h_ft: num(o.h, null), hp_ft: num(o.hp, 0) },
+      geometry: { B_ft: num(o.B, null), D_ft: num(o.D, null), h_ft: num(o.h, null), hp_ft: num(o.hp, null) },
       axes: AXES, levels: levels
     };
   }
@@ -177,7 +178,7 @@
     var B = num(f['#B']), D = num(f['#D']);
     if (!(B > 0) || !(D > 0)) throw new Error(label + ': B and D must be positive (B = ' + f['#B'] + ', D = ' + f['#D'] + ').');
 
-    var loadLevel = isBlank(f['#loadLevel']) ? '' : norm(f['#loadLevel']);
+    var loadLevel = norm(f['#loadLevel']);
     if (!loadLevel) { loadLevel = 'strength'; warnings.push(label + ': no #loadLevel in the file — forces taken as strength level.'); }
     if (loadLevel !== 'strength' && loadLevel !== 'asd') throw new Error(label + ': unknown #loadLevel "' + f['#loadLevel'] + '" (strength | asd).');
     var kW = loadLevel === 'asd' ? 1 / WIND_FACTOR : 1, kS = loadLevel === 'asd' ? 1 / SEIS_FACTOR : 1;
@@ -199,6 +200,16 @@
       F_seis_x_strength_lb: Math.round(Vx_s * 1000), F_seis_y_strength_lb: Math.round(Vy_s * 1000),
       walls: { X: wallsFor('X', rows.X, an.wx, an.sx, warnings), Y: wallsFor('Y', rows.Y, an.wy, an.sy, warnings) }
     };
+    // Two lines closer than LOC_TOL_FT on ONE level would be unified into one
+    // stacked id at assembly and the second reaction silently lost — refuse.
+    DIRS.forEach(function (d) {
+      var ws = level.walls[d];
+      for (var i = 0; i < ws.length; i++) for (var j = i + 1; j < ws.length; j++) {
+        if (Math.abs(ws[i].loc_ft - ws[j].loc_ft) <= LOC_TOL_FT) {
+          throw new Error(label + ': ' + d + ' lines "' + ws[i].label + '" (' + ws[i].loc_ft + ' ft) and "' + ws[j].label + '" (' + ws[j].loc_ft + ' ft) are within ' + LOC_TOL_FT + ' ft — they would stack as one line.');
+        }
+      }
+    });
 
     // Cross-check against the embedded story table: a WARNING only — Nick may
     // have adjusted the level force deliberately.
@@ -221,15 +232,26 @@
   // Assembly — N level results -> one diaphragm-stage record
   // =========================================================================
   // Give every wall within LOC_TOL_FT of an already-seen line (same direction)
-  // that line's id, so 45 and 45.3 ft stack as one line; loc_ft is left as entered.
-  function unifyIds(levels) {
+  // that line's id, so 45 and 45.3 ft stack as one line; loc_ft is left as
+  // entered.  Two walls on the SAME level may never share an id (the second
+  // reaction would vanish from the stack) — that is an error, and a nonzero
+  // snap across levels is reported so the reader can see what was joined.
+  function unifyIds(levels, errors, warnings) {
     var seen = { X: [], Y: [] };
     levels.forEach(function (lv) {
       DIRS.forEach(function (d) {
+        var assigned = {};
         lv.walls[d].forEach(function (w) {
           var hit = null;
           for (var i = 0; i < seen[d].length; i++) if (Math.abs(seen[d][i].loc - w.loc_ft) <= LOC_TOL_FT) { hit = seen[d][i]; break; }
-          if (hit) w.id = hit.id; else seen[d].push({ loc: w.loc_ft, id: w.id });
+          if (hit) {
+            if (Math.abs(hit.loc - w.loc_ft) > 1e-9) warnings.push(lv.label + ' "' + w.label + '" at ' + w.loc_ft + ' ft stacked on ' + hit.id + '.');
+            w.id = hit.id;
+          } else {
+            seen[d].push({ loc: w.loc_ft, id: w.id });
+          }
+          if (assigned[w.id]) errors.push(lv.label + ': ' + d + ' lines "' + assigned[w.id] + '" and "' + w.label + '" both resolve to ' + w.id + ' — lines closer than ' + LOC_TOL_FT + ' ft cannot be stacked separately.');
+          else assigned[w.id] = w.label;
         });
       });
     });
@@ -262,8 +284,26 @@
     // Ordering: the first story table found in ANY file places every level by
     // its #level label; without one, the input order stands and the heights
     // must come from opts.heights (the import panel asks for them).
-    var table = null;
-    results.forEach(function (r) { if (!table && r.storyTable) table = r.storyTable; });
+    var table = null, tableFrom = -1;
+    results.forEach(function (r, i) { if (!table && r.storyTable) { table = r.storyTable; tableFrom = i; } });
+    // Every other file's table must agree with the one used (label, sh_ft,
+    // F_wind_*); a picker order that swapped them would otherwise change the
+    // heights silently.
+    if (table) {
+      var fileName = function (i) { return opts.files && opts.files[i] ? basename(opts.files[i]) : results[i].level.label + ' file'; };
+      results.forEach(function (r, i) {
+        if (i === tableFrom || !r.storyTable) return;
+        var diffs = [];
+        if (r.storyTable.levels.length !== table.levels.length) diffs.push(r.storyTable.levels.length + ' vs ' + table.levels.length + ' levels');
+        else table.levels.forEach(function (tl, k) {
+          var ol = r.storyTable.levels[k];
+          if (norm(ol.label) !== norm(tl.label)) diffs.push('level ' + k + ' "' + ol.label + '" vs "' + tl.label + '"');
+          else if (num(ol.sh_ft, null) !== num(tl.sh_ft, null)) diffs.push(tl.label + ' sh_ft ' + ol.sh_ft + ' vs ' + tl.sh_ft);
+          else if (num(ol.F_wind_x_strength_lb, 0) !== num(tl.F_wind_x_strength_lb, 0) || num(ol.F_wind_y_strength_lb, 0) !== num(tl.F_wind_y_strength_lb, 0)) diffs.push(tl.label + ' F_wind ' + ol.F_wind_x_strength_lb + '/' + ol.F_wind_y_strength_lb + ' vs ' + tl.F_wind_x_strength_lb + '/' + tl.F_wind_y_strength_lb);
+        });
+        if (diffs.length) warnings.push('Story table in ' + fileName(i) + ' differs from the one used (' + fileName(tableFrom) + '): ' + diffs.join('; ') + '.');
+      });
+    }
     var ordered = [];
     if (table) {
       var used = {};
@@ -287,6 +327,8 @@
     }
     if (errors.length) return { record: null, errors: errors, warnings: warnings };
 
+    // V_cum is re-summed from the rounded level forces, so it may differ from
+    // the MWFRS page's V_cum (a sum of unrounded F_net) by <= N lb of rounding.
     var vcx = 0, vcy = 0;
     var levels = ordered.map(function (o, i) {
       var lv = JSON.parse(JSON.stringify(o.r.level));
@@ -301,7 +343,8 @@
         walls: lv.walls
       };
     });
-    unifyIds(levels);
+    unifyIds(levels, errors, warnings);
+    if (errors.length) return { record: null, errors: errors, warnings: warnings };
 
     var record = {
       schema: SCHEMA, loadLevel: 'strength', project: project,
@@ -384,7 +427,7 @@
   }
 
   return {
-    SCHEMA: SCHEMA, WIND_FACTOR: WIND_FACTOR, SEIS_FACTOR: SEIS_FACTOR, LOC_TOL_FT: LOC_TOL_FT, AXES: AXES,
+    ENGINE: ENGINE, SCHEMA: SCHEMA, WIND_FACTOR: WIND_FACTOR, SEIS_FACTOR: SEIS_FACTOR, LOC_TOL_FT: LOC_TOL_FT, AXES: AXES,
     wallId: wallId, fromMwfrs: fromMwfrs, levelFromDiaphragmState: levelFromDiaphragmState,
     assemble: assemble, toShearwallState: toShearwallState, summarize: summarize
   };
