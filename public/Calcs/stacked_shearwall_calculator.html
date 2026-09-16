@@ -101,6 +101,9 @@ select.ti{cursor:pointer;padding:2px 1px}
 .btn-add-floor:hover{background:#15803d}
 .btn-del-fl{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:3px 9px;border-radius:4px;cursor:pointer;font-size:.75em;transition:background .15s}
 .btn-del-fl:hover{background:rgba(220,38,38,.65)}
+.btn-del-fl.btn-copy-dn:hover{background:rgba(29,78,216,.65)}
+.btn-undo{margin-left:8px;padding:1px 9px;border:1px solid #b45309;border-radius:4px;background:#fff;color:#92400e;font-size:.95em;font-weight:600;cursor:pointer}
+.btn-undo:hover{background:#fef3c7}
 /* Results */
 .wres{border-top:2px solid #2a5298;margin-top:6px}
 .wres.pass-bg{border-color:#16a34a}
@@ -302,7 +305,7 @@ select.ti{cursor:pointer;padding:2px 1px}
       Give each wall its full length <em>L</em>, a <strong>Method</strong>, the list of full-height segment widths <em>b<sub>i</sub></em>, and an opening schedule (width &times; clear height).
       <strong>Perforated</strong> (&sect;4.3.2.3): one wall with openings, C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends and the &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
       <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own full-height shear wall with its own hold-down pair; story shear is shared in proportion to design capacity with 2b/h on segments of h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), so v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> is checked against v<sub>ASD</sub>; openings are gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), the unsheathed area is ignored, no uniform uplift row, and a segment of h/b &gt; 3.5 is refused. A segmented wall keeps the same segment count on every level it exists.
-      <strong>Several walls on one line:</strong> the Diaphragm Designer delivers <em>one</em> force per wall line; the split into walls happens here. <em>+ line</em> on a row adds a wall to that line (same construction and line force &mdash; enter its <em>L</em> and segments); walls with the same <strong>Line</strong> key share the line's story shear at each level in proportion to design capacity from geometry, C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so every wall of the line carries the same unit shear (&sect;4.3.5.5.1 Exc. 1); a wall absent below leaves the whole story shear to the walls present there. Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; a change on one wall fans out to the others; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear a wall's Line key to make it its own line.
+      <strong>Several walls on one line:</strong> the Diaphragm Designer delivers <em>one</em> force per wall line; the split into walls happens here. <em>+ line</em> on a row adds a wall to that line (same construction and line force &mdash; enter its <em>L</em> and segments); walls with the same <strong>Line</strong> key share the line's story shear at each level in proportion to design capacity from geometry, C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so every wall of the line carries the same unit shear (&sect;4.3.5.5.1 Exc. 1); a wall absent below leaves the whole story shear to the walls present there. Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; a change on one wall fans out to the others; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear a wall's Line key to make it its own line. <strong>&#8681; Copy walls to levels below</strong> on a level header copies that level's walls (geometry, method, line, label, construction) onto the same wall ids below, creating them where missing; each lower level keeps its h, level forces, dead loads and transfers, and the base keeps its anchor-bolt sill and HDUE. One-step Undo.
     </div>
 
     <div id="modelMsgs"></div>
@@ -584,6 +587,75 @@ function setDLSource(fi,wi,srcVal){
   }
   render();
 }
+// "⇩ Copy walls to levels below": every wall on this level is copied onto the
+// wall with the same id on every lower level — created there when missing
+// (newWallFrom: blank dead load, transfer and line force). Copied, deep-cloned:
+// geometry, method, line key, label and the construction (COPY_FIELDS). Left
+// as they are on every lower level: h (floor), the level forces, dead load,
+// transfer and the import placement (dir / loc / sign). Base rules: the
+// foundation keeps its anchor-bolt sill (validate refuses an above-base
+// connector there; a just-created base wall gets ab58 @ 20), a strap becomes
+// HDUE (straps are floor-to-floor only), and the penetration is cleared so
+// the base computes at its own default (no subfloor) — a typed penetration
+// never crosses a floor. Copy-down bypasses updWall's line fan-out, so the
+// construction is then re-applied to every wall sharing a touched line key on
+// that level, counterpart above or not (LINE_FIELDS without the line force).
+// One-step Undo from the message; render() drops the snapshot, so the next
+// model change (or the Undo itself) clears it.
+var COPY_FIELDS=['L_ft','segments_ft','openings','unsheathed_ft2','method','line','label','sheathing','endPost','holdown','sillSpecies','uplift'];
+var LINE_CONSTRUCTION=['sheathing','endPost','holdown','sillSpecies','uplift','method'];   // + sill above the base
+var _copyUndo=null;
+function cloneOf(v){ return v===undefined?undefined:JSON.parse(JSON.stringify(v)); }
+function copyWallsDown(fi){
+  var n=state.floors.length;
+  if(fi>=n-1) return;
+  var snap={floors:JSON.stringify(state.floors), wCnt:wCnt};
+  var src=state.floors[fi].walls||[], created=0, copied=0, mates=0;
+  for(var f=fi+1; f<n; f++){
+    var fl=state.floors[f], isBase=(f===n-1), byKey={}, done=[];
+    fl.walls=fl.walls||[];
+    src.forEach(function(w){
+      var t=null;
+      for(var i=0;i<fl.walls.length;i++) if(fl.walls[i].id===w.id){ t=fl.walls[i]; break; }
+      if(!t){
+        t=newWallFrom(w, w.id); t.h_ft=fl.h_ft;
+        if(isBase) t.sill={conn:'ab58', spacing_in:20, sheathing:'none'};
+        fl.walls.push(t); wCnt++; created++;
+      }
+      var washer=t.uplift?t.uplift.washer_in:undefined;   // the base's plate washer belongs to its anchor bolts, not to the wall above
+      COPY_FIELDS.forEach(function(k){ if(k in w) t[k]=cloneOf(w[k]); else delete t[k]; });
+      if(!isBase) t.sill=cloneOf(w.sill);
+      else{
+        if(t.holdown==='strap') t.holdown='hdue';
+        t.uplift=t.uplift||{}; t.uplift.penetration_in=null;   // = SW.penetrationDefault(sc, true)
+        if(washer!==undefined) t.uplift.washer_in=washer;
+      }
+      copied++; byKey[SW.lineKey(t)]=t; done.push(t);
+    });
+    // Line mates on this level (walls sharing a touched key, not themselves
+    // copied) take the construction of the wall just copied.
+    fl.walls.forEach(function(x){
+      var ref=byKey[SW.lineKey(x)];
+      if(!ref||done.indexOf(x)>=0) return;
+      var washer=x.uplift?x.uplift.washer_in:undefined;
+      LINE_CONSTRUCTION.forEach(function(k){ x[k]=cloneOf(ref[k]); });
+      if(!isBase) x.sill=cloneOf(ref.sill);
+      else if(washer!==undefined) x.uplift.washer_in=washer;
+      mates++;
+    });
+  }
+  render();
+  _copyUndo=snap;
+  var k=n-1-fi;
+  document.getElementById('modelMsgs').innerHTML+='<div class="warn-box" id="copyDownMsg" style="background:#eff6ff;border-color:#93c5fd;color:#1e3a8a">Copied '+src.length+' wall'+(src.length===1?'':'s')+' from '+xe(state.floors[fi].name)
+    +' to '+copied+' wall'+(copied===1?'':'s')+' on '+k+' level'+(k===1?'':'s')+' below ('+created+' created'+(mates?', '+mates+' more on shared lines':'')+').'
+    +' <button class="btn-undo" onclick="undoCopyDown()">Undo</button></div>';
+}
+function undoCopyDown(){
+  if(!_copyUndo) return;
+  state.floors=JSON.parse(_copyUndo.floors); wCnt=_copyUndo.wCnt;
+  render();   // clears _copyUndo
+}
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 // ── Resizable wall-table columns ─────────────────────────────────────────────
@@ -642,6 +714,7 @@ document.addEventListener('dblclick',function(e){
 function render(){
   var con=document.getElementById('floor-con');
   if(!con)return;
+  _copyUndo=null;   // every model change re-renders: one-step copy-down Undo lapses here
   var FLR_COLORS=['fh-1','fh-2','fh-3','fh-4','fh-5'];
   var out=lateralProvHTML();
   var n=state.floors.length;
@@ -665,6 +738,7 @@ function render(){
     out+='<input class="ti" type="number" value="'+(Math.round(fl.P_seis_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_seis_lb\',this.value)">';
     out+='<span style="font-size:.78em;opacity:.85"> lb (strength)</span>';
     out+=lineSumHTML(fl,'P_wind_lb','W')+lineSumHTML(fl,'P_seis_lb','E');
+    if(!isBase) out+='<button class="btn-del-fl btn-copy-dn" onclick="copyWallsDown('+fi+')" title="Copy every wall on this level (geometry, method, line, label, sheathing, posts, hold-down, sill, uplift) onto the wall with the same id on every level below, creating it where missing. Level heights, level forces, dead loads and transfers below stay; the base keeps its anchor-bolt sill and computes uplift at its own penetration default. One-step Undo.">&#8681; Copy walls to levels below</button>';
     out+='<button class="btn-del-fl" onclick="delFloor('+fi+')">✕ Level</button>';
     out+='</div>';
     out+='</div>'; // floor-hdr
