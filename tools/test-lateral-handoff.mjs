@@ -232,6 +232,9 @@ const noTabThrow = throwsWith(() => LH.toShearwallState(noTab.record, { dir: 'X'
 check('no story table + no heights: toShearwallState throws', noTabThrow.threw, noTabThrow.msg);
 const withH = LH.assemble([roofRes, LH.levelFromDiaphragmState((() => { const s = clone(thirdState); delete s.fields['#mwfrsJSON']; return s; })())], { heights: [11, '10.5'] });
 check('no story table + opts.heights: sh_ft 11 / 10.5 and toShearwallState works', withH.record.levels.map((l) => l.sh_ft).join(',') === '11,10.5' && SW.validate(LH.toShearwallState(withH.record, { dir: 'X' })).ok === true, JSON.stringify(withH.record.levels.map((l) => l.sh_ft)));
+check('no story table + opts.heights: "using supplied heights" note, no "heights required" warning', has(withH.warnings, /using supplied heights/) && !has(withH.warnings, /heights required/), JSON.stringify(withH.warnings));
+const unsafeFiles = LH.toShearwallState(withH.record, { dir: 'X', files: ['C:\\x\\a<b>' + String.fromCharCode(7) + 'c.html'] }).lateral.files;
+check('safeName strips the path, < > and control characters', unsafeFiles[0] === 'abc.html', JSON.stringify(unsafeFiles));
 const partH = LH.assemble([roofRes, LH.levelFromDiaphragmState((() => { const s = clone(thirdState); delete s.fields['#mwfrsJSON']; return s; })())], { heights: [11, 0] });
 check('no story table + bad height: that level sh_ft null', partH.record.levels[0].sh_ft === 11 && partH.record.levels[1].sh_ft === null, JSON.stringify(partH.record.levels.map((l) => l.sh_ft)));
 // #level blank -> error
