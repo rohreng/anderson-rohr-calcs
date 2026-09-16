@@ -470,6 +470,7 @@ await rx.route('**/*', (route) => {
 });
 await rx.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
 const oneLevel = await rx.evaluate((json) => window.LH.assemble([window.LH.levelFromDiaphragmState(JSON.parse(json))], { files: [] }).record, fix3rd);
+oneLevel.project = 'TEST-PROJ';   // the panel header must name the payload's project before Import
 await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })), oneLevel);
 await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
 await rx.waitForSelector('#diaImportPanel');
@@ -479,6 +480,7 @@ const rxPanel = await rx.evaluate(() => ({
 }));
 check('receiver: ?src=diaphragm&lat=1 shows the panel with the stacking note and consumes the key',
   rxPanel.rows === 1 && rxPanel.h === '10.5' && rxPanel.text.indexOf('1 level — import the other level files to stack') >= 0 && rxPanel.key === null, JSON.stringify(rxPanel));
+check('receiver: panel header names the record project', rxPanel.text.indexOf('Project: TEST-PROJ') >= 0, rxPanel.text.slice(0, 200));
 await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now() - 11 * 60 * 1000, file: 'stacked_shearwall_calculator.html' })), oneLevel);
 await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
 const rxStale = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: localStorage.getItem('are_lateral_v1') }));
