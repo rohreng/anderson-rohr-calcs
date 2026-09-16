@@ -197,7 +197,7 @@ select.ti{cursor:pointer;padding:2px 1px}
   }
   /* Hide interactive-only UI */
   .btn-add-floor, .btn-x, #sendPanel,
-  button.det-btn, button.btn-chk, button.btn-del-fl, button.btn-sm,
+  button.det-btn, button.btn-chk, button.btn-del-fl, button.btn-undo, button.btn-sm,
   .layout-btn,
   input[type=button], input[type=submit] { display: none !important; }
   /* Force-expand all ▶ Calc detail panels */
@@ -594,16 +594,30 @@ function setDLSource(fi,wi,srcVal){
 // as they are on every lower level: h (floor), the level forces, dead load,
 // transfer and the import placement (dir / loc / sign). Base rules: the
 // foundation keeps its anchor-bolt sill (validate refuses an above-base
-// connector there; a just-created base wall gets ab58 @ 20), a strap becomes
-// HDUE (straps are floor-to-floor only), and the penetration is cleared so
-// the base computes at its own default (no subfloor) — a typed penetration
-// never crosses a floor. Copy-down bypasses updWall's line fan-out, so the
+// connector there; a just-created base wall gets ab58 @ 20) and its sill
+// species, a strap becomes HDUE (straps are floor-to-floor only), and the
+// penetration is cleared so the base computes at its own default (no
+// subfloor) — a typed penetration never crosses a floor. A Manual plf typed
+// for a nailed plate above is connector-specific too: at anchor bolts the
+// base goes back to Auto (washer bearing); the typed plf stays in the object
+// for a switch back. Copy-down bypasses updWall's line fan-out, so the
 // construction is then re-applied to every wall sharing a touched line key on
 // that level, counterpart above or not (LINE_FIELDS without the line force).
 // One-step Undo from the message; render() drops the snapshot, so the next
 // model change (or the Undo itself) clears it.
 var COPY_FIELDS=['L_ft','segments_ft','openings','unsheathed_ft2','method','line','label','sheathing','endPost','holdown','sillSpecies','uplift'];
-var LINE_CONSTRUCTION=['sheathing','endPost','holdown','sillSpecies','uplift','method'];   // + sill above the base
+var LINE_CONSTRUCTION=['sheathing','endPost','holdown','sillSpecies','uplift','method'];   // + sill above the base; sill species kept at the base
+// The base rules, applied to a copy target and to its line mates alike: the
+// plate washer and sill species stay with the base; at anchor bolts a Manual
+// uplift source reverts to Auto.
+function applyBaseRules(t, washer, sillSpecies){
+  if(t.holdown==='strap') t.holdown='hdue';
+  if(sillSpecies!==undefined) t.sillSpecies=sillSpecies;
+  t.uplift=t.uplift||{}; t.uplift.penetration_in=null;   // = SW.penetrationDefault(sc, true)
+  if(washer!==undefined) t.uplift.washer_in=washer;
+  var sc=SW.findSill(t.sill&&t.sill.conn);
+  if(sc&&sc.base&&t.uplift.source==='manual') t.uplift.source='sill';
+}
 var _copyUndo=null;
 function cloneOf(v){ return v===undefined?undefined:JSON.parse(JSON.stringify(v)); }
 function copyWallsDown(fi){
@@ -622,14 +636,9 @@ function copyWallsDown(fi){
         if(isBase) t.sill={conn:'ab58', spacing_in:20, sheathing:'none'};
         fl.walls.push(t); wCnt++; created++;
       }
-      var washer=t.uplift?t.uplift.washer_in:undefined;   // the base's plate washer belongs to its anchor bolts, not to the wall above
+      var washer=t.uplift?t.uplift.washer_in:undefined, sillSp=t.sillSpecies;   // the base's plate washer and sill species belong to the base
       COPY_FIELDS.forEach(function(k){ if(k in w) t[k]=cloneOf(w[k]); else delete t[k]; });
-      if(!isBase) t.sill=cloneOf(w.sill);
-      else{
-        if(t.holdown==='strap') t.holdown='hdue';
-        t.uplift=t.uplift||{}; t.uplift.penetration_in=null;   // = SW.penetrationDefault(sc, true)
-        if(washer!==undefined) t.uplift.washer_in=washer;
-      }
+      if(!isBase) t.sill=cloneOf(w.sill); else applyBaseRules(t, washer, sillSp);
       copied++; byKey[SW.lineKey(t)]=t; done.push(t);
     });
     // Line mates on this level (walls sharing a touched key, not themselves
@@ -637,10 +646,9 @@ function copyWallsDown(fi){
     fl.walls.forEach(function(x){
       var ref=byKey[SW.lineKey(x)];
       if(!ref||done.indexOf(x)>=0) return;
-      var washer=x.uplift?x.uplift.washer_in:undefined;
+      var washer=x.uplift?x.uplift.washer_in:undefined, sillSp=x.sillSpecies;
       LINE_CONSTRUCTION.forEach(function(k){ x[k]=cloneOf(ref[k]); });
-      if(!isBase) x.sill=cloneOf(ref.sill);
-      else if(washer!==undefined) x.uplift.washer_in=washer;
+      if(!isBase) x.sill=cloneOf(ref.sill); else applyBaseRules(x, washer, sillSp);
       mates++;
     });
   }

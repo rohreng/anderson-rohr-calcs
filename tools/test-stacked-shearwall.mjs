@@ -648,7 +648,8 @@ const cd = await page.evaluate(() => {
   set(cell(0, 0, 7).querySelector('input'), '100, 68, 4'); set(cell(0, 0, 8).querySelector('input'), '20×7, 10×6');
   set(cell(0, 0, 10).querySelector('select'), 'wsp1532_10d_4'); set(cell(0, 0, 14).querySelector('select'), 'strap');
   set(cell(0, 0, 16).querySelector('select'), '8'); set(cell(0, 0, 19).querySelector('input'), '2.0');
-  window.updWall(0, 0, 'postN', '3'); window.updWall(0, 0, 'sillSpecies', 'SP'); window.updWall(0, 0, 'unsheathed_ft2', '12'); window.updWall(0, 0, 'label', 'Roof Wall');
+  window.updWall(0, 0, 'postN', '3'); window.updWall(0, 0, 'sillSpecies', 'SPF'); window.updWall(0, 0, 'unsheathed_ft2', '12'); window.updWall(0, 0, 'label', 'Roof Wall');
+  window.updWall(0, 0, 'upliftSource', 'manual'); window.updWall(0, 0, 'upliftCap', '83');   // a Manual plf for the nailed / screwed plate above
   // split the roof line: w1#2 at L 151, one 86 ft segment (construction follows the line)
   wallRows(0)[0].querySelector('.btn-line').click();
   window.updWall(0, 1, 'L_ft', '151'); window.updWall(0, 1, 'segments_ft', '86');
@@ -666,8 +667,10 @@ const cd = await page.evaluate(() => {
   const roofPick = pick(roof[0], COPY);
   out.match12 = [1, 2].every((fi) => pick(wallById(fi, 'w1'), COPY) === roofPick && JSON.stringify(wallById(fi, 'w1').sill) === JSON.stringify(roof[0].sill));
   const b = wallById(3, 'w1');
-  out.baseMatch = pick(b, COPY.filter((k) => k !== 'holdown' && k !== 'uplift')) === pick(roof[0], COPY.filter((k) => k !== 'holdown' && k !== 'uplift'));
-  out.base = { sill: b.sill.conn + '/' + b.sill.spacing_in, hd: b.holdown, pen: b.uplift.penetration_in, washer: b.uplift.washer_in, src: b.uplift.source, dead: b.dead.w_plf + '/' + b.dead.P_end_lb, P: b.P_wind_lb };
+  const notBase = (k) => k !== 'holdown' && k !== 'uplift' && k !== 'sillSpecies';
+  out.baseMatch = pick(b, COPY.filter(notBase)) === pick(roof[0], COPY.filter(notBase));
+  out.base = { sill: b.sill.conn + '/' + b.sill.spacing_in, hd: b.holdown, pen: b.uplift.penetration_in, washer: b.uplift.washer_in, src: b.uplift.source, cap: b.uplift.capacity_plf, sp: b.sillSpecies, dead: b.dead.w_plf + '/' + b.dead.P_end_lb, P: b.P_wind_lb };
+  out.upper = [1, 2].map((fi) => wallById(fi, 'w1').uplift.source + ':' + wallById(fi, 'w1').uplift.capacity_plf + ':' + wallById(fi, 'w1').sillSpecies).join(' / ');
   // the level's own numbers stay
   out.kept1 = JSON.stringify([wallById(1, 'w1').dead, wallById(1, 'w1').transfer, wallById(1, 'w1').P_wind_lb, wallById(1, 'w1').P_seis_lb]);
   out.h = F.map((f) => f.h_ft).join(','); out.PW = F.map((f) => Math.round(f.P_wind_lb)).join(',');
@@ -677,7 +680,7 @@ const cd = await page.evaluate(() => {
   // the split wall reached every level; the base-only mate w2 took the construction, kept its own geometry, label and sill
   out.split = [1, 2, 3].map((fi) => { const x = wallById(fi, 'w1#2'); return x ? x.L_ft + ':' + x.segments_ft.join('|') + ':' + x.line + ':' + x.label : 'missing'; }).join(' / ');
   const m = wallById(3, 'w2');
-  out.mate = { face: m.sheathing.face1.nail + '@' + m.sheathing.face1.spacing, postN: m.endPost.n, hd: m.holdown, sp: m.sillSpecies, method: m.method, pen: m.uplift.penetration_in, label: m.label, L: m.L_ft, seg: m.segments_ft.join('|'), sill: m.sill.conn + '/' + m.sill.spacing_in, line: m.line };
+  out.mate = { face: m.sheathing.face1.nail + '@' + m.sheathing.face1.spacing, postN: m.endPost.n, hd: m.holdown, sp: m.sillSpecies, method: m.method, pen: m.uplift.penetration_in, src: m.uplift.source, label: m.label, L: m.L_ft, seg: m.segments_ft.join('|'), sill: m.sill.conn + '/' + m.sill.spacing_in, line: m.line };
   out.errs = res.errors; out.errBoxes = document.querySelectorAll('#modelMsgs .err-box').length;
   out.baseHdLabel = res.floors[3].walls[0].holdown && res.floors[3].walls[0].holdown.label;
   // Undo: one exact step, then gone
@@ -697,15 +700,16 @@ check('copy-down: roof set up as segmented [100, 68, 4], strap, p 2.0, split w1 
   cd.roofIds === 'w1,w1#2' && cd.roofPen === 2 && cd.roofHd === 'strap' && cd.wallsBefore === 'w1+w1#2 / w1 / w3 / w1+w2', JSON.stringify([cd.roofIds, cd.roofPen, cd.roofHd, cd.wallsBefore]));
 check('copy-down: message "Copied 2 walls from 4th Floor to 6 walls on 3 levels below (4 created, 1 more on shared lines)" with Undo; walls w1 / w1#2 on every level, wCnt 3 → 7',
   /^Copied 2 walls from 4th Floor to 6 walls on 3 levels below \(4 created, 1 more on shared lines\)\.\s*Undo$/.test(cd.msg.trim()) && cd.wallsAfter === 'w1+w1#2 / w1+w1#2 / w3+w1+w1#2 / w1+w2+w1#2' && cd.wCntBefore === 3 && cd.wCntAfter === 7, JSON.stringify([cd.msg, cd.wallsAfter, cd.wCntBefore, cd.wCntAfter]));
-check('copy-down: 3RD and 2ND w1 match the roof on L, segments, openings, unsheathed, method, line, label, sheathing, end post, hold-down, sill species, uplift (p 2.0) and sill (sds14 @ 8)', cd.match12 === true, JSON.stringify(cd));
-check('copy-down: base w1 matches on the geometry / construction list but keeps ab58 @ 20, HDUE (strap not permitted at the base), p reset to null, washer 4, dead 200/1000, P_W 3,000',
-  cd.baseMatch === true && cd.base.sill === 'ab58/20' && cd.base.hd === 'hdue' && cd.base.pen === null && cd.base.washer === 4 && cd.base.src === 'sill' && cd.base.dead === '200/1000' && cd.base.P === 3000, JSON.stringify(cd.base));
+check('copy-down: 3RD and 2ND w1 match the roof on L, segments, openings, unsheathed, method, line, label, sheathing, end post, hold-down, sill species (SPF), uplift (Manual 83 plf, p 2.0) and sill (sds14 @ 8)',
+  cd.match12 === true && cd.upper === 'manual:83:SPF / manual:83:SPF', JSON.stringify([cd.match12, cd.upper]));
+check('copy-down: base w1 matches on the geometry / construction list but keeps ab58 @ 20, HDUE (strap not permitted at the base), sill species DFL, p reset to null, washer 4, uplift back to Auto at the anchor bolts (83 plf kept in the object), dead 200/1000, P_W 3,000',
+  cd.baseMatch === true && cd.base.sill === 'ab58/20' && cd.base.hd === 'hdue' && cd.base.sp === 'DFL' && cd.base.pen === null && cd.base.washer === 4 && cd.base.src === 'sill' && cd.base.cap === 83 && cd.base.dead === '200/1000' && cd.base.P === 3000, JSON.stringify(cd.base));
 check('copy-down: 3RD-floor dead 100/500, transfer and blank line force kept; level h and P_W untouched',
   cd.kept1 === '[{"w_plf":100,"P_end_lb":500,"source":"manual"},true,null,null]' && cd.h === '8,9.5,9.5,10.5' && cd.PW === '4638,2768,2897,3202', JSON.stringify([cd.kept1, cd.h, cd.PW]));
 check('copy-down: the recreated 2ND-floor w1 has dead 0/0, no transfer, line force blank, h 9.5', cd.created === '[{"w_plf":0,"P_end_lb":0,"source":"manual"},false,null,null,9.5]', cd.created);
 check('copy-down: w1#2 (151 ft, [86], line w1, label "Roof Wall-2") created on every lower level', cd.split === '151:86:w1:Roof Wall-2 / 151:86:w1:Roof Wall-2 / 151:86:w1:Roof Wall-2', cd.split);
-check('copy-down: base-only mate w2 on line w1 takes the construction (10d @ 4, 3 posts, HDUE, SP, segmented, p null) and keeps its L 302 / [172], label, ab58 @ 32',
-  cd.mate.face === '10d common@4' && cd.mate.postN === 3 && cd.mate.hd === 'hdue' && cd.mate.sp === 'SP' && cd.mate.method === 'segmented' && cd.mate.pen === null && cd.mate.label === 'Wall Line B' && cd.mate.L === 302 && cd.mate.seg === '172' && cd.mate.sill === 'ab58/32' && cd.mate.line === 'w1', JSON.stringify(cd.mate));
+check('copy-down: base-only mate w2 on line w1 takes the construction (10d @ 4, 3 posts, HDUE, segmented, p null, Auto uplift) and keeps its L 302 / [172], label, ab58 @ 32, sill species DFL',
+  cd.mate.face === '10d common@4' && cd.mate.postN === 3 && cd.mate.hd === 'hdue' && cd.mate.sp === 'DFL' && cd.mate.method === 'segmented' && cd.mate.pen === null && cd.mate.src === 'sill' && cd.mate.label === 'Wall Line B' && cd.mate.L === 302 && cd.mate.seg === '172' && cd.mate.sill === 'ab58/32' && cd.mate.line === 'w1', JSON.stringify(cd.mate));
 check('copy-down: the copied model computes with no error; the base hold-down is an HDUE', cd.errs.length === 0 && cd.errBoxes === 0 && /^HDUE/.test(cd.baseHdLabel || ''), JSON.stringify([cd.errs, cd.errBoxes, cd.baseHdLabel]));
 check('copy-down Undo restores JSON.stringify(state.floors) and wCnt exactly, removes the message, is a no-op the second time',
   cd.undoSame === true && cd.undoWCnt === true && cd.undoMsgGone === true && cd.undoTwice === true, JSON.stringify([cd.undoSame, cd.undoWCnt, cd.undoMsgGone, cd.undoTwice]));
@@ -967,15 +971,19 @@ check('?selftest=1 page has no errors', stErrors.length === 0, stErrors.join('\n
 await st.close();
 
 // ── print ───────────────────────────────────────────────────────────────────
+// On the default model with a copy-down message showing: its Undo button must not print.
+await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); window.copyWallsDown(0); });
 await page.emulateMedia({ media: 'print' });
 const printed = await page.evaluate(() => {
   const det = document.querySelector('.calc-det');
   return {
     detVisible: det ? getComputedStyle(det).display !== 'none' : false,
     resVisible: getComputedStyle(document.querySelector('.wres')).display !== 'none',
-    btnHidden: getComputedStyle(document.getElementById('printBtn')).display === 'none'
+    btnHidden: getComputedStyle(document.getElementById('printBtn')).display === 'none',
+    undoHidden: getComputedStyle(document.querySelector('#copyDownMsg .btn-undo')).display === 'none'
   };
 });
+check('print hides the copy-down Undo button', printed.undoHidden === true, JSON.stringify(printed));
 check('print expands the calc details', printed.detVisible === true, JSON.stringify(printed));
 check('print keeps the results visible', printed.resVisible === true, JSON.stringify(printed));
 check('print hides the print button', printed.btnHidden === true, JSON.stringify(printed));

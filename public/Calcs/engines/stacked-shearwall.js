@@ -803,6 +803,19 @@
       for (var f = lo + 1; f < floors.length && !below; f++) below = linePresent(floors, f, key);
       if (below) warnings.push('Wall ' + (wLo.label || id) + ' ends at ' + floors[lo].name + '; its shear is collected into line ' + key + ' and carried by the walls below; its overturning is not — verify the transfer.');
     });
+    // One line key per wall id down the stack. Stacking is by id, so a wall
+    // keyed to different lines on different levels still computes — but it is
+    // almost always a typo (the page's copy-down carries the key down). One
+    // warning per wall, at the first level whose key differs from the top's.
+    Object.keys(seen).forEach(function (id) {
+      var top = seen[id][0], kTop = lineKey(wallAt(floors, top, id));
+      for (var i = 1; i < seen[id].length; i++) {
+        var fi = seen[id][i], k = lineKey(wallAt(floors, fi, id));
+        if (k === kTop) continue;
+        warnings.push('Wall ' + id + ' is on line "' + kTop + '" at ' + floors[top].name + ' but line "' + k + '" at ' + floors[fi].name + ' — the line key should match on every level (the copy-down button copies it).');
+        break;
+      }
+    });
 
     floors.forEach(function (fl, fi) {
       var h = num(fl.h_ft, 0);
@@ -2295,7 +2308,20 @@
         return [['model ok (mixed methods on one line, one method per stack)', r.ok === true, r.errors.join(' | ') || 'ok'],
                 ['shares 0.4326 (Σb_eff 20) / 0.5674 (C_o·Σb_i 26.23)', near(a.line.share, 20 / (20 + capB), 1e-5) && near(b.line.share, capB / (20 + capB), 1e-5), f4(a.line.share) + '/' + f4(b.line.share)],
                 ['v_eff,A = v_max,B = 216.3 plf', near(a.cases.wind.vmax, 216.31, 0.01) && near(a.cases.wind.vmax, b.cases.wind.vmax, 1e-9), f2(a.cases.wind.vmax) + '/' + f2(b.cases.wind.vmax)],
-                ['A segments: V_i = 0.5 × 4,326.2 = 2,163.1 lb each', near(a.segments[0].V, 0.5 * 20 / (20 + capB) * 10000, 0.1) && near(a.segments[1].V, a.segments[0].V, 1e-9), f1(a.segments[0].V)]]; } }
+                ['A segments: V_i = 0.5 × 4,326.2 = 2,163.1 lb each', near(a.segments[0].V, 0.5 * 20 / (20 + capB) * 10000, 0.1) && near(a.segments[1].V, a.segments[0].V, 1e-9), f1(a.segments[0].V)]]; } },
+    // A wall id keyed to different lines on different levels: warned, not
+    // refused (stacking is by id). Roof A + B on line "L", base A with no key
+    // (implicit "A"); the same keys on every level draw no warning.
+    { id: 'SW67', src: 'line key differs between levels of one wall — warning names both, copy-down', run: function () {
+        var mixed = mkLine([{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 30, P: 10000 }], [{ id: 'A', L: 20, P: 10000 }]);
+        mixed.floors[0].walls.forEach(function (w) { w.line = 'L'; }); delete mixed.floors[1].walls[0].line;
+        var same = mkLine([{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 30, P: 10000 }], [{ id: 'A', L: 20, P: 10000 }]);
+        return { mixed: compute(mixed), same: compute(same) }; },
+      expect: function (o) {
+        var msg = 'Wall A is on line "L" at Roof but line "A" at Base — the line key should match on every level (the copy-down button copies it).';
+        var hit = function (r) { return r.warnings.filter(function (x) { return x.indexOf('line key should match') >= 0; }); };
+        return [['mixed keys: model ok, exactly one warning with the exact text', o.mixed.ok === true && hit(o.mixed).length === 1 && hit(o.mixed)[0] === msg, hit(o.mixed).join(' | ') || '(none)'],
+                ['same keys on every level: no line-key warning', o.same.ok === true && hit(o.same).length === 0, hit(o.same).join(' | ') || '(none)']]; } }
   ];
   function byId(w, id) { return w.checks.filter(function (c) { return c.id === id; })[0]; }
 
