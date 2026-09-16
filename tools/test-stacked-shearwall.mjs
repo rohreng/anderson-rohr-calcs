@@ -58,6 +58,8 @@ const ui = await page.evaluate(() => {
   const res = window.SW.compute(window.state);
   return {
     levels: document.querySelectorAll('#floor-con .floor-blk').length,
+    cols: document.querySelector('#floor-con .wall-table thead').querySelectorAll('th').length,
+    resColspan: +document.querySelector('#floor-con .wall-table tbody tr:nth-child(2) td').getAttribute('colspan'),
     panes: document.querySelectorAll('.wres .inline-res').length,
     baseTag: document.querySelectorAll('#floor-con .floor-blk')[3].innerText.indexOf('Base level (foundation)') >= 0,
     checkRows: document.querySelectorAll('#wres_3_0 .chk-tbl tr:not(.det-row)').length,
@@ -70,6 +72,8 @@ const ui = await page.evaluate(() => {
   };
 });
 check('four levels rendered', ui.levels === 4, 'levels=' + ui.levels);
+check('wall table has 22 columns (L, P_W, P_E line-force cells) and the results row spans them',
+  ui.cols === 22 && ui.resColspan === 22, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
 check('a results pane per wall', ui.panes === 4, 'panes=' + ui.panes);
 check('base level labelled', ui.baseTag === true, JSON.stringify(ui));
 check('five check rows + header + case table', ui.checkRows >= 8, 'rows=' + ui.checkRows);
@@ -237,6 +241,64 @@ check('DL source cascades to every level below',
 check('linked dead load reaches the resisting moment',
   Math.abs(dl.eff.w_plf - 200) < 1e-9 && dl.MR > 0, JSON.stringify(dl));
 await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); });
+
+// ── per-wall line force: typing into one wall's P_W cell moves only that wall ─
+// Two walls on the 4th Floor; wall B gets a 5,000 lb line force, wall A stays
+// blank and keeps the level force (2,783 / 0.6 = 4,638.3 lb strength).
+await page.evaluate(() => { window.addWall(0); });
+const pwCell = page.locator('#floor-con .floor-blk').first().locator('input[placeholder="= level"]').nth(2);
+await pwCell.fill('5000');
+await pwCell.press('Tab');   // onchange fires on blur; render() then rebuilds the row
+const lf = await page.evaluate(() => {
+  const r = window.SW.compute(window.state), f0 = r.floors[0];
+  const inputs = document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('input[placeholder="= level"]');
+  return {
+    stored: window.state.floors[0].walls[1].P_wind_lb,
+    storedSeis: window.state.floors[0].walls[1].P_seis_lb,
+    cloneReset: window.state.floors[0].walls[1].P_seis_lb === null,
+    cellValue: inputs[2].value, cellA: inputs[0].value,
+    VA: f0.walls[0].cases.wind.Vstrength, VB: f0.walls[1].cases.wind.Vstrength,
+    srcA: f0.walls[0].cases.wind.rows[0].src, srcB: f0.walls[1].cases.wind.rows[0].src,
+    VBseis: f0.walls[1].cases.seismic.Vstrength,
+    lower: r.floors.slice(1).map((f) => f.walls[0].cases.wind.vmax.toFixed(2)).join('/'),
+    paneB: document.querySelector('#wres_0_1 .sum-pass, #wres_0_1 .sum-fail').innerText
+  };
+});
+check('typed line force is stored on that wall only', lf.stored === 5000 && lf.cellValue === '5000' && lf.cellA === '', JSON.stringify(lf));
+check('wall B V = its own line force; wall A keeps the level force',
+  Math.abs(lf.VB - 5000) < 1e-9 && Math.abs(lf.VA - 2783 / 0.6) < 1e-6 && lf.srcB === 'wall' && lf.srcA === 'level', JSON.stringify(lf));
+check('seismic on wall B still inherits the level (blank cell)',
+  lf.cloneReset === true && Math.abs(lf.VBseis - 2783 / 0.7) < 1e-6, JSON.stringify(lf));
+check('other levels unchanged by the line force', lf.lower === '38.14/53.06/70.29', lf.lower);
+// v_max = 0.6 × 5,000 / (0.6074 × 172) = 28.7 plf on wall B (26.6 plf at the level force).
+check('wall B results pane re-rendered with its own v_max', lf.paneB.indexOf('28.7') >= 0, lf.paneB);
+await pwCell.fill('');
+await pwCell.press('Tab');
+const lfClear = await page.evaluate(() => {
+  const r = window.SW.compute(window.state);
+  return { stored: window.state.floors[0].walls[1].P_wind_lb, VB: r.floors[0].walls[1].cases.wind.Vstrength };
+});
+check('clearing the cell returns the wall to the level force', lfClear.stored === null && Math.abs(lfClear.VB - 2783 / 0.6) < 1e-6, JSON.stringify(lfClear));
+await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); });
+
+// ── AREv2 adapter: `lateral` provenance survives getModel → setModel ────────
+const lat = await page.evaluate(() => {
+  const a = window.__SW_ADAPTER;
+  const m = a.getModel();
+  const out = { allowed: a.schema.allowedKeys.indexOf('lateral') >= 0, absent: m.lateral === null, version: a.version };
+  m.lateral = { schema: 'are.lateral.v1', dir: 'X' };
+  a.setModel(m);
+  out.back = a.getModel().lateral;
+  out.viaAre = window.AREv2._getAdapterModelForTest().lateral;
+  a.setModel(Object.assign({}, a.getModel(), { lateral: undefined }));
+  out.cleared = a.getModel().lateral;
+  return out;
+});
+check('adapter whitelists `lateral` at version 2 and reports null when absent',
+  lat.allowed === true && lat.absent === true && lat.version === 2, JSON.stringify(lat));
+check('`lateral` {schema, dir} round-trips through getModel/setModel and the AREv2 hook',
+  JSON.stringify(lat.back) === '{"schema":"are.lateral.v1","dir":"X"}' && JSON.stringify(lat.viaAre) === JSON.stringify(lat.back) && lat.cleared === null,
+  JSON.stringify(lat));
 
 // ── selftest query string ───────────────────────────────────────────────────
 const st = await browser.newPage();

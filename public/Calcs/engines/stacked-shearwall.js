@@ -204,17 +204,23 @@
   // floors are ordered top -> bottom.  P_j is the incremental strength-level
   // force delivered at level j.  V_k = factor * sum_{j<=k} P_j.
   // M_k = factor * sum_{j<=k} P_j * z_{j,k}, z = sum of story heights j..k.
-  function storyForces(floors, caseKey, present) {
-    var lc = LOAD[caseKey], out = [];
+  // When wallId is given, P_j is that wall line's own P_wind_lb / P_seis_lb at
+  // level j where it is a finite number (src 'wall'); otherwise the level force
+  // (src 'level').  A wall absent at level j (present(j) false) contributes nothing.
+  function storyForces(floors, caseKey, present, wallId) {
+    var lc = LOAD[caseKey], out = [], fld = caseKey === 'wind' ? 'P_wind_lb' : 'P_seis_lb';
     for (var k = 0; k < floors.length; k++) {
       var V = 0, M = 0, rows = [];
       for (var j = 0; j <= k; j++) {
         if (present && !present(j)) continue;
-        var P = num(caseKey === 'wind' ? floors[j].P_wind_lb : floors[j].P_seis_lb, 0) || 0;
+        var wj = wallId != null ? wallAt(floors, j, wallId) : null;
+        var Pw = wj ? num(wj[fld], NaN) : NaN;
+        var src = isFinite(Pw) ? 'wall' : 'level';
+        var P = src === 'wall' ? Pw : (num(floors[j][fld], 0) || 0);
         var z = 0;
         for (var i = j; i <= k; i++) z += num(floors[i].h_ft, 0) || 0;
         V += P; M += P * z;
-        rows.push({ level: floors[j].name, P: P, Pfac: lc.factor * P, z: z, m: lc.factor * P * z });
+        rows.push({ level: floors[j].name, P: P, Pfac: lc.factor * P, z: z, m: lc.factor * P * z, src: src });
       }
       out.push({ Pstrength: V, V: lc.factor * V, M: lc.factor * M, Mstrength: M, rows: rows, factor: lc.factor });
     }
@@ -373,6 +379,14 @@
         var tag = where + ' / ' + (w.label || w.id);
         var L = num(w.L_ft, 0);
         if (!(L > 0)) errors.push(tag + ': wall length L must be greater than zero.');
+        // Optional line-force override: null / undefined / '' inherit the level
+        // force; anything else must be a finite number >= 0.
+        ['P_wind_lb', 'P_seis_lb'].forEach(function (fld) {
+          var pv = w[fld];
+          if (pv === null || pv === undefined || pv === '') return;
+          var pn = num(pv, NaN);
+          if (!isFinite(pn) || pn < 0) errors.push(tag + ': wall-line forces must be numbers ≥ 0 (leave blank to use the level force).');
+        });
         var segs = (w.segments_ft || []).map(function (x) { return num(x, 0); });
         // A negative width would otherwise be clamped to zero in sumBi() and in
         // the Σ-vs-L check and pass silently; refuse it the way an opening is.
@@ -443,6 +457,7 @@
 
     res.notes.push('Level forces are STRENGTH level. The engine applies 0.6W (ASCE 7-16 §2.4.1), 0.7E (§2.4.5) and 0.6D for the resisting moment.');
     res.notes.push('Story shear is accumulated as FORCE and converted once at each story with that story’s C_o·Σb_i (SDPWS §4.3.6.4.4, §4.3.6.4.1.1).');
+    res.notes.push('Wall-line forces, where entered, replace the level force for that line.');
     res.notes.push('Perforated shear wall method assumed: a perforated shear wall segment is present at each end of every wall line (§4.3.2.3(2)); top-of-wall and bottom-of-wall elevations are uniform (§4.3.2.3(7)); collectors run the full length of the wall (§4.3.2.3(6)); sheathed areas that are not the tabulated assembly are counted in A_o (§4.3.2.3(9) Exception).');
     if (sfrs && !sfrs.wsp) res.warnings.push('SFRS ' + sfrs.id + ' is "shear panels of all other materials" — ASCE 7-16 Table 12.2-1 limits it to 35 ft in SDC D and does not permit it in SDC E or F. The wood structural panel systems are A.15 / B.22.');
     if (sfrs && !sfrs.wsp && (sdc === 'E' || sdc === 'F')) res.errors.push('SFRS ' + sfrs.id + ' is not permitted in SDC ' + sdc + ' (ASCE 7-16 Table 12.2-1). Select A.15 or B.22.');
@@ -559,7 +574,7 @@
     var present = wallPresence(floors, w.id);
     var cases = {};
     ['wind', 'seismic'].forEach(function (caseKey) {
-      var sf = storyForces(floors, caseKey, present)[k];
+      var sf = storyForces(floors, caseKey, present, w.id)[k];
       var vmax = lever > 0 ? sf.V / lever : NaN;
 
       // Dead-load resisting moment, cumulative from the top down to this level.
@@ -748,7 +763,8 @@
       endPost: { n: 2, size: '2x6' }, holdown: o.holdown || 'hdue',
       sill: { conn: o.sill || 'sds14', spacing_in: o.spacing || 12, sheathing: 'none' },
       sillSpecies: 'DFL', dead: { w_plf: 0, P_end_lb: 0, source: 'manual' },
-      uplift: { capacity_plf: null, label: '' }, transfer: false
+      uplift: { capacity_plf: null, label: '' }, transfer: false,
+      P_wind_lb: null, P_seis_lb: null   // line-force override; null = inherit the level force
     };
   }
   function defaultState() {
@@ -1138,7 +1154,55 @@
         return [['no errors', r.ok === true, r.errors.join(' | ') || 'ok'],
                 ['4 levels', r.floors.length === 4, String(r.floors.length)],
                 ['base level labelled', r.floors[3].levelLabel === 'Base level (foundation)', r.floors[3].levelLabel],
-                ['C_o 0.6074 / 0.6774 / 0.6774 / 0.6703', r.floors.map(function (f) { return f.walls[0].geom.Co.toFixed(4); }).join('/') === '0.6074/0.6774/0.6774/0.6703', r.floors.map(function (f) { return f.walls[0].geom.Co.toFixed(4); }).join('/')]]; } }
+                ['C_o 0.6074 / 0.6774 / 0.6774 / 0.6703', r.floors.map(function (f) { return f.walls[0].geom.Co.toFixed(4); }).join('/') === '0.6074/0.6774/0.6774/0.6703', r.floors.map(function (f) { return f.walls[0].geom.Co.toFixed(4); }).join('/')]]; } },
+
+    // ── Per-wall line force override (lateral handoff Phase 1) ────────────
+    // A wall's own P_wind_lb / P_seis_lb, where a finite number, replaces the
+    // level force for that line at that level; null / absent inherits the level.
+    { id: 'SW44', src: 'line force override — two walls, one floor', run: function () {
+        var st = mkState(CASE3);
+        st.floors.forEach(function (f) { var b = clone(f.walls[0]); b.id = 'w2'; b.label = 'Wall Line B'; f.walls.push(b); });
+        // Upper: A = 5,000 / B = 3,000; Lower: A = 4,000 / B = 2,000 (strength, wind).
+        st.floors[0].walls[0].P_wind_lb = 5000; st.floors[0].walls[1].P_wind_lb = 3000;
+        st.floors[1].walls[0].P_wind_lb = 4000; st.floors[1].walls[1].P_wind_lb = 2000;
+        return compute(st); },
+      expect: function (r) { var a = r.floors[1].walls[0].cases.wind, b = r.floors[1].walls[1].cases.wind;
+        return [['model ok', r.ok === true, r.errors.join(' | ') || 'ok'],
+                ['wall A: ΣP = 5,000 + 4,000 = 9,000 lb (not the level total)', near(a.Vstrength, 9000, 1e-6), f1(a.Vstrength)],
+                ['wall B: ΣP = 3,000 + 2,000 = 5,000 lb', near(b.Vstrength, 5000, 1e-6), f1(b.Vstrength)],
+                ['wall A: V = 0.6 × 9,000 = 5,400 lb', near(a.V, 5400, 1e-6), f1(a.V)],
+                ['wall B rows tagged src = wall', b.rows.every(function (x) { return x.src === 'wall'; }), b.rows.map(function (x) { return x.src; }).join(',')],
+                ['seismic still inherits the level (no override)', near(r.floors[1].walls[1].cases.seismic.Vstrength, (8000 + 6000) / 0.7, 1e-6), f1(r.floors[1].walls[1].cases.seismic.Vstrength)]]; } },
+    { id: 'SW45', src: 'line force override at the roof, inherit at the base', run: function () {
+        var st = mkState(CASE3);
+        st.floors[0].walls[0].P_wind_lb = 5000;      // roof: line force
+        st.floors[1].walls[0].P_wind_lb = null;      // base: inherit 6,000 / 0.6
+        return compute(st); },
+      expect: function (r) { var c = r.floors[1].walls[0].cases.wind;
+        return [['ΣP = 5,000 + 10,000 = 15,000 lb (mixed sum)', near(c.Vstrength, 5000 + 6000 / 0.6, 1e-6), f1(c.Vstrength)],
+                ['row src = wall / level', c.rows.map(function (x) { return x.src; }).join('/') === 'wall/level', c.rows.map(function (x) { return x.src; }).join('/')],
+                ['roof wall unchanged by the base', near(r.floors[0].walls[0].cases.wind.Vstrength, 5000, 1e-6), f1(r.floors[0].walls[0].cases.wind.Vstrength)]]; } },
+    { id: 'SW46', src: 'line force override across a transfer gap', run: function () {
+        var st = mkState(CASE1);
+        st.floors[1].walls = [];                     // wall absent at the 3rd Floor
+        st.floors[2].walls[0].transfer = true;       // declared on the wall below the gap
+        st.floors[0].walls[0].P_wind_lb = 1000;
+        st.floors[2].walls[0].P_wind_lb = 2000;
+        st.floors[3].walls[0].P_wind_lb = 3000;
+        return compute(st); },
+      expect: function (r) { var c = r.floors[3].walls[0].cases.wind;
+        return [['model ok (transfer declared)', r.ok === true, r.errors.join(' | ') || 'ok'],
+                ['only present levels sum: 1,000 + 2,000 + 3,000 = 6,000 lb', near(c.Vstrength, 6000, 1e-6), f1(c.Vstrength)],
+                ['three rows, the gap level absent', c.rows.length === 3 && c.rows.every(function (x) { return x.level !== '3rd Floor'; }), c.rows.map(function (x) { return x.level; }).join(',')]]; } },
+    { id: 'SW47', src: 'line force override must be a finite number', run: function () {
+        var bad = mkState(CASE3); bad.floors[0].walls[0].P_wind_lb = 'abc';
+        var neg = mkState(CASE3); neg.floors[0].walls[0].P_seis_lb = -1;
+        var blank = mkState(CASE3); blank.floors[0].walls[0].P_wind_lb = ''; blank.floors[1].walls[0].P_seis_lb = undefined;
+        return { bad: validate(bad), neg: validate(neg), blank: validate(blank) }; },
+      expect: function (v) {
+        return [['"abc" refused', v.bad.ok === false && v.bad.errors.some(function (e) { return e.indexOf('wall-line force') >= 0; }), v.bad.errors.join(' | ') || '(none)'],
+                ['negative refused', v.neg.ok === false && v.neg.errors.some(function (e) { return e.indexOf('wall-line force') >= 0; }), v.neg.errors.join(' | ') || '(none)'],
+                ['blank / undefined inherit and pass', v.blank.ok === true, v.blank.errors.join(' | ') || 'ok']]; } }
   ];
 
   // Fixture input models.

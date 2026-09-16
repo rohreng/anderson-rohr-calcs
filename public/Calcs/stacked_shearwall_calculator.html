@@ -409,6 +409,7 @@ function newWallFrom(ref, id){
   w.id = id || w.id;
   w.dead = {w_plf:0, P_end_lb:0, source:'manual'};
   w.transfer = false;
+  w.P_wind_lb = null; w.P_seis_lb = null;   // inherit the level force, not the source wall's line force
   return w;
 }
 // "+ Add Floor" inserts at the TOP; the base level is always floors[length-1].
@@ -451,6 +452,8 @@ function updWall(fi,wi,fld,val){
   switch(fld){
     case 'label': w.label=val; break;
     case 'L_ft': w.L_ft=parseFloat(val)||0; break;
+    case 'P_wind_lb': w.P_wind_lb=(val===''?null:(parseFloat(val)||0)); break;
+    case 'P_seis_lb': w.P_seis_lb=(val===''?null:(parseFloat(val)||0)); break;
     case 'segments_ft': w.segments_ft=parseNums(val); break;
     case 'openings': w.openings=parseOpenings(val); break;
     case 'unsheathed_ft2': w.unsheathed_ft2=parseFloat(val)||0; break;
@@ -562,9 +565,9 @@ function render(){
     out+='<span style="font-size:.8em;opacity:.85"> ft</span>';
     out+='</div>';
     out+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental wind force delivered at this level">P<sub>W</sub> =</span>';
+    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental wind force delivered at this level — level total, used by wall lines with no line force">P<sub>W</sub> =</span>';
     out+='<input class="ti" type="number" value="'+(Math.round(fl.P_wind_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_wind_lb\',this.value)">';
-    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental seismic force delivered at this level">P<sub>E</sub> =</span>';
+    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental seismic force delivered at this level — level total, used by wall lines with no line force">P<sub>E</sub> =</span>';
     out+='<input class="ti" type="number" value="'+(Math.round(fl.P_seis_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_seis_lb\',this.value)">';
     out+='<span style="font-size:.78em;opacity:.85"> lb (strength)</span>';
     out+='<button class="btn-del-fl" onclick="delFloor('+fi+')">✕ Level</button>';
@@ -575,6 +578,8 @@ function render(){
     out+='<table class="wall-table"><thead><tr>';
     out+=thc('wall_label',95,'Wall Label','thl');
     out+=thc('l_ft',55,'L (ft)','');
+    out+=thc('pw_lb',70,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
+    out+=thc('pe_lb',70,'P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level; blank = use the level force');
     out+=thc('bi_ft',95,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated');
     out+=thc('openings_w_hc',110,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated');
     out+=thc('unsh_sf',60,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception)');
@@ -600,6 +605,8 @@ function render(){
       out+='<tr>';
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
       out+='<td><input class="ti" type="number" value="'+w.L_ft+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L_ft\',this.value)"></td>';
+      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_wind_lb==null?'':w.P_wind_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_wind_lb\',this.value)"></td>';
+      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_seis_lb==null?'':w.P_seis_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_seis_lb\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="text" value="'+xe(fmtNums(w.segments_ft))+'" onchange="updWall('+fi+','+wi+',\'segments_ft\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
@@ -644,7 +651,7 @@ function render(){
       out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
       out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">✕</button></td>';
       out+='</tr>';
-      out+='<tr><td colspan="20" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="22" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table></div>';
     out+='<div style="margin-top:7px"><button class="btn-sm btn-add" onclick="addWall('+fi+')">+ Wall Line</button></div>';
@@ -860,7 +867,7 @@ function detailHtml(id,w,fl){
       var c=w.cases[k];
       h+='<hr class="csep"><div class="mrow"><strong>'+c.label+'</strong> &mdash; '+xe(c.ref)+'</div>';
       c.rows.forEach(function(rr){
-        h+='<div class="mrow ind">'+xe(rr.level)+': P = '+f0(rr.P)+' lb (strength) × '+f1(c.factor)+' × z = '+f2(rr.z)+' ft → <span class="cval">'+f0(rr.m)+' ft-lb</span></div>';
+        h+='<div class="mrow ind">'+xe(rr.level)+': P = '+f0(rr.P)+' lb (strength)'+(rr.src==='wall'?' (wall line)':'')+' × '+f1(c.factor)+' × z = '+f2(rr.z)+' ft → <span class="cval">'+f0(rr.m)+' ft-lb</span></div>';
       });
       h+='<div class="mrow ind">M = <span class="cval">'+f0(c.M)+' ft-lb</span></div>';
       c.dlRows.forEach(function(d){
@@ -1042,7 +1049,7 @@ window.onload=function(){
     version: 2,
     ownedFields: ['#floor-con'],
     schema: {
-      allowedKeys: ['version', 'floors', 'wCnt'],
+      allowedKeys: ['version', 'floors', 'wCnt', 'lateral'],
       maxDepth: 10,
       maxNodes: 20000,
       maxStringLength: 120,
@@ -1053,7 +1060,7 @@ window.onload=function(){
       stringPattern: new RegExp('^[^<>' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']*$')
     },
     getModel: function () {
-      return { version: 2, floors: JSON.parse(JSON.stringify(state.floors)), wCnt: wCnt };
+      return { version: 2, floors: JSON.parse(JSON.stringify(state.floors)), wCnt: wCnt, lateral: state.lateral || null };
     },
     setModel: function (m) {
       if (!m || !Array.isArray(m.floors) || !m.floors.length) {
@@ -1064,6 +1071,7 @@ window.onload=function(){
       }
       state.floors = m.floors;
       state.version = 2;
+      state.lateral = m.lateral || null;   // import provenance (lateral handoff Phase 4); absent on older files
       wCnt = m.wCnt || m.floors.reduce(function (n, f) {
         return n + ((f.walls && f.walls.length) || 0);
       }, 0);
