@@ -267,6 +267,7 @@ svg.diagram{max-width:100%;border-radius:8px}
 </div><!-- /results -->
 </div><!-- /container -->
 
+<script src="./engines/rect-diaphragm.js"></script>
 <script>
 // ─── UTILITIES ───────────────────────────────────────────────────────────────
 function f1(v){return (Math.round(v*10)/10).toFixed(1)}
@@ -636,112 +637,10 @@ function updateDiagram(){
 } // end updateDiagram
 
 // ─── DIRECTION CALCULATION ───────────────────────────────────────────────────
-// dir: 'X' or 'Y'
-// V: total lateral force (kips)
-// L_along: diaphragm dimension along wind direction (ft)
-// B_perp: diaphragm dimension perpendicular to wind (ft) = shearwall span
-// swRows: array of {label, len, loc} for shearwall lines
-function calcDir(V, L_along, B_perp, swRows, dirLabel){
-  // Distributed diaphragm load
-  var w = V / L_along; // kip/ft
-
-  // Simple beam (if 2 sw lines at 0 and L_along):
-  // For arbitrary SW locations, use moment equilibrium
-  // Sort by location
-  var sws = swRows.map(function(r){return {label:r.label, len:r.len, loc:r.loc};});
-  sws.sort(function(a,b){return a.loc-b.loc;});
-
-  var reactions; // kips at each SW line
-  if(sws.length===1){
-    reactions = [V];
-  } else if(sws.length===2){
-    // Two-support beam with UDL, supports at arbitrary locations a and b from left
-    var a=sws[0].loc, b2=sws[1].loc;
-    var span=b2-a;
-    // UDL from 0 to L_along with supports at a and b2
-    // Sum moments about support 0 (at sws[0].loc):
-    // R1*0 + R2*(b2-a) = w * (L_along centroid - a from support 0)
-    // Resultant at L_along/2 from left (dist from sws[0] = L_along/2 - a)
-    var R2 = w * L_along * (L_along/2 - a) / span;
-    var R1 = V - R2;
-    reactions = [R1, R2];
-  } else {
-    // Multi-support: distribute proportionally (simplified tributary)
-    reactions = [];
-    for(var i=0;i<sws.length;i++){
-      var locPrev = i===0?0:((sws[i].loc+sws[i-1].loc)/2);
-      var locNext = i===sws.length-1?L_along:((sws[i].loc+sws[i+1].loc)/2);
-      reactions.push(w*(locNext-locPrev));
-    }
-  }
-
-  // Unit shear at each SW line [kip/ft] = reaction / shearwall length
-  var unitShears = sws.map(function(sw,i){ return reactions[i]/sw.len; });
-
-  // ── Diaphragm chord moment & max diaphragm shear (beam analogy, UDL w over 0..L_along) ──
-  var M_design, M_note, Vmax_beam;
-  if(sws.length===1){
-    // Single wall line — no simple-beam span; report w·L²/8 as a reference value only
-    M_design = V*L_along/8;
-    M_note = 'single wall line — M shown as w·L²/8 reference value; verify load path';
-    Vmax_beam = V;
-  } else if(sws.length===2){
-    var aL=sws[0].loc, bL=sws[1].loc;
-    var spanL=bL-aL;
-    var R_l=reactions[0], R_r=reactions[1];
-    // Positive moment: x from left support where shear = 0
-    var x0 = R_l/w - aL;
-    x0 = Math.max(0, Math.min(spanL, x0));
-    var M_pos = R_l*x0 - w*(aL+x0)*(aL+x0)/2;
-    // Negative (cantilever) moments at supports from diaphragm overhangs
-    var M_negL = w*aL*aL/2;
-    var M_negR = w*(L_along-bL)*(L_along-bL)/2;
-    M_design = Math.max(Math.abs(M_pos), M_negL, M_negR);
-    M_note = (aL<=0.001 && Math.abs(bL-L_along)<=0.001)
-      ? 'M = w·L²/8 (supports at diaphragm ends)'
-      : 'asymmetric wall locations — M from beam analysis incl. overhang moments';
-    // Max beam shear occurs at a support face (incl. overhang shear)
-    Vmax_beam = Math.max(
-      Math.abs(w*aL),                      // overhang, left of support 1
-      Math.abs(R_l - w*aL),                // just right of support 1
-      Math.abs(R_r - w*(L_along-bL)),      // just left of support 2
-      Math.abs(w*(L_along-bL))             // overhang, right of support 2
-    );
-  } else {
-    // 3+ lines, tributary distribution: per-segment shear & per-span w·s²/8 + overhangs
-    var aM=sws[0].loc, bM=sws[sws.length-1].loc;
-    M_design = Math.max(w*aM*aM/2, w*(L_along-bM)*(L_along-bM)/2);
-    Vmax_beam = 0;
-    for(var k=0;k<sws.length;k++){
-      var pm = k===0?0:((sws[k].loc+sws[k-1].loc)/2);
-      var nm = k===sws.length-1?L_along:((sws[k].loc+sws[k+1].loc)/2);
-      Vmax_beam = Math.max(Vmax_beam, w*(sws[k].loc-pm), w*(nm-sws[k].loc));
-      if(k>0){
-        var sp = sws[k].loc - sws[k-1].loc;
-        M_design = Math.max(M_design, w*sp*sp/8);
-      }
-    }
-    M_note = 'multi-line (tributary) — M = max of w·s²/8 per span + overhangs (simplified; verify with continuous-beam analysis if critical)';
-  }
-  var chord_T = M_design / B_perp; // kips
-  var v_dia = Vmax_beam / B_perp;  // kip/ft — max diaphragm unit shear
-
-  return {
-    label: dirLabel,
-    V: V,
-    L_along: L_along,
-    B_perp: B_perp,
-    w: w,
-    sws: sws,
-    reactions: reactions,
-    unitShears: unitShears,
-    M_max: M_design,
-    M_note: M_note,
-    Vmax_beam: Vmax_beam,
-    chord_T: chord_T,
-    v_dia: v_dia
-  };
-}
+// calcDir(V, L_along, B_perp, swRows, dirLabel) lives in ./engines/rect-diaphragm.js
+// (window.RD) so the stacked shearwall import recomputes the same reactions from
+// a saved snapshot. Kept as a page global for the harness and any inline caller.
+var calcDir = RD.calcDir;
 
 // ─── RENDER DIRECTION ────────────────────────────────────────────────────────
 function renderDir(res, container){
@@ -839,13 +738,9 @@ function calculate(){
 
   // Validate — warn if two walls share the same location (causes ÷0 in moment equilibrium)
   function checkSwLocs(sws, dirName, farWallName, farVal){
-    if(sws.length>=2){
-      var locs=sws.map(function(s){return s.loc;});
-      var unique=locs.filter(function(v,i,a){return a.indexOf(v)===i;});
-      if(unique.length<locs.length){
-        alert('Warning – '+dirName+' shearwalls have duplicate locations!\n\nTwo or more lines share the same distance value — this causes an Infinity reaction (÷ zero lever arm).\n\nTip: The '+farWallName+' wall should be at '+farVal+' ft (= building dimension), and the opposite wall at 0.\n\nFix the Location inputs before calculating.');
-        return false;
-      }
+    if(!RD.checkSwLocs(sws).ok){
+      alert('Warning – '+dirName+' shearwalls have duplicate locations!\n\nTwo or more lines share the same distance value — this causes an Infinity reaction (÷ zero lever arm).\n\nTip: The '+farWallName+' wall should be at '+farVal+' ft (= building dimension), and the opposite wall at 0.\n\nFix the Location inputs before calculating.');
+      return false;
     }
     return true;
   }
@@ -853,14 +748,10 @@ function calculate(){
   if(!checkSwLocs(swY,'NS (V\u1D67)','East',f1(B))) return;
 
   // Wind-X: EW wind, N/S walls are shearwalls; span = D (NS, between N/S walls), chord = B (EW edges)
-  var wx=calcDir(Vx, D, B, swX, 'Wind-X (EW)');
   // Wind-Y: NS wind, E/W walls are shearwalls; span = B (EW, between E/W walls), chord = D (NS edges)
-  var wy=calcDir(Vy, B, D, swY, 'Wind-Y (NS)');
-
-  // Seismic (if entered) — same geometry
-  var sx=null, sy=null;
-  if(Vx_s>0) sx=calcDir(Vx_s, D, B, swX, 'Seismic-X (EW)');
-  if(Vy_s>0) sy=calcDir(Vy_s, B, D, swY, 'Seismic-Y (NS)');
+  // Seismic (if entered) — same geometry; null when the seismic V is 0.
+  var an=RD.analyze({B:B, D:D, Vx:Vx, Vy:Vy, Vx_s:Vx_s, Vy_s:Vy_s, swX:swX, swY:swY});
+  var wx=an.wx, wy=an.wy, sx=an.sx, sy=an.sy;
 
   // Governing
   var gov_v_x = Math.max(wx.v_dia, sx?sx.v_dia:0);
