@@ -560,12 +560,16 @@ function removeStory(btn){
   btn.parentElement.remove();
   reindexStories();
 }
+// Renumber only the derived labels (blank, 'Roof', 'Floor n'); a label the
+// user typed ('3RD', 'MEZZ') is kept through any add/remove.
+var AUTO_STORY_LABEL=/^(Roof|Floor \d+)$/i;
 function reindexStories(){
   var rows=document.getElementById('storyRows').children;
   for(var i=0;i<rows.length;i++){
     var inp=rows[i].querySelector('input[type=text]');
-    if(i===0){inp.value='Roof';}
-    else{inp.value='Floor '+i;}
+    var cur=String(inp.value||'').trim();
+    if(cur!==''&&!AUTO_STORY_LABEL.test(cur)) continue;
+    inp.value=i===0?'Roof':'Floor '+i;
   }
 }
 
@@ -1849,9 +1853,8 @@ document.addEventListener('DOMContentLoaded',function(){
 // back at run time. A fresh page has a different row count, so generic DOM-path
 // keys cannot resolve — the model is the row data itself.
 //
-// Note reindexStories() rewrites the story label to 'Roof'/'Floor n' on every
-// add/remove, so the label is derived, not user data. It is still carried so the
-// snapshot matches what was on screen.
+// Story labels are user data: reindexStories() renumbers only the auto labels
+// ('Roof'/'Floor n' or blank) on add/remove and keeps anything typed ('3RD').
 (function () {
   if (!window.AREv2 || !AREv2.registerAdapter) return;
   var rows = function () { return document.getElementById('storyRows'); };

@@ -116,6 +116,15 @@ check('calculate() renders the Wind-X line table (A1=2.74, A2…A24=5.47, A25=2.
 check('calculate() renders the Wind-Y line table (' + wantY + ')', gold.wyRows.join(' ') === wantY, gold.wyRows.join(' '));
 check('calculate(): no alert', dialogs.length === 0, dialogs.join('\n      '));
 
+// ── 3b. P5.2: the results say which load level the reactions/plf are ───────
+const sumText = () => page.$eval('#summaryBody', (e) => e.innerText);
+check('results tag strength level (default #loadLevel)', /strength level/.test(await sumText()) && !/ASD/.test(await sumText()), await sumText());
+await page.selectOption('#loadLevel', 'asd');
+await page.evaluate(() => window.calculate());
+check('results tag ASD after #loadLevel = asd', /ASD/.test(await sumText()) && /÷0\.6/.test(await sumText()) && !/strength level/.test(await sumText()), await sumText());
+await page.selectOption('#loadLevel', 'strength');
+await page.evaluate(() => window.calculate());
+
 // ── 4. save capture: #swJSON is the only sw* key ────────────────────────────
 const cap = await page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState())));
 const swKeys = Object.keys(cap.fields).filter((k) => /^#sw/i.test(k));
@@ -372,6 +381,48 @@ check('guard accepted: applied, #areJob kept', guardMsgs.length === 2 && (await 
 await page.evaluate((f) => localStorage.removeItem('are_v1_' + f), FILE);
 page.removeAllListeners('dialog');
 page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
+
+// ── 18. P5.3: "Copy layout from file…" pulls only the wall rows ─────────────
+// Fresh page (B 60 / D 120, default 2+2 walls), level/force typed by hand, then
+// the ROOF snapshot (B 120 / D 360, 25+5 walls) is picked through #layoutFile:
+// rows replaced, everything else untouched, B/D mismatch warned (not refused).
+const wrapSnapshot = (json) => '<html><body><script id="are-state" type="application/json">' + json.replace(/<\//g, '<\\/') + '</' + 'script></body></html>';
+const asFile = (name, mimeType, text) => ({ name, mimeType, buffer: Buffer.from(text) });
+const waitRows = (n) => page.waitForFunction((k) => document.querySelectorAll('#swX .sw-row').length === k, n, { timeout: 5000 }).catch(() => {});
+await gotoLat('', null);
+await page.fill('#level', '3RD'); await page.fill('#Vx', '79.78'); await page.fill('#areMark', 'KEEP ME');
+const lfAttrs = await page.evaluate(() => { const i = document.getElementById('layoutFile'); return i ? { type: i.type, accept: i.accept, persisted: window.AREv2._isPersistableField(i) } : null; });
+check('#layoutFile exists: type=file, accepts .html/.json, not a persisted field', !!lfAttrs && lfAttrs.type === 'file' && /html/.test(lfAttrs.accept) && /json/.test(lfAttrs.accept) && lfAttrs.persisted === false, JSON.stringify(lfAttrs));
+const dlgCopy = dialogs.length;
+await page.setInputFiles('#layoutFile', asFile('roof.html', 'text/html', wrapSnapshot(readFileSync(FIXTURE, 'utf8'))));
+await waitRows(25);
+const cp = await page.evaluate(() => ({ level: document.getElementById('level').value, Vx: document.getElementById('Vx').value, Vy: document.getElementById('Vy').value,
+  B: document.getElementById('B').value, D: document.getElementById('D').value, mwfrs: document.getElementById('mwfrsJSON').value, mark: document.getElementById('areMark').value,
+  swJSON: document.getElementById('swJSON').value, fileVal: document.getElementById('layoutFile').value }));
+check('copy layout (snapshot): 25 X + 5 Y rows match the file', sameRows(await readRows(), fixtureRows), JSON.stringify(await readRows()).slice(0, 300));
+check('copy layout (snapshot): #level/#Vx/#Vy/#B/#D/#mwfrsJSON/Mark untouched', cp.level === '3RD' && cp.Vx === '79.78' && cp.Vy === '30' && cp.B === '60' && cp.D === '120' && cp.mwfrs === '' && cp.mark === 'KEEP ME', JSON.stringify(cp).slice(0, 200));
+check('copy layout (snapshot): #swJSON mirrored, file input reset', JSON.stringify(JSON.parse(cp.swJSON)) === JSON.stringify(fixtureRows) && cp.fileVal === '', cp.fileVal);
+check('copy layout (snapshot): B/D mismatch warning names both', dialogs.length === dlgCopy + 1 && dialogs[dlgCopy] === 'Layout file is for B=120 D=360; this page is B=60 D=120 — check wall locations.', JSON.stringify(dialogs.slice(dlgCopy)));
+// Legacy Save Inputs .json: same rows, same B/D as the page -> no warning.
+await page.evaluate(() => { window.rebuildSWRows('X', [{ label: 'x', len: 1, loc: 0 }]); window.rebuildSWRows('Y', [{ label: 'y', len: 1, loc: 0 }]); window.updateDiagram(); });
+const legacySame = Object.assign({}, legacyJson, { B: '60', D: '120', level: 'Roof', Vx: '1' });
+await page.setInputFiles('#layoutFile', asFile('legacy.json', 'application/json', JSON.stringify(legacySame)));
+await waitRows(25);
+const cpj = await page.evaluate(() => ({ level: document.getElementById('level').value, Vx: document.getElementById('Vx').value, n: document.querySelectorAll('#swY .sw-row').length }));
+check('copy layout (legacy json): rows rebuilt, #level/#Vx untouched, no warning (B/D match)', sameRows(await readRows(), fixtureRows) && cpj.level === '3RD' && cpj.Vx === '79.78' && dialogs.length === dlgCopy + 1, JSON.stringify(cpj) + ' ' + JSON.stringify(dialogs.slice(dlgCopy + 1)));
+// Wrong files: an MWFRS snapshot, then plain text -> refused, rows untouched.
+const MW_STATE = readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/mwfrs-state.json', import.meta.url)), 'utf8');
+const waitDialogs = async (n) => { for (let i = 0; i < 40 && dialogs.length < n; i++) await page.waitForTimeout(50); };
+await page.setInputFiles('#layoutFile', asFile('mwfrs.html', 'text/html', wrapSnapshot(MW_STATE)));
+await waitDialogs(dlgCopy + 2);
+await page.setInputFiles('#layoutFile', asFile('notes.txt', 'text/plain', 'hello'));
+await waitDialogs(dlgCopy + 3);
+check('copy layout: MWFRS snapshot and plain text both refused with the same alert', dialogs.length === dlgCopy + 3 && dialogs.slice(dlgCopy + 1).every((m) => m === 'Not a Rectangular Diaphragm Designer file.'), JSON.stringify(dialogs.slice(dlgCopy + 1)));
+check('copy layout: refused files leave the rows alone', sameRows(await readRows(), fixtureRows), JSON.stringify(await readRows()).slice(0, 200));
+// A label with a quote and < survives the shared row markup (escaped in the attribute, read back verbatim).
+await page.evaluate(() => { window.rebuildSWRows('X', [{ label: 'A"<B', len: 20, loc: 0 }, { label: 'C', len: 20, loc: 120 }]); window.updateDiagram(); });
+const odd = await page.evaluate(() => ({ v: document.querySelector('#swX .sw-label').value, n: document.querySelectorAll('#swX .sw-row input').length }));
+check('row label A"<B: attribute escaped, value read back verbatim', odd.v === 'A"<B' && odd.n === 6, JSON.stringify(odd));
 
 check('no page errors', pageErrors.length === 0, pageErrors.join('\n      '));
 await browser.close();

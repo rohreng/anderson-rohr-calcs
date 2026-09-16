@@ -180,6 +180,12 @@ svg.diagram{max-width:100%;border-radius:8px}
 <div class="blk">
   <div class="blk-hd open" onclick="togBlk(this)"><span>Shearwall Layout</span><span class="tog">▶</span></div>
   <div class="blk-body">
+    <!-- Wall rows only, from another level's file; forces/geometry/level stay. -->
+    <div class="save-load-bar" style="margin:0 0 10px">
+      <button type="button" class="sl-btn" onclick="document.getElementById('layoutFile').click()" title="Replace the wall rows below with those of another Diaphragm Designer file (.html snapshot or Save Inputs .json)">📂 Copy layout from file…</button>
+      <input type="file" id="layoutFile" accept=".html,text/html,.json" style="display:none" onchange="copyLayoutFromFile(this)"/>
+      <span class="sl-label">Wall rows only — level, forces, B/D and the MWFRS table are not changed</span>
+    </div>
     <h3 class="sec" style="margin-top:0">EW Shearwalls — resist Wind-X (V<sub>x</sub>)</h3>
     <p class="ref" style="margin-bottom:8px">Walls running EW, resisting EW (X-direction) wind. Typically the North and South walls. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
     <input type="hidden" id="swJSON">
@@ -316,12 +322,13 @@ function togBlk(hd){
 // ─── SHEARWALL ROWS ──────────────────────────────────────────────────────────
 // Row inputs are data-are-ignore: the hidden #swJSON (syncSwJSON) is the only
 // carrier the ARE Save/Load toolbar persists, so a variable row count never
-// shows up as a key mismatch against the saved file.
+// shows up as a key mismatch against the saved file. label/len/loc come from
+// saved files (toolbar Load, Load Inputs, Copy layout), so they are escaped.
 function swRowHTML(dir, label, len, loc){
   var locHint=dir==='X'?'Location — dist. from S (ft)':'Location — dist. from W (ft)';
-  return '<div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="'+len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>'+locHint+'</label><input type="number" data-are-ignore class="sw-loc" value="'+loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
+  return '<div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="'+escHtml(label)+'" class="sw-label" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="'+escHtml(len)+'" min="1" step="1" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>'+locHint+'</label><input type="number" data-are-ignore class="sw-loc" value="'+escHtml(loc)+'" min="0" step="1" oninput="updateDiagram()"/></div>'
     +'<button class="btn-rm-sw" onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
 }
 
@@ -797,8 +804,13 @@ function calculate(){
   document.getElementById('results').style.display='block';
   document.getElementById('seismicBlk').style.display=(Vx_s>0||Vy_s>0)?'':'none';
 
-  // Summary
-  var sumHtml='<div class="kv">'
+  // Summary — lead with the load level so the reactions/plf below (and the
+  // printed summary, same DOM) cannot be read at the wrong level.
+  var lvlNote=document.getElementById('loadLevel').value==='asd'
+    ?'Forces entered at ASD (0.6W / 0.7E already applied); reactions and unit shears below are ASD. Converted ÷0.6 / ÷0.7 when sent to Stacked Shearwall.'
+    :'Forces entered at strength level (ASCE 7 W / E); reactions and unit shears below are strength level. Stacked Shearwall applies 0.6W / 0.7E.';
+  var sumHtml='<p class="ref" id="loadLevelNote" style="margin:0 0 8px">'+lvlNote+'</p>'
+    +'<div class="kv">'
     +'<div class="kv-item">B (EW) = <span>'+f1(B)+' ft</span></div>'
     +'<div class="kv-item">D (NS) = <span>'+f1(D)+' ft</span></div>'
     +'<div class="kv-item">V_x (Wind-X) = <span>'+f2(Vx)+' kips</span></div>'
@@ -1078,6 +1090,42 @@ function loadInputsDia(input){
       updateDiagram();
       alert('Inputs loaded successfully.');
     }catch(err){alert('Error reading file: '+err.message);}
+  };
+  reader.readAsText(file);
+  input.value='';
+}
+
+// ─── COPY LAYOUT FROM FILE ───────────────────────────────────────────────────
+// Replace only the shearwall rows with those of another Diaphragm Designer
+// file — an AREv2 .html snapshot (#swJSON) or a legacy Save Inputs .json
+// (swX/swY). Typical use: same plan, next level down. #level, #Vx/#Vy, #B/#D,
+// #mwfrsJSON and the Mark are left alone; a B/D that differs from the page is
+// a warning, not a refusal (the wall locations may still be right).
+function copyLayoutFromFile(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var text=e.target.result, rows=null, fileB, fileD;
+    try{
+      var st=AREv2.parseSnapshot(text);
+      if(st && st.calcFile==='rectangular_diaphragm_calculator.html' && st.fields){
+        rows=JSON.parse(st.fields['#swJSON']||'null');
+        fileB=st.fields['#B']; fileD=st.fields['#D'];
+      }
+    }catch(err){ /* not a snapshot — try the legacy .json */ }
+    if(!rows){
+      try{
+        var d=JSON.parse(text);
+        if(d && d._calc==='diaphragm'){ rows={X:d.swX, Y:d.swY}; fileB=d.B; fileD=d.D; }
+      }catch(err2){ /* not JSON either */ }
+    }
+    if(!rows || !Array.isArray(rows.X) || !Array.isArray(rows.Y)){ alert('Not a Rectangular Diaphragm Designer file.'); return; }
+    rebuildSWRows('X', rows.X);
+    rebuildSWRows('Y', rows.Y);
+    updateDiagram();
+    var B=document.getElementById('B').value, D=document.getElementById('D').value;
+    if(fileB!==undefined && fileD!==undefined && (parseFloat(fileB)!==parseFloat(B) || parseFloat(fileD)!==parseFloat(D)))
+      alert('Layout file is for B='+fileB+' D='+fileD+'; this page is B='+B+' D='+D+' — check wall locations.');
   };
   reader.readAsText(file);
   input.value='';

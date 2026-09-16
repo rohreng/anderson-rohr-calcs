@@ -346,6 +346,31 @@ if (!CAPTURE) {
     const deadSrc = ['sendDir', 'sendStory', 'diaStoryX', 'diaStoryY', 'updateSendPreview', 'doSendShear'].filter((w) => src.indexOf(w) >= 0);
     check('source: no sendDir/sendStory/diaStoryX/diaStoryY/updateSendPreview/doSendShear', deadSrc.length === 0, deadSrc.join(', '));
   }
+
+  // ── 9. P5.1: reindexStories() keeps user-typed story labels ─────────────
+  // Only a blank label or one still on the auto pattern (Roof / Floor n) is
+  // renumbered on add/remove; '3RD' / '2ND' survive. Row i's auto label is
+  // 'Floor i' (row 0 = Roof), so a new fourth row reads 'Floor 3'.
+  {
+    await fresh();
+    await setStories([14, 13, 13]);
+    const labels = async () => (await page.$$eval('#storyRows input[type=text]', (els) => els.map((e) => e.value))).join(',');
+    const inputs = await page.$$('#storyRows input[type=text]');
+    await inputs[1].fill('3RD'); await inputs[2].fill('2ND');
+    await page.click('.btn-add-floor');
+    check('labels: add keeps Roof/3RD/2ND, new row auto Floor 3', (await labels()) === 'Roof,3RD,2ND,Floor 3', await labels());
+    await page.$$eval('#storyRows .btn-x', (bs) => bs[bs.length - 1].click());
+    check('labels: remove keeps Roof/3RD/2ND', (await labels()) === 'Roof,3RD,2ND', await labels());
+    // Auto labels still renumber: blank the 3RD row, add a row, then remove row 1.
+    await (await page.$$('#storyRows input[type=text]'))[1].fill('');
+    await page.click('.btn-add-floor');
+    check('labels: blank row refilled with its auto label', (await labels()) === 'Roof,Floor 1,2ND,Floor 3', await labels());
+    await page.$$eval('#storyRows .btn-x', (bs) => bs[1].click());
+    check('labels: remove Floor 1 -> 2ND stays, last auto row renumbers to Floor 2', (await labels()) === 'Roof,2ND,Floor 2', await labels());
+    await page.click('button.calc-btn');
+    const lat9 = await page.evaluate(() => buildLateralPayload().levels.map((l) => l.label).join(','));
+    check('labels: lateral payload carries the kept labels', lat9 === 'Roof,2ND,Floor 2', lat9);
+  }
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }
 
