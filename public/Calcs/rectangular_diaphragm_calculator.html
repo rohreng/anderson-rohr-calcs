@@ -1119,7 +1119,9 @@ function copyLayoutFromFile(input){
         if(d && d._calc==='diaphragm'){ rows={X:d.swX, Y:d.swY}; fileB=d.B; fileD=d.D; }
       }catch(err2){ /* not JSON either */ }
     }
-    if(!rows || !Array.isArray(rows.X) || !Array.isArray(rows.Y)){ alert('Not a Rectangular Diaphragm Designer file.'); return; }
+    var rowsOk=rows && Array.isArray(rows.X) && Array.isArray(rows.Y)
+      && rows.X.concat(rows.Y).every(function(r){ return r && typeof r==='object'; });
+    if(!rowsOk){ alert('Not a Rectangular Diaphragm Designer file.'); return; }
     rebuildSWRows('X', rows.X);
     rebuildSWRows('Y', rows.Y);
     updateDiagram();
@@ -1127,6 +1129,7 @@ function copyLayoutFromFile(input){
     if(fileB!==undefined && fileD!==undefined && (parseFloat(fileB)!==parseFloat(B) || parseFloat(fileD)!==parseFloat(D)))
       alert('Layout file is for B='+fileB+' D='+fileD+'; this page is B='+B+' D='+D+' — check wall locations.');
   };
+  reader.onerror=function(){ alert('Could not read the file.'); };
   reader.readAsText(file);
   input.value='';
 }
