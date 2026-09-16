@@ -257,6 +257,32 @@
   function penetrationDefaultText(sc, isBase) {
     return 'default: ' + fracIn(fastenerLength(sc)) + (sc.nail ? ' nail' : ' screw') + ' − 1½" plate' + (isBase ? '' : ' − ¾" subfloor') + ' — verify';
   }
+  // The one penetration rule for a nail / SDS sill fastener, whatever the wall's
+  // method or uplift source: p = the entered value, else the printed default;
+  // a typed value must be a finite number > 0; p may not be under 6D (nails NDS
+  // §12.1.6.4, wood screws §12.1.5.6 — SDS 6D = 1.452"). The same fastener
+  // carries the sill shear (Table 12N fn. 3 allows p/10D only for 6D ≤ p < 10D),
+  // so validate() applies it to every wall and upliftCapacity() reuses it so the
+  // wording cannot drift. Returns { p, entered, text, errors } (p null when the
+  // connector has no penetration).
+  function penetrationCheck(w, sc, isBase) {
+    var out = { p: null, entered: false, text: '', errors: [] };
+    if (!sc || !(sc.nail || sc.screw)) return out;
+    var raw = w.uplift ? w.uplift.penetration_in : null;
+    var pIn = num(raw, NaN);
+    if (raw !== null && raw !== undefined && raw !== '' && !(isFinite(pIn) && pIn > 0)) {
+      out.errors.push('fastener penetration must be a number greater than zero (leave blank to use the printed default).');
+    }
+    out.entered = isFinite(pIn) && pIn > 0;
+    out.p = out.entered ? pIn : penetrationDefault(sc, isBase);
+    out.text = out.entered ? 'entered' : penetrationDefaultText(sc, isBase);
+    var D = sc.nail ? NAILS[sc.nail].D : sc.screw.D;
+    if (out.p + 1e-9 < 6 * D) {
+      out.errors.push('penetration p = ' + f2(out.p) + '" (' + out.text + ') is less than the minimum 6D = ' + f3(6 * D) + '" for a '
+        + (sc.nail ? NAILS[sc.nail].label.replace(' nails', ' nail') + ' (NDS §12.1.6.4).' : 'No. 14 wood screw (NDS §12.1.5.6).'));
+    }
+    return out;
+  }
   // Simpson C-C-2026 p. 310 fn. 3: 0.72x over 3/8" WSP, 0.64x over 1/2" WSP.
   var LTP4_SHEATHING = { none: { f: 1.00, label: 'nailed direct to framing' }, '0.375': { f: 0.72, label: 'over ⅜" sheathing' }, '0.5': { f: 0.64, label: 'over ½" sheathing' } };
 
@@ -323,20 +349,18 @@
       return out;
     }
     if (!sc || !sp) { out.kind = 'none'; out.needs = 'connector'; return out; }
-    // Penetration: the entered value, else the default (printed as such).
-    var pIn = num(u.penetration_in, NaN);
-    out.pEntered = isFinite(pIn) && pIn > 0;
-    var p = out.pEntered ? pIn : out.pDefault;
-    out.pText = out.pEntered ? 'entered' : penetrationDefaultText(sc, isBase);
+    // Penetration: the entered value, else the default (printed as such); the
+    // 6D / typed-value rules come from penetrationCheck().
+    var pc = penetrationCheck(w, sc, isBase);
+    out.pEntered = pc.entered;
+    var p = pc.p;
+    out.pText = pc.text;
 
     if (sc.nail) {
       // NDS §12.2.3.1 Eq. 12.2-3 / Table 12.2C: W (lb/in) at the receiving member's G, × penetration × C_D.
       var nl = NAILS[sc.nail];
       out.kind = 'nail'; out.W = nl.W[speciesId]; out.D = nl.D; out.p = p;
-      if (p + 1e-9 < 6 * nl.D) {
-        out.errors.push('penetration p = ' + f2(p) + '" (' + out.pText + ') is less than the minimum 6D = ' + f3(6 * nl.D) + '" for a ' + nl.label.replace(' nails', ' nail') + ' (NDS §12.1.6.4).');
-        return out;
-      }
+      if (pc.errors.length) { out.errors = pc.errors.slice(); return out; }
       out.Wp = out.W * p;
       out.perFastener = out.Wp * CD_CONN;
       out.plf = perFt > 0 ? out.perFastener / perFt : NaN;
@@ -352,10 +376,7 @@
       // capped per C-C-2026 p. 377 note 5, by the SILL species.
       var sw = sc.screw;
       out.kind = 'screw'; out.W = sw.W[speciesId]; out.D = sw.D; out.p = p;
-      if (p + 1e-9 < 6 * sw.D) {
-        out.errors.push('penetration p = ' + f2(p) + '" (' + out.pText + ') is less than the minimum 6D = ' + f3(6 * sw.D) + '" for a No. 14 wood screw (NDS §12.1.5.6).');
-        return out;
-      }
+      if (pc.errors.length) { out.errors = pc.errors.slice(); return out; }
       out.pThread = Math.min(sw.thread, p);
       out.Wp = out.W * out.pThread;
       var pt = sw.pullThrough[sillSpeciesId] || sw.pullThrough.DFL;
@@ -644,7 +665,7 @@
           errors.push('Wall line "' + id + '" is segmented with ' + nTop + ' segments at ' + floors[top.fi].name + ' but ' + nLv + ' segments at ' + floors[lv.fi].name
             + ' — segment i above must land on segment i below. Enter the same segment count on every level (the "Copy walls to levels below" button copies the geometry down).');
         } else if (wLv !== wTop) {
-          warnings.push('Wall line "' + id + '": segment widths differ between ' + floors[top.fi].name + ' (' + wTop + ' ft) and ' + floors[lv.fi].name + ' (' + wLv + ' ft) — segment i above is taken to land on segment i below and hands its overturning down (§4.3.6.4.4).');
+          warnings.push('Wall line "' + id + '": segment widths differ between ' + floors[top.fi].name + ' (' + wTop + ' ft) and ' + floors[lv.fi].name + ' (' + wLv + ' ft) — segment i above lands on segment i below; its overturning is Σ over the stories of V_i,m·h_m — the story shear of the segment at the share of that story (§4.3.6.4.4).');
         }
       }
     });
@@ -744,15 +765,18 @@
           if (!sc.base && isBase) errors.push(tag + ': ' + sc.label + ' cannot anchor a sill plate to the foundation — use an anchor bolt at the base level.');
         }
         if (!(num(w.sill && w.sill.spacing_in, 0) > 0)) errors.push(tag + ': sill connector spacing must be greater than zero.');
-        // Uplift inputs: a blank penetration / washer / manual plf is "specify"
-        // on the check row, not an error; a value that breaks a code minimum is.
-        // Perforated walls only — §4.3.6.4.2.1 is the perforated uplift; a
-        // segmented wall anchors its segment ends (§4.3.6.4.2) and has no row.
+        // Penetration of a nail / SDS sill fastener — every wall, every method,
+        // every uplift source (the same fastener carries the sill shear): a
+        // typed value must be a number > 0 and p may not be under 6D.
+        var pc = sc ? penetrationCheck(w, sc, fi === floors.length - 1) : { errors: [] };
+        pc.errors.forEach(function (e) { errors.push(tag + ': ' + e); });
+        // Uplift inputs: a blank washer / manual plf is "specify" on the check
+        // row, not an error; a washer under the §4.3.6.4.3 minimum is. Perforated
+        // walls only — §4.3.6.4.2.1 is the perforated uplift; a segmented wall
+        // anchors its segment ends (§4.3.6.4.2) and has no row.
         if (sc && !seg && w.uplift.source !== 'manual') {
           var up = upliftCapacity(w, state.species, SPECIES[w.sillSpecies] ? w.sillSpecies : state.species, fi === floors.length - 1);
-          up.errors.forEach(function (e) { errors.push(tag + ': ' + e); });
-          var pv = w.uplift.penetration_in;
-          if ((sc.nail || sc.screw) && pv !== null && !(isFinite(pv) && pv > 0)) errors.push(tag + ': fastener penetration must be a number greater than zero (leave blank to mark the uplift check "specify").');
+          up.errors.forEach(function (e) { if (pc.errors.indexOf(e) < 0) errors.push(tag + ': ' + e); });
         }
         if (w.holdown === 'strap') {
           if (fi === floors.length - 1) errors.push(tag + ': coil straps are floor-to-floor only; the base level requires an HDUE hold-down to the foundation.');
@@ -879,13 +903,14 @@
   // Story shear V and overturning M for this wall line come from storyForces()
   // (forces summed, §4.3.6.4.4). Perforated: v_max = V/(C_o·Σb_i) (Eq. 4.3-9),
   // T from Eq. 4.3-8 with the dead-load M_R of every level down to this one.
-  // Segmented: v_eff = V/Σb_eff; V_i = V·share_i at this level's shares; the
-  // per-segment overturning accumulates each level's factored force at THAT
-  // level's share, M_i,k = Σ_{j≤k} factor·P_j·share_i,j·z_{j,k}, so segment i
-  // above hands its overturning to segment i below (why validate() pins the
-  // count); T_i = max(0, (M_i − 0.6 M_R,i)/b_i) about the compression toe of the
-  // segment (Eq. 4.3-7 form, lever b_i). M_R,i: w·b_i²/2 on every segment, the
-  // point dead load P_end·b_i on segment 1 End 1 only.
+  // Segmented: v_eff = V/Σb_eff and V_i,m = V_m·share_i,m — the cumulative
+  // factored story shear through story m at THAT story's share. The segment's
+  // overturning is the sum over the stories of its own story shear times the
+  // story height, M_i,k = Σ_{m≤k} V_i,m·h_m (one load path for shear and moment;
+  // segment i above hands its shear to segment i below, why validate() pins
+  // the count). T_i = max(0, (M_i − 0.6 M_R,i)/b_i) about the compression toe
+  // of the segment (Eq. 4.3-7 form, lever b_i). M_R,i: w·b_i²/2 on every
+  // segment, the point dead load P_end·b_i on segment 1 End 1 only.
   function computeForces(floors, k, w, geom, cap) {
     var present = wallPresence(floors, w.id), segmented = geom.method === 'segmented', lever = geom.lever;
     var cases = {};
@@ -894,7 +919,7 @@
       var vmax = lever > 0 ? sf.V / lever : NaN;
 
       // Dead-load resisting moment, cumulative from the top down to this level.
-      var MR1 = 0, MR2 = 0, dlRows = [], ri = 0;
+      var MR1 = 0, MR2 = 0, dlRows = [], ri = 0, Vrun = 0;
       var acc = segmented ? geom.segments.map(function () { return { M: 0, MR1: 0, MR2: 0, grav1: 0 }; }) : null;
       for (var j = 0; j <= k; j++) {
         var wj = wallAt(floors, j, w.id);
@@ -908,12 +933,14 @@
         dlRows.push({ level: floors[j].name, w_plf: d.w_plf || 0, P_end_lb: d.P_end_lb || 0, L: Lj, mUni: mUni, mPt: mPt, source: d.source });
         if (segmented) {
           // storyForces() pushed one row per level where the wall is present,
-          // in the same order as this loop, so sf.rows[ri] is level j.
-          var row = sf.rows[ri++], sbj = sumBi(wj.segments_ft, num(floors[j].h_ft, 0));
+          // in the same order as this loop, so sf.rows[ri] is level j; Vrun is
+          // the factored story shear through level j.
+          var row = sf.rows[ri++], hj = num(floors[j].h_ft, 0) || 0, sbj = sumBi(wj.segments_ft, hj);
+          Vrun += row.Pfac;
           acc.forEach(function (a, i) {
             var sj = sbj.segments[i], bj = sj ? sj.b : 0;
             var shareJ = sj && sbj.sumBi > 0 ? sj.bEff / sbj.sumBi : 0;
-            a.M += row.Pfac * shareJ * row.z;
+            a.M += Vrun * shareJ * hj;
             var mU = (d.w_plf || 0) * bj * bj / 2, mP = i === 0 ? (d.P_end_lb || 0) * bj : 0;
             a.MR1 += mU + mP; a.MR2 += mU;
             if (i === 0) a.grav1 += d.P_end_lb || 0;
@@ -951,7 +978,7 @@
         return { i: i, b: b, f: s.f, share: s.share, V: Vi, v: b > 0 ? Vi / b : NaN, M: a.M, Cot: Cot, ends: sEnds,
                  Tgov: Math.max(sEnds[0].T, sEnds[1].T), Cgov: Math.max(sEnds[0].C, sEnds[1].C), endGov: sEnds[0].T >= sEnds[1].T ? 1 : 2 };
       });
-      base.t = NaN; base.ends = []; base.Cot = NaN; base.endGov = null; base.segments = segRes;
+      base.t = null; base.ends = []; base.Cot = NaN; base.endGov = null; base.segments = segRes;
       base.Tgov = segRes.reduce(function (m, s) { return Math.max(m, s.Tgov); }, 0);
       base.Cgov = segRes.reduce(function (m, s) { return Math.max(m, s.Cgov); }, -Infinity);
       base.vSeg = segRes.reduce(function (m, s) { return Math.max(m, isFinite(s.v) ? s.v : 0); }, 0);
@@ -1147,12 +1174,8 @@
     // p/10D (fn. 4 flags the 8d rows at t_s = 1½" — the nail cannot reach 10D).
     // The penetration is the uplift input; blank falls back to the connector default.
     // Blank falls back to the connector default (subfloor assumed above the base).
-    var penFactor = 1, penUsed = null, penEntered = false;
-    if (scObj.nail || scObj.screw) {
-      var pIn = num(w.uplift.penetration_in, NaN);
-      penEntered = isFinite(pIn) && pIn > 0;
-      penUsed = penEntered ? pIn : penetrationDefault(scObj, isBase);
-    }
+    var pcS = penetrationCheck(w, scObj, isBase);
+    var penFactor = 1, penUsed = pcS.p, penEntered = pcS.entered;
     if (scObj.nail) {
       var nlS = NAILS[scObj.nail];
       penFactor = Math.min(1, penUsed / (10 * nlS.D));
@@ -2004,9 +2027,9 @@
         return [['3 over 2 refused, names the "Copy walls to levels below" button', r.bad.ok === false && r.bad.errors.some(function (e) { return e.indexOf('3 segments') >= 0 && e.indexOf('2 segments') >= 0 && e.indexOf('Copy walls to levels below') >= 0; }), r.bad.errors.join(' | ') || '(none)'],
                 ['[8, 8, 4] over [8, 8, 6] accepted with a widths warning naming both', r.warn.ok === true && r.warn.warnings.some(function (x) { return x.indexOf('8, 8, 4') >= 0 && x.indexOf('8, 8, 6') >= 0; }), r.warn.warnings.join(' | ') || '(none)'],
                 // Lower level: V = 4,800 + 4,800 = 9,600 lb over Σb_eff = 8 + 8 + 6 = 22 ft (h/b = 1.67, f = 1);
-                // segment 3 M = 0.6·[W_roof·share_roof·20 + W_base·share_base·10], shares 3.2/19.2 and 6/22
-                // = 4,800 × 0.1667 × 20 + 4,800 × 0.2727 × 10 = 16,000 + 13,090.9 = 29,090.9 ft-lb.
-                ['lower level v_eff = 9,600/22 = 436.4 plf; segment 3 M = 29,090.9 ft-lb accumulates each level at its own share', near(lw.cases.wind.vmax, 9600 / 22, 1e-6) && near(lw.segments[2].M, 4800 * (3.2 / 19.2) * 20 + 4800 * (6 / 22) * 10, 1e-6), f2(lw.cases.wind.vmax) + ' ' + f1(lw.segments[2].M)],
+                // segment 3 M = Σ V_i,m·h_m = 10 × (3.2/19.2) × 4,800 + 10 × (6/22) × 9,600
+                // = 8,000 + 26,181.8 = 34,181.8 ft-lb (its story shear at each story's own share).
+                ['lower level v_eff = 9,600/22 = 436.4 plf; segment 3 M = Σ V_i,m·h_m = 34,181.8 ft-lb', near(lw.cases.wind.vmax, 9600 / 22, 1e-6) && near(lw.segments[2].M, 10 * (3.2 / 19.2) * 4800 + 10 * (6 / 22) * 9600, 1e-6), f2(lw.cases.wind.vmax) + ' ' + f1(lw.segments[2].M)],
                 ['perforated over segmented on one line refused', r.mixed.ok === false && r.mixed.errors.some(function (e) { return e.indexOf('one method') >= 0; }), r.mixed.errors.join(' | ') || '(none)']]; } },
     // Perforated walls are untouched by the branch: same rows, no segments key,
     // and the default model still round-trips. (The full guard is the diff of
@@ -2014,7 +2037,22 @@
     { id: 'SW60', src: 'perforated path unchanged by the method branch', run: function () { return compute(mkState(CASE1)); },
       expect: function (r) { var a = W(r, 0), b = W(r, 3);
         return [['perforated: no segments key, uplift + combined rows kept', a.segments === undefined && a.method === 'perforated' && a.checks.map(function (x) { return x.id; }).join(',') === 'sheathing,holdown,uplift,combined,sill,endpost', a.checks.map(function (x) { return x.id; }).join(',')],
-                ['perforated base: C_o 0.6703, uplift row present', near(b.geom.Co, 0.6703, 0.0002) && !!byId(b, 'uplift'), f4(b.geom.Co)]]; } }
+                ['perforated base: C_o 0.6703, uplift row present', near(b.geom.Co, 0.6703, 0.0002) && !!byId(b, 'uplift'), f4(b.geom.Co)]]; } },
+    // The 6D minimum and the typed-value rule apply to every wall (the sill
+    // shear fastener is the same one), not only where the uplift row exists.
+    { id: 'SW61', src: 'NDS §12.1.6.4 / §12.1.5.6 — penetration rules on segmented and manual-source walls', run: function () {
+        var mk = function (conn, sp, pen, src) { var st = mkState(CASE_SEG2); var w = st.floors[0].walls[0]; w.sill = { conn: conn, spacing_in: sp, sheathing: 'none' }; w.uplift.penetration_in = pen; if (src) w.uplift.source = src; return st; };
+        var e8 = mk('8d', 16, null), sds = mk('sds14', 12, 1.4), ok16 = mk('16d', 16, 0.972), neg = mk('16d', 16, -1);
+        var manual = mkState(CASE_HD2); manual.floors[0].walls[0].sill = { conn: '8d', spacing_in: 16, sheathing: 'none' }; manual.floors[0].walls[0].uplift.source = 'manual'; manual.floors[0].walls[0].uplift.capacity_plf = 500;
+        var negP = mkState(CASE_HD2); negP.floors[0].walls[0].uplift.penetration_in = -1;
+        return { e8: validate(e8), sds: validate(sds), ok16: compute(ok16), neg: validate(neg), manual: validate(manual), negP: validate(negP) }; },
+      expect: function (r) { var w16 = W(r.ok16, 0);
+        return [['segmented + 8d at the default p = 0.25" refused, names §12.1.6.4', r.e8.ok === false && r.e8.errors.some(function (e) { return e.indexOf('p = 0.25"') >= 0 && e.indexOf('§12.1.6.4') >= 0; }), r.e8.errors.join(' | ') || '(none)'],
+                ['segmented + SDS p = 1.4" < 6D = 1.452" refused, names §12.1.5.6', r.sds.ok === false && r.sds.errors.some(function (e) { return e.indexOf('6D = 1.452"') >= 0 && e.indexOf('§12.1.5.6') >= 0; }), r.sds.errors.join(' | ') || '(none)'],
+                ['segmented + 16d p = 0.972" (= 6D) accepted, sill Z × p/10D = 0.6, gov.t null, no uplift row', r.ok16.ok === true && near(w16.sill.penFactor, 0.6, 1e-9) && w16.gov.t === null && !byId(w16, 'uplift'), f4(w16.sill.penFactor) + ' ' + String(w16.gov.t)],
+                ['typed p = −1 refused on a segmented wall (no silent fallback to the default)', r.neg.ok === false && r.neg.errors.some(function (e) { return e.indexOf('must be a number greater than zero') >= 0; }), r.neg.errors.join(' | ') || '(none)'],
+                ['manual uplift source + 8d at the default still refused (the shear fastener is the same nail)', r.manual.ok === false && r.manual.errors.some(function (e) { return e.indexOf('§12.1.6.4') >= 0; }), r.manual.errors.join(' | ') || '(none)'],
+                ['typed p = −1 refused on a perforated SDS wall, once (no duplicate from upliftCapacity)', r.negP.ok === false && r.negP.errors.filter(function (e) { return e.indexOf('must be a number greater than zero') >= 0; }).length === 1, r.negP.errors.join(' | ') || '(none)']]; } }
   ];
   function byId(w, id) { return w.checks.filter(function (c) { return c.id === id; })[0]; }
 
@@ -2091,7 +2129,7 @@
     SHEATHING: SHEATHING, HOLDOWNS: HOLDOWNS, STRAPS: STRAPS, SILL_CONN: SILL_CONN, NAILS: NAILS, WASHER: WASHER,
     LTP4_SHEATHING: LTP4_SHEATHING, STRAP_MIN_G: STRAP_MIN_G, HD_COLUMN: HD_COLUMN, CD_CONN: CD_CONN,
     compute: compute, validate: validate, runFixtures: runFixtures, FIXTURES: FIXTURES,
-    normalizeWall: normalizeWall, upliftCapacity: upliftCapacity, combinedCheck: combinedCheck, penetrationDefault: penetrationDefault, penetrationDefaultText: penetrationDefaultText,
+    normalizeWall: normalizeWall, upliftCapacity: upliftCapacity, combinedCheck: combinedCheck, penetrationDefault: penetrationDefault, penetrationDefaultText: penetrationDefaultText, penetrationCheck: penetrationCheck,
     calcCo: calcCo, calcR: calcR, sumBi: sumBi, openingArea: openingArea,
     storyForces: storyForces, chordForce: chordForce,
     sheathingCapacity: sheathingCapacity, combineFaces: combineFaces,
