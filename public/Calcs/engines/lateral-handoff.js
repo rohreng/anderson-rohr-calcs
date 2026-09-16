@@ -396,6 +396,7 @@
         w.P_wind_lb = num(wr.R_wind_strength_lb, 0) || 0;
         w.P_seis_lb = num(wr.R_seis_strength_lb, 0) || 0;
         w.dir = dir; w.loc_ft = num(wr.loc_ft, 0);
+        if (wr.sign === -1) w.sign = -1;   // past the resultant: the page's Σ wall lines sums it signed
         return w;
       });
       return { id: i + 1, name: lv.label, h_ft: h, P_wind_lb: num(lv[fW], 0) || 0, P_seis_lb: num(lv[fS], 0) || 0, walls: walls };

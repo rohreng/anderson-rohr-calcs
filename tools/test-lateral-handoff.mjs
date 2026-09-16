@@ -248,6 +248,8 @@ const negRes = LH.levelFromDiaphragmState(negState);
 const n1 = negRes.level.walls.X[0], n2 = negRes.level.walls.X[1];
 check('negative reaction: |R1| = 240,000 with sign -1, R2 = 360,000, warning names N1', n1.R_wind_strength_lb === 240000 && n1.sign === -1 && n2.R_wind_strength_lb === 360000 && n2.sign === undefined && has(negRes.warnings, /N1/),
   JSON.stringify({ n1, n2, w: negRes.warnings }));
+const negSW = LH.toShearwallState(LH.assemble([negRes], { heights: [11] }).record, { dir: 'X' }).floors[0].walls;
+check('negative reaction: sign -1 carried onto the SW wall, absent otherwise', negSW[0].sign === -1 && !('sign' in negSW[1]), JSON.stringify(negSW.map((w) => w.sign)));
 // no story table anywhere + no heights -> sh_ft null, toShearwallState throws; with heights -> works
 const noTab = LH.assemble([roofRes, LH.levelFromDiaphragmState((() => { const s = clone(thirdState); delete s.fields['#mwfrsJSON']; return s; })())]);
 check('no story table: input order, sh_ft null, heights warning', noTab.errors.length === 0 && noTab.record.levels.every((l) => l.sh_ft === null) && has(noTab.warnings, /no story table/i) && noTab.record.geometry.h_ft === null,

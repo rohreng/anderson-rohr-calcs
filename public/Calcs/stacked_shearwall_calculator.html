@@ -723,10 +723,13 @@ function expandWall(fi,wi){
 // Σ of the wall-line forces on a level against the level total, shown only
 // once some wall on that level carries its own line force (an import or a
 // typed cell). Plain sum — a row is one line, never a "typical" of several.
-// Red when the two differ by more than 1 % of the level force.
+// Red when the two differ by more than 1 % of the level force. A line past
+// the resultant carries |R| with sign -1 (LH wallsFor), so the sum is signed.
+// The seismic Σ is hidden while the level P_E is 0: imported walls all carry
+// P_seis_lb = 0 then, and "Σ 0 vs level 0" would only be noise.
 function lineSumHTML(fl, key, tag){
   var any=false, sum=0;
-  (fl.walls||[]).forEach(function(w){ if(w[key]!=null && isFinite(w[key])){ any=true; sum+=+w[key]; } });
+  (fl.walls||[]).forEach(function(w){ if(w[key]!=null && isFinite(w[key])){ any=true; sum+=(w.sign===-1?-1:1)*(+w[key]); } });
   var lvl=+fl[key]||0;
   if(!any || (key==='P_seis_lb' && !(lvl>0))) return '';
   var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl);
@@ -739,7 +742,7 @@ function lateralProvHTML(){
   if(!L || L.schema!==LH_SCHEMA) return '';
   var files=Array.isArray(L.files)?L.files:[];
   var when=''; try{ when=new Date(L.importedAt).toLocaleString(); }catch(e){}
-  return '<div class="lh-prov" title="'+xe(files.join(', '))+'">Imported from Diaphragm Designer &mdash; direction '+xe(L.dir)+' &mdash; '+files.length+' file'+(files.length===1?'':'s')+' &mdash; '+xe(when)
+  return '<div class="lh-prov" title="'+xe(files.join(', '))+'">Imported from Diaphragm Designer &mdash; direction '+xe(L.dir)+' &mdash; '+(files.length?files.length+' file'+(files.length===1?'':'s'):'quick send')+' &mdash; '+xe(when)
        + (L.project?' &mdash; '+xe(L.project):'')+'</div>';
 }
 
@@ -755,12 +758,15 @@ var _diaPending=null;   // {record, names} while the panel is open
 function importDiaphragmLevels(evt){
   var input=evt.target, files=Array.prototype.slice.call(input.files||[]);
   if(!files.length) return;
+  closeImportDialog();   // a failed second pick must not leave the previous panel live
   if(typeof AREv2==='undefined' || !AREv2.parseSnapshot || !window.LH){ alert('Import needs the ARE save/load library and the lateral-handoff engine — reload the page.'); input.value=''; return; }
   var names=files.map(function(f){ return f.name; });
-  Promise.all(files.map(function(f){ return f.text(); })).then(function(texts){
+  var MAX_BYTES=20e6;   // a saved calc file is ~200 KB; anything near this is not one
+  Promise.all(files.map(function(f){ return f.size>MAX_BYTES ? Promise.resolve(null) : f.text(); })).then(function(texts){
     var results=[], errors=[];
     texts.forEach(function(html,i){
       var st;
+      if(html===null){ errors.push(names[i]+': file too large (> 20 MB)'); return; }
       try{ st=AREv2.parseSnapshot(html); }catch(e){ errors.push(names[i]+': '+(e.message||e)); return; }
       if(!st || st.calcFile!==DIA_FILE){ errors.push(names[i]+': not a Rectangular Diaphragm Designer file'); return; }
       try{ results.push(LH.levelFromDiaphragmState(st)); }catch(e){ errors.push(names[i]+': '+(e.message||e)); }
@@ -780,6 +786,10 @@ function importPanelHTML(record, warnings, names){
   // it before clicking Import (no confirm() — the harness dismisses dialogs).
   h+='<span style="margin-left:10px;color:#6b7280">Project: '+(record.project?xe(record.project):'<em>(none)</em>')
     +' &mdash; '+(names.length?names.length+' file'+(names.length===1?'':'s')+': '+xe(names.join(', ')):'from the Diaphragm Designer quick send')+'</span>';
+  var job=(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'';
+  if(record.project&&job&&String(record.project).trim().toLowerCase()!==job.toLowerCase()){
+    h+='<div class="lh-sum" style="margin-top:6px"><span class="lh-err">Payload is for "'+xe(record.project)+'"; this calc is "'+xe(job)+'".</span></div>';
+  }
   h+='<div style="margin:8px 0">Direction: ';
   ['X','Y'].forEach(function(d){
     h+='<label style="margin-right:14px"><input type="radio" name="diaDir" value="'+d+'"'+(d==='X'?' checked':'')+' data-are-ignore> <strong>'+d+'</strong> &mdash; '+xe(LH.AXES[d])+'</label>';
@@ -832,7 +842,9 @@ function applyDiaphragmImport(){
   catch(e){ alert('Import failed: '+(e.message||e)); return; }
   state=next;
   wCnt=state.floors.reduce(function(n,f){ return n+((f.walls&&f.walls.length)||0); }, 0);
-  readGlobalsFromDOM();
+  // Toolbar Project prefilled from the payload when blank, as the diaphragm page does.
+  var jobEl=document.getElementById('areJob');
+  if(jobEl&&!jobEl.value.trim()&&rec.project){ jobEl.value=String(rec.project).trim(); jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
   closeImportDialog();
   render();
   var msg=document.getElementById('modelMsgs');
@@ -848,12 +860,15 @@ function takeQuickSend(){
   try{ raw=localStorage.getItem(KEY); }catch(e){ return; }
   if(!raw) return;
   var x; try{ x=JSON.parse(raw); }catch(e){ x=null; }
-  if(!x||typeof x!=='object'){ localStorage.removeItem(KEY); return; }
+  if(!x||typeof x!=='object'||typeof x.file!=='string'){ localStorage.removeItem(KEY); return; }   // stray or fileless value
   if(x.file!=='stacked_shearwall_calculator.html') return;
   localStorage.removeItem(KEY);
-  if(!(Date.now()-x.ts<10*60*1000)) return;
+  if(!(Date.now()-x.ts<10*60*1000)) return;   // expired: silent, the sender's link has gone stale
   var r=x.record;
-  if(!r||r.schema!==LH_SCHEMA||!Array.isArray(r.levels)||!r.levels.length||!window.LH) return;
+  if(!r||r.schema!==LH_SCHEMA||!Array.isArray(r.levels)||!r.levels.length||!window.LH){
+    alert('Quick send from the Diaphragm Designer could not be read \u2014 re-send, or save the level file and use Import diaphragm levels.');
+    return;
+  }
   showImportDialog(r, [r.levels.length+' level'+(r.levels.length===1?'':'s')+' — import the other level files to stack'], []);
 }
 

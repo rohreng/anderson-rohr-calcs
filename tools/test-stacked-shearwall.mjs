@@ -481,6 +481,40 @@ const rxPanel = await rx.evaluate(() => ({
 check('receiver: ?src=diaphragm&lat=1 shows the panel with the stacking note and consumes the key',
   rxPanel.rows === 1 && rxPanel.h === '10.5' && rxPanel.text.indexOf('1 level — import the other level files to stack') >= 0 && rxPanel.key === null, JSON.stringify(rxPanel));
 check('receiver: panel header names the record project', rxPanel.text.indexOf('Project: TEST-PROJ') >= 0, rxPanel.text.slice(0, 200));
+check('receiver: no cross-project line when the toolbar Project is blank', rxPanel.text.indexOf('Payload is for') < 0, rxPanel.text.slice(0, 300));
+// Same seed with the toolbar Project already set to another job -> the
+// mismatch line is the cross-project guard; Import then leaves #areJob alone.
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })), oneLevel);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+await rx.waitForSelector('#diaImportPanel');
+const rxJob = await rx.evaluate((rec) => {
+  const job = document.getElementById('areJob');
+  job.value = '26-999-OTHER'; job.dispatchEvent(new Event('input', { bubbles: true }));
+  window.showImportDialog(rec, [], []);
+  const text = document.getElementById('diaImportPanel').innerText;
+  window.applyDiaphragmImport();
+  return { text, jobAfter: job.value };
+}, oneLevel);
+check('receiver: toolbar Project differs -> "Payload is for" mismatch line', rxJob.text.indexOf('Payload is for "TEST-PROJ"; this calc is "26-999-OTHER".') >= 0, rxJob.text.slice(0, 300));
+check('import leaves a filled toolbar Project alone', rxJob.jobAfter === '26-999-OTHER', rxJob.jobAfter);
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })), oneLevel);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+await rx.waitForSelector('#diaImportPanel');
+const rxPrefill = await rx.evaluate(() => { window.applyDiaphragmImport(); return { job: document.getElementById('areJob').value, prov: document.querySelector('#floor-con .lh-prov').innerText }; });
+check('import prefills a blank toolbar Project from the payload; provenance says "quick send"', rxPrefill.job === 'TEST-PROJ' && rxPrefill.prov.indexOf('quick send') >= 0, JSON.stringify(rxPrefill));
+// Malformed record (schema missing) -> loud alert, key consumed.
+const rxDialogs = [];
+rx.on('dialog', (d) => { rxDialogs.push(d.message()); d.dismiss(); });
+await rx.evaluate(() => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: { levels: [] }, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })));
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+await rx.waitForFunction(() => document.querySelectorAll('#floor-con .floor-blk').length > 0);
+const rxBad = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: localStorage.getItem('are_lateral_v1') }));
+check('receiver: a malformed record alerts instead of failing silently, key consumed',
+  rxDialogs.length === 1 && rxDialogs[0].indexOf('Quick send from the Diaphragm Designer could not be read') >= 0 && rxBad.panel === false && rxBad.key === null, JSON.stringify({ rxDialogs, rxBad }));
+await rx.evaluate(() => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: {}, ts: Date.now() })));
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+const rxNoFile = await rx.evaluate(() => localStorage.getItem('are_lateral_v1'));
+check('receiver: a fileless key is removed', rxNoFile === null && rxDialogs.length === 1, JSON.stringify({ rxNoFile, n: rxDialogs.length }));
 await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now() - 11 * 60 * 1000, file: 'stacked_shearwall_calculator.html' })), oneLevel);
 await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
 const rxStale = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: localStorage.getItem('are_lateral_v1') }));
