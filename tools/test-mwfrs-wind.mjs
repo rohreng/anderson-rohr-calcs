@@ -84,8 +84,10 @@ async function runWalled(c) {
   return snapshot();
 }
 // Walk expected (baseline) and require every path to exist and match in actual.
+// Paths that legitimately differ on every run (the calc stamps today's date).
+const ALLOW_ALWAYS = [/^root\.revit\.project\.date$/];
 function diff(exp, act, path, out, allow) {
-  if (allow.some((re) => re.test(path))) return;
+  if (ALLOW_ALWAYS.some((re) => re.test(path)) || allow.some((re) => re.test(path))) return;
   if (typeof exp === 'number') {
     if (typeof act !== 'number' || Math.abs(exp - act) > TOL) out.push(`${path}: ${exp} → ${act}`);
   } else if (exp === null || typeof exp !== 'object') {
