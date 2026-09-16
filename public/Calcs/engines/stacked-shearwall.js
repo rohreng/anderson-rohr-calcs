@@ -122,10 +122,10 @@
       bySpecies: hdCols({ steps: [{ t: 3.0, T: 7015 }] }, { steps: [{ t: 3.0, T: 6030 }] }) },
     { name: 'HDUE9-SDS3.5',  sds: '16 — SDS ¼×3½', rod: '⅞"',        minWidth: 3.5, note: 'No 3" thickness column; DF/SP 8,425 lb at 3½", 9,390 lb at member thickness ≥ 4½" (SPF/HF 7,305 / 7,995 lb)',
       bySpecies: hdCols({ steps: [{ t: 3.5, T: 8425 }, { t: 4.5, T: 9390 }] }, { steps: [{ t: 3.5, T: 7305 }, { t: 4.5, T: 7995 }] }) },
-    { name: 'HDUE13-SDS3.5', sds: '23 — SDS ¼×3½', rod: '1"',        minWidth: 3.5, note: 'Heavy hex anchor nut required (fn. 10); DF/SP 11,900 lb at 5½" thickness, 12,950 lb at 7¼", 13,110 lb on a 6×6 (5½" minimum width, fn. 7); SPF/HF 10,215 / 11,030 / 10,980 lb',
+    { name: 'HDUE13-SDS3.5', sds: '23 — SDS ¼×3½', rod: '1"',        minWidth: 3.5, note: 'Heavy hex anchor nut required (C-C-2026 p. 61 fn. 4; ESR-2330 fn. 10, not on disk); DF/SP 11,900 lb at 5½" thickness, 12,950 lb at 7¼", 13,110 lb on a 6×6 (5½ × 5½ member size, C-C-2026 p. 61; ESR-2330 fn. 7); SPF/HF 10,215 / 11,030 / 10,980 lb',
       bySpecies: hdCols({ steps: [{ t: 5.5, T: 11900 }, { t: 7.25, T: 12950 }], wideStep: { t: 5.5, w: 5.5, T: 13110 } },
                         { steps: [{ t: 5.5, T: 10215 }, { t: 7.25, T: 11030 }], wideStep: { t: 5.5, w: 5.5, T: 10980 } }) },
-    { name: 'HDUE17-SDS4.5', sds: '28 — SDS ¼×4½', rod: '1" hi-str', minWidth: 3.5, note: 'DF/SP 16,040 lb at 5½" or 7¼" thickness, 17,685 lb on a 6×6 (5½" minimum width, fn. 7) with a high-strength anchor rod (fn. 11; C-C-2026 p. 61 fn. 3); SPF/HF 13,545 / 14,775 lb',
+    { name: 'HDUE17-SDS4.5', sds: '28 — SDS ¼×4½', rod: '1" hi-str', minWidth: 3.5, note: 'DF/SP 16,040 lb at 5½" or 7¼" thickness, 17,685 lb on a 6×6 (5½ × 5½ member size, C-C-2026 p. 61; ESR-2330 fn. 7) with a high-strength anchor rod (C-C-2026 p. 61 fn. 3; ESR-2330 fn. 11); SPF/HF 13,545 / 14,775 lb',
       bySpecies: hdCols({ steps: [{ t: 5.5, T: 16040 }], wideStep: { t: 5.5, w: 5.5, T: 17685 } },
                         { steps: [{ t: 5.5, T: 13545 }], wideStep: { t: 5.5, w: 5.5, T: 14775 } }) }
   ];
@@ -159,19 +159,21 @@
   var STRAP_MIN_G = 0.50;   // ESR-2105: minimum member specific gravity 0.50
 
   // ── sill / bottom-plate shear connectors, per connector at C_D = 1.6 ───────
-  // `bySillSpecies` is keyed by the SILL species, except `16d` where the engine
-  // reads it with the LOWER-G of sill and framing species (NDS Table 12N is for
-  // "both members of identical specific gravity"; computeWall prints which governed).
+  // `bySillSpecies` is keyed by the SILL species, except rows flagged `minG`
+  // (`16d`, `sds14`), which the engine reads at the LOWER-G of sill and framing
+  // species — `minGWhy` says why; computeWall prints which governed.
   var SILL_CONN = [
     { id: 'ltp4', label: 'LTP4 lateral tie plate', defaultSpacing: 16, base: false, sheathingReduction: true,
       bySillSpecies: { DFL: 715, SP: 715, SPF: 615 },
       basis: 'Simpson C-C-2026 p. 310, LTP4 with 12 — 0.131×1½ nails, direction G, "(160)" column: 715 lb DF/SP, 615 lb SPF/HF' },
-    { id: '16d', label: '16d common nails', defaultSpacing: 16, base: false, minG: true,
+    { id: '16d', label: '16d common nails', defaultSpacing: 16, base: false,
+      minG: true, minGWhy: 'NDS Table 12N is for both members of identical specific gravity',
       bySillSpecies: { DFL: 226, SP: 246, SPF: 192 },
       basis: 'NDS 2018 Table 12N, 16d common (D = 0.162", Table L4), t_s = 1½": Z = 141 lb (G = 0.50 DF-L) / 154 lb (G = 0.55 SP) / 120 lb (G = 0.42 SPF) × C_D 1.6; the lower G of sill and framing species is used' },
     { id: 'sds14', label: 'SDS ¼×4½ screws', defaultSpacing: 12, base: false,
+      minG: true, minGWhy: 'the Simpson sole-to-rim table gives the SPF/HF value where either member is SPF/HF',
       bySillSpecies: { DFL: 400, SP: 400, SPF: 304 },
-      basis: 'Simpson sole-to-rim table: 250 lb DF/SP-to-DF/SP, 190 lb where either member is SPF/HF, × C_D 1.6' },
+      basis: 'Simpson sole-to-rim table: 250 lb DF/SP-to-DF/SP, 190 lb where either member (sill or framing) is SPF/HF, × C_D 1.6' },
     { id: 'ab12', label: '½" anchor bolt', defaultSpacing: 20, base: true,
       bySillSpecies: { DFL: 1040, SP: 1040, SPF: 944 },
       basis: 'NDS 2018 Table 12E, 1½" sill to concrete, 6" embedment, Z∥ = 650 lb (G = 0.50) / 590 lb (G = 0.42) × C_D 1.6' },
@@ -703,17 +705,18 @@
     var scObj = findSill(w.sill.conn);
     var sillSpecies = SPECIES[w.sillSpecies] ? w.sillSpecies : state.species;
     var sillNotes = [];
-    // Nails (Table 12N, "both members of identical specific gravity"): the lower G
-    // of the sill species and the framing species governs. Other connectors are
-    // tabulated against the sill member and read the sill species directly.
+    // `minG` rows (16d: Table 12N is for both members of identical G; SDS: the
+    // sole-to-rim table drops to the SPF/HF value where either member is SPF/HF):
+    // the lower G of the sill species and the framing species governs. Other
+    // connectors are tabulated against the sill member and read the sill species.
     var valSpecies = sillSpecies, nailGov = '';
     if (scObj.minG) {
       var Gsill = SPECIES[sillSpecies].G, Gfrm = ctx.sp.G;
       valSpecies = Gfrm + 1e-9 < Gsill ? state.species : sillSpecies;
       nailGov = Gfrm + 1e-9 < Gsill ? 'framing' : (Gsill + 1e-9 < Gfrm ? 'sill' : 'both');
-      sillNotes.push('Nail value at the lower specific gravity: ' + SPECIES[valSpecies].label + ' G = ' + f2(SPECIES[valSpecies].G)
+      sillNotes.push('Value at the lower specific gravity: ' + SPECIES[valSpecies].label + ' G = ' + f2(SPECIES[valSpecies].G)
         + (nailGov === 'both' ? ' (sill and framing alike)' : ' (' + nailGov + ' species governs; ' + (nailGov === 'sill' ? ctx.sp.label + ' framing G = ' + f2(Gfrm) : SPECIES[sillSpecies].label + ' sill G = ' + f2(Gsill)) + ')')
-        + ' — NDS Table 12N is for both members of identical specific gravity.');
+        + ' — ' + scObj.minGWhy + '.');
     }
     var Vconn = scObj.bySillSpecies ? scObj.bySillSpecies[valSpecies] : scObj.Vconn;
     if (scObj.sheathingReduction) {
@@ -1257,15 +1260,20 @@
                 ['blank / undefined inherit and pass', v.blank.ok === true, v.blank.errors.join(' | ') || 'ok']]; } },
 
     // ── Species-dependent hardware (C-C-2026 p. 61 / p. 310, NDS Table 12N) ──
-    { id: 'SW48', src: 'NDS Table 12N — 16d common by the lower G of sill and framing', run: function () {
-        var mk = function (species, sillSpecies) {
+    { id: 'SW48', src: 'NDS Table 12N 16d / Simpson SDS — value by the lower G of sill and framing', run: function () {
+        var mk = function (species, sillSpecies, conn) {
           var st = mkState(CASE_HD); st.species = species;
-          st.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; st.floors[0].walls[0].sillSpecies = sillSpecies;
+          st.floors[0].walls[0].sill = { conn: conn || '16d', spacing_in: conn ? 12 : 16, sheathing: 'none' }; st.floors[0].walls[0].sillSpecies = sillSpecies;
           return compute(st); };
-        return { spfSill: mk('DFL', 'SPF'), spfFrame: mk('SPF', 'DFL'), sp: mk('SP', 'SP'), spSillDflFrame: mk('DFL', 'SP'), dfl: mk('DFL', 'DFL') }; },
+        return { spfSill: mk('DFL', 'SPF'), spfFrame: mk('SPF', 'DFL'), sp: mk('SP', 'SP'), spSillDflFrame: mk('DFL', 'SP'), dfl: mk('DFL', 'DFL'),
+                 sdsSpfFrame: mk('SPF', 'DFL', 'sds14'), sdsSpfSill: mk('DFL', 'SPF', 'sds14'), sdsSp: mk('SP', 'DFL', 'sds14') }; },
       expect: function (r) {
         var a = W(r.spfSill, 0), b = W(r.spfFrame, 0), c = W(r.sp, 0), d = W(r.spSillDflFrame, 0), e = W(r.dfl, 0);
-        return [['SPF sill on DFL framing: 120 × 1.6 = 192 lb per nail', near(a.sill.Vconn, 192, 1e-9), f1(a.sill.Vconn)],
+        var f = W(r.sdsSpfFrame, 0), g = W(r.sdsSpfSill, 0), k = W(r.sdsSp, 0);
+        return [['SDS ¼×4½: DFL sill on SPF framing = 304 lb (either member SPF/HF), 304.0 plf @ 12"', near(f.sill.Vconn, 304, 1e-9) && near(f.sill.plf, 304, 1e-6) && f.sill.nailGov === 'framing', f1(f.sill.Vconn) + ' ' + f.sill.nailGov],
+                ['SDS ¼×4½: SPF sill on DFL framing = 304 lb', near(g.sill.Vconn, 304, 1e-9) && g.sill.nailGov === 'sill', f1(g.sill.Vconn) + ' ' + g.sill.nailGov],
+                ['SDS ¼×4½: DFL sill on SP framing = 400 lb (DF/SP row, DFL governs)', near(k.sill.Vconn, 400, 1e-9) && k.sill.valueSpecies === 'DFL', f1(k.sill.Vconn) + ' ' + k.sill.valueSpecies],
+                ['SDS note names the sole-to-rim rule', f.sill.notes.some(function (x) { return x.indexOf('either member is SPF/HF') >= 0; }), f.sill.notes.join(' | ')],['SPF sill on DFL framing: 120 × 1.6 = 192 lb per nail', near(a.sill.Vconn, 192, 1e-9), f1(a.sill.Vconn)],
                 ['@ 16" o.c. = 144.0 plf', near(a.sill.plf, 144.0, 1e-6), f2(a.sill.plf)],
                 ['sill species governs, printed', a.sill.nailGov === 'sill' && a.sill.valueSpecies === 'SPF' && a.sill.notes.some(function (x) { return x.indexOf('sill species governs') >= 0; }), a.sill.notes.join(' | ')],
                 ['DFL sill on SPF framing: framing governs, 192 lb', near(b.sill.Vconn, 192, 1e-9) && b.sill.nailGov === 'framing', f1(b.sill.Vconn) + ' ' + b.sill.nailGov],
