@@ -87,6 +87,11 @@ body.col-resizing{user-select:none;cursor:col-resize}
 select.ti{cursor:pointer;padding:2px 1px}
 .btn-x{background:none;border:1px solid #fca5a5;color:#dc2626;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:.80em;line-height:1;display:flex;align-items:center;justify-content:center;margin:0 auto}
 .btn-x:hover{background:#fee2e2}
+.btn-x.btn-line{width:auto;padding:0 5px;margin:0;border-color:#93c5fd;color:#1d4ed8;white-space:nowrap}
+.btn-x.btn-line:hover{background:#dbeafe}
+/* "line A1 · 2 walls · share 40 %" under the Line key, from the engine result */
+.line-chip{display:block;font-size:.68em;color:#1d4ed8;white-space:normal;line-height:1.2;margin-top:2px}
+.line-chip:empty{display:none}
 .btn-chk{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.76em;font-weight:700;white-space:nowrap}
 .btn-chk:hover{background:#1e3c72;box-shadow:0 2px 6px rgba(30,60,114,.35)}
 .btn-sm{padding:5px 12px;border:none;border-radius:5px;font-size:.79em;cursor:pointer;font-weight:600;transition:all .15s}
@@ -297,6 +302,7 @@ select.ti{cursor:pointer;padding:2px 1px}
       Give each wall its full length <em>L</em>, a <strong>Method</strong>, the list of full-height segment widths <em>b<sub>i</sub></em>, and an opening schedule (width &times; clear height).
       <strong>Perforated</strong> (&sect;4.3.2.3): one wall with openings, C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends and the &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
       <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own full-height shear wall with its own hold-down pair; story shear is shared in proportion to design capacity with 2b/h on segments of h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), so v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> is checked against v<sub>ASD</sub>; openings are gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), the unsheathed area is ignored, no uniform uplift row, and a segment of h/b &gt; 3.5 is refused. A segmented wall keeps the same segment count on every level it exists.
+      <strong>Several walls on one line:</strong> the Diaphragm Designer delivers <em>one</em> force per wall line; the split into walls happens here. <em>+ line</em> on a row adds a wall to that line (same construction and line force &mdash; enter its <em>L</em> and segments); walls with the same <strong>Line</strong> key share the line force at each level in proportion to design capacity from geometry, C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so every wall of the line carries the same unit shear (&sect;4.3.5.5.1 Exc. 1). Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; a change on one wall fans out to the others; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear a wall's Line key to make it its own line.
     </div>
 
     <div id="modelMsgs"></div>
@@ -354,7 +360,8 @@ select.ti{cursor:pointer;padding:2px 1px}
     <ul>
       <li><strong>Inputs are strength level.</strong> The engine applies 0.6W (ASCE 7-16 &sect;2.4.1), 0.7E (&sect;2.4.5) and 0.6D on the dead-load resisting moment, and runs wind and seismic in full.</li>
       <li><strong>Story shear is accumulated as force</strong> and converted once at each story with that story's C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> (perforated) or &Sigma;b<sub>eff</sub> (segmented) (&sect;4.3.6.4.4, &sect;4.3.6.4.1.1). Unit shears are never summed across levels.</li>
-      <li><strong>Method per wall.</strong> <em>Perforated</em> (&sect;4.3.2.3, the default) and <em>segmented</em> (&sect;4.3.2.1 individual full-height wall segments; 2015 &sect;4.3.5.1) are selected in the Method column and may be mixed across the walls of a level, but a wall line keeps one method on every level it exists.</li>
+      <li><strong>Method per wall.</strong> <em>Perforated</em> (&sect;4.3.2.3, the default) and <em>segmented</em> (&sect;4.3.2.1 individual full-height wall segments; 2015 &sect;4.3.5.1) are selected in the Method column and may be mixed across the walls of a level, but a wall keeps one method on every level it exists.</li>
+      <li><strong>Several walls on one line (&sect;4.3.5.5.1 Exception 1; 2015 &sect;4.3.3.4.1 Exception 1):</strong> walls with the same Line key on a level are one wall line. The line force at that level is the one entered on the line's rows (blank = the level force) and is split between the walls present there in proportion to design capacity from geometry alone &mdash; C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> for a perforated wall, &Sigma;b<sub>eff</sub> for a segmented one &mdash; so that v<sub>max</sub> (or v<sub>eff</sub>) is the same on every wall of the line: the equal-rigidity assumption stated exactly. Equal-length opening-free walls therefore split by length. Each wall then carries its share down its own stack (walls stack by id, &sect;4.3.6.4.4): a wall absent at a lower level leaves the whole line force to the walls still present there, and where the shares differ between levels a wall's cumulative story shear is the sum of its per-level shares, not the base-level split of the total. The Diaphragm Designer delivers one force per line and is unchanged; the split into walls happens here. Two walls of a line at one level with different entered line forces are refused.</li>
       <li><strong>Segmented method (&sect;4.3.2.1, &sect;4.3.5.5.1 Exception 1; 2015 &sect;4.3.5.1, &sect;4.3.3.4.1 Exception 1):</strong> each b<sub>i</sub> is an individual full-height shear wall with its own hold-down pair; openings are the gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma; opening widths &le; L is checked) and the unsheathed-area entry is ignored. Every segment must satisfy Table 4.3.3 (h/b &le; 3.5 for blocked wood structural panels; 2015 Table 4.3.4) &mdash; a narrower one is refused, there is nothing to exclude it into. Story shear is distributed in proportion to the design capacities with the nominal capacity of segments of h/b &gt; 2:1 multiplied by f<sub>i</sub> = 2b<sub>i</sub>/h, which "need not be further reduced by the adjustment in 4.3.3.2" &mdash; the same factor for wind and seismic (C4.3.3.2). So V<sub>i</sub> = V&middot;b<sub>i</sub>f<sub>i</sub>/&Sigma;b<sub>eff</sub>, v<sub>i</sub> = v<sub>eff</sub>&middot;f<sub>i</sub>, and the check v<sub>i</sub> &le; f<sub>i</sub>&middot;v<sub>ASD</sub> on every segment is the single row v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> &le; v<sub>ASD</sub>; the sill is checked for max v<sub>i</sub>. Overturning per segment is M<sub>i</sub> = &Sigma; over the stories of V<sub>i,m</sub>&middot;h<sub>m</sub> &mdash; the story shear of the segment at the share of that story (&sect;4.3.6.4.4), one load path for shear and moment; T<sub>i</sub> = (M<sub>i</sub> &minus; 0.6 M<sub>R,i</sub>)/b<sub>i</sub> about the compression toe (Eq. 4.3-7 form, lever b<sub>i</sub>, which is 7&ndash;10 % below a rod-to-post-centroid lever), M<sub>R,i</sub> = w&middot;b<sub>i</sub>&sup2;/2 on every segment and P<sub>D,end</sub>&middot;b<sub>i</sub> on segment 1 End 1 only; the hold-down row reports the largest-T segment and passes only when every segment's device qualifies; the end post is checked on the largest C<sub>i</sub>. There is no &sect;4.3.6.4.2.1 uniform uplift row and no NDS &sect;12.4 combined row &mdash; the segment ends are anchored by their hold-downs (&sect;4.3.6.4.2). The 20 ft height limit and the 2,435 plf cap are perforated limitations and are not applied. A segmented wall keeps the same segment count on every level (segment i above lands on segment i below); differing widths are accepted with a note.</li>
       <li><strong>Perforated method assumptions (&sect;4.3.2.3):</strong> a perforated shear wall segment is present at each end of every wall line (item 2); the nominal unit shear capacity does not exceed 2,435 plf (item 4); collectors run the full length of the wall (item 6); top-of-wall and bottom-of-wall elevations are uniform (item 7); h does not exceed 20 ft (item 8); sheathed areas built with less than the tabulated assembly are counted in A<sub>o</sub> (item 9 Exception, entered as "Unsh. sf").</li>
       <li><strong>Not covered:</strong> shear wall and diaphragm deflection and story drift (&sect;4.3.4), the diaphragms themselves, collectors beyond this wall line, concrete anchorage (ACI 318 Chapter 17 &mdash; breakout, pryout, edge distance) and anchor-rod steel design. Those are separate calculations.</li>
@@ -466,6 +473,7 @@ function addWall(fi){
   wCnt++;
   var ref = state.floors[fi].walls[0];
   var w = newWallFrom(ref, 'w'+wCnt);
+  delete w.line;   // a new wall LINE, not another wall on the source's line ("+ line" does that)
   w.label = 'Wall Line '+String.fromCharCode(65+state.floors[fi].walls.length);
   state.floors[fi].walls.push(w);
   render();
@@ -473,6 +481,32 @@ function addWall(fi){
 function delWall(fi,wi){
   if(state.floors[fi].walls.length<=1){alert('Keep at least one wall.');return;}
   state.floors[fi].walls.splice(wi,1); render();
+}
+// "+ line": another wall on the same wall line, inserted under this row. It
+// clones the construction and the line force (both are per line) and takes
+// id = base id + '#n', unique over every level so it stacks by id like any
+// wall; the user then enters its L and segments. The base wall gets its line
+// key written out when it was implicit (= its id) so both rows show the key.
+function idExists(id){ return state.floors.some(function(f){ return (f.walls||[]).some(function(w){ return w.id===id; }); }); }
+function splitWall(fi,wi){
+  var base=state.floors[fi].walls[wi], key=SW.lineKey(base);
+  if(!base.line) base.line=key;
+  var n=2; while(idExists(base.id+'#'+n)) n++;
+  var w=newWallFrom(base, base.id+'#'+n);
+  w.label=(base.label||base.id)+'-'+n; w.line=key;
+  w.P_wind_lb=base.P_wind_lb; w.P_seis_lb=base.P_seis_lb;   // the line force, kept in sync by updWall
+  state.floors[fi].walls.splice(wi+1,0,w);
+  render();
+}
+// Fields that are per LINE (construction and the line force): a change on
+// one wall fans out to every wall with the same line key on that level.
+// Geometry (L, segments, openings, unsheathed), dead load, transfer and the
+// label stay per wall.
+var LINE_FIELDS={face1:1,face2:1,insideFaceHoldown:1,postN:1,postSize:1,holdown:1,sillConn:1,sillSpacing:1,sillSheathing:1,sillSpecies:1,
+                 upliftSource:1,upliftPen:1,upliftWasher:1,upliftCap:1,method:1,P_wind_lb:1,P_seis_lb:1};
+function sameLine(fi,w){
+  var key=SW.lineKey(w);
+  return (state.floors[fi].walls||[]).filter(function(x){ return SW.lineKey(x)===key; });
 }
 function updGlobal(){
   var a=document.getElementById('sfrs'), b=document.getElementById('sdc'), c=document.getElementById('species');
@@ -486,9 +520,16 @@ function updFloor(fi,fld,val){
 }
 function updWall(fi,wi,fld,val){
   var w=state.floors[fi].walls[wi];
+  var targets=LINE_FIELDS[fld]?sameLine(fi,w):[w];
+  targets.forEach(function(t){ applyWallField(t,fld,val); });
+  render();
+}
+function applyWallField(w,fld,val){
   if(fld.indexOf('uplift')===0&&!w.uplift)w.uplift={};
   switch(fld){
     case 'label': w.label=val; break;
+    // Line key: blank = its own line (key removed, the old-file shape).
+    case 'line': var lk=String(val||'').replace(/^\s+|\s+$/g,''); if(lk) w.line=lk; else delete w.line; break;
     case 'L_ft': w.L_ft=parseFloat(val)||0; break;
     case 'method': w.method=(val==='segmented'?'segmented':'perforated'); break;
     case 'P_wind_lb': w.P_wind_lb=(val===''?null:(parseFloat(val)||0)); break;
@@ -533,7 +574,6 @@ function updWall(fi,wi,fld,val){
     case 'P_end_lb': w.dead.P_end_lb=parseFloat(val)||0; break;
     case 'transfer': w.transfer=!!val; break;
   }
-  render();
 }
 // Gravity-wall dead-load link: set the source on this level and cascade DOWN.
 function setDLSource(fi,wi,srcVal){
@@ -632,6 +672,7 @@ function render(){
     out+='<div class="floor-body"><div class="tbl-scroll">';
     out+='<table class="wall-table"><thead><tr>';
     out+=thc('wall_label',95,'Wall Label','thl');
+    out+=thc('line',105,'Line','thl','Wall-line key. Walls with the same key on this level are one wall line and share its force in proportion to design capacity (C_o·Σb_i or Σb_eff — by length for equal opening-free walls); construction and the line force are per line, geometry per wall. Blank = its own line. "+ line" on a row adds a wall to that line.');
     out+=thc('l_ft',55,'L (ft)','');
     out+=thc('method',88,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
     out+=thc('pw_lb',70,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
@@ -653,7 +694,7 @@ function render(){
     out+=thc('wd_plf',62,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
     out+=thc('pd_end_lb',70,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
     out+=thc('detail',64,'Detail','th-chk');
-    out+=thc('x',28,'','');
+    out+=thc('x',64,'','');
     out+='</tr></thead><tbody>';
 
     for(var wi=0; wi<fl.walls.length; wi++){
@@ -666,6 +707,9 @@ function render(){
       var segTitle=function(why){ return isSeg?' title="'+why+'"':''; };
       out+='<tr>';
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
+      // Line key + the share chip, filled from the engine result in renderResults().
+      out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.line||'')+'" placeholder="own line" title="Wall-line key — walls with the same key share the line force; blank = its own line" onchange="updWall('+fi+','+wi+',\'line\',this.value)">'
+         +'<span class="line-chip" id="lchip_'+fi+'_'+wi+'"></span></td>';
       out+='<td><input class="ti" type="number" value="'+w.L_ft+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L_ft\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><select class="ti" style="font-size:.72em" title="Perforated (§4.3.2.3) or segmented (§4.3.2.1 individual full-height segments, §4.3.5.5.1 Exc. 1 distribution)" onchange="updWall('+fi+','+wi+',\'method\',this.value)">'
           +'<option value="perforated"'+(isSeg?'':' selected')+'>Perforated</option><option value="segmented"'+(isSeg?' selected':'')+'>Segmented</option></select></td>';
@@ -715,9 +759,10 @@ function render(){
         out+='<td><input class="ti" type="number" value="'+(w.dead.P_end_lb||0)+'" step="100" min="0" onchange="updWall('+fi+','+wi+',\'P_end_lb\',this.value)"></td>';
       }
       out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
-      out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">✕</button></td>';
+      out+='<td><div style="display:flex;gap:3px;justify-content:center"><button class="btn-x" onclick="delWall('+fi+','+wi+')" title="Remove this wall">✕</button>'
+         +'<button class="btn-x btn-line" onclick="splitWall('+fi+','+wi+')" title="+ Wall on this line — another wall sharing this line\'s force and construction; enter its L and segments">+ line</button></div></td>';
       out+='</tr>';
-      out+='<tr><td colspan="23" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="24" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table></div>';
     out+='<div style="margin-top:7px"><button class="btn-sm btn-add" onclick="addWall('+fi+')">+ Wall Line</button></div>';
@@ -798,18 +843,24 @@ function expandWall(fi,wi){
 
 // Σ of the wall-line forces on a level against the level total, shown only
 // once some wall on that level carries its own line force (an import or a
-// typed cell). Plain sum — a row is one line, never a "typical" of several.
-// Red when the two differ by more than 1 % of the level force. A line past
-// the resultant carries |R| with sign -1 (LH wallsFor), so the sum is signed.
-// The seismic Σ is hidden while the level P_E is 0: imported walls all carry
-// P_seis_lb = 0 then, and "Σ 0 vs level 0" would only be noise.
+// typed cell). Summed ONCE per distinct line key — the walls of a line share
+// one force (the engine takes the first finite value on the line, as here),
+// never a "typical" of several. Red when the two differ by more than 1 % of
+// the level force. A line past the resultant carries |R| with sign -1 (LH
+// wallsFor), so the sum is signed. The seismic Σ is hidden while the level
+// P_E is 0: imported walls all carry P_seis_lb = 0 then, and "Σ 0 vs level 0"
+// would only be noise.
 function lineSumHTML(fl, key, tag){
-  var any=false, sum=0;
-  (fl.walls||[]).forEach(function(w){ if(w[key]!=null && isFinite(w[key])){ any=true; sum+=(w.sign===-1?-1:1)*(+w[key]); } });
+  var any=false, sum=0, seen={};
+  (fl.walls||[]).forEach(function(w){
+    var lk=SW.lineKey(w);
+    if(seen[lk] || w[key]==null || !isFinite(w[key])) return;
+    seen[lk]=true; any=true; sum+=(w.sign===-1?-1:1)*(+w[key]);
+  });
   var lvl=+fl[key]||0;
   if(!any || (key==='P_seis_lb' && !(lvl>0))) return '';
   var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl);
-  return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level (walls left blank inherit the level force and are not counted)">'
+  return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level, once per wall line (walls left blank inherit the level force and are not counted)">'
        + '&Sigma; wall lines'+(tag==='E'?' (E)':'')+' = '+f0(sum)+' lb (level '+f0(lvl)+' lb)</span>';
 }
 // Import provenance, rendered from state.lateral (written by the diaphragm import).
@@ -973,14 +1024,24 @@ function renderResults(){
     for(var wi=0; wi<state.floors[fi].walls.length; wi++){
       var pane=document.getElementById('wres_'+fi+'_'+wi);
       if(pane){pane.innerHTML=''; pane.className='wres';}
+      var chip=document.getElementById('lchip_'+fi+'_'+wi);
+      if(chip) chip.innerHTML='';
     }
   }
   (res.floors||[]).forEach(function(fl,fi){
     (fl.walls||[]).forEach(function(w,wi){
       var pane=document.getElementById('wres_'+fi+'_'+wi);
       if(pane){ pane.innerHTML=wallHtml(res,fl,w,fi,wi); pane.className='wres '+(w.allPass?'pass-bg':(w.checks.some(function(c){return c.pass===false;})?'fail-bg':'req-bg')); }
+      var chip=document.getElementById('lchip_'+fi+'_'+wi);
+      if(chip) chip.innerHTML=lineChipHTML(w);
     });
   });
+}
+// "line A1 · 2 walls · share 40 %" — only when the wall shares its line.
+function lineChipHTML(w){
+  var ln=w.line;
+  if(!ln || !(ln.walls>1)) return '';
+  return 'line '+xe(ln.key)+' &middot; '+ln.walls+' walls &middot; share '+(Math.round(ln.share*1000)/10)+' %';
 }
 
 function wallHtml(res,fl,w,fi,wi){
@@ -1007,6 +1068,7 @@ function wallHtml(res,fl,w,fi,wi){
            :' &nbsp;|&nbsp; C<sub>o</sub> = '+f4(g.Co)+' &nbsp; Σb<sub>i</sub> = '+f2(g.sumBi)+' ft')
       +' &nbsp; '+vLbl+' = '+f1(gov.vmax)+' plf ('+xe(gov.vmaxCase)+')'
       +' &nbsp; T = '+f0(gov.T)+' lb ('+xe(gov.Tcase)+')'
+      +(w.line&&w.line.walls>1?' &nbsp;|&nbsp; line '+xe(w.line.key)+': share '+f3(w.line.share)+' = '+f2(w.line.cap)+' / '+f2(w.line.sumCap)+' ft of '+w.line.walls+' walls':'')
       +'</div>';
 
   if(w.errors.length){
@@ -1142,6 +1204,12 @@ function capacityDetailHtml(w){
   return h;
 }
 
+// One story-force row of a case: the wall's P at that level, and where the
+// wall shares its line, the line force × its share that produced it.
+function rowPHtml(rr){
+  if(rr.src==='line') return 'P<sub>line</sub> = '+f0(rr.Pline)+' lb (strength) × share '+f3(rr.share)+' = P = '+f0(rr.P)+' lb';
+  return 'P = '+f0(rr.P)+' lb (strength)'+(rr.src==='wall'?' (wall line)':'');
+}
 function detailHtml(id,w,fl){
   var g=w.geom, gov=w.gov, seg=(w.method==='segmented');
   var h='<div class="cbox">';
@@ -1205,7 +1273,7 @@ function detailHtml(id,w,fl){
       var c=w.cases[k];
       h+='<hr class="csep"><div class="mrow"><strong>'+c.label+'</strong> &mdash; '+xe(c.ref)+'</div>';
       c.rows.forEach(function(rr){
-        h+='<div class="mrow ind">'+xe(rr.level)+': P = '+f0(rr.P)+' lb (strength)'+(rr.src==='wall'?' (wall line)':'')+' × '+f1(c.factor)+' = '+f0(rr.Pfac)+' lb into the story shear; the shear through each story is split by the shares of that story and × its h</div>';
+        h+='<div class="mrow ind">'+xe(rr.level)+': '+rowPHtml(rr)+' × '+f1(c.factor)+' = '+f0(rr.Pfac)+' lb into the story shear; the shear through each story is split by the shares of that story and × its h</div>';
       });
       c.dlRows.forEach(function(d){
         if(d.w_plf||d.P_end_lb) h+='<div class="mrow ind">'+xe(d.level)+' dead: w = '+f1(d.w_plf)+' plf'+(d.P_end_lb?'; P<sub>D</sub> = '+f0(d.P_end_lb)+' lb at segment 1 End 1':'')+(d.source!=='manual'?' <em>[from '+xe(d.source)+']</em>':'')+'</div>';
@@ -1235,7 +1303,7 @@ function detailHtml(id,w,fl){
       var c=w.cases[k];
       h+='<hr class="csep"><div class="mrow"><strong>'+c.label+'</strong> &mdash; '+xe(c.ref)+'</div>';
       c.rows.forEach(function(rr){
-        h+='<div class="mrow ind">'+xe(rr.level)+': P = '+f0(rr.P)+' lb (strength)'+(rr.src==='wall'?' (wall line)':'')+' × '+f1(c.factor)+' × z = '+f2(rr.z)+' ft → <span class="cval">'+f0(rr.m)+' ft-lb</span></div>';
+        h+='<div class="mrow ind">'+xe(rr.level)+': '+rowPHtml(rr)+' × '+f1(c.factor)+' × z = '+f2(rr.z)+' ft → <span class="cval">'+f0(rr.m)+' ft-lb</span></div>';
       });
       h+='<div class="mrow ind">M = <span class="cval">'+f0(c.M)+' ft-lb</span></div>';
       c.dlRows.forEach(function(d){

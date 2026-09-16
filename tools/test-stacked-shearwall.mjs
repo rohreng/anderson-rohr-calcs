@@ -72,8 +72,8 @@ const ui = await page.evaluate(() => {
   };
 });
 check('four levels rendered', ui.levels === 4, 'levels=' + ui.levels);
-check('wall table has 23 columns (L, Method, P_W, P_E line-force cells) and the results row spans them',
-  ui.cols === 23 && ui.resColspan === 23, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
+check('wall table has 24 columns (Line, L, Method, P_W, P_E line-force cells) and the results row spans them',
+  ui.cols === 24 && ui.resColspan === 24, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
 check('a results pane per wall', ui.panes === 4, 'panes=' + ui.panes);
 check('base level labelled', ui.baseTag === true, JSON.stringify(ui));
 check('five check rows + header + case table', ui.checkRows >= 8, 'rows=' + ui.checkRows);
@@ -97,7 +97,7 @@ const bn = await page.evaluate(() => {
   const r = window.SW.compute(window.state), base = r.floors[3].walls[0], top = r.floors[0].walls[0];
   const el = document.querySelector(bsel('#wres_3_0'));
   const rows = (w) => w.checks.map((c) => c.id).join(',');
-  const cellTxt = document.querySelectorAll('#floor-con .wall-table thead th')[17].innerText.trim();
+  const cellTxt = document.querySelectorAll('#floor-con .wall-table thead th')[18].innerText.trim();
   return { txt: el.innerText, cls: el.className, paneCls: document.querySelector('#wres_3_0').className,
            baseRows: rows(base), topRows: rows(top), baseLabel: byId(base, 'uplift').label, baseDemand: byId(base, 'uplift').demandTxt,
            topCap: byId(top, 'uplift').capacityTxt, topCombined: byId(top, 'combined').capacityTxt, topSill: byId(top, 'sill').capacityTxt,
@@ -112,7 +112,7 @@ check('upper wall rows include the combined §12.4 row after uplift', bn.topRows
 check('upper wall uplift: default p = 2.25 in printed as "default … verify"; SDS head pull-through 552.0 lb / 552.0 plf; combined Z\'_α 463.9 lb, v_max ≤ 328.0 plf',
   bn.topCap.indexOf('p = 2.25 in (default: 4½" screw − 1½" plate − ¾" subfloor — verify)') >= 0 && bn.topCap.indexOf('head pull-through 552.0 lb per screw — 552.0 plf') >= 0 && bn.topCombined.indexOf("Z'_α = 463.9 lb") >= 0 && bn.topCombined.indexOf('328.0 plf') >= 0, bn.topCap + ' | ' + bn.topCombined);
 check('upper wall sill row prints the penetration it used', bn.topSill.indexOf('(p = 2.25 in, default)') >= 0, bn.topSill);
-check('column header reads "Uplift" (column 18 after the Method column)', bn.hdr.toUpperCase() === 'UPLIFT', bn.hdr);
+check('column header reads "Uplift" (column 19 after the Line and Method columns)', bn.hdr.toUpperCase() === 'UPLIFT', bn.hdr);
 check('conn-box UPLIFT line prints the computed plf, T_req at the base and the combined limit above it',
   /UPLIFT:[\s\S]*sill plate-washer bearing 3235\.8 plf[\s\S]*T\s*req\s*= 117 lb per bolt/.test(bn.connBox) && /UPLIFT:[\s\S]*552\.0 lb per fastener = 552\.0 plf[\s\S]*combined NDS §12\.4: v\s*max\s*≤ 328\.0 plf/.test(bn.connTop), bn.connBox + ' || ' + bn.connTop);
 
@@ -123,7 +123,7 @@ check('conn-box UPLIFT line prints the computed plf, T_req at the base and the c
 const cell = await page.evaluate(() => {
   const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
   const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(19)');
   const base = cellOf(3), roof = cellOf(0);
   const out = {
     baseSel: base.querySelector('select').value, baseInp: base.querySelector('input').value, baseUnit: base.innerText.trim(),
@@ -172,7 +172,7 @@ const oldFile = await page.evaluate(() => {
   delete m.floors[0].walls[0].method;
   a.setModel(m);
   const r = window.SW.compute(window.state);
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(19)');
   const out = {
     baseSrc: window.state.floors[3].walls[0].uplift.source, baseSel: cellOf(3).querySelector('select').value, baseInp: cellOf(3).querySelector('input').value,
     baseDc: byId(r.floors[3].walls[0], 'uplift').dc, baseCap: byId(r.floors[3].walls[0], 'uplift').capacityTxt, baseDemand: byId(r.floors[3].walls[0], 'uplift').demandTxt,
@@ -191,13 +191,13 @@ check('old file: {capacity_plf:null} loads as Auto, penetration blank (default 2
 // p 2.0 → the 96.0 / 86.7 worked numbers; 8d at the default is refused (< 6D).
 const nailUI = await page.evaluate(() => {
   const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
-  const sel = document.querySelectorAll('#floor-con .floor-blk')[0].querySelector('.wall-table tbody tr td:nth-child(14) select');
+  const sel = document.querySelectorAll('#floor-con .floor-blk')[0].querySelector('.wall-table tbody tr td:nth-child(15) select');
   sel.value = '16d'; sel.dispatchEvent(new Event('change'));
   const w = window.SW.compute(window.state).floors[0].walls[0];
   const out = { pen: window.state.floors[0].walls[0].uplift.penetration_in, spacing: window.state.floors[0].walls[0].sill.spacing_in, rows: w.checks.map((c) => c.id).join(','),
                 up: w.uplift.plf, upTxt: byId(w, 'uplift').capacityTxt, vAllow: w.combined.vAllow, Vconn: w.sill.Vconn, sillTxt: byId(w, 'sill').capacityTxt,
                 refTbl: document.querySelector('#upTbl tbody').innerText, sillRows: document.querySelectorAll('#sillTbl tbody tr').length, upRows: document.querySelectorAll('#upTbl tbody tr').length };
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(19)');
   const inp = cellOf(0).querySelector('input'); inp.value = '2.0'; inp.dispatchEvent(new Event('change'));
   const w2 = window.SW.compute(window.state).floors[0].walls[0];
   out.up2 = w2.uplift.plf; out.vAllow2 = w2.combined.vAllow; out.Vconn2 = w2.sill.Vconn;
@@ -228,7 +228,7 @@ check('uplift reference table rendered from NAILS / SILL_CONN (10 rows) at the a
 const segUI = await page.evaluate(() => {
   const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
   const rows = (w) => w.checks.map((c) => c.id).join(',');
-  const methodSel = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(3) select');
+  const methodSel = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(4) select');
   const cellAt = (fi, n) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(' + n + ')');
   const setAll = (v) => { for (let fi = 0; fi < 4; fi++) { const s = methodSel(fi); s.value = v; s.dispatchEvent(new Event('change')); } };
   const out = { sel0: methodSel(0).value };
@@ -242,19 +242,19 @@ const segUI = await page.evaluate(() => {
   out.segTxt = document.querySelector('#wres_3_0 .seg-tbl').innerText;
   out.banner = document.querySelector(bsel('#wres_3_0')).innerText; out.bannerCls = document.querySelector(bsel('#wres_3_0')).className;
   out.veff = base.gov.vmax; out.sumBeff = base.geom.sumBi; out.Co = base.geom.Co; out.T = base.gov.T;
-  out.openTitle = cellAt(3, 7).getAttribute('title') || ''; out.unshTitle = cellAt(3, 8).getAttribute('title') || ''; out.upTitle = cellAt(3, 18).getAttribute('title') || '';
-  out.openOpacity = getComputedStyle(cellAt(3, 7)).opacity;
+  out.openTitle = cellAt(3, 8).getAttribute('title') || ''; out.unshTitle = cellAt(3, 9).getAttribute('title') || ''; out.upTitle = cellAt(3, 19).getAttribute('title') || '';
+  out.openOpacity = getComputedStyle(cellAt(3, 8)).opacity;
   out.connUplift = document.querySelector('#wres_3_0 .conn-box').innerText;
   out.cards = document.querySelector('#wres_3_0 .dem-grid').innerText;
   out.detSheath = document.querySelector('#wres_3_0 .chk-tbl:nth-of-type(3) .calc-det').innerText.slice(0, 1500);
   out.uplift = base.uplift; out.combined = base.combined;
   // three segments on every level → three rows; 2b/h shows on the 4 ft one (h 10.5 → h/b 2.63)
-  for (let fi = 0; fi < 4; fi++) { const inp = cellAt(fi, 6).querySelector('input'); inp.value = '100, 68, 4'; inp.dispatchEvent(new Event('change')); }
+  for (let fi = 0; fi < 4; fi++) { const inp = cellAt(fi, 7).querySelector('input'); inp.value = '100, 68, 4'; inp.dispatchEvent(new Event('change')); }
   const r3 = window.SW.compute(window.state).floors[3].walls[0];
   out.seg3Rows = document.querySelectorAll('#wres_3_0 .seg-tbl tbody tr:not(.hl-row)').length; out.seg3f = r3.segments.map((s) => s.f.toFixed(3)).join('/');
   out.seg3Err = window.SW.validate(window.state).errors.join(' | ');
   // roof back to one segment → count mismatch names the copy-down button
-  const inp0 = cellAt(0, 6).querySelector('input'); inp0.value = '172'; inp0.dispatchEvent(new Event('change'));
+  const inp0 = cellAt(0, 7).querySelector('input'); inp0.value = '172'; inp0.dispatchEvent(new Event('change'));
   out.mismatch = document.getElementById('modelMsgs').innerText;
   // widths differ, same count → warning only
   inp0.value = '100, 60, 12'; inp0.dispatchEvent(new Event('change'));
@@ -538,6 +538,80 @@ const lfClear = await page.evaluate(() => {
 });
 check('clearing the cell returns the wall to the level force', lfClear.stored === null && Math.abs(lfClear.VB - 2783 / 0.6) < 1e-6, JSON.stringify(lfClear));
 await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); });
+
+// ── wall lines with several walls (Phase D): "+ line" clones the roof wall
+// onto its line (#2 id, -2 label, same line force), the chip shows the share,
+// geometry stays per wall, construction and the line force fan out, the floor
+// Σ counts each line once, and clearing the key splits the wall off ────────
+// Column numbers: 2 Line, 3 L, 5 P_W, 7 b_i, 8 openings, 10 Face 1, 16 Spacing.
+const ln = await page.evaluate(() => {
+  const blk = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi];
+  const wallRows = (fi) => [...blk(fi).querySelectorAll('.wall-table tbody tr')].filter((tr) => tr.querySelector('.line-chip'));
+  const chips = (fi) => wallRows(fi).map((tr) => tr.querySelector('.line-chip').innerText.trim());
+  const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change')); };
+  const cell = (fi, wi, n) => wallRows(fi)[wi].querySelector('td:nth-child(' + n + ')');
+  const errBoxes = () => document.querySelectorAll('#modelMsgs .err-box').length;
+  const out = {};
+  window.state.floors[0].walls[0].P_wind_lb = 4000; window.render();
+  out.btnTitle = wallRows(0)[0].querySelector('.btn-line').getAttribute('title');
+  wallRows(0)[0].querySelector('.btn-line').click();
+  const f0 = window.state.floors[0], r1 = window.SW.compute(window.state);
+  out.n = f0.walls.length; out.ids = f0.walls.map((w) => w.id).join(','); out.labels = f0.walls.map((w) => w.label).join(',');
+  out.lines = f0.walls.map((w) => w.line).join(','); out.P = f0.walls.map((w) => w.P_wind_lb).join(','); out.Pseis = f0.walls.map((w) => w.P_seis_lb).join(',');
+  out.rows = wallRows(0).length; out.chips = chips(0); out.lineCells = wallRows(0).map((tr) => tr.querySelector('td:nth-child(2) input').value).join(',');
+  out.eng = r1.floors[0].walls.map((w) => w.line); out.V = r1.floors[0].walls.map((w) => w.cases.wind.V);
+  out.sum = blk(0).querySelector('.lf-sum').innerText; out.err0 = errBoxes(); out.notes = r1.notes.filter((s) => s.indexOf('several walls') >= 0).length;
+  out.lowerWalls = window.state.floors.slice(1).map((f) => f.walls.length).join(',');
+  // geometry per wall: the clone gets L 151, one 86 ft segment, no openings -> cap 86 vs 0.6074 × 172 = 104.48
+  set(cell(0, 1, 3).querySelector('input'), '151'); set(cell(0, 1, 7).querySelector('input'), '86'); set(cell(0, 1, 8).querySelector('input'), '');
+  const r2 = window.SW.compute(window.state), s2 = r2.floors[0].walls.map((w) => w.line.share);
+  out.L = window.state.floors[0].walls.map((w) => w.L_ft).join(','); out.share2 = s2; out.chips2 = chips(0); out.vmax2 = r2.floors[0].walls.map((w) => w.cases.wind.vmax);
+  out.expChip = s2.map((s) => 'line w1 · 2 walls · share ' + (Math.round(s * 1000) / 10) + ' %');
+  out.banner0 = document.querySelector('#wres_0_0 .sum-pass, #wres_0_0 .sum-fail, #wres_0_0 .sum-req').innerText;
+  window.expandWall(0, 0); out.det0 = document.querySelector('#wres_0_0').innerText;
+  // construction fans out: face 1 on row 0 -> row 1; sill spacing on row 1 -> row 0
+  set(cell(0, 0, 10).querySelector('select'), 'wsp1532_10d_4');
+  set(cell(0, 1, 16).querySelector('select'), '8');
+  out.face = window.state.floors[0].walls.map((w) => w.sheathing.face1.nail + '@' + w.sheathing.face1.spacing).join(',');
+  out.spacing = window.state.floors[0].walls.map((w) => w.sill.spacing_in).join(','); out.Lafter = window.state.floors[0].walls.map((w) => w.L_ft).join(',');
+  out.lowerFace = window.state.floors[1].walls[0].sheathing.face1.nail;
+  // the line force fans out too (one force per line): P_W typed on row 1 -> row 0, no model error, Σ once
+  set(cell(0, 1, 5).querySelector('input'), '5000');
+  out.Pfan = window.state.floors[0].walls.map((w) => w.P_wind_lb).join(','); out.errFan = errBoxes(); out.sumFan = blk(0).querySelector('.lf-sum').innerText;
+  // clearing the clone's line key makes it its own line: no chips, full line force on each, Σ counts both
+  set(cell(0, 1, 2).querySelector('input'), '');
+  const r3 = window.SW.compute(window.state);
+  out.lineKeyGone = !('line' in window.state.floors[0].walls[1]); out.chips3 = chips(0); out.walls3 = r3.floors[0].walls.map((w) => w.line.walls).join(',');
+  out.V3 = r3.floors[0].walls.map((w) => w.cases.wind.V); out.sum3 = blk(0).querySelector('.lf-sum').innerText; out.err3 = errBoxes();
+  // "+ line" ids are unique per stack: the base takes #3 (#2 is on the roof), a third roof wall #4
+  wallRows(3)[0].querySelector('.btn-line').click();
+  out.baseIds = window.state.floors[3].walls.map((w) => w.id).join(','); out.baseSill = window.state.floors[3].walls[1].sill.conn;
+  wallRows(0)[0].querySelector('.btn-line').click();
+  out.roofIds = window.state.floors[0].walls.map((w) => w.id).join(',');
+  // "+ Wall Line" after a split is a NEW line, not another wall on w1's line
+  window.addWall(0);
+  const added = window.state.floors[0].walls[window.state.floors[0].walls.length - 1];
+  out.addedLine = 'line' in added; out.addedWalls = window.SW.compute(window.state).floors[0].walls.slice(-1)[0].line.walls;
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('"+ Wall Line" after a split starts its own line (no line key, walls 1)', ln.addedLine === false && ln.addedWalls === 1, JSON.stringify([ln.addedLine, ln.addedWalls]));
+check('+ line: a second wall on the roof line — id w1#2, label "Wall Line A-2", line w1 on both (cells show it), same P_W, P_E blank, lower levels untouched',
+  ln.n === 2 && ln.ids === 'w1,w1#2' && ln.labels === 'Wall Line A,Wall Line A-2' && ln.lines === 'w1,w1' && ln.lineCells === 'w1,w1' && ln.P === '4000,4000' && ln.Pseis === ',' && ln.rows === 2 && ln.lowerWalls === '1,1,1' && /Wall on this line/.test(ln.btnTitle), JSON.stringify(ln));
+check('+ line: chip "line w1 · 2 walls · share 50 %" on both rows; engine line {w1, 2, 0.5}; V = 0.6 × 4,000 × 0.5 = 1,200 lb each; note printed, no error',
+  ln.chips.join('|') === 'line w1 · 2 walls · share 50 %|line w1 · 2 walls · share 50 %' && ln.eng.every((l) => l.key === 'w1' && l.walls === 2 && Math.abs(l.share - 0.5) < 1e-9) && ln.V.every((v) => Math.abs(v - 1200) < 1e-6) && ln.notes === 1 && ln.err0 === 0, JSON.stringify([ln.chips, ln.eng, ln.V, ln.notes, ln.err0]));
+check('+ line: floor Σ counts the line once — "Σ wall lines = 4,000 lb (level 4,638 lb)"', ln.sum.indexOf('Σ wall lines = 4,000 lb (level 4,638 lb)') >= 0, ln.sum);
+check('geometry per wall: clone L 151 / 86 ft opening-free, base wall stays 302; shares 104.48 : 86 (0.549 / 0.451), chips follow, equal v_max',
+  ln.L === '302,151' && Math.abs(ln.share2[0] - 104.4809 / 190.4809) < 1e-4 && Math.abs(ln.share2[1] - 86 / 190.4809) < 1e-4 && ln.chips2.join('|') === ln.expChip.join('|') && Math.abs(ln.vmax2[0] - ln.vmax2[1]) < 1e-9, JSON.stringify([ln.L, ln.share2, ln.chips2, ln.vmax2]));
+check('banner names the line share; hold-down detail prints P_line × share = P',
+  /line w1: share 0\.549 = 104\.4\d \/ 190\.4\d ft of 2 walls/.test(ln.banner0) && /P\s*line\s*= 4,000 lb \(strength\) × share 0\.549 = P = 2,194 lb/.test(ln.det0), ln.banner0 + ' || ' + ln.det0.slice(0, 1500));
+check('construction fans out along the line (face 1 row 0 → row 1; sill spacing row 1 → row 0), not down the stack, L untouched',
+  ln.face === '10d common@4,10d common@4' && ln.spacing === '8,8' && ln.Lafter === '302,151' && ln.lowerFace === '8d common', JSON.stringify([ln.face, ln.spacing, ln.Lafter, ln.lowerFace]));
+check('line force fans out (P_W 5,000 typed on row 1 reaches row 0), no model error, Σ once = 5,000', ln.Pfan === '5000,5000' && ln.errFan === 0 && ln.sumFan.indexOf('Σ wall lines = 5,000 lb') >= 0, JSON.stringify([ln.Pfan, ln.errFan, ln.sumFan]));
+check('clearing the clone\'s Line key: key removed, no chips, each wall its own line at V = 0.6 × 5,000 = 3,000 lb, Σ = 10,000 lb, no error',
+  ln.lineKeyGone && ln.chips3.join('|') === '|' && ln.walls3 === '1,1' && ln.V3.every((v) => Math.abs(v - 3000) < 1e-6) && ln.sum3.indexOf('Σ wall lines = 10,000 lb') >= 0 && ln.err3 === 0, JSON.stringify([ln.lineKeyGone, ln.chips3, ln.walls3, ln.V3, ln.sum3, ln.err3]));
+check('+ line ids are unique per stack: the base gets w1#3 (w1#2 is on the roof) with the base sill; a third roof wall gets w1#4',
+  ln.baseIds === 'w1,w1#3' && ln.baseSill === 'ab58' && ln.roofIds === 'w1,w1#4,w1#2', JSON.stringify([ln.baseIds, ln.baseSill, ln.roofIds]));
 
 // ── AREv2 adapter: `lateral` provenance survives getModel → setModel ────────
 const lat = await page.evaluate(() => {
