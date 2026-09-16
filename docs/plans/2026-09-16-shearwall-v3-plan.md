@@ -120,7 +120,7 @@ Model (`wall.uplift`):
 ```
 { source: 'sill' | 'manual',      // default 'sill'
   penetration_in: number|null,    // nails / SDS, into the receiving member
-  T_allow_lb: number|null,        // anchor bolts, per bolt
+  washer_in: number|null,         // anchor bolts: plate-washer side, in (LOCKED item 4 replaced T_allow_lb)
   capacity_plf: number|null,      // manual only (kept for old files)
   label: string }                 // manual only
 ```
@@ -162,7 +162,7 @@ Engine touch-points: `validate` `:374-438` (branch on method); `computeWall` `:5
 Page-only. Button in the floor header (`:604-612`, not on the base floor): `⇩ Copy walls to levels below`. `copyWallsDown(fi)`:
 - for every wall `w` on floor `fi`, for every floor `f > fi`: find the wall with `w.id`; if missing, create it with `newWallFrom(w, w.id)` (which already blanks `dead`, `transfer`, `P_*`) and push it.
 - copy: `L_ft, segments_ft, openings, unsheathed_ft2, method, line, sheathing, endPost, holdown, sillSpecies, uplift` (deep-cloned) and `label`.
-- **sill rule:** `sill` is copied only to non-base floors; on the base floor the existing `sill` is kept (or `{conn:'ab58', spacing_in:20}` if the wall was just created), `holdown` forced `'hdue'`, and `uplift` copied with `penetration_in` dropped and `T_allow_lb` kept blank (anchor-bolt form). Never copies an above-base connector onto the foundation (`validate` `:428-429` would refuse it anyway).
+- **sill rule:** `sill` is copied only to non-base floors; on the base floor the existing `sill` is kept (or `{conn:'ab58', spacing_in:20}` if the wall was just created), `holdown` forced `'hdue'`, and `uplift` copied with `penetration_in` reset to the target floor's default via `SW.penetrationDefault(sc, isBase)` (i.e. cleared to `null`, which the engine reads as that floor's default — no subfloor at the base) and `washer_in` kept (anchor-bolt form). Never copies an above-base connector onto the foundation (`validate` `:428-429` would refuse it anyway).
 - leave alone on every lower floor: `h_ft` (floor), `P_wind_lb`, `P_seis_lb`, `dead`, `transfer`, `dir`, `loc_ft`, `sign`.
 - No `confirm()` (harness dismisses dialogs `:28`). Message in `#modelMsgs`: "Copied N walls from <level> to M walls on K levels below (X created). [Undo]" — `Undo` restores a `JSON` snapshot of `state.floors` taken before the copy (one step, in memory, cleared on the next render-changing action). `wCnt` bumped for created walls.
 
@@ -195,11 +195,11 @@ Wall, after (new keys marked; every one is optional and defaulted by `SW.normali
   "line": "X@15",                                          // NEW (D)  group key; absent = own line (= id)
   "sill": {"conn": "sds14", "spacing_in": 12, "sheathing": "none"},   // unchanged; 'conn' may now be 10d/8d/16dbox/10dbox/8dbox (A/B)
   "uplift": { "source": "sill",                            // NEW (B)  'sill' | 'manual'
-              "penetration_in": 3.0,                       // NEW (B)  nails / SDS
-              "T_allow_lb": null,                          // NEW (B)  anchor bolts
+              "penetration_in": null,                      // NEW (B)  nails / SDS; null = the printed default (L − 1½" − ¾" subfloor above the base, L − 1½" at the base)
+              "washer_in": 3,                              // NEW (B)  anchor bolts: square plate-washer side, in (SDPWS §4.3.6.4.3 minimum 3)
               "capacity_plf": null, "label": "" } }        // kept — manual override
 ```
-Old file → normalized: `uplift:{capacity_plf:500,label:'x'}` → `{source:'manual', capacity_plf:500, label:'x', penetration_in:null, T_allow_lb:null}`; `uplift:{capacity_plf:null}` → `{source:'sill', penetration_in:null, …}` (row shows "specify penetration"). `method` absent → `'perforated'`; `line` absent → own line.
+Old file → normalized: `uplift:{capacity_plf:500,label:'x'}` → `{source:'manual', capacity_plf:500, label:'x', penetration_in:null, washer_in:3}`; `uplift:{capacity_plf:null}` → `{source:'sill', penetration_in:null, washer_in:3, …}` (computes at the printed default — "default … verify"). `method` absent → `'perforated'`; `line` absent → own line.
 
 Floor and top-level: **no change**. `allowedKeys ['version','floors','wCnt','lateral']` `:1257` untouched (all new keys sit under `floors[].walls[]`, depth > 0). Adapter `version: 2` untouched. `maxStringLength 120` / `stringPattern` satisfied by every new string value. Headers calc and diaphragm: no model change (F is browser-local `localStorage` only, never in the saved file).
 
@@ -290,3 +290,14 @@ Resolved without asking: the 2b/h factor is the same text in SDPWS 2015 and 2021
 6. **Segmented stacking:** same segment count on every floor the wall exists; widths may differ (warning); otherwise an error naming the copy-down button.
 
 Implementation order stays F → A → B → C → D → E. Each phase: implementer subagent, then a Fable spec-compliance review and a Fable code-quality review before the next phase starts; nothing pushed until Nick says deploy.
+
+---
+
+## Phase B as-built (2026-09-16, commits 162af17 + follow-up)
+
+Deviations from Decision B, all confirmed at review:
+- **SDS head pull-through cap.** C-C-2026 p. 377 note 5 caps withdrawal through a wood side plate at 345 lb DF/SP / 240 lb SPF/HF (C_D 1.0; W_H takes C_D per NDS Table 11.3.1). Applied by SILL species, so SDS ¼×4½ on a DF/SP plate is 552.0 lb (not 756.8) and the combined row gives Z'_45 = 463.9 lb → v_max ≤ 328.0 plf @ 12 in. Note 4 of the same page uses 172 / 121 lb/in, agreeing with NDS Table 12.2B; the catalog has no separate SP column, so SP reads 208 from the NDS as LOCKED item 2 directs. The 250 / 190 lb sole-to-rim shear values were not located in C-C-2026 (p. 377 gives 350 / 250 lb for a 1½ in wood side plate at C_D 1.0); the basis now cites the September 2026 QAQC appendix C §6.
+- **Penetration default with a subfloor.** Above the base `p = L − 1½" − ¾"`; at the base `p = L − 1½"` (`SW.penetrationDefault(sc, isBase)`). `penetration_in: null` means "use the default"; the row prints "p = … in (default: … — verify)" or "(entered)". The same p drives Table 12N fn. 3 (Z × p/10D under 10D) on the nail shear row, which prints p. Consequences at the defaults: 16d common above the base 80 lb / 60.0 plf @ 16 with shear 174.4 lb; 8d / 10d common and box, and 8d box, fall under 6D and are refused until a penetration is entered. A nail through plate + subfloor into the rim is disclosed as not the two-member Table 12N case.
+- **6D gates.** Nails NDS §12.1.6.4; wood screws §12.1.5.6 (SDS 6D = 1.452 in). SDS under full thread gets a sill note (C-C-2026 p. 377 note 2).
+- **Anchor bolts.** No `T_allow_lb`; `washer_in` (default 3) and the sill plate-washer bearing row F_c⊥ × A_net (round hole D + 1/16; slotted washer ≈ 10 % less; C_b not applied); T_req = t × s/12 per bolt is printed under either uplift source.
+- Check rows are selected by id everywhere (`uplift`, `combined`); Phase C removes them on segmented walls.

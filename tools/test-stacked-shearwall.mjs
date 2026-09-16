@@ -90,15 +90,18 @@ check('banner shows C_o and v_max', /C.*o.*=.*0\.6703/.test(ui.banner) && ui.ban
 
 // ── uplift is automatic: the default model passes every row, the base wall on
 // plate-washer bearing, the upper walls on SDS withdrawal + the §12.4 row ──
+// Check rows are always selected by id (Phase C removes rows on segmented walls).
 const bn = await page.evaluate(() => {
   const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
+  const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
   const r = window.SW.compute(window.state), base = r.floors[3].walls[0], top = r.floors[0].walls[0];
   const el = document.querySelector(bsel('#wres_3_0'));
   const rows = (w) => w.checks.map((c) => c.id).join(',');
   const cellTxt = document.querySelectorAll('#floor-con .wall-table thead th')[16].innerText.trim();
   return { txt: el.innerText, cls: el.className, paneCls: document.querySelector('#wres_3_0').className,
-           baseRows: rows(base), topRows: rows(top), baseLabel: base.checks[2].label, baseDemand: base.checks[2].demandTxt,
-           topCap: top.checks[2].capacityTxt, topCombined: top.checks[3].capacityTxt, anyReq: r.floors.some((f) => f.walls[0].checks.some((c) => c.pass === null)),
+           baseRows: rows(base), topRows: rows(top), baseLabel: byId(base, 'uplift').label, baseDemand: byId(base, 'uplift').demandTxt,
+           topCap: byId(top, 'uplift').capacityTxt, topCombined: byId(top, 'combined').capacityTxt, topSill: byId(top, 'sill').capacityTxt,
+           anyReq: r.floors.some((f) => f.walls[0].checks.some((c) => c.pass === null)),
            hdr: cellTxt, connBox: document.querySelector('#wres_3_0 .conn-box').innerText, connTop: document.querySelector('#wres_0_0 .conn-box').innerText };
 });
 check('banner: default model passes every check (uplift now computed, nothing to "specify")', /All checks PASS/.test(bn.txt) && bn.cls === 'sum-pass' && /pass-bg/.test(bn.paneCls) && !bn.anyReq, JSON.stringify(bn));
@@ -106,54 +109,63 @@ check('base wall rows: sheathing, holdown, uplift (washer bearing), sill, endpos
   bn.baseRows === 'sheathing,holdown,uplift,sill,endpost' && bn.baseLabel === 'Sill plate washer bearing (uplift)', bn.baseRows + ' / ' + bn.baseLabel);
 check('base wall demand line reports T_req for the anchor rod / concrete', /verify anchor rod \/ concrete for T_req = 117\.1 lb per bolt/.test(bn.baseDemand), bn.baseDemand);
 check('upper wall rows include the combined §12.4 row after uplift', bn.topRows === 'sheathing,holdown,uplift,combined,sill,endpost', bn.topRows);
-check('upper wall uplift = SDS head pull-through 552.0 lb / 552.0 plf; combined Z\'_α 463.9 lb, v_max ≤ 328.0 plf',
-  bn.topCap.indexOf('head pull-through 552.0 lb per screw — 552.0 plf') >= 0 && bn.topCombined.indexOf("Z'_α = 463.9 lb") >= 0 && bn.topCombined.indexOf('328.0 plf') >= 0, bn.topCap + ' | ' + bn.topCombined);
+check('upper wall uplift: default p = 2.25 in printed as "default … verify"; SDS head pull-through 552.0 lb / 552.0 plf; combined Z\'_α 463.9 lb, v_max ≤ 328.0 plf',
+  bn.topCap.indexOf('p = 2.25 in (default: 4½" screw − 1½" plate − ¾" subfloor — verify)') >= 0 && bn.topCap.indexOf('head pull-through 552.0 lb per screw — 552.0 plf') >= 0 && bn.topCombined.indexOf("Z'_α = 463.9 lb") >= 0 && bn.topCombined.indexOf('328.0 plf') >= 0, bn.topCap + ' | ' + bn.topCombined);
+check('upper wall sill row prints the penetration it used', bn.topSill.indexOf('(p = 2.25 in, default)') >= 0, bn.topSill);
 check('column header reads "Uplift" (22 columns kept)', bn.hdr.toUpperCase() === 'UPLIFT', bn.hdr);
 check('conn-box UPLIFT line prints the computed plf, T_req at the base and the combined limit above it',
   /UPLIFT:[\s\S]*sill plate-washer bearing 3235\.8 plf[\s\S]*T\s*req\s*= 117 lb per bolt/.test(bn.connBox) && /UPLIFT:[\s\S]*552\.0 lb per fastener = 552\.0 plf[\s\S]*combined NDS §12\.4: v\s*max\s*≤ 328\.0 plf/.test(bn.connTop), bn.connBox + ' || ' + bn.connTop);
 
-// Uplift cell UI: select (Auto / Manual) + one input whose label follows the sill
-// connector. Base row (anchor bolt) shows the washer side; the roof row (SDS)
-// shows the default penetration 3.0; typing a penetration changes the row.
+// Uplift cell UI: select (Auto / Manual) + the connector's inputs. Base row
+// (anchor bolt) shows the washer side; the roof row (SDS) shows the penetration
+// field blank with the default as its placeholder; typing a value changes the
+// row; blanking it returns to the default (no "specify").
 const cell = await page.evaluate(() => {
   const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
+  const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
   const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
   const base = cellOf(3), roof = cellOf(0);
   const out = {
     baseSel: base.querySelector('select').value, baseInp: base.querySelector('input').value, baseUnit: base.innerText.trim(),
-    roofSel: roof.querySelector('select').value, roofInp: roof.querySelector('input').value, roofUnit: roof.innerText.trim(),
+    roofSel: roof.querySelector('select').value, roofInp: roof.querySelector('input').value, roofPh: roof.querySelector('input').placeholder, roofUnit: roof.innerText.trim(),
     roofTitle: roof.querySelector('input').title
   };
-  // type a 2.0" penetration on the roof wall (¾" subfloor under the plate) → p_thread 2.0 → 172 × 2.0 × 1.6 = 550.4 lb < 552 cap
+  // type a 2.0" penetration on the roof wall → p_thread 2.0 → 172 × 2.0 × 1.6 = 550.4 lb < 552 cap
   const inp = roof.querySelector('input'); inp.value = '2.0'; inp.dispatchEvent(new Event('change'));
   const r1 = window.SW.compute(window.state).floors[0].walls[0];
-  out.pen = window.state.floors[0].walls[0].uplift.penetration_in; out.cap2 = r1.checks[2].capacityTxt; out.plf2 = r1.uplift.plf;
-  // blank it → "specify" banner on that wall only
+  out.pen = window.state.floors[0].walls[0].uplift.penetration_in; out.cap2 = byId(r1, 'uplift').capacityTxt; out.plf2 = r1.uplift.plf;
+  // blank it → back to the default, still PASS
   const inp2 = cellOf(0).querySelector('input'); inp2.value = ''; inp2.dispatchEvent(new Event('change'));
   const el = document.querySelector(bsel('#wres_0_0'));
   out.blankTxt = el.innerText; out.blankCls = el.className; out.blankPen = window.state.floors[0].walls[0].uplift.penetration_in;
-  out.baseStill = document.querySelector(bsel('#wres_3_0')).className;
-  // Manual source on the base wall → plf input; blank → specify; 500 → PASS
+  out.blankCap = byId(window.SW.compute(window.state).floors[0].walls[0], 'uplift').capacityTxt;
+  // Manual source on the base wall → plf input (washer field hidden); blank → specify; 500 → PASS, T_req still printed
   const sel = cellOf(3).querySelector('select'); sel.value = 'manual'; sel.dispatchEvent(new Event('change'));
-  out.manualInp = cellOf(3).querySelector('input').placeholder; out.manualUnit = cellOf(3).innerText.trim();
+  out.manualInp = cellOf(3).querySelector('input').placeholder; out.manualUnit = cellOf(3).innerText.trim(); out.manualInputs = cellOf(3).querySelectorAll('input').length;
   out.manualBlank = document.querySelector(bsel('#wres_3_0')).innerText;
   const mi = cellOf(3).querySelector('input'); mi.value = '500'; mi.dispatchEvent(new Event('change'));
-  out.manual500 = document.querySelector(bsel('#wres_3_0')).innerText; out.manualRow = window.SW.compute(window.state).floors[3].walls[0].checks[2].capacityTxt;
+  const rm = byId(window.SW.compute(window.state).floors[3].walls[0], 'uplift');
+  out.manual500 = document.querySelector(bsel('#wres_3_0')).innerText; out.manualRow = rm.capacityTxt; out.manualDemand = rm.demandTxt;
+  // Manual on a roof SDS wall keeps the penetration field (it drives the shear row)
+  const rs = cellOf(0).querySelector('select'); rs.value = 'manual'; rs.dispatchEvent(new Event('change'));
+  out.roofManualInputs = cellOf(0).querySelectorAll('input').length; out.roofManualUnit = cellOf(0).innerText.trim();
   // restore
   window.state = window.SW.defaultState(); window.render();
   return out;
 });
-check('uplift cell: base row = Auto + washer side 3 ("washer in"); roof row = Auto + default penetration 3 ("p in")',
-  cell.baseSel === 'sill' && cell.baseInp === '3' && /washer in/.test(cell.baseUnit) && cell.roofSel === 'sill' && cell.roofInp === '3' && /p in/.test(cell.roofUnit), JSON.stringify(cell));
-check('uplift cell: penetration hint says to subtract the subfloor', /subtract the subfloor/.test(cell.roofTitle), cell.roofTitle);
-check('uplift cell: typing p = 2.0 recomputes (172 × 2.0 × 1.6 = 550.4 lb, 550.4 plf)', cell.pen === 2 && Math.abs(cell.plf2 - 550.4) < 0.05 && cell.cap2.indexOf('550.4 lb per screw') >= 0, JSON.stringify([cell.pen, cell.plf2, cell.cap2]));
-check('uplift cell: blank penetration → amber "Specify: … uplift" on that wall only', cell.blankPen === null && /Specify:.*uplift/i.test(cell.blankTxt) && cell.blankCls === 'sum-req' && /sum-pass/.test(cell.baseStill), JSON.stringify([cell.blankTxt, cell.blankCls, cell.baseStill]));
-check('uplift cell: Manual source shows a plf input; blank → "Specify", 500 plf → "All checks PASS"',
-  cell.manualInp === 'plf' && /plf/.test(cell.manualUnit) && /Specify:.*uplift/i.test(cell.manualBlank) && /All checks PASS/.test(cell.manual500) && cell.manualRow.indexOf('manual — 500.0 plf') >= 0, JSON.stringify([cell.manualInp, cell.manualBlank, cell.manual500, cell.manualRow]));
+check('uplift cell: base row = Auto + washer side 3 ("washer in"); roof row = Auto + blank penetration with "2.25 dflt" placeholder ("p in")',
+  cell.baseSel === 'sill' && cell.baseInp === '3' && /washer in/.test(cell.baseUnit) && cell.roofSel === 'sill' && cell.roofInp === '' && cell.roofPh === '2.25 dflt' && /p in/.test(cell.roofUnit), JSON.stringify(cell));
+check('uplift cell: penetration hint names the default and the subfloor', /default: 4½" screw − 1½" plate − ¾" subfloor/.test(cell.roofTitle) && /subfloor thickness/.test(cell.roofTitle), cell.roofTitle);
+check('uplift cell: typing p = 2.0 recomputes as "entered" (172 × 2.0 × 1.6 = 550.4 lb, 550.4 plf)', cell.pen === 2 && Math.abs(cell.plf2 - 550.4) < 0.05 && cell.cap2.indexOf('p = 2.00 in (entered)') >= 0 && cell.cap2.indexOf('550.4 lb per screw') >= 0, JSON.stringify([cell.pen, cell.plf2, cell.cap2]));
+check('uplift cell: blanking the penetration returns to the default — still "All checks PASS", row says "default … verify"', cell.blankPen === null && /All checks PASS/.test(cell.blankTxt) && cell.blankCls === 'sum-pass' && cell.blankCap.indexOf('default: 4½" screw − 1½" plate − ¾" subfloor — verify') >= 0, JSON.stringify([cell.blankTxt, cell.blankCls, cell.blankCap]));
+check('uplift cell: Manual on the base wall shows one plf input; blank → "Specify", 500 plf → "All checks PASS" with T_req still reported',
+  cell.manualInp === 'plf' && cell.manualInputs === 1 && /plf/.test(cell.manualUnit) && /Specify:.*uplift/i.test(cell.manualBlank) && /All checks PASS/.test(cell.manual500) && cell.manualRow.indexOf('manual — 500.0 plf') >= 0 && /verify anchor rod \/ concrete for T_req = 117\.1 lb per bolt/.test(cell.manualDemand), JSON.stringify([cell.manualInp, cell.manualInputs, cell.manualBlank, cell.manual500, cell.manualRow, cell.manualDemand]));
+check('uplift cell: Manual on an SDS wall keeps the penetration input beside the plf input', cell.roofManualInputs === 2 && /p in/.test(cell.roofManualUnit) && /plf/.test(cell.roofManualUnit), JSON.stringify([cell.roofManualInputs, cell.roofManualUnit]));
 
 // Old-file compatibility: a typed capacity_plf loads as Manual with the same D/C;
-// a null one loads as Auto with the default penetration filled in.
+// a null one loads as Auto computing at the printed default.
 const oldFile = await page.evaluate(() => {
+  const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
   const a = window.__SW_ADAPTER, m = a.getModel();
   m.floors[3].walls[0].uplift = { capacity_plf: 500, label: 'x' };
   m.floors[0].walls[0].uplift = { capacity_plf: null, label: '' };
@@ -163,39 +175,52 @@ const oldFile = await page.evaluate(() => {
   const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
   const out = {
     baseSrc: window.state.floors[3].walls[0].uplift.source, baseSel: cellOf(3).querySelector('select').value, baseInp: cellOf(3).querySelector('input').value,
-    baseDc: r.floors[3].walls[0].checks[2].dc, baseCap: r.floors[3].walls[0].checks[2].capacityTxt,
-    roofSrc: window.state.floors[0].walls[0].uplift.source, roofPen: window.state.floors[0].walls[0].uplift.penetration_in, roofInp: cellOf(0).querySelector('input').value,
-    roofPass: r.floors[0].walls[0].checks[2].pass, method: window.state.floors[0].walls[0].method
+    baseDc: byId(r.floors[3].walls[0], 'uplift').dc, baseCap: byId(r.floors[3].walls[0], 'uplift').capacityTxt, baseDemand: byId(r.floors[3].walls[0], 'uplift').demandTxt,
+    roofSrc: window.state.floors[0].walls[0].uplift.source, roofPen: window.state.floors[0].walls[0].uplift.penetration_in, roofPh: cellOf(0).querySelector('input').placeholder,
+    roofPass: byId(r.floors[0].walls[0], 'uplift').pass, roofCap: byId(r.floors[0].walls[0], 'uplift').capacityTxt, method: window.state.floors[0].walls[0].method
   };
   window.state = window.SW.defaultState(); window.render();
   return out;
 });
-check('old file: {capacity_plf:500,label:x} loads as Manual 500 plf, D/C = 70.29/500 = 0.141',
-  oldFile.baseSrc === 'manual' && oldFile.baseSel === 'manual' && oldFile.baseInp === '500' && Math.abs(oldFile.baseDc - 0.1406) < 0.0005 && oldFile.baseCap.indexOf('x — 500.0 plf') >= 0, JSON.stringify(oldFile));
-check('old file: {capacity_plf:null} loads as Auto with penetration 3 filled in, computes, method perforated',
-  oldFile.roofSrc === 'sill' && oldFile.roofPen === 3 && oldFile.roofInp === '3' && oldFile.roofPass === true && oldFile.method === 'perforated', JSON.stringify(oldFile));
+check('old file: {capacity_plf:500,label:x} loads as Manual 500 plf, D/C = 70.29/500 = 0.141, T_req still reported',
+  oldFile.baseSrc === 'manual' && oldFile.baseSel === 'manual' && oldFile.baseInp === '500' && Math.abs(oldFile.baseDc - 0.1406) < 0.0005 && oldFile.baseCap.indexOf('x — 500.0 plf') >= 0 && /T_req = 117\.1 lb per bolt/.test(oldFile.baseDemand), JSON.stringify(oldFile));
+check('old file: {capacity_plf:null} loads as Auto, penetration blank (default 2.25 placeholder), computes with "default … verify", method perforated',
+  oldFile.roofSrc === 'sill' && oldFile.roofPen === null && oldFile.roofPh === '2.25 dflt' && oldFile.roofPass === true && oldFile.roofCap.indexOf('verify') >= 0 && oldFile.method === 'perforated', JSON.stringify(oldFile));
 
-// 16d nail wall: the combined row appears and governs; 8d shows the p/10D shear reduction.
+// 16d nail wall: default p 1.25 (subfloor) → 60 plf and the p/10D shear cut; typed
+// p 2.0 → the 96.0 / 86.7 worked numbers; 8d at the default is refused (< 6D).
 const nailUI = await page.evaluate(() => {
+  const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
   const sel = document.querySelectorAll('#floor-con .floor-blk')[0].querySelector('.wall-table tbody tr td:nth-child(13) select');
   sel.value = '16d'; sel.dispatchEvent(new Event('change'));
   const w = window.SW.compute(window.state).floors[0].walls[0];
-  const det = document.querySelector('#wres_0_0 .chk-tbl:nth-of-type(2) tbody').innerText;
   const out = { pen: window.state.floors[0].walls[0].uplift.penetration_in, spacing: window.state.floors[0].walls[0].sill.spacing_in, rows: w.checks.map((c) => c.id).join(','),
-                up: w.uplift.plf, vAllow: w.combined.vAllow, det: det.slice(0, 2000), refTbl: document.querySelector('#upTbl tbody').innerText, sillRows: document.querySelectorAll('#sillTbl tbody tr').length, upRows: document.querySelectorAll('#upTbl tbody tr').length };
+                up: w.uplift.plf, upTxt: byId(w, 'uplift').capacityTxt, vAllow: w.combined.vAllow, Vconn: w.sill.Vconn, sillTxt: byId(w, 'sill').capacityTxt,
+                refTbl: document.querySelector('#upTbl tbody').innerText, sillRows: document.querySelectorAll('#sillTbl tbody tr').length, upRows: document.querySelectorAll('#upTbl tbody tr').length };
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
+  const inp = cellOf(0).querySelector('input'); inp.value = '2.0'; inp.dispatchEvent(new Event('change'));
+  const w2 = window.SW.compute(window.state).floors[0].walls[0];
+  out.up2 = w2.uplift.plf; out.vAllow2 = w2.combined.vAllow; out.Vconn2 = w2.sill.Vconn;
+  out.det = document.querySelector('#wres_0_0 .chk-tbl:nth-of-type(2) tbody').innerText.slice(0, 2000);
   sel.value = '8d'; sel.dispatchEvent(new Event('change'));
+  out.pen8 = window.state.floors[0].walls[0].uplift.penetration_in;
+  out.err8 = window.SW.validate(window.state).errors.join(' | '); out.msg8 = document.getElementById('modelMsgs').innerText;
+  const inp8 = cellOf(0).querySelector('input'); inp8.value = '1.0'; inp8.dispatchEvent(new Event('change'));
   const w8 = window.SW.compute(window.state).floors[0].walls[0];
-  out.pen8 = window.state.floors[0].walls[0].uplift.penetration_in; out.Vconn8 = w8.sill.Vconn; out.pf8 = w8.sill.penFactor; out.up8 = w8.uplift.plf;
+  out.Vconn8 = w8.sill.Vconn; out.pf8 = w8.sill.penFactor; out.up8 = w8.uplift.plf;
   window.state = window.SW.defaultState(); window.render();
   return out;
 });
-check('16d sill: penetration resets to 2.0, spacing 16; rows gain the combined row; uplift 96.0 plf, combined v_max ≤ 86.7 plf',
-  nailUI.pen === 2 && nailUI.spacing === 16 && nailUI.rows === 'sheathing,holdown,uplift,combined,sill,endpost' && Math.abs(nailUI.up - 96) < 0.05 && Math.abs(nailUI.vAllow - 86.67) < 0.05, JSON.stringify([nailUI.pen, nailUI.spacing, nailUI.rows, nailUI.up, nailUI.vAllow]));
+check('16d sill: penetration cleared (default 1.25), spacing 16; rows gain the combined row; uplift 60.0 plf "default … verify"; shear 174.4 lb; combined v_max ≤ 58.2 plf',
+  nailUI.pen === null && nailUI.spacing === 16 && nailUI.rows === 'sheathing,holdown,uplift,combined,sill,endpost' && Math.abs(nailUI.up - 60) < 0.05 && nailUI.upTxt.indexOf('p = 1.25 in (default: 3½" nail − 1½" plate − ¾" subfloor — verify)') >= 0 && Math.abs(nailUI.Vconn - 174.38) < 0.05 && nailUI.sillTxt.indexOf('(p = 1.25 in, default, Z × 0.772)') >= 0 && Math.abs(nailUI.vAllow - 58.2) < 0.1,
+  JSON.stringify([nailUI.pen, nailUI.spacing, nailUI.rows, nailUI.up, nailUI.upTxt, nailUI.Vconn, nailUI.sillTxt, nailUI.vAllow]));
+check('16d typed p = 2.0: uplift 96.0 plf, shear 226 lb, combined v_max ≤ 86.7 plf', Math.abs(nailUI.up2 - 96) < 0.05 && Math.abs(nailUI.Vconn2 - 226) < 1e-6 && Math.abs(nailUI.vAllow2 - 86.67) < 0.05, JSON.stringify([nailUI.up2, nailUI.Vconn2, nailUI.vAllow2]));
 check('check table shows the combined row with Eq. 12.4-2 and the α = 45° resultant', /Combined shear \+ uplift/.test(nailUI.det) && /Eq\. 12\.4-2/.test(nailUI.det) && /α = 45°/.test(nailUI.det), nailUI.det.slice(0, 600));
-check('8d common: penetration 1.0, shear Z × p/10D = 155/1.31 = 118.3 lb, uplift 38.4 plf @ 16',
-  nailUI.pen8 === 1 && Math.abs(nailUI.Vconn8 - 118.32) < 0.05 && Math.abs(nailUI.pf8 - 1 / 1.31) < 1e-6 && Math.abs(nailUI.up8 - 38.4) < 0.05, JSON.stringify([nailUI.pen8, nailUI.Vconn8, nailUI.pf8, nailUI.up8]));
-check('uplift reference table rendered from NAILS / SILL_CONN (10 rows) with the Table 12.2C values and the washer bearing',
-  nailUI.upRows === 10 && nailUI.sillRows === 10 && ['128.0', '160.0', '83.2', '552.0', '384.0', '5393.0', '3667.2', '4875.3', 'not rated for uplift'].every((v) => nailUI.refTbl.indexOf(v) >= 0), nailUI.refTbl.slice(0, 500));
+check('8d common at the default (0.25" < 6D) is a model error naming §12.1.6.4, shown in the page messages', nailUI.pen8 === null && /p = 0\.25".*§12\.1\.6\.4/.test(nailUI.err8) && /§12\.1\.6\.4/.test(nailUI.msg8), nailUI.err8 + ' || ' + nailUI.msg8.slice(0, 300));
+check('8d common typed p = 1.0: shear Z × p/10D = 155/1.31 = 118.3 lb, uplift 38.4 plf @ 16',
+  Math.abs(nailUI.Vconn8 - 118.32) < 0.05 && Math.abs(nailUI.pf8 - 1 / 1.31) < 1e-6 && Math.abs(nailUI.up8 - 38.4) < 0.05, JSON.stringify([nailUI.Vconn8, nailUI.pf8, nailUI.up8]));
+check('uplift reference table rendered from NAILS / SILL_CONN (10 rows) at the above-base defaults, with the washer bearing',
+  nailUI.upRows === 10 && nailUI.sillRows === 10 && ['80.0', '100.0', '52.0', '552.0', '384.0', '5393.0', '3667.2', '4875.3', 'not rated for uplift', 'default is under 6D'].every((v) => nailUI.refTbl.indexOf(v) >= 0), nailUI.refTbl.slice(0, 500));
 
 // ── shared-toolbar Wide toggle: body.are-wide lifts the theme's 1280px cap ───
 // data-are-wide-default on the script tag → on by default; per-calc key.
