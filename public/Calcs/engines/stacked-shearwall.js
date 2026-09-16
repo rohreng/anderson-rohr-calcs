@@ -24,6 +24,12 @@
      Table 4.3.3 n.2  gypsum h/b may be 3.5:1 for wind design (2:1 otherwise)
      ASCE 7-16 §2.4.1 / §2.4.5   0.6W, 0.7E, 0.6D
      NDS 2018 §3.7.1  column stability, Table 12E (bolts to concrete), Table 12N (nails)
+     NDS 2018 §12.2.3.1 / Table 12.2C  nail withdrawal W (lb/in); §12.1.6.4 p_min = 6D
+     NDS 2018 §12.2.2 / Table 12.2B    wood-screw withdrawal (SDS as a No. 14, ESR-2236 §4.1.3)
+     NDS 2018 §12.4.1 / §12.4.2        combined lateral + withdrawal, Eq. 12.4-1 / 12.4-2
+     NDS 2018 Table 12N fn. 3          Z x p/10D where 6D <= p < 10D
+     NDS 2018 Table 2.3.2 / 11.3.1     C_D 1.6 on connections; no C_D on F_c-perp (Table 4.3.1)
+     NDS Supplement Tables 4A / 4B     F_c-perp for the sill plate-washer bearing check
 
    Inputs are STRENGTH-level level forces.  The engine applies 0.6W / 0.7E / 0.6D.
    ========================================================================== */
@@ -50,10 +56,13 @@
 
   // ── framing species ────────────────────────────────────────────────────────
   // G from NDS 2018 Table 12.3.3A; F_c / E_min from NDS Supplement Table 4A / 4B, No. 2.
+  // FcP = F_c⊥ (psi), same tables and grade — Supplement PDF p. 42 (DF-L, printed
+  // p. 34), p. 45 (SPF, printed p. 37), p. 48 (SP No. 2, 2"–4" wide, printed p. 40).
+  // No C_D on F_c⊥ (NDS Table 4.3.1; Table 2.3.2 fn. 1).
   var SPECIES = {
-    DFL: { id: 'DFL', label: 'Douglas Fir-Larch', G: 0.50, Emin: 580000, Fc: { '2x4': 1350, '2x6': 1350, '2x8': 1350, '2x10': 1350, '2x12': 1350, '4x4': 1350, '4x6': 1350, '4x8': 1350, '6x6': 1350 }, sizeFactor: true, table: 'NDS Table 4A (No. 2)' },
-    SP:  { id: 'SP',  label: 'Southern Pine',     G: 0.55, Emin: 580000, Fc: { '2x4': 1450, '2x6': 1400, '2x8': 1350, '2x10': 1300, '2x12': 1250, '4x4': 1450, '4x6': 1400, '4x8': 1350, '6x6': 1400 }, sizeFactor: false, table: 'NDS Table 4B (No. 2, size factors incorporated)' },
-    SPF: { id: 'SPF', label: 'Spruce-Pine-Fir',   G: 0.42, Emin: 510000, Fc: { '2x4': 1150, '2x6': 1150, '2x8': 1150, '2x10': 1150, '2x12': 1150, '4x4': 1150, '4x6': 1150, '4x8': 1150, '6x6': 1150 }, sizeFactor: true, table: 'NDS Table 4A (No. 2)' }
+    DFL: { id: 'DFL', label: 'Douglas Fir-Larch', G: 0.50, Emin: 580000, FcP: 625, Fc: { '2x4': 1350, '2x6': 1350, '2x8': 1350, '2x10': 1350, '2x12': 1350, '4x4': 1350, '4x6': 1350, '4x8': 1350, '6x6': 1350 }, sizeFactor: true, table: 'NDS Table 4A (No. 2)' },
+    SP:  { id: 'SP',  label: 'Southern Pine',     G: 0.55, Emin: 580000, FcP: 565, Fc: { '2x4': 1450, '2x6': 1400, '2x8': 1350, '2x10': 1300, '2x12': 1250, '4x4': 1450, '4x6': 1400, '4x8': 1350, '6x6': 1400 }, sizeFactor: false, table: 'NDS Table 4B (No. 2, size factors incorporated)' },
+    SPF: { id: 'SPF', label: 'Spruce-Pine-Fir',   G: 0.42, Emin: 510000, FcP: 425, Fc: { '2x4': 1150, '2x6': 1150, '2x8': 1150, '2x10': 1150, '2x12': 1150, '4x4': 1150, '4x6': 1150, '4x8': 1150, '6x6': 1150 }, sizeFactor: true, table: 'NDS Table 4A (No. 2)' }
   };
   // NDS Supplement Table 4A size factor C_F for F_c (dimension lumber, 2" thick).
   var CF_FC = { '2x4': 1.15, '2x6': 1.10, '2x8': 1.05, '2x10': 1.00, '2x12': 0.90 };
@@ -158,33 +167,236 @@
   ];
   var STRAP_MIN_G = 0.50;   // ESR-2105: minimum member specific gravity 0.50
 
+  // ── nails, NDS 2018 Table L4 (PDF p. 196) ──────────────────────────────────
+  // D × L from Table L4. W = reference withdrawal, lb per inch of penetration,
+  // Table 12.2C (PDF p. 93, printed p. 79) at the G of the RECEIVING member,
+  // keyed by species id (SP G 0.55 / DFL 0.50 / SPF 0.42). Z = reference lateral
+  // value, Table 12N (PDF p. 125, printed p. 111), t_s = 1½" side member, both
+  // members of the same G; the 8d rows at t_s = 1½" carry Table 12N fn. 4 (the
+  // nail is too short for 10D), so fn. 3's p/10D factor is applied in computeWall.
+  var NAILS = {
+    '16d':    { id: '16d',    label: '16d common nails', D: 0.162, L: 3.5, W: { SP: 50, DFL: 40, SPF: 26 }, Z: { SP: 154, DFL: 141, SPF: 120 } },
+    '10d':    { id: '10d',    label: '10d common nails', D: 0.148, L: 3.0, W: { SP: 46, DFL: 36, SPF: 23 }, Z: { SP: 128, DFL: 118, SPF: 100 } },
+    '8d':     { id: '8d',     label: '8d common nails',  D: 0.131, L: 2.5, W: { SP: 41, DFL: 32, SPF: 21 }, Z: { SP: 106, DFL: 97,  SPF: 82 } },
+    '16dbox': { id: '16dbox', label: '16d box nails',    D: 0.135, L: 3.5, W: { SP: 42, DFL: 33, SPF: 21 }, Z: { SP: 113, DFL: 103, SPF: 88 } },
+    '10dbox': { id: '10dbox', label: '10d box nails',    D: 0.128, L: 3.0, W: { SP: 40, DFL: 31, SPF: 20 }, Z: { SP: 101, DFL: 93,  SPF: 79 } },
+    '8dbox':  { id: '8dbox',  label: '8d box nails',     D: 0.113, L: 2.5, W: { SP: 35, DFL: 28, SPF: 18 }, Z: { SP: 79,  DFL: 72,  SPF: 61 } }
+  };
+  var PLATE_THK = 1.5;          // the bottom plate the fastener passes through, in
+  var CD_CONN = 1.6;            // NDS Table 2.3.2, wind / earthquake; fn. 2 caps connections at 1.6
+  // Default penetration into the receiving member: fastener length less the plate.
+  // The page hint says to subtract the subfloor thickness where the plate sits on one.
+  function nailPenetrationDefault(nl) { return nl.L - PLATE_THK; }
+
   // ── sill / bottom-plate shear connectors, per connector at C_D = 1.6 ───────
   // `bySillSpecies` is keyed by the SILL species, except rows flagged `minG`
-  // (`16d`, `sds14`), which the engine reads at the LOWER-G of sill and framing
+  // (nails, `sds14`), which the engine reads at the LOWER-G of sill and framing
   // species — `minGWhy` says why; computeWall prints which governed.
+  // Nail rows are built from NAILS: Z × 1.6, rounded to the lb (the 16d row keeps
+  // its 226 / 246 / 192). Every row also carries what the uplift check needs:
+  // `nail` (NAILS key), `screw` (thread / pull-through data) or `D` (bolt dia.).
+  function nailRow(key) {
+    var nl = NAILS[key], v = {};
+    Object.keys(nl.Z).forEach(function (sp) { v[sp] = Math.round(nl.Z[sp] * CD_CONN); });
+    return {
+      id: key, label: nl.label, defaultSpacing: 16, base: false, nail: key,
+      minG: true, minGWhy: 'NDS Table 12N is for both members of identical specific gravity',
+      bySillSpecies: v,
+      basis: 'NDS 2018 Table 12N, ' + nl.label.replace(' nails', '') + ' (D = ' + f3(nl.D) + '", L = ' + nl.L + '", Table L4), t_s = 1½": Z = '
+        + nl.Z.DFL + ' lb (G = 0.50 DF-L) / ' + nl.Z.SP + ' lb (G = 0.55 SP) / ' + nl.Z.SPF + ' lb (G = 0.42 SPF) × C_D 1.6; the lower G of sill and framing species is used; × p/10D where the penetration p is under 10D (fn. 3)'
+    };
+  }
   var SILL_CONN = [
     { id: 'ltp4', label: 'LTP4 lateral tie plate', defaultSpacing: 16, base: false, sheathingReduction: true,
       bySillSpecies: { DFL: 715, SP: 715, SPF: 615 },
       basis: 'Simpson C-C-2026 p. 310, LTP4 with 12 — 0.131×1½ nails, direction G, "(160)" column: 715 lb DF/SP, 615 lb SPF/HF' },
-    { id: '16d', label: '16d common nails', defaultSpacing: 16, base: false,
-      minG: true, minGWhy: 'NDS Table 12N is for both members of identical specific gravity',
-      bySillSpecies: { DFL: 226, SP: 246, SPF: 192 },
-      basis: 'NDS 2018 Table 12N, 16d common (D = 0.162", Table L4), t_s = 1½": Z = 141 lb (G = 0.50 DF-L) / 154 lb (G = 0.55 SP) / 120 lb (G = 0.42 SPF) × C_D 1.6; the lower G of sill and framing species is used' },
+    nailRow('16d'), nailRow('10d'), nailRow('8d'), nailRow('16dbox'), nailRow('10dbox'), nailRow('8dbox'),
     { id: 'sds14', label: 'SDS ¼×4½ screws', defaultSpacing: 12, base: false,
       minG: true, minGWhy: 'the Simpson sole-to-rim table gives the SPF/HF value where either member is SPF/HF',
       bySillSpecies: { DFL: 400, SP: 400, SPF: 304 },
-      basis: 'Simpson sole-to-rim table: 250 lb DF/SP-to-DF/SP, 190 lb where either member (sill or framing) is SPF/HF, × C_D 1.6' },
-    { id: 'ab12', label: '½" anchor bolt', defaultSpacing: 20, base: true,
+      basis: 'Simpson sole-to-rim table: 250 lb DF/SP-to-DF/SP, 190 lb where either member (sill or framing) is SPF/HF, × C_D 1.6',
+      // Withdrawal: SDS is a No. 14 wood screw (ESR-2236 §4.1.3, not on disk) —
+      // NDS Table 12.2B (PDF p. 92) No. 14 column by the G of the RECEIVING member.
+      // C-C-2026 p. 377 (SDS25412, 2¾" thread) tabulates 475 lb DF/SP and 330 lb
+      // SPF/HF at C_D 1.0 (= 172.7 / 120 lb/in) and its note 4 uses 172 and 121
+      // lb/in; the catalog has no separate SP column, so SP reads 208 from the NDS.
+      // Note 5 of the same page caps withdrawal through a WOOD side plate (the
+      // bottom plate the head bears on) at 345 lb DF/SP / 240 lb SPF/HF at C_D 1.0
+      // — head pull-through, keyed by the SILL species (W_H takes C_D, Table 11.3.1).
+      screw: { L: 4.5, thread: 2.75, D: 0.242, W: { SP: 208, DFL: 172, SPF: 121 }, pullThrough: { DFL: 345, SP: 345, SPF: 240 } } },
+    { id: 'ab12', label: '½" anchor bolt', defaultSpacing: 20, base: true, D: 0.5,
       bySillSpecies: { DFL: 1040, SP: 1040, SPF: 944 },
       basis: 'NDS 2018 Table 12E, 1½" sill to concrete, 6" embedment, Z∥ = 650 lb (G = 0.50) / 590 lb (G = 0.42) × C_D 1.6' },
-    { id: 'ab58', label: '⅝" anchor bolt', defaultSpacing: 20, base: true,
+    { id: 'ab58', label: '⅝" anchor bolt', defaultSpacing: 20, base: true, D: 0.625,
       bySillSpecies: { DFL: 1488, SP: 1488, SPF: 1360 },
       basis: 'NDS 2018 Table 12E, 1½" sill to concrete, 6" embedment, Z∥ = 930 lb (G = 0.50) / 850 lb (G = 0.42) × C_D 1.6' }
   ];
+  // SDPWS 2021 §4.3.6.4.3 plate washer: 0.229" × 3" × 3" minimum; hole = bolt D + 1/16".
+  var WASHER = { t: 0.229, side: 3, holeOver: 1 / 16 };
+  // Default uplift input for a connector: fastener penetration (nails / SDS) or null.
+  function penetrationDefault(sc) {
+    if (!sc) return null;
+    if (sc.nail) return nailPenetrationDefault(NAILS[sc.nail]);
+    if (sc.screw) return sc.screw.L - PLATE_THK;
+    return null;
+  }
   // Simpson C-C-2026 p. 310 fn. 3: 0.72x over 3/8" WSP, 0.64x over 1/2" WSP.
   var LTP4_SHEATHING = { none: { f: 1.00, label: 'nailed direct to framing' }, '0.375': { f: 0.72, label: 'over ⅜" sheathing' }, '0.5': { f: 0.64, label: 'over ½" sheathing' } };
 
   function findSill(id) { for (var i = 0; i < SILL_CONN.length; i++) if (SILL_CONN[i].id === id) return SILL_CONN[i]; return null; }
+
+  // =========================================================================
+  // Wall normalisation — one shape for every wall the engine or page touches
+  // =========================================================================
+  // Non-mutating. Fills the keys added after v2 shipped so an older saved file
+  // computes as soon as it loads:
+  //   method            absent -> 'perforated' (Phase C reads it; harmless now)
+  //   uplift.source     absent -> 'manual' when the old typed capacity_plf is a
+  //                     finite number, else 'sill' (capacity from the sill connection)
+  //   uplift.penetration_in  absent -> the connector default (fastener length
+  //                     less the 1½" plate); an explicit null stays null ("specify")
+  //   uplift.washer_in  absent -> 3 (SDPWS §4.3.6.4.3 minimum plate washer)
+  // A wall that already carries every key comes back byte-identical (same key
+  // order), so adapter round trips of a current model are unchanged.
+  function normalizeWall(w) {
+    var o = clone(w || {});
+    if (o.method !== 'segmented') o.method = 'perforated';
+    var u = o.uplift && typeof o.uplift === 'object' ? o.uplift : {};
+    var cap = num(u.capacity_plf, NaN);
+    var src = u.source === 'manual' || u.source === 'sill' ? u.source : (isFinite(cap) ? 'manual' : 'sill');
+    var sc = findSill(o.sill && o.sill.conn);
+    o.uplift = {
+      source: src,
+      penetration_in: u.penetration_in === undefined ? penetrationDefault(sc) : (u.penetration_in === null ? null : num(u.penetration_in, null)),
+      washer_in: u.washer_in === undefined ? WASHER.side : (u.washer_in === null ? null : num(u.washer_in, null)),
+      capacity_plf: isFinite(cap) ? cap : null,
+      label: typeof u.label === 'string' ? u.label : ''
+    };
+    return o;
+  }
+
+  // =========================================================================
+  // Bottom-plate uplift capacity — SDPWS §4.3.6.4.2.1 demand t = v_max, wood-
+  // side capacity from the same fasteners that carry the sill shear
+  // =========================================================================
+  // speciesId = framing (the RECEIVING member the fastener is driven into);
+  // sillSpeciesId = the bottom plate (the side member the head bears on).
+  // t_plf, when given, fills T_req for the anchor-bolt row. Returns
+  //   { source, kind: 'nail'|'screw'|'bolt'|'manual'|'none', plf, perFastener, W, p,
+  //     pDefault, pThread, Wp, pullThrough, CD, spacing, basis, factors[], notes[],
+  //     errors[], needs, T_req, washer }
+  // plf === null with `needs` set means the row reads "specify"; errors[] holds
+  // a code violation (validate() reports the same 6D rule as a model error).
+  function upliftCapacity(w, speciesId, sillSpeciesId, isBase, t_plf) {
+    var u = w.uplift || {}, sc = findSill(w.sill && w.sill.conn);
+    var spacing = num(w.sill && w.sill.spacing_in, sc ? sc.defaultSpacing : NaN);
+    var perFt = spacing > 0 ? spacing / 12 : NaN;   // feet of wall per fastener
+    var sp = SPECIES[speciesId], sillSp = SPECIES[sillSpeciesId] || sp;
+    var out = { source: u.source === 'manual' ? 'manual' : 'sill', conn: sc ? sc.id : null, kind: null, species: speciesId, sillSpecies: sillSp ? sillSp.id : null,
+                plf: null, perFastener: null, W: null, p: null, pDefault: penetrationDefault(sc), pThread: null, Wp: null, pullThrough: null,
+                CD: CD_CONN, spacing: spacing, basis: '', factors: [], notes: [], errors: [], needs: null, label: '', T_req: null, washer: null };
+    if (out.source === 'manual') {
+      var cap = num(u.capacity_plf, NaN);
+      out.kind = 'manual'; out.label = u.label || '';
+      if (isFinite(cap) && cap > 0) { out.plf = cap; out.basis = 'Manual entry' + (out.label ? ' — ' + out.label : '') + '; the connector and its basis are outside this calculation'; }
+      else out.needs = 'capacity';
+      return out;
+    }
+    if (!sc || !sp) { out.kind = 'none'; out.needs = 'connector'; return out; }
+    var p = u.penetration_in === undefined ? out.pDefault : (u.penetration_in === null ? null : num(u.penetration_in, NaN));
+
+    if (sc.nail) {
+      // NDS §12.2.3.1 Eq. 12.2-3 / Table 12.2C: W (lb/in) at the receiving member's G, × penetration × C_D.
+      var nl = NAILS[sc.nail];
+      out.kind = 'nail'; out.W = nl.W[speciesId]; out.D = nl.D; out.p = p;
+      if (!(isFinite(p) && p > 0)) { out.needs = 'penetration'; return out; }
+      if (p + 1e-9 < 6 * nl.D) {
+        out.errors.push('penetration p = ' + f2(p) + '" is less than the minimum 6D = ' + f3(6 * nl.D) + '" for a ' + nl.label.replace(' nails', ' nail') + ' (NDS §12.1.6.4).');
+        return out;
+      }
+      out.Wp = out.W * p;
+      out.perFastener = out.Wp * CD_CONN;
+      out.plf = perFt > 0 ? out.perFastener / perFt : NaN;
+      out.basis = 'NDS 2018 Table 12.2C (PDF p. 93): W = ' + out.W + ' lb/in for D = ' + f3(nl.D) + '" at G = ' + f2(sp.G) + ' (' + sp.label + ', the receiving member) × p = ' + f2(p) + '" × C_D 1.6 (Table 2.3.2) = ' + f1(out.perFastener) + ' lb per nail';
+      out.factors.push({ f: CD_CONN, why: 'C_D = 1.6, wind / earthquake (NDS Table 2.3.2)' });
+      if (Math.abs(p - out.pDefault) > 1e-9) out.notes.push('Penetration entered (' + f2(p) + '") differs from the ' + nl.L + '" nail less the 1½" plate (' + f2(out.pDefault) + '").');
+      return out;
+    }
+    if (sc.screw) {
+      // ESR-2236 §4.1.3 classifies SDS as a No. 14 wood screw -> NDS Table 12.2B
+      // at the receiving member's G, over the thread in the main member (≤ the
+      // 2¾" thread length); head pull-through through the wood bottom plate is
+      // capped per C-C-2026 p. 377 note 5, by the SILL species.
+      var sw = sc.screw;
+      out.kind = 'screw'; out.W = sw.W[speciesId]; out.D = sw.D; out.p = p;
+      if (!(isFinite(p) && p > 0)) { out.needs = 'penetration'; return out; }
+      out.pThread = Math.min(sw.thread, p);
+      out.Wp = out.W * out.pThread;
+      var pt = sw.pullThrough[sillSpeciesId] || sw.pullThrough.DFL;
+      out.pullThrough = pt * CD_CONN;
+      var withdrawal = out.Wp * CD_CONN;
+      out.perFastener = Math.min(withdrawal, out.pullThrough);
+      out.plf = perFt > 0 ? out.perFastener / perFt : NaN;
+      out.basis = 'NDS 2018 Table 12.2B (PDF p. 92), No. 14 wood screw (ESR-2236 §4.1.3, not on disk; C-C-2026 p. 377 note 4 uses the same 172 / 121 lb/in): W = ' + out.W + ' lb/in at G = ' + f2(sp.G)
+        + ' (' + sp.label + ', the receiving member) × thread in the main member p_t = min(2¾", ' + f2(p) + '") = ' + f2(out.pThread) + '" × C_D 1.6 = ' + f1(withdrawal) + ' lb'
+        + '; head pull-through through the ' + sillSp.label + ' bottom plate ≤ ' + pt + ' lb × 1.6 = ' + f1(out.pullThrough) + ' lb (C-C-2026 p. 377 note 5)'
+        + ' — ' + (out.pullThrough + 1e-9 < withdrawal ? 'pull-through governs' : 'withdrawal governs') + ', ' + f1(out.perFastener) + ' lb per screw';
+      out.factors.push({ f: CD_CONN, why: 'C_D = 1.6, wind / earthquake (NDS Table 2.3.2; C-C-2026 p. 377 note 3)' });
+      if (out.pullThrough + 1e-9 < withdrawal) out.factors.push({ f: out.pullThrough / withdrawal, why: 'head pull-through cap, wood side plate (C-C-2026 p. 377 note 5)' });
+      if (p + 1e-9 < sw.thread) out.notes.push('Only ' + f2(p) + '" of the 2¾" thread is in the receiving member.');
+      if (speciesId === 'SP') out.notes.push('C-C-2026 p. 377 has no separate SP column (DF/SP 475 lb = G 0.50 basis); the NDS Table 12.2B value at G 0.55 is used, as ESR-2236 §4.1.3 directs.');
+      return out;
+    }
+    if (sc.base && isFinite(sc.D)) {
+      // Anchor bolt: the wood-side check is plate-washer bearing on the sill,
+      // F_c⊥ (no C_D, NDS Table 4.3.1) × net washer area. The rod and the
+      // concrete are reported as a demand, T_req = t × s/12 per bolt, for the
+      // separate ACI 318 Ch. 17 / rod-steel check.
+      var side = u.washer_in === undefined ? WASHER.side : num(u.washer_in, NaN);
+      out.kind = 'bolt';
+      if (!(isFinite(side) && side > 0)) { out.needs = 'washer'; return out; }
+      var hole = sc.D + WASHER.holeOver;
+      var Anet = side * side - Math.PI / 4 * hole * hole;
+      if (!(Anet > 0)) { out.errors.push('plate washer ' + f2(side) + '" square is not larger than the ' + f4(hole) + '" bolt hole.'); return out; }
+      var capBolt = sillSp.FcP * Anet;
+      out.washer = { side: side, t: WASHER.t, D: sc.D, hole: hole, Anet: Anet, FcP: sillSp.FcP, cap: capBolt, species: sillSp.id };
+      out.perFastener = capBolt;
+      out.plf = perFt > 0 ? capBolt / perFt : NaN;
+      out.T_req = isFinite(t_plf) && perFt > 0 ? t_plf * perFt : null;
+      out.basis = 'Sill plate-washer bearing: F_c⊥ = ' + sillSp.FcP + ' psi (' + sillSp.label + ' sill, NDS Supplement ' + (sillSp.id === 'SP' ? 'Table 4B' : 'Table 4A') + ' No. 2; no C_D, NDS Table 4.3.1)'
+        + ' × A_net = ' + f2(side) + '² − π/4·(' + f3(sc.D) + ' + 1/16)² = ' + f3(Anet) + ' in² = ' + f1(capBolt) + ' lb per bolt (0.229" plate washer, SDPWS §4.3.6.4.3; bearing area factor C_b not applied)';
+      if (side + 1e-9 < WASHER.side) out.errors.push('plate washer ' + f2(side) + '" square is smaller than the 0.229" × 3" × 3" minimum of SDPWS §4.3.6.4.3.');
+      return out;
+    }
+    // LTP4 (or any other connector without a withdrawal rating).
+    out.kind = 'none'; out.needs = 'connector';
+    out.notes.push(sc.label + ' is not rated for uplift (C-C-2026 p. 310 tabulates the F1 / F2 shear directions only) — set the uplift source to Manual, or use a nail or SDS sill connection.');
+    return out;
+  }
+
+  // =========================================================================
+  // Combined lateral + withdrawal on one fastener — NDS §12.4
+  // =========================================================================
+  // At full-height sheathing the same bottom-plate fastener carries v_max in
+  // shear (§4.3.6.4.1.1) and t = v_max in withdrawal (§4.3.6.4.2.1), so the
+  // resultant sits at α = 45° to the wood surface. Eq. 12.4-2 (nails) and
+  // Eq. 12.4-1 (wood screws, which SDS are per ESR-2236 §4.1.3):
+  //   Z'_α = (W'p)·Z' / ((W'p)·cos²α + Z'·sin²α)
+  // Zconn = the sill-shear value per fastener (C_D 1.6, p/10D applied); Wp = the
+  // uplift value per fastener from upliftCapacity(). Not for anchor bolts
+  // (no NDS interaction for bolt tension) or LTP4.
+  function combinedCheck(kind, Zconn, Wp, vmax, spacing) {
+    var alpha = 45, c2 = 0.5, s2 = 0.5;   // cos²45 = sin²45 = 0.5
+    var perFt = spacing / 12;
+    var Zalpha = (Wp > 0 && Zconn > 0) ? (Wp * Zconn) / (Wp * c2 + Zconn * s2) : 0;
+    var R = Math.SQRT2 * vmax * perFt;              // resultant per fastener, lb
+    var vAllow = perFt > 0 ? Zalpha / perFt / Math.SQRT2 : NaN;   // v_max the fastener allows, plf
+    return {
+      kind: kind, eq: kind === 'nail' ? 'Eq. 12.4-2' : 'Eq. 12.4-1', ref: 'NDS 2018 §12.4.' + (kind === 'nail' ? '2' : '1'),
+      alpha: alpha, Zconn: Zconn, Wp: Wp, Zalpha: Zalpha, spacing: spacing,
+      demand: R, capacity: Zalpha, dc: Zalpha > 0 ? R / Zalpha : Infinity, vAllow: vAllow
+    };
+  }
 
   // =========================================================================
   // Geometry — Sigma b_i (§4.3.3.4) and C_o (§4.3.5.6)
@@ -407,7 +619,8 @@
       if (!(h > 0)) errors.push(where + ': wall height must be greater than zero.');
       if (h > 20 + 1e-9) errors.push(where + ': perforated shear wall height h = ' + f1(h) + ' ft exceeds the 20 ft limit of SDPWS §4.3.2.3(8).');
       if (!isFinite(num(fl.P_wind_lb, 0)) || !isFinite(num(fl.P_seis_lb, 0))) errors.push(where + ': level forces must be numbers.');
-      (fl.walls || []).forEach(function (w) {
+      (fl.walls || []).forEach(function (w0) {
+        var w = normalizeWall(w0);
         var tag = where + ' / ' + (w.label || w.id);
         var L = num(w.L_ft, 0);
         if (!(L > 0)) errors.push(tag + ': wall length L must be greater than zero.');
@@ -459,6 +672,14 @@
           if (!sc.base && isBase) errors.push(tag + ': ' + sc.label + ' cannot anchor a sill plate to the foundation — use an anchor bolt at the base level.');
         }
         if (!(num(w.sill && w.sill.spacing_in, 0) > 0)) errors.push(tag + ': sill connector spacing must be greater than zero.');
+        // Uplift inputs: a blank penetration / washer / manual plf is "specify"
+        // on the check row, not an error; a value that breaks a code minimum is.
+        if (sc && w.uplift.source !== 'manual') {
+          var up = upliftCapacity(w, state.species, SPECIES[w.sillSpecies] ? w.sillSpecies : state.species, fi === floors.length - 1);
+          up.errors.forEach(function (e) { errors.push(tag + ': ' + e); });
+          var pv = w.uplift.penetration_in;
+          if ((sc.nail || sc.screw) && pv !== null && !(isFinite(pv) && pv > 0)) errors.push(tag + ': fastener penetration must be a number greater than zero (leave blank to mark the uplift check "specify").');
+        }
         if (w.holdown === 'strap') {
           if (fi === floors.length - 1) errors.push(tag + ': coil straps are floor-to-floor only; the base level requires an HDUE hold-down to the foundation.');
           var G = (SPECIES[state.species] || SPECIES.DFL).G;
@@ -533,9 +754,9 @@
   }
 
   function computeWall(state, floors, k, wi, ctx) {
-    var n = floors.length, fl = floors[k], w = fl.walls[wi], h = num(fl.h_ft, 0);
+    var n = floors.length, fl = floors[k], w = normalizeWall(fl.walls[wi]), h = num(fl.h_ft, 0);
     var isBase = k === n - 1;
-    var out = { id: w.id, label: w.label || w.id, L_ft: num(w.L_ft, 0), h_ft: h, base: isBase, messages: [], errors: [], checks: [] };
+    var out = { id: w.id, label: w.label || w.id, L_ft: num(w.L_ft, 0), h_ft: h, base: isBase, method: w.method, messages: [], errors: [], checks: [] };
 
     // ── geometry ────────────────────────────────────────────────────────────
     var sb = sumBi(w.segments_ft, h);
@@ -725,9 +946,22 @@
       Vconn = Vconn * red.f;
       sillNotes.push('LTP4 ' + red.label + (red.f !== 1 ? ' — × ' + f2(red.f) + ' (Simpson C-C-2026 footnote)' : ''));
     }
+    // Table 12N fn. 3: Z is tabulated at p = 10D; where 6D <= p < 10D multiply by
+    // p/10D (fn. 4 flags the 8d rows at t_s = 1½" — the nail cannot reach 10D).
+    // The penetration is the uplift input; blank falls back to the connector default.
+    var penFactor = 1, penUsed = null;
+    if (scObj.nail) {
+      var nlS = NAILS[scObj.nail], pIn = w.uplift.penetration_in;
+      penUsed = isFinite(pIn) && pIn > 0 ? pIn : nailPenetrationDefault(nlS);
+      penFactor = Math.min(1, penUsed / (10 * nlS.D));
+      if (penFactor < 1 - 1e-9) {
+        sillNotes.push('Penetration p = ' + f2(penUsed) + '" is under 10D = ' + f2(10 * nlS.D) + '": Z × p/10D = ' + f4(penFactor) + ' (NDS Table 12N fn. 3' + (nlS.L - PLATE_THK < 10 * nlS.D ? ', fn. 4' : '') + ')' + (!(isFinite(pIn) && pIn > 0) ? ' — penetration not entered, default ' + f2(penUsed) + '" assumed' : '') + '.');
+        Vconn = Vconn * penFactor;
+      }
+    }
     var spacing = num(w.sill.spacing_in, scObj.defaultSpacing);
     var sillPlf = spacing > 0 ? Vconn / (spacing / 12) : NaN;
-    out.sill = { conn: scObj, Vconn: Vconn, spacing: spacing, plf: sillPlf, species: sillSpecies, valueSpecies: valSpecies, nailGov: nailGov, notes: sillNotes, basis: scObj.basis };
+    out.sill = { conn: scObj, Vconn: Vconn, spacing: spacing, plf: sillPlf, species: sillSpecies, valueSpecies: valSpecies, nailGov: nailGov, notes: sillNotes, basis: scObj.basis, penFactor: penFactor, penetration: penUsed };
     if (isBase) {
       // §4.3.6.4.3: the plate washer itself is unconditional; only the
       // extend-to-within-½"-of-the-edge clause is gated on 400 plf.
@@ -737,9 +971,19 @@
             : ''));
     }
 
-    // Distributed uplift connector, §4.3.6.4.2.1.
-    var upCap = w.uplift && isFinite(num(w.uplift.capacity_plf, NaN)) ? num(w.uplift.capacity_plf, NaN) : null;
-    out.uplift = { capacity_plf: upCap, label: (w.uplift && w.uplift.label) || '' };
+    // Distributed uplift at the bottom plate, §4.3.6.4.2.1 — capacity from the
+    // sill connection (nail / SDS withdrawal, plate-washer bearing at anchor
+    // bolts) or the manual plf. Perforated walls only (§4.3.6.4.2.1 names the
+    // perforated method; the segmented method anchors its ends, §4.3.6.4.2).
+    var perforated = w.method !== 'segmented';
+    var up = upliftCapacity(w, state.species, sillSpecies, isBase, out.gov.t);
+    up.errors.forEach(function (e) { out.errors.push('Bottom-plate uplift: ' + e); });
+    out.uplift = up;
+    // NDS §12.4 combined shear + uplift on the same nail / screw, at 45°.
+    out.combined = null;
+    if (perforated && up.source === 'sill' && (up.kind === 'nail' || up.kind === 'screw') && up.perFastener > 0) {
+      out.combined = combinedCheck(up.kind, Vconn, up.perFastener, out.gov.vmax, spacing);
+    }
 
     // ── check rows ──────────────────────────────────────────────────────────
     var checks = [];
@@ -763,13 +1007,38 @@
       out.messages.push('Uplift not required by calculation (T_raw = ' + f1(rawMax) + ' lb at the governing end; dead load governs). The uniform uplift t = ' + f1(out.gov.t) + ' plf of §4.3.6.4.2.1 is still required at the bottom plate.');
       out.TrawMin = rawGov;
     }
-    checks.push({
-      id: 'uplift', label: 'Bottom-plate uniform uplift, t = v_max', ref: 'SDPWS §4.3.6.4.2.1',
-      demand: out.gov.t, demandTxt: 't = ' + f1(out.gov.t) + ' plf',
-      capacity: upCap, capacityTxt: upCap === null ? 'connector required — not specified' : (out.uplift.label ? out.uplift.label + ' — ' : '') + f1(upCap) + ' plf',
-      dc: upCap ? out.gov.t / upCap : NaN, pass: upCap === null ? null : out.gov.t <= upCap, caseKey: out.gov.vmaxCase,
-      req: upCap === null
-    });
+    if (perforated) {
+      var upPlf = isFinite(up.plf) && up.plf > 0 ? up.plf : null;
+      var upTxt;
+      if (up.kind === 'bolt' && upPlf !== null) upTxt = f2(up.washer.side) + '" × ' + f2(up.washer.side) + '" × 0.229" plate washer, A_net ' + f2(up.washer.Anet) + ' in² × F_c⊥ ' + up.washer.FcP + ' psi = ' + f1(up.washer.cap) + ' lb per bolt @ ' + f1(spacing) + '" o.c. — ' + f1(upPlf) + ' plf';
+      else if (up.kind === 'nail' && upPlf !== null) upTxt = scObj.label + ' @ ' + f1(spacing) + '" o.c. — W ' + up.W + ' lb/in × p ' + f2(up.p) + '" × C_D 1.6 = ' + f1(up.perFastener) + ' lb per nail — ' + f1(upPlf) + ' plf';
+      else if (up.kind === 'screw' && upPlf !== null) upTxt = scObj.label + ' @ ' + f1(spacing) + '" o.c. — ' + (up.pullThrough + 1e-9 < up.Wp * CD_CONN ? 'head pull-through ' : 'W ' + up.W + ' lb/in × p_t ' + f2(up.pThread) + '" × C_D 1.6 = ') + f1(up.perFastener) + ' lb per screw — ' + f1(upPlf) + ' plf';
+      else if (up.kind === 'manual' && upPlf !== null) upTxt = (up.label ? up.label + ' — ' : 'manual — ') + f1(upPlf) + ' plf';
+      else if (up.needs === 'penetration') upTxt = 'penetration required — not specified';
+      else if (up.needs === 'washer') upTxt = 'plate washer size required — not specified';
+      else if (up.kind === 'none' && scObj.id === 'ltp4') upTxt = 'LTP4 is not rated for uplift — set the uplift source to Manual, or use a nail or SDS sill connection';
+      else upTxt = 'connector required — not specified';
+      var isBolt = up.kind === 'bolt';
+      checks.push({
+        id: 'uplift',
+        label: isBolt ? 'Sill plate washer bearing (uplift)' : 'Bottom-plate uniform uplift, t = v_max',
+        ref: 'SDPWS §4.3.6.4.2.1' + (isBolt ? '; §4.3.6.4.3; NDS Supp. Table 4A/4B' : (up.kind === 'nail' ? '; NDS §12.2.3.1 Table 12.2C' : (up.kind === 'screw' ? '; NDS §12.2.2 Table 12.2B' : ''))),
+        demand: out.gov.t,
+        demandTxt: 't = ' + f1(out.gov.t) + ' plf' + (isBolt && up.T_req !== null ? ' → T_req = t × s/12 = ' + f1(up.T_req) + ' lb per bolt — verify anchor rod / concrete for T_req = ' + f1(up.T_req) + ' lb per bolt' : ''),
+        capacity: upPlf, capacityTxt: upTxt,
+        dc: upPlf ? out.gov.t / upPlf : NaN, pass: upPlf === null ? null : out.gov.t <= upPlf, caseKey: out.gov.vmaxCase,
+        req: upPlf === null, T_req: up.T_req
+      });
+      if (out.combined) {
+        var cb = out.combined;
+        checks.push({
+          id: 'combined', label: 'Combined shear + uplift on the bottom-plate fastener', ref: cb.ref + ' ' + cb.eq,
+          demand: cb.demand, demandTxt: 'R = √(v_max² + t²) × s/12 = ' + f1(cb.demand) + ' lb per ' + (cb.kind === 'nail' ? 'nail' : 'screw') + ' at α = 45°',
+          capacity: cb.Zalpha, capacityTxt: "Z'_α = " + f1(cb.Zalpha) + ' lb (Z\' ' + f1(cb.Zconn) + ', W\'p ' + f1(cb.Wp) + ') — v_max ≤ ' + f1(cb.vAllow) + ' plf',
+          dc: cb.dc, pass: cb.dc <= 1.0, caseKey: out.gov.vmaxCase
+        });
+      }
+    }
     checks.push({
       id: 'sill', label: 'Sill / bottom-plate shear anchorage', ref: 'SDPWS §4.3.6.4.1.1' + (isBase ? '; §4.3.6.4.3' : ''),
       demand: out.gov.vmax, demandTxt: 'v_max = ' + f1(out.gov.vmax) + ' plf',
@@ -807,17 +1076,22 @@
   // The published ASD level forces are 2,783 / 1,661 / 1,738 / 1,921 lb; the
   // engine takes strength level, so W = P / 0.6.
   // =========================================================================
+  // Every key normalizeWall() would add is set here, in the same order, so a
+  // default wall round-trips through the adapter byte-identical.
   function defaultWall(o) {
     o = o || {};
+    var sillId = o.sill || 'sds14';
     return {
       id: o.id || 'w1', label: o.label || 'Wall Line A', L_ft: o.L_ft, h_ft: o.h_ft,
       segments_ft: o.segments_ft, openings: o.openings || [], unsheathed_ft2: 0,
       sheathing: { face1: { type: 'wsp', thickness: '7/16', nail: '8d common', spacing: 6 }, face2: null, blocked: true, insideFaceHoldown: false },
       endPost: { n: 2, size: '2x6' }, holdown: o.holdown || 'hdue',
-      sill: { conn: o.sill || 'sds14', spacing_in: o.spacing || 12, sheathing: 'none' },
+      sill: { conn: sillId, spacing_in: o.spacing || 12, sheathing: 'none' },
       sillSpecies: 'DFL', dead: { w_plf: 0, P_end_lb: 0, source: 'manual' },
-      uplift: { capacity_plf: null, label: '' }, transfer: false,
-      P_wind_lb: null, P_seis_lb: null   // line-force override; null = inherit the level force
+      uplift: { source: 'sill', penetration_in: penetrationDefault(findSill(sillId)), washer_in: WASHER.side, capacity_plf: null, label: '' },
+      transfer: false,
+      P_wind_lb: null, P_seis_lb: null,   // line-force override; null = inherit the level force
+      method: 'perforated'
     };
   }
   function defaultState() {
@@ -1182,11 +1456,15 @@
       expect: function (r) { var a = W(r, 1);
         return [['seismic governs the shear check', a.checks.filter(function (c) { return c.id === 'sheathing'; })[0].caseKey === 'seismic', a.checks.filter(function (c) { return c.id === 'sheathing'; })[0].caseKey],
                 ['seismic governs T', a.gov.Tcase === 'seismic', a.gov.Tcase]]; } },
-    { id: 'SW40', src: 'uplift connector default', run: function () { return compute(mkState(CASE1)); },
-      expect: function (r) { var row = W(r, 3).checks.filter(function (c) { return c.id === 'uplift'; })[0];
+    { id: 'SW40', src: 'uplift at the base by default — plate-washer bearing on the ⅝" anchor bolts', run: function () { return compute(mkState(CASE1)); },
+      expect: function (r) { var a = W(r, 3), row = a.checks.filter(function (c) { return c.id === 'uplift'; })[0];
         return [['row shows the demand', near(row.demand, 70.29, 0.02), f2(row.demand)],
-                ['"connector required" when not specified', row.capacityTxt.indexOf('connector required') >= 0, row.capacityTxt],
-                ['not counted as a pass', row.pass === null, String(row.pass)]]; } },
+                ['row is the washer-bearing check', row.label === 'Sill plate washer bearing (uplift)' && a.uplift.kind === 'bolt', row.label],
+                ['3" washer, ⅝" bolt: A_net = 9 − π/4·0.6875² = 8.629 in² × 625 psi = 5,393.0 lb per bolt', near(a.uplift.washer.Anet, 8.629, 0.001) && near(a.uplift.washer.cap, 5393.0, 0.1), f3(a.uplift.washer.Anet) + ' / ' + f1(a.uplift.washer.cap)],
+                ['@ 20" = 3,235.8 plf, passes', near(row.capacity, 3235.8, 0.1) && row.pass === true, f1(row.capacity) + ' ' + String(row.pass)],
+                ['T_req = 70.29 × 20/12 = 117.1 lb per bolt, reported for the rod / concrete check', near(row.T_req, 117.14, 0.05) && row.demandTxt.indexOf('verify anchor rod / concrete for T_req = 117.1 lb per bolt') >= 0, row.demandTxt],
+                ['no combined row at an anchor bolt', !a.checks.some(function (c) { return c.id === 'combined'; }) && a.combined === null, a.checks.map(function (c) { return c.id; }).join(',')],
+                ['5 check rows in order (no combined row at a bolt)', a.checks.map(function (c) { return c.id; }).join(',') === 'sheathing,holdown,uplift,sill,endpost', a.checks.map(function (c) { return c.id; }).join(',')]]; } },
     { id: 'SW41', src: 'NDS §3.7.1 end post', run: function () { return compute(mkState(CASE3)); },
       expect: function (r) { var p = W(r, 1).endPost;
         return [['(2) 2x6 → A = 3.00" × 5.50" = 16.50 in²', near(p.A, 16.50, 0.01), f2(p.A)],
@@ -1311,7 +1589,114 @@
                 ['@ 16" o.c. = 461.25 plf', near(a.sill.plf, 461.25, 1e-6), f2(a.sill.plf)],
                 ['over ⅜" sheathing × 0.72 = 442.8 lb', near(b.sill.Vconn, 442.8, 1e-9), f1(b.sill.Vconn)],
                 ['SP sill = 715 lb (DF/SP column)', near(c.sill.Vconn, 715, 1e-9), f1(c.sill.Vconn)],
-                ['basis cites p. 310 and both columns', a.sill.basis.indexOf('p. 310') >= 0 && a.sill.basis.indexOf('615') >= 0, a.sill.basis]]; } }
+                ['basis cites p. 310 and both columns', a.sill.basis.indexOf('p. 310') >= 0 && a.sill.basis.indexOf('615') >= 0, a.sill.basis]]; } },
+
+    // ── Bottom-plate uplift from the sill connection (NDS 12.2C / 12.2B / 12.4) ──
+    // CASE_UP: one story, L 40 with no openings (C_o = 1, Σb_i = 40), so
+    // v_max = t = P_ASD / 40 exactly. CASE_HD2 is the same wall over a base
+    // story, for the above-base connectors.
+    { id: 'SW51', src: 'NDS Table 12.2C — 16d common nail withdrawal at the receiving (framing) G, p = L − 1½"', run: function () {
+        var mk = function (species, conn, spacing, p) {
+          var st = mkState(CASE_HD2); st.species = species;
+          st.floors[0].walls[0].sill = { conn: conn || '16d', spacing_in: spacing || 16, sheathing: 'none' }; st.floors[0].walls[0].sillSpecies = 'DFL';
+          st.floors[0].walls[0].uplift = { source: 'sill', penetration_in: p === undefined ? 2.0 : p, washer_in: 3, capacity_plf: null, label: '' };
+          return compute(st); };
+        var old = mkState(CASE_HD2); old.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; old.floors[0].walls[0].uplift = { capacity_plf: null, label: '' };
+        return { dfl: mk('DFL'), spf: mk('SPF'), sp: mk('SP'), e8d: mk('DFL', '8d', 16, 1.0), e8dp: mk('DFL', '8d', 16, 1.31), old: compute(old), nailRows: SILL_CONN.filter(function (s) { return s.nail; }).length }; },
+      expect: function (r) { var a = W(r.dfl, 0), b = W(r.spf, 0), c = W(r.sp, 0), d = W(r.e8d, 0), e = W(r.e8dp, 0), o = W(r.old, 0);
+        var row = function (w) { return w.checks.filter(function (x) { return x.id === 'uplift'; })[0]; };
+        return [['DFL: W 40 × p 2.0 × 1.6 = 128.0 lb per nail', a.uplift.kind === 'nail' && a.uplift.W === 40 && near(a.uplift.perFastener, 128.0, 0.01), f1(a.uplift.perFastener)],
+                ['@ 16" = 96.0 plf', near(a.uplift.plf, 96.0, 0.01) && near(row(a).capacity, 96.0, 0.01), f1(a.uplift.plf)],
+                ['SPF framing: W 26 → 83.2 lb → 62.4 plf', b.uplift.W === 26 && near(b.uplift.perFastener, 83.2, 0.01) && near(b.uplift.plf, 62.4, 0.01), f1(b.uplift.perFastener) + ' / ' + f1(b.uplift.plf)],
+                ['SP framing: W 50 → 160.0 lb → 120.0 plf', c.uplift.W === 50 && near(c.uplift.perFastener, 160.0, 0.01) && near(c.uplift.plf, 120.0, 0.01), f1(c.uplift.perFastener) + ' / ' + f1(c.uplift.plf)],
+                ['basis cites Table 12.2C, the receiving member and C_D 1.6', a.uplift.basis.indexOf('Table 12.2C') >= 0 && a.uplift.basis.indexOf('receiving member') >= 0 && a.uplift.basis.indexOf('C_D 1.6') >= 0, a.uplift.basis],
+                ['default penetration 3½ − 1½ = 2.0" printed', near(a.uplift.pDefault, 2.0, 1e-9) && row(a).capacityTxt.indexOf('p 2.00"') >= 0, row(a).capacityTxt],
+                ['old file {capacity_plf:null} computes at the default penetration (no "specify")', row(o).pass === true && near(row(o).capacity, 96.0, 0.01) && o.uplift.source === 'sill', row(o).capacityTxt],
+                ['16d shear value unchanged (p 2.0 ≥ 10D 1.62): 226 lb, 169.5 plf', near(a.sill.Vconn, 226, 1e-9) && near(a.sill.plf, 169.5, 1e-6) && a.sill.penFactor === 1, f1(a.sill.Vconn)],
+                ['8d common @ 16: W 32 × p 1.0 × 1.6 = 51.2 lb, 38.4 plf', d.uplift.W === 32 && near(d.uplift.p, 1.0, 1e-9) && near(d.uplift.perFastener, 51.2, 0.01) && near(d.uplift.plf, 38.4, 0.01), f1(d.uplift.perFastener)],
+                ['8d common shear: Z 97 × 1.6 = 155 × p/10D = 1.0/1.31 → 118.3 lb (Table 12N fn. 3 / fn. 4)', near(d.sill.penFactor, 1 / 1.31, 1e-6) && near(d.sill.Vconn, 155 / 1.31, 0.01) && d.sill.notes.some(function (x) { return x.indexOf('fn. 3, fn. 4') >= 0; }), f1(d.sill.Vconn) + ' ' + d.sill.notes.join(' | ')],
+                ['8d common at p = 1.31" (= 10D): full 155 lb', near(e.sill.Vconn, 155, 1e-9) && e.sill.penFactor === 1, f1(e.sill.Vconn)],
+                ['six nail rows in SILL_CONN', r.nailRows === 6, String(r.nailRows)]]; } },
+    { id: 'SW52', src: 'NDS Table 12.2B No. 14 / C-C-2026 p. 377 — SDS ¼×4½ withdrawal, 2¾" thread, head pull-through cap', run: function () {
+        var mk = function (species, sillSpecies, p) {
+          var st = mkState(CASE_HD2); st.species = species;
+          st.floors[0].walls[0].sillSpecies = sillSpecies;
+          if (p !== undefined) st.floors[0].walls[0].uplift.penetration_in = p;
+          return compute(st); };
+        return { dfl: mk('DFL', 'DFL'), spfBoth: mk('SPF', 'SPF'), spfFrame: mk('SPF', 'DFL'), sp: mk('SP', 'SP'), short: mk('DFL', 'DFL', 1.5) }; },
+      expect: function (r) { var a = W(r.dfl, 0), b = W(r.spfBoth, 0), c = W(r.spfFrame, 0), d = W(r.sp, 0), e = W(r.short, 0);
+        return [['DFL: default p = 4½ − 1½ = 3.0 → p_thread = 2.75; W 172 × 2.75 × 1.6 = 756.8 lb withdrawal', a.uplift.kind === 'screw' && near(a.uplift.pDefault, 3.0, 1e-9) && near(a.uplift.pThread, 2.75, 1e-9) && near(a.uplift.Wp * 1.6, 756.8, 0.01), f1(a.uplift.Wp * 1.6)],
+                ['DFL sill: head pull-through 345 × 1.6 = 552.0 lb governs → 552.0 plf @ 12"', near(a.uplift.pullThrough, 552.0, 0.01) && near(a.uplift.perFastener, 552.0, 0.01) && near(a.uplift.plf, 552.0, 0.01), f1(a.uplift.perFastener) + ' / ' + f1(a.uplift.plf)],
+                ['SPF framing, DFL sill: W 121 × 2.75 × 1.6 = 532.4 lb withdrawal governs (cap 552)', c.uplift.W === 121 && near(c.uplift.perFastener, 532.4, 0.01) && near(c.uplift.plf, 532.4, 0.01), f1(c.uplift.perFastener)],
+                ['SPF sill: pull-through 240 × 1.6 = 384.0 lb governs', near(b.uplift.pullThrough, 384.0, 0.01) && near(b.uplift.perFastener, 384.0, 0.01), f1(b.uplift.perFastener)],
+                ['SP framing: W 208 (Table 12.2B) → 915.2 lb withdrawal, capped at 552.0; note names the catalog DF/SP column', d.uplift.W === 208 && near(d.uplift.Wp * 1.6, 915.2, 0.01) && near(d.uplift.perFastener, 552.0, 0.01) && d.uplift.notes.some(function (x) { return x.indexOf('no separate SP column') >= 0; }), f1(d.uplift.perFastener) + ' ' + d.uplift.notes.join(' | ')],
+                ['p = 1.5" → p_thread 1.5: 172 × 1.5 × 1.6 = 412.8 lb governs', near(e.uplift.pThread, 1.5, 1e-9) && near(e.uplift.perFastener, 412.8, 0.01), f1(e.uplift.perFastener)],
+                ['basis cites Table 12.2B, ESR-2236 §4.1.3, C-C-2026 p. 377 notes 4 and 5', ['Table 12.2B', 'ESR-2236 §4.1.3', 'p. 377 note 4', 'p. 377 note 5'].every(function (k) { return a.uplift.basis.indexOf(k) >= 0; }), a.uplift.basis],
+                ['pull-through factor listed when it governs', a.uplift.factors.some(function (f) { return f.why.indexOf('pull-through') >= 0; }) && !c.uplift.factors.some(function (f) { return f.why.indexOf('pull-through') >= 0; }), a.uplift.factors.map(function (f) { return f.why; }).join(' | ')]]; } },
+    { id: 'SW53', src: 'NDS §12.4 Eq. 12.4-2 / 12.4-1 — combined shear + uplift on the bottom-plate fastener at 45°', run: function () {
+        // P_ASD = 3,000 lb on the 40 ft opening-free wall -> v_max = t = 75 plf.
+        var nail = mkState(CASE_HD2); nail.floors[0].P_wind_lb = 3000 / 0.6; nail.floors[0].P_seis_lb = 3000 / 0.7;
+        nail.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; nail.floors[0].walls[0].uplift.penetration_in = 2.0;
+        var sds = mkState(CASE_HD2); sds.floors[0].P_wind_lb = 3000 / 0.6; sds.floors[0].P_seis_lb = 3000 / 0.7;
+        var manual = mkState(CASE_HD2); manual.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; manual.floors[0].walls[0].uplift = { source: 'manual', capacity_plf: 200, label: 'x' };
+        return { nail: compute(nail), sds: compute(sds), manual: compute(manual), unit: combinedCheck('nail', 226, 128, 75, 16), raw: combinedCheck('screw', 400, 756.8, 75, 12) }; },
+      expect: function (r) { var a = W(r.nail, 0), b = W(r.sds, 0), m = W(r.manual, 0), u = r.unit;
+        var ids = function (w) { return w.checks.map(function (c) { return c.id; }).join(','); };
+        var row = function (w) { return w.checks.filter(function (x) { return x.id === 'combined'; })[0]; };
+        return [['16d DFL @ 16: Z\' 226, W\'p 128 → Z\'_45 = 2·128·226/(128+226) = 163.4 lb', near(u.Zalpha, 163.43, 0.05) && near(a.combined.Zalpha, 163.43, 0.05), f2(a.combined.Zalpha)],
+                ['allowable v_max = 163.4/(16/12)/√2 = 86.7 plf (governs over shear 169.5 and uplift 96.0)', near(a.combined.vAllow, 86.67, 0.05) && a.combined.vAllow < a.uplift.plf && a.combined.vAllow < a.sill.plf, f2(a.combined.vAllow)],
+                ['v_max = 75 plf: R = √2·75·(16/12) = 141.4 lb, D/C = 0.865, passes; the shear and uplift rows also pass', near(a.gov.vmax, 75, 1e-6) && near(row(a).demand, 141.42, 0.05) && near(row(a).dc, 0.8654, 0.001) && row(a).pass === true, f2(row(a).demand) + ' / ' + f4(row(a).dc)],
+                ['rows in order sheathing, holdown, uplift, combined, sill, endpost', ids(a) === 'sheathing,holdown,uplift,combined,sill,endpost', ids(a)],
+                ['combined row cites Eq. 12.4-2 for nails, α = 45°', row(a).ref.indexOf('§12.4.2') >= 0 && row(a).ref.indexOf('Eq. 12.4-2') >= 0 && a.combined.alpha === 45, row(a).ref],
+                ['SDS DFL @ 12: Z\' 400, W\'p 552 (pull-through) → Z\'_45 = 463.9 lb, v_max ≤ 328.0 plf; Eq. 12.4-1', near(b.combined.Zalpha, 463.87, 0.05) && near(b.combined.vAllow, 328.0, 0.05) && row(b).ref.indexOf('Eq. 12.4-1') >= 0, f2(b.combined.Zalpha) + ' / ' + f2(b.combined.vAllow)],
+                ['SDS at the uncapped 756.8 lb withdrawal would give 523.4 lb / 370.1 plf', near(r.raw.Zalpha, 523.37, 0.05) && near(r.raw.vAllow, 370.08, 0.05), f2(r.raw.Zalpha) + ' / ' + f2(r.raw.vAllow)],
+                ['no combined row when the uplift source is manual', m.combined === null && ids(m) === 'sheathing,holdown,uplift,sill,endpost', ids(m)]]; } },
+    { id: 'SW54', src: 'Sill plate-washer bearing at the anchor bolts — F_c⊥ × A_net vs T_req = t × s/12', run: function () {
+        var mk = function (conn, sillSpecies, side) {
+          var st = mkState(CASE_UP); st.floors[0].walls[0].sill = { conn: conn, spacing_in: 20, sheathing: 'none' }; st.floors[0].walls[0].sillSpecies = sillSpecies;
+          if (side !== undefined) st.floors[0].walls[0].uplift.washer_in = side;
+          return compute(st); };
+        var small = mkState(CASE_UP); small.floors[0].walls[0].uplift.washer_in = 2.5;
+        var blank = mkState(CASE_UP); blank.floors[0].walls[0].uplift.washer_in = null;
+        return { dfl: mk('ab58', 'DFL'), spf: mk('ab58', 'SPF'), sp: mk('ab58', 'SP'), half: mk('ab12', 'DFL'), big: mk('ab58', 'DFL', 4), small: validate(small), blank: compute(blank) }; },
+      expect: function (r) { var a = W(r.dfl, 0), b = W(r.spf, 0), c = W(r.sp, 0), d = W(r.half, 0), e = W(r.big, 0), bl = W(r.blank, 0);
+        var row = function (w) { return w.checks.filter(function (x) { return x.id === 'uplift'; })[0]; };
+        return [['t = v_max = 300 plf on the 40 ft wall (C_o = 1)', near(a.gov.t, 300, 1e-6) && near(a.geom.Co, 1, 1e-9), f2(a.gov.t)],
+                ['⅝" bolt, 3" washer: hole 0.6875", A_net = 9 − π/4·0.6875² = 8.629 in²', near(a.uplift.washer.hole, 0.6875, 1e-9) && near(a.uplift.washer.Anet, 8.6288, 0.001), f4(a.uplift.washer.Anet)],
+                ['DFL sill: 625 × 8.629 = 5,393.0 lb per bolt → 3,235.8 plf @ 20"', near(a.uplift.washer.cap, 5393.0, 0.1) && near(a.uplift.plf, 3235.8, 0.1), f1(a.uplift.washer.cap) + ' / ' + f1(a.uplift.plf)],
+                ['T_req = 300 × 20/12 = 500.0 lb per bolt; row passes; label "Sill plate washer bearing (uplift)"', near(a.uplift.T_req, 500, 1e-6) && row(a).pass === true && row(a).label === 'Sill plate washer bearing (uplift)', row(a).label + ' ' + f1(a.uplift.T_req)],
+                ['demand line: "verify anchor rod / concrete for T_req = 500.0 lb per bolt"', row(a).demandTxt.indexOf('verify anchor rod / concrete for T_req = 500.0 lb per bolt') >= 0, row(a).demandTxt],
+                ['SPF sill: 425 × 8.629 = 3,667.2 lb', near(b.uplift.washer.cap, 3667.2, 0.1) && b.uplift.washer.FcP === 425, f1(b.uplift.washer.cap)],
+                ['SP sill: 565 × 8.629 = 4,875.3 lb, basis names Table 4B', near(c.uplift.washer.cap, 4875.3, 0.1) && c.uplift.basis.indexOf('Table 4B') >= 0, f1(c.uplift.washer.cap)],
+                ['½" bolt: hole 0.5625", A_net 8.751 in² → 5,469.7 lb', near(d.uplift.washer.Anet, 8.7515, 0.001) && near(d.uplift.washer.cap, 5469.7, 0.1), f1(d.uplift.washer.cap)],
+                ['4" washer: A_net 15.629 in² → 9,768.0 lb', near(e.uplift.washer.Anet, 15.6288, 0.001) && near(e.uplift.washer.cap, 9768.0, 0.1), f1(e.uplift.washer.cap)],
+                ['basis: no C_D on F_c⊥ (Table 4.3.1), SDPWS §4.3.6.4.3 washer', a.uplift.basis.indexOf('no C_D') >= 0 && a.uplift.basis.indexOf('§4.3.6.4.3') >= 0, a.uplift.basis],
+                ['2.5" washer refused (below the §4.3.6.4.3 minimum)', r.small.ok === false && r.small.errors.some(function (x) { return x.indexOf('smaller than the 0.229" × 3" × 3" minimum') >= 0; }), r.small.errors.join(' | ')],
+                ['blank washer → "specify", no combined row', row(bl).pass === null && row(bl).capacityTxt.indexOf('plate washer size required') >= 0 && bl.combined === null, row(bl).capacityTxt]]; } },
+    { id: 'SW55', src: 'NDS §12.1.6.4 6D gate; old-file compatibility; LTP4 and blank manual → "specify"', run: function () {
+        var short = mkState(CASE_HD2); short.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; short.floors[0].walls[0].uplift.penetration_in = 0.9;
+        var ok = mkState(CASE_HD2); ok.floors[0].walls[0].sill = { conn: '16d', spacing_in: 16, sheathing: 'none' }; ok.floors[0].walls[0].uplift.penetration_in = 0.972;
+        var oldM = mkState(CASE1); oldM.floors[3].walls[0].uplift = { capacity_plf: 500, label: 'x' };
+        var oldN = mkState(CASE1); oldN.floors[0].walls[0].uplift = { capacity_plf: null, label: '' }; delete oldN.floors[0].walls[0].method;
+        var ltp = mkState(CASE_HD2); ltp.floors[0].walls[0].sill = { conn: 'ltp4', spacing_in: 16, sheathing: 'none' };
+        var manualBlank = mkState(CASE_HD2); manualBlank.floors[0].walls[0].uplift = { source: 'manual', penetration_in: 3, washer_in: 3, capacity_plf: null, label: '' };
+        var blankPen = mkState(CASE_HD2); blankPen.floors[0].walls[0].uplift.penetration_in = null;
+        var normN = normalizeWall(oldN.floors[0].walls[0]), normM = normalizeWall(oldM.floors[3].walls[0]);
+        var dw = defaultWall({ L_ft: 40, h_ft: 10, segments_ft: [40], sill: 'ab58', spacing: 20 });
+        return { short: validate(short), ok: compute(ok), oldM: compute(oldM), oldN: compute(oldN), ltp: compute(ltp), manualBlank: compute(manualBlank), blankPen: compute(blankPen),
+                 normN: normN, normM: normM, rawN: oldN.floors[0].walls[0], dwSame: JSON.stringify(normalizeWall(dw)) === JSON.stringify(dw) }; },
+      expect: function (r) {
+        var row = function (res, k) { return W(res, k).checks.filter(function (x) { return x.id === 'uplift'; })[0]; };
+        return [['16d at p = 0.9" < 6D = 0.972" refused, message names §12.1.6.4', r.short.ok === false && r.short.errors.some(function (x) { return x.indexOf('less than the minimum 6D = 0.972"') >= 0 && x.indexOf('§12.1.6.4') >= 0; }), r.short.errors.join(' | ')],
+                ['16d at p = 0.972" (= 6D) accepted: 40 × 0.972 × 1.6 = 62.2 lb; shear × 0.972/1.62 = 0.6', r.ok.ok === true && near(W(r.ok, 0).uplift.perFastener, 62.208, 0.01) && near(W(r.ok, 0).sill.penFactor, 0.6, 1e-9), f2(W(r.ok, 0).uplift.perFastener) + ' ' + f4(W(r.ok, 0).sill.penFactor)],
+                ['old file {capacity_plf:500, label:x} → manual, 500 plf, D/C = 70.29/500 = 0.1406 as before', r.normM.uplift.source === 'manual' && r.normM.uplift.capacity_plf === 500 && near(row(r.oldM, 3).dc, 0.1406, 0.0002) && row(r.oldM, 3).capacityTxt.indexOf('x — 500.0 plf') >= 0, row(r.oldM, 3).capacityTxt + ' ' + f4(row(r.oldM, 3).dc)],
+                ['old file {capacity_plf:null} → source sill, penetration defaulted to 3.0 (SDS), method perforated', r.normN.uplift.source === 'sill' && near(r.normN.uplift.penetration_in, 3.0, 1e-9) && r.normN.uplift.washer_in === 3 && r.normN.method === 'perforated', JSON.stringify(r.normN.uplift) + ' ' + r.normN.method],
+                ['normalizeWall does not mutate its input', r.rawN.uplift.source === undefined && r.rawN.method === undefined, JSON.stringify(r.rawN.uplift)],
+                ['old {capacity_plf:null} SDS wall computes (552.0 plf), not "specify"', row(r.oldN, 0).pass !== null && near(row(r.oldN, 0).capacity, 552.0, 0.01), row(r.oldN, 0).capacityTxt],
+                ['a default wall round-trips normalizeWall byte-identical', r.dwSame === true, String(r.dwSame)],
+                ['LTP4: uplift row "specify" with the not-rated message, no combined row', row(r.ltp, 0).pass === null && row(r.ltp, 0).capacityTxt.indexOf('LTP4 is not rated for uplift') >= 0 && W(r.ltp, 0).combined === null, row(r.ltp, 0).capacityTxt],
+                ['manual with a blank plf → "specify"', row(r.manualBlank, 0).pass === null && row(r.manualBlank, 0).capacityTxt.indexOf('not specified') >= 0 && W(r.manualBlank, 0).combined === null, row(r.manualBlank, 0).capacityTxt],
+                ['blank penetration → "penetration required", shear row falls back to the default penetration', row(r.blankPen, 0).pass === null && row(r.blankPen, 0).capacityTxt.indexOf('penetration required') >= 0 && r.blankPen.ok === true, row(r.blankPen, 0).capacityTxt]]; } }
   ];
 
   // Fixture input models.
@@ -1346,6 +1731,14 @@
     { name: 'Upper', h: 10.0, P: 21000, L: 40, segments: [32], openings: [[8, 7.0]], sill: 'sds14', spacing: 12 },
     BASE_STORY
   ] };
+  // Uplift probes: an opening-free 40 ft wall (C_o = 1, Σb_i = L) so v_max = t
+  // = P_ASD / 40. CASE_UP is a single base story at t = 300 plf; CASE_HD2 puts
+  // the same wall (P = 1,000 lb ASD) over BASE_STORY for the above-base connectors.
+  var CASE_UP = { stories: [{ name: 'Base', h: 10.0, P: 12000, L: 40, segments: [40], openings: [], sill: 'ab58', spacing: 20 }] };
+  var CASE_HD2 = { stories: [
+    { name: 'Upper', h: 10.0, P: 1000, L: 40, segments: [40], openings: [], sill: 'sds14', spacing: 12 },
+    BASE_STORY
+  ] };
   function CASE_SHEATH(o) {
     var s = { name: 'Upper', h: 10.0, P: 1000, L: 40, segments: o.segments || [32], openings: [[8, 7.0]], sill: 'sds14', spacing: 12 };
     if (o.face1) s.face1 = o.face1;
@@ -1368,9 +1761,10 @@
   var SW = {
     ENGINE: ENGINE, LOAD: LOAD, DEAD_FACTOR: DEAD_FACTOR, V1_REFUSAL: V1_REFUSAL,
     SPECIES: SPECIES, SFRS: SFRS, POST_SIZES: POST_SIZES, CF_FC: CF_FC,
-    SHEATHING: SHEATHING, HOLDOWNS: HOLDOWNS, STRAPS: STRAPS, SILL_CONN: SILL_CONN,
-    LTP4_SHEATHING: LTP4_SHEATHING, STRAP_MIN_G: STRAP_MIN_G, HD_COLUMN: HD_COLUMN,
+    SHEATHING: SHEATHING, HOLDOWNS: HOLDOWNS, STRAPS: STRAPS, SILL_CONN: SILL_CONN, NAILS: NAILS, WASHER: WASHER,
+    LTP4_SHEATHING: LTP4_SHEATHING, STRAP_MIN_G: STRAP_MIN_G, HD_COLUMN: HD_COLUMN, CD_CONN: CD_CONN,
     compute: compute, validate: validate, runFixtures: runFixtures, FIXTURES: FIXTURES,
+    normalizeWall: normalizeWall, upliftCapacity: upliftCapacity, combinedCheck: combinedCheck, penetrationDefault: penetrationDefault,
     calcCo: calcCo, calcR: calcR, sumBi: sumBi, openingArea: openingArea,
     storyForces: storyForces, chordForce: chordForce,
     sheathingCapacity: sheathingCapacity, combineFaces: combineFaces,
