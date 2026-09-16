@@ -50,8 +50,9 @@ check(`engine fixtures ${fx.pass}/${fx.total}`, fx.pass === fx.total, fx.lines.f
 
 // ── engine identity ──────────────────────────────────────────────────────────
 const eng = await page.evaluate(() => window.SW.ENGINE);
-check('engine v2, SDPWS 2021 / NDS 2018 / ASCE 7-16',
-  eng.version === 2 && eng.codes.join(',') === 'SDPWS 2021,NDS 2018,ASCE 7-16', JSON.stringify(eng));
+const engHdr = await page.evaluate(() => document.querySelector('.header p').innerText);
+check('engine v2, SDPWS 2021 / NDS 2018 / ASCE 7-16, rev string printed in the header',
+  eng.version === 2 && eng.codes.join(',') === 'SDPWS 2021,NDS 2018,ASCE 7-16' && typeof eng.rev === 'string' && eng.rev.length > 0 && engHdr.indexOf('engine ' + eng.rev) >= 0, JSON.stringify(eng) + ' ' + engHdr);
 
 // ── UI wiring on the shipped default model (appendix D Case 1) ───────────────
 const ui = await page.evaluate(() => {
@@ -603,8 +604,8 @@ check('+ line: chip "line w1 · 2 walls · share 50 %" on both rows; engine line
 check('+ line: floor Σ counts the line once — "Σ wall lines = 4,000 lb (level 4,638 lb)"', ln.sum.indexOf('Σ wall lines = 4,000 lb (level 4,638 lb)') >= 0, ln.sum);
 check('geometry per wall: clone L 151 / 86 ft opening-free, base wall stays 302; shares 104.48 : 86 (0.549 / 0.451), chips follow, equal v_max',
   ln.L === '302,151' && Math.abs(ln.share2[0] - 104.4809 / 190.4809) < 1e-4 && Math.abs(ln.share2[1] - 86 / 190.4809) < 1e-4 && ln.chips2.join('|') === ln.expChip.join('|') && Math.abs(ln.vmax2[0] - ln.vmax2[1]) < 1e-9, JSON.stringify([ln.L, ln.share2, ln.chips2, ln.vmax2]));
-check('banner names the line share; hold-down detail prints P_line × share = P',
-  /line w1: share 0\.549 = 104\.4\d \/ 190\.4\d ft of 2 walls/.test(ln.banner0) && /P\s*line\s*= 4,000 lb \(strength\) × share 0\.549 = P = 2,194 lb/.test(ln.det0), ln.banner0 + ' || ' + ln.det0.slice(0, 1500));
+check('banner names the line share; hold-down detail prints V_line × share = V_i and the increment ΔV',
+  /line w1: share 0\.549 = 104\.4\d \/ 190\.4\d ft of 2 walls/.test(ln.banner0) && /V\s*line\s*= 4,000 lb \(strength, Σ to this level\) × share 0\.549 = V\s*i\s*= 2,194 lb; ΔV = 2,194 lb/.test(ln.det0), ln.banner0 + ' || ' + ln.det0.slice(0, 1500));
 check('construction fans out along the line (face 1 row 0 → row 1; sill spacing row 1 → row 0), not down the stack, L untouched',
   ln.face === '10d common@4,10d common@4' && ln.spacing === '8,8' && ln.Lafter === '302,151' && ln.lowerFace === '8d common', JSON.stringify([ln.face, ln.spacing, ln.Lafter, ln.lowerFace]));
 check('line force fans out (P_W 5,000 typed on row 1 reaches row 0), no model error, Σ once = 5,000', ln.Pfan === '5000,5000' && ln.errFan === 0 && ln.sumFan.indexOf('Σ wall lines = 5,000 lb') >= 0, JSON.stringify([ln.Pfan, ln.errFan, ln.sumFan]));

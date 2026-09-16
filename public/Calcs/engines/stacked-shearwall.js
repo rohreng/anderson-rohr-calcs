@@ -53,7 +53,8 @@
   function f4(v) { return isFinite(v) ? v.toFixed(4) : 'n/a'; }
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
-  var ENGINE = { name: 'stacked-shearwall', version: 2, codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
+  // version = the state shape (the adapter gate); rev = the engine build, for the saved file and prints.
+  var ENGINE = { name: 'stacked-shearwall', version: 2, rev: '2026-09-16 v3-D', codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
 
   // ── load factors, ASCE 7-16 §2.4.1 (0.6W) / §2.4.5 (0.7E) / 0.6D ──────────
   var LOAD = {
@@ -566,34 +567,61 @@
   // M_k = factor * sum_{j<=k} P_j * z_{j,k}, z = sum of story heights j..k.
   // When wallId is given, P_j is that wall's LINE force at level j — the first
   // wall of the line with a finite P_wind_lb / P_seis_lb (src 'wall'), else the
-  // level force (src 'level') — times the wall's share of the line, shareOf(j)
-  // (rows carry `share`, and src 'line' when it is under 1; `Pline` is the
-  // force before the split). No shareOf = one wall per line, share 1. A wall
-  // absent at level j contributes nothing: `present` defaults to
-  // wallPresence(floors, wallId) so the export is safe standalone.
+  // level force (src 'level'). A wall absent at level j contributes nothing:
+  // `present` defaults to wallPresence(floors, wallId) so the export is safe
+  // standalone.
+  // With shareOf(j) (a wall that shares its line) the split is of the LINE's
+  // story shear, as §4.3.5.5.1 Exc. 1 distributes the shear in the line and as
+  // the segment rule does within a wall: V_line,k = Σ P_line,j over the levels
+  // where the line is present, V_i,k = V_line,k × s_i,k with s from that
+  // level's caps (0 where wall i is absent), and the row's P is the increment
+  // ΔV_i,j = V_i,j − V_i,j−1, so V += P and M += P·z give V_i,k and
+  // M_i,k = Σ_{m≤k} V_i,m·h_m exactly as before — and a wall that ends above
+  // the base hands its share to the walls of the line below. Rows carry
+  // `Vline`, `Vi`, `share`, `Pline` and src 'line' when the share is under 1.
+  // Without shareOf (a wall alone on its line) the old P = P_line path runs
+  // untouched.
   function storyForces(floors, caseKey, present, wallId, shareOf) {
     if (wallId != null && !present) present = wallPresence(floors, wallId);
     var lc = LOAD[caseKey], out = [], fld = caseKey === 'wind' ? 'P_wind_lb' : 'P_seis_lb';
     for (var k = 0; k < floors.length; k++) {
-      var V = 0, M = 0, rows = [];
+      var V = 0, M = 0, rows = [], Vline = 0, Vprev = 0;
+      var wk = shareOf && wallId != null ? wallAt(floors, k, wallId) : null;
+      var keyK = wk ? lineKey(wk) : null;
       for (var j = 0; j <= k; j++) {
-        if (present && !present(j)) continue;
-        var wj = wallId != null ? wallAt(floors, j, wallId) : null;
-        var Pw = wj ? lineForce(floors, j, lineKey(wj), fld) : NaN;
-        var src = isFinite(Pw) ? 'wall' : 'level';
-        var Pline = src === 'wall' ? Pw : (num(floors[j][fld], 0) || 0);
-        var s = shareOf ? shareOf(j) : 1;
-        if (!(isFinite(s) && s >= 0)) s = 1;
-        if (s < 1 - 1e-12) src = 'line';
-        var P = Pline * s;
+        var wj, Pw, src, Pline, s = 1, P, Vi;
+        if (keyK !== null) {
+          if (!linePresent(floors, j, keyK)) continue;
+          wj = wallAt(floors, j, wallId);
+          Pw = lineForce(floors, j, keyK, fld);
+          src = isFinite(Pw) ? 'wall' : 'level';
+          Pline = src === 'wall' ? Pw : (num(floors[j][fld], 0) || 0);
+          Vline += Pline;
+          s = wj ? shareOf(j) : 0;
+          if (!(isFinite(s) && s >= 0)) s = 1;
+          if (s < 1 - 1e-12) src = 'line';
+          Vi = Vline * s;
+          P = Vi - Vprev; Vprev = Vi;
+        } else {
+          if (present && !present(j)) continue;
+          wj = wallId != null ? wallAt(floors, j, wallId) : null;
+          Pw = wj ? lineForce(floors, j, lineKey(wj), fld) : NaN;
+          src = isFinite(Pw) ? 'wall' : 'level';
+          Pline = src === 'wall' ? Pw : (num(floors[j][fld], 0) || 0);
+          Vline += Pline;
+          P = Pline; Vi = Vline;
+        }
         var z = 0;
         for (var i = j; i <= k; i++) z += num(floors[i].h_ft, 0) || 0;
         V += P; M += P * z;
-        rows.push({ level: floors[j].name, P: P, Pfac: lc.factor * P, z: z, m: lc.factor * P * z, src: src, share: s, Pline: Pline });
+        rows.push({ j: j, level: floors[j].name, P: P, Pfac: lc.factor * P, z: z, m: lc.factor * P * z, src: src, share: s, Pline: Pline, Vline: Vline, Vi: Vi });
       }
       out.push({ Pstrength: V, V: lc.factor * V, M: lc.factor * M, Mstrength: M, rows: rows, factor: lc.factor });
     }
     return out;
+  }
+  function linePresent(floors, j, key) {
+    return (floors[j].walls || []).some(function (w) { return lineKey(w) === key; });
   }
 
   // =========================================================================
@@ -763,6 +791,18 @@
         warnings.push('Wall line "' + id + '" is discontinuous at ' + missing.join(', ') + ' — transfer = true declared; the transfer element is outside the scope of this calculation.');
       }
     });
+    // A wall that ends above the base while its line goes on below (other
+    // walls carry the key there): its story shear is collected into the line
+    // and carried by those walls (the split is of the line's story shear), but
+    // its overturning stops with it — the engineer verifies that transfer.
+    Object.keys(seen).forEach(function (id) {
+      var lo = Math.max.apply(null, seen[id]);          // lowest level the wall exists on
+      if (lo === floors.length - 1) return;
+      var wLo = wallAt(floors, lo, id), key = lineKey(wLo);
+      var below = false;
+      for (var f = lo + 1; f < floors.length && !below; f++) below = linePresent(floors, f, key);
+      if (below) warnings.push('Wall ' + (wLo.label || id) + ' ends at ' + floors[lo].name + '; its shear is collected into line ' + key + ' and carried by the walls below; its overturning is not — verify the transfer.');
+    });
 
     floors.forEach(function (fl, fi) {
       var h = num(fl.h_ft, 0);
@@ -910,7 +950,7 @@
     // more than one wall, so a one-wall-per-line model prints nothing new.
     var lines = lineShares(floors);
     var anySplit = lines.some(function (byKey) { return Object.keys(byKey).some(function (key) { return byKey[key].walls.length > 1; }); });
-    if (anySplit) res.notes.push('Wall lines with several walls: the line force at each level is split between the walls present there in proportion to design capacity from geometry — C_o·Σb_i (perforated) or Σb_eff (segmented) — so every wall of the line carries the same unit shear (SDPWS §4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1). Equal-length opening-free walls split by length. The Diaphragm Designer delivers one force per line; the split into walls happens here.');
+    if (anySplit) res.notes.push('Wall lines with several walls: the line’s story shear at each level (Σ of the line forces down to there) is split between the walls present at that level in proportion to design capacity from geometry — C_o·Σb_i (perforated) or Σb_eff (segmented) — so every wall of the line carries the same unit shear (SDPWS §4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1); equal-length opening-free walls split by length. A wall absent below leaves the whole story shear to the walls present; its overturning stops with it. Each wall’s overturning is Σ over the stories of its own story shear × h. The Diaphragm Designer delivers one force per line; the split into walls happens here.');
     // Method notes only for the methods in use, so a one-method model prints one.
     var methods = { perforated: false, segmented: false };
     floors.forEach(function (fl) { (fl.walls || []).forEach(function (w) { methods[normalizeWall(w).method] = true; }); });
@@ -1006,9 +1046,12 @@
   // the count). T_i = max(0, (M_i − 0.6 M_R,i)/b_i) about the compression toe
   // of the segment (Eq. 4.3-7 form, lever b_i). M_R,i: w·b_i²/2 on every
   // segment, the point dead load P_end·b_i on segment 1 End 1 only.
-  // A wall sharing its line takes its share of each level's line force inside
-  // storyForces() (shareOf), once: the rows' Pfac already carry it, so Vrun,
-  // the segment moments and the perforated M follow without a second factor.
+  // A wall sharing its line takes its share of the LINE's story shear inside
+  // storyForces() (shareOf), once: the rows' P are the increments of V_i, so
+  // Vrun, the segment moments and the perforated M follow without a second
+  // factor. Such a wall may carry a row at a level where it is absent (the
+  // line continues there and its shear is handed to the walls present), so
+  // rows are read by level, never by position.
   function computeForces(floors, k, w, geom, cap, shareOf) {
     var present = wallPresence(floors, w.id), segmented = geom.method === 'segmented', lever = geom.lever;
     var cases = {};
@@ -1017,10 +1060,14 @@
       var vmax = lever > 0 ? sf.V / lever : NaN;
 
       // Dead-load resisting moment, cumulative from the top down to this level.
-      var MR1 = 0, MR2 = 0, dlRows = [], ri = 0, Vrun = 0;
+      var MR1 = 0, MR2 = 0, dlRows = [], Vrun = 0, rowAt = {};
       var acc = segmented ? geom.segments.map(function () { return { M: 0, MR1: 0, MR2: 0, grav1: 0 }; }) : null;
+      sf.rows.forEach(function (r) { rowAt[r.j] = r; });
       for (var j = 0; j <= k; j++) {
         var wj = wallAt(floors, j, w.id);
+        // Vrun = the wall's factored story shear through level j (0 at a level
+        // where a shared wall is absent: its row there is the −V step).
+        if (segmented && rowAt[j]) Vrun += rowAt[j].Pfac;
         if (!wj) continue;
         var d = resolveDead(floors[j], wj);
         var Lj = num(wj.L_ft, 0) || 0;
@@ -1030,11 +1077,7 @@
         MR2 += mUni;         // tension chord at End 2 — the point load sits at the toe
         dlRows.push({ level: floors[j].name, w_plf: d.w_plf || 0, P_end_lb: d.P_end_lb || 0, L: Lj, mUni: mUni, mPt: mPt, source: d.source });
         if (segmented) {
-          // storyForces() pushed one row per level where the wall is present,
-          // in the same order as this loop, so sf.rows[ri] is level j; Vrun is
-          // the factored story shear through level j.
-          var row = sf.rows[ri++], hj = num(floors[j].h_ft, 0) || 0, sbj = sumBi(wj.segments_ft, hj);
-          Vrun += row.Pfac;
+          var hj = num(floors[j].h_ft, 0) || 0, sbj = sumBi(wj.segments_ft, hj);
           acc.forEach(function (a, i) {
             var sj = sbj.segments[i], bj = sj ? sj.b : 0;
             var shareJ = sj && sbj.sumBi > 0 ? sj.bEff / sbj.sumBi : 0;
@@ -1189,7 +1232,10 @@
     var lines = ctx.lines || lineShares(floors), lineK = lineKey(w), ln = lines[k][lineK];
     var mine = ln ? ln.walls.filter(function (x) { return x.id === w.id; })[0] : null;
     out.line = { key: lineK, walls: ln ? ln.walls.length : 1, share: mine ? mine.share : 1, cap: mine ? mine.cap : out.geom.lever, sumCap: ln ? ln.sumCap : out.geom.lever };
-    var shareOf = function (j) { return shareAt(lines, floors, j, w.id); };
+    // The shared path only where the line holds more than one wall on some
+    // level; a wall alone on its line everywhere runs the plain P = P_line path.
+    var shared = lines.some(function (byKey) { return byKey[lineK] && byKey[lineK].walls.length > 1; });
+    var shareOf = shared ? function (j) { return shareAt(lines, floors, j, w.id); } : null;
 
     // ── story forces for this wall line ─────────────────────────────────────
     var cases = computeForces(floors, k, w, out.geom, cap, shareOf);
@@ -2204,19 +2250,24 @@
                 ['B blank inherits the line force from A (src line, Pline 16,667), V_B = 6,000 lb', o.inherit.ok === true && b.cases.wind.rows[0].src === 'line' && near(b.cases.wind.rows[0].Pline, 10000 / 0.6, 1e-6) && near(b.cases.wind.V, 6000, 1e-6), JSON.stringify(b.cases.wind.rows[0])],
                 ['0.9 lb apart accepted (tolerance 1 lb)', o.tol.ok === true, o.tol.errors.join(' | ') || 'ok'],
                 ['P_E 100 vs 300 lb refused too, named P_E', o.seis.ok === false && o.seis.errors.some(function (e) { return e.indexOf('P_E') >= 0 && e.indexOf('line "A1"') >= 0; }), o.seis.errors.join(' | ') || '(none)']]; } },
-    // Stacks. (a) B exists at the roof only: at the base A is alone on the line
-    // (share 1) and takes the whole base force; its roof share stays 0.4.
-    // V_A,base = 0.6 × (16,667 × 0.4 + 8,333 × 1) = 4,000 + 5,000 = 9,000 lb;
-    // M_A,base = 4,000 × 20 + 5,000 × 10 = 130,000 ft-lb (force-based, z from
-    // each level); T = 130,000/20 = 6,500 lb (C_o 1, lever 20).
+    // Stacks — the split is of the LINE's story shear (§4.3.5.5.1 Exc. 1
+    // distributes the shear in the line; the segment rule within a wall is the
+    // same): V_line,k = Σ P_line,j over the levels the line is present,
+    // V_i,k = V_line,k × s_i,k, M_i,k = Σ_{m≤k} V_i,m·h_m.
+    // (a) B exists at the roof only: V_line = 16,667 + 8,333 = 25,000 lb
+    // strength; at the base A is alone (share 1) and carries the whole line
+    // shear, B's roof share included: V_A,base = 0.6 × 25,000 = 15,000 lb,
+    // v = 750 plf; M_A = 0.6 × (6,667 × 20 + 18,333 × 10) = 190,000 ft-lb
+    // (ΔV form; = 4,000 × 10 + 15,000 × 10), T = 190,000/20 = 9,500 lb.
     // (b) shares differ between levels: roof 20 + 30 (0.4 / 0.6), base 20 + 20
-    // (0.5 / 0.5), P_W = 10,000/0.6 at both levels on both walls. Perforated:
-    // V_A = 4,000 + 5,000 = 9,000, M_A = 130,000, T_A = 6,500; V_B = 6,000 +
-    // 5,000 = 11,000, M_B = 6,000 × 20 + 5,000 × 10 = 170,000, T_B = 8,500.
+    // (0.5 / 0.5), P_W = 10,000/0.6 at both levels on both walls. V_line,base =
+    // 33,333 → V_A = V_B = 0.6 × 16,667 = 10,000 lb, v 500 plf on both.
+    // M_A = 0.6 × (6,667 × 20 + 10,000 × 10) = 140,000, T_A = 7,000;
+    // M_B = 0.6 × (10,000 × 20 + 6,667 × 10) = 160,000, T_B = 8,000.
     // Segmented A = [10, 10] on both levels (f 1, segment shares 0.5): Vrun form
-    // M_1 = Σ V_1,m·h_m = 4,000 × 0.5 × 10 + 9,000 × 0.5 × 10 = 65,000 ft-lb,
-    // T_1 = 65,000/10 = 6,500 lb.
-    { id: 'SW65', src: 'line A1 down a stack: wall absent below (share 1); shares differing by level, cumulative V and M', run: function () {
+    // M_1 = Σ V_1,m·h_m = 4,000 × 0.5 × 10 + 10,000 × 0.5 × 10 = 70,000 ft-lb,
+    // T_1 = 70,000/10 = 7,000 lb.
+    { id: 'SW65', src: 'line A1 down a stack: wall absent below (share 1, line shear carried); shares differing by level, cumulative V and M', run: function () {
         var gone = mkLine([{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 30, P: 10000 }], [{ id: 'A', L: 20, P: 5000 }]);
         var perf = mkLine([{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 30, P: 10000 }], [{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 20, P: 10000 }]);
         var seg = mkLine([{ id: 'A', L: 20, segments: [10, 10], method: 'segmented', P: 10000 }, { id: 'B', L: 30, method: 'segmented', P: 10000 }],
@@ -2224,12 +2275,16 @@
         return { gone: compute(gone), perf: compute(perf), seg: compute(seg) }; },
       expect: function (o) {
         var gA = o.gone.floors[1].walls[0], pA = o.perf.floors[1].walls[0], pB = o.perf.floors[1].walls[1], sA = o.seg.floors[1].walls[0];
+        var rowTxt = function (c) { return c.rows.map(function (x) { return x.src + ':' + f3(x.share) + ':' + f1(x.Vline) + ':' + f1(x.Vi); }).join('/'); };
         return [['(a) ok; roof shares 0.4 / 0.6, base A alone: share 1, walls 1', o.gone.ok === true && near(W(o.gone, 0).line.share, 0.4, 1e-9) && gA.line.share === 1 && gA.line.walls === 1, JSON.stringify(gA.line)],
-                ['(a) base A rows: roof share 0.4 (src line), base share 1 (src wall); V = 9,000 lb', gA.cases.wind.rows.map(function (x) { return x.src + ':' + f3(x.share); }).join('/') === 'line:0.400/wall:1.000' && near(gA.cases.wind.V, 9000, 1e-6), gA.cases.wind.rows.map(function (x) { return x.src + ':' + f3(x.share); }).join('/') + ' ' + f1(gA.cases.wind.V)],
-                ['(a) base A M = 130,000 ft-lb, T = 6,500 lb', near(gA.cases.wind.M, 130000, 1e-6) && near(gA.gov.T, 6500, 1e-6), f1(gA.cases.wind.M) + ' ' + f1(gA.gov.T)],
-                ['(b) perforated: base shares 0.5 / 0.5, roof 0.4 / 0.6', near(pA.line.share, 0.5, 1e-9) && near(pB.line.share, 0.5, 1e-9) && near(W(o.perf, 0).line.share, 0.4, 1e-9), f3(pA.line.share) + '/' + f3(pB.line.share)],
-                ['(b) perforated A: V = 9,000, M = 130,000, T = 6,500; B: V = 11,000, M = 170,000, T = 8,500', near(pA.cases.wind.V, 9000, 1e-6) && near(pA.cases.wind.M, 130000, 1e-6) && near(pA.gov.T, 6500, 1e-6) && near(pB.cases.wind.V, 11000, 1e-6) && near(pB.cases.wind.M, 170000, 1e-6) && near(pB.gov.T, 8500, 1e-6), [pA.cases.wind.V, pA.cases.wind.M, pA.gov.T, pB.cases.wind.V, pB.cases.wind.M, pB.gov.T].map(f1).join('/')],
-                ['(b) segmented A: V = 9,000; segment 1 M = Σ V_1,m·h_m = 65,000 ft-lb, T_1 = 6,500 lb', o.seg.ok === true && near(sA.cases.wind.V, 9000, 1e-6) && near(sA.segments[0].M, 65000, 1e-6) && near(sA.segments[0].T, 6500, 1e-6), f1(sA.cases.wind.V) + ' ' + f1(sA.segments[0].M) + ' ' + f1(sA.segments[0].T)]]; } },
+                ['(a) base A rows: roof share 0.4 (V_line 16,667, V_i 6,667), base share 1 (V_line 25,000, V_i 25,000); V = 15,000 lb, v = 750 plf', rowTxt(gA.cases.wind) === 'line:0.400:16666.7:6666.7/wall:1.000:25000.0:25000.0' && near(gA.cases.wind.V, 15000, 1e-6) && near(gA.cases.wind.vmax, 750, 1e-9), rowTxt(gA.cases.wind) + ' ' + f1(gA.cases.wind.V)],
+                ['(a) base A M = 190,000 ft-lb, T = 9,500 lb', near(gA.cases.wind.M, 190000, 1e-6) && near(gA.gov.T, 9500, 1e-6), f1(gA.cases.wind.M) + ' ' + f1(gA.gov.T)],
+                ['(a) warning: B ends at Roof, its shear collected into line A1, overturning not — verify the transfer', o.gone.warnings.some(function (x) { return x.indexOf('Wall B ends at Roof') >= 0 && x.indexOf('line A1') >= 0 && x.indexOf('verify the transfer') >= 0; }), o.gone.warnings.join(' | ') || '(none)'],
+                ['(b) perforated: base shares 0.5 / 0.5, roof 0.4 / 0.6, no warning', near(pA.line.share, 0.5, 1e-9) && near(pB.line.share, 0.5, 1e-9) && near(W(o.perf, 0).line.share, 0.4, 1e-9) && o.perf.warnings.length === 0, f3(pA.line.share) + '/' + f3(pB.line.share)],
+                ['(b) perforated A: V = 10,000, M = 140,000, T = 7,000; B: V = 10,000, M = 160,000, T = 8,000', near(pA.cases.wind.V, 10000, 1e-6) && near(pA.cases.wind.M, 140000, 1e-6) && near(pA.gov.T, 7000, 1e-6) && near(pB.cases.wind.V, 10000, 1e-6) && near(pB.cases.wind.M, 160000, 1e-6) && near(pB.gov.T, 8000, 1e-6), [pA.cases.wind.V, pA.cases.wind.M, pA.gov.T, pB.cases.wind.V, pB.cases.wind.M, pB.gov.T].map(f1).join('/')],
+                ['(b) both base walls at the same v_max = 500 plf (equal unit shear in the line)', near(pA.cases.wind.vmax, 500, 1e-9) && near(pA.cases.wind.vmax, pB.cases.wind.vmax, 1e-9), f2(pA.cases.wind.vmax) + '/' + f2(pB.cases.wind.vmax)],
+                ['(b) base rows carry the increment: A roof ΔV 6,667 then base ΔV 10,000; B 10,000 then 6,667', near(pA.cases.wind.rows[0].P, 10000 / 0.6 * 0.4, 1e-6) && near(pA.cases.wind.rows[1].P, 10000, 1e-6) && near(pB.cases.wind.rows[0].P, 10000, 1e-6) && near(pB.cases.wind.rows[1].P, 10000 / 0.6 * 0.4, 1e-6), pA.cases.wind.rows.map(function (x) { return f1(x.P); }).join('/') + ' ' + pB.cases.wind.rows.map(function (x) { return f1(x.P); }).join('/')],
+                ['(b) segmented A: V = 10,000; segment 1 M = Σ V_1,m·h_m = 70,000 ft-lb, T_1 = 7,000 lb', o.seg.ok === true && near(sA.cases.wind.V, 10000, 1e-6) && near(sA.segments[0].M, 70000, 1e-6) && near(sA.segments[0].T, 7000, 1e-6), f1(sA.cases.wind.V) + ' ' + f1(sA.segments[0].M) + ' ' + f1(sA.segments[0].T)]]; } },
     // Construction is per line on the page (method fans out), but the engine
     // only needs each wall's lever: a segmented [10, 10] (Σb_eff 20) beside the
     // SW63 perforated wall (cap 26.2295) splits 0.43262 / 0.56738 and both see
