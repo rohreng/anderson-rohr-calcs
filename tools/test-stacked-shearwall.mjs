@@ -126,6 +126,32 @@ check('wide: button text tracks the state (⬜ Wide ✓ / ⛶ Wide)',
   wide.t0 === '⬜ Wide ✓' && wide.t1 === '⛶ Wide' && wide.t2 === '⬜ Wide ✓', JSON.stringify([wide.t0, wide.t1, wide.t2]));
 check('wide: page-local #wideBtn and areCalcs_sw_wide key are gone', !wide.localBtn && wide.oldKey === null, JSON.stringify(wide));
 
+// ── wide-key migration: a browser that still holds the old page-local key ────
+// Fresh context (own localStorage); the init script runs before any page
+// script, so the seed line at the top of the page sees the old key exactly as
+// a returning browser would. Old '0' → new '0', old key dropped, narrow.
+const mig = await browser.newContext();
+await mig.addInitScript(() => { try { localStorage.setItem('areCalcs_sw_wide', '0'); } catch (e) {} });
+const mp = await mig.newPage();
+await mp.route('**/*', (route) => {
+  const p = new URL(route.request().url()).pathname.replace(/^\//, '');
+  try {
+    const ext = p.split('.').pop();
+    route.fulfill({ status: 200, contentType: MIME[ext] || 'application/octet-stream', body: readFileSync(PUBLIC_DIR + p) });
+  } catch { route.fulfill({ status: 404, body: '' }); }
+});
+await mp.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
+await mp.waitForSelector('#areBar');
+const migOut = await mp.evaluate(() => ({
+  neu: localStorage.getItem('areCalcs_wide:stacked_shearwall_calculator.html'),
+  old: localStorage.getItem('areCalcs_sw_wide'),
+  wide: document.body.classList.contains('are-wide'),
+  cap: getComputedStyle(document.querySelector('.container')).maxWidth,
+}));
+await mig.close();
+check('wide: old areCalcs_sw_wide=0 seeds the per-calc key to 0, drops the old key, page opens narrow',
+  migOut.neu === '0' && migOut.old === null && !migOut.wide && migOut.cap === '1280px', JSON.stringify(migOut));
+
 // ── reference tables are rendered from the engine arrays ────────────────────
 const refs = await page.evaluate(() => ({
   hd: document.querySelectorAll('#hdTbl tbody tr').length,
