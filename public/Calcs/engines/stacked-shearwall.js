@@ -1,12 +1,19 @@
 /* =============================================================================
-   SW engine — stacked perforated shear walls, SDPWS 2021 / NDS 2018 / ASCE 7-16.
+   SW engine — stacked shear walls, perforated or segmented per wall,
+   SDPWS 2021 / NDS 2018 / ASCE 7-16.
    DOM-free.  window.SW.compute(state) -> result.
 
    Code basis (every clause verified against the AWC PDF, not from memory):
      SDPWS 2021 §4.1.4.1   ASD seismic = nominal / 2.8
      SDPWS 2021 §4.1.4.2   ASD wind    = nominal / 2.0
+     SDPWS 2021 §4.3.2.1   individual full-height wall segments (segmented method; 2015 §4.3.5.1)
      SDPWS 2021 §4.3.2.3   perforated shear wall limitations (items 2,4,6,7,8,9)
+     SDPWS 2021 §4.3.3.1 / Table 4.3.3  maximum aspect ratio 3.5:1, blocked WSP (2015 §4.3.4.1 / Table 4.3.4)
      SDPWS 2021 §4.3.3.4   perforated shear wall segment aspect ratios, Sigma b_i
+     SDPWS 2021 §4.3.5.5.1 Exc. 1  segmented: distribution proportional to design capacity, 2b/h on
+                           h/b > 2:1, "need not be further reduced by 4.3.3.2" (2015 §4.3.3.4.1 Exc. 1)
+     SDPWS 2021 §4.3.6.1.2 Eq. 4.3-7  segment chord T = C = v·h, lever b_i (2015 same)
+     SDPWS 2021 §4.3.6.4.2 uplift anchorage at the ends of each (segmented) shear wall
      SDPWS 2021 §4.3.5.2   nominal unit shear capacities, Tables 4.3A / 4.3C
      SDPWS 2021 §4.3.5.4.1 similar sheathing both faces -> 2x
      SDPWS 2021 §4.3.5.4.2 dissimilar sheathing -> greater of 2x smaller / larger;
@@ -421,6 +428,9 @@
   // Geometry — Sigma b_i (§4.3.3.4) and C_o (§4.3.5.6)
   // =========================================================================
   // Per segment: h/b > 3.5 excluded; 2 < h/b <= 3.5 multiplied by 2b/h; else full.
+  // The same Σ b_i·(2b/h) is the segmented method's Σb_eff of §4.3.5.5.1 Exc. 1
+  // (2015 §4.3.3.4.1 Exc. 1) — there validate() has already refused h/b > 3.5,
+  // so `f` = bEff/b is the per-segment capacity factor (1, or 2b/h) it prints.
   function sumBi(segments, h) {
     var rows = [], sum = 0, raw = 0;
     (segments || []).forEach(function (b0) {
@@ -430,9 +440,13 @@
       else if (hb > 2 + 1e-9) { bEff = b * (2 * b / h); rule = '× 2b/h'; }
       else { bEff = b; rule = 'full'; }
       sum += bEff; raw += Math.max(b, 0);
-      rows.push({ b: b, hOverB: hb, bEff: bEff, rule: rule });
+      rows.push({ b: b, hOverB: hb, bEff: bEff, rule: rule, f: b > 0 ? bEff / b : 0 });
     });
     return { segments: rows, sumBi: sum, sumBiRaw: raw };
+  }
+  // "8, 8, 4" — segment widths for messages, no trailing zeros.
+  function fmtSegs(segments) {
+    return (segments || []).map(function (b) { var n = num(b, 0); return String(Math.round(n * 100) / 100); }).join(', ');
   }
 
   // A_o = sum(width x max(clear height, h/3)) + unsheathed areas (§4.3.2.3(9) exc.)
@@ -608,6 +622,32 @@
     floors.forEach(function (fl, fi) {
       (fl.walls || []).forEach(function (w) { (seen[w.id] = seen[w.id] || []).push(fi); });
     });
+    // Method and segment count down the stack. A segmented wall stacks segment
+    // i on segment i (the per-segment overturning of §4.3.6.4.4 accumulates
+    // that way), so the count must match on every level the wall exists;
+    // widths may differ (warning). One method per wall line: a perforated wall
+    // above a segmented one has no per-segment shares to hand down.
+    Object.keys(seen).forEach(function (id) {
+      var levels = seen[id].map(function (fi) { return { fi: fi, w: normalizeWall(wallAt(floors, fi, id)) }; });
+      var seg = levels.filter(function (x) { return x.w.method === 'segmented'; });
+      if (!seg.length) return;
+      var perf = levels.filter(function (x) { return x.w.method !== 'segmented'; });
+      if (perf.length) {
+        errors.push('Wall line "' + id + '" is segmented at ' + floors[seg[0].fi].name + ' but perforated at ' + floors[perf[0].fi].name
+          + ' — use one method on every level of a wall line.');
+        return;
+      }
+      var top = seg[0], nTop = (top.w.segments_ft || []).length, wTop = fmtSegs(top.w.segments_ft);
+      for (var i = 1; i < seg.length; i++) {
+        var lv = seg[i], nLv = (lv.w.segments_ft || []).length, wLv = fmtSegs(lv.w.segments_ft);
+        if (nLv !== nTop) {
+          errors.push('Wall line "' + id + '" is segmented with ' + nTop + ' segments at ' + floors[top.fi].name + ' but ' + nLv + ' segments at ' + floors[lv.fi].name
+            + ' — segment i above must land on segment i below. Enter the same segment count on every level (the "Copy walls to levels below" button copies the geometry down).');
+        } else if (wLv !== wTop) {
+          warnings.push('Wall line "' + id + '": segment widths differ between ' + floors[top.fi].name + ' (' + wTop + ' ft) and ' + floors[lv.fi].name + ' (' + wLv + ' ft) — segment i above is taken to land on segment i below and hands its overturning down (§4.3.6.4.4).');
+        }
+      }
+    });
     Object.keys(seen).forEach(function (id) {
       var idx = seen[id], lo = Math.min.apply(null, idx), hi = Math.max.apply(null, idx);
       if (hi - lo + 1 === idx.length) return;
@@ -636,10 +676,13 @@
       var h = num(fl.h_ft, 0);
       var where = (fl.name || 'Level ' + (fi + 1));
       if (!(h > 0)) errors.push(where + ': wall height must be greater than zero.');
-      if (h > 20 + 1e-9) errors.push(where + ': perforated shear wall height h = ' + f1(h) + ' ft exceeds the 20 ft limit of SDPWS §4.3.2.3(8).');
+      // §4.3.2.3(8) is a perforated limitation; a level of segmented walls has no height cap here.
+      var anyPerforated = (fl.walls || []).some(function (w0) { return normalizeWall(w0).method !== 'segmented'; });
+      if (h > 20 + 1e-9 && anyPerforated) errors.push(where + ': perforated shear wall height h = ' + f1(h) + ' ft exceeds the 20 ft limit of SDPWS §4.3.2.3(8).');
       if (!isFinite(num(fl.P_wind_lb, 0)) || !isFinite(num(fl.P_seis_lb, 0))) errors.push(where + ': level forces must be numbers.');
       (fl.walls || []).forEach(function (w0) {
         var w = normalizeWall(w0);
+        var seg = w.method === 'segmented';
         var tag = where + ' / ' + (w.label || w.id);
         var L = num(w.L_ft, 0);
         if (!(L > 0)) errors.push(tag + ': wall length L must be greater than zero.');
@@ -658,9 +701,16 @@
           if (!(b > 0)) errors.push(tag + ': full-height segment width b_i = ' + f2(b) + ' ft must be greater than zero.');
         });
         var segSum = segs.reduce(function (a, b) { return a + Math.max(b, 0); }, 0);
-        if (!(segSum > 0)) errors.push(tag + ': at least one full-height perforated shear wall segment is required (Σb_i = 0).');
+        if (!(segSum > 0)) errors.push(tag + ': at least one full-height ' + (seg ? 'shear wall segment' : 'perforated shear wall segment') + ' is required (Σb_i = 0).');
         var sb = sumBi(segs, h);
-        if (segSum > 0 && !(sb.sumBi > 0)) errors.push(tag + ': every segment has h/b > 3.5 and is excluded by SDPWS §4.3.3.4 — Σb_i = 0.');
+        if (seg) {
+          // Segmented: every segment is a shear wall in its own right, so one
+          // past Table 4.3.3's 3.5:1 (blocked WSP) is not a shear wall at all —
+          // there is no Σb_i to drop it from. The 2015 edition's Table 4.3.4 is identical.
+          sb.segments.forEach(function (s, si) {
+            if (s.b > 0 && s.hOverB > 3.5 + 1e-9) errors.push(tag + ': segment ' + (si + 1) + ' (b = ' + f2(s.b) + ' ft) has h/b = ' + f2(s.hOverB) + ' > 3.5 and is not a shear wall (SDPWS 2021 Table 4.3.3, blocked wood structural panels; 2015 Table 4.3.4). Widen it, or leave it out of the segment list (it then counts as an opening).');
+          });
+        } else if (segSum > 0 && !(sb.sumBi > 0)) errors.push(tag + ': every segment has h/b > 3.5 and is excluded by SDPWS §4.3.3.4 — Σb_i = 0.');
         var opW = 0;
         (w.openings || []).forEach(function (o) {
           var ow = num(o.w_ft, 0), oh = num(o.hc_ft, 0);
@@ -670,14 +720,17 @@
         });
         if (segSum + opW > L + 1e-6) errors.push(tag + ': Σ segments (' + f2(segSum) + ' ft) + Σ opening widths (' + f2(opW) + ' ft) = ' + f2(segSum + opW) + ' ft exceeds L = ' + f2(L) + ' ft.');
         // A negative unsheathed area would reduce A_o and raise C_o — refuse it
-        // rather than let openingArea() add it straight into the total.
+        // rather than let openingArea() add it straight into the total. The
+        // segmented method has no A_o and ignores the field.
         var unsh = num(w.unsheathed_ft2, 0);
-        if (isFinite(unsh) && unsh < 0) errors.push(tag + ': unsheathed area ' + f2(unsh) + ' ft² cannot be negative (SDPWS §4.3.2.3(9) Exception adds to A_o).');
+        if (!seg && isFinite(unsh) && unsh < 0) errors.push(tag + ': unsheathed area ' + f2(unsh) + ' ft² cannot be negative (SDPWS §4.3.2.3(9) Exception adds to A_o).');
         if (!w.sheathing || !w.sheathing.face1) errors.push(tag + ': face 1 sheathing is required.');
         else {
           var s1 = findSheathing(w.sheathing.face1);
           if (!s1) errors.push(tag + ': unknown face 1 sheathing option.');
-          else if (s1.type !== 'wsp') errors.push(tag + ': a perforated shear wall must be sheathed with wood structural panel sheathing (SDPWS §4.3.2.3). Gypsum is permitted only as the opposite face.');
+          else if (s1.type !== 'wsp') errors.push(tag + (seg
+            ? ': a segmented wall under SFRS A.15 / B.22 and the §4.3.5.5.1 Exc. 1 distribution must be sheathed with wood structural panel sheathing. Gypsum is permitted only as the opposite face.'
+            : ': a perforated shear wall must be sheathed with wood structural panel sheathing (SDPWS §4.3.2.3). Gypsum is permitted only as the opposite face.'));
           if (w.sheathing.face2) {
             var s2 = findSheathing(w.sheathing.face2);
             if (!s2) errors.push(tag + ': unknown face 2 sheathing option.');
@@ -693,7 +746,9 @@
         if (!(num(w.sill && w.sill.spacing_in, 0) > 0)) errors.push(tag + ': sill connector spacing must be greater than zero.');
         // Uplift inputs: a blank penetration / washer / manual plf is "specify"
         // on the check row, not an error; a value that breaks a code minimum is.
-        if (sc && w.uplift.source !== 'manual') {
+        // Perforated walls only — §4.3.6.4.2.1 is the perforated uplift; a
+        // segmented wall anchors its segment ends (§4.3.6.4.2) and has no row.
+        if (sc && !seg && w.uplift.source !== 'manual') {
           var up = upliftCapacity(w, state.species, SPECIES[w.sillSpecies] ? w.sillSpecies : state.species, fi === floors.length - 1);
           up.errors.forEach(function (e) { errors.push(tag + ': ' + e); });
           var pv = w.uplift.penetration_in;
@@ -731,13 +786,17 @@
     var gypBlockedBySDC = (sdc === 'E' || sdc === 'F');
 
     res.notes.push('Level forces are STRENGTH level. The engine applies 0.6W (ASCE 7-16 §2.4.1), 0.7E (§2.4.5) and 0.6D for the resisting moment.');
-    res.notes.push('Story shear is accumulated as FORCE and converted once at each story with that story’s C_o·Σb_i (SDPWS §4.3.6.4.4, §4.3.6.4.1.1).');
+    res.notes.push('Story shear is accumulated as FORCE and converted once at each story with that story’s C_o·Σb_i (perforated) or Σb_eff (segmented) (SDPWS §4.3.6.4.4, §4.3.6.4.1.1).');
     // Only when the feature is in use, so an untouched model prints no note about it.
     var anyLineForce = floors.some(function (fl) {
       return (fl.walls || []).some(function (w) { return isFinite(num(w.P_wind_lb, NaN)) || isFinite(num(w.P_seis_lb, NaN)); });
     });
     if (anyLineForce) res.notes.push('Wall-line forces, where entered, replace the level force for that line.');
-    res.notes.push('Perforated shear wall method assumed: a perforated shear wall segment is present at each end of every wall line (§4.3.2.3(2)); top-of-wall and bottom-of-wall elevations are uniform (§4.3.2.3(7)); collectors run the full length of the wall (§4.3.2.3(6)); sheathed areas that are not the tabulated assembly are counted in A_o (§4.3.2.3(9) Exception).');
+    // Method notes only for the methods in use, so a one-method model prints one.
+    var methods = { perforated: false, segmented: false };
+    floors.forEach(function (fl) { (fl.walls || []).forEach(function (w) { methods[normalizeWall(w).method] = true; }); });
+    if (methods.perforated) res.notes.push('Perforated shear wall method (per-wall Method = perforated): a perforated shear wall segment is present at each end of every wall line (§4.3.2.3(2)); top-of-wall and bottom-of-wall elevations are uniform (§4.3.2.3(7)); collectors run the full length of the wall (§4.3.2.3(6)); sheathed areas that are not the tabulated assembly are counted in A_o (§4.3.2.3(9) Exception).');
+    if (methods.segmented) res.notes.push('Segmented method (per-wall Method = segmented): each b_i is an individual full-height shear wall (§4.3.2.1; 2015 §4.3.5.1) with its own hold-down pair; story shear is distributed in proportion to design capacity with 2b/h on segments of h/b > 2:1 (§4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1), so the sheathing check is v_eff = V/Σb_eff ≤ v_ASD; openings are gaps between segments and the unsheathed-area entry is ignored; no §4.3.6.4.2.1 uniform uplift (segment ends are anchored per §4.3.6.4.2); segment i stacks on segment i (§4.3.6.4.4).');
     if (sfrs && !sfrs.wsp) res.warnings.push('SFRS ' + sfrs.id + ' is "shear panels of all other materials" — ASCE 7-16 Table 12.2-1 limits it to 35 ft in SDC D and does not permit it in SDC E or F. The wood structural panel systems are A.15 / B.22.');
     if (sfrs && !sfrs.wsp && (sdc === 'E' || sdc === 'F')) res.errors.push('SFRS ' + sfrs.id + ' is not permitted in SDC ' + sdc + ' (ASCE 7-16 Table 12.2-1). Select A.15 or B.22.');
 
@@ -772,31 +831,183 @@
     return null;
   }
 
+  // =========================================================================
+  // Geometry per wall
+  // =========================================================================
+  // Perforated: Σb_i (§4.3.3.4), A_o, C_o (§4.3.5.6) and the lever C_o·Σb_i.
+  // Segmented (SDPWS 2021 §4.3.2.1 individual full-height segments; 2015
+  // §4.3.5.1): Σb_eff = Σ b_i·f_i with f_i = 1, or 2b_i/h for 2 < h/b ≤ 3.5
+  // (§4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1 — "need not be further reduced
+  // by 4.3.3.2"), and each segment's share b_i·f_i/Σb_eff of the story shear.
+  // Both return one shape: v = V/lever reads `lever` (C_o·Σb_i, or Σb_eff so
+  // that v_eff = V/Σb_eff), the gypsum gate reads `maxHoverB`. The segmented
+  // C_o / A_o / r are null — never a number that could pass for one.
+  function computeGeometry(w, h, L) {
+    var sb = sumBi(w.segments_ft, h), msgs = [];
+    // Governing aspect ratio for the gypsum gate: the maximum h/b over ALL
+    // segments, including any already excluded from Σb_i by §4.3.3.4.
+    // Conservative — a tall narrow pier that contributes nothing to Σb_i still
+    // disqualifies the gypsum face — and it keeps the gate independent of
+    // which segments happened to survive the aspect-ratio reduction.
+    var maxHoverB = sb.segments.reduce(function (a, s) { return Math.max(a, isFinite(s.hOverB) ? s.hOverB : 0); }, 0);
+    if (w.method === 'segmented') {
+      var segs = sb.segments.map(function (s, i) {
+        return { i: i, b: s.b, hOverB: s.hOverB, bEff: s.bEff, f: s.f, rule: s.rule, share: sb.sumBi > 0 ? s.bEff / sb.sumBi : 0 };
+      });
+      return { messages: msgs, geom: {
+        method: 'segmented', segments: segs, sumBi: sb.sumBi, sumBiRaw: sb.sumBiRaw,
+        Afhs: null, Awall: h * L, openings: [], unsheathed: 0, Ao: null, r: null, Co: null,
+        lever: sb.sumBi, maxHoverB: maxHoverB
+      } };
+    }
+    var oa = openingArea(w.openings, h, w.unsheathed_ft2);
+    var Co = calcCo(L, sb.sumBiRaw, oa.Ao, h);
+    var r = calcR(sb.sumBiRaw, oa.Ao, h);
+    if (oa.rows.some(function (o) { return o.floored; })) {
+      msgs.push('One or more openings are shorter than h/3; an opening height of h/3 = ' + f2(h / 3) + ' ft was used in A_o (SDPWS Eq. 4.3-6).');
+    }
+    return { messages: msgs, geom: {
+      method: 'perforated', segments: sb.segments, sumBi: sb.sumBi, sumBiRaw: sb.sumBiRaw,
+      Afhs: h * sb.sumBiRaw, Awall: h * L, openings: oa.rows, unsheathed: oa.unsheathed,
+      Ao: oa.Ao, r: r, Co: Co, lever: Co * sb.sumBi, maxHoverB: maxHoverB
+    } };
+  }
+
+  // =========================================================================
+  // Forces per wall — both load cases in full
+  // =========================================================================
+  // Story shear V and overturning M for this wall line come from storyForces()
+  // (forces summed, §4.3.6.4.4). Perforated: v_max = V/(C_o·Σb_i) (Eq. 4.3-9),
+  // T from Eq. 4.3-8 with the dead-load M_R of every level down to this one.
+  // Segmented: v_eff = V/Σb_eff; V_i = V·share_i at this level's shares; the
+  // per-segment overturning accumulates each level's factored force at THAT
+  // level's share, M_i,k = Σ_{j≤k} factor·P_j·share_i,j·z_{j,k}, so segment i
+  // above hands its overturning to segment i below (why validate() pins the
+  // count); T_i = max(0, (M_i − 0.6 M_R,i)/b_i) about the compression toe of the
+  // segment (Eq. 4.3-7 form, lever b_i). M_R,i: w·b_i²/2 on every segment, the
+  // point dead load P_end·b_i on segment 1 End 1 only.
+  function computeForces(floors, k, w, geom, cap) {
+    var present = wallPresence(floors, w.id), segmented = geom.method === 'segmented', lever = geom.lever;
+    var cases = {};
+    ['wind', 'seismic'].forEach(function (caseKey) {
+      var sf = storyForces(floors, caseKey, present, w.id)[k];
+      var vmax = lever > 0 ? sf.V / lever : NaN;
+
+      // Dead-load resisting moment, cumulative from the top down to this level.
+      var MR1 = 0, MR2 = 0, dlRows = [], ri = 0;
+      var acc = segmented ? geom.segments.map(function () { return { M: 0, MR1: 0, MR2: 0, grav1: 0 }; }) : null;
+      for (var j = 0; j <= k; j++) {
+        var wj = wallAt(floors, j, w.id);
+        if (!wj) continue;
+        var d = resolveDead(floors[j], wj);
+        var Lj = num(wj.L_ft, 0) || 0;
+        var mUni = (d.w_plf || 0) * Lj * Lj / 2;
+        var mPt = (d.P_end_lb || 0) * Lj;
+        MR1 += mUni + mPt;   // tension chord at End 1 — the point load resists with arm L
+        MR2 += mUni;         // tension chord at End 2 — the point load sits at the toe
+        dlRows.push({ level: floors[j].name, w_plf: d.w_plf || 0, P_end_lb: d.P_end_lb || 0, L: Lj, mUni: mUni, mPt: mPt, source: d.source });
+        if (segmented) {
+          // storyForces() pushed one row per level where the wall is present,
+          // in the same order as this loop, so sf.rows[ri] is level j.
+          var row = sf.rows[ri++], sbj = sumBi(wj.segments_ft, num(floors[j].h_ft, 0));
+          acc.forEach(function (a, i) {
+            var sj = sbj.segments[i], bj = sj ? sj.b : 0;
+            var shareJ = sj && sbj.sumBi > 0 ? sj.bEff / sbj.sumBi : 0;
+            a.M += row.Pfac * shareJ * row.z;
+            var mU = (d.w_plf || 0) * bj * bj / 2, mP = i === 0 ? (d.P_end_lb || 0) * bj : 0;
+            a.MR1 += mU + mP; a.MR2 += mU;
+            if (i === 0) a.grav1 += d.P_end_lb || 0;
+          });
+        }
+      }
+      var base = {
+        key: caseKey, label: LOAD[caseKey].label, factor: LOAD[caseKey].factor, ref: LOAD[caseKey].ref,
+        V: sf.V, Vstrength: sf.Pstrength, M: sf.M, Mstrength: sf.Mstrength, rows: sf.rows, vmax: vmax, dlRows: dlRows,
+        asd: cap[caseKey].asd, dcSheathing: cap[caseKey].asd > 0 ? vmax / cap[caseKey].asd : Infinity
+      };
+      if (!segmented) {
+        var e1 = chordForce(sf.M, MR1, lever), e2 = chordForce(sf.M, MR2, lever);
+        // Accumulated gravity carried by each end post (1.0D on the post).
+        var grav1 = dlRows.reduce(function (a, x) { return a + x.P_end_lb; }, 0), grav2 = 0;
+        var Cbase = lever > 0 ? sf.M / lever : NaN;   // overturning compression, no dead-load relief
+        var ends = [
+          { end: 1, label: 'End 1', MR: MR1, T: e1.T, Traw: e1.Traw, grav: grav1, C: Cbase + grav1 },
+          { end: 2, label: 'End 2', MR: MR2, T: e2.T, Traw: e2.Traw, grav: grav2, C: Cbase + grav2 }
+        ];
+        base.t = vmax; base.ends = ends; base.Cot = Cbase;
+        base.Tgov = Math.max(ends[0].T, ends[1].T); base.Cgov = Math.max(ends[0].C, ends[1].C);
+        base.endGov = ends[0].T >= ends[1].T ? 1 : 2;
+        cases[caseKey] = base;
+        return;
+      }
+      var segRes = geom.segments.map(function (s, i) {
+        var a = acc[i], b = s.b, Vi = sf.V * s.share;
+        var se1 = chordForce(a.M, a.MR1, b), se2 = chordForce(a.M, a.MR2, b);
+        var Cot = b > 0 ? a.M / b : NaN;
+        var sEnds = [
+          { end: 1, label: 'End 1', MR: a.MR1, T: se1.T, Traw: se1.Traw, grav: a.grav1, C: Cot + a.grav1 },
+          { end: 2, label: 'End 2', MR: a.MR2, T: se2.T, Traw: se2.Traw, grav: 0, C: Cot }
+        ];
+        return { i: i, b: b, f: s.f, share: s.share, V: Vi, v: b > 0 ? Vi / b : NaN, M: a.M, Cot: Cot, ends: sEnds,
+                 Tgov: Math.max(sEnds[0].T, sEnds[1].T), Cgov: Math.max(sEnds[0].C, sEnds[1].C), endGov: sEnds[0].T >= sEnds[1].T ? 1 : 2 };
+      });
+      base.t = NaN; base.ends = []; base.Cot = NaN; base.endGov = null; base.segments = segRes;
+      base.Tgov = segRes.reduce(function (m, s) { return Math.max(m, s.Tgov); }, 0);
+      base.Cgov = segRes.reduce(function (m, s) { return Math.max(m, s.Cgov); }, -Infinity);
+      base.vSeg = segRes.reduce(function (m, s) { return Math.max(m, isFinite(s.v) ? s.v : 0); }, 0);
+      cases[caseKey] = base;
+    });
+    return cases;
+  }
+
+  // Hold-down selection for one tension demand: coil strap above the base
+  // when asked for, else the lightest HDUE whose catalog column carries a value
+  // for this end post and species (C-C-2026 p. 61).
+  function selectHoldown(hdType, T, postInfo, speciesId, ctx) {
+    var hardware = { type: hdType };
+    if (hdType === 'strap') {
+      var strap = null;
+      for (var si = 0; si < STRAPS.length; si++) if (STRAPS[si].Tall >= T) { strap = STRAPS[si]; break; }
+      hardware.device = strap; hardware.capacity = strap ? strap.Tall : 0;
+      hardware.label = strap ? strap.name : 'Exceeds CMST12 (9,215 lb)';
+      hardware.detail = strap ? strap.nails + ' — ' + strap.esr : '';
+      return hardware;
+    }
+    var hdCol = HD_COLUMN[speciesId];   // catalog column name, for the labels
+    var pick = null;
+    for (var hi = 0; hi < HOLDOWNS.length; hi++) {
+      var capH = holdownCapacity(HOLDOWNS[hi], postInfo.thk, postInfo.width, speciesId);
+      if (capH > 0 && capH >= T) { pick = { hd: HOLDOWNS[hi], cap: capH }; break; }
+    }
+    hardware.device = pick ? pick.hd : null; hardware.capacity = pick ? pick.cap : 0; hardware.column = hdCol;
+    if (!pick) {
+      // Name the largest device the end post and species actually permit, not the largest in the catalogue.
+      var best = null;
+      HOLDOWNS.forEach(function (hd) {
+        var c = holdownCapacity(hd, postInfo.thk, postInfo.width, speciesId);
+        if (c > 0 && (!best || c > best.cap)) best = { hd: hd, cap: c };
+      });
+      hardware.bestAvailable = best;
+      hardware.label = best
+        ? 'Exceeds ' + best.hd.name + ' (' + f1(best.cap) + ' lb, ' + hdCol + ') — the largest hold-down permitted on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post'
+        : 'No HDUE qualifies on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post — the lightest HDUE needs 3" member thickness × 3½" width (C-C-2026 p. 61)';
+    } else {
+      hardware.label = pick.hd.name;
+    }
+    hardware.detail = pick ? (pick.hd.sds + ', ' + pick.hd.rod + ' dia. anchor rod — ' + hdCol + ' column, C-C-2026 p. 61' + (pick.hd.note ? ' — ' + pick.hd.note : '')) : '';
+    hardware.rod = pick ? pick.hd.rod : '';
+    return hardware;
+  }
+
   function computeWall(state, floors, k, wi, ctx) {
     var n = floors.length, fl = floors[k], w = normalizeWall(fl.walls[wi]), h = num(fl.h_ft, 0);
-    var isBase = k === n - 1;
+    var isBase = k === n - 1, segmented = w.method === 'segmented';
     var out = { id: w.id, label: w.label || w.id, L_ft: num(w.L_ft, 0), h_ft: h, base: isBase, method: w.method, messages: [], errors: [], checks: [] };
 
     // ── geometry ────────────────────────────────────────────────────────────
-    var sb = sumBi(w.segments_ft, h);
-    var oa = openingArea(w.openings, h, w.unsheathed_ft2);
-    var Co = calcCo(out.L_ft, sb.sumBiRaw, oa.Ao, h);
-    var r = calcR(sb.sumBiRaw, oa.Ao, h);
-    var lever = Co * sb.sumBi;
-    out.geom = {
-      segments: sb.segments, sumBi: sb.sumBi, sumBiRaw: sb.sumBiRaw,
-      Afhs: h * sb.sumBiRaw, Awall: h * out.L_ft, openings: oa.rows, unsheathed: oa.unsheathed,
-      Ao: oa.Ao, r: r, Co: Co, lever: lever,
-      // Governing aspect ratio for the gypsum gate below: the maximum h/b over
-      // ALL segments, including any already excluded from Σb_i by §4.3.3.4.
-      // Conservative — a tall narrow pier that contributes nothing to Σb_i still
-      // disqualifies the gypsum face — and it keeps the gate independent of
-      // which segments happened to survive the aspect-ratio reduction.
-      maxHoverB: sb.segments.reduce(function (a, s) { return Math.max(a, isFinite(s.hOverB) ? s.hOverB : 0); }, 0)
-    };
-    if (oa.rows.some(function (o) { return o.floored; })) {
-      out.messages.push('One or more openings are shorter than h/3; an opening height of h/3 = ' + f2(h / 3) + ' ft was used in A_o (SDPWS Eq. 4.3-6).');
-    }
+    var cg = computeGeometry(w, h, out.L_ft);
+    out.geom = cg.geom;
+    cg.messages.forEach(function (m) { out.messages.push(m); });
 
     // ── sheathing capacity ──────────────────────────────────────────────────
     var opts = { G: ctx.sp.G, insideFaceHoldown: !!(w.sheathing && w.sheathing.insideFaceHoldown) };
@@ -825,10 +1036,10 @@
     });
     if (gypDropped) cap.faceNotes.push(gypDropped);
 
-    // §4.3.2.3(4) — combined nominal unit shear capacity <= 2,435 plf.
+    // §4.3.2.3(4) — combined nominal unit shear capacity <= 2,435 plf (perforated only).
     var vnMax = Math.max(cap.wind.vn || 0, cap.seismic.vn || 0);
     cap.nominalMax = vnMax;
-    if (vnMax > 2435 + 1e-9) {
+    if (!segmented && vnMax > 2435 + 1e-9) {
       out.errors.push('Combined nominal unit shear capacity ' + f1(vnMax) + ' plf exceeds the 2,435 plf limit for perforated shear walls (SDPWS §4.3.2.3(4)). Choose a lighter sheathing schedule or design the wall by another method.');
     }
 
@@ -850,43 +1061,7 @@
     out.cap = cap;
 
     // ── story forces for this wall line ─────────────────────────────────────
-    var present = wallPresence(floors, w.id);
-    var cases = {};
-    ['wind', 'seismic'].forEach(function (caseKey) {
-      var sf = storyForces(floors, caseKey, present, w.id)[k];
-      var vmax = lever > 0 ? sf.V / lever : NaN;
-
-      // Dead-load resisting moment, cumulative from the top down to this level.
-      var MR1 = 0, MR2 = 0, dlRows = [];
-      for (var j = 0; j <= k; j++) {
-        var wj = wallAt(floors, j, w.id);
-        if (!wj) continue;
-        var d = resolveDead(floors[j], wj);
-        var Lj = num(wj.L_ft, 0) || 0;
-        var mUni = (d.w_plf || 0) * Lj * Lj / 2;
-        var mPt = (d.P_end_lb || 0) * Lj;
-        MR1 += mUni + mPt;   // tension chord at End 1 — the point load resists with arm L
-        MR2 += mUni;         // tension chord at End 2 — the point load sits at the toe
-        dlRows.push({ level: floors[j].name, w_plf: d.w_plf || 0, P_end_lb: d.P_end_lb || 0, L: Lj, mUni: mUni, mPt: mPt, source: d.source });
-      }
-      var e1 = chordForce(sf.M, MR1, lever), e2 = chordForce(sf.M, MR2, lever);
-      // Accumulated gravity carried by each end post (1.0D on the post).
-      var grav1 = dlRows.reduce(function (a, x) { return a + x.P_end_lb; }, 0), grav2 = 0;
-      var Cbase = lever > 0 ? sf.M / lever : NaN;   // overturning compression, no dead-load relief
-      var ends = [
-        { end: 1, label: 'End 1', MR: MR1, T: e1.T, Traw: e1.Traw, grav: grav1, C: Cbase + grav1 },
-        { end: 2, label: 'End 2', MR: MR2, T: e2.T, Traw: e2.Traw, grav: grav2, C: Cbase + grav2 }
-      ];
-      var Tgov = Math.max(ends[0].T, ends[1].T);
-      var Cgov = Math.max(ends[0].C, ends[1].C);
-      cases[caseKey] = {
-        key: caseKey, label: LOAD[caseKey].label, factor: LOAD[caseKey].factor, ref: LOAD[caseKey].ref,
-        V: sf.V, Vstrength: sf.Pstrength, M: sf.M, Mstrength: sf.Mstrength, rows: sf.rows,
-        vmax: vmax, t: vmax, ends: ends, Tgov: Tgov, Cgov: Cgov, Cot: Cbase, dlRows: dlRows,
-        endGov: ends[0].T >= ends[1].T ? 1 : 2,
-        asd: cap[caseKey].asd, dcSheathing: cap[caseKey].asd > 0 ? vmax / cap[caseKey].asd : Infinity
-      };
-    });
+    var cases = computeForces(floors, k, w, out.geom, cap);
     out.cases = cases;
 
     // Governing case for each quantity. Wind wins a tie (within 1e-6 relative)
@@ -900,44 +1075,47 @@
     var govV = govBy(function (c) { return c.vmax; });
     var govT = govBy(function (c) { return c.Tgov; });
     var govC = govBy(function (c) { return c.Cgov; });
-    out.gov = { shear: govShear.key, vmax: govV.vmax, vmaxCase: govV.key, t: govV.vmax, T: govT.Tgov, Tcase: govT.key, C: govC.Cgov, Ccase: govC.key };
+    out.gov = { shear: govShear.key, vmax: govV.vmax, vmaxCase: govV.key, t: govV.t, T: govT.Tgov, Tcase: govT.key, C: govC.Cgov, Ccase: govC.key };
+    if (segmented) {
+      // Sill demand is the largest per-segment unit shear (v_i = v_eff·f_i ≤ v_eff).
+      var govS = govBy(function (c) { return c.vSeg; });
+      out.gov.vSeg = govS.vSeg; out.gov.vSegCase = govS.key;
+    }
 
     // ── hardware ────────────────────────────────────────────────────────────
     var postInfo = endPostCheck(w.endPost, state.species, h, out.gov.C);
     out.endPost = postInfo;
-
     var hdType = isBase ? 'hdue' : (w.holdown === 'strap' ? 'strap' : 'hdue');
-    var hardware = { type: hdType };
-    if (hdType === 'strap') {
-      var strap = null;
-      for (var si = 0; si < STRAPS.length; si++) if (STRAPS[si].Tall >= out.gov.T) { strap = STRAPS[si]; break; }
-      hardware.device = strap; hardware.capacity = strap ? strap.Tall : 0;
-      hardware.label = strap ? strap.name : 'Exceeds CMST12 (9,215 lb)';
-      hardware.detail = strap ? strap.nails + ' — ' + strap.esr : '';
+    var hardware;
+    if (!segmented) {
+      hardware = selectHoldown(hdType, out.gov.T, postInfo, state.species, ctx);
     } else {
-      var hdCol = HD_COLUMN[state.species];   // catalog column name, for the labels
-      var pick = null;
-      for (var hi = 0; hi < HOLDOWNS.length; hi++) {
-        var capH = holdownCapacity(HOLDOWNS[hi], postInfo.thk, postInfo.width, state.species);
-        if (capH > 0 && capH >= out.gov.T) { pick = { hd: HOLDOWNS[hi], cap: capH }; break; }
-      }
-      hardware.device = pick ? pick.hd : null; hardware.capacity = pick ? pick.cap : 0; hardware.column = hdCol;
-      if (!pick) {
-        // Name the largest device the end post and species actually permit, not the largest in the catalogue.
-        var best = null;
-        HOLDOWNS.forEach(function (hd) {
-          var c = holdownCapacity(hd, postInfo.thk, postInfo.width, state.species);
-          if (c > 0 && (!best || c > best.cap)) best = { hd: hd, cap: c };
-        });
-        hardware.bestAvailable = best;
-        hardware.label = best
-          ? 'Exceeds ' + best.hd.name + ' (' + f1(best.cap) + ' lb, ' + hdCol + ') — the largest hold-down permitted on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post'
-          : 'No HDUE qualifies on a ' + f2(postInfo.thk) + '" × ' + f2(postInfo.width) + '" ' + ctx.sp.label + ' end post — the lightest HDUE needs 3" member thickness × 3½" width (C-C-2026 p. 61)';
-      } else {
-        hardware.label = pick.hd.name;
-      }
-      hardware.detail = pick ? (pick.hd.sds + ', ' + pick.hd.rod + ' dia. anchor rod — ' + hdCol + ' column, C-C-2026 p. 61' + (pick.hd.note ? ' — ' + pick.hd.note : '')) : '';
-      hardware.rod = pick ? pick.hd.rod : '';
+      // One hold-down pair and one end-post check per segment; the wall's row
+      // reports the governing (largest-T) segment's device and passes only
+      // when every segment's device qualifies.
+      out.segments = out.geom.segments.map(function (s, i) {
+        var cw = cases.wind.segments[i], cs = cases.seismic.segments[i];
+        var vCase = cases[out.gov.vmaxCase].segments[i];
+        function govEnd(e) {
+          var a = cw.ends[e], b = cs.ends[e];
+          var tolT = 1e-6 * Math.max(1, Math.abs(a.T), Math.abs(b.T)), tolC = 1e-6 * Math.max(1, Math.abs(a.C), Math.abs(b.C));
+          var tc = b.T > a.T + tolT ? cs : cw, cc = b.C > a.C + tolC ? cs : cw;
+          return { end: e + 1, label: 'End ' + (e + 1), T: tc.ends[e].T, Traw: tc.ends[e].Traw, MR: tc.ends[e].MR, Tcase: tc === cs ? 'seismic' : 'wind',
+                   C: cc.ends[e].C, grav: cc.ends[e].grav, Ccase: cc === cs ? 'seismic' : 'wind' };
+        }
+        var ends = [govEnd(0), govEnd(1)];
+        var Ti = Math.max(ends[0].T, ends[1].T), Ci = Math.max(ends[0].C, ends[1].C);
+        var eT = ends[0].T >= ends[1].T ? ends[0] : ends[1], eC = ends[0].C >= ends[1].C ? ends[0] : ends[1];
+        var post = endPostCheck(w.endPost, state.species, h, Ci);
+        return { i: i, n: i + 1, b: s.b, hOverB: s.hOverB, bEff: s.bEff, f: s.f, share: s.share,
+                 V: vCase.V, v: vCase.v, M: cases[eT.Tcase].segments[i].M, ends: ends,
+                 T: Ti, Tcase: eT.Tcase, endGov: eT.end, C: Ci, Ccase: eC.Ccase,
+                 holdown: selectHoldown(hdType, Ti, post, state.species, ctx), endPost: post };
+      });
+      var govSeg = out.segments.reduce(function (g, s) { return s.T > g.T + 1e-9 ? s : g; }, out.segments[0]);
+      hardware = clone(govSeg.holdown);
+      hardware.segment = govSeg.n;
+      hardware.allPass = out.segments.every(function (s) { return s.T <= 0 || (s.holdown.capacity > 0 && s.T <= s.holdown.capacity); });
     }
     out.holdown = hardware;
 
@@ -1002,37 +1180,63 @@
     // Distributed uplift at the bottom plate, §4.3.6.4.2.1 — capacity from the
     // sill connection (nail / SDS withdrawal, plate-washer bearing at anchor
     // bolts) or the manual plf. Perforated walls only (§4.3.6.4.2.1 names the
-    // perforated method; the segmented method anchors its ends, §4.3.6.4.2).
-    var perforated = w.method !== 'segmented';
-    var up = upliftCapacity(w, state.species, sillSpecies, isBase, out.gov.t);
-    up.errors.forEach(function (e) { out.errors.push('Bottom-plate uplift: ' + e); });
-    out.uplift = up;
-    // NDS §12.4 combined shear + uplift on the same nail / screw, at 45°.
-    out.combined = null;
-    if (perforated && up.source === 'sill' && (up.kind === 'nail' || up.kind === 'screw') && up.perFastener > 0) {
-      out.combined = combinedCheck(up.kind, Vconn, up.perFastener, out.gov.vmax, spacing);
+    // perforated method; the segmented method anchors its ends, §4.3.6.4.2, so
+    // it has neither this nor the NDS §12.4 combined row).
+    var perforated = !segmented;
+    var up = null;
+    out.uplift = null; out.combined = null;
+    if (perforated) {
+      up = upliftCapacity(w, state.species, sillSpecies, isBase, out.gov.t);
+      up.errors.forEach(function (e) { out.errors.push('Bottom-plate uplift: ' + e); });
+      out.uplift = up;
+      // NDS §12.4 combined shear + uplift on the same nail / screw, at 45°.
+      if (up.source === 'sill' && (up.kind === 'nail' || up.kind === 'screw') && up.perFastener > 0) {
+        out.combined = combinedCheck(up.kind, Vconn, up.perFastener, out.gov.vmax, spacing);
+      }
     }
 
     // ── check rows ──────────────────────────────────────────────────────────
     var checks = [];
-    checks.push({
+    checks.push(perforated ? {
       id: 'sheathing', label: 'Sheathing unit shear', ref: 'SDPWS §4.3.6.4.1.1 Eq. 4.3-9; §4.3.5.2 + §4.1.4',
       demand: govShear.vmax, demandTxt: 'v_max = ' + f1(govShear.vmax) + ' plf',
       capacity: govShear.asd, capacityTxt: 'v_ASD = ' + f1(govShear.asd) + ' plf',
       dc: govShear.dcSheathing, pass: govShear.dcSheathing <= 1.0, caseKey: govShear.key
+    } : {
+      // v_i ≤ f_i·v_ASD on every segment reduces to v_eff ≤ v_ASD (v_i = v_eff·f_i).
+      id: 'sheathing', label: 'Sheathing unit shear', ref: 'SDPWS §4.3.5.5.1 Exc. 1 (2015 §4.3.3.4.1 Exc. 1); §4.3.5.2 + §4.1.4',
+      demand: govShear.vmax, demandTxt: 'v_eff = V/Σb_eff = ' + f1(govShear.vmax) + ' plf (v_i = v_eff·f_i ≤ f_i·v_ASD on every segment)',
+      capacity: govShear.asd, capacityTxt: 'v_ASD = ' + f1(govShear.asd) + ' plf',
+      dc: govShear.dcSheathing, pass: govShear.dcSheathing <= 1.0, caseKey: govShear.key
     });
-    checks.push({
-      id: 'holdown', label: 'Chord tension / hold-down', ref: 'SDPWS §4.3.6.1.3 Eq. 4.3-8',
-      demand: out.gov.T, demandTxt: 'T = ' + f1(out.gov.T) + ' lb',
-      capacity: hardware.capacity, capacityTxt: hardware.label + (hardware.capacity ? ' — T_all = ' + f1(hardware.capacity) + ' lb' : ''),
-      dc: out.gov.T <= 0 ? 0 : (hardware.capacity > 0 ? out.gov.T / hardware.capacity : Infinity),
-      pass: out.gov.T <= 0 ? true : (hardware.capacity > 0 && out.gov.T <= hardware.capacity), caseKey: govT.key,
-      na: out.gov.T <= 0
-    });
+    if (perforated) {
+      checks.push({
+        id: 'holdown', label: 'Chord tension / hold-down', ref: 'SDPWS §4.3.6.1.3 Eq. 4.3-8',
+        demand: out.gov.T, demandTxt: 'T = ' + f1(out.gov.T) + ' lb',
+        capacity: hardware.capacity, capacityTxt: hardware.label + (hardware.capacity ? ' — T_all = ' + f1(hardware.capacity) + ' lb' : ''),
+        dc: out.gov.T <= 0 ? 0 : (hardware.capacity > 0 ? out.gov.T / hardware.capacity : Infinity),
+        pass: out.gov.T <= 0 ? true : (hardware.capacity > 0 && out.gov.T <= hardware.capacity), caseKey: govT.key,
+        na: out.gov.T <= 0
+      });
+    } else {
+      checks.push({
+        id: 'holdown', label: 'Segment chord tension / hold-downs', ref: 'SDPWS §4.3.6.1.2 Eq. 4.3-7; §4.3.6.4.2; §4.3.6.4.4',
+        demand: out.gov.T, demandTxt: 'max T_i = ' + f1(out.gov.T) + ' lb (segment ' + hardware.segment + ')',
+        capacity: hardware.capacity, capacityTxt: hardware.label + (hardware.capacity ? ' — T_all = ' + f1(hardware.capacity) + ' lb' : '') + ' at segment ' + hardware.segment + '; each segment listed below',
+        dc: out.gov.T <= 0 ? 0 : (hardware.capacity > 0 ? out.gov.T / hardware.capacity : Infinity),
+        pass: out.gov.T <= 0 ? true : hardware.allPass, caseKey: govT.key,
+        na: out.gov.T <= 0
+      });
+    }
     if (out.gov.T <= 0) {
-      var rawGov = Math.min(cases.wind.ends[0].Traw, cases.wind.ends[1].Traw, cases.seismic.ends[0].Traw, cases.seismic.ends[1].Traw);
-      var rawMax = Math.max(cases.wind.ends[0].Traw, cases.wind.ends[1].Traw, cases.seismic.ends[0].Traw, cases.seismic.ends[1].Traw);
-      out.messages.push('Uplift not required by calculation (T_raw = ' + f1(rawMax) + ' lb at the governing end; dead load governs). The uniform uplift t = ' + f1(out.gov.t) + ' plf of §4.3.6.4.2.1 is still required at the bottom plate.');
+      var allEnds = perforated
+        ? [cases.wind.ends[0], cases.wind.ends[1], cases.seismic.ends[0], cases.seismic.ends[1]]
+        : out.segments.reduce(function (a, s) { return a.concat(s.ends); }, []);
+      var rawGov = allEnds.reduce(function (m, e) { return Math.min(m, e.Traw); }, Infinity);
+      var rawMax = allEnds.reduce(function (m, e) { return Math.max(m, e.Traw); }, -Infinity);
+      out.messages.push(perforated
+        ? 'Uplift not required by calculation (T_raw = ' + f1(rawMax) + ' lb at the governing end; dead load governs). The uniform uplift t = ' + f1(out.gov.t) + ' plf of §4.3.6.4.2.1 is still required at the bottom plate.'
+        : 'Uplift not required by calculation (T_raw = ' + f1(rawMax) + ' lb at the governing segment end; dead load governs, §4.3.6.4.2).');
       out.TrawMin = rawGov;
     }
     if (perforated) {
@@ -1067,11 +1271,13 @@
         });
       }
     }
+    // Sill demand: v_max for a perforated wall; the largest v_i for a segmented one.
+    var vSill = perforated ? out.gov.vmax : out.gov.vSeg, vSillCase = perforated ? out.gov.vmaxCase : out.gov.vSegCase;
     checks.push({
-      id: 'sill', label: 'Sill / bottom-plate shear anchorage', ref: 'SDPWS §4.3.6.4.1.1' + (isBase ? '; §4.3.6.4.3' : ''),
-      demand: out.gov.vmax, demandTxt: 'v_max = ' + f1(out.gov.vmax) + ' plf',
+      id: 'sill', label: 'Sill / bottom-plate shear anchorage', ref: (perforated ? 'SDPWS §4.3.6.4.1.1' : 'SDPWS §4.3.6.4.1') + (isBase ? '; §4.3.6.4.3' : ''),
+      demand: vSill, demandTxt: (perforated ? 'v_max = ' : 'max v_i = ') + f1(vSill) + ' plf',
       capacity: sillPlf, capacityTxt: scObj.label + ' @ ' + f1(spacing) + '" o.c.' + (penUsed !== null ? ' (p = ' + f2(penUsed) + ' in' + (penEntered ? '' : ', default') + (penFactor < 1 - 1e-9 ? ', Z × ' + f3(penFactor) : '') + ')' : '') + ' — ' + f1(sillPlf) + ' plf',
-      dc: sillPlf > 0 ? out.gov.vmax / sillPlf : Infinity, pass: sillPlf > 0 && out.gov.vmax <= sillPlf, caseKey: out.gov.vmaxCase
+      dc: sillPlf > 0 ? vSill / sillPlf : Infinity, pass: sillPlf > 0 && vSill <= sillPlf, caseKey: vSillCase
     });
     checks.push({
       id: 'endpost', label: 'End post compression', ref: 'NDS 2018 §3.7.1',
@@ -1083,8 +1289,12 @@
     out.checks = checks;
     out.allPass = checks.every(function (c) { return c.pass === true; }) && out.errors.length === 0;
 
-    // Collector note — v_max is carried into the level below on every wall line.
-    out.messages.push('Collector / load path: v_max = ' + f1(out.gov.vmax) + ' plf (' + out.gov.vmaxCase + ') is transmitted into the top of this wall, out of its base at full-height sheathing, and into the collectors connecting the segments; it is carried to the level below (SDPWS §4.3.6.4.1.1, §4.3.6.4.4).');
+    // Collector note — the unit shear is carried into the level below on every wall line.
+    if (perforated) {
+      out.messages.push('Collector / load path: v_max = ' + f1(out.gov.vmax) + ' plf (' + out.gov.vmaxCase + ') is transmitted into the top of this wall, out of its base at full-height sheathing, and into the collectors connecting the segments; it is carried to the level below (SDPWS §4.3.6.4.1.1, §4.3.6.4.4).');
+    } else {
+      out.messages.push('Collector / load path: v_eff = ' + f1(out.gov.vmax) + ' plf (' + out.gov.vmaxCase + '); collectors deliver V_i = V·b_i·f_i/Σb_eff at v_i = v_eff·f_i into each segment (SDPWS §4.3.2.1(3), §4.3.5.5.1 Exc. 1), and each segment carries its shear and overturning to the segment below it (§4.3.6.4.1, §4.3.6.4.4).');
+    }
     return out;
   }
 
@@ -1165,6 +1375,7 @@
         if (s.holdown) wall.holdown = s.holdown;
         if (s.sillSheathing) wall.sill.sheathing = s.sillSheathing;
         if (s.sillSpecies) wall.sillSpecies = s.sillSpecies;
+        if (s.method) wall.method = s.method;
         return {
           id: i + 1, name: s.name, h_ft: s.h,
           P_wind_lb: (s.P || 0) / 0.6, P_seis_lb: (s.P || 0) / 0.7, walls: [wall]
@@ -1741,8 +1952,71 @@
                 ['a default wall round-trips normalizeWall byte-identical', r.dwSame === true, String(r.dwSame)],
                 ['LTP4: uplift row "specify" with the not-rated message, no combined row', row(r.ltp, 0).pass === null && row(r.ltp, 0).capacityTxt.indexOf('LTP4 is not rated for uplift') >= 0 && W(r.ltp, 0).combined === null, row(r.ltp, 0).capacityTxt],
                 ['manual with a blank plf → "specify"', row(r.manualBlank, 0).pass === null && row(r.manualBlank, 0).capacityTxt.indexOf('not specified') >= 0 && W(r.manualBlank, 0).combined === null, row(r.manualBlank, 0).capacityTxt],
-                ['blank penetration computes at the default with "default … verify" (no "specify")', row(r.blankPen, 0).pass === true && row(r.blankPen, 0).capacityTxt.indexOf('default: 4½" screw − 1½" plate − ¾" subfloor — verify') >= 0 && r.blankPen.ok === true, row(r.blankPen, 0).capacityTxt]]; } }
+                ['blank penetration computes at the default with "default … verify" (no "specify")', row(r.blankPen, 0).pass === true && row(r.blankPen, 0).capacityTxt.indexOf('default: 4½" screw − 1½" plate − ¾" subfloor — verify') >= 0 && r.blankPen.ok === true, row(r.blankPen, 0).capacityTxt]]; } },
+
+    // ── Segmented method: SDPWS 2021 §4.3.2.1 individual full-height segments,
+    //    §4.3.5.5.1 Exc. 1 capacity-proportional distribution with 2b/h
+    //    (2015 §4.3.5.1 / §4.3.3.4.1 Exc. 1, identical wording) ─────────────
+    // Worked by hand (plan Decision C): h 10, b = 8 / 8 / 4, W = 8,000 lb strength
+    // -> V = 4,800 lb. f = 1 / 1 / 2·4/10 = 0.8; Σb_eff = 8 + 8 + 3.2 = 19.2 ft;
+    // v_eff = 4,800/19.2 = 250.0 plf; V_i = 250 × 8 / 8 / 3.2 = 2,000 / 2,000 / 800
+    // lb; v_3 = 800/4 = 200 plf = 0.8 × 250; T_1 = 2,000 × 10/8 = 2,500 lb,
+    // T_3 = 800 × 10/4 = 2,000 lb (Eq. 4.3-7, no dead load).
+    { id: 'SW56', src: 'SDPWS §4.3.5.5.1 Exc. 1 — segmented [8, 8, 4] at h 10, V = 4,800 lb', run: function () { return compute(mkState(CASE_SEG)); },
+      expect: function (r) { var a = W(r, 0), s = a.segments, c = a.cases.wind, ids = a.checks.map(function (x) { return x.id; }).join(',');
+        return [['method segmented, 3 segments, no C_o / A_o', a.method === 'segmented' && s.length === 3 && a.geom.Co === null && a.geom.Ao === null, a.method + ' ' + s.length],
+                ['f = 1 / 1 / 0.8 (2b/h on h/b = 2.5)', near(s[0].f, 1, 1e-9) && near(s[1].f, 1, 1e-9) && near(s[2].f, 0.8, 1e-9) && near(s[2].hOverB, 2.5, 1e-9), s.map(function (x) { return f3(x.f); }).join('/')],
+                ['Σb_eff = 19.2 ft', near(a.geom.sumBi, 19.2, 1e-9), f2(a.geom.sumBi)],
+                ['v_eff = 250.0 plf (sheathing row demand)', near(c.vmax, 250, 1e-6) && near(a.gov.vmax, 250, 1e-6) && near(byId(a, 'sheathing').demand, 250, 1e-6), f2(c.vmax) + ' ' + f2(byId(a, 'sheathing').demand)],
+                ['V_i = 2,000 / 2,000 / 800 lb', near(s[0].V, 2000, 1e-6) && near(s[1].V, 2000, 1e-6) && near(s[2].V, 800, 1e-6), s.map(function (x) { return f1(x.V); }).join('/')],
+                ['v_i = 250 / 250 / 200 plf; sill row demand = max v_i = 250', near(s[2].v, 200, 1e-6) && near(s[0].v, 250, 1e-6) && near(byId(a, 'sill').demand, 250, 1e-6), s.map(function (x) { return f1(x.v); }).join('/')],
+                ['T_1 = 2,500 lb, T_3 = 2,000 lb; governing T = 2,500', near(s[0].T, 2500, 1e-6) && near(s[2].T, 2000, 1e-6) && near(a.gov.T, 2500, 1e-6) && near(byId(a, 'holdown').demand, 2500, 1e-6), s.map(function (x) { return f1(x.T); }).join('/')],
+                ['C_1 = 2,500 lb (no gravity), end post checked on max C', near(s[0].C, 2500, 1e-6) && near(a.gov.C, 2500, 1e-6) && near(a.endPost.fc, 2500 / a.endPost.A, 1e-9), f1(a.gov.C)],
+                ['hold-down per segment: HDUE3 / HDUE3 / HDUE3, row capacity from the governing segment', s.every(function (x) { return x.holdown.label === 'HDUE3-SDS3'; }) && a.holdown.label === 'HDUE3-SDS3', s.map(function (x) { return x.holdown.label; }).join('/')],
+                ['rows: sheathing, holdown, sill, endpost — no uplift, no combined; uplift / combined null', ids === 'sheathing,holdown,sill,endpost' && a.uplift === null && a.combined === null, ids],
+                ['no error; collector note names v_i into each segment', r.ok === true && a.messages.some(function (m) { return m.indexOf('into each segment') >= 0; }), r.errors.join(' | ') || 'ok']]; } },
+    { id: 'SW57', src: 'SDPWS Table 4.3.3 (2015 Table 4.3.4) — segmented h/b > 3.5 refused', run: function () {
+        var st = mkState(CASE_SEG); st.floors[0].walls[0].segments_ft = [8, 2.5]; return validate(st); },
+      expect: function (v) {
+        return [['refused, message names h/b = 4.00 and Table 4.3.3', v.ok === false && v.errors.some(function (e) { return e.indexOf('h/b = 4.00') >= 0 && e.indexOf('Table 4.3.3') >= 0; }), v.errors.join(' | ') || '(none)']]; } },
+    // WoodWorks five-over-one §6 as a segmented wall: v = 0.7 F/l (Table 7,
+    // p. 35) and M_OT (Table 8, p. 40, strength level, cumulative Σ F_j·z).
+    { id: 'SW58', src: 'WoodWorks Dec-2017 Tables 7 / 8 — CASE2 run as segmented', run: function () {
+        var st = mkState(CASE2); st.floors.forEach(function (fl) { fl.walls[0].method = 'segmented'; }); return compute(st); },
+      expect: function (r) {
+        var want = [313.5, 586.6, 793.9, 932.1, 1001.2], out = [];
+        want.forEach(function (v, i) {
+          var a = W(r, i), c = a.cases.seismic;
+          out.push(['level ' + (i + 1) + ' v_eff = ' + f1(v) + ' plf', near(c.vmax, v, v * 0.0025) && near(a.segments[0].v, v, v * 0.0025), f2(c.vmax)]);
+        });
+        var b = W(r, 4), cs = b.cases.seismic;
+        out.push(['base M_OT = 1,502.75 ft-k strength (Table 8) within 0.3 %', near(cs.Mstrength, 1502750, 1502750 * 0.003), f1(cs.Mstrength)]);
+        out.push(['base segment M = 0.7 × M_OT, share 1.0, T = M/b', near(b.segments[0].M, 0.7 * 1502750, 0.7 * 1502750 * 0.003) && near(b.segments[0].share, 1, 1e-9) && near(b.segments[0].T, 0.7 * 1502750 / 29, 0.7 * 1502750 / 29 * 0.003), f1(b.segments[0].M) + ' ' + f1(b.segments[0].T)]);
+        out.push(['no model error (2,435 plf cap and h ≤ 20 ft are perforated-only)', r.ok === true, r.errors.join(' | ') || 'ok']);
+        return out; } },
+    // LOCKED decision 6: same segment count on every level; widths may differ.
+    { id: 'SW59', src: 'segmented stacking — segment count must match; widths may differ', run: function () {
+        var bad = mkState(CASE_SEG2); bad.floors[1].walls[0].segments_ft = [8, 8];
+        var warn = mkState(CASE_SEG2); warn.floors[1].walls[0].segments_ft = [8, 8, 6];
+        var mixed = mkState(CASE_SEG2); mixed.floors[1].walls[0].method = 'perforated';
+        return { bad: validate(bad), warn: compute(warn), mixed: validate(mixed) }; },
+      expect: function (r) { var lw = W(r.warn, 1);
+        return [['3 over 2 refused, names the "Copy walls to levels below" button', r.bad.ok === false && r.bad.errors.some(function (e) { return e.indexOf('3 segments') >= 0 && e.indexOf('2 segments') >= 0 && e.indexOf('Copy walls to levels below') >= 0; }), r.bad.errors.join(' | ') || '(none)'],
+                ['[8, 8, 4] over [8, 8, 6] accepted with a widths warning naming both', r.warn.ok === true && r.warn.warnings.some(function (x) { return x.indexOf('8, 8, 4') >= 0 && x.indexOf('8, 8, 6') >= 0; }), r.warn.warnings.join(' | ') || '(none)'],
+                // Lower level: V = 4,800 + 4,800 = 9,600 lb over Σb_eff = 8 + 8 + 6 = 22 ft (h/b = 1.67, f = 1);
+                // segment 3 M = 0.6·[W_roof·share_roof·20 + W_base·share_base·10], shares 3.2/19.2 and 6/22
+                // = 4,800 × 0.1667 × 20 + 4,800 × 0.2727 × 10 = 16,000 + 13,090.9 = 29,090.9 ft-lb.
+                ['lower level v_eff = 9,600/22 = 436.4 plf; segment 3 M = 29,090.9 ft-lb accumulates each level at its own share', near(lw.cases.wind.vmax, 9600 / 22, 1e-6) && near(lw.segments[2].M, 4800 * (3.2 / 19.2) * 20 + 4800 * (6 / 22) * 10, 1e-6), f2(lw.cases.wind.vmax) + ' ' + f1(lw.segments[2].M)],
+                ['perforated over segmented on one line refused', r.mixed.ok === false && r.mixed.errors.some(function (e) { return e.indexOf('one method') >= 0; }), r.mixed.errors.join(' | ') || '(none)']]; } },
+    // Perforated walls are untouched by the branch: same rows, no segments key,
+    // and the default model still round-trips. (The full guard is the diff of
+    // runFixtures() SW1–SW55 against the pre-Phase-C output.)
+    { id: 'SW60', src: 'perforated path unchanged by the method branch', run: function () { return compute(mkState(CASE1)); },
+      expect: function (r) { var a = W(r, 0), b = W(r, 3);
+        return [['perforated: no segments key, uplift + combined rows kept', a.segments === undefined && a.method === 'perforated' && a.checks.map(function (x) { return x.id; }).join(',') === 'sheathing,holdown,uplift,combined,sill,endpost', a.checks.map(function (x) { return x.id; }).join(',')],
+                ['perforated base: C_o 0.6703, uplift row present', near(b.geom.Co, 0.6703, 0.0002) && !!byId(b, 'uplift'), f4(b.geom.Co)]]; } }
   ];
+  function byId(w, id) { return w.checks.filter(function (c) { return c.id === id; })[0]; }
 
   // Fixture input models.
   var CASE1 = { stories: [
@@ -1783,6 +2057,14 @@
   var CASE_HD2 = { stories: [
     { name: 'Upper', h: 10.0, P: 1000, L: 40, segments: [40], openings: [], sill: 'sds14', spacing: 12 },
     BASE_STORY
+  ] };
+  // Segmented probes: P = 4,800 lb ASD on three individual full-height segments
+  // 8 / 8 / 4 ft (h/b 1.25 / 1.25 / 2.5) — the plan's worked case; CASE_SEG2
+  // stacks the same wall over itself for the count / width rules.
+  var CASE_SEG = { stories: [{ name: 'Base', h: 10.0, P: 4800, L: 20, segments: [8, 8, 4], openings: [], sill: 'ab58', spacing: 20, method: 'segmented' }] };
+  var CASE_SEG2 = { stories: [
+    { name: 'Roof', h: 10.0, P: 4800, L: 20, segments: [8, 8, 4], openings: [], sill: 'sds14', spacing: 12, method: 'segmented' },
+    { name: 'Base', h: 10.0, P: 4800, L: 22, segments: [8, 8, 4], openings: [], sill: 'ab58', spacing: 20, method: 'segmented' }
   ] };
   function CASE_SHEATH(o) {
     var s = { name: 'Upper', h: 10.0, P: 1000, L: 40, segments: o.segments || [32], openings: [[8, 7.0]], sill: 'sds14', spacing: 12 };

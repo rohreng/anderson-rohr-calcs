@@ -72,8 +72,8 @@ const ui = await page.evaluate(() => {
   };
 });
 check('four levels rendered', ui.levels === 4, 'levels=' + ui.levels);
-check('wall table has 22 columns (L, P_W, P_E line-force cells) and the results row spans them',
-  ui.cols === 22 && ui.resColspan === 22, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
+check('wall table has 23 columns (L, Method, P_W, P_E line-force cells) and the results row spans them',
+  ui.cols === 23 && ui.resColspan === 23, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
 check('a results pane per wall', ui.panes === 4, 'panes=' + ui.panes);
 check('base level labelled', ui.baseTag === true, JSON.stringify(ui));
 check('five check rows + header + case table', ui.checkRows >= 8, 'rows=' + ui.checkRows);
@@ -97,7 +97,7 @@ const bn = await page.evaluate(() => {
   const r = window.SW.compute(window.state), base = r.floors[3].walls[0], top = r.floors[0].walls[0];
   const el = document.querySelector(bsel('#wres_3_0'));
   const rows = (w) => w.checks.map((c) => c.id).join(',');
-  const cellTxt = document.querySelectorAll('#floor-con .wall-table thead th')[16].innerText.trim();
+  const cellTxt = document.querySelectorAll('#floor-con .wall-table thead th')[17].innerText.trim();
   return { txt: el.innerText, cls: el.className, paneCls: document.querySelector('#wres_3_0').className,
            baseRows: rows(base), topRows: rows(top), baseLabel: byId(base, 'uplift').label, baseDemand: byId(base, 'uplift').demandTxt,
            topCap: byId(top, 'uplift').capacityTxt, topCombined: byId(top, 'combined').capacityTxt, topSill: byId(top, 'sill').capacityTxt,
@@ -112,7 +112,7 @@ check('upper wall rows include the combined §12.4 row after uplift', bn.topRows
 check('upper wall uplift: default p = 2.25 in printed as "default … verify"; SDS head pull-through 552.0 lb / 552.0 plf; combined Z\'_α 463.9 lb, v_max ≤ 328.0 plf',
   bn.topCap.indexOf('p = 2.25 in (default: 4½" screw − 1½" plate − ¾" subfloor — verify)') >= 0 && bn.topCap.indexOf('head pull-through 552.0 lb per screw — 552.0 plf') >= 0 && bn.topCombined.indexOf("Z'_α = 463.9 lb") >= 0 && bn.topCombined.indexOf('328.0 plf') >= 0, bn.topCap + ' | ' + bn.topCombined);
 check('upper wall sill row prints the penetration it used', bn.topSill.indexOf('(p = 2.25 in, default)') >= 0, bn.topSill);
-check('column header reads "Uplift" (22 columns kept)', bn.hdr.toUpperCase() === 'UPLIFT', bn.hdr);
+check('column header reads "Uplift" (column 18 after the Method column)', bn.hdr.toUpperCase() === 'UPLIFT', bn.hdr);
 check('conn-box UPLIFT line prints the computed plf, T_req at the base and the combined limit above it',
   /UPLIFT:[\s\S]*sill plate-washer bearing 3235\.8 plf[\s\S]*T\s*req\s*= 117 lb per bolt/.test(bn.connBox) && /UPLIFT:[\s\S]*552\.0 lb per fastener = 552\.0 plf[\s\S]*combined NDS §12\.4: v\s*max\s*≤ 328\.0 plf/.test(bn.connTop), bn.connBox + ' || ' + bn.connTop);
 
@@ -123,7 +123,7 @@ check('conn-box UPLIFT line prints the computed plf, T_req at the base and the c
 const cell = await page.evaluate(() => {
   const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
   const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
   const base = cellOf(3), roof = cellOf(0);
   const out = {
     baseSel: base.querySelector('select').value, baseInp: base.querySelector('input').value, baseUnit: base.innerText.trim(),
@@ -172,7 +172,7 @@ const oldFile = await page.evaluate(() => {
   delete m.floors[0].walls[0].method;
   a.setModel(m);
   const r = window.SW.compute(window.state);
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
   const out = {
     baseSrc: window.state.floors[3].walls[0].uplift.source, baseSel: cellOf(3).querySelector('select').value, baseInp: cellOf(3).querySelector('input').value,
     baseDc: byId(r.floors[3].walls[0], 'uplift').dc, baseCap: byId(r.floors[3].walls[0], 'uplift').capacityTxt, baseDemand: byId(r.floors[3].walls[0], 'uplift').demandTxt,
@@ -191,13 +191,13 @@ check('old file: {capacity_plf:null} loads as Auto, penetration blank (default 2
 // p 2.0 → the 96.0 / 86.7 worked numbers; 8d at the default is refused (< 6D).
 const nailUI = await page.evaluate(() => {
   const byId = (w, id) => w.checks.filter((c) => c.id === id)[0];
-  const sel = document.querySelectorAll('#floor-con .floor-blk')[0].querySelector('.wall-table tbody tr td:nth-child(13) select');
+  const sel = document.querySelectorAll('#floor-con .floor-blk')[0].querySelector('.wall-table tbody tr td:nth-child(14) select');
   sel.value = '16d'; sel.dispatchEvent(new Event('change'));
   const w = window.SW.compute(window.state).floors[0].walls[0];
   const out = { pen: window.state.floors[0].walls[0].uplift.penetration_in, spacing: window.state.floors[0].walls[0].sill.spacing_in, rows: w.checks.map((c) => c.id).join(','),
                 up: w.uplift.plf, upTxt: byId(w, 'uplift').capacityTxt, vAllow: w.combined.vAllow, Vconn: w.sill.Vconn, sillTxt: byId(w, 'sill').capacityTxt,
                 refTbl: document.querySelector('#upTbl tbody').innerText, sillRows: document.querySelectorAll('#sillTbl tbody tr').length, upRows: document.querySelectorAll('#upTbl tbody tr').length };
-  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(17)');
+  const cellOf = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(18)');
   const inp = cellOf(0).querySelector('input'); inp.value = '2.0'; inp.dispatchEvent(new Event('change'));
   const w2 = window.SW.compute(window.state).floors[0].walls[0];
   out.up2 = w2.uplift.plf; out.vAllow2 = w2.combined.vAllow; out.Vconn2 = w2.sill.Vconn;
@@ -221,6 +221,73 @@ check('8d common typed p = 1.0: shear Z × p/10D = 155/1.31 = 118.3 lb, uplift 3
   Math.abs(nailUI.Vconn8 - 118.32) < 0.05 && Math.abs(nailUI.pf8 - 1 / 1.31) < 1e-6 && Math.abs(nailUI.up8 - 38.4) < 0.05, JSON.stringify([nailUI.Vconn8, nailUI.pf8, nailUI.up8]));
 check('uplift reference table rendered from NAILS / SILL_CONN (10 rows) at the above-base defaults, with the washer bearing',
   nailUI.upRows === 10 && nailUI.sillRows === 10 && ['80.0', '100.0', '52.0', '552.0', '384.0', '5393.0', '3667.2', '4875.3', 'not rated for uplift', 'default is under 6D'].every((v) => nailUI.refTbl.indexOf(v) >= 0), nailUI.refTbl.slice(0, 500));
+
+// ── segmented method per wall (Phase C): Method select → per-segment table,
+// no uplift / combined rows, greyed cells; switching back restores the
+// perforated rows; a count mismatch down the stack names the copy-down button ──
+const segUI = await page.evaluate(() => {
+  const bsel = (s) => s + ' .sum-pass, ' + s + ' .sum-fail, ' + s + ' .sum-req';
+  const rows = (w) => w.checks.map((c) => c.id).join(',');
+  const methodSel = (fi) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(3) select');
+  const cellAt = (fi, n) => document.querySelectorAll('#floor-con .floor-blk')[fi].querySelector('.wall-table tbody tr td:nth-child(' + n + ')');
+  const setAll = (v) => { for (let fi = 0; fi < 4; fi++) { const s = methodSel(fi); s.value = v; s.dispatchEvent(new Event('change')); } };
+  const out = { sel0: methodSel(0).value };
+  setAll('segmented');
+  const r = window.SW.compute(window.state), base = r.floors[3].walls[0], top = r.floors[0].walls[0];
+  out.methods = window.state.floors.map((f) => f.walls[0].method).join(',');
+  out.errors = r.errors.slice(); out.warnings = r.warnings.slice();
+  out.baseRows = rows(base); out.topRows = rows(top);
+  out.segRows = document.querySelectorAll('#wres_3_0 .seg-tbl tbody tr:not(.hl-row)').length;
+  out.segCount = base.segments.length;
+  out.segTxt = document.querySelector('#wres_3_0 .seg-tbl').innerText;
+  out.banner = document.querySelector(bsel('#wres_3_0')).innerText; out.bannerCls = document.querySelector(bsel('#wres_3_0')).className;
+  out.veff = base.gov.vmax; out.sumBeff = base.geom.sumBi; out.Co = base.geom.Co; out.T = base.gov.T;
+  out.openTitle = cellAt(3, 7).getAttribute('title') || ''; out.unshTitle = cellAt(3, 8).getAttribute('title') || ''; out.upTitle = cellAt(3, 18).getAttribute('title') || '';
+  out.openOpacity = getComputedStyle(cellAt(3, 7)).opacity;
+  out.connUplift = document.querySelector('#wres_3_0 .conn-box').innerText;
+  out.cards = document.querySelector('#wres_3_0 .dem-grid').innerText;
+  out.detSheath = document.querySelector('#wres_3_0 .chk-tbl:nth-of-type(3) .calc-det').innerText.slice(0, 1500);
+  out.uplift = base.uplift; out.combined = base.combined;
+  // three segments on every level → three rows; 2b/h shows on the 4 ft one (h 10.5 → h/b 2.63)
+  for (let fi = 0; fi < 4; fi++) { const inp = cellAt(fi, 6).querySelector('input'); inp.value = '100, 68, 4'; inp.dispatchEvent(new Event('change')); }
+  const r3 = window.SW.compute(window.state).floors[3].walls[0];
+  out.seg3Rows = document.querySelectorAll('#wres_3_0 .seg-tbl tbody tr:not(.hl-row)').length; out.seg3f = r3.segments.map((s) => s.f.toFixed(3)).join('/');
+  out.seg3Err = window.SW.validate(window.state).errors.join(' | ');
+  // roof back to one segment → count mismatch names the copy-down button
+  const inp0 = cellAt(0, 6).querySelector('input'); inp0.value = '172'; inp0.dispatchEvent(new Event('change'));
+  out.mismatch = document.getElementById('modelMsgs').innerText;
+  // widths differ, same count → warning only
+  inp0.value = '100, 60, 12'; inp0.dispatchEvent(new Event('change'));
+  out.widthMsg = document.getElementById('modelMsgs').innerText; out.widthOk = window.SW.validate(window.state).ok;
+  // back to perforated on every level → uplift and combined rows return
+  setAll('perforated');
+  const rb = window.SW.compute(window.state);
+  out.backRows = rows(rb.floors[3].walls[0]) + ' / ' + rows(rb.floors[0].walls[0]);
+  out.backSeg = document.querySelectorAll('#wres_3_0 .seg-tbl').length; out.backCo = rb.floors[3].walls[0].geom.Co;
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('method select defaults to perforated; switching every level to segmented computes with no model error',
+  segUI.sel0 === 'perforated' && segUI.methods === 'segmented,segmented,segmented,segmented' && segUI.errors.length === 0, JSON.stringify([segUI.sel0, segUI.methods, segUI.errors]));
+check('segmented rows: sheathing, holdown, sill, endpost on every level — no uplift, no combined; engine uplift / combined null',
+  segUI.baseRows === 'sheathing,holdown,sill,endpost' && segUI.topRows === 'sheathing,holdown,sill,endpost' && segUI.uplift === null && segUI.combined === null, segUI.baseRows + ' / ' + segUI.topRows);
+check('per-segment table: one row per segment (1), columns b_i / h/b / f_i / share / V_i / v_i / T_1 / T_2 / Hold-down / C / Post D/C',
+  segUI.segRows === 1 && segUI.segCount === 1 && /Segment[\s\S]*Hold-down[\s\S]*Post D\/C/i.test(segUI.segTxt), segUI.segRows + ' ' + segUI.segTxt.slice(0, 300));
+check('segmented banner reads Σb_eff and v_eff (no C_o), no "Specify"; v_eff = V/172 = 47.1 plf on the base, C_o null',
+  /segmented, 1 segment/.test(segUI.banner) && /Σb\s*eff/.test(segUI.banner) && /v\s*eff/.test(segUI.banner) && !/C\s*o\s*=/.test(segUI.banner) && !/Specify/.test(segUI.banner)
+    && Math.abs(segUI.veff - 8103 / 172) < 0.05 && segUI.sumBeff === 172 && segUI.Co === null && segUI.bannerCls === 'sum-pass', JSON.stringify([segUI.banner, segUI.veff, segUI.Co]));
+check('openings / unsheathed / uplift cells greyed with a title saying why',
+  /Segmented wall: openings are optional gaps/.test(segUI.openTitle) && /ignored/.test(segUI.unshTitle) && /no §4\.3\.6\.4\.2\.1 uniform uplift row/.test(segUI.upTitle) && Number(segUI.openOpacity) < 1, JSON.stringify([segUI.openTitle, segUI.unshTitle, segUI.upTitle, segUI.openOpacity]));
+check('conn-box UPLIFT line says not checked (segmented); cards show Σb_eff, v_eff, max v_i and no uplift card',
+  /UPLIFT:[\s\S]*not checked \(segmented wall\)/.test(segUI.connUplift) && /Σb\s*eff/.test(segUI.cards) && /max v\s*i/.test(segUI.cards) && !/t uplift/.test(segUI.cards), segUI.connUplift + ' || ' + segUI.cards);
+check('sheathing detail cites §4.3.2.1 / §4.3.5.5.1 Exception 1 and the 2015 clause, states v_i ≤ f_i·v_ASD ⇔ v_eff ≤ v_ASD',
+  /§4\.3\.2\.1 \/ §4\.3\.5\.5\.1 Exception 1 \(2015 §4\.3\.5\.1 \/ §4\.3\.3\.4\.1 Exc\. 1\)/.test(segUI.detSheath) && /v\s*i\s*≤ f\s*i\s*·v\s*ASD/.test(segUI.detSheath), segUI.detSheath.slice(0, 400));
+check('three segments [100, 68, 4] on every level → three rows, f = 1 / 1 / 0.762 (2b/h at h/b 2.63), no error',
+  segUI.seg3Rows === 3 && segUI.seg3f === '1.000/1.000/0.762' && segUI.seg3Err === '', JSON.stringify([segUI.seg3Rows, segUI.seg3f, segUI.seg3Err]));
+check('roof back to one segment → model error naming "Copy walls to levels below"', /3 segments/.test(segUI.mismatch) && /1 segments? at/.test(segUI.mismatch) && /Copy walls to levels below/.test(segUI.mismatch), segUI.mismatch.slice(0, 400));
+check('widths differ with the same count → warning naming both, model still valid', segUI.widthOk === true && /segment widths differ/.test(segUI.widthMsg) && /100, 60, 12/.test(segUI.widthMsg) && /100, 68, 4/.test(segUI.widthMsg), segUI.widthMsg.slice(0, 400));
+check('switching back to perforated restores the uplift (and combined) rows, the C_o and removes the segment table',
+  segUI.backRows === 'sheathing,holdown,uplift,sill,endpost / sheathing,holdown,uplift,combined,sill,endpost' && segUI.backSeg === 0 && Math.abs(segUI.backCo - 0.6703) < 0.0002, JSON.stringify([segUI.backRows, segUI.backSeg, segUI.backCo]));
 
 // ── shared-toolbar Wide toggle: body.are-wide lifts the theme's 1280px cap ───
 // data-are-wide-default on the script tag → on by default; per-calc key.

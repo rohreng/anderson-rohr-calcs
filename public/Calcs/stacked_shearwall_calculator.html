@@ -232,7 +232,7 @@ select.ti{cursor:pointer;padding:2px 1px}
 
   <div class="header">
     <h1>&#127963; Stacked Shearwall Designer</h1>
-    <p>SDPWS 2021 Perforated Shear Wall Method &mdash; Anderson Rohr Engineering</p>
+    <p>SDPWS 2021 Perforated or Segmented Shear Wall Method, per wall &mdash; Anderson Rohr Engineering</p>
     <div class="ref-tags">
       <span class="tag">SDPWS 2021</span>
       <span class="tag">NDS 2018</span>
@@ -240,6 +240,7 @@ select.ti{cursor:pointer;padding:2px 1px}
       <span class="tag">ASD</span>
       <span class="tag">&sect;4.3.2.3 Perforated Method</span>
       <span class="tag">&sect;4.3.5.6 C<sub>o</sub></span>
+      <span class="tag">&sect;4.3.2.1 / &sect;4.3.5.5.1 Exc. 1 Segmented</span>
       <span class="tag">&sect;4.3.6.4 Anchorage &amp; Load Path</span>
       <span class="tag">Simpson C-C-2026 / ESR-2105</span>
     </div>
@@ -293,7 +294,9 @@ select.ti{cursor:pointer;padding:2px 1px}
       <strong>How to use:</strong> Levels stack top to bottom; the last panel is the base level at the foundation.
       Enter <em>P<sub>W</sub></em> and <em>P<sub>E</sub></em> = the <strong>strength-level, incremental</strong> force delivered to this wall line at each level.
       The engine applies 0.6W, 0.7E and 0.6D, runs both cases in full, and reports the controlling one per check.
-      Give each wall its full length <em>L</em>, the list of full-height segment widths <em>b<sub>i</sub></em>, and an opening schedule (width &times; clear height).
+      Give each wall its full length <em>L</em>, a <strong>Method</strong>, the list of full-height segment widths <em>b<sub>i</sub></em>, and an opening schedule (width &times; clear height).
+      <strong>Perforated</strong> (&sect;4.3.2.3): one wall with openings, C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends and the &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
+      <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own full-height shear wall with its own hold-down pair; story shear is shared in proportion to design capacity with 2b/h on segments of h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), so v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> is checked against v<sub>ASD</sub>; openings are gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), the unsheathed area is ignored, no uniform uplift row, and a segment of h/b &gt; 3.5 is refused. A segmented wall keeps the same segment count on every level it exists.
     </div>
 
     <div id="modelMsgs"></div>
@@ -338,7 +341,7 @@ select.ti{cursor:pointer;padding:2px 1px}
       <th class="thl">Connector</th><th>V<sub>conn</sub> DF-L (lb)</th><th>V<sub>conn</sub> SP (lb)</th><th>V<sub>conn</sub> SPF (lb)</th><th>Default spacing</th><th>V<sub>all</sub> at default, DF-L (plf)</th><th>Where</th><th class="thl">Basis</th>
   </tr></thead><tbody></tbody></table>
   <div style="margin-top:14px">
-    <strong style="font-size:.85em">Bottom-plate uplift per fastener (C<sub>D</sub> 1.6) &mdash; the same sill fasteners resist t = v<sub>max</sub> (&sect;4.3.6.4.2.1)</strong>
+    <strong style="font-size:.85em">Bottom-plate uplift per fastener (C<sub>D</sub> 1.6) &mdash; the same sill fasteners resist t = v<sub>max</sub> (&sect;4.3.6.4.2.1, perforated walls only)</strong>
     <div class="callout" style="margin-top:6px">Nails: NDS 2018 Table 12.2C withdrawal W (lb per inch of penetration) at the specific gravity of the <em>receiving</em> member (the framing species), &times; penetration p (default = nail length &minus; 1&frac12;" plate &minus; &frac34;" subfloor above the base, printed "default &hellip; verify"; p &ge; 6D, &sect;12.1.6.4) &times; C<sub>D</sub> 1.6. Where p is under 10D the sill shear value is also &times; p/10D (Table 12N fn. 3).
     SDS &frac14;&times;4&frac12;: a No. 14 wood screw (ESR-2236 &sect;4.1.3) &mdash; NDS Table 12.2B W over the 2&frac34;" thread in the receiving member, capped by head pull-through through the wood bottom plate (C-C-2026 p. 377 note 5: 345 lb DF/SP, 240 lb SPF/HF at C<sub>D</sub> 1.0).
     Anchor bolts: the calc reports T<sub>req</sub> = t &times; s/12 per bolt for the anchor rod / concrete check and performs the wood-side check itself &mdash; plate-washer bearing on the sill at F<sub>c&perp;</sub> (NDS Supplement Table 4A / 4B No. 2: DF-L 625, SP 565, SPF 425 psi; no C<sub>D</sub>) over the net washer area (0.229" &times; 3" &times; 3" default, hole = D + 1/16"). LTP4 is not rated for uplift. The NDS &sect;12.4 combined shear + uplift check (Eq. 12.4-2 nails, Eq. 12.4-1 SDS) is a separate row on nail / SDS walls.</div>
@@ -350,14 +353,16 @@ select.ti{cursor:pointer;padding:2px 1px}
     <strong>Engineering notes &mdash; method, assumptions and limits</strong>
     <ul>
       <li><strong>Inputs are strength level.</strong> The engine applies 0.6W (ASCE 7-16 &sect;2.4.1), 0.7E (&sect;2.4.5) and 0.6D on the dead-load resisting moment, and runs wind and seismic in full.</li>
-      <li><strong>Story shear is accumulated as force</strong> and converted once at each story with that story's C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> (&sect;4.3.6.4.4, &sect;4.3.6.4.1.1). Unit shears are never summed across levels.</li>
+      <li><strong>Story shear is accumulated as force</strong> and converted once at each story with that story's C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> (perforated) or &Sigma;b<sub>eff</sub> (segmented) (&sect;4.3.6.4.4, &sect;4.3.6.4.1.1). Unit shears are never summed across levels.</li>
+      <li><strong>Method per wall.</strong> <em>Perforated</em> (&sect;4.3.2.3, the default) and <em>segmented</em> (&sect;4.3.2.1 individual full-height wall segments; 2015 &sect;4.3.5.1) are selected in the Method column and may be mixed across the walls of a level, but a wall line keeps one method on every level it exists.</li>
+      <li><strong>Segmented method (&sect;4.3.2.1, &sect;4.3.5.5.1 Exception 1; 2015 &sect;4.3.5.1, &sect;4.3.3.4.1 Exception 1):</strong> each b<sub>i</sub> is an individual full-height shear wall with its own hold-down pair; openings are the gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma; opening widths &le; L is checked) and the unsheathed-area entry is ignored. Every segment must satisfy Table 4.3.3 (h/b &le; 3.5 for blocked wood structural panels; 2015 Table 4.3.4) &mdash; a narrower one is refused, there is nothing to exclude it into. Story shear is distributed in proportion to the design capacities with the nominal capacity of segments of h/b &gt; 2:1 multiplied by f<sub>i</sub> = 2b<sub>i</sub>/h, which "need not be further reduced by the adjustment in 4.3.3.2" &mdash; the same factor for wind and seismic (C4.3.3.2). So V<sub>i</sub> = V&middot;b<sub>i</sub>f<sub>i</sub>/&Sigma;b<sub>eff</sub>, v<sub>i</sub> = v<sub>eff</sub>&middot;f<sub>i</sub>, and the check v<sub>i</sub> &le; f<sub>i</sub>&middot;v<sub>ASD</sub> on every segment is the single row v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> &le; v<sub>ASD</sub>; the sill is checked for max v<sub>i</sub>. Overturning per segment accumulates each level's factored force at that level's share (&sect;4.3.6.4.4), T<sub>i</sub> = (M<sub>i</sub> &minus; 0.6 M<sub>R,i</sub>)/b<sub>i</sub> about the compression toe (Eq. 4.3-7 form, lever b<sub>i</sub>, which is 7&ndash;10 % below a rod-to-post-centroid lever), M<sub>R,i</sub> = w&middot;b<sub>i</sub>&sup2;/2 on every segment and P<sub>D,end</sub>&middot;b<sub>i</sub> on segment 1 End 1 only; the hold-down row reports the largest-T segment and passes only when every segment's device qualifies; the end post is checked on the largest C<sub>i</sub>. There is no &sect;4.3.6.4.2.1 uniform uplift row and no NDS &sect;12.4 combined row &mdash; the segment ends are anchored by their hold-downs (&sect;4.3.6.4.2). The 20 ft height limit and the 2,435 plf cap are perforated limitations and are not applied. A segmented wall keeps the same segment count on every level (segment i above lands on segment i below); differing widths are accepted with a note.</li>
       <li><strong>Perforated method assumptions (&sect;4.3.2.3):</strong> a perforated shear wall segment is present at each end of every wall line (item 2); the nominal unit shear capacity does not exceed 2,435 plf (item 4); collectors run the full length of the wall (item 6); top-of-wall and bottom-of-wall elevations are uniform (item 7); h does not exceed 20 ft (item 8); sheathed areas built with less than the tabulated assembly are counted in A<sub>o</sub> (item 9 Exception, entered as "Unsh. sf").</li>
       <li><strong>Not covered:</strong> shear wall and diaphragm deflection and story drift (&sect;4.3.4), the diaphragms themselves, collectors beyond this wall line, concrete anchorage (ACI 318 Chapter 17 &mdash; breakout, pryout, edge distance) and anchor-rod steel design. Those are separate calculations.</li>
       <li><strong>Hardware basis:</strong> all values are "160" allowables &mdash; the load-duration factor is already included and no further increase is applied. <strong>Species-dependent:</strong> HDUE hold-downs read the DF/SP or SPF/HF column of Simpson C-C-2026 p. 61 by the framing species (the DF/SP column equals ICC-ES ESR-2330 Table 2B); LTP4 reads the DF/SP (715 lb) or SPF/HF (615 lb) row of C-C-2026 p. 310 by the sill species; nails (8d / 10d / 16d common and box, Table L4) read NDS 2018 Table 12N at t<sub>s</sub> = 1&frac12;&quot; and the <em>lower</em> specific gravity of the sill and framing species (16d common 141 / 154 / 120 lb &times; 1.6 for DF-L / SP / SPF &mdash; the table is for both members of identical G, and the detail names which governed; &times; p/10D where the penetration is under 10D, fn. 3); SDS &frac14;&times;4&frac12; screws and anchor bolts (NDS Table 12E, 1&frac12;" sill on concrete with 6" embedment) carry a DF/SP and an SPF value by the sill species. <strong>Not species-dependent:</strong> coil straps (ESR-2105 Table 4) are DF/SP only and are refused for SPF framing.</li>
       <li><strong>Bottom-plate uplift (&sect;4.3.6.4.2.1):</strong> t = v<sub>max</sub> is resisted by the sill fasteners themselves. Nails &mdash; NDS Table 12.2C withdrawal at the receiving member's G (framing species) &times; penetration &times; C<sub>D</sub> 1.6, penetration &ge; 6D (&sect;12.1.6.4 nails, &sect;12.1.5.6 wood screws); nail sizes 8d / 10d / 16d common and box (Table L4). <strong>Penetration default:</strong> fastener length &minus; 1&frac12;" plate &minus; &frac34;" subfloor on every floor above the base (length &minus; 1&frac12;" at the base); the row prints "default &hellip; verify" until a value is entered. The same penetration sets the nail shear value where it is under 10D (Table 12N fn. 3), and a blank field is that default, not "specify". <strong>Disclosure:</strong> a nail driven through the bottom plate and the subfloor into the rim or plate below is not the two-member connection of Table 12N (side member 1&frac12;" on the main member); the tabulated value is used as-is. The SDS shear value assumes full thread penetration into the main member (C-C-2026 p. 377 note 2) and is used as-is when the default leaves &frac12;" of thread in the plate. SDS &frac14;&times;4&frac12; &mdash; NDS Table 12.2B as a No. 14 wood screw (ESR-2236 &sect;4.1.3; C-C-2026 p. 377 note 4 uses the same 172 / 121 lb/in) over the 2&frac34;" thread, capped by head pull-through through the wood bottom plate (C-C-2026 p. 377 note 5). Anchor bolts &mdash; the wood-side check is plate-washer bearing on the sill (F<sub>c&perp;</sub>, NDS Supplement Table 4A / 4B, no C<sub>D</sub> per Table 4.3.1, over the net washer area); the required tension per bolt T<sub>req</sub> = t &times; s/12 is printed for the anchor rod / concrete check, which stays outside this calculation. Toe-nailed plates (C<sub>tn</sub> 0.67) are not modelled &mdash; use the Manual source. <strong>Combined shear + uplift (NDS &sect;12.4):</strong> the fastener at full-height sheathing carries v<sub>max</sub> and t = v<sub>max</sub> at once, so Z'<sub>&alpha;</sub> at &alpha; = 45&deg; (Eq. 12.4-2 nails, Eq. 12.4-1 SDS) is checked against the resultant per fastener as its own row; it usually governs over the shear-only and uplift-only rows.</li>
       <li><strong>Sources:</strong> Simpson Strong-Tie <em>Wood Construction Connectors</em> C-C-2026 &mdash; p. 61 HDUE allowable tension (DF/SP and SPF/HF), p. 310 LTP4 allowable loads and sheathing footnote 3, p. 377 SDS withdrawal (notes 3, 4, 5); NDS 2018 &mdash; Table 12N (PDF p. 125, fn. 3 / fn. 4), Table 12E, Table 12.2C nail withdrawal (PDF p. 93), Table 12.2B wood-screw withdrawal (PDF p. 92), &sect;12.4 combined loads (PDF p. 103), &sect;12.1.6.4 (PDF p. 89), Table 2.3.2 and Table 11.3.1 (C<sub>D</sub>), Table 4.3.1 (no C<sub>D</sub> on F<sub>c&perp;</sub>), Table L3 / L4 (fastener dimensions), Table 12.3.3A (specific gravity); NDS 2018 Supplement &mdash; Table 4A (PDF pp. 42, 45) and Table 4B (PDF p. 48) F<sub>c&perp;</sub>; ICC-ES ESR-2330 (HDUE footnotes 6, 7, 10, 11), ESR-2105 (coil straps) and ESR-2236 (SDS &sect;4.1.3), not on disk.</li>
       <li><strong>Sheathing:</strong> "Sheathing" grade wood structural panel, blocked construction assumed throughout. Gypsum wallboard is offered only as the opposite face of a wood structural panel wall (&sect;4.3.2.3), is combined per &sect;4.3.5.4.2, is limited to h/b of 2:1 (3.5:1 for wind design per Table 4.3.3 note 2) and is not counted in SDC E or F.</li>
-      <li><strong>Chord lever arm</strong> is taken as C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> per &sect;4.3.6.1.3; the chords are assumed to sit at the extreme ends of the wall. Compression is reported without dead-load relief, plus the accumulated point dead load carried on that end post.</li>
+      <li><strong>Chord lever arm</strong> is taken as C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> per &sect;4.3.6.1.3 for a perforated wall and as the segment width b<sub>i</sub> per &sect;4.3.6.1.2 for each segment of a segmented wall; the chords are assumed to sit at the extreme ends of the wall or segment. Compression is reported without dead-load relief, plus the accumulated point dead load carried on that end post.</li>
       <li><strong>Discontinuous wall lines:</strong> wall lines are correlated across levels by their id. A line that starts part way down the stack is accepted. A line that is missing at an intermediate level is a validation error unless <code>transfer: true</code> is set on that wall at the <em>first level below the gap</em> &mdash; the wall that receives the discontinuous load path. The transfer element itself (beam, truss or frame) is outside the scope of this calculation.</li>
       <li><strong>ASCE 7-16 Table 12.2-1 height limits are not evaluated.</strong> The selected system's limits are carried for reference, but this calculation has no building-height input, so the 35 ft limit on A.17 / B.24 in SDC D is not checked. Those systems are refused outright in SDC E and F, where Table 12.2-1 does not permit them.</li>
     </ul>
@@ -485,6 +490,7 @@ function updWall(fi,wi,fld,val){
   switch(fld){
     case 'label': w.label=val; break;
     case 'L_ft': w.L_ft=parseFloat(val)||0; break;
+    case 'method': w.method=(val==='segmented'?'segmented':'perforated'); break;
     case 'P_wind_lb': w.P_wind_lb=(val===''?null:(parseFloat(val)||0)); break;
     case 'P_seis_lb': w.P_seis_lb=(val===''?null:(parseFloat(val)||0)); break;
     case 'segments_ft': w.segments_ft=parseNums(val); break;
@@ -627,11 +633,12 @@ function render(){
     out+='<table class="wall-table"><thead><tr>';
     out+=thc('wall_label',95,'Wall Label','thl');
     out+=thc('l_ft',55,'L (ft)','');
+    out+=thc('method',88,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
     out+=thc('pw_lb',70,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
     out+=thc('pe_lb',70,'P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level; blank = use the level force');
-    out+=thc('bi_ft',95,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated');
-    out+=thc('openings_w_hc',110,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated');
-    out+=thc('unsh_sf',60,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception)');
+    out+=thc('bi_ft',95,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each');
+    out+=thc('openings_w_hc',110,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
+    out+=thc('unsh_sf',60,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception) — perforated walls only');
     out+=thc('face_1_wsp',150,'Face 1 (WSP)','th-chk');
     out+=thc('face_2',150,'Face 2','th-chk');
     out+=thc('hd_inside',52,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
@@ -641,7 +648,7 @@ function render(){
     out+=thc('spacing',62,'Spacing','th-sh');
     out+=thc('over_sheathing',90,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
     out+=thc('sill_species',70,'Sill species','th-sh');
-    out+=thc('uplift',190,'Uplift','th-sh','Bottom-plate uplift, t = v_max (§4.3.6.4.2.1). Auto: capacity from the sill connection — nail / SDS withdrawal over the fastener penetration (default = length − 1½" plate − ¾" subfloor above the base; blank = default), or plate-washer bearing at anchor bolts (washer side). Manual: typed plf. The penetration also sets the nail shear value (Table 12N fn. 3).');
+    out+=thc('uplift',190,'Uplift','th-sh','Bottom-plate uplift, t = v_max (§4.3.6.4.2.1, perforated walls only; a segmented wall anchors its segment ends, §4.3.6.4.2). Auto: capacity from the sill connection — nail / SDS withdrawal over the fastener penetration (default = length − 1½" plate − ¾" subfloor above the base; blank = default), or plate-washer bearing at anchor bolts (washer side). Manual: typed plf. The penetration also sets the nail shear value (Table 12N fn. 3).');
     out+=thc('gravity_dl_source',100,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
     out+=thc('wd_plf',62,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
     out+=thc('pd_end_lb',70,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
@@ -651,14 +658,22 @@ function render(){
 
     for(var wi=0; wi<fl.walls.length; wi++){
       var w=fl.walls[wi];
+      // Segmented walls have no A_o and no §4.3.6.4.2.1 uplift: those cells are
+      // greyed (still editable — the values are kept for a switch back) with a
+      // title saying why. `segTd` is the cell style, `segTitle` the hint.
+      var isSeg=(w.method==='segmented');
+      var segTd=isSeg?' style="background:#f3f4f6;opacity:.55"':'';
+      var segTitle=function(why){ return isSeg?' title="'+why+'"':''; };
       out+='<tr>';
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
       out+='<td><input class="ti" type="number" value="'+w.L_ft+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L_ft\',this.value)"></td>';
+      out+='<td style="background:#ede9fe"><select class="ti" style="font-size:.72em" title="Perforated (§4.3.2.3) or segmented (§4.3.2.1 individual full-height segments, §4.3.5.5.1 Exc. 1 distribution)" onchange="updWall('+fi+','+wi+',\'method\',this.value)">'
+          +'<option value="perforated"'+(isSeg?'':' selected')+'>Perforated</option><option value="segmented"'+(isSeg?' selected':'')+'>Segmented</option></select></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_wind_lb==null?'':w.P_wind_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_wind_lb\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_seis_lb==null?'':w.P_seis_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_seis_lb\',this.value)"></td>';
       out+='<td style="background:#ede9fe"><input class="ti" type="text" value="'+xe(fmtNums(w.segments_ft))+'" onchange="updWall('+fi+','+wi+',\'segments_ft\',this.value)"></td>';
-      out+='<td style="background:#ede9fe"><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
-      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
+      out+='<td'+(isSeg?segTd:' style="background:#ede9fe"')+segTitle('Segmented wall: openings are optional gaps between the segments — only Σ segments + Σ opening widths ≤ L is checked; no A_o')+'><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
+      out+='<td'+(isSeg?segTd:' style="background:#ede9fe"')+segTitle('Segmented wall: ignored — the unsheathed area enters A_o, which the segmented method does not use')+'><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
       out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'wsp',false)+'</select></td>';
       out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'any',true)+'</select></td>';
       out+='<td style="text-align:center"><input type="checkbox" '+(w.sheathing.insideFaceHoldown?'checked':'')+' onchange="updWall('+fi+','+wi+',\'insideFaceHoldown\',this.checked)"></td>';
@@ -679,7 +694,9 @@ function render(){
         out+='<td style="background:#f0fdf4;text-align:center;font-size:.72em;color:#9ca3af">&mdash;</td>';
       }
       out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpecies\',this.value)">'+speciesOpts(w.sillSpecies)+'</select></td>';
-      out+='<td style="background:#f0fdf4">'+upliftCellHTML(fi,wi,w,isBase)+'</td>';
+      // The penetration input stays live on a segmented wall (it sets the nail
+      // shear value, Table 12N fn. 3); the source / plf / washer are perforated-only.
+      out+='<td'+(isSeg?segTd:' style="background:#f0fdf4"')+segTitle('Segmented wall: no §4.3.6.4.2.1 uniform uplift row — the segment ends are anchored by their hold-downs (§4.3.6.4.2). The penetration still sets the nail shear value (Table 12N fn. 3).')+'>'+upliftCellHTML(fi,wi,w,isBase)+'</td>';
       var srcVal=(w.dead&&w.dead.source)||'manual';
       var srcOpts='<option value="manual"'+(srcVal==='manual'?' selected':'')+'>Manual</option>';
       for(var s2=0;s2<fl.walls.length;s2++){
@@ -700,7 +717,7 @@ function render(){
       out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
       out+='<td><button class="btn-x" onclick="delWall('+fi+','+wi+')">✕</button></td>';
       out+='</tr>';
-      out+='<tr><td colspan="22" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr><td colspan="23" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table></div>';
     out+='<div style="margin-top:7px"><button class="btn-sm btn-add" onclick="addWall('+fi+')">+ Wall Line</button></div>';
@@ -981,10 +998,14 @@ function wallHtml(res,fl,w,fi,wi){
     :(failNames.length?'✘ FAIL: '+failNames.join(', '):'')
      +(failNames.length&&reqNames.length?' &nbsp;·&nbsp; ':'')
      +(reqNames.length?'⚠ Specify: '+reqNames.join(', '):'');
+  // Segmented walls have no C_o: the banner and the cards show Σb_eff and v_eff
+  // (= V/Σb_eff, the sheathing demand) instead, and no uplift card.
+  var seg=(w.method==='segmented');
+  var vLbl=seg?'v<sub>eff</sub>':'v<sub>max</sub>';
   html+='<div class="'+(w.allPass?'sum-pass':(failNames.length?'sum-fail':'sum-req'))+'"><strong>'+bannerTxt+'</strong>'
-      +' &nbsp;|&nbsp; C<sub>o</sub> = '+f4(g.Co)
-      +' &nbsp; Σb<sub>i</sub> = '+f2(g.sumBi)+' ft'
-      +' &nbsp; v<sub>max</sub> = '+f1(gov.vmax)+' plf ('+xe(gov.vmaxCase)+')'
+      +(seg?' &nbsp;|&nbsp; segmented, '+g.segments.length+' segment'+(g.segments.length===1?'':'s')+' &nbsp; Σb<sub>eff</sub> = '+f2(g.sumBi)+' ft'
+           :' &nbsp;|&nbsp; C<sub>o</sub> = '+f4(g.Co)+' &nbsp; Σb<sub>i</sub> = '+f2(g.sumBi)+' ft')
+      +' &nbsp; '+vLbl+' = '+f1(gov.vmax)+' plf ('+xe(gov.vmaxCase)+')'
       +' &nbsp; T = '+f0(gov.T)+' lb ('+xe(gov.Tcase)+')'
       +'</div>';
 
@@ -993,15 +1014,23 @@ function wallHtml(res,fl,w,fi,wi){
   }
 
   html+='<div class="dem-grid">';
-  html+=card(f4(g.Co),'C<sub>o</sub> &sect;4.3.5.6','');
-  html+=card(f2(g.sumBi)+' ft','Σb<sub>i</sub> &sect;4.3.3.4','');
-  html+=card(f1(gov.vmax)+' plf','v<sub>max</sub> Eq. 4.3-9','warn');
-  html+=card(f1(gov.t)+' plf','t uplift &sect;4.3.6.4.2.1','warn');
-  html+=card(f0(gov.T)+' lb','T chord &sect;4.3.6.1.3', gov.T>0?'warn':'alt');
-  html+=card(f0(gov.C)+' lb','C chord + gravity','');
+  if(seg){
+    html+=card(f2(g.sumBi)+' ft','Σb<sub>eff</sub> = Σ b<sub>i</sub>·f<sub>i</sub> &sect;4.3.5.5.1 Exc. 1','');
+    html+=card(f1(gov.vmax)+' plf','v<sub>eff</sub> = V/Σb<sub>eff</sub>','warn');
+    html+=card(f1(gov.vSeg)+' plf','max v<sub>i</sub> (sill demand)','warn');
+    html+=card(f0(gov.T)+' lb','max T<sub>i</sub> &sect;4.3.6.1.2', gov.T>0?'warn':'alt');
+    html+=card(f0(gov.C)+' lb','max C<sub>i</sub> + gravity','');
+  } else {
+    html+=card(f4(g.Co),'C<sub>o</sub> &sect;4.3.5.6','');
+    html+=card(f2(g.sumBi)+' ft','Σb<sub>i</sub> &sect;4.3.3.4','');
+    html+=card(f1(gov.vmax)+' plf','v<sub>max</sub> Eq. 4.3-9','warn');
+    html+=card(f1(gov.t)+' plf','t uplift &sect;4.3.6.4.2.1','warn');
+    html+=card(f0(gov.T)+' lb','T chord &sect;4.3.6.1.3', gov.T>0?'warn':'alt');
+    html+=card(f0(gov.C)+' lb','C chord + gravity','');
+  }
   html+='</div>';
 
-  html+='<table class="chk-tbl"><thead><tr><th>Load case</th><th>Factor</th><th>V story (lb)</th><th>M (ft-lb)</th><th>v<sub>max</sub> (plf)</th><th>ASD capacity (plf)</th><th>T (lb)</th></tr></thead><tbody>';
+  html+='<table class="chk-tbl"><thead><tr><th>Load case</th><th>Factor</th><th>V story (lb)</th><th>M (ft-lb)</th><th>'+vLbl+' (plf)</th><th>ASD capacity (plf)</th><th>'+(seg?'max T<sub>i</sub>':'T')+' (lb)</th></tr></thead><tbody>';
   [wc,sc].forEach(function(c){
     var govRow=(c.key===gov.vmaxCase);
     html+='<tr'+(govRow?' class="row-pass"':'')+'><td><strong>'+c.label+'</strong>'+(govRow?' <em style="font-size:.85em">governs v</em>':'')+'</td>'
@@ -1010,6 +1039,8 @@ function wallHtml(res,fl,w,fi,wi){
        +'<td>'+f0(c.Tgov)+'</td></tr>';
   });
   html+='</tbody></table>';
+
+  if(seg) html+=segmentTableHtml(w);
 
   html+='<table class="chk-tbl"><thead><tr>'
       +'<th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Detail</th>'
@@ -1042,7 +1073,7 @@ function wallHtml(res,fl,w,fi,wi){
   html+='<div class="conn-row"><span class="conn-lbl">SILL:</span><span class="conn-val">'+xe(w.sill.conn.label)+' @ '+f1(w.sill.spacing)+'" o.c.</span>'
       + ' &mdash; V<sub>all</sub> = '+f1(w.sill.plf)+' plf</div>';
   var up=w.uplift, upRow=w.checks.filter(function(c){return c.id==='uplift';})[0];
-  html+='<div class="conn-row"><span class="conn-lbl">UPLIFT:</span><span class="conn-val">t = '+f1(gov.t)+' plf</span> &mdash; '
+  html+='<div class="conn-row"><span class="conn-lbl">UPLIFT:</span><span class="conn-val">'+(upRow?'t = '+f1(gov.t)+' plf':'segment ends anchored by their hold-downs (&sect;4.3.6.4.2)')+'</span> &mdash; '
       + (upRow ? (up.plf!=null&&isFinite(up.plf)
           ? (up.kind==='bolt' ? 'sill plate-washer bearing '+f1(up.plf)+' plf ('+f0(up.washer.cap)+' lb per bolt); T<sub>req</sub> = '+f0(up.T_req)+' lb per bolt for the anchor rod / concrete'
              : (up.kind==='manual' ? 'manual '+f1(up.plf)+' plf'+(up.label?' ('+xe(up.label)+')':'')+(up.T_req!=null?'; T<sub>req</sub> = '+f0(up.T_req)+' lb per bolt for the anchor rod / concrete':'')
@@ -1060,10 +1091,84 @@ function wallHtml(res,fl,w,fi,wi){
 }
 function card(v,l,cls){ return '<div class="dem-card'+(cls?' '+cls:'')+'"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
 
+// Per-segment results of a segmented wall (engine out.segments[]): geometry
+// and factor, the share of the story shear, unit shear, both end tensions
+// (each at its governing case), the hold-down picked for the segment, the
+// compression and the end-post D/C. One row per segment; the row whose T
+// governs the wall's hold-down check is highlighted.
+function segmentTableHtml(w){
+  var g=w.geom, govN=w.holdown&&w.holdown.segment;
+  var h='<table class="chk-tbl seg-tbl"><thead><tr>'
+      +'<th>Segment</th><th>b<sub>i</sub> (ft)</th><th>h/b</th><th>f<sub>i</sub></th><th>share b<sub>i</sub>f<sub>i</sub>/Σb<sub>eff</sub></th>'
+      +'<th>V<sub>i</sub> (lb)</th><th>v<sub>i</sub> (plf)</th><th>T<sub>1</sub> (lb)</th><th>T<sub>2</sub> (lb)</th><th>Hold-down</th><th>C (lb)</th><th>Post D/C</th>'
+      +'</tr></thead><tbody>';
+  w.segments.forEach(function(s){
+    var hdOk = s.T<=0 || (s.holdown.capacity>0 && s.T<=s.holdown.capacity);
+    h+='<tr'+(s.n===govN?' class="row-pass"':'')+'>'
+      +'<td><strong>'+s.n+'</strong>'+(s.n===govN?' <em style="font-size:.85em">governs T</em>':'')+'</td>'
+      +'<td>'+f2(s.b)+'</td><td>'+f2(s.hOverB)+'</td>'
+      +'<td>'+f3(s.f)+(s.f<1-1e-9?' <small>(2b/h)</small>':'')+'</td>'
+      +'<td>'+f3(s.share)+'</td><td>'+f0(s.V)+'</td><td>'+f1(s.v)+'</td>'
+      +'<td>'+f0(s.ends[0].T)+' <small>'+xe(s.ends[0].Tcase)+'</small></td>'
+      +'<td>'+f0(s.ends[1].T)+' <small>'+xe(s.ends[1].Tcase)+'</small></td>'
+      +'<td'+(hdOk?'':' class="fail"')+'>'+xe(s.holdown.label)+(s.holdown.capacity?' <small>('+f0(s.holdown.capacity)+' lb)</small>':'')+'</td>'
+      +'<td>'+f0(s.C)+' <small>'+xe(s.Ccase)+'</small></td>'
+      +'<td>'+dcBar(s.endPost.dc, s.endPost.dc<=1.0&&s.endPost.slendOK)+'</td>'
+      +'</tr>';
+  });
+  h+='<tr class="hl-row"><td>Σ</td><td>'+f2(g.sumBiRaw)+'</td><td></td><td></td><td>Σb<sub>eff</sub> = '+f2(g.sumBi)+' ft</td>'
+    +'<td>'+f0(w.cases[w.gov.vmaxCase].V)+'</td><td>v<sub>eff</sub> = '+f1(w.gov.vmax)+'</td><td colspan="5"><small>v<sub>i</sub> = v<sub>eff</sub>·f<sub>i</sub>; T<sub>i</sub> = (M<sub>i</sub> − 0.6 M<sub>R,i</sub>)/b<sub>i</sub>, M<sub>i</sub> accumulated per level at that level\'s share (§4.3.6.4.4)</small></td></tr>';
+  h+='</tbody></table>';
+  return h;
+}
+
+// Nominal → ASD sheathing capacity lines, shared by both sheathing details.
+function capacityDetailHtml(w){
+  var h='<div class="cref-hdr">SDPWS 2021 &sect;4.3.5.2 + &sect;4.1.4 &mdash; Nominal and ASD capacity</div>';
+  h+='<div class="mrow">Face 1: '+xe(w.cap.face1.label)+', v<sub>n,table</sub> = '+f0(w.cap.face1.vnTable)+' plf</div>';
+  w.cap.face1.factors.forEach(function(x){ h+='<div class="mrow ind">× '+f2(x.f)+' &mdash; '+xe(x.why)+'</div>'; });
+  if(w.cap.face2&&w.cap.face2.ok){
+    h+='<div class="mrow">Face 2: '+xe(w.cap.face2.label)+', v<sub>n,table</sub> = '+f0(w.cap.face2.vnTable)+' plf</div>';
+    w.cap.face2.factors.forEach(function(x){ h+='<div class="mrow ind">× '+f2(x.f)+' &mdash; '+xe(x.why)+'</div>'; });
+  }
+  ['wind','seismic'].forEach(function(k){
+    h+='<div class="mrow ind">'+k+': v<sub>n</sub> = <span class="cval">'+f1(w.cap[k].vn)+' plf</span> ('+xe(w.cap[k].rule)+', '+xe(w.cap[k].ref)+') → ASD = v<sub>n</sub>/'+f1(w.cap[k].asdDiv)+' = <span class="cval">'+f1(w.cap[k].asd)+' plf</span></div>';
+  });
+  w.cap.faceNotes.forEach(function(x){ h+='<div class="mrow ind"><em>'+xe(x)+'</em></div>'; });
+  if(w.cap.prereqs.length){
+    h+='<div class="mrow"><strong>Construction prerequisite:</strong> 3x nominal framing at adjoining panel edges with staggered nailing (&sect;4.3.7.1(5))</div>';
+    w.cap.prereqs.forEach(function(p){ h+='<div class="mrow ind">&mdash; '+xe(p)+'</div>'; });
+  }
+  return h;
+}
+
 function detailHtml(id,w,fl){
-  var g=w.geom, gov=w.gov;
+  var g=w.geom, gov=w.gov, seg=(w.method==='segmented');
   var h='<div class="cbox">';
-  if(id==='sheathing'){
+  if(id==='sheathing'&&seg){
+    // Segmented: Σb_eff and the capacity-proportional distribution, then the
+    // same nominal / ASD capacity block as the perforated branch.
+    h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.2.1 / &sect;4.3.5.5.1 Exception 1 (2015 &sect;4.3.5.1 / &sect;4.3.3.4.1 Exc. 1) &mdash; Individual full-height segments, capacity-proportional distribution</div>';
+    h+='<div class="mrow">Each b<sub>i</sub> is an individual full-height shear wall (Table 4.3.3: h/b &le; 3.5 blocked WSP). Nominal capacities of segments with h/b &gt; 2:1 are multiplied by f<sub>i</sub> = 2b<sub>i</sub>/h and "need not be further reduced by the adjustment in 4.3.3.2"; shear is then distributed in proportion to the design capacities v<sub>ASD</sub>&middot;b<sub>i</sub>&middot;f<sub>i</sub>.</div>';
+    h+='<table class="ref-tbl" style="margin-top:2px"><thead><tr><th>Segment</th><th>b<sub>i</sub> (ft)</th><th>h/b</th><th>f<sub>i</sub></th><th>b<sub>i</sub>&middot;f<sub>i</sub> (ft)</th><th>share</th></tr></thead><tbody>';
+    g.segments.forEach(function(s){
+      h+='<tr><td>'+(s.i+1)+'</td><td>'+f2(s.b)+'</td><td>'+f2(s.hOverB)+'</td><td>'+f3(s.f)+(s.f<1-1e-9?' = 2×'+f2(s.b)+'/'+f2(w.h_ft):'')+'</td><td>'+f2(s.bEff)+'</td><td>'+f3(s.share)+'</td></tr>';
+    });
+    h+='<tr class="hl-row"><td>Σ</td><td>'+f2(g.sumBiRaw)+'</td><td></td><td></td><td>'+f2(g.sumBi)+'</td><td>Σb<sub>eff</sub></td></tr>';
+    h+='</tbody></table>';
+    h+='<hr class="csep">';
+    h+='<div class="cref-hdr">Unit shear per segment</div>';
+    ['wind','seismic'].forEach(function(k){
+      var c=w.cases[k];
+      h+='<div class="mrow ind">'+c.label+': V = '+f1(c.factor)+' × '+f0(c.Vstrength)+' = '+f0(c.V)+' lb &nbsp; → &nbsp; v<sub>eff</sub> = V/Σb<sub>eff</sub> = '+f0(c.V)+'/'+f2(g.sumBi)+' = <span class="cval">'+f1(c.vmax)+' plf</span>'
+        +'; V<sub>i</sub> = V·share<sub>i</sub> = '+c.segments.map(function(s){return f0(s.V);}).join(' / ')+' lb; v<sub>i</sub> = V<sub>i</sub>/b<sub>i</sub> = v<sub>eff</sub>·f<sub>i</sub> = '+c.segments.map(function(s){return f1(s.v);}).join(' / ')+' plf</div>';
+    });
+    h+='<div class="mrow">Check per segment: v<sub>i</sub> &le; f<sub>i</sub>·v<sub>ASD</sub> &nbsp;&hArr;&nbsp; v<sub>eff</sub> &le; v<sub>ASD</sub> for every segment — the row compares <span class="cval">v<sub>eff</sub> = '+f1(gov.vmax)+' plf</span> ('+xe(gov.vmaxCase)+') with v<sub>ASD</sub>.</div>';
+    h+='<hr class="csep">';
+    h+=capacityDetailHtml(w);
+    h+='<div class="mrow ind"><em>The 2,435 plf nominal cap of &sect;4.3.2.3(4) is a perforated-method limit and is not applied.</em></div>';
+  }
+  else if(id==='sheathing'){
     h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.3.4 &mdash; Perforated shear wall segments, Σb<sub>i</sub></div>';
     h+='<table class="ref-tbl" style="margin-top:2px"><thead><tr><th>b<sub>i</sub> (ft)</th><th>h/b</th><th>b<sub>i,eff</sub> (ft)</th><th>Rule</th></tr></thead><tbody>';
     g.segments.forEach(function(s){
@@ -1088,22 +1193,39 @@ function detailHtml(id,w,fl){
       h+='<div class="mrow ind">'+c.label+': V = '+f1(c.factor)+' × '+f0(c.Vstrength)+' = '+f0(c.V)+' lb &nbsp; → &nbsp; v<sub>max</sub> = V/(C<sub>o</sub>·Σb<sub>i</sub>) = '+f0(c.V)+'/('+f4(g.Co)+'×'+f2(g.sumBi)+') = <span class="cval">'+f1(c.vmax)+' plf</span></div>';
     });
     h+='<hr class="csep">';
-    h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.5.2 + &sect;4.1.4 &mdash; Nominal and ASD capacity</div>';
-    h+='<div class="mrow">Face 1: '+xe(w.cap.face1.label)+', v<sub>n,table</sub> = '+f0(w.cap.face1.vnTable)+' plf</div>';
-    w.cap.face1.factors.forEach(function(x){ h+='<div class="mrow ind">× '+f2(x.f)+' &mdash; '+xe(x.why)+'</div>'; });
-    if(w.cap.face2&&w.cap.face2.ok){
-      h+='<div class="mrow">Face 2: '+xe(w.cap.face2.label)+', v<sub>n,table</sub> = '+f0(w.cap.face2.vnTable)+' plf</div>';
-      w.cap.face2.factors.forEach(function(x){ h+='<div class="mrow ind">× '+f2(x.f)+' &mdash; '+xe(x.why)+'</div>'; });
-    }
-    ['wind','seismic'].forEach(function(k){
-      h+='<div class="mrow ind">'+k+': v<sub>n</sub> = <span class="cval">'+f1(w.cap[k].vn)+' plf</span> ('+xe(w.cap[k].rule)+', '+xe(w.cap[k].ref)+') → ASD = v<sub>n</sub>/'+f1(w.cap[k].asdDiv)+' = <span class="cval">'+f1(w.cap[k].asd)+' plf</span></div>';
-    });
-    w.cap.faceNotes.forEach(function(x){ h+='<div class="mrow ind"><em>'+xe(x)+'</em></div>'; });
-    if(w.cap.prereqs.length){
-      h+='<div class="mrow"><strong>Construction prerequisite:</strong> 3x nominal framing at adjoining panel edges with staggered nailing (&sect;4.3.7.1(5))</div>';
-      w.cap.prereqs.forEach(function(p){ h+='<div class="mrow ind">&mdash; '+xe(p)+'</div>'; });
-    }
+    h+=capacityDetailHtml(w);
     h+='<div class="mrow">Nominal cap: v<sub>n</sub> = '+f1(w.cap.nominalMax)+' plf &le; 2,435 plf (&sect;4.3.2.3(4)) &mdash; '+(w.cap.nominalMax<=2435?'<span class="cval">OK</span>':'<span class="fail">EXCEEDED</span>')+'</div>';
+  }
+  else if(id==='holdown'&&seg){
+    // Segmented: per-segment overturning from the story forces at each level's
+    // share, dead-load M_R on the segment, T about the toe with lever b_i.
+    h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.6.1.2 Eq. 4.3-7 / &sect;4.3.6.4.2 / &sect;4.3.6.4.4 &mdash; Chord tension and hold-down at each end of each segment</div>';
+    h+='<div class="mrow"><span class="ceq">T<sub>i</sub> = max(0, (M<sub>i</sub> − 0.6 M<sub>R,i</sub>) / b<sub>i</sub>)</span> &nbsp; M<sub>i</sub> = Σ<sub>levels</sub> factor·P<sub>j</sub>·share<sub>i,j</sub>·z<sub>j</sub> (segment i above lands on segment i below); M<sub>R,i</sub> = w·b<sub>i</sub>²/2 on every segment, P<sub>D,end</sub>·b<sub>i</sub> on segment 1 End 1 only.</div>';
+    ['wind','seismic'].forEach(function(k){
+      var c=w.cases[k];
+      h+='<hr class="csep"><div class="mrow"><strong>'+c.label+'</strong> &mdash; '+xe(c.ref)+'</div>';
+      c.rows.forEach(function(rr){
+        h+='<div class="mrow ind">'+xe(rr.level)+': P = '+f0(rr.P)+' lb (strength)'+(rr.src==='wall'?' (wall line)':'')+' × '+f1(c.factor)+' × z = '+f2(rr.z)+' ft → '+f0(rr.m)+' ft-lb on the wall, split by that level\'s shares</div>';
+      });
+      c.dlRows.forEach(function(d){
+        if(d.w_plf||d.P_end_lb) h+='<div class="mrow ind">'+xe(d.level)+' dead: w = '+f1(d.w_plf)+' plf'+(d.P_end_lb?'; P<sub>D</sub> = '+f0(d.P_end_lb)+' lb at segment 1 End 1':'')+(d.source!=='manual'?' <em>[from '+xe(d.source)+']</em>':'')+'</div>';
+      });
+      c.segments.forEach(function(s){
+        h+='<div class="mrow ind">Segment '+(s.i+1)+' (b = '+f2(s.b)+' ft, share '+f3(s.share)+'): M<sub>i</sub> = <span class="cval">'+f0(s.M)+' ft-lb</span>'
+          +'; End 1: M<sub>R</sub> = '+f0(s.ends[0].MR)+' → T = ('+f0(s.M)+' − 0.6×'+f0(s.ends[0].MR)+')/'+f2(s.b)+' = <span class="cval">'+f1(s.ends[0].Traw)+' lb</span>'+(s.ends[0].Traw<0?' → 0':'')
+          +'; End 2: M<sub>R</sub> = '+f0(s.ends[1].MR)+' → T = <span class="cval">'+f1(s.ends[1].Traw)+' lb</span>'+(s.ends[1].Traw<0?' → 0':'')
+          +' &nbsp;| C = M<sub>i</sub>/b<sub>i</sub> + gravity = '+f0(s.Cgov)+' lb</div>';
+      });
+      h+='<div class="mrow ind">Governing T = <span class="cval">'+f0(c.Tgov)+' lb</span></div>';
+    });
+    h+='<hr class="csep">';
+    if(w.holdown.type==='strap')h+='<div class="mrow">Device type: coil strap (floor to floor)</div>';
+    w.segments.forEach(function(s){
+      h+='<div class="mrow">Segment '+s.n+': T = <span class="cval">'+f0(s.T)+' lb</span> ('+xe(s.Tcase)+', End '+s.endGov+') → <strong>'+xe(s.holdown.label)+'</strong>'+(s.holdown.capacity?' &mdash; T<sub>all</sub> = '+f0(s.holdown.capacity)+' lb':'')+' at each end</div>';
+      if(s.holdown.detail)h+='<div class="mrow ind">'+xe(s.holdown.detail)+'</div>';
+    });
+    h+='<div class="mrow ind">End post '+xe(w.endPost.label)+' &mdash; '+f2(w.endPost.thk)+'" member thickness, '+f2(w.endPost.width)+'" width; the row reports segment '+w.holdown.segment+' (largest T) and passes only when every segment\'s device qualifies.</div>';
+    h+='<div class="mrow ind"><em>No &sect;4.3.6.4.2.1 uniform uplift row: that clause is for perforated shear wall bottom plates. Here each segment end is anchored by its hold-down (&sect;4.3.6.4.2).</em></div>';
   }
   else if(id==='holdown'){
     h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.6.1.3 Eq. 4.3-8 &mdash; Tension and compression chords of perforated shear walls</div>';
@@ -1186,14 +1308,17 @@ function detailHtml(id,w,fl){
     h+='<div class="mrow ind"><em>Compare: shear-only '+f1(w.sill.plf)+' plf, uplift-only '+f1(w.uplift.plf)+' plf &mdash; the combined check '+(cb.vAllow<Math.min(w.sill.plf,w.uplift.plf)-1e-9?'governs':'does not govern')+'.</em></div>';
   }
   else if(id==='sill'){
-    h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.6.4.1.1 &mdash; In-plane shear anchorage'+(w.base?' &nbsp;|&nbsp; &sect;4.3.6.4.3 Anchor bolts':'')+'</div>';
-    h+='<div class="mrow">v<sub>max</sub> out of the base of the wall at full-height sheathing = <span class="cval">'+f1(gov.vmax)+' plf</span> ('+xe(gov.vmaxCase)+')</div>';
+    // Segmented walls: the sill under the most heavily loaded segment sees max v_i.
+    var vS=seg?gov.vSeg:gov.vmax, vSCase=seg?gov.vSegCase:gov.vmaxCase;
+    h+='<div class="cref-hdr">SDPWS 2021 '+(seg?'&sect;4.3.6.4.1':'&sect;4.3.6.4.1.1')+' &mdash; In-plane shear anchorage'+(w.base?' &nbsp;|&nbsp; &sect;4.3.6.4.3 Anchor bolts':'')+'</div>';
+    h+=seg?'<div class="mrow">Largest segment unit shear out of the base, max v<sub>i</sub> = v<sub>eff</sub>·f<sub>i</sub> = <span class="cval">'+f1(vS)+' plf</span> ('+xe(vSCase)+'); every segment sill is detailed for it</div>'
+          :'<div class="mrow">v<sub>max</sub> out of the base of the wall at full-height sheathing = <span class="cval">'+f1(gov.vmax)+' plf</span> ('+xe(gov.vmaxCase)+')</div>';
     h+='<div class="mrow">Connector: '+xe(w.sill.conn.label)+', sill species '+xe(SW.SPECIES[w.sill.species].label)
       +(w.sill.valueSpecies&&w.sill.valueSpecies!==w.sill.species?' &mdash; value read at '+xe(SW.SPECIES[w.sill.valueSpecies].label)+' (framing)':'')+'</div>';
     w.sill.notes.forEach(function(x){ h+='<div class="mrow ind">'+xe(x)+'</div>'; });
     h+='<div class="mrow">V<sub>conn</sub> = '+f1(w.sill.Vconn)+' lb &nbsp;| spacing s = '+f1(w.sill.spacing)+'"</div>';
     h+='<div class="mrow">V<sub>all</sub> = V<sub>conn</sub>/(s/12) = '+f1(w.sill.Vconn)+'/('+f1(w.sill.spacing)+'/12) = <span class="cval">'+f1(w.sill.plf)+' plf</span></div>';
-    h+='<div class="mrow">D/C = '+fr(f1(gov.vmax)+' plf',f1(w.sill.plf)+' plf')+' = <span class="cval">'+f2(gov.vmax/w.sill.plf)+'</span></div>';
+    h+='<div class="mrow">D/C = '+fr(f1(vS)+' plf',f1(w.sill.plf)+' plf')+' = <span class="cval">'+f2(vS/w.sill.plf)+'</span></div>';
     h+='<div class="mrow ind"><em>Basis: '+xe(w.sill.basis)+'</em></div>';
     if(w.base)h+='<div class="mrow ind"><em>Concrete anchorage (ACI 318 Chapter 17) and anchor-rod steel design are outside the scope of this calculation.</em></div>';
   }
@@ -1206,7 +1331,8 @@ function detailHtml(id,w,fl){
     h+='<div class="mrow">Governing l<sub>e</sub>/d = '+f1(p.leGov)+'/'+f2(p.dGov)+' = <span class="cval">'+f2(p.slend)+'</span> (limit 50)</div>';
     h+='<div class="mrow">F<sub>cE</sub> = 0.822 E<sub>min</sub>/(l<sub>e</sub>/d)² = 0.822 × '+f0(p.Emin)+'/'+f2(p.slend)+'² = <span class="cval">'+f0(p.FcE)+' psi</span></div>';
     h+='<div class="mrow">C<sub>P</sub> = <span class="cval">'+f4(p.CP)+'</span> (c = 0.8) → F\'<sub>c</sub> = <span class="cval">'+f0(p.FcPrime)+' psi</span></div>';
-    h+='<div class="mrow">C = M/(C<sub>o</sub>·Σb<sub>i</sub>) + accumulated point dead load on this end post = <span class="cval">'+f0(gov.C)+' lb</span> ('+xe(gov.Ccase)+')</div>';
+    h+=seg?'<div class="mrow">C = max over segments of M<sub>i</sub>/b<sub>i</sub> + accumulated point dead load on that end post = <span class="cval">'+f0(gov.C)+' lb</span> ('+xe(gov.Ccase)+'); the post D/C of each segment is in the segment table</div>'
+          :'<div class="mrow">C = M/(C<sub>o</sub>·Σb<sub>i</sub>) + accumulated point dead load on this end post = <span class="cval">'+f0(gov.C)+' lb</span> ('+xe(gov.Ccase)+')</div>';
     h+='<div class="mrow ind"><em>Dead-load relief is not applied to compression; the uniform wall dead load is not assumed tributary to the end post.</em></div>';
     h+='<div class="mrow">f<sub>c</sub> = C/A = '+f0(gov.C)+'/'+f2(p.A)+' = <span class="cval">'+f1(p.fc)+' psi</span>, D/C = '+f2(p.dc)+'</div>';
   }
