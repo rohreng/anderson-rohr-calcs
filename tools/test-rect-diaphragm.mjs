@@ -244,6 +244,43 @@ await page.fill('#areMark', '3RD LEVEL');
 await page.selectOption('#mwfrsLevel', '1');
 check('mark: "3RD LEVEL" left alone (already contains the level)', (await val('areMark')) === '3RD LEVEL', await val('areMark'));
 
+// Token match, not substring: "2" is not named by "26-064 ROOF"; "Floor 1" is not named by "Floor 10".
+await page.fill('#areMark', '26-064 ROOF');
+await page.evaluate(() => {
+  const el = document.getElementById('mwfrsJSON'), t = JSON.parse(el.value);
+  t.levels[1].label = '2'; el.value = JSON.stringify(t); window.buildLevelSelect();
+});
+await page.selectOption('#mwfrsLevel', '1');
+check('mark: "26-064 ROOF" + level "2" -> "2" (substring "2" is not a token)', (await val('areMark')) === '2' && (await val('level')) === '2', await val('areMark'));
+await page.evaluate(() => {
+  const el = document.getElementById('mwfrsJSON'), t = JSON.parse(el.value);
+  t.levels[1].label = '3RD'; el.value = JSON.stringify(t); window.buildLevelSelect();
+});
+// Mark left alone -> the results must still be recomputed for the new level (not via the mark autorun).
+await page.evaluate(() => window.applyMwfrsLevel(0));   // Roof: 131.31 k
+await page.fill('#areMark', '3RD LEVEL');
+await page.evaluate(() => window.calculate());
+const roofRx = await page.$eval('#wxBody tbody tr', (r) => r.cells[3].innerText);
+await page.evaluate(() => window.applyMwfrsLevel(1));   // 3RD: 79.78 k, mark "3RD LEVEL" unchanged
+const stale = await page.evaluate(() => ({ mark: document.getElementById('areMark').value, info: document.getElementById('mwfrsInfo').textContent,
+  rx: document.querySelector('#wxBody tbody tr').cells[3].innerText, sum: document.getElementById('summaryBody').innerText }));
+check('switch with mark left alone: results recomputed for 79.78 k', stale.mark === '3RD LEVEL' && roofRx !== stale.rx && /V_x \(Wind-X\) = 79\.78 kips/.test(stale.sum) && !/131\.31/.test(stale.sum), `mark=${stale.mark} R ${roofRx} -> ${stale.rx}; ${stale.sum.replace(/\s+/g, ' ').slice(0, 160)}`);
+check('switch with mark left alone: #mwfrsInfo has no stale "Mark set to"', !/Mark set to/.test(stale.info), stale.info);
+// A label with < and & survives buildLevelSelect (escaped in the option, still selectable).
+await page.evaluate(() => {
+  const el = document.getElementById('mwfrsJSON'), t = JSON.parse(el.value);
+  t.levels[2].label = 'A<B & C'; el.value = JSON.stringify(t); window.buildLevelSelect();
+});
+await page.selectOption('#mwfrsLevel', '2');
+const oddLabel = await page.evaluate(() => ({ opt: document.querySelector('#mwfrsLevel option[value="2"]').textContent, html: document.getElementById('mwfrsLevel').innerHTML, level: document.getElementById('level').value, mark: document.getElementById('areMark').value }));
+check('label "A<B & C": escaped in the option, selectable, applied to #level and Mark',
+  oddLabel.opt === 'A<B & C' && /&lt;B &amp; C/.test(oddLabel.html) && oddLabel.level === 'A<B & C' && oddLabel.mark === 'A<B & C', JSON.stringify(oddLabel));
+await page.evaluate(() => {
+  const el = document.getElementById('mwfrsJSON'), t = JSON.parse(el.value);
+  t.levels[2].label = '2ND'; el.value = JSON.stringify(t); window.buildLevelSelect(); window.applyMwfrsLevel(1);
+});
+await page.fill('#areMark', '3RD LEVEL');
+
 // ── 12. switching level via the select changes only #level/#Vx/#Vy ─────────
 const before = await capFields();
 await page.selectOption('#mwfrsLevel', '2');   // 2ND

@@ -909,8 +909,9 @@ function buildLevelSelect(){
 function applyMwfrsLevel(idx){
   var t=readMwfrsTable(), lv=t&&t.levels[idx];
   if(!lv) return;
-  var sel=document.getElementById('mwfrsLevel');
+  var sel=document.getElementById('mwfrsLevel'), info=document.getElementById('mwfrsInfo');
   if(sel&&sel.options.length>idx) sel.selectedIndex=idx;
+  info.textContent=info.dataset.base||'';   // clear a stale "Mark set to …"
   var levelEl=document.getElementById('level'), prev=levelEl.value.trim(), label=String(lv.label).trim();
   levelEl.value=label;
   document.getElementById('Vx').value=((parseFloat(lv.F_wind_x_strength_lb)||0)/1000).toFixed(2);
@@ -918,17 +919,23 @@ function applyMwfrsLevel(idx){
   document.getElementById('loadLevel').value='strength';
   setMarkForLevel(prev,label);
   updateDiagram();
+  // Recompute shown results here; the toolbar's mark-triggered autorun only
+  // fires when the Mark actually changed.
+  if(document.getElementById('results').style.display!=='none') calculate();
 }
 // Mark rule: the toolbar Mark names the saved file and the sheet, so it follows
 // the level unless it already names it — set when blank, when it is exactly the
-// previous level's label, or when it does not contain the new label. "3RD LEVEL"
-// already contains "3RD" and is left alone.
+// previous level's label, or when it does not contain the new label as a whole
+// token. "3RD LEVEL" names "3RD" and is left alone; "26-064 ROOF" does not name
+// "2", and "Floor 10" does not name "Floor 1".
+function escapeRe(v){ return String(v).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 function setMarkForLevel(prev,label){
   var el=document.getElementById('areMark');
   if(!el||!label) return;
   var lo=function(v){ return String(v||'').trim().toLowerCase(); };
   var mark=(typeof AREv2!=='undefined'&&AREv2.getMark)?AREv2.getMark():el.value.trim();
-  if(mark&&lo(mark)!==lo(prev)&&lo(mark).indexOf(lo(label))>=0) return;
+  var names=new RegExp('(^|[^a-z0-9])'+escapeRe(lo(label))+'($|[^a-z0-9])').test(lo(mark));
+  if(mark&&lo(mark)!==lo(prev)&&names) return;
   el.value=label;
   el.dispatchEvent(new Event('input',{bubbles:true}));
   el.dispatchEvent(new Event('change',{bubbles:true}));
@@ -953,6 +960,7 @@ function takeLateralRecord(){
   try{ raw=localStorage.getItem(KEY); }catch(e){ return null; }
   if(!raw) return null;
   var x; try{ x=JSON.parse(raw); }catch(e){ localStorage.removeItem(KEY); return null; }
+  if(!x||typeof x!=='object'){ localStorage.removeItem(KEY); return null; }              // stray value
   if(x.file!=='rectangular_diaphragm_calculator.html') return null;                    // not for this calc
   localStorage.removeItem(KEY);
   if(Date.now()-x.ts>10*60*1000) return null;                                          // stale
@@ -1100,7 +1108,8 @@ function sendToShearwall(){
   catch(e){ alert(e.message||String(e)); return; }
   if(a.errors.length){ alert(a.errors.join('\n')); return; }
   document.getElementById('swSendInfo').textContent=a.warnings.join('  ');
-  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:a.record, ts:Date.now(), file:'stacked_shearwall_calculator.html'})); }catch(e){}
+  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:a.record, ts:Date.now(), file:'stacked_shearwall_calculator.html'})); }
+  catch(e){ alert('Could not stage the record (browser storage full).'); return; }
   var url=location.href.replace(/[^/]*$/,'')+'stacked_shearwall_calculator.html?src=diaphragm&lat=1';
   var w=window.open(url,'_blank');
   var link=document.getElementById('swSendLink');

@@ -345,6 +345,7 @@ function f1(v){return (Math.round(v*10)/10).toFixed(1)}
 function f2(v){return (Math.round(v*100)/100).toFixed(2)}
 function f3(v){return (Math.round(v*1000)/1000).toFixed(3)}
 function fi(v){return Math.round(v).toLocaleString()}
+function escHtml(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 function getKz(z, exp){
   var ei = exp==='B'?1:exp==='C'?2:3;
@@ -914,7 +915,7 @@ function renderDir(dir, container){
 
   dir.rows.forEach(function(r){
     html+='<tr>'
-      +'<td>'+r.label+'</td>'
+      +'<td>'+escHtml(r.label)+'</td>'
       +'<td>'+f1(r.zMid)+'</td>'
       +'<td>'+f3(r.Kz)+'</td>'
       +'<td>'+f2(r.qz)+'</td>'
@@ -944,7 +945,7 @@ function renderDir(dir, container){
     var F_wall = r.F_net - (r.F_parapet||0);
     var F_par  = r.F_parapet || 0;
     html+='<tr>'
-      +'<td>'+r.label+'</td>'
+      +'<td>'+escHtml(r.label)+'</td>'
       +'<td>'+f1(r.trib_h)+'</td>'
       +'<td>'+f1(r.p_net)+'</td>'
       +'<td>'+f2(F_wall/1000)+'</td>'
@@ -1130,7 +1131,7 @@ function renderSend(wx,wy,container){
   html+='<p style="font-size:.82em;color:#4a5568;margin-bottom:8px">Sends every story\'s diaphragm force (strength level, lb) plus story heights and B/D. Pick the level to open first; switch levels inside the Diaphragm Designer.</p>';
   html+='<div class="send-row">';
   html+='<div class="ig" style="flex:0 0 180px"><label>Open at level</label><select id="diaStory" data-are-ignore>';
-  wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+r.label+'</option>'; });
+  wx.rows.forEach(function(r,i){ html+='<option value="'+i+'">'+escHtml(r.label)+'</option>'; });
   html+='</select></div>';
   html+='<button class="send-btn" id="diaSendBtn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="doSendDiaphragm()">▶ Diaphragm Designer →</button>';
   html+='<a id="diaSendLink" href="#" target="_blank" style="display:none;font-size:.82em;font-weight:600;color:#b91c1c">Popup blocked — click to open the Diaphragm Designer</a>';
@@ -1144,16 +1145,19 @@ function renderSend(wx,wy,container){
 // level's vx/vy/B/D/story so an expired or missing key falls back to the
 // single-level import the Diaphragm Designer has always had.
 function doSendDiaphragm(){
+  if(!window.LH){ alert('Handoff engine not loaded.'); return; }
   var record=buildLateralPayload();
   if(!record){ alert(window.__mwfrsLast&&window.__mwfrsLast.encl==='open' ? 'Diaphragm send covers walled buildings only — not available for Open (free roof).' : 'Run Calculate first.'); return; }
   var sel=document.getElementById('diaStory');
   var idx=sel?(parseInt(sel.value)||0):0;
   var L=window.__mwfrsLast, rx=L.wx.rows[idx], ry=L.wy.rows[idx];
   if(!rx||!ry){alert('No data.');return;}
-  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:record, ts:Date.now(), file:'rectangular_diaphragm_calculator.html'})); }catch(e){}
+  var staged=true;
+  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:record, ts:Date.now(), file:'rectangular_diaphragm_calculator.html'})); }
+  catch(e){ staged=false; alert('Could not stage the whole-building record (browser storage full); sending this level only.'); }
   var base=window.location.href.replace(/\/[^/]*$/,'/');
   var url=base+'rectangular_diaphragm_calculator.html'
-    +'?src=mwfrs&lat=1'
+    +'?src=mwfrs'+(staged?'&lat=1':'')
     +'&vx='+Math.round(rx.F_net)   // diaphragm force at this level (not cumulative)
     +'&vy='+Math.round(ry.F_net)
     +'&B='+record.geometry.B_ft+'&D='+record.geometry.D_ft
@@ -1720,11 +1724,13 @@ function buildLateralPayload(){
   if(typeof L==='undefined'||!L) return null;
   if(L.encl==='open'||!L.wx||!window.LH) return null;
   var stories=L.wx.rows.map(function(r){ return {label:r.label, sh:r.h}; });
-  return LH.fromMwfrs({
-    B:L.B, D:L.D, h:L.h, hp:L.hp, stories:stories, wx:L.wx, wy:L.wy,
-    project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
-    meta:{ calcFile:'asce716_mwfrs_calculator.html', V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
-  });
+  try{
+    return LH.fromMwfrs({
+      B:L.B, D:L.D, h:L.h, hp:L.hp, stories:stories, wx:L.wx, wy:L.wy,
+      project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
+      meta:{ calcFile:'asce716_mwfrs_calculator.html', V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
+    });
+  }catch(e){ alert(e.message||String(e)); return null; }
 }
 
 function exportRevitWind(){
@@ -1782,7 +1788,7 @@ function applyInputsMWFRS(d){
       var div=document.createElement('div');
       div.className='story-row row'; div.dataset.idx=i;
       div.innerHTML='<div class="ig" style="flex:0 0 70px"><label>Story</label>'
-        +'<input type="text" value="'+s.label+'" '+(i===0?'readonly ':'')+'style="background:#f7fafc"/></div>'
+        +'<input type="text" value="'+escHtml(s.label)+'" '+(i===0?'readonly ':'')+'style="background:#f7fafc"/></div>'
         +'<div class="ig"><label>Floor-to-Floor Height (ft)</label>'
         +'<input type="number" class="sh" value="'+s.h+'" min="1" step="0.5"/></div>'
         +'<button class="det-btn btn-x" onclick="removeStory(this)" style="margin-top:18px">✕</button>';
