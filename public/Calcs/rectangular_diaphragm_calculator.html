@@ -166,20 +166,20 @@ svg.diagram{max-width:100%;border-radius:8px}
     <input type="hidden" id="swJSON">
     <div id="swX">
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" id="swX_label_0" value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swX_len_0" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
-          <input type="number" id="swX_loc_0" class="sw-loc" value="120" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" data-are-ignore class="sw-loc" value="120" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">North wall → enter D (building depth)</span>
         </div>
       </div>
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" id="swX_label_1" value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swX_len_1" class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
-          <input type="number" id="swX_loc_1" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" data-are-ignore class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">South wall → enter 0</span>
         </div>
       </div>
@@ -190,20 +190,20 @@ svg.diagram{max-width:100%;border-radius:8px}
     <p class="ref" style="margin-bottom:8px">Walls running NS, resisting NS (Y-direction) wind. Typically the East and West walls. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
     <div id="swY">
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" id="swY_label_0" value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swY_len_0" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
-          <input type="number" id="swY_loc_0" class="sw-loc" value="60" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" data-are-ignore class="sw-loc" value="60" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">East wall → enter B (building width)</span>
         </div>
       </div>
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" id="swY_label_1" value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
-        <div class="ig"><label>Total SW Length (ft)</label><input type="number" id="swY_len_1" class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
-          <input type="number" id="swY_loc_1" class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
+          <input type="number" data-are-ignore class="sw-loc" value="0" min="0" step="1" oninput="updateDiagram()"/>
           <span class="ref" style="margin-top:2px">West wall → enter 0</span>
         </div>
       </div>
@@ -281,13 +281,14 @@ function togBlk(hd){
 }
 
 // ─── SHEARWALL ROWS ──────────────────────────────────────────────────────────
-var swIdCounter={X:2,Y:2}; // static HTML rows use indices 0 and 1
-
-function swRowHTML(dir, idx, label, len, loc){
+// Row inputs are data-are-ignore: the hidden #swJSON (syncSwJSON) is the only
+// carrier the ARE Save/Load toolbar persists, so a variable row count never
+// shows up as a key mismatch against the saved file.
+function swRowHTML(dir, label, len, loc){
   var locHint=dir==='X'?'Location — dist. from S (ft)':'Location — dist. from W (ft)';
-  return '<div class="ig"><label>Line Label</label><input type="text" id="sw'+dir+'_label_'+idx+'" value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" id="sw'+dir+'_len_'+idx+'" class="sw-len" value="'+len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
-    +'<div class="ig"><label>'+locHint+'</label><input type="number" id="sw'+dir+'_loc_'+idx+'" class="sw-loc" value="'+loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
+  return '<div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="'+label+'" class="sw-label" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="'+len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
+    +'<div class="ig"><label>'+locHint+'</label><input type="number" data-are-ignore class="sw-loc" value="'+loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
     +'<button class="btn-rm-sw" onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
 }
 
@@ -302,7 +303,7 @@ function addSW(dir){
   var defLoc=dir==='X'?(D/2).toFixed(0):(B/2).toFixed(0);
   var div=document.createElement('div');
   div.className='sw-row'; div.dataset.dir=dir;
-  div.innerHTML=swRowHTML(dir, swIdCounter[dir]++, label, defLen, defLoc);
+  div.innerHTML=swRowHTML(dir, label, defLen, defLoc);
   container.appendChild(div);
   updateDiagram();
 }
@@ -311,13 +312,12 @@ function addSW(dir){
 function rebuildSWRows(dir, rows){
   var container=document.getElementById('sw'+dir);
   container.innerHTML='';
-  rows.forEach(function(sw,i){
+  rows.forEach(function(sw){
     var div=document.createElement('div');
     div.className='sw-row'; div.dataset.dir=dir;
-    div.innerHTML=swRowHTML(dir, i, sw.label, sw.len, sw.loc);
+    div.innerHTML=swRowHTML(dir, sw.label, sw.len, sw.loc);
     container.appendChild(div);
   });
-  swIdCounter[dir]=rows.length;
 }
 
 // Mirror the shearwall row state into a hidden input so the ARE Save/Load
@@ -1060,27 +1060,9 @@ function loadInputsDia(input){
       set('B',d.B); set('D',d.D);
       set('Vx',d.Vx); set('Vy',d.Vy);
       set('Vx_s',d.Vx_s); set('Vy_s',d.Vy_s);
-      // Rebuild shearwall rows
-      function buildSWRows(dir, rows){
-        var container=document.getElementById('sw'+dir);
-        container.innerHTML='';
-        var B=parseFloat(d.B)||60, D=parseFloat(d.D)||120;
-        var locHint=dir==='X'?'Location — dist. from S (ft)':'Location — dist. from W (ft)';
-        rows.forEach(function(sw){
-          var div=document.createElement('div');
-          div.className='sw-row'; div.dataset.dir=dir;
-          div.innerHTML='<div class="ig"><label>Line Label</label>'
-            +'<input type="text" value="'+sw.label+'" class="sw-label" oninput="updateDiagram()"/></div>'
-            +'<div class="ig"><label>Total SW Length (ft)</label>'
-            +'<input type="number" class="sw-len" value="'+sw.len+'" min="1" step="1" oninput="updateDiagram()"/></div>'
-            +'<div class="ig"><label>'+locHint+'</label>'
-            +'<input type="number" class="sw-loc" value="'+sw.loc+'" min="0" step="1" oninput="updateDiagram()"/></div>'
-            +'<button onclick="this.parentElement.remove();updateDiagram();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>';
-          container.appendChild(div);
-        });
-      }
-      if(d.swX&&d.swX.length) buildSWRows('X',d.swX);
-      if(d.swY&&d.swY.length) buildSWRows('Y',d.swY);
+      // Rebuild shearwall rows with the shared markup (same as the toolbar path)
+      if(d.swX&&d.swX.length) rebuildSWRows('X',d.swX);
+      if(d.swY&&d.swY.length) rebuildSWRows('Y',d.swY);
       updateDiagram();
       alert('Inputs loaded successfully.');
     }catch(err){alert('Error reading file: '+err.message);}
@@ -1124,6 +1106,39 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 </script>
 <script src="/are-utils-v2.js"></script>
+<script>
+// ─── LEGACY SNAPSHOT SHIM ────────────────────────────────────────────────────
+// Files saved before 2026-09-15 carry one key per shearwall row input
+// (#swX_label_25 …) numbered by a counter that was never re-indexed on delete,
+// so the rebuilt page could not match the file key-for-key and
+// AREv2.loadFromState rolled back with "Load it anyway?". #swJSON was always
+// the authoritative carrier; strip the row keys before the diff. Same
+// page-local wrapper pattern as stacked_headers_studs_calculator.html —
+// are-utils-v2.js itself is not modified.
+//
+// #loadLevel / #mwfrsJSON are defaulted only when the element exists:
+// applyIteratively marks a key done only on an exactly-one resolveKey hit, so
+// a defaulted key with no element would itself land in missingOnPage.
+(function installDiaShim(){
+  if(typeof AREv2==='undefined' || !AREv2.loadFromState || AREv2._diaShim) return;
+  var inner=AREv2.loadFromState;
+  var LEGACY_ROW_KEY=/^#sw[XY]_(label|len|loc)_\d+$/;
+  var DEFAULTS={'#loadLevel':'strength', '#mwfrsJSON':''};
+  AREv2.loadFromState=function(state, opts){
+    if(state && state.calcFile==='rectangular_diaphragm_calculator.html' && state.fields){
+      state=JSON.parse(JSON.stringify(state));
+      Object.keys(state.fields).forEach(function(k){
+        if(LEGACY_ROW_KEY.test(k)) delete state.fields[k];
+      });
+      Object.keys(DEFAULTS).forEach(function(k){
+        if(!Object.prototype.hasOwnProperty.call(state.fields,k) && document.getElementById(k.slice(1))) state.fields[k]=DEFAULTS[k];
+      });
+    }
+    return inner.call(AREv2, state, opts);
+  };
+  AREv2._diaShim=true;
+})();
+</script>
 <script src="/are-draw.js"></script>
 </body>
 </html>
