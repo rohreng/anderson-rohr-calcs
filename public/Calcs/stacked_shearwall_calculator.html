@@ -33,6 +33,16 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .err-box ul{padding-left:18px}.err-box li{margin-bottom:3px;line-height:1.5}
 .warn-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:10px 15px;font-size:.82em;color:#78350f;margin-bottom:14px}
 .warn-box ul{padding-left:18px}
+.lf-sum{font-size:.74em;opacity:.85;margin-left:6px}
+.lf-sum.lf-bad{opacity:1;color:#b91c1c;background:#fee2e2;padding:1px 7px;border-radius:8px;font-weight:700}
+.lh-prov{font-size:.76em;color:#6b7280;margin:0 0 8px 2px}
+.lh-panel{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 15px;margin-bottom:14px;font-size:.84em}
+.lh-panel table{border-collapse:collapse;margin:8px 0}
+.lh-panel th,.lh-panel td{border:1px solid #ddd6fe;padding:3px 8px;text-align:right;font-size:.95em}
+.lh-panel th:first-child,.lh-panel td:first-child{text-align:left}
+.lh-panel .lh-sum{margin:4px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;white-space:pre-wrap}
+.lh-panel .lh-warn{color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:4px}
+.lh-panel .lh-err{color:#7f1d1d;background:#fee2e2;padding:2px 6px;border-radius:4px}
 /* Floor panels */
 .floor-blk{background:#fff;border:2px solid #c7d2e0;border-radius:10px;margin-bottom:14px;overflow:hidden}
 .floor-hdr{color:#fff;padding:9px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -269,6 +279,7 @@ select.ti{cursor:pointer;padding:2px 1px}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             <button class="btn-add-floor" style="background:#1d4ed8" onclick="exportProject()" title="Download current inputs as a .json file">&#8659; Save to File</button>
             <label class="btn-add-floor" style="background:#065f46;cursor:pointer;margin:0" title="Load a previously saved .json file">&#8657; Load File<input type="file" accept=".json" style="display:none" onchange="importProject(event)"></label>
+            <label class="btn-add-floor" style="background:#7c3aed;cursor:pointer;margin:0" title="Pick the saved Rectangular Diaphragm Designer file for every level — one wall row per diaphragm line">&#8912; Import diaphragm levels<input type="file" id="diaImport" multiple accept=".html,text/html" style="display:none" onchange="importDiaphragmLevels(event)"></label>
           </div>
         </div>
       </div>
@@ -283,6 +294,9 @@ select.ti{cursor:pointer;padding:2px 1px}
     </div>
 
     <div id="modelMsgs"></div>
+    <!-- Diaphragm import panel: its own container, so render() never wipes it
+         and the AREv2 adapter (owner of #floor-con) never captures it -->
+    <div id="diaImportHost"></div>
 
     <!-- Floor Container -->
     <div id="floor-con"></div>
@@ -342,6 +356,8 @@ select.ti{cursor:pointer;padding:2px 1px}
 </div><!-- /container -->
 
 <script src="./engines/stacked-shearwall.js"></script>
+<script src="./engines/rect-diaphragm.js"></script>
+<script src="./engines/lateral-handoff.js"></script>
 <script>
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
@@ -549,7 +565,7 @@ function render(){
   var con=document.getElementById('floor-con');
   if(!con)return;
   var FLR_COLORS=['fh-1','fh-2','fh-3','fh-4','fh-5'];
-  var out='';
+  var out=lateralProvHTML();
   var n=state.floors.length;
 
   for(var fi=0; fi<n; fi++){
@@ -570,6 +586,7 @@ function render(){
     out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental seismic force delivered at this level — level total, used by wall lines with no line force">P<sub>E</sub> =</span>';
     out+='<input class="ti" type="number" value="'+(Math.round(fl.P_seis_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_seis_lb\',this.value)">';
     out+='<span style="font-size:.78em;opacity:.85"> lb (strength)</span>';
+    out+=lineSumHTML(fl,'P_wind_lb','W')+lineSumHTML(fl,'P_seis_lb','E');
     out+='<button class="btn-del-fl" onclick="delFloor('+fi+')">✕ Level</button>';
     out+='</div>';
     out+='</div>'; // floor-hdr
@@ -701,6 +718,140 @@ function expandWall(fi,wi){
     var el=document.getElementById(id);
     if(el&&!el.classList.contains('open'))toggleDet(id);
   }
+}
+
+// Σ of the wall-line forces on a level against the level total, shown only
+// once some wall on that level carries its own line force (an import or a
+// typed cell). Plain sum — a row is one line, never a "typical" of several.
+// Red when the two differ by more than 1 % of the level force.
+function lineSumHTML(fl, key, tag){
+  var any=false, sum=0;
+  (fl.walls||[]).forEach(function(w){ if(w[key]!=null && isFinite(w[key])){ any=true; sum+=+w[key]; } });
+  var lvl=+fl[key]||0;
+  if(!any || (key==='P_seis_lb' && !(lvl>0))) return '';
+  var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl);
+  return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level (walls left blank inherit the level force and are not counted)">'
+       + '&Sigma; wall lines'+(tag==='E'?' (E)':'')+' = '+f0(sum)+' lb (level '+f0(lvl)+' lb)</span>';
+}
+// Import provenance, rendered from state.lateral (written by the diaphragm import).
+function lateralProvHTML(){
+  var L=state.lateral;
+  if(!L || L.schema!==LH_SCHEMA) return '';
+  var files=Array.isArray(L.files)?L.files:[];
+  var when=''; try{ when=new Date(L.importedAt).toLocaleString(); }catch(e){}
+  return '<div class="lh-prov" title="'+xe(files.join(', '))+'">Imported from Diaphragm Designer &mdash; direction '+xe(L.dir)+' &mdash; '+files.length+' file'+(files.length===1?'':'s')+' &mdash; '+xe(when)
+       + (L.project?' &mdash; '+xe(L.project):'')+'</div>';
+}
+
+// ─── Diaphragm import (are.lateral.v1) ───────────────────────────────────────
+// Pick every level's saved Rectangular Diaphragm Designer file; the LH engine
+// recomputes the line reactions from each file's inputs and stacks the levels
+// in story-table order (from #mwfrsJSON when any file carries one). The panel
+// then replaces the whole model: one floor per level, one wall row per
+// diaphragm line in the chosen direction, every row with its own line force.
+var LH_SCHEMA='are.lateral.v1';
+var DIA_FILE='rectangular_diaphragm_calculator.html';
+var _diaPending=null;   // {record, names} while the panel is open
+function importDiaphragmLevels(evt){
+  var input=evt.target, files=Array.prototype.slice.call(input.files||[]);
+  if(!files.length) return;
+  if(typeof AREv2==='undefined' || !AREv2.parseSnapshot || !window.LH){ alert('Import needs the ARE save/load library and the lateral-handoff engine — reload the page.'); input.value=''; return; }
+  var names=files.map(function(f){ return f.name; });
+  Promise.all(files.map(function(f){ return f.text(); })).then(function(texts){
+    var results=[], errors=[];
+    texts.forEach(function(html,i){
+      var st;
+      try{ st=AREv2.parseSnapshot(html); }catch(e){ errors.push(names[i]+': '+(e.message||e)); return; }
+      if(!st || st.calcFile!==DIA_FILE){ errors.push(names[i]+': not a Rectangular Diaphragm Designer file'); return; }
+      try{ results.push(LH.levelFromDiaphragmState(st)); }catch(e){ errors.push(names[i]+': '+(e.message||e)); }
+    });
+    var a = errors.length ? {errors:errors, warnings:[]} : LH.assemble(results, {files:names});
+    if(a.errors.length){ alert('Diaphragm import stopped:\n\n'+a.errors.join('\n')); return; }
+    showImportDialog(a.record, a.warnings, names);
+  }).catch(function(e){ alert('Diaphragm import failed: '+(e.message||e)); })   // read failure or an engine throw
+    .then(function(){ input.value=''; });   // last, so the same files can be re-picked
+}
+// Panel HTML. Every control carries data-are-ignore (AREv2 Tier-A capture
+// must not see it) and the host sits outside #floor-con.
+function importPanelHTML(record, warnings, names){
+  var lv=record.levels, needH=false;
+  var h='<div class="lh-panel" id="diaImportPanel"><strong>Import diaphragm levels</strong>';
+  h+='<span style="margin-left:10px;color:#6b7280">'+(names.length?xe(names.join(', ')):'from the Diaphragm Designer quick send')+'</span>';
+  h+='<div style="margin:8px 0">Direction: ';
+  ['X','Y'].forEach(function(d){
+    h+='<label style="margin-right:14px"><input type="radio" name="diaDir" value="'+d+'"'+(d==='X'?' checked':'')+' data-are-ignore> <strong>'+d+'</strong> &mdash; '+xe(LH.AXES[d])+'</label>';
+  });
+  h+='</div>';
+  h+='<table><thead><tr><th>Level (top &rarr; bottom)</th><th>h (ft)</th><th>Wind-X (lb)</th><th>X lines</th><th>Wind-Y (lb)</th><th>Y lines</th></tr></thead><tbody>';
+  lv.forEach(function(l,i){
+    var hasH=typeof l.sh_ft==='number' && isFinite(l.sh_ft) && l.sh_ft>0;
+    if(!hasH) needH=true;
+    h+='<tr><td>'+xe(l.label)+'</td>';
+    h+='<td><input class="ti" type="number" data-lh="h" data-lh-i="'+i+'" data-are-ignore step="0.5" min="1" max="20" style="width:64px" value="'+(hasH?l.sh_ft:'')+'"'
+      +(hasH?' readonly title="From the MWFRS story table"':' required placeholder="required" title="No story table in the files — enter this story height" oninput="updImportPanel()"')+'></td>';
+    h+='<td>'+f0(l.F_wind_x_strength_lb)+'</td><td>'+((l.walls&&l.walls.X)||[]).length+'</td>';
+    h+='<td>'+f0(l.F_wind_y_strength_lb)+'</td><td>'+((l.walls&&l.walls.Y)||[]).length+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<div class="lh-sum">'+LH.summarize(record, []).map(xe).join('\n')+'</div>';
+  if(warnings.length) h+='<div class="lh-sum">'+warnings.map(function(w){ return '<span class="lh-warn">'+xe(w)+'</span>'; }).join('\n')+'</div>';
+  if(needH) h+='<div class="lh-sum"><span class="lh-err">Story heights required &mdash; no imported file carries the MWFRS story table.</span></div>';
+  h+='<div style="margin-top:8px"><button class="btn-add-floor" style="background:#7c3aed;margin:0 8px 0 0" data-lh="import" onclick="applyDiaphragmImport()">Import (replace model)</button>'
+    +'<button class="btn-add-floor" style="background:#6b7280;margin:0" onclick="closeImportDialog()">Cancel</button></div>';
+  h+='</div>';
+  return h;
+}
+function showImportDialog(record, warnings, names){
+  _diaPending={record:record, names:names||[]};
+  document.getElementById('diaImportHost').innerHTML=importPanelHTML(record, warnings||[], names||[]);
+  updImportPanel();
+}
+function closeImportDialog(){ _diaPending=null; document.getElementById('diaImportHost').innerHTML=''; }
+// Typed heights -> record; Import enabled only when every level has h > 0.
+function updImportPanel(){
+  var p=document.getElementById('diaImportPanel'); if(!p||!_diaPending) return;
+  var ok=true, ins=p.querySelectorAll('input[data-lh="h"]');
+  for(var i=0;i<ins.length;i++){
+    var v=parseFloat(ins[i].value);
+    if(!(isFinite(v)&&v>0)){ ok=false; continue; }
+    if(!ins[i].readOnly) _diaPending.record.levels[+ins[i].getAttribute('data-lh-i')].sh_ft=v;
+  }
+  p.querySelector('button[data-lh="import"]').disabled=!ok;
+}
+function applyDiaphragmImport(){
+  var p=document.getElementById('diaImportPanel'); if(!p||!_diaPending) return;
+  updImportPanel();
+  if(p.querySelector('button[data-lh="import"]').disabled){ alert('Enter a story height for every level.'); return; }
+  var dirEl=p.querySelector('input[name="diaDir"]:checked'), dir=dirEl?dirEl.value:'X';
+  var rec=_diaPending.record, names=_diaPending.names, next;
+  readGlobalsFromDOM();
+  try{ next=LH.toShearwallState(rec, {dir:dir, sfrs:state.sfrs, sdc:state.sdc, species:state.species, files:names}); }
+  catch(e){ alert('Import failed: '+(e.message||e)); return; }
+  state=next;
+  wCnt=state.floors.reduce(function(n,f){ return n+((f.walls&&f.walls.length)||0); }, 0);
+  readGlobalsFromDOM();
+  closeImportDialog();
+  render();
+  var msg=document.getElementById('modelMsgs');
+  msg.innerHTML+='<div class="warn-box" style="background:#f5f3ff;border-color:#c4b5fd;color:#4c1d95">Imported '+state.floors.length+' level'+(state.floors.length===1?'':'s')+', '+wCnt+' wall lines, direction '+xe(dir)
+    +(names.length?' from: '+xe(names.join(', ')):' from the Diaphragm Designer quick send')+'</div>';
+}
+// Quick-send receiver (Phase 4b): the Diaphragm Designer's "Send to Stacked
+// Shearwall" stages a one-level record in localStorage and opens this page
+// with ?src=diaphragm&lat=1. Consumed on read; 10-minute TTL; a record
+// addressed to another calc is left where it is.
+function takeQuickSend(){
+  var KEY='are_lateral_v1', raw;
+  try{ raw=localStorage.getItem(KEY); }catch(e){ return; }
+  if(!raw) return;
+  var x; try{ x=JSON.parse(raw); }catch(e){ x=null; }
+  if(!x||typeof x!=='object'){ localStorage.removeItem(KEY); return; }
+  if(x.file!=='stacked_shearwall_calculator.html') return;
+  localStorage.removeItem(KEY);
+  if(!(Date.now()-x.ts<10*60*1000)) return;
+  var r=x.record;
+  if(!r||r.schema!==LH_SCHEMA||!Array.isArray(r.levels)||!r.levels.length||!window.LH) return;
+  showImportDialog(r, [r.levels.length+' level'+(r.levels.length===1?'':'s')+' — import the other level files to stack'], []);
 }
 
 // ─── Results ──────────────────────────────────────────────────────────────────
@@ -1026,7 +1177,11 @@ window.onload=function(){
   buildGlobalSelects();
   renderRefTables();
   render();
-  try { if(new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
+  try {
+    var q=new URLSearchParams(window.location.search);
+    if(q.get('selftest')==='1') runSelftest();
+    if(q.get('src')==='diaphragm' && q.get('lat')==='1') takeQuickSend();
+  } catch(e){}
 };
 
 </script>

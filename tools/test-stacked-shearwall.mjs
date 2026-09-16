@@ -11,7 +11,7 @@
 // Usage: node tools/test-stacked-shearwall.mjs
 // =============================================================================
 import { chromium } from 'playwright';
-import { readFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
@@ -310,6 +310,185 @@ check('adapter whitelists `lateral` at version 2 and reports null when absent',
 check('`lateral` {schema, dir} round-trips through getModel/setModel and the AREv2 hook',
   JSON.stringify(lat.back) === '{"schema":"are.lateral.v1","dir":"X"}' && JSON.stringify(lat.viaAre) === JSON.stringify(lat.back) && lat.cleared === null,
   JSON.stringify(lat));
+
+// ── Diaphragm import (are.lateral.v1, Phase 4) ──────────────────────────────
+// The three Red Bluff diaphragm snapshots are wrapped as minimal saved-calc
+// files (AREv2.parseSnapshot needs only <script id="are-state">) and picked
+// through the page's own file input. ROOF carries no #mwfrsJSON; 3RD and 2ND
+// do, so assemble() takes the story table (order + heights) from them.
+const FIX_DIR = fileURLToPath(new URL('../fixtures/lateral/red-bluff/', import.meta.url));
+const wrapSnapshot = (json) => '<html><body><script id="are-state" type="application/json">' + json + '</script></body></html>';
+const diaFiles = ['roof', '3rd', '2nd'].map((n) => {
+  const p = OUT_DIR + 'dia-' + n + '.html';
+  writeFileSync(p, wrapSnapshot(readFileSync(FIX_DIR + 'diaphragm-' + n + '-state.json', 'utf8')));
+  return p;
+});
+const readPanel = () => page.evaluate(() => {
+  const p = document.getElementById('diaImportPanel');
+  if (!p) return null;
+  const rows = [...p.querySelectorAll('tbody tr')].map((tr) => {
+    const h = tr.querySelector('input[data-lh="h"]');
+    return { label: tr.querySelector('td').innerText.trim(), h: h ? h.value : null, ro: h ? h.readOnly : null };
+  });
+  return {
+    rows, dir: (p.querySelector('input[name="diaDir"]:checked') || {}).value,
+    importDisabled: p.querySelector('button[data-lh="import"]').disabled,
+    ignored: [...p.querySelectorAll('input,select')].every((el) => el.hasAttribute('data-are-ignore')),
+    text: p.innerText, inFloorCon: !!p.closest('#floor-con')
+  };
+});
+
+// (1) pick the three files → panel
+dialogs.length = 0;
+await page.setInputFiles('#diaImport', diaFiles);
+await page.waitForSelector('#diaImportPanel');
+let pnl = await readPanel();
+check('import panel: 3 level rows top→bottom Roof/3RD/2ND with story-table heights read-only',
+  pnl.rows.map((r) => r.label).join('/') === 'Roof/3RD/2ND' && pnl.rows.map((r) => r.h).join('/') === '11/10.5/14' && pnl.rows.every((r) => r.ro === true),
+  JSON.stringify(pnl.rows));
+check('import panel: direction X selected, Import enabled, every control data-are-ignore, outside #floor-con',
+  pnl.dir === 'X' && pnl.importDisabled === false && pnl.ignored === true && pnl.inFloorCon === false, JSON.stringify(pnl));
+check('import panel: summary lines and the axis convention shown',
+  pnl.text.indexOf('Roof — h 11 ft — Wind-X 131,310 lb over 25 lines') >= 0 && pnl.text.indexOf('EW walls resist') >= 0, pnl.text.slice(0, 400));
+check('import panel: no dialogs while picking', dialogs.length === 0, dialogs.join('\n      '));
+
+// (2) Import (replace model), direction X
+await page.click('#diaImportPanel button[data-lh="import"]');
+const imp = await page.evaluate(() => {
+  const s = window.state, r = window.SW.compute(s), v = window.SW.validate(s);
+  const base = s.floors[2], bi = base.walls.findIndex((w) => w.id === 'X@15');
+  const sum = document.querySelector('#floor-con .floor-blk .lf-sum');
+  return {
+    n: s.floors.length, names: s.floors.map((f) => f.name).join('/'), h: s.floors.map((f) => f.h_ft).join('/'),
+    walls: s.floors.map((f) => f.walls.length).join('/'),
+    allNumeric: s.floors.every((f) => f.walls.every((w) => typeof w.P_wind_lb === 'number' && w.P_seis_lb === 0)),
+    ids: s.floors[0].walls.map((w) => w.id), idsSame: s.floors.every((f) => f.walls.map((w) => w.id).join() === s.floors[0].walls.map((w) => w.id).join()),
+    sills: s.floors.map((f) => f.walls[0].sill.conn + '@' + f.walls[0].sill.spacing_in).join('/'),
+    PW: s.floors.map((f) => f.P_wind_lb).join('/'),
+    lateral: s.lateral, errors: v.errors, panel: !!document.getElementById('diaImportPanel'),
+    Vstrength: r.floors[2].walls[bi].cases.wind.Vstrength, V: r.floors[2].walls[bi].cases.wind.V,
+    sumText: sum ? sum.innerText : null, sumCls: sum ? sum.className : null, sumColor: sum ? getComputedStyle(sum).color : null,
+    msg: document.getElementById('modelMsgs').innerText, prov: document.getElementById('floor-con').innerText.slice(0, 200),
+    wCnt: window.wCnt, panes: document.querySelectorAll('.wres .inline-res').length
+  };
+});
+check('import X: 3 floors Roof/3RD/2ND, h 11/10.5/14, 25 wall rows each',
+  imp.n === 3 && imp.names === 'Roof/3RD/2ND' && imp.h === '11/10.5/14' && imp.walls === '25/25/25', JSON.stringify(imp));
+check('import X: every wall has a numeric P_wind_lb and P_seis_lb = 0; ids X@0 … X@360 on every level',
+  imp.allNumeric && imp.ids[0] === 'X@0' && imp.ids[24] === 'X@360' && imp.ids.length === 25 && imp.idsSame, JSON.stringify(imp.ids));
+check('import X: base sill ab58, upper levels sds14; level P_W = diaphragm Vx',
+  imp.sills === 'sds14@12/sds14@12/ab58@20' && imp.PW === '131310/79780/87310', imp.sills + ' ' + imp.PW);
+check('import X: state.lateral written (dir X, 3 files), panel removed, wCnt = 75',
+  imp.lateral && imp.lateral.dir === 'X' && imp.lateral.files.length === 3 && imp.lateral.schema === 'are.lateral.v1' && imp.panel === false && imp.wCnt === 75,
+  JSON.stringify(imp.lateral) + ' panel=' + imp.panel + ' wCnt=' + imp.wCnt);
+check('import X: no SW.validate errors, a results pane per wall', imp.errors.length === 0 && imp.panes === 75, JSON.stringify(imp.errors) + ' panes=' + imp.panes);
+check('import X: base X@15 V_strength ≈ 12,433 lb, V ≈ 7,460 lb (Red Bluff goldens stacked)',
+  Math.abs(imp.Vstrength - 12433) <= 2 && Math.abs(imp.V - 7460) <= 2, imp.Vstrength + ' / ' + imp.V);
+check('import X: floor header Σ wall lines line shown and not red (Σ ≈ level force)',
+  imp.sumText && imp.sumText.indexOf('Σ wall lines = 131,305 lb (level 131,310 lb)') >= 0 && imp.sumCls.indexOf('lf-bad') < 0 && imp.sumColor !== 'rgb(185, 28, 28)',
+  JSON.stringify({ t: imp.sumText, c: imp.sumCls, col: imp.sumColor }));
+check('import X: provenance line and the import message',
+  imp.prov.indexOf('Imported from Diaphragm Designer — direction X — 3 files') >= 0 && imp.msg.indexOf('Imported 3 levels, 75 wall lines, direction X from: dia-roof.html') >= 0,
+  imp.prov + ' | ' + imp.msg);
+// Σ turns red when a wall line force is edited away from the level total.
+const sumBad = await page.evaluate(() => {
+  window.state.floors[0].walls[1].P_wind_lb = 50000; window.render();
+  const s = document.querySelector('#floor-con .floor-blk .lf-sum');
+  const out = { cls: s.className, color: getComputedStyle(s).color };
+  window.state.floors[0].walls[1].P_wind_lb = 5471; window.render();
+  return out;
+});
+check('Σ wall lines turns red when |Σ − level| > 1 %', sumBad.cls.indexOf('lf-bad') >= 0 && sumBad.color === 'rgb(185, 28, 28)', JSON.stringify(sumBad));
+
+// (3) re-import, direction Y
+await page.setInputFiles('#diaImport', diaFiles);
+await page.waitForSelector('#diaImportPanel');
+await page.check('#diaImportPanel input[name="diaDir"][value="Y"]');
+await page.click('#diaImportPanel button[data-lh="import"]');
+const impY = await page.evaluate(() => ({
+  walls: window.state.floors.map((f) => f.walls.length).join('/'), ids: window.state.floors[2].walls.map((w) => w.id).join(','),
+  dir: window.state.lateral.dir, PW: window.state.floors.map((f) => f.P_wind_lb).join('/'), P0: window.state.floors[0].walls[0].P_wind_lb
+}));
+check('re-import Y: 5 wall rows per floor, ids Y@0 … Y@120, lateral.dir Y, level P_W = Vy',
+  impY.walls === '5/5/5' && impY.ids === 'Y@0,Y@30,Y@60,Y@90,Y@120' && impY.dir === 'Y' && impY.PW === '40860/20900/22620' && Math.abs(impY.P0 - 5107) <= 1, JSON.stringify(impY));
+
+// (4) adapter and AREv2 round trips after an import
+const impRt = await page.evaluate(() => {
+  const a = window.__SW_ADAPTER, before = JSON.stringify(a.getModel());
+  a.setModel(JSON.parse(before));
+  const out = { adapter: JSON.stringify(a.getModel()) === before, lateral: !!window.state.lateral, P: window.state.floors[0].walls[0].P_wind_lb };
+  const snap = window.AREv2.captureState();
+  const res = window.AREv2.loadFromState(snap);
+  out.ok = res.ok; out.mm = res.mismatches; out.after = JSON.stringify(a.getModel()) === before;
+  return out;
+});
+check('after import: adapter getModel → setModel preserves lateral and the per-wall forces',
+  impRt.adapter && impRt.lateral && Math.abs(impRt.P - 5107) <= 1, JSON.stringify(impRt));
+check('after import: AREv2 capture → load round-trips with no mismatches',
+  impRt.ok === true && impRt.mm.missingOnPage.length === 0 && impRt.mm.notInFile.length === 0 && impRt.after, JSON.stringify(impRt));
+
+// (5) a foreign file is refused by name
+const swSnap = OUT_DIR + 'dia-foreign.html';
+writeFileSync(swSnap, wrapSnapshot(await page.evaluate(() => JSON.stringify(window.AREv2.captureState()))));
+dialogs.length = 0;
+await page.setInputFiles('#diaImport', [swSnap]);
+await page.waitForFunction(() => document.getElementById('diaImport').value === '');   // the importer resets the input last
+const foreign = await page.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), val: document.getElementById('diaImport').value }));
+check('foreign file: alert names it "not a Rectangular Diaphragm Designer file", no panel, input reset',
+  dialogs.length === 1 && dialogs[0].indexOf('dia-foreign.html: not a Rectangular Diaphragm Designer file') >= 0 && foreign.panel === false && foreign.val === '',
+  dialogs.join('\n      ') + ' ' + JSON.stringify(foreign));
+dialogs.length = 0;
+
+// (6) heights required: ROOF alone carries no story table
+await page.setInputFiles('#diaImport', [diaFiles[0]]);
+await page.waitForSelector('#diaImportPanel');
+pnl = await readPanel();
+check('roof only: one editable empty h input, Import disabled, heights warning shown',
+  pnl.rows.length === 1 && pnl.rows[0].h === '' && pnl.rows[0].ro === false && pnl.importDisabled === true && pnl.text.indexOf('heights required') >= 0,
+  JSON.stringify(pnl));
+await page.fill('#diaImportPanel input[data-lh="h"]', '11');
+pnl = await readPanel();
+check('roof only: typing h = 11 enables Import', pnl.importDisabled === false, JSON.stringify(pnl));
+await page.click('#diaImportPanel button[data-lh="import"]');
+const roofOnly = await page.evaluate(() => ({ n: window.state.floors.length, h: window.state.floors[0].h_ft, walls: window.state.floors[0].walls.length, sill: window.state.floors[0].walls[0].sill.conn, files: window.state.lateral.files }));
+check('roof only: 1 floor with h_ft 11, 25 walls at the base sill', roofOnly.n === 1 && roofOnly.h === 11 && roofOnly.walls === 25 && roofOnly.sill === 'ab58', JSON.stringify(roofOnly));
+check('no dialogs through the import flows', dialogs.length === 0, dialogs.join('\n      '));
+
+// (7) Phase 4b receiver: the diaphragm page's quick send leaves a 1-level record
+// in localStorage and opens ?src=diaphragm&lat=1. Build that record the way
+// sendToShearwall() does, from the 3RD fixture (its story table gives h).
+const fix3rd = readFileSync(FIX_DIR + 'diaphragm-3rd-state.json', 'utf8');
+const rx = await browser.newPage();
+const rxErrors = [];
+rx.on('pageerror', (e) => rxErrors.push(e.message));
+await rx.route('**/*', (route) => {
+  const p = new URL(route.request().url()).pathname.replace(/^\//, '');
+  try {
+    const ext = p.split('.').pop();
+    route.fulfill({ status: 200, contentType: MIME[ext] || 'application/octet-stream', body: readFileSync(PUBLIC_DIR + p) });
+  } catch { route.fulfill({ status: 404, body: '' }); }
+});
+await rx.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
+const oneLevel = await rx.evaluate((json) => window.LH.assemble([window.LH.levelFromDiaphragmState(JSON.parse(json))], { files: [] }).record, fix3rd);
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })), oneLevel);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+await rx.waitForSelector('#diaImportPanel');
+const rxPanel = await rx.evaluate(() => ({
+  text: document.getElementById('diaImportPanel').innerText, key: localStorage.getItem('are_lateral_v1'),
+  rows: document.querySelectorAll('#diaImportPanel tbody tr').length, h: document.querySelector('#diaImportPanel input[data-lh="h"]').value
+}));
+check('receiver: ?src=diaphragm&lat=1 shows the panel with the stacking note and consumes the key',
+  rxPanel.rows === 1 && rxPanel.h === '10.5' && rxPanel.text.indexOf('1 level — import the other level files to stack') >= 0 && rxPanel.key === null, JSON.stringify(rxPanel));
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now() - 11 * 60 * 1000, file: 'stacked_shearwall_calculator.html' })), oneLevel);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+const rxStale = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: localStorage.getItem('are_lateral_v1') }));
+check('receiver: an expired record shows no panel and is removed', rxStale.panel === false && rxStale.key === null, JSON.stringify(rxStale));
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'rectangular_diaphragm_calculator.html' })), oneLevel);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+const rxForeign = await rx.evaluate(() => ({ panel: !!document.getElementById('diaImportPanel'), key: !!localStorage.getItem('are_lateral_v1') }));
+check('receiver: a record addressed to another calc is left alone', rxForeign.panel === false && rxForeign.key === true, JSON.stringify(rxForeign));
+check('receiver page has no errors', rxErrors.length === 0, rxErrors.join('\n      '));
+await rx.close();
 
 // ── selftest query string ───────────────────────────────────────────────────
 const st = await browser.newPage();
