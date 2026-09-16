@@ -243,9 +243,17 @@ check('linked dead load reaches the resisting moment',
 await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); });
 
 // ── per-wall line force: typing into one wall's P_W cell moves only that wall ─
-// Two walls on the 4th Floor; wall B gets a 5,000 lb line force, wall A stays
-// blank and keeps the level force (2,783 / 0.6 = 4,638.3 lb strength).
-await page.evaluate(() => { window.addWall(0); });
+// Wall A on the 4th Floor is given a 4,000 lb line force BEFORE the second wall
+// is added, so the clone must come back blank (inherit) rather than copy it.
+// Wall B then gets a 5,000 lb line force typed into its cell.
+const cloneChk = await page.evaluate(() => {
+  window.state.floors[0].walls[0].P_wind_lb = 4000;
+  window.addWall(0);
+  const f0 = window.state.floors[0];
+  return { A: f0.walls[0].P_wind_lb, B: f0.walls[1].P_wind_lb, Bseis: f0.walls[1].P_seis_lb, n: f0.walls.length };
+});
+check('a hand-added wall inherits the level force, not the source wall line force',
+  cloneChk.n === 2 && cloneChk.A === 4000 && cloneChk.B === null && cloneChk.Bseis === null, JSON.stringify(cloneChk));
 const pwCell = page.locator('#floor-con .floor-blk').first().locator('input[placeholder="= level"]').nth(2);
 await pwCell.fill('5000');
 await pwCell.press('Tab');   // onchange fires on blur; render() then rebuilds the row
@@ -254,22 +262,25 @@ const lf = await page.evaluate(() => {
   const inputs = document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('input[placeholder="= level"]');
   return {
     stored: window.state.floors[0].walls[1].P_wind_lb,
-    storedSeis: window.state.floors[0].walls[1].P_seis_lb,
-    cloneReset: window.state.floors[0].walls[1].P_seis_lb === null,
+    storedA: window.state.floors[0].walls[0].P_wind_lb,
     cellValue: inputs[2].value, cellA: inputs[0].value,
     VA: f0.walls[0].cases.wind.Vstrength, VB: f0.walls[1].cases.wind.Vstrength,
     srcA: f0.walls[0].cases.wind.rows[0].src, srcB: f0.walls[1].cases.wind.rows[0].src,
     VBseis: f0.walls[1].cases.seismic.Vstrength,
-    lower: r.floors.slice(1).map((f) => f.walls[0].cases.wind.vmax.toFixed(2)).join('/'),
+    baseV: r.floors[3].walls[0].cases.wind.Vstrength,
+    baseRowsP: r.floors[3].walls[0].cases.wind.rows.map((x) => Math.round(x.P)).join('/'),
     paneB: document.querySelector('#wres_0_1 .sum-pass, #wres_0_1 .sum-fail').innerText
   };
 });
-check('typed line force is stored on that wall only', lf.stored === 5000 && lf.cellValue === '5000' && lf.cellA === '', JSON.stringify(lf));
-check('wall B V = its own line force; wall A keeps the level force',
-  Math.abs(lf.VB - 5000) < 1e-9 && Math.abs(lf.VA - 2783 / 0.6) < 1e-6 && lf.srcB === 'wall' && lf.srcA === 'level', JSON.stringify(lf));
+check('typed line force is stored on that wall only', lf.stored === 5000 && lf.cellValue === '5000' && lf.storedA === 4000 && lf.cellA === '4000', JSON.stringify(lf));
+check('wall B V = its own line force; wall A keeps its own 4,000 lb',
+  Math.abs(lf.VB - 5000) < 1e-9 && Math.abs(lf.VA - 4000) < 1e-9 && lf.srcB === 'wall' && lf.srcA === 'wall', JSON.stringify(lf));
 check('seismic on wall B still inherits the level (blank cell)',
-  lf.cloneReset === true && Math.abs(lf.VBseis - 2783 / 0.7) < 1e-6, JSON.stringify(lf));
-check('other levels unchanged by the line force', lf.lower === '38.14/53.06/70.29', lf.lower);
+  Math.abs(lf.VBseis - 2783 / 0.7) < 1e-6, JSON.stringify(lf));
+// Wall A's line runs to the base: its 4,000 lb roof force flows down that line
+// (in place of 2,783 / 0.6); wall B's 5,000 lb never reaches the lower levels.
+check('lower levels carry the wall A line force, never the wall B one',
+  Math.abs(lf.baseV - (4000 + (1661 + 1738 + 1921) / 0.6)) < 1e-6 && lf.baseRowsP === '4000/2768/2897/3202', JSON.stringify({ baseV: lf.baseV, rows: lf.baseRowsP }));
 // v_max = 0.6 × 5,000 / (0.6074 × 172) = 28.7 plf on wall B (26.6 plf at the level force).
 check('wall B results pane re-rendered with its own v_max', lf.paneB.indexOf('28.7') >= 0, lf.paneB);
 await pwCell.fill('');

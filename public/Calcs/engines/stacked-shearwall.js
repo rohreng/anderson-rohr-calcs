@@ -206,8 +206,10 @@
   // M_k = factor * sum_{j<=k} P_j * z_{j,k}, z = sum of story heights j..k.
   // When wallId is given, P_j is that wall line's own P_wind_lb / P_seis_lb at
   // level j where it is a finite number (src 'wall'); otherwise the level force
-  // (src 'level').  A wall absent at level j (present(j) false) contributes nothing.
+  // (src 'level').  A wall absent at level j contributes nothing: `present`
+  // defaults to wallPresence(floors, wallId) so the export is safe standalone.
   function storyForces(floors, caseKey, present, wallId) {
+    if (wallId != null && !present) present = wallPresence(floors, wallId);
     var lc = LOAD[caseKey], out = [], fld = caseKey === 'wind' ? 'P_wind_lb' : 'P_seis_lb';
     for (var k = 0; k < floors.length; k++) {
       var V = 0, M = 0, rows = [];
@@ -457,7 +459,11 @@
 
     res.notes.push('Level forces are STRENGTH level. The engine applies 0.6W (ASCE 7-16 §2.4.1), 0.7E (§2.4.5) and 0.6D for the resisting moment.');
     res.notes.push('Story shear is accumulated as FORCE and converted once at each story with that story’s C_o·Σb_i (SDPWS §4.3.6.4.4, §4.3.6.4.1.1).');
-    res.notes.push('Wall-line forces, where entered, replace the level force for that line.');
+    // Only when the feature is in use, so an untouched model prints no note about it.
+    var anyLineForce = floors.some(function (fl) {
+      return (fl.walls || []).some(function (w) { return isFinite(num(w.P_wind_lb, NaN)) || isFinite(num(w.P_seis_lb, NaN)); });
+    });
+    if (anyLineForce) res.notes.push('Wall-line forces, where entered, replace the level force for that line.');
     res.notes.push('Perforated shear wall method assumed: a perforated shear wall segment is present at each end of every wall line (§4.3.2.3(2)); top-of-wall and bottom-of-wall elevations are uniform (§4.3.2.3(7)); collectors run the full length of the wall (§4.3.2.3(6)); sheathed areas that are not the tabulated assembly are counted in A_o (§4.3.2.3(9) Exception).');
     if (sfrs && !sfrs.wsp) res.warnings.push('SFRS ' + sfrs.id + ' is "shear panels of all other materials" — ASCE 7-16 Table 12.2-1 limits it to 35 ft in SDC D and does not permit it in SDC E or F. The wood structural panel systems are A.15 / B.22.');
     if (sfrs && !sfrs.wsp && (sdc === 'E' || sdc === 'F')) res.errors.push('SFRS ' + sfrs.id + ' is not permitted in SDC ' + sdc + ' (ASCE 7-16 Table 12.2-1). Select A.15 or B.22.');
