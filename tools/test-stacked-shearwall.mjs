@@ -109,18 +109,22 @@ const bn2 = await page.evaluate(() => {
 });
 check('banner: entering an uplift capacity turns the base wall to "All checks PASS"', /All checks PASS/.test(bn2.txt) && bn2.cls === 'sum-pass', JSON.stringify(bn2));
 
-// ── full-width toggle: body.are-wide lifts the theme's 1280px cap ────────────
+// ── shared-toolbar Wide toggle: body.are-wide lifts the theme's 1280px cap ───
+// data-are-wide-default on the script tag → on by default; per-calc key.
 const wide = await page.evaluate(() => {
-  const w0 = document.body.classList.contains('are-wide');
-  const cap0 = getComputedStyle(document.querySelector('.container')).maxWidth;
-  document.getElementById('wideBtn').click();
-  const w1 = document.body.classList.contains('are-wide');
-  const cap1 = getComputedStyle(document.querySelector('.container')).maxWidth;
-  document.getElementById('wideBtn').click();
-  return { w0, cap0, w1, cap1, stored: localStorage.getItem('areCalcs_sw_wide'), w2: document.body.classList.contains('are-wide') };
+  const cap = () => getComputedStyle(document.querySelector('.container')).maxWidth;
+  const on = () => document.body.classList.contains('are-wide');
+  const btn = document.getElementById('areWideBtn');
+  const w0 = on(), cap0 = cap(), t0 = btn.textContent;
+  btn.click(); const w1 = on(), cap1 = cap(), t1 = btn.textContent, s1 = localStorage.getItem('areCalcs_wide:stacked_shearwall_calculator.html');
+  btn.click(); const w2 = on(), cap2 = cap(), t2 = btn.textContent, s2 = localStorage.getItem('areCalcs_wide:stacked_shearwall_calculator.html');
+  return { w0, cap0, t0, w1, cap1, t1, s1, w2, cap2, t2, s2, oldKey: localStorage.getItem('areCalcs_sw_wide'), localBtn: !!document.getElementById('wideBtn') };
 });
-check('full width: on by default (cap lifted), toggles off to 1280px and back, remembered in localStorage',
-  wide.w0 && wide.cap0 === 'none' && !wide.w1 && wide.cap1 === '1280px' && wide.w2 && wide.stored === '1', JSON.stringify(wide));
+check('wide: on by default (cap none), toggles off to 1280px and back, remembered under the per-calc key',
+  wide.w0 && wide.cap0 === 'none' && !wide.w1 && wide.cap1 === '1280px' && wide.s1 === '0' && wide.w2 && wide.cap2 === 'none' && wide.s2 === '1', JSON.stringify(wide));
+check('wide: button text tracks the state (⬜ Wide ✓ / ⛶ Wide)',
+  wide.t0 === '⬜ Wide ✓' && wide.t1 === '⛶ Wide' && wide.t2 === '⬜ Wide ✓', JSON.stringify([wide.t0, wide.t1, wide.t2]));
+check('wide: page-local #wideBtn and areCalcs_sw_wide key are gone', !wide.localBtn && wide.oldKey === null, JSON.stringify(wide));
 
 // ── reference tables are rendered from the engine arrays ────────────────────
 const refs = await page.evaluate(() => ({

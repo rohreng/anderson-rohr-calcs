@@ -60,6 +60,7 @@ for (const file of files) {
     state = await page.evaluate(() => ({
       bars: document.querySelectorAll('.are-bar, #areBar').length,
       saveBtn: !!document.getElementById('areSaveBtn'),
+      wideBtn: !!document.getElementById('areWideBtn'),   // reported, not asserted: data-no-theme calcs have none
       saveIsSnapshot: typeof window.areSave === 'function' &&
                       !/localStorage/.test(String(window.areSave)),
       hasBuildSnapshot: typeof window.AREv2?.buildSnapshot === 'function',
@@ -79,17 +80,17 @@ for (const file of files) {
 await browser.close();
 
 const pad = (s, n) => String(s).padEnd(n);
-console.log('\n' + pad('CALC', 52) + pad('BARS', 6) + pad('SAVE', 6) + pad('SNAP', 6) + pad('OLDPRINT', 10) + 'STATUS');
-console.log('-'.repeat(92));
+console.log('\n' + pad('CALC', 52) + pad('BARS', 6) + pad('SAVE', 6) + pad('SNAP', 6) + pad('WIDE', 6) + pad('OLDPRINT', 10) + 'STATUS');
+console.log('-'.repeat(98));
 let fails = 0;
 for (const r of rows) {
   if (!r.ok) fails++;
   console.log(
     pad(r.file, 52) + pad(r.bars ?? '-', 6) + pad(r.saveBtn ? 'y' : 'n', 6) +
-    pad(r.saveIsSnapshot ? 'y' : 'n', 6) + pad(r.legacyPrintButtons ?? '-', 10) +
+    pad(r.saveIsSnapshot ? 'y' : 'n', 6) + pad(r.wideBtn ? 'y' : 'n', 6) + pad(r.legacyPrintButtons ?? '-', 10) +
     (r.ok ? ('ok' + (r.benign ? ` (${r.benign} benign warn)` : '')) : 'FAIL ' + (r.errs.join(' | ').slice(0, 90) || 'assertions'))
   );
 }
-console.log('-'.repeat(92));
+console.log('-'.repeat(98));
 console.log(`${rows.length - fails}/${rows.length} passed\n`);
 process.exit(fails ? 1 : 0);

@@ -55,6 +55,19 @@ function check(label, ok, detail) {
   if (!ok) failures.push(label);
 }
 
+// ── shared-toolbar Wide toggle: data-are-wide-default → on, cap none → 1280px → none ──
+const wide = await page.evaluate(() => {
+  const cap = () => getComputedStyle(document.querySelector('.container')).maxWidth;
+  const on = () => document.body.classList.contains('are-wide');
+  const btn = document.getElementById('areWideBtn');
+  const w0 = on(), cap0 = cap();
+  btn.click(); const w1 = on(), cap1 = cap(), s1 = localStorage.getItem('areCalcs_wide:rectangular_diaphragm_calculator.html');
+  btn.click(); const w2 = on(), cap2 = cap(), s2 = localStorage.getItem('areCalcs_wide:rectangular_diaphragm_calculator.html');
+  return { w0, cap0, w1, cap1, s1, w2, cap2, s2 };
+});
+check('wide: on by default (cap none), toggles off to 1280px and back, remembered under the per-calc key',
+  wide.w0 && wide.cap0 === 'none' && !wide.w1 && wide.cap1 === '1280px' && wide.s1 === '0' && wide.w2 && wide.cap2 === 'none' && wide.s2 === '1', JSON.stringify(wide));
+
 // Rows as the page sees them: label/len/loc read off the .sw-row inputs.
 const readRows = () => page.evaluate(() => {
   const rd = (dir) => Array.from(document.querySelectorAll('#sw' + dir + ' .sw-row')).map((r) => ({

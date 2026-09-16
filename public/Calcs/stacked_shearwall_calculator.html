@@ -274,7 +274,6 @@ select.ti{cursor:pointer;padding:2px 1px}
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
             <button class="btn-add-floor" id="addFloorBtn" onclick="addFloor()">+ Add Floor</button>
             <button class="btn-resetcol" onclick="resetColW()" title="Restore every column to its default width">&#8596; Reset column widths</button>
-            <button class="btn-resetcol" id="wideBtn" onclick="toggleWide()" title="Use the whole browser width for the wall tables (remembered in this browser)">&#9974; Full width</button>
           </div>
           <div class="hint">Inserts a new level at the top</div>
         </div>
@@ -363,6 +362,8 @@ select.ti{cursor:pointer;padding:2px 1px}
 <script src="./engines/rect-diaphragm.js"></script>
 <script src="./engines/lateral-handoff.js"></script>
 <script>
+// Wide toggle moved to the shared toolbar (are-utils-v2.js, key areCalcs_wide:<file>); seed it once from the old page-local key, then drop the old key.
+try{ if(localStorage.getItem('areCalcs_wide:stacked_shearwall_calculator.html')===null&&localStorage.getItem('areCalcs_sw_wide')!==null) localStorage.setItem('areCalcs_wide:stacked_shearwall_calculator.html',localStorage.getItem('areCalcs_sw_wide')==='0'?'0':'1'); localStorage.removeItem('areCalcs_sw_wide'); }catch(e){}
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 var _dc = 0;
@@ -515,23 +516,6 @@ function setDLSource(fi,wi,srcVal){
 // ── Resizable wall-table columns ─────────────────────────────────────────────
 // Widths are stored per browser (not in the calc state) and re-applied after
 // every render(), exactly as in stacked_headers_studs_calculator.html.
-// ── Full-width toggle ────────────────────────────────────────────────────────
-// are-theme-v2.css caps .container at 1280px; the 22-column wall table needs
-// more. body.are-wide lifts the cap (rule in are-theme-v2.css). Default on;
-// the choice is per browser, not part of the calc state.
-var WIDE_KEY='areCalcs_sw_wide';
-function applyWide(on){
-  document.body.classList.toggle('are-wide',!!on);
-  var b=document.getElementById('wideBtn');
-  if(b) b.textContent=(on?'⬜':'⛶')+' Full width'+(on?' ✓':'');
-}
-function toggleWide(){
-  var on=!document.body.classList.contains('are-wide');
-  try{ localStorage.setItem(WIDE_KEY,on?'1':'0'); }catch(e){}
-  applyWide(on);
-}
-try{ applyWide(localStorage.getItem(WIDE_KEY)!=='0'); }catch(e){ applyWide(true); }
-
 var COLW_KEY='areCalcs_sw_colWidths';
 var COLW={};
 try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
@@ -1235,7 +1219,7 @@ window.onload=function(){
 };
 
 </script>
-<script src="/are-utils-v2.js"></script>
+<script src="/are-utils-v2.js" data-are-wide-default></script>
 <script>
 // ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
 // The level/wall model lives in `state.floors`; #floor-con is rendered from it

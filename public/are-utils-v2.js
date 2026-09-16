@@ -121,8 +121,14 @@
       '<button class="are-btn pr" onclick="arePrint(\'s\')">&#128424; Summary</button>' +
       '<button class="are-btn pr" onclick="arePrint(\'f\')">&#128196; Full Calc</button>' +
       '<button class="are-btn" onclick="AREv2.expandAll()" title="Expand all calc details">&#8862; Expand All</button>' +
-      '<button class="are-btn" onclick="AREv2.collapseAll()" title="Collapse all calc details">&#8861; Collapse</button>';
+      '<button class="are-btn" onclick="AREv2.collapseAll()" title="Collapse all calc details">&#8861; Collapse</button>' +
+      // Wide toggle only where are-theme-v2.css is loaded — its
+      // `body.are-wide .container{max-width:none}` rule is what makes it work.
+      (themeOptedOut() ? '' :
+        '<button class="are-btn" id="areWideBtn" onclick="AREv2.toggleWide()" ' +
+          'title="Use the whole browser width (remembered for this calculator)">&#9974; Wide</button>');
     document.body.insertBefore(bar, document.body.firstChild);
+    syncWideBtn();
     var ph = document.createElement('div');
     ph.className = 'are-ph'; ph.id = 'arePH';
     ph.innerHTML = '<div class="are-ph-title">' + document.title + '</div><div class="are-ph-meta" id="arePHmeta"></div>';
@@ -563,6 +569,45 @@
     document.querySelectorAll('.det-row').forEach(function (el) { el.style.removeProperty('display'); });
     document.querySelectorAll('.det-btn').forEach(function (b) { b.textContent = '▸ Calc'; });
     document.querySelectorAll('.step-card').forEach(function (c) { c.classList.remove('open'); });
+  };
+
+  // ── Wide toggle ───────────────────────────────────────────────────────────
+  // are-theme-v2.css caps .container at 1280px; `body.are-wide` lifts the cap
+  // (rule in the theme). The choice is per calculator, per browser — never
+  // part of the calc state — because a 22-column wall table wants wide and a
+  // one-column anchor calc does not. Default comes from the script tag:
+  //     <script src="/are-utils-v2.js" data-are-wide-default></script>
+  // (same precedent as data-no-theme); a stored choice wins over the default.
+  var WIDE_KEY = 'areCalcs_wide:' + FILE;
+  function wideDefault() {
+    var s = document.querySelector('script[src*="are-utils-v2.js"]');
+    return !!(s && s.hasAttribute('data-are-wide-default'));
+  }
+  function syncWideBtn() {
+    var b = document.getElementById('areWideBtn');
+    if (!b) return;
+    var on = document.body.classList.contains('are-wide');
+    b.textContent = on ? '⬜ Wide ✓' : '⛶ Wide';
+  }
+  // Runs from init() right after injectTheme(), before the toolbar exists, so
+  // the class is on <body> before first paint.
+  function applyStoredWide() {
+    if (themeOptedOut()) return;
+    var on = wideDefault();
+    try {
+      var v = localStorage.getItem(WIDE_KEY);
+      if (v === '1') on = true; else if (v === '0') on = false;
+    } catch (e) {}
+    AREv2.setWide(on);
+  }
+  AREv2.setWide = function (on) {
+    document.body.classList.toggle('are-wide', !!on);
+    syncWideBtn();
+  };
+  AREv2.toggleWide = function () {
+    var on = !document.body.classList.contains('are-wide');
+    try { localStorage.setItem(WIDE_KEY, on ? '1' : '0'); } catch (e) {}
+    AREv2.setWide(on);
   };
 
   // Member-select normalization: short designation in the box, full props in
@@ -1921,6 +1966,7 @@
   // ── Init ──────────────────────────────────────────────────────────────────
   function init() {
     injectTheme();
+    applyStoredWide();
     injectPrintRules();
     injectToolbar();
     injectHSSChooser();

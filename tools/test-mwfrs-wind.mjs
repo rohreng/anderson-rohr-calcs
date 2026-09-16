@@ -118,6 +118,16 @@ if (CAPTURE) {
 }
 check('no page errors (baseline cases)', pageErrors.length === 0, pageErrors.join('\n      '));
 
+// ── shared-toolbar Wide toggle: no data-are-wide-default here → narrow (1280px) by default ──
+const wide = await page.evaluate(() => ({
+  btn: !!document.getElementById('areWideBtn'),
+  on: document.body.classList.contains('are-wide'),
+  cap: getComputedStyle(document.querySelector('.container')).maxWidth,
+  stored: localStorage.getItem('areCalcs_wide:asce716_mwfrs_calculator.html'),
+}));
+check('wide: button present, default OFF on a calc without data-are-wide-default (cap 1280px, no are-wide class)',
+  wide.btn && !wide.on && wide.cap === '1280px' && wide.stored === null, JSON.stringify(wide));
+
 if (!CAPTURE) {
   // ── 2. parallel-to-ridge fix on the sloped cases (ridge along D → Wind-Y parallel) ──
   // Independent constants: Fig. 27.3-1 zone table, Cp1 by zone, Cp2 = -0.18; p = qh·G·Cp ∓ qh·GCpi.
