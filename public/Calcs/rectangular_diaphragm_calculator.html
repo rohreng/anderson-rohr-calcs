@@ -153,6 +153,25 @@ svg.diagram{max-width:100%;border-radius:8px}
         <input type="number" id="Vy_s" value="0" min="0" step="0.1"/>
       </div>
     </div>
+    <div class="row">
+      <div class="ig" style="flex:2;min-width:260px">
+        <label>Load level of the forces above</label>
+        <select id="loadLevel">
+          <option value="strength">Strength level — ASCE 7 W / E, as sent by MWFRS</option>
+          <option value="asd">ASD — 0.6W / 0.7E already applied</option>
+        </select>
+      </div>
+    </div>
+    <p class="ref">Stacked Shearwall handoff needs strength level; ASD entries are converted (÷0.6 wind, ÷0.7 seismic) at send.</p>
+    <!-- Whole-building story table from the MWFRS send (are.lateral.v1). Hidden
+         input = the persisted carrier (Tier A, like #swJSON); the select is
+         rebuilt from it and is data-are-ignore. -->
+    <input type="hidden" id="mwfrsJSON">
+    <div class="row" id="mwfrsRow" style="display:none;align-items:flex-end">
+      <div class="ig" style="flex:0 0 180px"><label>Levels from MWFRS</label><select id="mwfrsLevel" data-are-ignore onchange="applyMwfrsLevel(this.selectedIndex)"></select></div>
+      <button type="button" class="sl-btn" onclick="nextLevel()" style="margin-bottom:2px">Next level ↓</button>
+      <span id="mwfrsInfo" class="ref" style="margin-bottom:6px"></span>
+    </div>
     <p class="ref">Enter the diaphragm-level force (not cumulative base shear). For multi-story: use the incremental story force at this level.<br>Tip: Import directly from the MWFRS Wind Pressure Calculator using the Send panel.</p>
   </div>
 </div>
@@ -264,10 +283,23 @@ svg.diagram{max-width:100%;border-radius:8px}
     </button>
   </div>
 
+  <!-- Send this level to Stacked Shearwall (shown after calculation) -->
+  <div id="sendToShearwallBtn" style="display:none;margin-top:8px;padding:12px 16px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px">
+    <div style="font-weight:700;font-size:.95em;margin-bottom:6px;color:#1e3a8a">&#9654; Send this level to Stacked Shearwall</div>
+    <div style="font-size:.82em;color:#374151;margin-bottom:8px">One level: every shearwall line's reaction (strength level, lb) plus the MWFRS story table when one was imported. Multi-level import is assembled on the Stacked Shearwall side.</div>
+    <button id="swSendBtn" onclick="sendToShearwall()"
+      style="background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;border:none;padding:8px 20px;border-radius:7px;cursor:pointer;font-size:.9em;font-weight:700">
+      &#9654;&nbsp; Send this level to Stacked Shearwall
+    </button>
+    <a id="swSendLink" href="#" target="_blank" style="display:none;margin-left:10px;font-size:.82em;font-weight:600;color:#b91c1c">Popup blocked — click to open the Stacked Shearwall</a>
+    <span id="swSendInfo" style="display:block;margin-top:6px;font-size:.8em;color:#92400e"></span>
+  </div>
+
 </div><!-- /results -->
 </div><!-- /container -->
 
 <script src="./engines/rect-diaphragm.js"></script>
+<script src="./engines/lateral-handoff.js"></script>
 <script>
 // ─── UTILITIES ───────────────────────────────────────────────────────────────
 function f1(v){return (Math.round(v*10)/10).toFixed(1)}
@@ -845,56 +877,137 @@ function calculate(){
     }));
   } catch(e) {}
   document.getElementById('sendToMasonryWallBtn').style.display = '';
+  document.getElementById('sendToShearwallBtn').style.display = '';
 
   document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+// ─── MWFRS LEVELS (are.lateral.v1 story table in #mwfrsJSON) ─────────────────
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function readMwfrsTable(){
+  var t=null;
+  try{ t=JSON.parse(document.getElementById('mwfrsJSON').value||'null'); }catch(e){ t=null; }
+  return (t&&t.schema==='are.lateral.v1'&&Array.isArray(t.levels)&&t.levels.length)?t:null;
+}
+// Rebuild #mwfrsLevel from #mwfrsJSON (page load, toolbar Load, URL import);
+// the option matching #level is selected, the row is hidden without a table.
+function buildLevelSelect(){
+  var row=document.getElementById('mwfrsRow'), sel=document.getElementById('mwfrsLevel'), info=document.getElementById('mwfrsInfo');
+  var t=readMwfrsTable();
+  if(!t){ row.style.display='none'; sel.innerHTML=''; info.textContent=''; return; }
+  var cur=document.getElementById('level').value.trim().toLowerCase(), html='';
+  t.levels.forEach(function(l,i){
+    html+='<option value="'+i+'"'+(String(l.label).trim().toLowerCase()===cur?' selected':'')+'>'+escHtml(l.label)+'</option>';
+  });
+  sel.innerHTML=html;
+  info.dataset.base=t.levels.length+' levels from MWFRS'+(t.project?' — '+t.project:'');
+  info.textContent=info.dataset.base;
+  row.style.display='';
+}
+// Put one level on the page: #level, #Vx/#Vy (strength kips) and the Mark.
+// Seismic, B/D and the wall rows are the engineer's and are left alone.
+function applyMwfrsLevel(idx){
+  var t=readMwfrsTable(), lv=t&&t.levels[idx];
+  if(!lv) return;
+  var sel=document.getElementById('mwfrsLevel');
+  if(sel&&sel.options.length>idx) sel.selectedIndex=idx;
+  var levelEl=document.getElementById('level'), prev=levelEl.value.trim(), label=String(lv.label).trim();
+  levelEl.value=label;
+  document.getElementById('Vx').value=((parseFloat(lv.F_wind_x_strength_lb)||0)/1000).toFixed(2);
+  document.getElementById('Vy').value=((parseFloat(lv.F_wind_y_strength_lb)||0)/1000).toFixed(2);
+  document.getElementById('loadLevel').value='strength';
+  setMarkForLevel(prev,label);
+  updateDiagram();
+}
+// Mark rule: the toolbar Mark names the saved file and the sheet, so it follows
+// the level unless it already names it — set when blank, when it is exactly the
+// previous level's label, or when it does not contain the new label. "3RD LEVEL"
+// already contains "3RD" and is left alone.
+function setMarkForLevel(prev,label){
+  var el=document.getElementById('areMark');
+  if(!el||!label) return;
+  var lo=function(v){ return String(v||'').trim().toLowerCase(); };
+  var mark=(typeof AREv2!=='undefined'&&AREv2.getMark)?AREv2.getMark():el.value.trim();
+  if(mark&&lo(mark)!==lo(prev)&&lo(mark).indexOf(lo(label))>=0) return;
+  el.value=label;
+  el.dispatchEvent(new Event('input',{bubbles:true}));
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+  var info=document.getElementById('mwfrsInfo');
+  info.textContent=(info.dataset.base||'')+' · Mark set to '+label;
+}
+function nextLevel(){
+  var sel=document.getElementById('mwfrsLevel');
+  if(!sel||sel.selectedIndex<0||sel.selectedIndex>=sel.options.length-1) return;
+  applyMwfrsLevel(sel.selectedIndex+1);
+}
+
 // ─── URL PARAM IMPORT ────────────────────────────────────────────────────────
+// Two paths off ?src=mwfrs. lat=1: the whole-building are.lateral.v1 record the
+// MWFRS send left in localStorage (10-minute TTL, consumed on read like
+// AREv2's are_transfer_v1) — applied on window load so the ARE toolbar exists
+// for the cross-project guard (#areJob, prefilled from a v1 store when one is
+// present) and the Mark rule. Legacy (no lat, key missing or stale): the
+// single-level vx/vy/B/D/story query the MWFRS send has always carried.
+function takeLateralRecord(){
+  var KEY='are_lateral_v1', raw;
+  try{ raw=localStorage.getItem(KEY); }catch(e){ return null; }
+  if(!raw) return null;
+  var x; try{ x=JSON.parse(raw); }catch(e){ localStorage.removeItem(KEY); return null; }
+  if(x.file!=='rectangular_diaphragm_calculator.html') return null;                    // not for this calc
+  localStorage.removeItem(KEY);
+  if(Date.now()-x.ts>10*60*1000) return null;                                          // stale
+  return (x.record&&x.record.schema==='are.lateral.v1'&&Array.isArray(x.record.levels)&&x.record.levels.length)?x.record:null;
+}
+function showImportBanner(infoStr){
+  document.getElementById('importLink').href=document.referrer||'asce716_mwfrs_calculator.html';
+  document.getElementById('importInfo').textContent=infoStr;
+  document.getElementById('importBanner').style.display='block';
+}
+function applyLateralRecord(record, story){
+  var proj=String(record.project||'').trim();
+  var job=(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'';
+  if(job&&proj&&job.toLowerCase()!==proj.toLowerCase()){
+    if(!confirm('Payload is for "'+proj+'"; this calc is "'+job+'". Apply anyway?')) return;
+  }
+  document.getElementById('mwfrsJSON').value=JSON.stringify(record);
+  document.getElementById('loadLevel').value='strength';
+  var g=record.geometry||{}, B=document.getElementById('B'), D=document.getElementById('D');
+  if(B.value==='60'&&D.value==='120'){ if(g.B_ft>0) B.value=g.B_ft; if(g.D_ft>0) D.value=g.D_ft; }   // page defaults only
+  var pn=document.getElementById('projName');
+  if(!pn.value.trim()&&proj) pn.value=proj;
+  var jobEl=document.getElementById('areJob');
+  if(jobEl&&!jobEl.value.trim()&&proj){ jobEl.value=proj; jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
+  buildLevelSelect();
+  var idx=0, want=String(story||'').trim().toLowerCase();
+  record.levels.forEach(function(l,i){ if(want&&String(l.label).trim().toLowerCase()===want) idx=i; });
+  applyMwfrsLevel(idx);
+  showImportBanner(record.levels.length+' levels'+(proj?' for '+proj:'')+' — opened at '+record.levels[idx].label+'; switch levels in the Lateral Loads block  ');
+}
 (function(){
   var p=new URLSearchParams(window.location.search);
   if(p.get('src')!=='mwfrs') return;
+  var story=p.get('story')||'';
+  var record=p.get('lat')==='1'?takeLateralRecord():null;
+  if(record){ window.addEventListener('load',function(){ applyLateralRecord(record, story); }); return; }
 
-  // MWFRS sends: vx = EW wind force (Wind-X), vy = NS wind force (Wind-Y) — matches X=EW, Y=NS convention
+  // Legacy single level. MWFRS sends: vx = EW wind force (Wind-X), vy = NS wind force (Wind-Y) — matches X=EW, Y=NS convention
   var vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0'); // EW force → V_x
   var vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');                   // NS force → V_y
   var B=parseFloat(p.get('B')||'0');
   var D=parseFloat(p.get('D')||'0');
-  var story=p.get('story')||'';
 
   if(vx>0){ document.getElementById('Vx').value=(vx/1000).toFixed(2); }
   if(vy>0){ document.getElementById('Vy').value=(vy/1000).toFixed(2); }
   if(B>0){ document.getElementById('B').value=B; }
   if(D>0){ document.getElementById('D').value=D; }
   if(story) document.getElementById('level').value=story;
-
-  // Set default shearwall locations to match building geometry
-  if(B>0||D>0){
-    var swXrows=document.getElementById('swX').querySelectorAll('.sw-row');
-    if(swXrows.length>=2){
-      // swX = N/S walls (EW shearwalls): North wall loc=D, South wall loc=0
-      swXrows[0].querySelector('.sw-loc').value=D||120; // North wall
-      if(B>0) swXrows[0].querySelector('.sw-len').value=B;
-      if(B>0) swXrows[1].querySelector('.sw-len').value=B;
-    }
-    var swYrows=document.getElementById('swY').querySelectorAll('.sw-row');
-    if(swYrows.length>=2){
-      // swY = E/W walls (NS shearwalls): East wall loc=B, West wall loc=0
-      swYrows[0].querySelector('.sw-loc').value=B||60; // East wall
-      if(D>0) swYrows[0].querySelector('.sw-len').value=D;
-      if(D>0) swYrows[1].querySelector('.sw-len').value=D;
-    }
-  }
-
-  // Build back link
-  var back=document.referrer||'asce716_mwfrs_calculator.html';
-  document.getElementById('importLink').href=back;
+  document.getElementById('loadLevel').value='strength';
 
   var infoStr='';
   if(vx>0) infoStr+='V\u2093 = '+((vx/1000).toFixed(2))+' kips (Wind-X EW)  ';
   if(vy>0) infoStr+='V\u1D67 = '+((vy/1000).toFixed(2))+' kips (Wind-Y NS)  ';
   if(story) infoStr+='Level: '+story+'  ';
-  document.getElementById('importInfo').textContent=infoStr;
-  document.getElementById('importBanner').style.display='block';
+  showImportBanner(infoStr);
 
   updateDiagram();
 })();
@@ -975,6 +1088,25 @@ function sendToMasonryWallDiaph(){
   } catch(e) { alert('Error reading diaphragm data.'); }
 }
 
+// ─── SEND THIS LEVEL TO STACKED SHEARWALL ────────────────────────────────────
+// One-level are.lateral.v1 record from the toolbar's own capture: the LH engine
+// recomputes every line reaction from the inputs (RD.analyze), converts ASD
+// entries to strength, and carries the MWFRS story table when #mwfrsJSON has
+// one. The button lives inside #results, so a calc has already run.
+function sendToShearwall(){
+  if(!window.LH||typeof AREv2==='undefined'||!AREv2.captureState){ alert('Handoff engine not loaded.'); return; }
+  var a;
+  try{ a=LH.assemble([LH.levelFromDiaphragmState(AREv2.captureState())],{files:[]}); }
+  catch(e){ alert(e.message||String(e)); return; }
+  if(a.errors.length){ alert(a.errors.join('\n')); return; }
+  document.getElementById('swSendInfo').textContent=a.warnings.join('  ');
+  try{ localStorage.setItem('are_lateral_v1', JSON.stringify({record:a.record, ts:Date.now(), file:'stacked_shearwall_calculator.html'})); }catch(e){}
+  var url=location.href.replace(/[^/]*$/,'')+'stacked_shearwall_calculator.html?src=diaphragm&lat=1';
+  var w=window.open(url,'_blank');
+  var link=document.getElementById('swSendLink');
+  link.href=url; link.style.display=w?'none':'';
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',function(){
   var d=new Date(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
@@ -993,6 +1125,8 @@ document.addEventListener('DOMContentLoaded',function(){
       }
     }catch(e){/* ignore malformed data */}
   });
+  // Same for the MWFRS story table: the toolbar Load fires change on #mwfrsJSON
+  document.getElementById('mwfrsJSON').addEventListener('change', buildLevelSelect);
   updateDiagram();
 });
 </script>
@@ -1007,10 +1141,10 @@ document.addEventListener('DOMContentLoaded',function(){
 // page-local wrapper pattern as stacked_headers_studs_calculator.html —
 // are-utils-v2.js itself is not modified.
 //
-// #loadLevel / #mwfrsJSON are defaulted only when the element exists:
-// applyIteratively marks a key done only on an exactly-one resolveKey hit, so
-// a defaulted key with no element would itself land in missingOnPage.
-// Phase 3 adds #loadLevel/#mwfrsJSON; until then the DEFAULTS branch is a no-op.
+// #loadLevel / #mwfrsJSON (Phase 3) are defaulted for files saved before they
+// existed. The element check stays: applyIteratively marks a key done only on
+// an exactly-one resolveKey hit, so a defaulted key with no element would
+// itself land in missingOnPage.
 (function installDiaShim(){
   if(typeof AREv2==='undefined' || !AREv2.loadFromState || AREv2._diaShim) return;
   var inner=AREv2.loadFromState;
@@ -1029,6 +1163,10 @@ document.addEventListener('DOMContentLoaded',function(){
     return inner.call(AREv2, state, opts);
   };
   AREv2._diaShim=true;
+  // #mwfrsJSON's change listener fires mid-restore, possibly before #level is
+  // applied; rebuild once more after every field is in so the right option is
+  // selected.
+  if(AREv2.onAfterRestore) AREv2.onAfterRestore(buildLevelSelect);
 })();
 </script>
 <script src="/are-draw.js"></script>

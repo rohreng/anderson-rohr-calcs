@@ -179,6 +179,134 @@ check('JSON Load Inputs shows its success alert only', dialogs.length === dialog
 const ls = await page.evaluate(() => { window.calculate(); return JSON.parse(localStorage.getItem('ARE_diaphragm') || 'null'); });
 check('localStorage.ARE_diaphragm written by calculate()', !!ls && ls.B === 120 && ls.D === 360 && ls.gov_v_x > 0, JSON.stringify(ls));
 
+// ── 9. quick send to Stacked Shearwall (Phase 4b): one level, walls from the page ──
+// Page state: ROOF fixture rows (25 X + 5 Y), #level Roof, no #mwfrsJSON.
+await page.evaluate(() => { localStorage.removeItem('are_lateral_v1'); window.__opened = []; window.open = function (u) { window.__opened.push(u); return {}; }; });
+check('quick send button shown after calculate()', await page.$eval('#sendToShearwallBtn', (e) => e.style.display !== 'none'), 'hidden');
+await page.click('#swSendBtn');
+const qs = await page.evaluate(() => ({ ls: JSON.parse(localStorage.getItem('are_lateral_v1') || 'null'), urls: window.__opened, info: document.getElementById('swSendInfo').textContent, link: getComputedStyle(document.getElementById('swSendLink')).display }));
+check('quick send: are_lateral_v1 for the stacked shearwall — one level, 25 X + 5 Y walls',
+  !!qs.ls && qs.ls.file === 'stacked_shearwall_calculator.html' && !!qs.ls.record && qs.ls.record.schema === 'are.lateral.v1' && qs.ls.record.levels.length === 1
+  && qs.ls.record.levels[0].label === 'Roof' && qs.ls.record.levels[0].walls.X.length === 25 && qs.ls.record.levels[0].walls.Y.length === 5 && qs.ls.record.levels[0].F_wind_x_strength_lb === 131310,
+  JSON.stringify(qs.ls).slice(0, 300));
+check('quick send: opens stacked_shearwall_calculator.html?src=diaphragm&lat=1', qs.urls.length === 1 && /stacked_shearwall_calculator\.html\?src=diaphragm&lat=1$/.test(qs.urls[0]) && qs.link === 'none', JSON.stringify(qs));
+check('quick send: "no story table" warning shown (no #mwfrsJSON on this page)', /no story table/.test(qs.info), qs.info);
+await page.evaluate(() => { window.open = function () { return null; }; });
+await page.click('#swSendBtn');
+const qsb = await page.evaluate(() => { const a = document.getElementById('swSendLink'); return { display: getComputedStyle(a).display, href: a.getAttribute('href') }; });
+check('quick send: popup blocked reveals #swSendLink', qsb.display !== 'none' && qsb.href === qs.urls[0], JSON.stringify(qsb));
+
+// ── 10. MWFRS whole-building import (?src=mwfrs&lat=1) ──────────────────────
+const MW_RECORD = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/mwfrs-record.json', import.meta.url)), 'utf8'));
+const LAT_KEY = 'are_lateral_v1';
+const val = (id) => page.$eval('#' + id, (e) => e.value);
+const shown = (id) => page.$eval('#' + id, (e) => getComputedStyle(e).display !== 'none');
+const levelOpts = () => page.$$eval('#mwfrsLevel option', (os) => os.map((o) => o.text + (o.selected ? '*' : '')));
+const capFields = () => page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState().fields)));
+async function gotoLat(query, seed) {
+  // Seed on the current same-origin page so the key is in place before the import IIFE runs.
+  await page.evaluate(([k, v]) => { localStorage.removeItem(k); if (v) localStorage.setItem(k, v); }, [LAT_KEY, seed ? JSON.stringify(seed) : '']);
+  await page.goto('http://calcs.test/Calcs/' + FILE + query, { waitUntil: 'load' });
+  await page.waitForSelector('#areBar');
+  await page.waitForFunction(() => window.AREv2 && window.AREv2.isReady());
+}
+await gotoLat('', null);
+const defaultRows = await readRows();
+check('fresh page: 2 X + 2 Y default rows, #loadLevel strength, #mwfrsRow hidden',
+  defaultRows.X.length === 2 && defaultRows.Y.length === 2 && (await val('loadLevel')) === 'strength' && !(await shown('mwfrsRow')), JSON.stringify(defaultRows));
+
+const seeded = Object.assign({}, MW_RECORD, { project: '26-064 Red Bluff' });
+const dlg0 = dialogs.length;
+await gotoLat('?src=mwfrs&lat=1&story=3RD', { record: seeded, ts: Date.now(), file: FILE });
+const imp = await page.evaluate(() => ({
+  level: document.getElementById('level').value, Vx: document.getElementById('Vx').value, Vy: document.getElementById('Vy').value,
+  B: document.getElementById('B').value, D: document.getElementById('D').value, loadLevel: document.getElementById('loadLevel').value,
+  json: document.getElementById('mwfrsJSON').value, key: localStorage.getItem('are_lateral_v1'),
+  job: document.getElementById('areJob').value, projName: document.getElementById('projName').value,
+  banner: getComputedStyle(document.getElementById('importBanner')).display !== 'none', info: document.getElementById('mwfrsInfo').textContent
+}));
+check('lat import: #mwfrsRow visible, 3 levels, 3RD selected', (await shown('mwfrsRow')) && (await levelOpts()).join(',') === 'Roof,3RD*,2ND', (await levelOpts()).join(','));
+check('lat import: #level 3RD, #Vx 79.78, #Vy 20.90, #loadLevel strength', imp.level === '3RD' && imp.Vx === '79.78' && imp.Vy === '20.90' && imp.loadLevel === 'strength', JSON.stringify(imp).slice(0, 200));
+check('lat import: B/D from the record (page still had 60/120)', imp.B === '120' && imp.D === '360', `${imp.B} x ${imp.D}`);
+check('lat import: wall rows untouched (page defaults)', sameRows(await readRows(), defaultRows), JSON.stringify(await readRows()));
+check('lat import: #mwfrsJSON carries the record, localStorage key removed', imp.json.length > 0 && JSON.parse(imp.json).levels.length === 3 && imp.key === null, `json=${imp.json.length} key=${imp.key}`);
+check('lat import: #areJob and #projName prefilled from record.project', imp.job === '26-064 Red Bluff' && imp.projName === '26-064 Red Bluff', `${imp.job} / ${imp.projName}`);
+check('lat import: banner shown, info names the levels', imp.banner && /3 levels from MWFRS/.test(imp.info), imp.info);
+check('lat import: no dialog', dialogs.length === dlg0, JSON.stringify(dialogs.slice(dlg0)));
+
+// ── 11. Mark rule ───────────────────────────────────────────────────────────
+// Fresh page + import: mark was blank -> set to the opened level.
+check('mark: blank -> "3RD" on import', (await val('areMark')) === '3RD', await val('areMark'));
+await page.fill('#areMark', 'ROOF LEVEL');
+await page.selectOption('#mwfrsLevel', '1');   // pick 3RD again: mark does not contain "3RD"
+check('mark: "ROOF LEVEL" -> "3RD" (does not contain the level)', (await val('areMark')) === '3RD' && /Mark set to 3RD/.test(await page.$eval('#mwfrsInfo', (e) => e.textContent)), await val('areMark'));
+await page.fill('#areMark', '3RD LEVEL');
+await page.selectOption('#mwfrsLevel', '1');
+check('mark: "3RD LEVEL" left alone (already contains the level)', (await val('areMark')) === '3RD LEVEL', await val('areMark'));
+
+// ── 12. switching level via the select changes only #level/#Vx/#Vy ─────────
+const before = await capFields();
+await page.selectOption('#mwfrsLevel', '2');   // 2ND
+const after = await capFields();
+const SKIP = { '#level': 1, '#Vx': 1, '#Vy': 1, '#mwfrsJSON': 1 };
+const changed = Object.keys(after).filter((k) => !SKIP[k] && after[k] !== before[k]);
+const missing = Object.keys(before).filter((k) => !(k in after));
+check('switch to 2ND: #level/#Vx/#Vy follow the level', after['#level'] === '2ND' && after['#Vx'] === '87.31' && after['#Vy'] === '22.62', `${after['#level']} ${after['#Vx']} ${after['#Vy']}`);
+check('switch to 2ND: nothing else in the capture changed', changed.length === 0 && missing.length === 0, changed.concat(missing).join(', '));
+check('switch to 2ND: mark "3RD LEVEL" -> "2ND"', (await val('areMark')) === '2ND', await val('areMark'));
+
+// ── 13. nextLevel(): Roof -> 3RD -> 2ND -> stays 2ND ────────────────────────
+await page.evaluate(() => window.applyMwfrsLevel(0));
+const walk = [await val('level')];
+for (let i = 0; i < 3; i++) { await page.evaluate(() => window.nextLevel()); walk.push(await val('level')); }
+check('nextLevel(): Roof -> 3RD -> 2ND -> 2ND', walk.join(',') === 'Roof,3RD,2ND,2ND', walk.join(','));
+
+// ── 14. save capture carries #loadLevel/#mwfrsJSON; loading it rebuilds the row ──
+const capLat = await page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState())));
+check('capture: #loadLevel and #mwfrsJSON present', capLat.fields['#loadLevel'] === 'strength' && JSON.parse(capLat.fields['#mwfrsJSON']).levels.length === 3, Object.keys(capLat.fields).filter((k) => /loadLevel|mwfrs/.test(k)).join(', '));
+check('capture: #mwfrsLevel not captured (data-are-ignore)', !('#mwfrsLevel' in capLat.fields), 'captured');
+await gotoLat('', null);
+check('fresh page again: #mwfrsRow hidden', !(await shown('mwfrsRow')), 'shown');
+const rl = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), capLat);
+check('load capture with #mwfrsJSON: ok, zero mismatches', rl.ok === true && !rl.rolledBack && rl.mismatches.missingOnPage.length === 0 && rl.mismatches.notInFile.length === 0, JSON.stringify(rl));
+check('load capture with #mwfrsJSON: #mwfrsRow rebuilt, 3 options, 2ND selected', (await shown('mwfrsRow')) && (await levelOpts()).join(',') === 'Roof,3RD,2ND*', (await levelOpts()).join(','));
+
+// ── 15. ROOF fixture (Phase 0) still loads clean now that the shim defaults the new keys ──
+const r0 = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), fixture);
+check('ROOF fixture after Phase 3: ok, missingOnPage/notInFile empty', r0.ok === true && !r0.rolledBack && r0.mismatches.missingOnPage.length === 0 && r0.mismatches.notInFile.length === 0, JSON.stringify(r0.mismatches));
+check('ROOF fixture after Phase 3: #loadLevel strength, #mwfrsRow hidden', (await val('loadLevel')) === 'strength' && !(await shown('mwfrsRow')) && (await val('mwfrsJSON')) === '', await val('loadLevel'));
+
+// ── 16. expired key + legacy params -> single-level fallback, rows untouched ──
+await gotoLat('?src=mwfrs&lat=1&vx=79782&vy=20904&B=120&D=360&story=3RD', { record: seeded, ts: Date.now() - 11 * 60 * 1000, file: FILE });
+const leg = await page.evaluate(() => ({
+  level: document.getElementById('level').value, Vx: document.getElementById('Vx').value, Vy: document.getElementById('Vy').value,
+  B: document.getElementById('B').value, D: document.getElementById('D').value, loadLevel: document.getElementById('loadLevel').value,
+  json: document.getElementById('mwfrsJSON').value, key: localStorage.getItem('are_lateral_v1')
+}));
+check('legacy fallback: #Vx/#Vy/#B/#D/#level from the URL, #loadLevel strength', leg.Vx === '79.78' && leg.Vy === '20.90' && leg.B === '120' && leg.D === '360' && leg.level === '3RD' && leg.loadLevel === 'strength', JSON.stringify(leg));
+check('legacy fallback: #mwfrsRow hidden, #mwfrsJSON empty, stale key removed', !(await shown('mwfrsRow')) && leg.json === '' && leg.key === null, `json=${leg.json.length} key=${leg.key}`);
+check('legacy fallback: wall rows NOT overwritten from B/D', sameRows(await readRows(), defaultRows), JSON.stringify(await readRows()));
+// lat=1 with no key at all also falls back.
+await gotoLat('?src=mwfrs&lat=1&vx=131310&vy=40861&B=120&D=360&story=Roof', null);
+check('lat=1 without a key: legacy fallback', (await val('Vx')) === '131.31' && (await val('level')) === 'Roof' && !(await shown('mwfrsRow')), `${await val('Vx')} ${await val('level')} row=${await shown('mwfrsRow')}`);
+
+// ── 17. cross-project guard: #areJob differs -> confirm; declined -> nothing applied ──
+// The v1-compatible are_v1_<file> store prefills #areJob at toolbar injection.
+await page.evaluate((f) => localStorage.setItem('are_v1_' + f, JSON.stringify({ _job: '26-001 Other Job' })), FILE);
+page.removeAllListeners('dialog');
+const guardMsgs = [];
+page.on('dialog', (d) => { guardMsgs.push(d.message()); d.dismiss(); });
+await gotoLat('?src=mwfrs&lat=1&story=3RD', { record: seeded, ts: Date.now(), file: FILE });
+check('guard: confirm names both projects', guardMsgs.length === 1 && /26-064 Red Bluff/.test(guardMsgs[0]) && /26-001 Other Job/.test(guardMsgs[0]), JSON.stringify(guardMsgs));
+check('guard declined: nothing applied, key consumed', (await val('level')) === '' && (await val('mwfrsJSON')) === '' && !(await shown('mwfrsRow')) && (await page.evaluate(() => localStorage.getItem('are_lateral_v1'))) === null, await val('level'));
+page.removeAllListeners('dialog');
+page.on('dialog', (d) => { guardMsgs.push(d.message()); d.accept(); });
+await gotoLat('?src=mwfrs&lat=1&story=3RD', { record: seeded, ts: Date.now(), file: FILE });
+check('guard accepted: applied, #areJob kept', guardMsgs.length === 2 && (await val('level')) === '3RD' && (await val('areJob')) === '26-001 Other Job', `${await val('level')} / ${await val('areJob')}`);
+await page.evaluate((f) => localStorage.removeItem('are_v1_' + f), FILE);
+page.removeAllListeners('dialog');
+page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
+
 check('no page errors', pageErrors.length === 0, pageErrors.join('\n      '));
 await browser.close();
 if (failures.length) { console.error(`\n${failures.length} failure(s)`); process.exit(1); }
