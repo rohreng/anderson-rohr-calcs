@@ -809,7 +809,7 @@ check('import X: no SW.validate errors, a results pane per wall', imp.errors.len
 check('import X: base X@15 V_strength ≈ 12,433 lb, V ≈ 7,460 lb (Red Bluff goldens stacked)',
   Math.abs(imp.Vstrength - 12433) <= 2 && Math.abs(imp.V - 7460) <= 2, imp.Vstrength + ' / ' + imp.V);
 check('import X: floor header Σ wall lines line shown and not red (Σ ≈ level force)',
-  imp.sumText && imp.sumText.indexOf('Σ wall lines = 131,305 lb (level 131,310 lb)') >= 0 && imp.sumCls.indexOf('lf-bad') < 0 && imp.sumColor !== 'rgb(185, 28, 28)',
+  imp.sumText && imp.sumText.indexOf('Σ wall lines = 131,305 lb (level 131,310 lb)') >= 0 && imp.sumCls.indexOf('lf-bad') < 0 && imp.sumColor !== 'rgb(196, 43, 43)',
   JSON.stringify({ t: imp.sumText, c: imp.sumCls, col: imp.sumColor }));
 check('import X: provenance line and the import message',
   imp.prov.indexOf('Imported from Diaphragm Designer — direction X — 3 files') >= 0 && imp.msg.indexOf('Imported 3 levels, 75 wall lines, direction X from: dia-roof.html') >= 0,
@@ -822,7 +822,7 @@ const sumBad = await page.evaluate(() => {
   window.state.floors[0].walls[1].P_wind_lb = 5471; window.render();
   return out;
 });
-check('Σ wall lines turns red when |Σ − level| > 1 %', sumBad.cls.indexOf('lf-bad') >= 0 && sumBad.color === 'rgb(185, 28, 28)', JSON.stringify(sumBad));
+check('Σ wall lines turns red when |Σ − level| > 1 %', sumBad.cls.indexOf('lf-bad') >= 0 && sumBad.color === 'rgb(196, 43, 43)', JSON.stringify(sumBad));
 
 // (3) re-import, direction Y
 await page.setInputFiles('#diaImport', diaFiles);

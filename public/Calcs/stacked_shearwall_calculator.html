@@ -5,54 +5,63 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Stacked Shearwall Designer — SDPWS 2021</title>
 <style>
+/* ── ARE muted palette — three blues, three grays, one input tint, three status
+   text colours. Every colour on this page (including inline style="" literals in
+   the render() strings) references one of these tokens. ─────────────────── */
+:root{
+  --are-blue-1:#1a2b5f; --are-blue-2:#2e4a8a; --are-blue-3:#4a6bb5;
+  --are-input:#eef2f9;
+  --are-gray-1:#6b7a96; --are-gray-2:#d9dde6; --are-gray-3:#f2f3f6;
+  --are-ok:#1a7a4a; --are-warn:#c47d0e; --are-fail:#c42b2b;
+}
 
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
-.container{max-width:1500px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
-.header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--are-gray-3);min-height:100vh;padding:20px}
+.container{max-width:1500px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.12);overflow:hidden}
+.header{background:var(--are-blue-1);color:#fff;padding:28px 32px;text-align:center}
 .header h1{font-size:1.9em;margin-bottom:7px}
 .header p{font-size:.95em;opacity:.9}
 .ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
 .tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
 .content{padding:24px}
-.blk{background:#f8f9fa;padding:18px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid #2a5298}
-.blk h2{color:#1e3c72;margin-bottom:14px;font-size:1.1em;border-bottom:2px solid #dde;padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.blk{background:#fff;padding:18px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid var(--are-blue-2)}
+.blk h2{color:var(--are-blue-1);margin-bottom:14px;font-size:1.1em;border-bottom:2px solid var(--are-gray-2);padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:var(--are-input);color:var(--are-blue-3);padding:2px 8px;border-radius:10px;font-weight:600}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
 .g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
 .g5{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
 .ig{display:flex;flex-direction:column}
-.ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.86em}
-.ig input,.ig select{padding:7px 10px;border:2px solid #ddd;border-radius:6px;font-size:.92em;transition:border-color .2s}
-.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
-.hint{font-size:.74em;color:#888;margin-top:3px}
-.callout{background:#eff6ff;border:1px solid #93c5fd;border-radius:6px;padding:8px 13px;font-size:.82em;color:#1e40af;margin-bottom:12px}
-.note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:12px 15px;font-size:.82em;color:#78350f;margin-top:14px}
+.ig label{font-weight:600;margin-bottom:5px;color:#2b2b2b;font-size:.86em}
+.ig input,.ig select{padding:7px 10px;border:2px solid var(--are-gray-2);border-radius:6px;font-size:.92em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:var(--are-blue-2);outline:none}
+.hint{font-size:.74em;color:var(--are-gray-1);margin-top:3px}
+.callout{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:6px;padding:8px 13px;font-size:.82em;color:var(--are-blue-1);margin-bottom:12px}
+.note-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:8px;padding:12px 15px;font-size:.82em;color:#2b2b2b;margin-top:14px}
 .note-box ul{padding-left:18px}.note-box li{margin-bottom:4px;line-height:1.5}
-.err-box{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 15px;font-size:.84em;color:#7f1d1d;margin-bottom:14px}
+.err-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-fail);border-radius:8px;padding:12px 15px;font-size:.84em;color:var(--are-fail);margin-bottom:14px}
 .err-box ul{padding-left:18px}.err-box li{margin-bottom:3px;line-height:1.5}
-.warn-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:10px 15px;font-size:.82em;color:#78350f;margin-bottom:14px}
+.warn-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-warn);border-radius:8px;padding:10px 15px;font-size:.82em;color:#2b2b2b;margin-bottom:14px}
 .warn-box ul{padding-left:18px}
 .lf-sum{font-size:.74em;opacity:.85;margin-left:6px}
-.lf-sum.lf-bad{opacity:1;color:#b91c1c;background:#fee2e2;padding:1px 7px;border-radius:8px;font-weight:700}
-.lh-prov{font-size:.76em;color:#6b7280;margin:0 0 8px 2px}
-.lh-panel{background:#f5f3ff;border:1px solid #c4b5fd;border-radius:8px;padding:12px 15px;margin-bottom:14px;font-size:.84em}
+.lf-sum.lf-bad{opacity:1;color:var(--are-fail);background:var(--are-gray-3);border:1px solid var(--are-fail);padding:1px 7px;border-radius:8px;font-weight:700}
+.lh-prov{font-size:.76em;color:var(--are-gray-1);margin:0 0 8px 2px}
+.lh-panel{background:#fff;border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:8px;padding:12px 15px;margin-bottom:14px;font-size:.84em}
 .lh-panel table{border-collapse:collapse;margin:8px 0}
-.lh-panel th,.lh-panel td{border:1px solid #ddd6fe;padding:3px 8px;text-align:right;font-size:.95em}
+.lh-panel th,.lh-panel td{border:1px solid var(--are-gray-2);padding:3px 8px;text-align:right;font-size:.95em}
 .lh-panel th:first-child,.lh-panel td:first-child{text-align:left}
 .lh-panel .lh-sum{margin:4px 0;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9em;white-space:pre-wrap}
-.lh-panel .lh-warn{color:#92400e;background:#fef3c7;padding:2px 6px;border-radius:4px}
-.lh-panel .lh-err{color:#7f1d1d;background:#fee2e2;padding:2px 6px;border-radius:4px}
+.lh-panel .lh-warn{color:var(--are-warn);background:var(--are-gray-3);border-left:3px solid var(--are-warn);padding:2px 6px;border-radius:4px}
+.lh-panel .lh-err{color:var(--are-fail);background:var(--are-gray-3);border-left:3px solid var(--are-fail);padding:2px 6px;border-radius:4px}
 /* Floor panels */
-.floor-blk{background:#fff;border:2px solid #c7d2e0;border-radius:10px;margin-bottom:14px;overflow:hidden}
+.floor-blk{background:#fff;border:2px solid var(--are-gray-2);border-radius:10px;margin-bottom:14px;overflow:hidden}
 .floor-hdr{color:#fff;padding:9px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.fh-0{background:linear-gradient(90deg,#374151,#4b5563)}
-.fh-1{background:linear-gradient(90deg,#1d4ed8,#2563eb)}
-.fh-2{background:linear-gradient(90deg,#0f766e,#0d9488)}
-.fh-3{background:linear-gradient(90deg,#b45309,#d97706)}
-.fh-4{background:linear-gradient(90deg,#b91c1c,#dc2626)}
-.fh-5{background:linear-gradient(90deg,#7c3aed,#8b5cf6)}
-.fh-base{background:linear-gradient(90deg,#334155,#475569)}
+.fh-0{background:var(--are-blue-2)}
+.fh-1{background:var(--are-blue-2)}
+.fh-2{background:var(--are-blue-2)}
+.fh-3{background:var(--are-blue-2)}
+.fh-4{background:var(--are-blue-2)}
+.fh-5{background:var(--are-blue-1)}
+.fh-base{background:var(--are-blue-1)}
 .floor-hdr-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .floor-body{padding:12px 14px}
 .tbl-scroll{overflow-x:auto}
@@ -62,97 +71,108 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
    inline min-width equal to the column sum so the .tbl-scroll wrapper scrolls
    instead of the columns compressing back down. Widths persist per browser. */
 .wall-table{width:100%;border-collapse:collapse;font-size:.80em;table-layout:fixed}
-.wall-table th{background:#1e3c72;color:#fff;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:break-word;overflow:hidden;position:relative;font-size:.74em;font-weight:600}
+.wall-table th{background:var(--are-blue-1);color:#fff;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:break-word;overflow:hidden;position:relative;font-size:.74em;font-weight:600}
 .wall-table td{overflow:hidden}
 .col-grip{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
 .col-grip:hover,.col-grip.dragging{background:rgba(255,255,255,.55)}
 body.col-resizing{user-select:none;cursor:col-resize}
-.btn-resetcol{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af;padding:9px 14px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600}
-.btn-resetcol:hover{background:#dbeafe}
+.btn-resetcol{background:#fff;border:1px solid var(--are-blue-3);color:var(--are-blue-3);padding:9px 14px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600}
+.btn-resetcol:hover{background:var(--are-gray-3)}
 @media print{
   .col-grip,.btn-resetcol{display:none !important}
   .wall-table{table-layout:auto !important;min-width:0 !important}
   .wall-table th,.wall-table td{width:auto !important}
 }
 .wall-table th.thl{text-align:left;padding-left:7px}
-.wall-table td{padding:3px 3px;border-bottom:1px solid #eee;vertical-align:middle}
-.wall-table tr:nth-child(even) td{background:#f9fafb}
-.th-sw{background:#6d28d9 !important}
-.th-chk{background:#1d4ed8 !important}
-.th-sh{background:#065f46 !important}
-.th-dl{background:#7c5c1e !important}
-.ti{width:100%;padding:3px 4px;border:1px solid #d1d5db;border-radius:3px;font-size:.80em;font-family:inherit;text-align:center;background:transparent;transition:border-color .15s}
-.ti:focus{border-color:#2a5298;outline:none;background:#fff}
+.wall-table td{padding:3px 3px;border-bottom:1px solid var(--are-gray-2);vertical-align:middle}
+.wall-table tr:nth-child(even) td{background:var(--are-gray-3)}
+/* Column groups alternate blue-1 / blue-2 / blue-3 so adjacent groups stay distinguishable */
+.th-sw{background:var(--are-blue-1) !important}
+.th-chk{background:var(--are-blue-2) !important}
+.th-sh{background:var(--are-blue-3) !important}
+.th-dl{background:var(--are-blue-1) !important}
+.ti{width:100%;padding:3px 4px;border:1px solid var(--are-gray-2);border-radius:3px;font-size:.80em;font-family:inherit;text-align:center;background:transparent;transition:border-color .15s}
+.ti:focus{border-color:var(--are-blue-2);outline:none;background:#fff}
 .ti-lbl{text-align:left}
 select.ti{cursor:pointer;padding:2px 1px}
-.btn-x{background:none;border:1px solid #fca5a5;color:#dc2626;width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:.80em;line-height:1;display:flex;align-items:center;justify-content:center;margin:0 auto}
-.btn-x:hover{background:#fee2e2}
-.btn-x.btn-line{width:auto;padding:0 5px;margin:0;border-color:#93c5fd;color:#1d4ed8;white-space:nowrap}
-.btn-x.btn-line:hover{background:#dbeafe}
+/* are-theme-v2 paints every input/select near-white at (0,1,1); keep the cell inputs
+   transparent at (0,2,1) so the td tint (--are-input / --are-gray-3) shows through. */
+.wall-table input.ti,.wall-table select.ti{background:transparent}
+.wall-table input.ti:focus,.wall-table select.ti:focus{background:#fff}
+/* Every editable cell gets the one input tint (the inline style on the older
+   tinted columns says the same thing); derived cells stay on the zebra. */
+.wall-table td:has(.ti),.wall-table td:has(> input[type=checkbox]){background:var(--are-input)}
+.btn-x{background:#fff;border:1px solid var(--are-fail);color:var(--are-fail);width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:.80em;line-height:1;display:flex;align-items:center;justify-content:center;margin:0 auto}
+.btn-x:hover{background:var(--are-gray-3)}
+.btn-x.btn-line{width:auto;padding:0 5px;margin:0;border-color:var(--are-blue-3);color:var(--are-blue-3);white-space:nowrap}
+.btn-x.btn-line:hover{background:var(--are-gray-3)}
 /* "line A1 · 2 walls · share 40 %" under the Line key, from the engine result */
-.line-chip{display:block;font-size:.68em;color:#1d4ed8;white-space:normal;line-height:1.2;margin-top:2px}
+.line-chip{display:block;font-size:.68em;color:var(--are-blue-3);white-space:normal;line-height:1.2;margin-top:2px}
 .line-chip:empty{display:none}
-.btn-chk{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.76em;font-weight:700;white-space:nowrap}
-.btn-chk:hover{background:#1e3c72;box-shadow:0 2px 6px rgba(30,60,114,.35)}
+.btn-chk{background:#fff;color:var(--are-blue-3);border:1px solid var(--are-blue-3);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.76em;font-weight:700;white-space:nowrap}
+.btn-chk:hover{background:var(--are-gray-3)}
 .btn-sm{padding:5px 12px;border:none;border-radius:5px;font-size:.79em;cursor:pointer;font-weight:600;transition:all .15s}
-.btn-add{background:#1d4ed8;color:#fff}.btn-add:hover{background:#1e3c72}
-.btn-grn{background:#16a34a;color:#fff}.btn-grn:hover{background:#15803d}
-.btn-add-floor{background:#16a34a;color:#fff;border:none;padding:9px 26px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600;margin:4px 4px 0 0;transition:background .15s}
-.btn-add-floor:hover{background:#15803d}
+.btn-add{background:var(--are-blue-1);color:#fff}.btn-add:hover{background:var(--are-blue-2)}
+.btn-grn{background:var(--are-blue-1);color:#fff}.btn-grn:hover{background:var(--are-blue-2)}
+.btn-add-floor{background:var(--are-blue-1);color:#fff;border:none;padding:9px 26px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600;margin:4px 4px 0 0;transition:background .15s}
+.btn-add-floor:hover{background:var(--are-blue-2)}
+/* Load / Import are <label class="btn-add-floor"> inside .ig — are-theme-v2 paints .ig label
+   dark slate (!important); re-assert white at (0,2,1) so the label-buttons read. */
+.ig label.btn-add-floor{color:#fff !important}
 .btn-del-fl{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:3px 9px;border-radius:4px;cursor:pointer;font-size:.75em;transition:background .15s}
-.btn-del-fl:hover{background:rgba(220,38,38,.65)}
-.btn-del-fl.btn-copy-dn:hover{background:rgba(29,78,216,.65)}
-.btn-undo{margin-left:8px;padding:1px 9px;border:1px solid #b45309;border-radius:4px;background:#fff;color:#92400e;font-size:.95em;font-weight:600;cursor:pointer}
-.btn-undo:hover{background:#fef3c7}
-/* Results */
-.wres{border-top:2px solid #2a5298;margin-top:6px}
-.wres.pass-bg{border-color:#16a34a}
-.wres.fail-bg{border-color:#dc2626}
-.wres.req-bg{border-color:#d97706}
-.inline-res{padding:10px 13px;background:#f0f7ff}
-.inline-res.pass-bg{background:#f0fdf4}
-.inline-res.fail-bg{background:#fff1f2}
-.inline-res.req-bg{background:#fffbeb}
+.btn-del-fl:hover{background:rgba(196,43,43,.65)}
+.btn-del-fl.btn-copy-dn:hover{background:rgba(74,107,181,.65)}
+.btn-undo{margin-left:8px;padding:1px 9px;border:1px solid var(--are-blue-3);border-radius:4px;background:#fff;color:var(--are-blue-3);font-size:.95em;font-weight:600;cursor:pointer}
+.btn-undo:hover{background:var(--are-gray-3)}
+/* Results — white calculation area; status shown by text colour + a thin border only */
+.wres{border-top:2px solid var(--are-blue-2);margin-top:6px}
+.wres.pass-bg{border-color:var(--are-ok)}
+.wres.fail-bg{border-color:var(--are-fail)}
+.wres.req-bg{border-color:var(--are-warn)}
+.inline-res{padding:10px 13px;background:#fff;border-left:3px solid var(--are-blue-2)}
+.inline-res.pass-bg{background:#fff;border-left-color:var(--are-ok)}
+.inline-res.fail-bg{background:#fff;border-left-color:var(--are-fail)}
+.inline-res.req-bg{background:#fff;border-left-color:var(--are-warn)}
 .dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px;margin-bottom:10px}
-.dem-card{background:#fff;border-radius:7px;padding:8px;border:1px solid #dde;text-align:center}
-.dem-card .v{font-size:1.08em;font-weight:700;color:#1e3c72}
-.dem-card .l{font-size:.67em;color:#666;margin-top:2px;line-height:1.3}
-.dem-card.alt{border-color:#16a34a;background:#f0fdf4}.dem-card.alt .v{color:#166534}
-.dem-card.warn{border-color:#f59e0b;background:#fffbeb}.dem-card.warn .v{color:#92400e}
-.dem-card.bad{border-color:#dc2626;background:#fff1f2}.dem-card.bad .v{color:#dc2626}
-.sum-pass{background:#dcfce7;border:2px solid #16a34a;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
-.sum-fail{background:#fee2e2;border:2px solid #dc2626;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
-.sum-req{background:#fef3c7;border:2px solid #d97706;padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.dem-card{background:#fff;border-radius:7px;padding:8px;border:1px solid var(--are-gray-2);text-align:center}
+.dem-card .v{font-size:1.08em;font-weight:700;color:var(--are-blue-1)}
+.dem-card .l{font-size:.67em;color:var(--are-gray-1);margin-top:2px;line-height:1.3}
+.dem-card.alt{border-color:var(--are-ok);background:#fff}.dem-card.alt .v{color:var(--are-ok)}
+.dem-card.warn{border-color:var(--are-warn);background:#fff}.dem-card.warn .v{color:var(--are-warn)}
+.dem-card.bad{border-color:var(--are-fail);background:#fff}.dem-card.bad .v{color:var(--are-fail)}
+.sum-pass{background:#fff;border:1px solid var(--are-gray-2);border-left:3px solid var(--are-ok);color:var(--are-ok);padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.sum-fail{background:#fff;border:1px solid var(--are-gray-2);border-left:3px solid var(--are-fail);color:var(--are-fail);padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
+.sum-req{background:#fff;border:1px solid var(--are-gray-2);border-left:3px solid var(--are-warn);color:var(--are-warn);padding:6px 11px;border-radius:7px;margin-bottom:8px;font-size:.86em}
 .chk-tbl{width:100%;border-collapse:collapse;font-size:.82em;margin-bottom:10px}
-.chk-tbl th{background:#1e3c72;color:#fff;padding:6px 8px;text-align:left;font-size:.8em}
-.chk-tbl td{padding:5px 8px;border-bottom:1px solid #eee;vertical-align:middle}
-.chk-tbl tr:nth-child(even) td{background:#f5f7ff}
-.chk-tbl tr.row-pass td{background:#f0fdf4 !important;border-left:3px solid #16a34a}
-.chk-tbl tr.row-req td{background:#fffbeb !important;border-left:3px solid #f59e0b}
+.chk-tbl th{background:var(--are-blue-1);color:#fff;padding:6px 8px;text-align:left;font-size:.8em}
+.chk-tbl td{padding:5px 8px;border-bottom:1px solid var(--are-gray-2);vertical-align:middle}
+.chk-tbl tr:nth-child(even) td{background:var(--are-gray-3)}
+.chk-tbl tr.row-pass td{background:#fff !important;border-left:3px solid var(--are-ok)}
+.chk-tbl tr.row-req td{background:#fff !important;border-left:3px solid var(--are-warn)}
 .chk-tbl tr.det-row td{padding:0 !important;background:#fff !important;border:none !important}
-.dc-bar{height:10px;border-radius:5px;background:#e5e7eb;min-width:48px}
+.dc-bar{height:10px;border-radius:5px;background:var(--are-gray-2);min-width:48px}
 .dc-fill{height:100%;border-radius:5px}
 .dc-cell{display:flex;align-items:center;gap:5px}
-.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
-.conn-box{background:#fff;border:1px solid #c7d2e0;border-radius:7px;padding:9px 12px;margin-top:8px}
-.conn-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:.82em;flex-wrap:wrap}
+.pass{color:var(--are-ok);font-weight:700}.fail{color:var(--are-fail);font-weight:700}.na{color:var(--are-gray-1)}
+.conn-box{background:#fff;border:1px solid var(--are-gray-2);border-radius:7px;padding:9px 12px;margin-top:8px}
+.conn-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--are-gray-3);font-size:.82em;flex-wrap:wrap}
 .conn-row:last-child{border-bottom:none}
-.conn-lbl{font-weight:700;color:#6d28d9;min-width:90px}
-.conn-val{color:#1e3c72;font-weight:600}
-.conn-ok{color:#16a34a;font-weight:700;margin-left:4px}
-.conn-fail{color:#dc2626;font-weight:700;margin-left:4px}
-.msg-list{font-size:.78em;color:#78350f;background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:7px 11px;margin-top:8px}
+.conn-lbl{font-weight:700;color:var(--are-blue-3);min-width:90px}
+.conn-val{color:var(--are-blue-1);font-weight:600}
+.conn-ok{color:var(--are-ok);font-weight:700;margin-left:4px}
+.conn-fail{color:var(--are-fail);font-weight:700;margin-left:4px}
+.msg-list{font-size:.78em;color:#2b2b2b;background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-warn);border-radius:6px;padding:7px 11px;margin-top:8px}
 .msg-list ul{padding-left:16px}.msg-list li{margin-bottom:3px;line-height:1.45}
 /* Calc detail panels */
-.calc-det{display:none;background:#f4f7ff;padding:10px 14px 8px;border-top:1px dashed #b0c0e8;font-size:.81em;color:#1a1a1a}
+.calc-det{display:none;background:#fff;padding:10px 14px 8px;border-top:1px dashed var(--are-gray-2);font-size:.81em;color:#2b2b2b}
 .calc-det.open{display:block}
-.det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:.73em;white-space:nowrap}
-.det-btn:hover{background:#dbeafe}
-.cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #c7d2e8;font-size:.88em}
-.ceq{color:#1e3c72;font-style:italic}
-.cval{color:#15803d;font-weight:700}
-.csep{border:none;border-top:1px dashed #c7d2e8;margin:5px 0}
-.cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:7px 10px;margin-top:4px}
+.det-btn{background:#fff;border:1px solid var(--are-blue-3);color:var(--are-blue-3);padding:2px 6px;border-radius:4px;cursor:pointer;font-size:.73em;white-space:nowrap}
+.det-btn:hover{background:var(--are-gray-3)}
+.cref-hdr{font-weight:700;color:var(--are-blue-1);margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid var(--are-gray-2);font-size:.88em}
+.ceq{color:var(--are-blue-1);font-style:italic}
+.cval{color:var(--are-blue-3);font-weight:700}
+.csep{border:none;border-top:1px dashed var(--are-gray-2);margin:5px 0}
+.cbox{background:#fff;border:1px solid var(--are-gray-2);border-radius:5px;padding:7px 10px;margin-top:4px}
 .mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
 .mfr .mn{border-bottom:1.5px solid currentColor;padding:0 3px;text-align:center;min-width:1.2em}
 .mfr .md{padding:0 3px;text-align:center;min-width:1.2em}
@@ -160,13 +180,13 @@ select.ti{cursor:pointer;padding:2px 1px}
 .mrow.ind{padding-left:22px}
 /* Reference tables */
 .ref-tbl{width:100%;border-collapse:collapse;font-size:.80em;margin-top:8px}
-.ref-tbl th{background:#1e3c72;color:#fff;padding:6px 8px;text-align:center;font-size:.76em}
+.ref-tbl th{background:var(--are-blue-1);color:#fff;padding:6px 8px;text-align:center;font-size:.76em}
 .ref-tbl th.thl{text-align:left}
-.ref-tbl td{padding:5px 8px;border-bottom:1px solid #eee;text-align:center}
-.ref-tbl tr:nth-child(even) td{background:#f5f7ff}
+.ref-tbl td{padding:5px 8px;border-bottom:1px solid var(--are-gray-2);text-align:center}
+.ref-tbl tr:nth-child(even) td{background:var(--are-gray-3)}
 .ref-tbl td.tdl{text-align:left}
-.hl-row td{background:#dbeafe !important;font-weight:700}
-#selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.78em;background:#111827;color:#d1d5db;padding:12px;border-radius:8px;margin-top:16px}
+.hl-row td{background:var(--are-input) !important;font-weight:700}
+#selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.78em;background:var(--are-blue-1);color:#fff;padding:12px;border-radius:8px;margin-top:16px}
 
 
 /* ── Print / PDF — letter portrait, fills 8.5×11 ───────────────────────── */
@@ -229,7 +249,7 @@ select.ti{cursor:pointer;padding:2px 1px}
 <!-- Floating Print Button -->
 <button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
   style="position:fixed;top:16px;right:16px;z-index:9999;
-         background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;
+         background:var(--are-blue-1);color:#fff;
          border:none;padding:9px 18px;border-radius:8px;cursor:pointer;
          font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);
          display:flex;align-items:center;gap:6px;white-space:nowrap">
@@ -289,9 +309,9 @@ select.ti{cursor:pointer;padding:2px 1px}
         <div class="ig">
           <label>Project file</label>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">
-            <button class="btn-add-floor" style="background:#1d4ed8" onclick="exportProject()" title="Download current inputs as a .json file">&#8659; Save to File</button>
-            <label class="btn-add-floor" style="background:#065f46;cursor:pointer;margin:0" title="Load a previously saved .json file">&#8657; Load File<input type="file" accept=".json" style="display:none" onchange="importProject(event)"></label>
-            <label class="btn-add-floor" style="background:#7c3aed;cursor:pointer;margin:0" title="Pick the saved Rectangular Diaphragm Designer file for every level — one wall row per diaphragm line">&#8912; Import diaphragm levels<input type="file" id="diaImport" multiple accept=".html,text/html" style="display:none" onchange="importDiaphragmLevels(event)"></label>
+            <button class="btn-add-floor" style="background:var(--are-blue-1)" onclick="exportProject()" title="Download current inputs as a .json file">&#8659; Save to File</button>
+            <label class="btn-add-floor" style="background:var(--are-blue-1);cursor:pointer;margin:0" title="Load a previously saved .json file">&#8657; Load File<input type="file" accept=".json" style="display:none" onchange="importProject(event)"></label>
+            <label class="btn-add-floor" style="background:var(--are-blue-2);cursor:pointer;margin:0" title="Pick the saved Rectangular Diaphragm Designer file for every level — one wall row per diaphragm line">&#8912; Import diaphragm levels<input type="file" id="diaImport" multiple accept=".html,text/html" style="display:none" onchange="importDiaphragmLevels(event)"></label>
           </div>
         </div>
       </div>
@@ -410,7 +430,7 @@ function toggleDet(id){
 function dcBar(dc,pass){
   if(!isFinite(dc))return '<span class="na">&mdash;</span>';
   var pct=Math.min(dc,1.5)/1.5*100;
-  var col=dc<=0.80?'#16a34a':dc<=1.0?'#f59e0b':'#dc2626';
+  var col=dc<=0.80?'#1a7a4a':dc<=1.0?'#c47d0e':'#c42b2b';
   return '<div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+f1(pct)+'%;background:'+col+'"></div></div><span style="font-weight:700;color:'+col+'">'+f2(dc)+'</span></div>';
 }
 
@@ -655,7 +675,7 @@ function copyWallsDown(fi){
   render();
   _copyUndo=snap;
   var k=n-1-fi;
-  document.getElementById('modelMsgs').innerHTML+='<div class="warn-box" id="copyDownMsg" style="background:#eff6ff;border-color:#93c5fd;color:#1e3a8a">Copied '+src.length+' wall'+(src.length===1?'':'s')+' from '+xe(state.floors[fi].name)
+  document.getElementById('modelMsgs').innerHTML+='<div class="warn-box" id="copyDownMsg" style="background:var(--are-gray-3);border-color:var(--are-blue-3);color:var(--are-blue-1)">Copied '+src.length+' wall'+(src.length===1?'':'s')+' from '+xe(state.floors[fi].name)
     +' to '+copied+' wall'+(copied===1?'':'s')+' on '+k+' level'+(k===1?'':'s')+' below ('+created+' created'+(mates?', '+mates+' more on shared lines':'')+').'
     +' <button class="btn-undo" onclick="undoCopyDown()">Undo</button></div>';
 }
@@ -785,7 +805,7 @@ function render(){
       // greyed (still editable — the values are kept for a switch back) with a
       // title saying why. `segTd` is the cell style, `segTitle` the hint.
       var isSeg=(w.method==='segmented');
-      var segTd=isSeg?' style="background:#f3f4f6;opacity:.55"':'';
+      var segTd=isSeg?' style="background:var(--are-gray-3);opacity:.55"':'';
       var segTitle=function(why){ return isSeg?' title="'+why+'"':''; };
       out+='<tr>';
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
@@ -793,36 +813,36 @@ function render(){
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.line||'')+'" placeholder="own line" title="Wall-line key — walls with the same key share the line force; blank = its own line" onchange="updWall('+fi+','+wi+',\'line\',this.value)">'
          +'<span class="line-chip" id="lchip_'+fi+'_'+wi+'"></span></td>';
       out+='<td><input class="ti" type="number" value="'+w.L_ft+'" step="1" min="1" onchange="updWall('+fi+','+wi+',\'L_ft\',this.value)"></td>';
-      out+='<td style="background:#ede9fe"><select class="ti" style="font-size:.72em" title="Perforated (§4.3.2.3) or segmented (§4.3.2.1 individual full-height segments, §4.3.5.5.1 Exc. 1 distribution)" onchange="updWall('+fi+','+wi+',\'method\',this.value)">'
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" title="Perforated (§4.3.2.3) or segmented (§4.3.2.1 individual full-height segments, §4.3.5.5.1 Exc. 1 distribution)" onchange="updWall('+fi+','+wi+',\'method\',this.value)">'
           +'<option value="perforated"'+(isSeg?'':' selected')+'>Perforated</option><option value="segmented"'+(isSeg?' selected':'')+'>Segmented</option></select></td>';
-      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_wind_lb==null?'':w.P_wind_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_wind_lb\',this.value)"></td>';
-      out+='<td style="background:#ede9fe"><input class="ti" type="number" value="'+(w.P_seis_lb==null?'':w.P_seis_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_seis_lb\',this.value)"></td>';
-      out+='<td style="background:#ede9fe"><input class="ti" type="text" value="'+xe(fmtNums(w.segments_ft))+'" onchange="updWall('+fi+','+wi+',\'segments_ft\',this.value)"></td>';
-      out+='<td'+(isSeg?segTd:' style="background:#ede9fe"')+segTitle('Segmented wall: openings are optional gaps between the segments — only Σ segments + Σ opening widths ≤ L is checked; no A_o')+'><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
-      out+='<td'+(isSeg?segTd:' style="background:#ede9fe"')+segTitle('Segmented wall: ignored — the unsheathed area enters A_o, which the segmented method does not use')+'><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
-      out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'wsp',false)+'</select></td>';
-      out+='<td style="background:#ecfdf5"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'any',true)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><input class="ti" type="number" value="'+(w.P_wind_lb==null?'':w.P_wind_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_wind_lb\',this.value)"></td>';
+      out+='<td style="background:var(--are-input)"><input class="ti" type="number" value="'+(w.P_seis_lb==null?'':w.P_seis_lb)+'" step="1" min="0" placeholder="= level" onchange="updWall('+fi+','+wi+',\'P_seis_lb\',this.value)"></td>';
+      out+='<td style="background:var(--are-input)"><input class="ti" type="text" value="'+xe(fmtNums(w.segments_ft))+'" onchange="updWall('+fi+','+wi+',\'segments_ft\',this.value)"></td>';
+      out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: openings are optional gaps between the segments — only Σ segments + Σ opening widths ≤ L is checked; no A_o')+'><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
+      out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: ignored — the unsheathed area enters A_o, which the segmented method does not use')+'><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'wsp',false)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'any',true)+'</select></td>';
       out+='<td style="text-align:center"><input type="checkbox" '+(w.sheathing.insideFaceHoldown?'checked':'')+' onchange="updWall('+fi+','+wi+',\'insideFaceHoldown\',this.checked)"></td>';
       out+='<td><div style="display:flex;gap:2px"><select class="ti" style="font-size:.72em;width:44px" onchange="updWall('+fi+','+wi+',\'postN\',this.value)">'+nOpts(w.endPost.n)+'</select>'
          +'<select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'postSize\',this.value)">'+sizeOpts(w.endPost.size)+'</select></div></td>';
       if(isBase){
-        out+='<td style="text-align:center;font-size:.72em;color:#6b7280">HDUE only</td>';
+        out+='<td style="text-align:center;font-size:.72em;color:var(--are-gray-1)">HDUE only</td>';
       } else {
         out+='<td><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'holdown\',this.value)">'
             +'<option value="hdue"'+(w.holdown!=='strap'?' selected':'')+'>HDUE</option>'
             +'<option value="strap"'+(w.holdown==='strap'?' selected':'')+'>Strap</option></select></td>';
       }
-      out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillConn\',this.value)">'+sillOpts(w.sill.conn,isBase)+'</select></td>';
-      out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpacing\',this.value)">'+spacingOpts(w.sill.spacing_in)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillConn\',this.value)">'+sillOpts(w.sill.conn,isBase)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpacing\',this.value)">'+spacingOpts(w.sill.spacing_in)+'</select></td>';
       if(w.sill.conn==='ltp4'){
-        out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.70em" onchange="updWall('+fi+','+wi+',\'sillSheathing\',this.value)">'+ltp4Opts(w.sill.sheathing)+'</select></td>';
+        out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.70em" onchange="updWall('+fi+','+wi+',\'sillSheathing\',this.value)">'+ltp4Opts(w.sill.sheathing)+'</select></td>';
       } else {
-        out+='<td style="background:#f0fdf4;text-align:center;font-size:.72em;color:#9ca3af">&mdash;</td>';
+        out+='<td style="background:var(--are-gray-3);text-align:center;font-size:.72em;color:var(--are-gray-1)">&mdash;</td>';
       }
-      out+='<td style="background:#f0fdf4"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpecies\',this.value)">'+speciesOpts(w.sillSpecies)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpecies\',this.value)">'+speciesOpts(w.sillSpecies)+'</select></td>';
       // The penetration input stays live on a segmented wall (it sets the nail
       // shear value, Table 12N fn. 3); the source / plf / washer are perforated-only.
-      out+='<td'+(isSeg?segTd:' style="background:#f0fdf4"')+segTitle('Segmented wall: no §4.3.6.4.2.1 uniform uplift row — the segment ends are anchored by their hold-downs (§4.3.6.4.2). The penetration still sets the nail shear value (Table 12N fn. 3).')+'>'+upliftCellHTML(fi,wi,w,isBase)+'</td>';
+      out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: no §4.3.6.4.2.1 uniform uplift row — the segment ends are anchored by their hold-downs (§4.3.6.4.2). The penetration still sets the nail shear value (Table 12N fn. 3).')+'>'+upliftCellHTML(fi,wi,w,isBase)+'</td>';
       var srcVal=(w.dead&&w.dead.source)||'manual';
       var srcOpts='<option value="manual"'+(srcVal==='manual'?' selected':'')+'>Manual</option>';
       for(var s2=0;s2<fl.walls.length;s2++){
@@ -830,17 +850,17 @@ function render(){
         var ow=fl.walls[s2];
         srcOpts+='<option value="'+xe(ow.id)+'"'+(srcVal===ow.id?' selected':'')+'>&#8658; '+xe(ow.label||ow.id)+'</option>';
       }
-      out+='<td style="background:#fef3c7"><select class="ti" style="font-size:.70em;background:#fef3c7" title="Selecting a gravity wall takes its dead load for this level and all levels below" onchange="setDLSource('+fi+','+wi+',this.value)">'+srcOpts+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.70em;background:var(--are-input)" title="Selecting a gravity wall takes its dead load for this level and all levels below" onchange="setDLSource('+fi+','+wi+',this.value)">'+srcOpts+'</select></td>';
       var linked = srcVal!=='manual';
       var eff = SW.resolveDead(fl, w);
       if(linked){
-        out+='<td style="background:#e0f2fe;text-align:center;font-size:.76em;color:#0369a1" title="From '+xe(eff.source)+'">'+f1(eff.w_plf)+'</td>';
-        out+='<td style="background:#e0f2fe;text-align:center;font-size:.76em;color:#0369a1" title="From '+xe(eff.source)+'">'+f0(eff.P_end_lb)+'</td>';
+        out+='<td style="background:var(--are-gray-3);text-align:center;font-size:.76em;color:var(--are-blue-3)" title="From '+xe(eff.source)+'">'+f1(eff.w_plf)+'</td>';
+        out+='<td style="background:var(--are-gray-3);text-align:center;font-size:.76em;color:var(--are-blue-3)" title="From '+xe(eff.source)+'">'+f0(eff.P_end_lb)+'</td>';
       } else {
         out+='<td><input class="ti" type="number" value="'+(w.dead.w_plf||0)+'" step="10" min="0" onchange="updWall('+fi+','+wi+',\'w_plf\',this.value)"></td>';
         out+='<td><input class="ti" type="number" value="'+(w.dead.P_end_lb||0)+'" step="100" min="0" onchange="updWall('+fi+','+wi+',\'P_end_lb\',this.value)"></td>';
       }
-      out+='<td style="background:#dbeafe;text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
+      out+='<td style="background:var(--are-gray-3);text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
       out+='<td><div style="display:flex;gap:3px;justify-content:center"><button class="btn-x" onclick="delWall('+fi+','+wi+')" title="Remove this wall">✕</button>'
          +'<button class="btn-x btn-line" onclick="splitWall('+fi+','+wi+')" title="+ Wall on this line — another wall sharing this line\'s force and construction; enter its L and segments">+ line</button></div></td>';
       out+='</tr>';
@@ -902,16 +922,16 @@ function upliftCellHTML(fi,wi,w,isBase){
   if(sc&&(sc.nail||sc.screw)){
     var pd=SW.penetrationDefault(sc,isBase);
     h+='<input class="ti" type="number" style="width:52px;flex:none" value="'+(u.penetration_in!=null?u.penetration_in:'')+'" step="0.25" min="0" placeholder="'+pd+' dflt" title="Fastener penetration into the receiving member, in — blank = '+xe(SW.penetrationDefaultText(sc,isBase))+'. Subtract the actual subfloor thickness where it differs. Also sets the nail shear value where p is under 10D (Table 12N fn. 3)." onchange="updWall('+fi+','+wi+',\'upliftPen\',this.value)">'
-      +'<span style="font-size:.66em;color:#6b7280;flex:none">p in</span>';
+      +'<span style="font-size:.66em;color:var(--are-gray-1);flex:none">p in</span>';
   } else if(sc&&sc.base&&!manual){
     h+='<input class="ti" type="number" style="width:52px;flex:none" value="'+(u.washer_in!=null?u.washer_in:'')+'" step="0.5" min="0" placeholder="3" title="Square plate washer side, in — 0.229&quot; × 3&quot; × 3&quot; minimum under each anchor bolt nut (SDPWS §4.3.6.4.3); bearing on the sill at F_c⊥ over the net area" onchange="updWall('+fi+','+wi+',\'upliftWasher\',this.value)">'
-      +'<span style="font-size:.66em;color:#6b7280;flex:none">washer in</span>';
+      +'<span style="font-size:.66em;color:var(--are-gray-1);flex:none">washer in</span>';
   } else if(!manual){
-    h+='<span style="font-size:.68em;color:#b45309" title="LTP4 is not rated for uplift — choose Manual or a nail / SDS sill connection">not rated</span>';
+    h+='<span style="font-size:.68em;color:var(--are-warn)" title="LTP4 is not rated for uplift — choose Manual or a nail / SDS sill connection">not rated</span>';
   }
   if(manual){
     h+='<input class="ti" type="number" style="width:60px;flex:none" value="'+(u.capacity_plf!=null?u.capacity_plf:'')+'" step="10" min="0" placeholder="plf" title="Manual bottom-plate uplift capacity, plf — leave blank if the uplift connector has not been selected" onchange="updWall('+fi+','+wi+',\'upliftCap\',this.value)">'
-      +'<span style="font-size:.66em;color:#6b7280;flex:none">plf</span>';
+      +'<span style="font-size:.66em;color:var(--are-gray-1);flex:none">plf</span>';
   }
   return h+'</div>';
 }
@@ -993,7 +1013,7 @@ function importPanelHTML(record, warnings, names){
   var h='<div class="lh-panel" id="diaImportPanel"><strong>Import diaphragm levels</strong>';
   // Project first: the cross-project guard for this page is the engineer reading
   // it before clicking Import (no confirm() — the harness dismisses dialogs).
-  h+='<span style="margin-left:10px;color:#6b7280">Project: '+(record.project?xe(record.project):'<em>(none)</em>')
+  h+='<span style="margin-left:10px;color:var(--are-gray-1)">Project: '+(record.project?xe(record.project):'<em>(none)</em>')
     +' &mdash; '+(names.length?names.length+' file'+(names.length===1?'':'s')+': '+xe(names.join(', ')):'from the Diaphragm Designer quick send')+'</span>';
   var job=(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'';
   if(record.project&&job&&String(record.project).trim().toLowerCase()!==job.toLowerCase()){
@@ -1018,8 +1038,8 @@ function importPanelHTML(record, warnings, names){
   h+='<div class="lh-sum">'+LH.summarize(record, []).map(xe).join('\n')+'</div>';
   if(warnings.length) h+='<div class="lh-sum">'+warnings.map(function(w){ return '<span class="lh-warn">'+xe(w)+'</span>'; }).join('\n')+'</div>';
   if(needH) h+='<div class="lh-sum"><span class="lh-err">Story heights required &mdash; no imported file carries the MWFRS story table.</span></div>';
-  h+='<div style="margin-top:8px"><button class="btn-add-floor" style="background:#7c3aed;margin:0 8px 0 0" data-lh="import" onclick="applyDiaphragmImport()">Import (replace model)</button>'
-    +'<button class="btn-add-floor" style="background:#6b7280;margin:0" onclick="closeImportDialog()">Cancel</button></div>';
+  h+='<div style="margin-top:8px"><button class="btn-add-floor" style="background:var(--are-blue-1);margin:0 8px 0 0" data-lh="import" onclick="applyDiaphragmImport()">Import (replace model)</button>'
+    +'<button class="btn-add-floor" style="background:#fff;color:var(--are-blue-3);border:1px solid var(--are-blue-3);margin:0" onclick="closeImportDialog()">Cancel</button></div>';
   h+='</div>';
   return h;
 }
@@ -1057,7 +1077,7 @@ function applyDiaphragmImport(){
   closeImportDialog();
   render();
   var msg=document.getElementById('modelMsgs');
-  msg.innerHTML+='<div class="warn-box" style="background:#f5f3ff;border-color:#c4b5fd;color:#4c1d95">Imported '+state.floors.length+' level'+(state.floors.length===1?'':'s')+', '+wCnt+' wall lines, direction '+xe(dir)
+  msg.innerHTML+='<div class="warn-box" style="background:var(--are-gray-3);border-color:var(--are-blue-3);color:var(--are-blue-1)">Imported '+state.floors.length+' level'+(state.floors.length===1?'':'s')+', '+wCnt+' wall lines, direction '+xe(dir)
     +(names.length?' from: '+xe(names.join(', ')):' from the Diaphragm Designer quick send')+'</div>';
 }
 // Quick-send receiver (Phase 4b): the Diaphragm Designer's "Send to Stacked
@@ -1589,7 +1609,7 @@ function importProject(evt){
       syncGlobals();
       render();
       var btn=evt.target.closest('label');
-      if(btn){btn.style.background='#16a34a';setTimeout(function(){btn.style.background='#065f46';},900);}
+      if(btn){btn.style.background='#1a7a4a';setTimeout(function(){btn.style.background='var(--are-blue-1)';},900);}
     } catch(err){ alert('Could not read file: '+err.message); }
     evt.target.value='';
   };
