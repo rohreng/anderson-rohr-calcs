@@ -43,7 +43,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .note-box ul{padding-left:18px}.note-box li{margin-bottom:5px;line-height:1.6}
 .floor-blk{background:#fff;border:1px solid var(--are-gray-2);border-radius:8px;margin-bottom:16px;overflow:hidden}
 .floor-hdr{background:var(--are-blue-2);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
-.floor-hdr h3{font-size:.95em;font-weight:600;letter-spacing:.02em}
+.floor-hdr h3{font-size:.95em;font-weight:600;letter-spacing:.02em;color:#fff}
 .floor-body{padding:14px 16px}
 .empty-state{text-align:center;padding:16px;color:var(--are-gray-1);font-size:.87em;font-style:italic}
 .btn-sm{padding:5px 12px;border:none;border-radius:5px;font-size:.8em;cursor:pointer;font-weight:600;transition:all .15s}
@@ -1254,7 +1254,7 @@ function render(){
             var t=(r.jambP.D+r.jambP.L+Math.max(r.jambP.Lr,r.jambP.S))/1000;
             if(t>maxJ) maxJ=t;
           });
-          var mCol=maxJ<10?'#1a7a4a':maxJ<25?'#c47d0e':'#c42b2b';
+          var mCol='var(--are-blue-1)';
           out+='<div class="floor-summary">Max cumulative jamb reaction D+L+(L<sub>r</sub> or S): <strong style="color:'+mCol+'">'+f2(maxJ)+' k</strong> (unfactored)</div>';
         }
       }
@@ -1293,7 +1293,6 @@ function render(){
         var w=rowPlf(s);
         var eng=res?res.floors[fi].studs[si]:null;
         var acc=eng?eng.accum:null;
-        var totCol=!acc?'#2b2b2b':((acc.D+acc.L+Math.max(acc.Lr,acc.S))<400?'#1a7a4a':(acc.D+acc.L+Math.max(acc.Lr,acc.S))<700?'#c47d0e':'#c42b2b');
         out+='<tr>';
         out+='<td class="td-stud-lbl"><input class="ti ti-desc" type="text" value="'+xe(s.label)+'" onchange="updStud('+fi+','+si+',\'label\',this.value)" style="font-weight:700;color:var(--are-blue-1)"></td>';
         if(isRoof) out+='<td><input class="ti" type="number" value="'+s.roofTrib+'" min="0" step="0.5" onchange="updStud('+fi+','+si+',\'roofTrib\',this.value)"></td>';
@@ -1315,10 +1314,10 @@ function render(){
         out+='<td class="td-calc">'+f1(w.L)+'</td>';
         out+='<td class="td-calc">'+f1(w.Lr)+'</td>';
         out+='<td class="td-calc">'+f1(w.S)+'</td>';
-        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.D):'&mdash;')+'</td>';
-        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.L):'&mdash;')+'</td>';
-        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.Lr):'&mdash;')+'</td>';
-        out+='<td class="td-tot" style="color:'+totCol+'">'+(acc?f0(acc.S):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+(acc&&acc.D?'var(--are-blue-3)':'var(--are-gray-1)')+'">'+(acc?f0(acc.D):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+(acc&&acc.L?'var(--are-blue-3)':'var(--are-gray-1)')+'">'+(acc?f0(acc.L):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+(acc&&acc.Lr?'var(--are-blue-3)':'var(--are-gray-1)')+'">'+(acc?f0(acc.Lr):'&mdash;')+'</td>';
+        out+='<td class="td-tot" style="color:'+(acc&&acc.S?'var(--are-blue-3)':'var(--are-gray-1)')+'">'+(acc?f0(acc.S):'&mdash;')+'</td>';
         out+='<td style="background:var(--are-input)"><select class="ti" onchange="updStud('+fi+','+si+',\'trialSz\',this.value)">'
            + SIZES.map(function(sz){return '<option value="'+sz+'"'+(s.trialSz===sz?' selected':'')+'>'+sz+'</option>';}).join('')
            + '</select></td>';
