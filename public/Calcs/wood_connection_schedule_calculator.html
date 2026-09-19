@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wood Connection Schedule — NDS 2018</title>
+<style>
+/* ── ARE muted palette (same tokens as stacked_shearwall_calculator.html) ── */
+:root{
+  --are-blue-1:#1a2b5f; --are-blue-2:#2e4a8a; --are-blue-3:#4a6bb5;
+  --are-input:#eef2f9;
+  --are-gray-1:#6b7a96; --are-gray-2:#d9dde6; --are-gray-3:#f2f3f6;
+  --are-ok:#1a7a4a; --are-warn:#c47d0e; --are-fail:#c42b2b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--are-gray-3);min-height:100vh;padding:20px}
+.container{max-width:1500px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.12);overflow:hidden}
+.header{background:var(--are-blue-1);color:#fff;padding:28px 32px;text-align:center}
+.header h1{font-size:1.9em;margin-bottom:7px}
+.header p{font-size:.95em;opacity:.9}
+.ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
+.tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.content{padding:24px}
+.blk{background:#fff;padding:18px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid var(--are-blue-2)}
+.blk h2{color:var(--are-blue-1);margin-bottom:14px;font-size:1.1em;border-bottom:2px solid var(--are-gray-2);padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:.7em;background:var(--are-input);color:var(--are-blue-3);padding:2px 8px;border-radius:10px;font-weight:600}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px}
+.ig{display:flex;flex-direction:column}
+.ig label{font-weight:600;margin-bottom:5px;color:#2b2b2b;font-size:.86em}
+.ig input,.ig select{padding:7px 10px;border:2px solid var(--are-gray-2);border-radius:6px;font-size:.92em;transition:border-color .2s}
+.ig input:focus,.ig select:focus{border-color:var(--are-blue-2);outline:none}
+.ig.chk{flex-direction:row;align-items:center;gap:8px;padding-top:22px}
+/* the theme's .g4{display:grid} outranks the UA [hidden] rule */
+#customBlk[hidden]{display:none !important}
+.ig.chk label{margin:0}
+.hint{font-size:.74em;color:var(--are-gray-1);margin-top:3px}
+.callout{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:6px;padding:8px 13px;font-size:.82em;color:var(--are-blue-1);margin-bottom:12px}
+.note-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:8px;padding:12px 15px;font-size:.82em;color:#2b2b2b;margin-top:14px}
+.note-box ul{padding-left:18px}.note-box li{margin-bottom:4px;line-height:1.5}
+.err-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-fail);border-radius:8px;padding:12px 15px;font-size:.84em;color:var(--are-fail);margin-bottom:14px}
+.ref-tbl{width:100%;border-collapse:collapse;font-size:.80em;margin-top:8px}
+.ref-tbl th{background:var(--are-blue-1);color:#fff;padding:6px 8px;text-align:center;font-size:.76em}
+.ref-tbl th.thl{text-align:left}
+.ref-tbl td{padding:5px 8px;border-bottom:1px solid var(--are-gray-2);text-align:center}
+.ref-tbl tr:nth-child(even) td{background:var(--are-gray-3)}
+.ref-tbl td.tdl{text-align:left}
+.ref-tbl tr.tot td{font-weight:700;background:var(--are-input)}
+
+/* ── Schedule sections ─────────────────────────────────────────────────── */
+.wc-sec{background:#fff;border:2px solid var(--are-gray-2);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.wc-sec-hdr{background:var(--are-blue-2);color:#fff;padding:8px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+/* are-theme-v2 recolours h3 (!important); the section bar is blue, so re-assert white */
+.wc-sec-hdr h3{font-size:1em !important;font-weight:700;color:#fff !important;margin:0 !important;border:none !important;padding:0 !important}
+.wc-sec-hdr .sub{font-size:.76em;opacity:.85;margin-left:8px;font-weight:400;color:#fff}
+.wc-sec-body{padding:10px 12px}
+.tbl-scroll{overflow-x:auto}
+.btn-add{background:#fff;color:var(--are-blue-1);border:none;padding:5px 14px;border-radius:5px;cursor:pointer;font-size:.8em;font-weight:700}
+.btn-add:hover{background:var(--are-gray-3)}
+.btn-undo{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.75em}
+.btn-undo:hover{background:rgba(255,255,255,.3)}
+.wc-tbl{width:100%;border-collapse:collapse;font-size:.82em}
+.wc-tbl thead th{background:var(--are-blue-1);color:#fff;padding:5px 6px;text-align:center;font-size:.74em;font-weight:600;white-space:nowrap}
+.wc-tbl thead th.thl{text-align:left}
+.wc-tbl tbody{border-bottom:2px solid var(--are-gray-2)}
+.wc-tbl tbody:nth-child(even) tr.wc-sum td{background:var(--are-gray-3)}
+.wc-tbl tr.wc-sum td{padding:4px 5px;vertical-align:middle;text-align:center;border-top:1px solid var(--are-gray-2)}
+.wc-tbl tr.wc-sum td.tdl{text-align:left}
+.wc-tbl tr.wc-sum td.wc-c-idx{font-weight:700;color:var(--are-blue-3);width:28px}
+.wc-tbl tr.wc-sum td.wc-c-fast{font-size:.9em;color:var(--are-blue-1);white-space:nowrap}
+.wc-tbl tr.wc-sum td.wc-c-zp,.wc-tbl tr.wc-sum td.wc-c-wcap{font-weight:600;color:var(--are-blue-1);white-space:nowrap}
+.wc-tbl tr.wc-in td{padding:3px 5px 6px;vertical-align:top;background:#fff}
+.wc-tbl tr.wc-det td{padding:2px 5px 10px;vertical-align:top;background:#fff}
+.wc-tbl td.wc-ind{width:28px;border-left:3px solid var(--are-blue-3);background:var(--are-gray-3) !important}
+.wc-tbl tr.wc-in td.wc-ind{border-top:none}
+.wc-empty td{padding:10px;text-align:center;color:var(--are-gray-1);font-size:.9em}
+/* dense inputs: are-theme-v2 sets padding/font-size !important on every
+   input[type=number|text]/select, so the override must be scoped and !important */
+#schedule input[type=number],#schedule input[type=text],#schedule select{
+  padding:2px 4px !important;font-size:.80em !important;border:1px solid var(--are-gray-2) !important;
+  border-radius:3px !important;background:var(--are-input);color:#2b2b2b;font-family:inherit !important;line-height:1.3}
+#schedule input[type=number]{width:68px;text-align:right}
+#schedule input[type=text]{width:100%}
+#schedule select{max-width:170px}
+#schedule input:focus,#schedule select:focus{border-color:var(--are-blue-2) !important;background:#fff;outline:none !important;box-shadow:none !important}
+#schedule input[type=checkbox]{margin:0 4px 0 0;vertical-align:middle}
+.wc-c-desc input{min-width:150px}
+.wc-c-V input,.wc-c-T input{width:72px}
+/* input groups in the indented sub-row */
+.wc-grps{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:flex-start}
+.wc-grp{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:flex-end;padding:3px 8px 4px;border-left:2px solid var(--are-gray-2);background:#fff}
+.wc-grp-t{width:100%;font-size:.7em;font-weight:700;color:var(--are-blue-3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:1px}
+.wc-f{display:inline-flex;flex-direction:column;font-size:.74em;color:#2b2b2b}
+.wc-f>span{font-size:.92em;color:var(--are-gray-1);white-space:nowrap;margin-bottom:1px}
+.wc-f.chk{flex-direction:row;align-items:center;padding-bottom:3px;white-space:nowrap}
+.wc-f.chk>span{margin:0}
+.wc-f.na{color:var(--are-gray-1);font-style:italic}
+.wc-f.na b{font-style:normal;color:var(--are-gray-1)}
+.wc-fac .wc-f b{color:var(--are-blue-1);font-size:1.05em}
+.wc-note{width:100%;margin-top:3px}
+/* status badges */
+.st{display:inline-block;padding:1px 8px;border-radius:9px;font-size:.74em;font-weight:700;border:1px solid transparent;white-space:nowrap}
+.st-pass{color:var(--are-ok);border-color:var(--are-ok);background:#fff}
+.st-fail{color:var(--are-fail);border-color:var(--are-fail);background:#fff}
+.st-nodemand{color:var(--are-gray-1);border-color:var(--are-gray-2);background:#fff}
+.st-incomplete{color:var(--are-warn);border-color:var(--are-warn);background:#fff}
+.st-invalid{color:#fff;background:var(--are-fail);border-color:var(--are-fail)}
+.st-none{color:var(--are-gray-1);border-color:var(--are-gray-2)}
+.wc-msgs{font-size:.72em;text-align:left;margin-top:3px;line-height:1.35}
+.wc-msgs .fl{color:var(--are-fail);font-weight:600}
+.wc-msgs .wn{color:var(--are-warn)}
+.dc{font-weight:700;white-space:nowrap}
+.dc.ok{color:var(--are-ok)}.dc.bad{color:var(--are-fail)}.dc.na{color:var(--are-gray-1);font-weight:400}
+/* row buttons */
+.wc-btns{display:flex;gap:3px;justify-content:center;flex-wrap:nowrap}
+.wc-btns button{background:#fff;border:1px solid var(--are-blue-3);color:var(--are-blue-3);width:22px;height:22px;border-radius:4px;cursor:pointer;font-size:.8em;line-height:1;padding:0}
+.wc-btns button:hover{background:var(--are-gray-3)}
+.wc-btns button.del{border-color:var(--are-fail);color:var(--are-fail)}
+.wc-btns button.det{width:auto;padding:0 6px;font-weight:700}
+.wc-btns button.det.open{background:var(--are-blue-3);color:#fff}
+/* details block */
+.wc-d{border-top:1px dashed var(--are-gray-2);padding-top:6px;font-size:.8em;color:#2b2b2b;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 18px}
+.wc-d h4{font-size:.86em;color:var(--are-blue-1);border-bottom:1px solid var(--are-gray-2);margin-bottom:3px;padding-bottom:2px}
+.wc-d table{border-collapse:collapse;width:100%;font-size:.92em}
+.wc-d th{background:var(--are-input);color:var(--are-blue-1);font-weight:600;padding:2px 5px;text-align:left;font-size:.9em}
+.wc-d td{padding:1px 5px;border-bottom:1px solid var(--are-gray-3);vertical-align:top}
+.wc-d td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wc-d tr.gov td{background:var(--are-input);font-weight:700}
+.wc-d .kv{display:grid;grid-template-columns:auto 1fr;gap:1px 10px}
+.wc-d .kv span:nth-child(odd){color:var(--are-gray-1)}
+.wc-d ul{padding-left:16px;line-height:1.4}
+.wc-d li.fl{color:var(--are-fail);font-weight:600}
+.wc-d li.wn{color:var(--are-warn)}
+.wc-d .cite{color:var(--are-gray-1);font-size:.9em}
+.wc-d .span2{grid-column:1 / -1}
+.wc-resolved{font-size:.78em;color:var(--are-gray-1);margin-top:8px}
+
+/* ── Print ──────────────────────────────────────────────────────────────── */
+@page{size:letter portrait;margin:.45in .5in}
+@media print{
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  html,body{background:#fff !important;width:100% !important;margin:0 !important;padding:0 !important}
+  .container{max-width:100% !important;width:100% !important;box-shadow:none !important;border-radius:0 !important;margin:0 !important;padding:0 !important}
+  .blk,.wc-sec{border-radius:0 !important;box-shadow:none !important}
+  #printBtn,.btn-add,.btn-undo,.wc-btns,button{display:none !important}
+  #schedule .wc-det,#schedule .wc-det[hidden]{display:table-row !important}
+  #schedule .wc-tbl tbody{break-inside:avoid;page-break-inside:avoid}
+  #schedule section+section{break-before:page;page-break-before:always}
+  #schedule input,#schedule select{border:none !important;background:transparent !important;box-shadow:none !important;-webkit-appearance:none;appearance:none}
+  .tbl-scroll{overflow:visible !important}
+  #summary{break-inside:avoid;page-break-inside:avoid}
+  .callout.howto{display:none !important}
+}
+</style>
+  <link rel="stylesheet" href="./are-calc.css">
+</head>
+<body>
+<button onclick="window.print()" id="printBtn" title="Print / Save as PDF"
+  style="position:fixed;top:16px;right:16px;z-index:9999;background:var(--are-blue-1);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.88em;font-weight:700;box-shadow:0 3px 10px rgba(0,0,0,.25);display:flex;align-items:center;gap:6px;white-space:nowrap">
+  &#x1F5A8;&nbsp;Print / PDF
+</button>
+
+<div class="container">
+  <div class="header">
+    <h1>&#128295; Wood Connection Schedule<span data-are-mark data-are-prefix=" — "></span></h1>
+    <p>NDS 2018 Chapter 12 dowel-type fasteners &mdash; bolts, nails, wood screws, lag screws &mdash; per-project schedule, ASD per fastener &mdash; Anderson Rohr Engineering <span id="engRev" style="opacity:.7;font-size:.85em"></span></p>
+    <div class="ref-tags">
+      <span class="tag">NDS 2018</span>
+      <span class="tag">ASD</span>
+      <span class="tag">Table 12.3.1A yield modes</span>
+      <span class="tag">&sect;12.2 withdrawal</span>
+      <span class="tag">&sect;12.2.5 pull-through</span>
+      <span class="tag">&sect;11.3.6 C<sub>g</sub></span>
+      <span class="tag">&sect;12.5.1 C<sub>&Delta;</sub></span>
+      <span class="tag">&sect;12.4 combined</span>
+      <span class="tag">Table 11.3.1 factor chain</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Project header — Tier-A inputs, outside #schedule -->
+    <div class="blk" id="hdrBlk">
+      <h2>&#9881; Project header <span class="badge">Applies to every connection</span></h2>
+      <div class="g4">
+        <div class="ig">
+          <label>Species (main and side default)</label>
+          <select id="species" onchange="hdrChanged()">
+            <option value="DFL">Douglas Fir-Larch (G 0.50)</option>
+            <option value="DFS">Douglas Fir-South (G 0.46)</option>
+            <option value="HF">Hem-Fir (G 0.43)</option>
+            <option value="SPF">Spruce-Pine-Fir (G 0.42)</option>
+            <option value="SPFS">Spruce-Pine-Fir (South) (G 0.36)</option>
+            <option value="SP">Southern Pine (G 0.55)</option>
+            <option value="CUSTOM">Custom (SCL)</option>
+          </select>
+          <div class="hint">G: Table 12.3.3A. E: Supplement Table 4A/4B No. 2 (C<sub>g</sub> only)</div>
+        </div>
+        <div class="ig">
+          <label>E override (psi)</label>
+          <input type="number" id="E_override" step="100000" min="0" placeholder="species default" oninput="hdrChanged()" onchange="hdrChanged()">
+          <div class="hint">Blank = species default; used only in C<sub>g</sub></div>
+        </div>
+        <div class="ig">
+          <label>Steel plate grade</label>
+          <select id="steelGrade" onchange="hdrChanged()">
+            <option value="A36">A36 plate, t &ge; 1/4 in (F<sub>e</sub> 87,000 psi)</option>
+            <option value="A653">A653 SS Gr 33 gauge (F<sub>e</sub> 61,850 psi)</option>
+          </select>
+          <div class="hint">Gauge side members use A653 automatically; E<sub>steel</sub> 30,000,000 psi</div>
+        </div>
+        <div class="ig">
+          <label>MC at fabrication</label>
+          <select id="mcFab" onchange="hdrChanged()">
+            <option value="dry">Dry (&le; 19 %)</option>
+            <option value="wet">Wet (&gt; 19 %)</option>
+          </select>
+          <div class="hint">C<sub>M</sub> per row, Table 11.3.3</div>
+        </div>
+        <div class="ig">
+          <label>MC in service</label>
+          <select id="mcService" onchange="hdrChanged()">
+            <option value="dry">Dry (&le; 19 %)</option>
+            <option value="wet">Wet (&gt; 19 %)</option>
+          </select>
+          <div class="hint">Table 11.3.3</div>
+        </div>
+        <div class="ig">
+          <label>Temperature</label>
+          <select id="temp" onchange="hdrChanged()">
+            <option value="T100">T &le; 100 &deg;F (C<sub>t</sub> 1.0)</option>
+            <option value="T125">100 &lt; T &le; 125 &deg;F</option>
+            <option value="T150">125 &lt; T &le; 150 &deg;F</option>
+          </select>
+          <div class="hint">C<sub>t</sub> Table 11.3.4</div>
+        </div>
+      </div>
+      <div id="customBlk" class="g4" style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--are-gray-2)" hidden>
+        <div class="ig">
+          <label>Custom (SCL) name</label>
+          <input type="text" id="custom_name" maxlength="120" placeholder="e.g. 1.55E LVL" onchange="hdrChanged()">
+        </div>
+        <div class="ig">
+          <label>G (specific gravity)</label>
+          <input type="number" id="custom_G" step="0.01" min="0" oninput="hdrChanged()" onchange="hdrChanged()">
+          <div class="hint">0.31&ndash;0.73 per the withdrawal equations</div>
+        </div>
+        <div class="ig">
+          <label>E (psi)</label>
+          <input type="number" id="custom_E" step="100000" min="0" oninput="hdrChanged()" onchange="hdrChanged()">
+        </div>
+        <div class="ig">
+          <label>F<sub>e</sub>, D &lt; 1/4 in (psi)</label>
+          <input type="number" id="custom_Fe_small" step="50" min="0" oninput="hdrChanged()" onchange="hdrChanged()">
+        </div>
+        <div class="ig">
+          <label>F<sub>e&parallel;</sub>, D &ge; 1/4 in (psi)</label>
+          <input type="number" id="custom_Fe_par" step="50" min="0" oninput="hdrChanged()" onchange="hdrChanged()">
+        </div>
+        <div class="ig">
+          <label>F<sub>e&perp;</sub>, D &ge; 1/4 in (psi)</label>
+          <input type="number" id="custom_Fe_perp" step="50" min="0" oninput="hdrChanged()" onchange="hdrChanged()">
+        </div>
+        <div class="ig chk">
+          <input type="checkbox" id="custom_hardwood" onchange="hdrChanged()"><label for="custom_hardwood">Hardwood (Table 12.5.1A end distances)</label>
+        </div>
+        <div class="ig" style="grid-column:span 2">
+          <label>ESR / evaluation report qualifying G and F<sub>e</sub></label>
+          <input type="text" id="custom_esr" maxlength="120" placeholder="ESR-xxxx Table x" onchange="hdrChanged()">
+          <div class="hint">&sect;12.3.3.3: SCL dowel bearing strength comes from the report, never from G. The three F<sub>e</sub> values are the engineer's conservative envelope for every diameter and installation face on the job.</div>
+        </div>
+      </div>
+      <div class="callout" style="margin:12px 0 0">
+        <strong>Code basis:</strong> NDS 2018 (AWC, with Commentary), ASD. Demands V (lateral) and T (withdrawal) are entered <strong>per fastener at ASD level</strong>; the engine applies no load factors. C<sub>D</sub> per connection from its load case, capped at 1.6 (&sect;11.3.2, Table 2.3.2). Reference values are computed from the yield-limit equations of Table 12.3.1A with the actual member thicknesses and penetrations (&sect;12.3.1); the tabulated Tables 12A&ndash;12P are fixtures, not the method.
+        <span id="hdrResolved"></span>
+      </div>
+    </div>
+
+    <div class="callout howto">
+      <strong>How to use:</strong> Add a connection to the table of its fastener type. The summary line carries the description, the required <em>V</em> and <em>T</em> per fastener (ASD), and the results. The indented sub-row holds that connection's inputs &mdash; only the inputs that apply to its type and diameter are shown; factors that do not apply print as n/a with the reason. <strong>Details</strong> (&#9656;) expands every intermediate: penetrations, member properties, all six yield modes, R<sub>d</sub>, the factor chain with clauses, withdrawal and pull-through, the combined check and the engineer notes. Printing expands every connection. Main member = the member holding the point; side member = the member under the head. For a double-shear bolt the side block describes both (equal) side members.
+    </div>
+
+    <div id="modelMsgs"></div>
+
+    <!-- The three schedule tables — owned by the AREv2 adapter -->
+    <div id="schedule"></div>
+
+    <!-- Project summary -->
+    <div class="blk" id="summary"></div>
+
+    <div class="note-box">
+      <strong>Engineering notes &mdash; method, assumptions and limits</strong>
+      <ul>
+        <li><strong>Method.</strong> Lateral reference values Z from the six yield modes of NDS 2018 Table 12.3.1A (four for double shear) with reduction terms R<sub>d</sub> per Table 12.3.1B, dowel bearing strengths per Table 12.3.3 (rounded to 50 psi), F<sub>yb</sub> per Table I1 by nominal diameter (override per row). Lag screws and wood screws use the root diameter D<sub>r</sub> inside the yield equations only (&sect;12.3.7.1); every other test uses the nominal D.</li>
+        <li><strong>Penetration.</strong> The fastener length L is entered; penetrations are derived by intersecting the fastener with the members along its axis (side [0, t<sub>s</sub>], main [t<sub>s</sub>, t<sub>s</sub> + t<sub>m</sub>]). l<sub>m</sub> = p &minus; E/2 for the tapered tip in the main member (&sect;12.3.5.3); thread length in the main member for withdrawal by type (lag &sect;12.2.1.2 excludes the tip, wood screw &sect;12.2.2.2 keeps it, nail full length). Minimum penetration lag 4D excluding the tip (&sect;12.1.4.6), wood screw and nail 6D (&sect;12.1.5.6, &sect;12.1.6.4); below the minimum the row fails and no capacity is reported. No p/8D or p/10D table-footnote scaling is applied.</li>
+        <li><strong>C<sub>g</sub> and C<sub>&Delta;</sub></strong> (nominal D &ge; 1/4 in only) are computed from the layout as entered: rows parallel to the load, equal fasteners per row, no stagger (&sect;11.3.6.2 offsets are not modelled). Gross member areas per &sect;11.3.6.3; a member loaded perpendicular to grain uses (rows &minus; 1)&middot;g, or 4D for one row. Hard geometry minimums (Tables 12.5.1A&ndash;E) fail the row; otherwise C<sub>&Delta;</sub> = min(1, end / full end, s / 4D). Across-grain spread over 5 in fails the row unless shrinkage detailing is confirmed (&sect;12.5.1.3).</li>
+        <li><strong>Withdrawal</strong> per Eq. 12.2-1/-2/-3 at the main-member G over the thread length in the main member; head pull-through per &sect;12.2.5 Eq. 12.2-6 for round-head nails and wood screws through a wood side member, W<sub>cap</sub> = min(W'&middot;p<sub>t</sub>, W<sub>H</sub>'). Lag (hex head) and steel-side pull-through / pull-over are the engineer's check and count as unresolved. Nails and wood screws in end grain carry no withdrawal (&sect;12.2.2.3, &sect;12.2.3.3); lags in end grain use C<sub>eg</sub> 0.75. Bolts have no NDS withdrawal value.</li>
+        <li><strong>Combined loading</strong> &sect;12.4: Eq. 12.4-1 (cos&sup2;/sin&sup2;) for lag and wood screws, Eq. 12.4-2 (cos/sin) for nails; D/C = max(V/Z', T/W<sub>cap</sub>, &radic;(V&sup2;+T&sup2;)/Z'<sub>&alpha;</sub>).</li>
+        <li><strong>Toe-nails</strong> (&sect;12.1.6.3, 30&deg;, L/3 from the end): l<sub>s</sub> = min(t<sub>s</sub>, L/3), l<sub>m</sub> = min(L&middot;cos30&deg; &minus; L/3, t<sub>m</sub>) (Commentary C12.5.4), withdrawal on the actual nail length in the main member; C<sub>tn</sub> 0.83 lateral / 0.67 withdrawal; C<sub>M</sub> = 1.0 for toe-nail withdrawal (&sect;12.5.4.1).</li>
+        <li><strong>Not covered (v1):</strong> LRFD; SDS and other proprietary screws (ESR values); double-shear lags and wood screws; load-to-grain angles other than 0&deg;/90&deg;; staggered layouts; steel plate bearing, net section and pull-over (noted for the engineer, AISC); fastener steel tension in withdrawal (root area printed, &sect;11.2.3); member net section, row tear-out and eccentricity (&sect;11.2.3, Appendix E); split rings, shear plates, timber rivets, drift pins; multiple shear planes and asymmetric three-member joints (&sect;12.3.8, &sect;12.3.9); glulam limits Table 12.5.1F; a lag into a steel main member; concrete or masonry anchorage.</li>
+        <li><strong>Sources:</strong> NDS 2018 with Commentary (AWC), page cites printed/PDF as listed in each row's cites; NDS Supplement Tables 4A/4B (E); Appendix I (F<sub>yb</sub>), Appendix L (fastener dimensions).</li>
+      </ul>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /container -->
+
+<script src="./engines/wood-connections.js"></script>
+<script>
+// ─── Utility ──────────────────────────────────────────────────────────────────
+function xe(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function isNum(v){return typeof v==='number'&&isFinite(v);}
+function n0(v){return isNum(v)?Math.round(v).toLocaleString():'—';}
+function nf(v,d){return isNum(v)?(+v).toFixed(d):'—';}
+function n3(v){return nf(v,3);}
+function nS(v){return isNum(v)?String(+v.toFixed(6)):'';}   // state number → input value
+function numv(v){v=String(v==null?'':v).trim(); if(v==='')return null; var n=Number(v); return isFinite(n)?n:NaN;}
+var CTRL_RE=new RegExp('['+String.fromCharCode(0)+'-'+String.fromCharCode(31)+String.fromCharCode(127)+']','g');   // built at runtime: no control byte in this source
+function strv(v){return String(v==null?'':v).replace(/[<>]/g,'').replace(CTRL_RE,'').slice(0,120);}
+function fracD(D){return isNum(D)?(FRAC[D]||String(D)):'?';}
+function fracL(L){if(!isNum(L))return '?'; var w=Math.floor(L),f=L-w; var fs={0.25:'1/4',0.5:'1/2',0.75:'3/4',0.125:'1/8',0.375:'3/8',0.625:'5/8',0.875:'7/8'}[+f.toFixed(3)]; return f===0?String(w):(fs?(w?w+'-'+fs:fs):String(L));}
+
+var TABLES=['bolts','nails','screws'];
+var TYPE_OF={bolts:'bolt',nails:'nail',screws:'screw'};
+var TABLE_LABEL={bolts:'Bolts',nails:'Nails',screws:'Screws'};
+var TABLE_SUB={bolts:'Table L1 · 1/2 to 1 in · single or double shear · wood or steel side, steel main',nails:'Table L4 · common, box, sinker 6d–20d · toe-nail, diaphragm',screws:'Wood screws Table L3 No. 6–14 · lag screws Table L2 1/4 to 1 in'};
+// Product lists, labels and availability come from the engine's WC.DATA (page-cited
+// there) — filled by initConsts() once the engine has loaded; nothing is duplicated here.
+var FRAC={}, SPECIES_LABEL={CUSTOM:'Custom (SCL)'}, SPECIES_KEYS=[], BOLT_D=[], LAG_D=[], LAG_L=[], WS_NO=[], NAIL_TYPES=[], GAUGES=[], LOAD_CASES=[];
+function pennies(nailType){ var tbl=WC.DATA.NAILS[nailType]||WC.DATA.NAILS.common; return Object.keys(tbl); }
+function lagLenAvail(D,L){ if(!isNum(D)||!isNum(L))return true; return !!WC.DATA.lagAvailable(D,L); }
+function initConsts(){
+  var D=WC.DATA;
+  Object.keys(D.BOLT_LABEL).forEach(function(k){ FRAC[+k]=D.BOLT_LABEL[k]; });
+  D.LAGS.forEach(function(l){ FRAC[l.D]=l.label; });
+  SPECIES_KEYS=Object.keys(D.SPECIES).concat(['CUSTOM']);
+  Object.keys(D.SPECIES).forEach(function(k){ SPECIES_LABEL[k]=D.SPECIES[k].label; });
+  BOLT_D=D.BOLTS.slice();
+  LAG_D=D.LAGS.map(function(l){ return l.D; });
+  LAG_L=D.LAG_LENGTHS.slice();
+  WS_NO=Object.keys(D.WOOD_SCREWS).map(Number).sort(function(a,b){ return a-b; });
+  NAIL_TYPES=Object.keys(D.NAILS);
+  GAUGES=Object.keys(D.GAUGES).map(Number).sort(function(a,b){ return a-b; }).map(function(g){ return [String(g), g+' ga ('+D.GAUGES[g].toFixed(3)+')']; }).concat([['plate','Plate (typed t, A36)']]);
+  LOAD_CASES=Object.keys(D.CD).map(function(k){ return [k,k+'  ('+D.CD[k]+')']; });
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+// `state` is the single source of truth; #schedule is rebuilt from it. Numbers
+// are never read back from the DOM for calculation and never computed here.
+var state=null, results=null, resById={}, engineErr=null;
+var openDet={};          // rowId → details expanded on screen (not part of the model)
+var _undoDel=null;       // {table,index,row} one-step undo
+var _rt=null;            // pending deferred render
+
+function haveEngine(){ return !!(window.WC&&typeof WC.compute==='function'); }
+
+function newRow(table,opts){ return WC.newRow(TYPE_OF[table],opts||{}); }
+function isPosInt(v){ return typeof v==='number'&&isFinite(v)&&v>0&&Math.floor(v)===v; }
+// Rows from a file (or the engine default) are never trusted: keep plain objects
+// only, and give every row a positive-integer id that is unique on the page —
+// a missing, non-integer or duplicate id is reassigned from ++rowCnt. Ids are
+// interpolated into element ids and onclick handlers, so this is the guard.
+function sanitizeRows(){
+  var seen={}, maxId=0;
+  TABLES.forEach(function(t){
+    state[t]=(Array.isArray(state[t])?state[t]:[]).filter(function(r){ return !!r&&typeof r==='object'&&!Array.isArray(r); });
+    state[t].forEach(function(r){ if(isPosInt(r.id)&&r.id>maxId) maxId=r.id; });
+  });
+  state.rowCnt=Math.max(isPosInt(state.rowCnt)?state.rowCnt:0,maxId);
+  TABLES.forEach(function(t){
+    state[t].forEach(function(r){
+      if(!isPosInt(r.id)||seen[r.id]) r.id=++state.rowCnt;
+      seen[r.id]=true;
+      if(!r.main||typeof r.main!=='object') r.main={};
+      if(!r.side||typeof r.side!=='object') r.side={};
+      if(t==='bolts') r.T=null;   // T is inactive on bolts and never rendered; a stray T > 0 would be an uneditable invalid
+    });
+  });
+}
+function seedDefaults(){
+  // One example row per table so the page is not empty on first load.
+  var nail=newRow('nails'); nail.nailType='common'; nail.penny='16d'; nail.desc='Example — 16d common, 2x to 2x'; nail.V=100; nail.T=0;
+  var bolt=newRow('bolts'); bolt.D=0.5; bolt.shear='single'; bolt.desc='Example — 1/2 in bolt, single shear, 2x to 2x'; bolt.V=400; forceGeomDefaults(bolt,'bolt');
+  var lag=newRow('screws',{screwType:'lag'}); lag.D=0.5; lag.L=4; lag.main.t=3.5; lag.desc='Example — 1/2 x 4 lag, 2x to 4x'; lag.V=200; lag.T=100; forceGeomDefaults(lag,'screw');
+  [nail,bolt,lag].forEach(function(r){ r.id=++state.rowCnt; });
+  state.nails.push(nail); state.bolts.push(bolt); state.screws.push(lag);
+}
+function initState(){
+  state=WC.defaultState();
+  state.version=1;
+  if(!state.header||typeof state.header!=='object') state.header={};
+  sanitizeRows();
+  if(!state.bolts.length&&!state.nails.length&&!state.screws.length) seedDefaults();
+}
+
+// ─── Row lookup / paths ───────────────────────────────────────────────────────
+function findRow(id){
+  for(var i=0;i<TABLES.length;i++){ var arr=state[TABLES[i]]; for(var j=0;j<arr.length;j++) if(arr[j].id===id) return {table:TABLES[i],index:j,row:arr[j],arr:arr}; }
+  return null;
+}
+function getPath(o,p){ var ks=p.split('.'),v=o; for(var i=0;i<ks.length;i++){ if(v==null)return undefined; v=v[ks[i]]; } return v; }
+function setPath(o,p,val){ var ks=p.split('.'),v=o; for(var i=0;i<ks.length-1;i++){ if(v[ks[i]]==null||typeof v[ks[i]]!=='object') v[ks[i]]={}; v=v[ks[i]]; } v[ks[ks.length-1]]=val; }
+
+// Nominal D for the UI's active-when tests. Geometry / C_g inputs are active only
+// for nominal D ≥ 1/4 in, which is every bolt and every lag; nails and wood screws
+// (No. 14 = 0.242 in) never reach it. The engine repeats this test on its own D.
+function nomD(row,type){ if(type==='bolt')return row.D; if(type==='screw'&&row.screwType==='lag')return row.D; return null; }
+function isBig(row,type){ var D=nomD(row,type); return isNum(D)&&D>=0.25; }
+
+// Geometry defaults per spec §3.1 (s = 4D, g = 1.5D / 5D, end 7D / 4D, edge 1.5D,
+// loaded edge 4D). Values that still equal the defaults for the previous D / θ /
+// bearing direction follow the new defaults; anything the engineer typed stays.
+function geomDefaults(row,type){
+  var D=nomD(row,type); if(!isNum(D)||!window.WC||typeof WC.geomDefaults!=='function') return {};
+  var m=row.main||{}, s=row.side||{};
+  var gm=WC.geomDefaults(D,m.theta,m.towardEnd), gs=WC.geomDefaults(D,s.theta,s.towardEnd), g0=WC.geomDefaults(D,0,true), g90=WC.geomDefaults(D,90,true);
+  var anyPerp=(!(type==='bolt'&&row.mainSteel)&&m.theta===90)||(s.mat!=='steel'&&s.theta===90);
+  var d={s:g0.s, g:anyPerp?g90.g:g0.g};
+  d['main.edgeDist']=gm.edgeDist; d['main.loadedEdgeDist']=gm.loadedEdgeDist; d['main.endDist']=gm.endDist;
+  d['side.edgeDist']=gs.edgeDist; d['side.loadedEdgeDist']=gs.loadedEdgeDist; d['side.endDist']=gs.endDist;
+  return d;
+}
+function applyGeomDefaults(row,type,before){
+  var after=geomDefaults(row,type);
+  Object.keys(after).forEach(function(k){
+    var cur=getPath(row,k);
+    var untouched=isNum(cur)&&isNum(before[k])&&Math.abs(cur-before[k])<1e-9;
+    if(untouched&&Math.abs(after[k]-cur)>1e-9) setPath(row,k,after[k]);
+  });
+}
+// wood screw → lag: the geometry fields were inactive, so whatever they hold is
+// stale; reset every one to the spec default for the new D.
+function forceGeomDefaults(row,type){
+  var d=geomDefaults(row,type); Object.keys(d).forEach(function(k){ setPath(row,k,d[k]); });
+  if(!isNum(row.n)) row.n=1; if(!isNum(row.rows)) row.rows=1;
+  if(!row.main) row.main={}; if(!row.side) row.side={};
+  if(row.main.towardEnd==null) row.main.towardEnd=true; if(row.side.towardEnd==null) row.side.towardEnd=true;
+}
+function ensureScrew(r){
+  if(r.screwType==='lag'){
+    if(!isNum(r.D)||LAG_D.indexOf(r.D)<0) r.D=0.5;
+    if(!isNum(r.L)||LAG_L.indexOf(r.L)<0||!lagLenAvail(r.D,r.L)){
+      // first Table L2 length at or above the current one that exists for this D
+      var up=LAG_L.filter(function(L){ return (!isNum(r.L)||L>=r.L)&&lagLenAvail(r.D,L); });
+      r.L=up.length?up[0]:4;
+    }
+  } else {
+    r.screwType='wood';
+    if(!isNum(r.no)||WS_NO.indexOf(r.no)<0) r.no=10;
+    if(!isNum(r.L)) r.L=3;
+  }
+}
+function rowType(loc){ return TYPE_OF[loc.table]; }
+
+// ─── Edits: every change goes through upd(rowId, path, value) → state → recalc → render
+function upd(rowId,path,value,live){
+  var loc=findRow(rowId); if(!loc) return;
+  var row=loc.row, type=rowType(loc);
+  var before=geomDefaults(row,type);
+  setPath(row,path,value);
+  // coupling rules
+  if(path==='mainSteel'&&value){ if(!row.side)row.side={}; row.side.mat='wood'; if(!row.main)row.main={}; if(!row.main.gauge) row.main.gauge='plate'; }
+  if(path==='side.mat'){ if(value==='steel'){ row.mainSteel=false; if(!row.side.gauge) row.side.gauge='plate'; } }
+  if(type==='screw'&&(path==='screwType'||path==='D'||path==='no')) ensureScrew(row);
+  if(type==='nail'&&path==='nailType'&&pennies(row.nailType).indexOf(row.penny)<0) row.penny=pennies(row.nailType)[0];
+  if(type==='screw'&&path==='screwType'&&value==='lag') forceGeomDefaults(row,type);
+  else applyGeomDefaults(row,type,before);
+  recalc();
+  if(live) patchLive(rowId); else scheduleRender();
+}
+function updN(id,p,v,live){ upd(id,p,numv(v),live); }
+function updS(id,p,v,live){ upd(id,p,strv(v),live); }
+function updB(id,p,c){ upd(id,p,!!c); }
+var NUM_SEL={D:1,L:1,no:1,'main.theta':1,'side.theta':1};   // selects whose values are numbers in state; gauge / penny stay strings
+function updSel(id,p,v){ if(v==='') return upd(id,p,null); if(NUM_SEL[p]){ var n=Number(v); return upd(id,p,isFinite(n)?n:null); } upd(id,p,String(v)); }
+
+// ─── Row operations ───────────────────────────────────────────────────────────
+function addRow(table){
+  if(!haveEngine())return;
+  var r=newRow(table); r.id=++state.rowCnt;
+  state[table].push(r); openDet[r.id]=false;
+  recalc(); render();
+  var el=document.getElementById('wc_'+r.id+'_desc'); if(el){ el.focus(); }
+}
+function dupRow(id){
+  var loc=findRow(id); if(!loc)return;
+  var c=JSON.parse(JSON.stringify(loc.row)); c.id=++state.rowCnt;
+  loc.arr.splice(loc.index+1,0,c);
+  recalc(); render();
+}
+function delRow(id){
+  var loc=findRow(id); if(!loc)return;
+  _undoDel={table:loc.table,index:loc.index,row:loc.arr.splice(loc.index,1)[0]};
+  delete openDet[id];
+  recalc(); render();
+}
+function undoDel(){
+  if(!_undoDel)return;
+  var u=_undoDel; _undoDel=null;
+  var arr=state[u.table]; arr.splice(Math.min(u.index,arr.length),0,u.row);
+  recalc(); render();
+}
+function moveRow(id,dir){
+  var loc=findRow(id); if(!loc)return;
+  var j=loc.index+dir; if(j<0||j>=loc.arr.length)return;
+  loc.arr.splice(loc.index,1); loc.arr.splice(j,0,loc.row);
+  render();
+}
+function toggleDet(id){
+  openDet[id]=!openDet[id];
+  var tb=document.querySelector('#schedule tbody[data-row-id="'+id+'"]');
+  if(tb){ var tr=tb.querySelector('tr.wc-det'); if(tr){ if(openDet[id])tr.removeAttribute('hidden'); else tr.setAttribute('hidden',''); } var b=tb.querySelector('button.det'); if(b){ b.classList.toggle('open',!!openDet[id]); b.innerHTML=openDet[id]?'&#9662; details':'&#9656; details'; } }
+  else render();
+}
+
+// ─── Header (Tier-A DOM is authoritative) ─────────────────────────────────────
+function $v(id){ var e=document.getElementById(id); return e?e.value:''; }
+function $c(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
+function readHeaderFromDOM(){
+  var h=state.header||(state.header={});
+  h.species=$v('species')||'DFL';
+  h.E_override=numv($v('E_override'));
+  h.custom={name:strv($v('custom_name')),G:numv($v('custom_G')),E:numv($v('custom_E')),Fe_small:numv($v('custom_Fe_small')),Fe_par:numv($v('custom_Fe_par')),Fe_perp:numv($v('custom_Fe_perp')),hardwood:$c('custom_hardwood'),esr:strv($v('custom_esr'))};
+  h.steelGrade=$v('steelGrade')||'A36';
+  h.mcFab=$v('mcFab')||'dry'; h.mcService=$v('mcService')||'dry';
+  h.temp=$v('temp')||'T100';
+  var cb=document.getElementById('customBlk'); if(cb){ if(h.species==='CUSTOM')cb.removeAttribute('hidden'); else cb.setAttribute('hidden',''); }
+}
+function writeHeaderToDOM(){
+  var h=state.header||{}, c=h.custom||{};
+  function sv(id,v){ var e=document.getElementById(id); if(e&&v!=null) e.value=(typeof v==='number')?nS(v):v; }
+  sv('species',h.species||'DFL'); sv('E_override',isNum(h.E_override)?h.E_override:'');
+  sv('steelGrade',h.steelGrade||'A36'); sv('mcFab',h.mcFab||'dry'); sv('mcService',h.mcService||'dry'); sv('temp',h.temp||'T100');
+  sv('custom_name',c.name||''); sv('custom_G',isNum(c.G)?c.G:''); sv('custom_E',isNum(c.E)?c.E:''); sv('custom_Fe_small',isNum(c.Fe_small)?c.Fe_small:''); sv('custom_Fe_par',isNum(c.Fe_par)?c.Fe_par:''); sv('custom_Fe_perp',isNum(c.Fe_perp)?c.Fe_perp:''); sv('custom_esr',c.esr||'');
+  var hw=document.getElementById('custom_hardwood'); if(hw) hw.checked=!!c.hardwood;
+}
+function hdrChanged(){ readHeaderFromDOM(); recalc(); render(); }
+
+// ─── Engine call ──────────────────────────────────────────────────────────────
+function recalc(){
+  results=null; resById={}; engineErr=null;
+  if(!haveEngine()){ engineErr='The engine (engines/wood-connections.js) did not load — no results.'; return; }
+  state.version=1;
+  try{ results=WC.compute(state); }
+  catch(e){ engineErr='Engine error: '+(e&&e.message?e.message:e); if(window.console)console.error(e); return; }
+  if(!results||!results.tables){ engineErr='Engine returned no tables.'; results=null; return; }
+  TABLES.forEach(function(t){ (results.tables[t]||[]).forEach(function(r){ if(r&&r.id!=null) resById[r.id]=r; }); });
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function scheduleRender(){ if(_rt)return; _rt=setTimeout(function(){ _rt=null; render(); },0); }
+function render(){
+  var con=document.getElementById('schedule'); if(!con)return;
+  var act=document.activeElement, fid=(act&&act.id&&con.contains(act))?act.id:null, s0=null, s1=null;
+  if(fid){ try{ if(act.selectionStart!=null){ s0=act.selectionStart; s1=act.selectionEnd; } }catch(e){} }
+  var msgs=document.getElementById('modelMsgs');
+  if(msgs) msgs.innerHTML=engineErr?'<div class="err-box">'+xe(engineErr)+'</div>':'';
+  var o='';
+  TABLES.forEach(function(t){ o+=sectionHTML(t); });
+  con.innerHTML=o;
+  renderSummary();
+  renderResolved();
+  if(fid){ var el=document.getElementById(fid); if(el){ try{ el.focus({preventScroll:true}); }catch(e){ el.focus(); } if(s0!=null){ try{ el.setSelectionRange(s0,s1); }catch(e2){} } } }
+}
+function colCount(t){ return t==='bolts'?8:10; }
+function sectionHTML(t){
+  var rows=state[t], type=TYPE_OF[t];
+  var o='<section data-table="'+t+'" class="wc-sec">';
+  o+='<div class="wc-sec-hdr"><h3>'+TABLE_LABEL[t]+'<span class="sub">'+xe(TABLE_SUB[t])+' · '+rows.length+' connection'+(rows.length===1?'':'s')+'</span></h3>';
+  o+='<div style="display:flex;gap:6px;align-items:center">';
+  if(_undoDel&&_undoDel.table===t) o+='<button class="btn-undo" id="wc_undo_'+t+'" onclick="undoDel()">&#8630; Undo delete</button>';
+  o+='<button class="btn-add" id="wc_add_'+t+'" onclick="addRow(\''+t+'\')">+ Add '+(type==='screw'?'screw':type)+'</button></div></div>';
+  o+='<div class="wc-sec-body"><div class="tbl-scroll"><table class="wc-tbl"><thead><tr>';
+  o+='<th>#</th><th class="thl">Description</th><th class="thl">Fastener</th><th>V (lb)</th>';
+  if(type!=='bolt') o+='<th>T (lb)</th>';
+  o+='<th>Z&prime; (lb)</th>';
+  if(type!=='bolt') o+='<th>W<sub>cap</sub> (lb)</th>';
+  o+='<th>D/C</th><th>Status</th><th></th></tr></thead>';
+  if(!rows.length) o+='<tbody><tr class="wc-empty"><td colspan="'+colCount(t)+'">No '+t+' yet — use + Add.</td></tr></tbody>';
+  rows.forEach(function(r,i){ o+=rowHTML(t,r,i); });
+  o+='</table></div></div></section>';
+  return o;
+}
+function rowHTML(t,row,idx){
+  var id=Number(row.id), res=resById[id]||null, cols=colCount(t);
+  var o='<tbody data-row-id="'+id+'" class="wc-row st-'+xe(res?res.status:'none')+'">';
+  o+='<tr class="wc-sum">'+sumCells(t,row,idx,res)+'</tr>';
+  o+='<tr class="wc-in"><td class="wc-ind"></td><td colspan="'+(cols-1)+'">'+inputsHTML(t,row,res)+'</td></tr>';
+  o+='<tr class="wc-det"'+(openDet[row.id]?'':' hidden')+'><td class="wc-ind"></td><td colspan="'+(cols-1)+'">'+detailsHTML(t,row,res)+'</td></tr>';
+  return o+'</tbody>';
+}
+function fastenerLabel(t,row){
+  var type=TYPE_OF[t];
+  if(type==='bolt') return fracD(row.D)+' in bolt, '+(row.shear==='double'?'double':'single')+' shear'+(row.mainSteel?', steel main':'')+(row.side&&row.side.mat==='steel'?', steel side':'');
+  if(type==='nail') return xe(row.penny||'?')+' '+xe(row.nailType||'common')+(row.toeNail?', toe-nail':'')+(row.diaphragm?', diaphragm':'')+(row.side&&row.side.mat==='steel'?', steel side':'');
+  if(row.screwType==='lag') return fracD(row.D)+' &times; '+fracL(row.L)+' lag'+(row.side&&row.side.mat==='steel'?', steel side':'');
+  return 'No. '+xe(row.no)+' &times; '+xe(isNum(row.L)?nS(row.L):'?')+' wood screw'+(row.side&&row.side.mat==='steel'?', steel side':'');
+}
+function statusHTML(res){
+  if(!res) return '<span class="st st-none">no result</span>';
+  var o='<span class="st st-'+xe(res.status)+'">'+xe(String(res.status).toUpperCase())+'</span>';
+  var fl=(res.flags||[]).map(function(f){return '<div class="fl">&#9888; '+xe(f)+'</div>';}).join('');
+  var wn=(res.warnings||[]).map(function(w){return '<div class="wn">'+xe(w)+'</div>';}).join('');
+  var ur=(isNum(res.unresolved)&&res.unresolved>0)?'<div class="wn">'+res.unresolved+' engineer check'+(res.unresolved===1?'':'s')+' unresolved</div>':'';
+  if(fl||wn||ur) o+='<div class="wc-msgs">'+fl+wn+ur+'</div>';
+  return o;
+}
+function dcHTML(res){
+  var dc=res&&res.demand?res.demand.dc:null;
+  if(!isNum(dc)) return '<span class="dc na">—</span>';
+  return '<span class="dc '+(dc>1?'bad':'ok')+'">'+dc.toFixed(2)+'</span>';
+}
+function sumCells(t,row,idx,res){
+  var id=Number(row.id), type=TYPE_OF[t], cap=res&&res.capacity?res.capacity:{};
+  var o='<td class="wc-c-idx">'+(idx+1)+'</td>';
+  o+='<td class="tdl wc-c-desc"><input type="text" id="wc_'+id+'_desc" maxlength="120" value="'+xe(row.desc)+'" placeholder="description" oninput="updS('+id+',\'desc\',this.value,true)" onchange="updS('+id+',\'desc\',this.value)"></td>';
+  o+='<td class="tdl wc-c-fast">'+fastenerLabel(t,row)+'</td>';
+  o+='<td class="wc-c-V"><input type="number" id="wc_'+id+'_V" step="1" min="0" value="'+xe(nS(row.V))+'" oninput="updN('+id+',\'V\',this.value,true)" onchange="updN('+id+',\'V\',this.value)"></td>';
+  if(type!=='bolt') o+='<td class="wc-c-T"><input type="number" id="wc_'+id+'_T" step="1" min="0" value="'+xe(nS(row.T))+'" oninput="updN('+id+',\'T\',this.value,true)" onchange="updN('+id+',\'T\',this.value)"></td>';
+  o+='<td class="wc-c-zp">'+n0(cap.Zp)+'</td>';
+  if(type!=='bolt') o+='<td class="wc-c-wcap">'+n0(cap.Wcap)+'</td>';
+  o+='<td class="wc-c-dc">'+dcHTML(res)+'</td>';
+  o+='<td class="wc-c-status">'+statusHTML(res)+'</td>';
+  o+='<td class="wc-c-btn"><div class="wc-btns">'
+    +'<button class="det'+(openDet[id]?' open':'')+'" id="wc_'+id+'_det" onclick="toggleDet('+id+')" title="Show every intermediate value">'+(openDet[id]?'&#9662; details':'&#9656; details')+'</button>'
+    +'<button id="wc_'+id+'_mv_up" onclick="moveRow('+id+',-1)" title="Move up">&#9650;</button>'
+    +'<button id="wc_'+id+'_mv_dn" onclick="moveRow('+id+',1)" title="Move down">&#9660;</button>'
+    +'<button id="wc_'+id+'_dup" onclick="dupRow('+id+')" title="Duplicate (new id)">&#10697;</button>'
+    +'<button class="del" id="wc_'+id+'_del" onclick="delRow('+id+')" title="Delete (one-step undo in the table header)">&#10005;</button>'
+    +'</div></td>';
+  return o;
+}
+
+// input chip helpers — ids wc_<rowId>_<path with dots → _> so focus can be restored after a rebuild
+function fid(id,p){ return 'wc_'+id+'_'+p.replace(/\./g,'_'); }
+function numIn(id,p,val,label,opt){ opt=opt||{}; return '<label class="wc-f"><span>'+label+'</span><input type="number" id="'+fid(id,p)+'" value="'+xe(nS(val))+'" step="'+(opt.step||'any')+'"'+(opt.min!=null?' min="'+opt.min+'"':'')+(opt.w?' style="width:'+opt.w+'px"':'')+(opt.ph?' placeholder="'+xe(opt.ph)+'"':'')+' oninput="updN('+id+',\''+p+'\',this.value,true)" onchange="updN('+id+',\''+p+'\',this.value)"></label>'; }
+function selIn(id,p,val,label,opts){ var o='<label class="wc-f"><span>'+label+'</span><select id="'+fid(id,p)+'" onchange="updSel('+id+',\''+p+'\',this.value)">'; opts.forEach(function(x){ var v=Array.isArray(x)?x[0]:x, l=Array.isArray(x)?x[1]:x; o+='<option value="'+xe(v)+'"'+(String(v)===String(val==null?'':val)?' selected':'')+'>'+l+'</option>'; }); return o+'</select></label>'; }
+function chkIn(id,p,val,label){ return '<label class="wc-f chk"><input type="checkbox" id="'+fid(id,p)+'"'+(val?' checked':'')+' onchange="updB('+id+',\''+p+'\',this.checked)"><span>'+label+'</span></label>'; }
+function txtIn(id,p,val,label,cls){ return '<label class="wc-f '+(cls||'')+'"><span>'+label+'</span><input type="text" id="'+fid(id,p)+'" maxlength="120" value="'+xe(val)+'" oninput="updS('+id+',\''+p+'\',this.value,true)" onchange="updS('+id+',\''+p+'\',this.value)"></label>'; }
+function naChip(label,reason){ return '<span class="wc-f na"><span>'+label+'</span><b>n/a — '+xe(reason)+'</b></span>'; }
+function speciesOpts(inherit){ var o=[]; if(inherit) o.push(['','inherit ('+(SPECIES_LABEL[state.header.species]||state.header.species)+')']); SPECIES_KEYS.forEach(function(k){ o.push([k,SPECIES_LABEL[k]]); }); return o; }
+
+function memberHTML(id,which,m,type,row,big){
+  var p=which+'.', isSide=(which==='side'), o='';
+  var steel=isSide?(m.mat==='steel'):!!row.mainSteel;
+  o+='<div class="wc-grp"><div class="wc-grp-t">'+(isSide?'Side member'+(type==='bolt'&&row.shear==='double'?' (each of two)':''):'Main member')+'</div>';
+  if(isSide){
+    if(type==='bolt'&&row.mainSteel) o+='<span class="wc-f"><span>material</span><b>wood (steel main)</b></span>';
+    else o+=selIn(id,'side.mat',m.mat||'wood','material',[['wood','wood'],['steel','steel']]);
+  } else if(type==='bolt'){
+    o+=chkIn(id,'mainSteel',!!row.mainSteel,'steel main');
+  }
+  if(steel){
+    o+=selIn(id,p+'gauge',m.gauge||'plate','gauge / plate',GAUGES);
+    if((m.gauge||'plate')==='plate') o+=numIn(id,p+'t',m.t,'t plate (in)',{step:'0.0625',min:0});
+    if(big) o+=numIn(id,p+'w',m.w,'w plate (in)',{step:'0.25',min:0});
+    o+='<span class="wc-f na"><span>&theta;, distances</span><b>n/a — steel (AISC check)</b></span>';
+  } else {
+    o+=selIn(id,p+'species',m.species==null?'':m.species,'species',speciesOpts(true));
+    o+=numIn(id,p+'t',m.t,'t (in)',{step:'0.125',min:0});
+    if(big) o+=numIn(id,p+'w',m.w,'w (in)',{step:'0.25',min:0});
+    o+=selIn(id,p+'theta',m.theta==null?0:m.theta,'&theta; load to grain',[[0,'0&deg; (&parallel;)'],[90,'90&deg; (&perp;)']]);
+    if(!isSide) o+=chkIn(id,'main.endGrain',!!m.endGrain,'end grain');
+    if(big){
+      o+=chkIn(id,p+'towardEnd',m.towardEnd!==false,'bearing toward end');
+      o+=numIn(id,p+'endDist',m.endDist,'end dist (in)',{step:'0.125',min:0});
+      o+=numIn(id,p+'edgeDist',m.edgeDist,'edge dist (in)',{step:'0.125',min:0});
+      if(m.theta===90) o+=numIn(id,p+'loadedEdgeDist',m.loadedEdgeDist,'loaded edge (in)',{step:'0.125',min:0});
+    }
+  }
+  return o+'</div>';
+}
+
+function inputsHTML(t,row,res){
+  var id=Number(row.id), type=TYPE_OF[t], big=isBig(row,type), o='<div class="wc-grps">';
+  // fastener
+  o+='<div class="wc-grp"><div class="wc-grp-t">Fastener</div>';
+  if(type==='bolt'){
+    o+=selIn(id,'D',row.D,'D (in)',BOLT_D.map(function(d){return [d,fracD(d)];}));
+    o+=selIn(id,'shear',row.shear||'single','shear planes',[['single','single'],['double','double']]);
+  } else if(type==='nail'){
+    o+=selIn(id,'nailType',row.nailType||'common','type',NAIL_TYPES);
+    o+=selIn(id,'penny',row.penny||'16d','size',pennies(row.nailType));
+    o+=chkIn(id,'toeNail',!!row.toeNail,'toe-nail');
+    o+=chkIn(id,'diaphragm',!!row.diaphragm,'diaphragm (C<sub>di</sub>)');
+  } else {
+    o+=selIn(id,'screwType',row.screwType||'wood','type',[['wood','wood screw'],['lag','lag screw']]);
+    if(row.screwType==='lag'){
+      o+=selIn(id,'D',row.D,'D (in)',LAG_D.map(function(d){return [d,fracD(d)];}));
+      o+=selIn(id,'L',row.L,'L (in)',LAG_L.filter(function(L){return lagLenAvail(row.D,L);}).map(function(L){return [L,fracL(L)];}));
+    } else {
+      o+=selIn(id,'no',row.no,'No.',WS_NO);
+      o+=numIn(id,'L',row.L,'L (in)',{step:'0.25',min:0});
+    }
+  }
+  o+=selIn(id,'loadCase',row.loadCase||'L','load case (C<sub>D</sub>)',LOAD_CASES);
+  o+=numIn(id,'Fyb_override',row.Fyb_override,'F<sub>yb</sub> override (psi)',{step:'1000',min:0,ph:'Table I1',w:80});
+  o+='</div>';
+  // members
+  o+=memberHTML(id,'main',row.main||{},type,row,big);
+  o+=memberHTML(id,'side',row.side||{},type,row,big);
+  // layout (D ≥ 1/4 in)
+  o+='<div class="wc-grp"><div class="wc-grp-t">Layout</div>';
+  if(big){
+    o+=numIn(id,'n',row.n,'n per row',{step:'1',min:1,w:48});
+    o+=numIn(id,'rows',row.rows,'rows',{step:'1',min:1,w:48});
+    o+=numIn(id,'s',row.s,'s in row (in)',{step:'0.125',min:0});
+    o+=numIn(id,'g',row.g,'g row spacing (in)',{step:'0.125',min:0});
+    o+=chkIn(id,'shrinkDetail',!!row.shrinkDetail,'shrinkage detailing (&sect;12.5.1.3)');
+    o+=chkIn(id,'cmException',!!row.cmException,'C<sub>M</sub> fn 2 exception');
+  } else {
+    o+=naChip('n, rows, s, g','D < 1/4 in: Cᵧ = CΔ = 1.0 (§11.3.6.1, §12.5.1.1)');
+  }
+  o+='</div>';
+  // factors (read-only, from the result)
+  o+='<div class="wc-grp wc-fac">'+factorsHTML(t,row,res)+'</div>';
+  o+=txtIn(id,'notes',row.notes,'notes','wc-note');
+  return o+'</div>';
+}
+
+// factors: value + cite from the engine; inactive ones as "n/a — reason"
+// engine factor shape: {v: number|null, cite: string}; inactive → v null with cite "n/a (…)"
+function facV(f){ return (f&&typeof f.v==='number'&&isFinite(f.v))?f.v:null; }
+function facC(f){ return f?String(f.cite||''):''; }
+function factorList(t,row,res){
+  var type=TYPE_OF[t], steelSide=row.side&&row.side.mat==='steel', F=(res&&res.factors)||{};
+  function why(k){
+    var c=facC(F[k]); if(/^n\/a/i.test(c)) return c.replace(/^n\/a\s*/i,'').replace(/^[(\-–—:\s]+|[)\s]+$/g,'')||c;
+    switch(k){
+      case 'Cg': case 'Cdelta': return 'D < 1/4 in';
+      case 'Ceg': return 'side grain';
+      case 'Cdi': return type==='nail'?'not a diaphragm nail':'nails only';
+      case 'Ctn': return type==='nail'?'not toe-nailed':'nails only';
+      case 'CMw': case 'Cegw': return type==='bolt'?'no withdrawal (bolt)':(k==='Cegw'?'lag in side grain':'');
+      case 'CMH': return type==='bolt'?'no withdrawal (bolt)':(steelSide?'steel side':(type==='screw'&&row.screwType==='lag'?'hex head':''));
+    }
+    return '';
+  }
+  var defs=[['CD','C<sub>D</sub>'],['CM','C<sub>M</sub>'],['Ct','C<sub>t</sub>'],['Cg','C<sub>g</sub>'],['Cdelta','C<sub>&Delta;</sub>'],['Ceg','C<sub>eg</sub>'],['Cdi','C<sub>di</sub>'],['Ctn','C<sub>tn</sub>'],['CMw','C<sub>M,w</sub>'],['CMH','C<sub>M,H</sub>'],['Cegw','C<sub>eg,w</sub>']];
+  return defs.map(function(d){ var k=d[0], v=facV(F[k]); var show=true; if(v==null){ var r=why(k); if(!r&&(k==='CMw'||k==='CMH'||k==='Cegw')) show=false; return {k:k,label:d[1],v:null,reason:r||'not applicable',cite:facC(F[k]),show:show}; } return {k:k,label:d[1],v:v,cite:facC(F[k]),show:true}; }).filter(function(x){return x.show;});
+}
+function factorsHTML(t,row,res){
+  var o='<div class="wc-grp-t">Factors (Table 11.3.1)</div>';
+  if(!res) return o+'<span class="wc-f na"><b>no result</b></span>';
+  factorList(t,row,res).forEach(function(f){
+    if(f.v==null) o+=naChip(f.label,f.reason);
+    else o+='<span class="wc-f" title="'+xe(f.cite)+'"><span>'+f.label+'</span><b>'+n3(f.v)+'</b></span>';
+  });
+  return o;
+}
+
+// details block — every intermediate the engine reports
+function detailsHTML(t,row,res){
+  if(!res) return '<div class="wc-d"><div class="span2 cite">'+xe(engineErr||'No result for this row.')+'</div></div>';
+  var type=TYPE_OF[t], I=res.inputs||{}, M=res.members||{}, L=res.lengths||{}, Y=res.yield||{}, C=res.capacity||{}, Dm=res.demand||{};
+  var o='<div class="wc-d">';
+  // resolved fastener
+  o+='<div><h4>Fastener (resolved)</h4><div class="kv">'
+    +'<span>type</span><span>'+xe(res.type||type)+' &mdash; '+fastenerLabel(t,row)+'</span>'
+    +'<span>D nominal</span><span>'+n3(I.D)+' in</span>'
+    +'<span>D<sub>yield</sub></span><span>'+n3(I.D_yield)+' in'+(isNum(I.D_yield)&&isNum(I.D)&&Math.abs(I.D_yield-I.D)>1e-9?' (root diameter, &sect;12.3.7.1)':'')+'</span>'
+    +'<span>F<sub>yb</sub></span><span>'+n0(I.Fyb)+' psi'+(isNum(row.Fyb_override)?' (override)':' (Table I1)')+'</span>'
+    +(isNum(I.L)?'<span>L</span><span>'+n3(I.L)+' in</span>':'')
+    +(isNum(I.T_thread)?'<span>thread T</span><span>'+n3(I.T_thread)+' in</span>':'')
+    +(isNum(I.E_tip)?'<span>tip E</span><span>'+n3(I.E_tip)+' in</span>':'')
+    +'<span>C<sub>D</sub> case</span><span>'+xe(row.loadCase||'L')+'</span>'
+    +'</div></div>';
+  // members
+  o+='<div><h4>Members</h4><table><tr><th></th><th>mat</th><th>G</th><th>E (psi)</th><th>F<sub>e</sub> (psi)</th><th>&theta;</th><th>t (in)</th><th>w (in)</th><th>A (in&sup2;)</th></tr>';
+  ['main','side'].forEach(function(w){ var m=M[w]||{}; o+='<tr><td>'+w+'</td><td>'+xe(m.mat||'')+'</td><td class="n">'+nf(m.G,2)+'</td><td class="n">'+n0(m.E)+'</td><td class="n">'+n0(m.Fe)+'</td><td class="n">'+(isNum(m.theta)?m.theta+'&deg;':'—')+'</td><td class="n">'+n3(m.t)+'</td><td class="n">'+n3(m.w)+'</td><td class="n">'+n3(m.A)+'</td></tr>'; });
+  o+='</table></div>';
+  // lengths
+  o+='<div><h4>Penetration and bearing lengths</h4><div class="kv">';
+  [['p_tot','p<sub>tot</sub> in main'],['tip_in','tip in main'],['p_excl','p excl. tip'],['l_m','l<sub>m</sub>'],['l_s','l<sub>s</sub>'],['p_t','p<sub>t</sub> (threads in main)'],['p_min','p<sub>min</sub>'],['lD','l/D (Tables 12.5.1C/D)']].forEach(function(d){ if(L[d[0]]!=null) o+='<span>'+d[1]+'</span><span>'+n3(L[d[0]])+(d[0]==='lD'?'':' in')+'</span>'; });
+  if(L.exits_main!=null) o+='<span>exits main</span><span>'+(L.exits_main?'yes (warning)':'no')+'</span>';
+  o+='</div></div>';
+  // yield
+  var gov=String(Y.governing||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
+  o+='<div><h4>Yield modes (Table 12.3.1A/B)</h4><div class="kv">'
+    +'<span>R<sub>e</sub> = F<sub>em</sub>/F<sub>es</sub></span><span>'+nf(Y.Re,4)+'</span>'
+    +'<span>R<sub>t</sub> = l<sub>m</sub>/l<sub>s</sub></span><span>'+nf(Y.Rt,4)+'</span>'
+    +'<span>K<sub>&theta;</sub></span><span>'+nf(Y.Ktheta,3)+'</span>'
+    +(Y.KD!=null?'<span>K<sub>D</sub></span><span>'+nf(Y.KD,3)+'</span>':'')
+    +'<span>k<sub>1</sub>, k<sub>2</sub>, k<sub>3</sub></span><span>'+nf(Y.k1,4)+', '+nf(Y.k2,4)+', '+nf(Y.k3,4)+'</span>'
+    +'</div><table><tr><th>mode</th><th>R<sub>d</sub></th><th>Z (lb)</th></tr>';
+  var modes=Y.modes||{}, Rd=Y.Rd||{};
+  [['Im','I<sub>m</sub>'],['Is','I<sub>s</sub>'],['II','II'],['IIIm','III<sub>m</sub>'],['IIIs','III<sub>s</sub>'],['IV','IV']].forEach(function(d){ var v=modes[d[0]]; if(v==null&&Rd[d[0]]==null)return; var isGov=gov===d[0].toLowerCase(); o+='<tr'+(isGov?' class="gov"':'')+'><td>'+d[1]+(isGov?' &#9664; governs':'')+'</td><td class="n">'+n3(Rd[d[0]])+'</td><td class="n">'+(isNum(v)?nf(v,1):'—')+'</td></tr>'; });
+  o+='<tr class="gov"><td>Z = min</td><td></td><td class="n">'+(isNum(Y.Z)?nf(Y.Z,1):'—')+'</td></tr></table></div>';
+  // factors + capacities
+  var fl=factorList(t,row,res), chain=fl.filter(function(f){return f.v!=null;});
+  o+='<div><h4>Adjustment factors and capacities</h4><table><tr><th>factor</th><th>value</th><th>cite</th></tr>';
+  fl.forEach(function(f){ o+='<tr><td>'+f.label+'</td><td class="n">'+(f.v==null?'n/a':n3(f.v))+'</td><td class="cite">'+(f.v==null?xe(f.reason):xe(f.cite))+'</td></tr>'; });
+  o+='</table><div class="kv" style="margin-top:4px">'
+    +'<span>Z&prime;</span><span>'+n0(C.Zp)+' lb'+(isNum(Y.Z)&&isNum(C.Zp)?' = '+nf(Y.Z,1)+' &times; '+chain.filter(function(f){return ['CD','CM','Ct','Cg','Cdelta','Ceg','Cdi','Ctn'].indexOf(f.k)>=0;}).map(function(f){return n3(f.v);}).join(' &times; '):'')+'</span>';
+  if(type!=='bolt'){
+    o+=(C.W!=null?'<span>W</span><span>'+nf(C.W,1)+' lb/in</span>':'')
+      +(C.Wp!=null?'<span>W&prime;</span><span>'+nf(C.Wp,1)+' lb/in</span>':'')
+      +(C.Wcap_withdrawal!=null?'<span>W&prime;&middot;p<sub>t</sub></span><span>'+n0(C.Wcap_withdrawal)+' lb</span>':'')
+      +(C.WH!=null?'<span>W<sub>H</sub></span><span>'+n0(C.WH)+' lb</span>':'')
+      +(C.WHp!=null?'<span>W<sub>H</sub>&prime;</span><span>'+n0(C.WHp)+' lb</span>':'')
+      +'<span>W<sub>cap</sub></span><span>'+n0(C.Wcap)+' lb'+(C.withdrawalGov?' ('+xe(C.withdrawalGov)+' governs)':'')+'</span>'
+      +(C.Zalpha!=null?'<span>Z&prime;<sub>&alpha;</sub></span><span>'+n0(C.Zalpha)+' lb at &alpha; = '+nf(C.alpha,1)+'&deg; ('+(type==='nail'?'Eq. 12.4-2':'Eq. 12.4-1')+')</span>':'');
+  }
+  o+='</div></div>';
+  // demand
+  o+='<div><h4>Demand (ASD, per fastener)</h4><div class="kv">'
+    +'<span>V</span><span>'+n0(Dm.V)+' lb</span>'
+    +(type!=='bolt'?'<span>T</span><span>'+n0(Dm.T)+' lb</span>':'')
+    +'<span>V / Z&prime;</span><span>'+nf(Dm.dcV,3)+'</span>'
+    +(type!=='bolt'?'<span>T / W<sub>cap</sub></span><span>'+nf(Dm.dcT,3)+'</span><span>combined</span><span>'+nf(Dm.dcComb,3)+'</span>':'')
+    +'<span><b>D/C</b></span><span><b>'+nf(Dm.dc,3)+'</b> &mdash; '+xe(String(res.status).toUpperCase())+'</span>'
+    +'</div></div>';
+  // messages
+  function li(arr,cls){ return (arr||[]).map(function(x){ return '<li'+(cls?' class="'+cls+'"':'')+'>'+xe(x)+'</li>'; }).join(''); }
+  var msgs='';
+  if((res.flags||[]).length) msgs+='<ul>'+li(res.flags,'fl')+'</ul>';
+  if((res.warnings||[]).length) msgs+='<ul>'+li(res.warnings,'wn')+'</ul>';
+  if((res.notes||[]).length) msgs+='<ul>'+li(res.notes)+'</ul>';
+  if(row.notes) msgs+='<div><em>Row notes:</em> '+xe(row.notes)+'</div>';
+  o+='<div class="span2"><h4>Flags, warnings and engineer notes'+(isNum(res.unresolved)&&res.unresolved>0?' <span class="badge">'+res.unresolved+' unresolved</span>':'')+'</h4>'+(msgs||'<div class="cite">none</div>')+'</div>';
+  if((res.cites||[]).length) o+='<div class="span2"><h4>Cites</h4><ul class="cite">'+li(res.cites)+'</ul></div>';
+  return o+'</div>';
+}
+
+// live patch while typing: summary cells + factors + details, never the inputs row
+function patchLive(id){
+  var tb=document.querySelector('#schedule tbody[data-row-id="'+id+'"]'); var loc=findRow(id);
+  if(!tb||!loc){ scheduleRender(); return; }
+  var t=loc.table, row=loc.row, res=resById[id]||null;
+  tb.className='wc-row st-'+(res?res.status:'none');
+  function set(sel,html){ var e=tb.querySelector(sel); if(e)e.innerHTML=html; }
+  var cap=res&&res.capacity?res.capacity:{};
+  set('tr.wc-sum td.wc-c-fast',fastenerLabel(t,row));
+  set('tr.wc-sum td.wc-c-zp',n0(cap.Zp));
+  set('tr.wc-sum td.wc-c-wcap',n0(cap.Wcap));
+  set('tr.wc-sum td.wc-c-dc',dcHTML(res));
+  set('tr.wc-sum td.wc-c-status',statusHTML(res));
+  set('tr.wc-in .wc-fac',factorsHTML(t,row,res));
+  set('tr.wc-det td:last-child',detailsHTML(t,row,res));
+  renderSummary();
+}
+
+// ─── Summary block ────────────────────────────────────────────────────────────
+function rowDesc(id){ var l=findRow(id); if(!l)return ''; return l.row.desc||(TYPE_OF[l.table]+' #'+id); }
+function renderSummary(){
+  var el=document.getElementById('summary'); if(!el)return;
+  var mark=(window.AREv2&&AREv2.getMarkHTML)?AREv2.getMarkHTML():'';
+  var o='<h2>&#128203; Schedule summary'+(mark?' <span class="badge">'+mark+'</span>':'')+'</h2>';
+  if(!results){ el.innerHTML=o+'<div class="err-box">'+xe(engineErr||'No results.')+'</div>'; return; }
+  var S=results.summary||{}, PT=S.perTable||{};
+  o+='<table class="ref-tbl"><thead><tr><th class="thl">Table</th><th>Rows</th><th>Worst D/C</th><th class="thl">Governing row</th><th>Pass</th><th>Fail</th><th>No demand</th><th>Incomplete</th><th>Invalid</th><th>Unresolved checks</th></tr></thead><tbody>';
+  function line(label,n,p,cls){ p=p||{}; var c=p.counts||{}; var w=p.worstDC; return '<tr'+(cls?' class="'+cls+'"':'')+'><td class="tdl">'+label+'</td><td>'+n+'</td><td>'+(isNum(w)?'<span class="dc '+(w>1?'bad':'ok')+'">'+w.toFixed(2)+'</span>':'—')+'</td><td class="tdl">'+(p.worstId!=null?xe(rowDesc(p.worstId)):'—')+'</td><td>'+(c.pass||0)+'</td><td'+((c.fail||0)>0?' style="color:var(--are-fail);font-weight:700"':'')+'>'+(c.fail||0)+'</td><td>'+(c.nodemand||0)+'</td><td'+((c.incomplete||0)>0?' style="color:var(--are-warn)"':'')+'>'+(c.incomplete||0)+'</td><td'+((c.invalid||0)>0?' style="color:var(--are-fail)"':'')+'>'+(c.invalid||0)+'</td><td>'+(p.unresolved||0)+'</td></tr>'; }
+  var tot=0; TABLES.forEach(function(t){ tot+=state[t].length; o+=line(TABLE_LABEL[t],state[t].length,PT[t]); });
+  if(S.total) o+=line('All tables',tot,S.total,'tot');
+  o+='</tbody></table>';
+  var eng=results.engine||WC.ENGINE;
+  o+='<div class="hint" style="margin-top:8px">Engine '+xe(eng.name||'wood-connection-schedule')+' '+xe(eng.rev||'')+' · NDS 2018 · ASD demands per fastener · fail is counted independently of D/C (a fatal geometry flag fails the row even with no demand) · "unresolved" = engineer checks printed but not computed (steel plate bearing / net section, fastener root-area tension, head pull-through where not computed).</div>';
+  el.innerHTML=o;
+}
+function renderResolved(){
+  var el=document.getElementById('hdrResolved'); if(!el)return;
+  if(!results||!results.header){ el.innerHTML=''; return; }
+  var H=results.header, sp=H.species||{}, st=H.steel||{};   // header.species = resolved {key,label,G,E,…}, header.speciesKey = the key
+  var o=' <strong>Resolved:</strong> '+xe(sp.label||SPECIES_LABEL[H.speciesKey]||H.speciesKey||'');
+  if(isNum(sp.G)) o+=' G = '+nf(sp.G,2);
+  if(isNum(sp.E)) o+=', E = '+n0(sp.E)+' psi';
+  if(isNum(st.Fe)) o+='; steel F<sub>e</sub> = '+n0(st.Fe)+' psi';
+  if(isNum(st.E)) o+=', E<sub>steel</sub> = '+n0(st.E)+' psi';
+  el.innerHTML=o+'.';
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.onload=function(){
+  var er=document.getElementById('engRev');
+  if(!haveEngine()){
+    engineErr='The engine (engines/wood-connections.js) did not load — no results.';
+    state={version:1,header:{species:'DFL'},bolts:[],nails:[],screws:[],rowCnt:0};
+    readHeaderFromDOM(); render(); return;
+  }
+  if(er&&WC.ENGINE&&WC.ENGINE.rev) er.textContent='— engine '+WC.ENGINE.rev;
+  initConsts();
+  initState();
+  writeHeaderToDOM();
+  readHeaderFromDOM();
+  recalc();
+  render();
+  if(window.AREv2&&AREv2.onMarkChange) AREv2.onMarkChange(renderSummary);
+};
+</script>
+<script src="/are-utils-v2.js" data-are-wide-default></script>
+<script>
+// ── ARE save/load adapter (Tier B, calc-state-spec.md §9) ─────────────────────
+// The schedule lives in `state.bolts/nails/screws`; #schedule is rebuilt from it,
+// so the adapter owns that subtree. The header inputs sit OUTSIDE #schedule and
+// are ordinary Tier-A fields; runAndSettle() re-reads them into state after every
+// load, so the DOM stays the single source of truth for the header.
+(function () {
+  var cfg = {
+    version: 1,
+    ownedFields: ['#schedule'],
+    schema: {
+      allowedKeys: ['version', 'header', 'bolts', 'nails', 'screws', 'rowCnt'],
+      maxDepth: 8,
+      maxNodes: 20000,
+      maxStringLength: 120,
+      // desc / notes end up in innerHTML via render(): deny < and > plus the C0
+      // control characters and DEL (built with fromCharCode so no control byte
+      // is written into this source file).
+      stringPattern: new RegExp('^[^<>' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']*$')
+    },
+    getModel: function () {
+      return {
+        version: 1,
+        bolts: JSON.parse(JSON.stringify(state.bolts)),
+        nails: JSON.parse(JSON.stringify(state.nails)),
+        screws: JSON.parse(JSON.stringify(state.screws)),
+        rowCnt: state.rowCnt
+      };
+    },
+    setModel: function (m) {
+      if (!m || typeof m !== 'object') throw new Error('Saved file contains no connection schedule.');
+      if (+m.version !== 1) throw new Error('This file was saved by a different Wood Connection Schedule format (file v' + m.version + ', calculator v1) and cannot be loaded.');
+      ['bolts', 'nails', 'screws'].forEach(function (t) {
+        if (m[t] != null && !Array.isArray(m[t])) throw new Error('Saved "' + t + '" is not a list.');
+      });
+      state.bolts = JSON.parse(JSON.stringify(m.bolts || []));
+      state.nails = JSON.parse(JSON.stringify(m.nails || []));
+      state.screws = JSON.parse(JSON.stringify(m.screws || []));
+      state.rowCnt = m.rowCnt;
+      state.version = 1;
+      sanitizeRows();          // plain-object rows, positive-integer unique ids, bolt T dropped
+      openDet = {};
+      _undoDel = null;         // a stale undo would re-insert a row from before the load
+      readHeaderFromDOM();
+      recalc();
+      render();
+    },
+    runAndSettle: function () { readHeaderFromDOM(); recalc(); render(); }
+  };
+  window.__WC_ADAPTER = cfg;
+  Object.defineProperty(window, '__WC_STATE', { get: function () { return state; } });
+  if (!window.AREv2 || !AREv2.registerAdapter) return;
+  AREv2.registerAdapter(cfg);
+})();
+</script>
+</body>
+</html>

@@ -272,3 +272,12 @@ Tolerance = half the unit of the cell's last printed digit, asserted on the unro
   status: "wip", keywords: ["wood","connection","bolt","nail","lag","wood screw","NDS","yield","withdrawal","dowel","schedule"],
   material: "Wood", calcType: "Connections", icon: "shearwall" }
 ```
+
+## 11. Amendments after implementation review (2026-09-19)
+- **K_θ for an end-grain main member = 90°** (Table 12.3.1B defines θ per member as the angle between load and grain; a lateral load on a fastener whose axis is parallel to the grain is perpendicular to that member's grain). Conservative; recorded in `cites`. C_g areas and C_Δ for that member still use the typed θ (Table 12.5.1 is written for side grain).
+- **Lag length L**: the engine accepts any L > 0 (Table L2 availability by D still enforced); a listed L takes T from Table L2, otherwise T = min(6, L/2 + 0.5) (Table L2 fn 2) with a warning. Needed so fixtures can set p_excl = 8D exactly. The UI offers the listed lengths only.
+- `main.species: null` inherits the header species (same as side).
+- Invalid / incomplete reasons ride `warnings[]` as `"Invalid: …"` / `"Incomplete: …"`.
+- `cmException` (Table 11.3.3 fn 2, no diameter restriction in the footnote) takes precedence over the D < 1/4 → 0.7 rule.
+- Withdrawal-only lag rows (Table 12.5.1E branch) do not run the §12.5.1.3 5 in spread check (that clause governs laterally loaded groups).
+- Rows that are `invalid` / `incomplete` must not contribute to the summary's unresolved-check count.

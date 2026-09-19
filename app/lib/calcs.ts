@@ -415,6 +415,19 @@ export const CALCS: CalcMeta[] = [
     calcType: "Diaphragms & Shear Walls",
     icon: "shearwall",
   },
+  {
+    slug: "wood-connection-schedule",
+    label: "Wood Connection Schedule",
+    subtitle: "NDS 2018 Ch. 12 · bolts, nails, wood screws, lags · per-project connection schedule",
+    htmlFile: "/Calcs/wood_connection_schedule_calculator.html",
+    category: "Connections",
+    spec: "NDS 2018",
+    status: "wip",
+    keywords: ["wood", "connection", "bolt", "nail", "lag", "wood screw", "NDS", "yield", "withdrawal", "dowel", "schedule"],
+    material: "Wood",
+    calcType: "Connections",
+    icon: "shearwall",
+  },
   // ── Masonry — CMU Walls (listed first) ───────────────────────
   {
     slug: "masonry-reinforced-wall-asd",
