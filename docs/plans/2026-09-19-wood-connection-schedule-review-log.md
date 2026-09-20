@@ -263,3 +263,13 @@ VERDICT: APPROVED
 Codex VERDICT: APPROVED at round 5 of 5. Plan rev 7 applies the two documentation cleanups (status/summary prose now
 references the authoritative table; Table 12.3.1A holds both shear configurations, 12.3.1B the R_d terms). Awaiting
 Nick's sign-off before any code (Act 3 = Claude + subagents per Nick's request; Fable final verification after build).
+
+## Act 3 — Build (Claude + subagents, 2026-09-19)
+Nick signed off (SDS and double-shear lags deferred to v2). Spec written by Claude (docs/superpowers/specs/2026-09-19-wood-connection-schedule-spec.md).
+Engine + fixtures (Opus) and page + adapter (Opus) built in parallel; spec-compliance reviews: both SPEC COMPLIANT; code-quality
+review: CHANGES REQUESTED (row-id injection from a saved file, stale undo after load, silent Wcap=0 fail) → fixed → APPROVED.
+Fable final verification vs the NDS 2018 PDF: SHIP with 6 low items (3D single-row width, l/D from p_tot, Table 12.2F range
+warning, edge g/2 needs rows>=2, nail p_t label, spec/code cmException wording) → all applied.
+Gates: npm run test:wc 285/285 · tools/_wc-ui-smoke.mjs 68/68 · tsc clean. Commits 9ade05a, 3ec25b5, 2c18c66 (local, not pushed).
+Spreadsheet case (16d, G 0.42, θ_s 90): engine Z 119.6 vs sheet 119.84 (F_e rounding only); the sheet's "127" is a stale typed value.
+Status wip until Nick reviews, then ready + deploy.
