@@ -725,6 +725,7 @@ function factorList(t,row,res){
   var type=TYPE_OF[t], steelSide=row.side&&row.side.mat==='steel', F=(res&&res.factors)||{};
   function why(k){
     var c=facC(F[k]); if(/^n\/a/i.test(c)) return c.replace(/^n\/a\s*/i,'').replace(/^[(\-–—:\s]+|[)\s]+$/g,'')||c;
+    if((k==='Cg'||k==='Cdelta')&&c&&isBig(row,type)) return c;   // engine could not evaluate it (e.g. s = 0): print its reason
     switch(k){
       case 'Cg': case 'Cdelta': return 'D < 1/4 in';
       case 'Ceg': return 'side grain';
@@ -770,7 +771,7 @@ function detailsHTML(t,row,res){
   o+='</table></div>';
   // lengths
   o+='<div><h4>Penetration and bearing lengths</h4><div class="kv">';
-  [['p_tot','p<sub>tot</sub> in main'],['tip_in','tip in main'],['p_excl','p excl. tip'],['l_m','l<sub>m</sub>'],['l_s','l<sub>s</sub>'],['p_t','p<sub>t</sub> (threads in main)'],['p_min','p<sub>min</sub>'],['lD','l/D (Tables 12.5.1C/D)']].forEach(function(d){ if(L[d[0]]!=null) o+='<span>'+d[1]+'</span><span>'+n3(L[d[0]])+(d[0]==='lD'?'':' in')+'</span>'; });
+  [['p_tot','p<sub>tot</sub> in main'],['tip_in','tip in main'],['p_excl','p excl. tip'],['l_m','l<sub>m</sub>'],['l_s','l<sub>s</sub>'],['p_t','p<sub>t</sub> ('+(type==='nail'?'penetration in main, &sect;12.2.3.1(c)':'threads in main')+')'],['p_min','p<sub>min</sub>'],['lD','l/D (Tables 12.5.1C/D)']].forEach(function(d){ if(L[d[0]]!=null) o+='<span>'+d[1]+'</span><span>'+n3(L[d[0]])+(d[0]==='lD'?'':' in')+'</span>'; });
   if(L.exits_main!=null) o+='<span>exits main</span><span>'+(L.exits_main?'yes (warning)':'no')+'</span>';
   o+='</div></div>';
   // yield

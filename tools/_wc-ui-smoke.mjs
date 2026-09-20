@@ -357,6 +357,18 @@ await ev((id) => updN(id, 'main.t', '1.5'), nid);
 rs = await page.evaluate((id) => document.querySelector('#schedule tbody[data-row-id="' + id + '"] .st').textContent, nid);
 check('restored nail passes again', rs === 'PASS', rs);
 
+// ── details labels / n-a reasons ─────────────────────────────────────────────
+const lbl = await page.evaluate(() => {
+  const st = window.__WC_STATE, det = (id) => document.querySelector('#schedule tbody[data-row-id="' + id + '"] tr.wc-det').innerText;
+  return { nail: det(st.nails[0].id), lag: det(st.screws[0].id) };
+});
+check('p_t is labelled "penetration in main" for nails and "threads in main" for lags', /p_?t \(penetration in main/i.test(lbl.nail.replace(/\s+/g, ' ')) && /p_?t \(threads in main\)/i.test(lbl.lag.replace(/\s+/g, ' ')), JSON.stringify({ nail: lbl.nail.match(/p.?t \([^)]*\)/i), lag: lbl.lag.match(/p.?t \([^)]*\)/i) }));
+const bg = await page.evaluate(() => window.__WC_STATE.bolts[0].id);
+await ev((id) => { updN(id, 'n', '2'); updN(id, 's', '0'); }, bg);
+const cg = await page.evaluate((id) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + id + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.bolts[0]; return { cite: r.factors.Cg.cite, v: r.factors.Cg.v, fac: tb.querySelector('.wc-fac').innerText.replace(/\s+/g, ' '), det: tb.querySelector('tr.wc-det').innerText.replace(/\s+/g, ' ') }; }, bg);
+check('C_g null with an engine reason on a D ≥ 1/4 row prints that reason, not "D < 1/4 in"', cg.v === null && cg.cite.length > 0 && cg.fac.indexOf(cg.cite) >= 0 && cg.det.indexOf(cg.cite) >= 0 && cg.fac.indexOf('D < 1/4 in') < 0, JSON.stringify(cg).slice(0, 400));
+await ev((id) => { updN(id, 's', '2'); updN(id, 'n', '1'); }, bg);
+
 // ── print media ──────────────────────────────────────────────────────────────
 await page.emulateMedia({ media: 'print' });
 const pr = await page.evaluate(() => ({

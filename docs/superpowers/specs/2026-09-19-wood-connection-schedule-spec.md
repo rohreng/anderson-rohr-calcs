@@ -278,6 +278,10 @@ Tolerance = half the unit of the cell's last printed digit, asserted on the unro
 - **Lag length L**: the engine accepts any L > 0 (Table L2 availability by D still enforced); a listed L takes T from Table L2, otherwise T = min(6, L/2 + 0.5) (Table L2 fn 2) with a warning. Needed so fixtures can set p_excl = 8D exactly. The UI offers the listed lengths only.
 - `main.species: null` inherits the header species (same as side).
 - Invalid / incomplete reasons ride `warnings[]` as `"Invalid: …"` / `"Incomplete: …"`.
-- `cmException` (Table 11.3.3 fn 2, no diameter restriction in the footnote) takes precedence over the D < 1/4 → 0.7 rule.
+- `cmException` is honored only for nominal D ≥ 1/4 in (the UI renders it only then); a D < 1/4 fastener under (wet, dry) always gets C_M = 0.7 — the conservative reading of Table 11.3.3 fn 2.
+- §11.3.6.3 single-row width for a ⊥-loaded member = 3D (Table 12.5.1B minimum ∥ spacing), per Fable's final verification.
+- l/D for Tables 12.5.1C/D uses the fastener length in the wood main member (p_tot) for nails/screws/lags, t_m for bolts (fn 1).
+- Head pull-through outside the Table 12.2F t_ns range (5/16–1-1/2 in) is computed from Eq. 12.2-6 with a warning.
+- The ∥ edge-distance "½ row spacing" term (Table 12.5.1C, l/D > 6) applies only when rows ≥ 2.
 - Withdrawal-only lag rows (Table 12.5.1E branch) do not run the §12.5.1.3 5 in spread check (that clause governs laterally loaded groups).
 - Rows that are `invalid` / `incomplete` must not contribute to the summary's unresolved-check count.

@@ -529,7 +529,7 @@
     var lD = null;
     if (geomActive) {
       var cands = [];
-      if (M.mat === 'wood') cands.push(Lg.l_m);
+      if (M.mat === 'wood') cands.push(kind === 'bolt' ? Lg.l_m : Lg.p_tot);   // Table 12.5.1C/D fn 1: length of fastener in the wood main member (p_tot; bolts t_m)
       if (S.mat === 'wood') cands.push(doubleShear ? 2 * ts : ts);
       lD = cands.length ? Math.min.apply(null, cands) / D : null;
     }
@@ -561,7 +561,7 @@
         } else {
           var hw = m.hardwood;
           gm.endFull = m.towardEnd ? (hw ? 5 : 7) * D : 4 * D; gm.endHalf = m.towardEnd ? (hw ? 2.5 : 3.5) * D : 2 * D;
-          gm.edgeMin = lD <= 6 ? 1.5 * D : Math.max(1.5 * D, g / 2); gm.rowMin = 1.5 * D;
+          gm.edgeMin = (lD <= 6 || rows < 2) ? 1.5 * D : Math.max(1.5 * D, g / 2); gm.rowMin = 1.5 * D;   // Table 12.5.1C: "½ the spacing between rows" needs two rows
           if (m.edgeDist < gm.edgeMin - 1e-9) R.flags.push('geom_edge');
           if (rows >= 2 && g < gm.rowMin - 1e-9) R.flags.push('geom_row');
           if (m.endDist < gm.endHalf - 1e-9) R.flags.push('geom_end'); else ratios.push(m.endDist / gm.endFull);
@@ -606,7 +606,7 @@
     var Cg = 1.0, cg = null;
     function memberArea(m) {
       if (m.mat === 'steel') return m.t * m.w;
-      if (m.theta === 90) return m.t * (rows >= 2 ? (rows - 1) * g : 4 * D);
+      if (m.theta === 90) return m.t * (rows >= 2 ? (rows - 1) * g : 3 * D);   // §11.3.6.3: single row → minimum ∥-to-grain spacing = 3D (Table 12.5.1B)
       return m.t * m.w;
     }
     if (geomActive) {
@@ -617,8 +617,9 @@
         Cg = cg.Cg;
       } else cg = { Cg: 1, n: n, note: 'n = 1 → C_g = 1.0' };
       cg.Am = Am; cg.As = As; cg.Em = M.E; cg.Es = S.E;
-      if (M.mat === 'wood' && M.theta === 90) cg.wGroupMain = rows >= 2 ? (rows - 1) * g : 4 * D;
-      if (S.mat === 'wood' && S.theta === 90) cg.wGroupSide = rows >= 2 ? (rows - 1) * g : 4 * D;
+      if (M.mat === 'wood' && M.theta === 90) cg.wGroupMain = rows >= 2 ? (rows - 1) * g : 3 * D;
+      if (S.mat === 'wood' && S.theta === 90) cg.wGroupSide = rows >= 2 ? (rows - 1) * g : 3 * D;
+      if ((M.mat === 'wood' && M.theta === 90) || (S.mat === 'wood' && S.theta === 90)) cg.wGroupCite = rows >= 2 ? '§11.3.6.3: ⊥-loaded member area = t × overall width of the group, (rows − 1)·g' : '§11.3.6.3: single row → t × minimum ∥-to-grain spacing 3D (Table 12.5.1B)';
     } else { M.A = null; S.A = null; }
 
     // ── adjustment factors ───────────────────────────────────────────────────
@@ -655,6 +656,7 @@
       R.cites.push(wkind === 'lag' ? 'Eq. 12.2-1 W = 1800·G^1.5·D^0.75 (lb/in of thread penetration, tip excluded §12.2.1.2)' : wkind === 'wood' ? 'Eq. 12.2-2 W = 2850·G²·D (lb/in of thread penetration §12.2.2.2)' : 'Eq. 12.2-3 W = 1380·G^2.5·D (lb/in of fastener penetration §12.2.3.1(c))');
       if (wkind !== 'lag' && S.mat === 'wood' && isNum(DH)) {
         var pt = pullThrough(DH, S.G, ts);
+        if (ts < 5 / 16 - 1e-9 || ts > 1.5 + 1e-9) R.warnings.push('head pull-through outside Table 12.2F range (t_ns 5/16–1-1/2 in); Eq. 12.2-6 extrapolated');
         cap.WH = pt.WH; cap.WHp = pt.WH * I.CD * cmH.v * Ct; I.WH_eq = pt.eq; Lg.t_ns = ts;
         R.cites.push('§12.2.5.1 Eq. ' + pt.eq + ', D_H = ' + DH + ' in (Table ' + (kind === 'nail' ? 'L4' : 'L3') + '), t_ns = t_s; W\'_H = W_H·C_D·C_M·C_t (Table 11.3.1)');
         if (cap.WHp < cap.Wcap) { cap.Wcap = cap.WHp; cap.withdrawalGov = 'pull-through'; }
@@ -1025,11 +1027,30 @@
     fx('⊥ main rows 2: u = 1.023724, m = 0.804609, R_EA = 0.785714', m, near(r.factors.Cg.detail.u, 1.023724, 1e-5) && near(r.factors.Cg.detail.m, 0.804609, 1e-5) && near(r.factors.Cg.detail.REA, 0.785714, 1e-5), true);
     fx('⊥ main rows 2: C_g = 0.98431', m, r.factors.Cg.v, 0.984311, 1e-5);
     fx('⊥ main rows 2: row spacing g = 3 ≥ min (l/D = 2 → 2.5D = 1.875), spread 6 in noted (shrinkDetail), status pass', m, r.status === 'pass' && r.flags.length === 0 && near(r.factors.Cdelta.detail.members[0].spread, 6, 1e-9) && r.notes.some(function (x) { return x.indexOf('shrinkage') >= 0; }), true);
-    // rows = 1 with D 1/2: w_group = 4D = 2 → A_m = 3.5·2 = 7; side 8.25; n 2, s 2: γ = 180000·0.5^1.5 = 63,640; u = 1.010503; m = 0.865187; R_EA 0.848485; C_g = 0.99915.
+    // rows = 1 with D 1/2: w_group = 3D = 1.5 (§11.3.6.3 minimum ∥-to-grain spacing, Table 12.5.1B) → A_m = 3.5·1.5 = 5.25; side 8.25; n 2, s 2:
+    // γ = 180000·0.5^1.5 = 63,640; E_mA_m = 8.4e6, E_sA_s = 1.32e7, R_EA = 0.636364; u = 1 + 63640·1·(1/8.4e6 + 1/1.32e7) = 1.012397; m = 0.854447; C_g = 0.99729.
     r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 90, 0), { n: 2, rows: 1, s: 2, main: { w: 9.25, loadedEdgeDist: 2, edgeDist: 0.75, endDist: 2 } }), DFL);
-    m = { table: 'hand (§11.3.6.3 ⊥ member, rows = 1)', cell: '1/2 bolt, main ⊥ rows 1 → w_group = 4D = 2', inputs: r.inputs };
-    fx('⊥ main rows 1: A_m = t·4D = 7', m, r.members.main.A, 7, 1e-9);
-    fx('⊥ main rows 1: C_g = 0.99915 (u 1.010503, m 0.865187)', m, near(r.factors.Cg.v, 0.999149, 1e-5) && near(r.factors.Cg.detail.m, 0.865187, 1e-5), true);
+    m = { table: 'hand (§11.3.6.3 ⊥ member, rows = 1)', cell: '1/2 bolt, main ⊥ rows 1 → w_group = 3D = 1.5', inputs: r.inputs };
+    fx('⊥ main rows 1: A_m = t·3D = 5.25', m, r.members.main.A, 5.25, 1e-9);
+    fx('⊥ main rows 1: C_g = 0.99729 (u 1.012397, m 0.854447, R_EA 0.636364)', m, near(r.factors.Cg.v, 0.997286, 1e-5) && near(r.factors.Cg.detail.m, 0.854447, 1e-5) && near(r.factors.Cg.detail.REA, 0.636364, 1e-5), true);
+    fx('⊥ main rows 1: wGroupMain 1.5 and the 3D cite recorded', m, near(r.factors.Cg.detail.wGroupMain, 1.5, 1e-12) && /3D/.test(r.factors.Cg.detail.wGroupCite), true);
+    // (4) ∥ edge with l/D > 6 and a single row: no g/2 term — 1/2 bolt 3.5/3.5 (l/D 7), rows 1, edge 0.8 ≥ 1.5D = 0.75 → pass.
+    r = run('bolt', merge(boltRow(0.5, 3.5, 3.5, 0, 0), { rows: 1, g: 2, main: { edgeDist: 0.8 }, side: { edgeDist: 0.8 } }), DFL);
+    fx('∥ l/D = 7, rows 1: edge min 1.5D only (no g/2), 0.8 passes', { table: 'Table 12.5.1C', cell: '∥ l/D > 6, single row' }, r.status === 'pass' && near(r.factors.Cdelta.detail.members[0].edgeMin, 0.75, 1e-12), true);
+    // (2) l/D for non-bolts uses p_tot (fn 1 "length of fastener in wood main member"): 1/2 lag L 4.5625 through 1/4 A36 → p_tot 4.3125 → l/D = 8.625 (l_m would give 8.3125).
+    r = run('screw', lagSteel(0.5, 4.5625, 'plate', 0), DFL);
+    fx('lag l/D = p_tot/D = 8.625 (steel side excluded)', { table: 'Table 12.5.1C/D fn 1', cell: '' }, r.lengths.lD, 8.625, 1e-9);
+    r = run('screw', lagRow(0.5, 5.8125, 1.5, 0, 0), DFL);
+    fx('lag with wood side: l/D = min(p_tot 4.3125, t_s 1.5)/D = 3', { table: 'Table 12.5.1C/D fn 1', cell: '' }, r.lengths.lD, 3, 1e-9);
+    r = run('bolt', boltRow(0.5, 3.5, 1.5, 0, 0), DFL);
+    fx('bolt l/D = min(t_m, t_s)/D = 3 (unchanged)', { table: 'Table 12.5.1C/D fn 1', cell: '' }, r.lengths.lD, 3, 1e-9);
+    // (3) Table 12.2F range: t_ns outside 5/16–1-1/2 → warning, value still computed.
+    r = run('nail', nailRow('10d', 0.25, { T: 5 }), DFL);
+    fx('pull-through t_ns 1/4 < 5/16 → range warning, W_H still computed (Eq. 12.2-6a)', { table: '§12.2.5.1 / Table 12.2F', cell: 't_ns 1/4' }, isNum(r.capacity.WH) && r.warnings.some(function (x) { return x.indexOf('outside Table 12.2F range') >= 0; }), true);
+    r = run('nail', nailRow('20d', 2.0, { T: 5 }), DFL);
+    fx('pull-through t_ns 2 > 1-1/2 → range warning, W_H computed (Eq. 12.2-6b)', { table: '§12.2.5.1 / Table 12.2F', cell: 't_ns 2' }, isNum(r.capacity.WH) && r.warnings.some(function (x) { return x.indexOf('outside Table 12.2F range') >= 0; }), true);
+    r = run('nail', nailRow('10d', 1, { T: 5 }), DFL);
+    fx('pull-through t_ns 1 in range → no warning', { table: 'Table 12.2F', cell: 't_ns 1' }, !r.warnings.some(function (x) { return x.indexOf('12.2F') >= 0; }), true);
 
     // ── 9. Branch matrix ──────────────────────────────────────────────────────
     // I_m governs: 1/2 bolt DFL, t_m 0.5, t_s 1.5 ∥: I_m = 0.5·0.5·5600/4 = 350; II = k1(R_t 1/3 → 0.33333)·0.5·1.5·5600/3.6 = 388.9; III_m = 507.5.
