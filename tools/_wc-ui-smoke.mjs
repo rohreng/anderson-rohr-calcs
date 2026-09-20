@@ -99,8 +99,8 @@ const aw = await page.evaluate(() => {
 });
 check('bolt row: no T, has n/s/endDist/w/shear/mainSteel, no toe-nail, no loaded edge at θ=0',
   !aw.boltT && aw.boltN && aw.boltS && aw.boltEnd && aw.boltW && aw.boltShear && aw.boltMainSteel && !aw.boltToe && !aw.boltLoaded, JSON.stringify(aw));
-check('nail row: has T/toe-nail/diaphragm/penny, no n/w/endDist, shows an n/a chip',
-  aw.nailT && aw.nailToe && aw.nailDia && aw.nailPenny && !aw.nailN && !aw.nailW && !aw.nailEnd && aw.nailNA, JSON.stringify(aw));
+check('nail row (v1.2): has T/toe-nail/diaphragm/penny, n and endDist (pattern + advisory spacing), no w (C_g only), shows an n/a chip',
+  aw.nailT && aw.nailToe && aw.nailDia && aw.nailPenny && aw.nailN && !aw.nailW && aw.nailEnd && aw.nailNA, JSON.stringify(aw));
 check('lag row: has T, n, D, L, s, side endDist', aw.lagT && aw.lagN && aw.lagD && aw.lagL && aw.lagS && aw.lagEnd, JSON.stringify(aw));
 check('seeded 1/2 in bolt geometry defaults 4D/1.5D/7D/1.5D', aw.boltGeom.D === 0.5 && aw.boltGeom.s === 2 && aw.boltGeom.g === 0.75 && aw.boltGeom.end === 3.5 && aw.boltGeom.edge === 0.75, JSON.stringify(aw.boltGeom));
 check('seeded 1/2 x 4 lag geometry defaults', aw.lagGeom.s === 2 && aw.lagGeom.g === 0.75 && aw.lagGeom.end === 3.5 && aw.lagGeom.edge === 0.75 && aw.lagGeom.le === 2, JSON.stringify(aw.lagGeom));
@@ -170,8 +170,8 @@ check('back to one bolt', ops.join(',') === String(b0), ops.join(','));
 
 // ── details toggle ───────────────────────────────────────────────────────────
 await page.click('#schedule tbody[data-row-id="' + b0 + '"] button.det');
-let det = await page.evaluate((id) => { const tr = document.querySelector('#schedule tbody[data-row-id="' + id + '"] tr.wc-det'); return { hidden: tr.hasAttribute('hidden'), text: tr.innerText.length, hasModes: tr.innerText.indexOf('Yield modes') >= 0 && tr.innerText.indexOf('Adjustment factors') >= 0 }; }, b0);
-check('details toggle reveals the block with yield modes and factor chain', !det.hidden && det.hasModes, JSON.stringify(det));
+let det = await page.evaluate((id) => { const tr = document.querySelector('#schedule tbody[data-row-id="' + id + '"] tr.wc-det'); return { hidden: tr.hasAttribute('hidden'), text: tr.innerText.length, hasModes: /yield mode/i.test(tr.innerText) && tr.innerText.indexOf('Adjustment factors') >= 0 && tr.innerText.indexOf('Lateral') >= 0 }; }, b0);
+check('details toggle reveals the block with the yield modes (Lateral) and the factor chain', !det.hidden && det.hasModes, JSON.stringify(det));
 await page.click('#schedule tbody[data-row-id="' + b0 + '"] button.det');
 det = await page.evaluate((id) => document.querySelector('#schedule tbody[data-row-id="' + id + '"] tr.wc-det').hasAttribute('hidden'), b0);
 check('details toggle hides it again', det === true, '');
@@ -191,7 +191,7 @@ cp = await page.evaluate(() => ({ D: window.__WC_STATE.screws[0].D, L: window.__
 check('lag 3/4 with L 1.5 (not in Table L2) bumps L to the first available length (3) and filters the L options', cp.D === 0.75 && cp.L === 3 && cp.opts.indexOf('1.5') < 0 && cp.opts.indexOf('3') >= 0, JSON.stringify(cp));
 await ev((id) => updSel(id, 'screwType', 'wood'), lagId);
 cp = await page.evaluate(() => { const r = window.__WC_STATE.screws[0]; return { t: r.screwType, no: r.no, L: r.L, hasN: !!document.getElementById('wc_' + r.id + '_n'), hasNo: !!document.getElementById('wc_' + r.id + '_no') }; });
-check('screw → wood: No. present, n/rows hidden', cp.t === 'wood' && cp.no === 10 && cp.hasNo && !cp.hasN, JSON.stringify(cp));
+check('screw → wood: No. present, n still rendered (v1.2: n / rows for every type)', cp.t === 'wood' && cp.no === 10 && cp.hasNo && cp.hasN, JSON.stringify(cp));
 await ev((id) => updSel(id, 'screwType', 'lag'), lagId);
 cp = await page.evaluate(() => { const r = window.__WC_STATE.screws[0]; return { t: r.screwType, D: r.D, L: r.L, s: r.s, n: r.n, hasN: !!document.getElementById('wc_' + r.id + '_n') }; });
 check('screw → lag: D/L restored, geometry reset to defaults for that D, n visible', cp.t === 'lag' && cp.D === 0.75 && cp.s === 3 && cp.n === 1 && cp.hasN, JSON.stringify(cp));
@@ -372,7 +372,7 @@ await ev((id) => { updN(id, 's', '2'); updN(id, 'n', '1'); }, bg);
 
 // ── v1.1: intermediate load angle + staggered rows ───────────────────────────
 const v11 = await page.evaluate(() => window.WC.ENGINE.rev);
-check('engine rev is 2026-09-19 v1.1', v11 === '2026-09-19 v1.1', v11);
+check('engine rev is 2026-09-20 v1.2', v11 === '2026-09-20 v1.2', v11);
 const ab = await page.evaluate(() => window.__WC_STATE.bolts[0].id);
 let an = await page.evaluate((id) => ({ isNumber: document.getElementById('wc_' + id + '_main_theta').type === 'number', q0: !!document.getElementById('wc_' + id + '_main_theta_0'), q90: !!document.getElementById('wc_' + id + '_main_theta_90'), loaded: !!document.getElementById('wc_' + id + '_main_loadedEdgeDist'), label: document.querySelector('label:has(#wc_' + id + '_main_theta) > span').innerText }), ab);
 check('θ is a numeric input with 0° / 90° quick buttons, loaded edge hidden at θ = 0', an.isNumber && an.q0 && an.q90 && !an.loaded && /θ load to grain/.test(an.label), JSON.stringify(an));
@@ -413,6 +413,151 @@ check('unchecking stagger removes the offset input and the row is valid again', 
 await ev((id) => { updN(id, 'n', '1'); updN(id, 'rows', '1'); updN(id, 's', '2'); updN(id, 'main.theta', '0'); }, ab);
 const bad2 = await page.evaluate(() => { const a = window.__WC_ADAPTER, keep = JSON.stringify(a.getModel()); const m = JSON.parse(keep); m.bolts[0].stagger = 'yes'; m.bolts[0].offset = 'x'; a.setModel(m); const b = a.getModel().bolts[0]; const out = { stagger: b.stagger, offset: b.offset }; a.setModel(JSON.parse(keep)); return out; });
 check('sanitizeRows coerces stagger to a boolean and a non-numeric offset to null', bad2.stagger === true && bad2.offset === null, JSON.stringify(bad2));
+
+// ── v1.2: Simpson Fastener Designer parity (spec §13) ────────────────────────
+const nid2 = await page.evaluate(() => window.__WC_STATE.nails[0].id);
+const bid2 = await page.evaluate(() => window.__WC_STATE.bolts[0].id);
+const lid2 = await page.evaluate(() => window.__WC_STATE.screws[0].id);
+const txt = (s) => s.replace(/\s+/g, ' ').trim();
+await ev((id) => { updSel(id, 'D', '0.5'); updSel(id, 'L', '4'); }, lid2);   // back to the seeded 1/2 × 4 lag (2x to 4x, V 200 / T 100)
+await ev((id) => updN(id, 'main.theta', '0'), nid2);                          // the θ test above left the nail at 90 (s default 10D); back to ∥
+// open the three details rows: innerText of a hidden row carries no cell separators
+await page.evaluate(({ b, n, l }) => [b, n, l].forEach((id) => { if (!openDet[id]) toggleDet(id); }), { b: bid2, n: nid2, l: lid2 });
+// 13.1 labels + tooltips, member block names and the §13.6 group order
+const lb = await page.evaluate(({ n, b }) => {
+  const lab = (id, p) => { const el = document.getElementById('wc_' + id + '_' + p); const l = el && el.closest('label'); return l ? { text: l.querySelector('span').innerText, title: l.getAttribute('title') || '', inTitle: el.getAttribute('title') || '' } : null; };
+  const grps = (id) => [...document.querySelectorAll('#schedule tbody[data-row-id="' + id + '"] tr.wc-in .wc-grp-t')].map((e) => e.textContent.trim());   // textContent: the CSS uppercases
+  return { nt: lab(n, 'main_t'), st: lab(n, 'side_t'), bw: lab(b, 'main_w'), nw: !!document.getElementById('wc_' + n + '_main_w'), grpsN: grps(n), grpsB: grps(b) };
+}, { n: nid2, b: bid2 });
+check('t / w labels read "t — along fastener (in)" / "w — across fastener (in)" with the ledger tooltip on t',
+  lb.nt && /^t — along fastener \(in\)$/.test(lb.nt.text) && /ledger/.test(lb.nt.title) && /3\.5 for a 2x4/.test(lb.nt.inTitle) && lb.st && /along fastener/.test(lb.st.text) && lb.bw && /^w — across fastener \(in\)$/.test(lb.bw.text) && /C_g/.test(lb.bw.title) && !lb.nw, JSON.stringify(lb));
+check('input groups in the FD order: Fastener · Load · Side Member A · Main Member B · Pattern · Factors',
+  lb.grpsN.length === 6 && /^Fastener$/.test(lb.grpsN[0]) && /^Load/.test(lb.grpsN[1]) && /^Side Member A/.test(lb.grpsN[2]) && /^Main Member B$/.test(lb.grpsN[3]) && /^Pattern$/.test(lb.grpsN[4]) && /^Factors/.test(lb.grpsN[5]) && lb.grpsB.join('|') === lb.grpsN.join('|'), JSON.stringify(lb.grpsN));
+// 13.2 summary columns, qty, demand basis toggle
+const sc = await page.evaluate(({ n }) => {
+  const sec = document.querySelector('#schedule section[data-table="nails"]');
+  const ths = [...sec.querySelectorAll('thead th')].map((e) => e.textContent.trim());
+  const tb = sec.querySelector('tbody[data-row-id="' + n + '"]');
+  const st = window.__WC_STATE.nails[0], r = window.WC.compute(window.__WC_STATE).tables.nails[0];
+  return { ths, qty: tb.querySelector('td.wc-c-qty').innerText, vtot: tb.querySelector('td.wc-c-vtot').innerText, ttot: tb.querySelector('td.wc-c-ttot').innerText, ztot: tb.querySelector('td.wc-c-ztot').innerText, wtot: tb.querySelector('td.wc-c-wtot').innerText,
+    n: st.n, rows: st.rows, V: st.V, basis: st.demandBasis, rq: r.demand.qty, rVt: r.demand.V_total, rZt: r.capacity.Z_total, rZp: r.capacity.Zp,
+    hasV: !!document.getElementById('wc_' + n + '_V'), hasVt: !!document.getElementById('wc_' + n + '_V_total'), roVt: (document.getElementById('wc_' + n + '_V_total_ro') || {}).innerText, roV: !!document.getElementById('wc_' + n + '_V_ro'),
+    segPer: document.getElementById('wc_' + n + '_demandBasis_per').classList.contains('on'), segTot: document.getElementById('wc_' + n + '_demandBasis_total').classList.contains('on'),
+    boltThs: [...document.querySelectorAll('#schedule section[data-table="bolts"] thead th')].map((e) => e.textContent.trim()) };
+}, { n: nid2 });
+check('summary columns: # · Description · Fastener · qty · V_total · T_total · Z_total · W_total · D/C · Status (bolts drop T_total / W_total)',
+  sc.ths.join('|') === '#|Description|Fastener|qty|Vtotal (lb)|Ttotal (lb)|Ztotal (lb)|Wtotal (lb)|D/C|Status|' && sc.boltThs.join('|') === '#|Description|Fastener|qty|Vtotal (lb)|Ztotal (lb)|D/C|Status|', JSON.stringify([sc.ths, sc.boltThs]));
+check('seeded nail: qty 2 (n 2 × rows 1), V_total = V·qty = 200 in the summary row and the read-only chip, Z_total = qty·Z′ from the engine',
+  sc.qty === '2' && sc.n === 2 && sc.rows === 1 && sc.V === 100 && sc.rq === 2 && sc.rVt === 200 && sc.vtot === '200' && /= 200 lb \(100 × 2\)/.test(txt(sc.roVt)) && Math.abs(sc.rZt - 2 * sc.rZp) < 1e-9 && sc.ztot.replace(/,/g, '') === String(Math.round(sc.rZt)), JSON.stringify(sc));
+check('per-fastener mode: V input editable, V_total absent (read-only chip instead), segmented toggle lit on "per fastener"',
+  sc.basis === 'per' && sc.hasV && !sc.hasVt && !sc.roV && sc.segPer && !sc.segTot, JSON.stringify(sc));
+const dcBefore = await page.evaluate(() => window.WC.compute(window.__WC_STATE).tables.nails[0].demand.dc);
+await page.click('#wc_' + nid2 + '_demandBasis_total');
+await tick();
+let tg = await page.evaluate(({ n }) => {
+  const st = window.__WC_STATE.nails[0], r = window.WC.compute(window.__WC_STATE).tables.nails[0];
+  return { basis: st.demandBasis, Vt: st.V_total, Tt: st.T_total, hasV: !!document.getElementById('wc_' + n + '_V'), hasVt: !!document.getElementById('wc_' + n + '_V_total'), vtVal: (document.getElementById('wc_' + n + '_V_total') || {}).value, roV: (document.getElementById('wc_' + n + '_V_ro') || {}).innerText, rV: r.demand.V, rVt: r.demand.V_total, dc: r.demand.dc, segTot: document.getElementById('wc_' + n + '_demandBasis_total').classList.contains('on'), vtot: document.querySelector('#schedule tbody[data-row-id="' + n + '"] td.wc-c-vtot').innerText };
+}, { n: nid2 });
+check('toggle → total: V_total input (200) editable, V read-only "= 100 lb each of 2", engine V 100, D/C unchanged',
+  tg.basis === 'total' && tg.Vt === 200 && tg.Tt === 0 && !tg.hasV && tg.hasVt && tg.vtVal === '200' && /= 100 lb each of 2/.test(txt(tg.roV)) && tg.rV === 100 && tg.rVt === 200 && Math.abs(tg.dc - dcBefore) < 1e-12 && tg.segTot && tg.vtot === '200', JSON.stringify(tg));
+await ev((id) => updN(id, 'V_total', '400', true), nid2);
+tg = await page.evaluate(({ n }) => { const r = window.WC.compute(window.__WC_STATE).tables.nails[0]; return { rV: r.demand.V, dc: r.demand.dc, roV: (document.getElementById('wc_' + n + '_V_ro') || {}).innerText, vtot: document.querySelector('#schedule tbody[data-row-id="' + n + '"] td.wc-c-vtot').innerText }; }, { n: nid2 });
+check('live-typed V_total 400 → per-fastener chip "= 200 lb each of 2", summary V_total 400, D/C doubles (patchLive, no rebuild)',
+  tg.rV === 200 && Math.abs(tg.dc - 2 * dcBefore) < 1e-12 && /= 200 lb each of 2/.test(txt(tg.roV)) && tg.vtot === '400', JSON.stringify(tg));
+await page.click('#wc_' + nid2 + '_demandBasis_per');
+await tick();
+tg = await page.evaluate(({ n }) => { const st = window.__WC_STATE.nails[0]; return { basis: st.demandBasis, V: st.V, hasV: !!document.getElementById('wc_' + n + '_V'), roVt: (document.getElementById('wc_' + n + '_V_total_ro') || {}).innerText }; }, { n: nid2 });
+check('toggle back → per: V = V_total / qty = 200, V input back, V_total chip "= 400 lb (200 × 2)"', tg.basis === 'per' && tg.V === 200 && tg.hasV && /= 400 lb \(200 × 2\)/.test(txt(tg.roVt)), JSON.stringify(tg));
+await ev((id) => updN(id, 'V', '100'), nid2);
+// 13.5 details order + section content
+const dord = await page.evaluate(({ b, n, l }) => {
+  const h4 = (id) => [...document.querySelectorAll('#schedule tbody[data-row-id="' + id + '"] tr.wc-det .wc-d h4')].map((e) => e.innerText.replace(/\s+/g, ' ').trim());
+  const det = (id) => document.querySelector('#schedule tbody[data-row-id="' + id + '"] tr.wc-det').innerText.replace(/\s+/g, ' ');
+  return { b: h4(b), n: h4(n), l: h4(l), nt: det(n), lt: det(l), bt: det(b) };
+}, { b: bid2, n: nid2, l: lid2 });
+const ORDER = ['Fastener properties', 'Adjustment factors', 'Penetration', 'Fastener pattern', 'Minimum spacing requirements', 'Withdrawal', 'Lateral', 'Combined loading', 'Notes, engineer checks'];
+const inOrder = (h) => ORDER.every((t, i) => h[i] && h[i].indexOf(t) === 0);
+check('details sections in the §13.5 order for bolt, nail and lag (Fastener properties → … → Combined → Notes)', inOrder(dord.b) && inOrder(dord.n) && inOrder(dord.l), JSON.stringify(dord.b));
+check('Fastener properties prints D_H for the nail, "—" for the lag head, coating "—", F_yb with its source', /D_?H.*0\.344 in/.test(dord.nt) && /DH \(head\) — hex head/.test(dord.lt) && /coating — no product data/.test(dord.nt) && /Fyb 90,000 psi Table I1/.test(dord.nt), dord.nt.slice(0, 400));
+check('Withdrawal and Lateral sections end with W_total / Z_total and a "Demand / Resistance" percentage (lag V 200 / T 100: three percentages incl. combined); nail T = 0 prints "—" for withdrawal',
+  /Wtotal = qty × Wcap [\d,]+ lb/.test(dord.lt) && /Ztotal = qty × Z′ [\d,]+ lb/.test(dord.lt) && (dord.lt.match(/Demand \/ Resistance [\d.]+ %/g) || []).length === 3 && /Wtotal = qty × Wcap [\d,]+ lb demand T per fastener \/ Ttotal 0 \/ 0 lb Demand \/ Resistance —/.test(dord.nt), dord.lt.slice(dord.lt.indexOf('Withdrawal'), dord.lt.indexOf('Withdrawal') + 900));
+check('Combined section shows α, the equation (12.4-1 for the lag), Z′_α, the combined demand and its percentage; D/C governing line', /α = atan\(T \/ V\) 26\.6°/.test(dord.lt) && /Eq\. 12\.4-1/.test(dord.lt) && /Z′α [\d,]+ lb/.test(dord.lt) && /√\(V² \+ T²\) per fastener 224 lb/.test(dord.lt) && /D\/C governing [\d.]+ — PASS/.test(dord.lt), dord.lt.slice(-700));
+check('Combined section on a bolt reads n/a (no withdrawal)', /Combined loading[^]*n\/a — no withdrawal on bolts/.test(dord.bt), dord.bt.slice(-300));
+// 13.3 minimum spacing requirements table — bolt (hard minima) and nail (advisory)
+const spB = await page.evaluate(({ b }) => {
+  const h = [...document.querySelectorAll('#schedule tbody[data-row-id="' + b + '"] tr.wc-det .wc-d h4')].find((e) => /Minimum spacing/.test(e.innerText));
+  const tbl = h.parentElement.querySelector('table');
+  const rows = [...tbl.querySelectorAll('tr')].slice(1).map((tr) => [...tr.querySelectorAll('td')].map((td) => td.innerText.replace(/\s+/g, ' ').trim()));
+  const r = window.WC.compute(window.__WC_STATE).tables.bolts[0];
+  return { basis: h.parentElement.querySelector('.cite').innerText, rows, sr: r.spacingReq, oks: tbl.querySelectorAll('td.ok').length, warns: tbl.querySelectorAll('td.warn').length, bads: tbl.querySelectorAll('td.bad').length };
+}, { b: bid2 });
+const LINES = ['spacing in a row, ∥ to grain a1', 'spacing in a row, ⊥ to grain a2', 'end distance, loaded end', 'end distance, unloaded end', 'edge distance, loaded edge', 'edge distance, unloaded edge', 'between rows, in-line', 'between rows, staggered'];
+const firstCells = spB.rows.map((r) => r[0]);
+check('bolt spacing table: basis line Table 12.5.1A–D, all 8 requirement lines present in order, required values from result.spacingReq (a1 2.0, end loaded 3.5, edge unloaded 0.75, rows 0.75)',
+  /Table 12\.5\.1A/.test(spB.basis) && LINES.every((l, i) => firstCells.some((c) => c.indexOf(l) === 0)) && LINES.map((l) => firstCells.findIndex((c) => c.indexOf(l) === 0)).every((v, i, a) => i === 0 || v > a[i - 1])
+  && spB.rows.find((r) => r[0].indexOf(LINES[0]) === 0)[1].indexOf('2.000 in') === 0 && spB.rows.find((r) => r[0].indexOf(LINES[2]) === 0)[1].indexOf('3.500 in') === 0 && spB.rows.find((r) => r[0].indexOf(LINES[5]) === 0)[1].indexOf('0.750 in') === 0 && spB.rows.find((r) => r[0].indexOf(LINES[6]) === 0)[1].indexOf('0.750 in') === 0, JSON.stringify(spB.rows));
+check('bolt spacing table: main / side end + edge checks filed under their lines with actual and ✓ (4 checks, 0 ⚠, 0 ✗), the hard minimum printed beside the C_Δ = 1.0 value',
+  spB.sr.checks.length === 4 && spB.oks === 4 && spB.warns === 0 && spB.bads === 0 && spB.rows.some((r) => r[0].indexOf(LINES[2]) === 0 && /main end distance/.test(r[0]) && /\(min 1\.750\)/.test(r[1]) && r[2] === '3.500 in'), JSON.stringify(spB.rows));
+const spN = await page.evaluate(({ n }) => {
+  const h = [...document.querySelectorAll('#schedule tbody[data-row-id="' + n + '"] tr.wc-det .wc-d h4')].find((e) => /Minimum spacing/.test(e.innerText));
+  const tbl = h.parentElement.querySelector('table');
+  const r = window.WC.compute(window.__WC_STATE).tables.nails[0], st = window.__WC_STATE.nails[0];
+  return { basis: h.parentElement.querySelector('.cite').innerText, oks: tbl.querySelectorAll('td.ok').length, warns: tbl.querySelectorAll('td.warn').length, bads: tbl.querySelectorAll('td.bad').length, checks: r.spacingReq.checks.length, s: st.s, g: st.g, end: st.main.endDist, edge: st.main.edgeDist, status: r.status, adv: r.warnings.filter((w) => /advisory/.test(w)).length, prebored: !!document.getElementById('wc_' + n + '_prebored') };
+}, { n: nid2 });
+check('seeded 16d nail: advisory basis (Commentary C12.1.6.6, wood side, not prebored), defaults s 2.43 / g 0.81 / end 2.43 / edge 0.405 from the engine, 5 checks all ✓, no advisory warning',
+  /Commentary Table C12\.1\.5\.7/.test(spN.basis) && /wood side member, not prebored/.test(spN.basis) && /advisory/.test(spN.basis) && Math.abs(spN.s - 2.43) < 1e-9 && Math.abs(spN.g - 0.81) < 1e-9 && Math.abs(spN.end - 2.43) < 1e-9 && Math.abs(spN.edge - 0.405) < 1e-9 && spN.checks === 5 && spN.oks === 5 && spN.warns === 0 && spN.bads === 0 && spN.adv === 0 && spN.status === 'pass', JSON.stringify(spN));
+await ev((id) => updN(id, 's', '1'), nid2);
+const spN2 = await page.evaluate(({ n }) => {
+  const tb = document.querySelector('#schedule tbody[data-row-id="' + n + '"]');
+  const h = [...tb.querySelectorAll('tr.wc-det .wc-d h4')].find((e) => /Minimum spacing/.test(e.innerText));
+  const tbl = h.parentElement.querySelector('table');
+  const row = [...tbl.querySelectorAll('tr')].find((tr) => /spacing in a row, ∥/.test(tr.innerText));
+  return { warns: tbl.querySelectorAll('td.warn').length, bads: tbl.querySelectorAll('td.bad').length, st: tb.querySelector('.st').textContent, msgs: tb.querySelector('.wc-c-status').innerText, rowTxt: row && row.innerText.replace(/\s+/g, ' ') };
+}, { n: nid2 });
+check('nail s = 1.0 < 15D: the a1 line shows required 2.430 / actual 1.000 / ⚠ (advisory, not ✗), status still PASS, advisory warning in the summary row',
+  spN2.warns === 1 && spN2.bads === 0 && spN2.st === 'PASS' && /advisory spacing: s = 1\.000 < 15D = 2\.430/.test(spN2.msgs) && /2\.430 in 1\.000 in/.test(spN2.rowTxt), JSON.stringify(spN2));
+await ev((id) => updN(id, 's', '2.43'), nid2);
+// prebored checkbox: nails and wood screws only
+await ev((id) => updSel(id, 'screwType', 'wood'), lid2);
+const pb = await page.evaluate(({ n, b, l }) => ({ nail: !!document.getElementById('wc_' + n + '_prebored'), bolt: !!document.getElementById('wc_' + b + '_prebored'), ws: !!document.getElementById('wc_' + l + '_prebored'), wsS: window.__WC_STATE.screws[0].s, wsD: window.WC.DATA.WOOD_SCREWS['10'].D }), { n: nid2, b: bid2, l: lid2 });
+await ev((id) => updB(id, 'prebored', true), lid2);
+const pb2 = await page.evaluate(({ l }) => { const r = window.WC.compute(window.__WC_STATE).tables.screws[0]; return { pre: window.__WC_STATE.screws[0].prebored, basis: r.spacingReq.basis, srPre: r.spacingReq.prebored, a1: r.spacingReq.a1_par, det: document.querySelector('#schedule tbody[data-row-id="' + l + '"] tr.wc-det').innerText.replace(/\s+/g, ' ') }; }, { l: lid2 });
+check('prebored checkbox on the nail and the wood screw only (not the bolt); wood-screw geometry re-defaulted to 15D on the switch from lag',
+  pb.nail && pb.ws && !pb.bolt && Math.abs(pb.wsS - 15 * pb.wsD) < 1e-9, JSON.stringify(pb));
+check('prebored → engine spacingReq.prebored true, a1 = 10D, the details basis line says "prebored"', pb2.pre === true && pb2.srPre === true && Math.abs(pb2.a1 - 1.9) < 1e-9 && /wood side member, prebored/.test(pb2.det), JSON.stringify(pb2).slice(0, 300));
+await ev((id) => updB(id, 'prebored', false), lid2);
+await ev((id) => updSel(id, 'screwType', 'lag'), lid2);
+const lagPb = await page.evaluate(({ l }) => ({ pre: !!document.getElementById('wc_' + l + '_prebored'), D: window.__WC_STATE.screws[0].D, L: window.__WC_STATE.screws[0].L }), { l: lid2 });
+check('back to lag: no prebored checkbox', !lagPb.pre && lagPb.D === 0.5, JSON.stringify(lagPb));
+// exits-main warning in the summary row (fastener cell chip + status message)
+await ev((id) => updN(id, 'main.t', '1'), lid2);
+const ex = await page.evaluate(({ l }) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + l + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.screws[0]; return { exits: r.lengths.exits_main, chip: tb.querySelector('td.wc-c-fast .wc-exit'), chipTitle: (tb.querySelector('td.wc-c-fast .wc-exit') || {}).title, msgs: tb.querySelector('.wc-c-status').innerText, pen: [...tb.querySelectorAll('tr.wc-det h4')].find((e) => /Penetration/.test(e.innerText)).parentElement.innerText.replace(/\s+/g, ' ') }; }, { l: lid2 });
+check('lag 1/2 × 4 into t_s 1.5 + t_m 1 → exits-main: ⚠ chip in the summary fastener cell (title = engine warning) and the warning in the status cell; Penetration section prints the line',
+  ex.exits === true && !!ex.chip && /exits the main member/.test(ex.chipTitle) && /exits the main member/.test(ex.msgs) && /exits main member: yes — fastener exits the main member/.test(ex.pen), JSON.stringify(ex).slice(0, 500));
+await ev((id) => updN(id, 'main.t', '3.5'), lid2);
+// E read-only chip from the engine members
+const eo = await page.evaluate(({ n }) => ({ main: (document.getElementById('wc_' + n + '_main_E_ro') || {}).innerText, side: (document.getElementById('wc_' + n + '_side_E_ro') || {}).innerText }), { n: nid2 });
+check('member blocks print E read-only from the species (1,600,000 psi DFL)', /1,600,000/.test(eo.main || '') && /1,600,000/.test(eo.side || ''), JSON.stringify(eo));
+// round trip + sanitising of the v1.2 fields
+const rt3 = await page.evaluate(({ n }) => {
+  const a = window.__WC_ADAPTER;
+  upd(n, 'demandBasis', 'total'); updN(n, 'V_total', '360'); updB(n, 'prebored', true);
+  const before = JSON.stringify(a.getModel());
+  a.setModel(JSON.parse(before));
+  const r = a.getModel().nails[0], out = { same: JSON.stringify(a.getModel()) === before, basis: r.demandBasis, Vt: r.V_total, pre: r.prebored, V: window.WC.compute(window.__WC_STATE).tables.nails[0].demand.V };
+  const m = JSON.parse(before); m.nails[0].demandBasis = 'bogus'; m.nails[0].V_total = 'x'; m.nails[0].T_total = '12'; m.nails[0].prebored = 'yes'; m.bolts[0].T_total = 99;
+  a.setModel(m);
+  const s = a.getModel();
+  out.coerced = { basis: s.nails[0].demandBasis, Vt: s.nails[0].V_total, Tt: s.nails[0].T_total, pre: s.nails[0].prebored, boltTt: s.bolts[0].T_total };
+  a.setModel(JSON.parse(before));
+  upd(n, 'demandBasis', 'per'); updN(n, 'V', '100'); updB(n, 'prebored', false);
+  return out;
+}, { n: nid2 });
+check('adapter round trip preserves demandBasis total, V_total 360 (engine V 180 each of 2) and prebored', rt3.same && rt3.basis === 'total' && rt3.Vt === 360 && rt3.pre === true && rt3.V === 180, JSON.stringify(rt3));
+check('sanitizeRows coerces demandBasis → per, V_total/T_total → number|null, prebored → bool, bolt T_total → null', rt3.coerced.basis === 'per' && rt3.coerced.Vt === null && rt3.coerced.Tt === null && rt3.coerced.pre === true && rt3.coerced.boltTt === null, JSON.stringify(rt3.coerced));
+const fin = await page.evaluate(() => ({ V: window.__WC_STATE.nails[0].V, basis: window.__WC_STATE.nails[0].demandBasis, st: [...document.querySelectorAll('#schedule tbody[data-row-id] .st')].map((e) => e.textContent).join(',') }));
+check('nail restored to per-fastener V 100 and every seeded row passes before the print check', fin.V === 100 && fin.basis === 'per' && /^PASS,PASS,PASS/.test(fin.st), JSON.stringify(fin));
+await page.evaluate(({ b, n, l }) => [b, n, l].forEach((id) => { if (openDet[id]) toggleDet(id); }), { b: bid2, n: nid2, l: lid2 });
 
 // ── print media ──────────────────────────────────────────────────────────────
 await page.emulateMedia({ media: 'print' });

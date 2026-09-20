@@ -339,3 +339,75 @@ Tolerance = half the unit of the cell's last printed digit, asserted on the unro
 - F_eθ by Hankinson from the rounded ∥/⊥ values, used unrounded (exact at 0/90).
 - The §12.6.2 center-of-resistance note counts as an unresolved engineer check.
 - `geomDefaults(D, θ, towardEnd, hardwood)` interpolates the end distance like `compute`.
+
+## 13. v1.2 — Simpson Fastener Designer parity (Nick, 2026-09-20)
+Reference: Simpson Strong-Tie Fastener Designer (FD) report `calculation result.pdf` (Nick's desktop). Goal: same
+inputs and the same output blocks, in the same order, per connection. `WC.ENGINE.rev = '2026-09-20 v1.2'`; state
+version stays 1 (new fields optional; absent = v1.1 behavior).
+
+### 13.1 Member dimension semantics (the question that triggered this)
+`t` = the member dimension **along the fastener axis** (depth the fastener travels into that member); `w` = the face
+dimension across the fastener (C_g area only). A ledger screwed into the narrow face of a 2x stud has main t = stud
+depth (3.5 / 5.5), main w = 1.5. UI labels: "t — along fastener (in)", "w — across fastener (in)", with a title tooltip
+carrying the ledger example. The `exits_main` warning text becomes "fastener exits the main member: L − t_s = … >
+t_m = … — lengths capped at t_m" and is shown in the summary row, not only in details.
+
+### 13.2 Fastener pattern and connection totals (FD "Fastener Pattern", W_total, Z_total)
+- `n` (per row) and `rows` become **active for every fastener type** (they were D ≥ 1/4 only). `qty = n · rows`.
+  Spacing/edge/end/geometry inputs stay D ≥ 1/4 only for C_Δ; for D < 1/4 the same inputs are rendered so the
+  advisory check in 13.3 can run, but they never fail the row.
+- New row field `demandBasis`: `"per"` (default for existing files) | `"total"`. New numeric fields `V_total`,
+  `T_total` (ASD lb, whole connection). When `demandBasis === "total"`: V = V_total / qty, T = T_total / qty (the
+  per-fastener fields are derived and shown read-only); when `"per"` the existing V/T fields are the inputs and
+  totals are derived (V_total = V · qty). Status rules (§2) apply to whichever pair is the input.
+- Results add `capacity.Z_total = qty · Z'`, `capacity.W_total = qty · Wcap`, `demand.V_total`, `demand.T_total`,
+  `demand.qty`, and percentage forms `demand.pctV = 100·V/Z'`, `pctT`, `pctComb` (FD shows "Demand/Resistance %").
+- Summary row shows qty, Z_total, W_total and D/C.
+
+### 13.3 Minimum spacing requirements block (FD "Minimum Spacing Requirements")
+`result.spacingReq = { basis, a1_par, a2_perp, end_loaded, end_unloaded, edge_loaded, edge_unloaded, rows_inline,
+rows_staggered, checks:[{name, required, actual, ok}] }` per row, all in inches (nD evaluated with nominal D):
+- **D ≥ 1/4 (bolts, lags)** — `basis: "NDS Table 12.5.1A–D (C_Δ = 1.0 values; hard minima in checks)"`: a1_par = 4D
+  (Table 12.5.1B ∥ full), a2_perp = 4D (attached-member rule, spec §6), end_loaded = the C_Δ = 1.0 end distance
+  for the row's θ/towardEnd/hardwood (interpolated per §12), end_unloaded = 4D (compression / ⊥), edge_loaded = 4D
+  (⊥ loaded edge), edge_unloaded = 1.5D or the ∥ l/D rule (spec §6, §12), rows_inline = the Table 12.5.1D minimum for
+  the row's l/D and θ, rows_staggered = same (NDS gives no separate staggered value; state "same as in-line").
+  `checks` echoes the existing hard-minimum results (these already drive `geom_*` flags).
+- **D < 1/4 (nails, wood screws)** — `basis: "Commentary Table C12.1.5.7 (wood screws) / C12.1.6.6 (nails),
+  advisory (PDF 268–269)"`, new row field `prebored` (bool, default false) and the side material: wood side —
+  edge 2.5D; end tension ∥ 15D / 10D (not prebored / prebored), compression ∥ 10D / 5D; in-row ∥ 15D / 10D,
+  ⊥ 10D / 5D; rows in-line 5D / 3D, staggered 2.5D / 2.5D. Steel side — edge 2.5D; end tension 10D / 5D,
+  compression 5D / 3D; in-row ∥ 10D / 5D, ⊥ 5D / 2.5D; rows in-line 3D / 2.5D, staggered 2.5D. Choose ∥ vs ⊥ by the
+  main member's θ (0 → ∥, 90 → ⊥, intermediate → the larger), tension vs compression by `towardEnd`. `checks` compare
+  the row's typed s / g / endDist / edgeDist against these and produce **warnings only** (`"advisory spacing: s = …
+  < 15D = …"`), never a fatal flag, and a printed note "spacing for D < 1/4 in per NDS §12.1.5.7 / §12.1.6.5
+  (sufficient to prevent splitting); Commentary table used as the recommendation".
+- Fixtures: bolt 1/2 at θ 0 tension softwood → end_loaded 3.5, a1 2.0, edge_unloaded 0.75, rows_inline 0.75;
+  same at θ 90 → end 2.0, edge_loaded 2.0, rows per l/D; 16d nail wood side not prebored → edge 0.405, end 2.43,
+  a1 2.43, a2 1.62, rows 0.81 / 0.405; prebored → 1.62 / 1.62 / 0.81 / 0.486; steel side values; a nail row with
+  s = 1.0 → warning present, status unaffected.
+
+### 13.4 Fastener properties echo
+`inputs` gains `D_H` (head diameter used for pull-through; null for lags/bolts) and `coating: null` (FD shows it;
+we have no product data — the page prints "—"). Existing D, D_r (as D_yield), F_yb, L, T_thread, E_tip stay.
+
+### 13.5 Details block order (page) — match the FD report
+1. Fastener properties (type/size, D, D_r, D_H, L, thread T, tip E, F_yb + source)
+2. Adjustment factors (C_D, C_M, C_t, C_g, C_Δ, C_eg, C_di, C_tn, K_θ — value + cite)
+3. Penetration (p_tot, p_excl, tip in main, l_m, l_s, p_min, exits-main line)
+4. Fastener pattern (n per row, rows, qty, s, g, stagger/offset, merged/separate C_g if any)
+5. Minimum spacing requirements (table from 13.3 with required / actual / ok per line, basis line)
+6. Withdrawal (p_t, W lb/in with equation, W', W_H and W_H' or "n/a — hex head / steel side", W_cap per
+   fastener, W_total, demand T / T_total, Demand/Resistance %)
+7. Lateral (F_em, F_es, θ per member, R_e, R_t, K_θ/K_D, k1–k3, six modes with R_d and Z, Z_min + governing mode,
+   Z', Z_total, demand V / V_total, Demand/Resistance %)
+8. Combined (α, Z'_α, equation used, combined demand, Demand/Resistance %)
+9. Notes / engineer checks / cites (unchanged)
+Summary row: desc · fastener · qty · V_total · T_total · Z_total · W_total · D/C · status.
+
+### 13.6 Inputs block order (page) — match the FD input panel
+Fastener (type, size, L, load case, F_yb override, prebored for D < 1/4) · Load (demand basis toggle, V/T or
+V_total/T_total, shear planes for bolts) · Side member A (material, species, t along fastener, w across, θ, E shown
+read-only from species) · Main member B (same + end grain) · Pattern (rows, n per row, s, g, stagger, offset,
+end/edge distances) · Factors (read-only chips). Keep everything inside the existing `.wc-in` row; the FD column
+labels ("Side Member A", "Main Member B") are adopted.

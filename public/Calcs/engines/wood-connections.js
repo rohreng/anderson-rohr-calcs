@@ -46,8 +46,12 @@
      Tables 12A/12B/12F/12G, 12J/12K, 12L/12M, 12N/12P, 12.2A–C, 12.2F  fixtures
      Table I1 (175/189) F_yb bands; Tables L1–L4 (180–182/194–196) fastener dimensions
      Steel F_e: Table 12B/12K fn 2 (A36 87,000), Table 12M/12P fn 2 (A653 Gr 33 61,850); App. I.2
+     Commentary Tables C12.1.5.7 (254/268) wood screws and C12.1.6.6 (255/269) nails: recommended
+                            minimum spacing for D < 1/4" (advisory; §12.1.5.7 / §12.1.6.5 give no
+                            mandatory values below 1/4") (v1.2)
 
-   Demands are ASD-level lb PER FASTENER (V lateral, T withdrawal). No load factors.
+   Demands are ASD-level lb PER FASTENER (V lateral, T withdrawal) or, with demandBasis
+   "total", per CONNECTION (V_total, T_total; divided by qty = n·rows). No load factors.
    ========================================================================== */
 (function (root) {
   'use strict';
@@ -63,7 +67,7 @@
   var COS30 = Math.cos(Math.PI / 6);
 
   // version = the state shape (the adapter gate); rev = the engine build.
-  var ENGINE = { name: 'wood-connection-schedule', version: 1, rev: '2026-09-19 v1.1', codes: ['NDS 2018'] };
+  var ENGINE = { name: 'wood-connection-schedule', version: 1, rev: '2026-09-20 v1.2', codes: ['NDS 2018'] };
 
   // ── DATA (spec §4) ─────────────────────────────────────────────────────────
   var SPECIES = {
@@ -119,10 +123,18 @@
     Ceg_lateral: 0.67, Ceg_lag_withdrawal: 0.75, Cdi: 1.1, Ctn_Z: 0.83, Ctn_W: 0.67,
     gamma_wood: 180000, gamma_metal: 270000, spreadMax: 5, Dmax: 1, Gmin: 0.31, Gmax: 0.73
   };
+  // Commentary Tables C12.1.5.7 (wood screws, p.254/268) and C12.1.6.6 (nails, p.255/269) — identical cell values —
+  // recommended minimum spacing for D < 1/4 in, multiples of nominal D, by side-member material and [not prebored, prebored].
+  // Advisory only: §12.1.5.7 / §12.1.6.5 require spacing "sufficient to prevent splitting" and give no numbers below 1/4 in.
+  var SMALL_D_SPACING = {
+    wood:  { edge: [2.5, 2.5], endTension: [15, 10], endCompression: [10, 5], rowPar: [15, 10], rowPerp: [10, 5], rowsInline: [5, 3], rowsStaggered: [2.5, 2.5] },
+    steel: { edge: [2.5, 2.5], endTension: [10, 5],  endCompression: [5, 3],  rowPar: [10, 5],  rowPerp: [5, 2.5], rowsInline: [3, 2.5], rowsStaggered: [2.5, 2.5] },
+    cite: { nail: 'Commentary Table C12.1.6.6', wood: 'Commentary Table C12.1.5.7' }
+  };
   var DATA = {
     SPECIES: SPECIES, STEEL: STEEL, GAUGES: GAUGES, NAILS: NAILS, WOOD_SCREWS: WOOD_SCREWS, LAGS: LAGS, LAG_T: LAG_T,
     LAG_LENGTHS: LAG_LENGTHS, lagAvailable: lagAvailable, BOLTS: BOLTS, BOLT_LABEL: BOLT_LABEL, FYB_BANDS: FYB_BANDS,
-    CD: CD, CD_LABEL: CD_LABEL, CT: CT, CONST: CONST,
+    CD: CD, CD_LABEL: CD_LABEL, CT: CT, CONST: CONST, SMALL_D_SPACING: SMALL_D_SPACING,
     notes: [
       'Table L4 (PDF 196) lists head diameter H for every common, box and sinker size offered; box and sinker H are read directly, no substitution.',
       'Sinker 6d (D 0.092) is not offered: below the Table I1 F_yb band (0.099–0.375).',
@@ -260,8 +272,15 @@
   }
   // geomDefaults(D, θ, towardEnd, hardwood): full-value defaults — s 4D, edge 1.5D, loaded edge 4D, end = interpolated full
   // (same helper as compute), g = 1.5D at θ = 0, else the ⊥ row-spacing full default 5D. Page probe GEOM_INTERP.
+  // D < 1/4 (v1.2, spec §13.3): the Commentary Table C12.1.5.7 / C12.1.6.6 wood-side, not-prebored recommendations, so a fresh
+  // nail / wood-screw row opens without advisory warnings — s 15D ∥ (10D at θ = 90), g 5D in-line, end 15D tension / 10D
+  // compression, edge 2.5D.
   function geomDefaults(D, theta, towardEnd, hardwood) {
     var th = Number(theta) || 0;
+    if (D < 0.25 - 1e-9) {
+      var w = SMALL_D_SPACING.wood;
+      return { s: (th >= 90 ? w.rowPerp[0] : w.rowPar[0]) * D, g: w.rowsInline[0] * D, endDist: (towardEnd !== false ? w.endTension[0] : w.endCompression[0]) * D, edgeDist: w.edge[0] * D, loadedEdgeDist: w.edge[0] * D };
+    }
     return { s: 4 * D, g: th > 0 ? 5 * D : 1.5 * D, endDist: endDistance(D, th, towardEnd !== false, !!hardwood).full, edgeDist: 1.5 * D, loadedEdgeDist: 4 * D };
   }
   function kindOf(type) {
@@ -283,9 +302,9 @@
     };
     var main = member('wood'); delete main.mat;
     var row = {
-      id: isNum(opts.id) ? opts.id : 0, desc: '', V: null, T: null, loadCase: 'L', cmException: false,
+      id: isNum(opts.id) ? opts.id : 0, desc: '', V: null, T: null, demandBasis: 'per', V_total: null, T_total: null, loadCase: 'L', cmException: false,
       main: main, side: member('wood'),
-      n: 1, rows: 1, s: gd.s, g: gd.g, stagger: false, offset: null, shrinkDetail: false, Fyb_override: null, notes: ''
+      n: 1, rows: 1, s: gd.s, g: gd.g, stagger: false, offset: null, prebored: false, shrinkDetail: false, Fyb_override: null, notes: ''
     };
     if (kind === 'bolt') { row.D = 0.75; row.shear = 'single'; row.mainSteel = false; }
     if (kind === 'nail') { row.nailType = 'common'; row.penny = '16d'; row.toeNail = false; row.diaphragm = false; }
@@ -333,7 +352,7 @@
   function computeRow(row, kind, H) {
     var R = {
       id: row.id, type: kind, status: 'pass', flags: [], warnings: [], notes: [], cites: [], unresolved: 0,
-      inputs: {}, members: { main: null, side: null }, lengths: null, yield: null, factors: null, capacity: null, demand: null
+      inputs: {}, members: { main: null, side: null }, lengths: null, yield: null, factors: null, capacity: null, demand: null, spacingReq: null
     };
     var errs = [], missing = [];
     var I = R.inputs;
@@ -348,6 +367,9 @@
       if (o.int && (n !== Math.floor(n) || n < 1)) { invalid(label + ' must be a positive integer'); return null; }
       return n;
     }
+    // optNum(): like needNum but blank is allowed (returns null without marking the row incomplete) — v1.2 D < 1/4 geometry
+    // inputs, which only feed the advisory Commentary-table check and may be absent on older files.
+    function optNum(label, v, o) { return num(v) === null ? null : needNum(label, v, o); }
     var main = row.main || {}, side = row.side || {};
     var desc = row.desc === null || row.desc === undefined ? '' : String(row.desc);
     if (desc.length > 120 || /[<>]/.test(desc)) { R.warnings.push('description truncated / angle brackets removed (≤ 120 chars, no < >)'); desc = desc.replace(/[<>]/g, '').slice(0, 120); }
@@ -371,7 +393,8 @@
       mainSteel = !!row.mainSteel;
       label = (isNum(D) ? (BOLT_LABEL[String(D)] || D) : '?') + ' in bolt, ' + (doubleShear ? 'double' : 'single') + ' shear';
       I.D = D; I.shear = doubleShear ? 'double' : 'single'; I.mainSteel = mainSteel;
-      if (row.T !== null && row.T !== undefined && row.T !== '' && Number(row.T) !== 0) invalid('bolts have no NDS withdrawal value — T must be blank or 0 (§12.2.4)');
+      var boltT = row.demandBasis === 'total' ? row.T_total : row.T;   // §2: the check applies to whichever pair is the input (spec §13.2)
+      if (boltT !== null && boltT !== undefined && boltT !== '' && Number(boltT) !== 0) invalid('bolts have no NDS withdrawal value — ' + (row.demandBasis === 'total' ? 'T_total' : 'T') + ' must be blank or 0 (§12.2.4)');
     } else if (kind === 'nail') {
       var nt = row.nailType || 'common', pn = row.penny;
       var nd = NAILS[nt] && NAILS[nt][pn];
@@ -414,6 +437,9 @@
     var fybOv = num(row.Fyb_override);
     if (fybOv !== null) { if (!(isNum(fybOv) && fybOv > 0)) invalid('Fyb_override must be > 0'); else { Fyb = fybOv; FybSource = 'row override'; } }
     I.label = label; I.D = D; I.D_yield = Dy; I.Fyb = Fyb; I.FybSource = FybSource; I.L = L; I.T_thread = T; I.E_tip = E; I.DH = DH;
+    I.D_H = isNum(DH) ? DH : null;   // head diameter used for pull-through (Table L3/L4); null for lags (hex head) and bolts
+    I.coating = null;                // FD "coating" line: no product data in the NDS tables — the page prints "—"
+    I.prebored = !!row.prebored;     // D < 1/4 only: selects the "Prebored" column of Commentary Tables C12.1.5.7 / C12.1.6.6
     var geomActive = isNum(D) && D >= 0.25 - 1e-9;
     if (!geomActive) I.cmException = false;   // Table 11.3.3 fn 2 exception is a D ≥ 1/4 row input; D < 1/4 takes 0.7 (spec §11)
     var withdrawalActive = kind !== 'bolt';
@@ -441,12 +467,16 @@
           out.FeSource = '§12.3.3.3: typed from ' + (sp.esr || 'the evaluation report');
         } else { var fe = feWood(sp.G, D); out.FePar = fe.par; out.FePerp = fe.perp; out.FeSource = 'Table 12.3.3 fn 2 (rounded to 50 psi)' + (D < 0.25 ? ', D < 1/4 in: 16600·G^1.84' : ''); }
       }
-      // geometry inputs (only when active)
+      // geometry inputs: required for D ≥ 1/4 (Table 12.5.1 / C_Δ); optional for D < 1/4 (v1.2 advisory check, spec §13.3)
+      out.towardEnd = m.towardEnd !== false;
       if (geomActive) {
-        out.towardEnd = m.towardEnd !== false;
         out.endDist = needNum(name + ' end distance', m.endDist, { nonneg: true });
         out.edgeDist = needNum(name + ' edge distance', m.edgeDist, { nonneg: true });
         out.loadedEdgeDist = (th !== null && th > 0) ? needNum(name + ' loaded edge distance', m.loadedEdgeDist, { nonneg: true }) : num(m.loadedEdgeDist);   // §12.1: ⊥ component toward one edge for any θ > 0
+      } else {
+        out.endDist = optNum(name + ' end distance', m.endDist, { nonneg: true });
+        out.edgeDist = optNum(name + ' edge distance', m.edgeDist, { nonneg: true });
+        out.loadedEdgeDist = num(m.loadedEdgeDist);
       }
       return out;
     }
@@ -477,14 +507,22 @@
     R.members.main = M; R.members.side = S;
 
     // ── group inputs ─────────────────────────────────────────────────────────
+    // v1.2 (spec §13.2): n and rows are active for every fastener type (qty = n·rows). For D < 1/4 a blank n / rows
+    // means 1 (v1.1 files never used them) and s / g are optional — they feed only the advisory spacing check (§13.3).
     var n = 1, rows = 1, s = null, g = null;
     if (geomActive) {
       n = needNum('n (fasteners per row)', row.n, { int: true });
       rows = needNum('rows', row.rows, { int: true });
       s = needNum('spacing s', row.s, { nonneg: true });
       g = needNum('row spacing g', row.g, { nonneg: true });
+    } else {
+      n = num(row.n) === null ? 1 : needNum('n (fasteners per row)', row.n, { int: true });
+      rows = num(row.rows) === null ? 1 : needNum('rows', row.rows, { int: true });
+      s = optNum('spacing s', row.s, { nonneg: true });
+      g = optNum('row spacing g', row.g, { nonneg: true });
     }
-    I.n = geomActive ? n : null; I.rows = geomActive ? rows : null; I.s = geomActive ? s : null; I.g = geomActive ? g : null;
+    var qty = (n !== null && rows !== null) ? n * rows : null;
+    I.n = n; I.rows = rows; I.qty = qty; I.s = s; I.g = g;
     // staggered rows (§11.3.6.2): active only when stagger && rows ≥ 2 && D ≥ 1/4
     var staggerActive = geomActive && !!row.stagger && rows !== null && rows >= 2, offset = null;
     if (staggerActive) {
@@ -496,10 +534,23 @@
     var offClosest = (staggerActive && offset !== null && s !== null) ? Math.min(offset, s - offset) : null;
     I.offClosest = offClosest;
 
-    // ── demands ──────────────────────────────────────────────────────────────
-    var V = needNum('V', row.V, { nonneg: true });
-    var Tw = withdrawalActive ? needNum('T', row.T, { nonneg: true }) : null;
-    I.V = V; I.T = withdrawalActive ? Tw : null;
+    // ── demands (spec §13.2: per-fastener or whole-connection input; the other pair is derived) ──
+    var basis = row.demandBasis === 'total' ? 'total' : 'per';
+    var V, Tw, Vtot = null, Ttot = null;
+    if (basis === 'total') {
+      Vtot = needNum('V_total', row.V_total, { nonneg: true });
+      Ttot = withdrawalActive ? needNum('T_total', row.T_total, { nonneg: true }) : null;
+      V = (Vtot !== null && qty !== null) ? Vtot / qty : null;
+      Tw = (Ttot !== null && qty !== null) ? Ttot / qty : null;
+    } else {
+      V = needNum('V', row.V, { nonneg: true });
+      Tw = withdrawalActive ? needNum('T', row.T, { nonneg: true }) : null;
+      Vtot = (V !== null && qty !== null) ? V * qty : null;
+      Ttot = (Tw !== null && qty !== null) ? Tw * qty : null;
+    }
+    I.demandBasis = basis; I.V = V; I.T = withdrawalActive ? Tw : null; I.V_total = Vtot; I.T_total = withdrawalActive ? Ttot : null;
+    function mkDemand() { return { V: V, T: I.T, V_total: Vtot, T_total: I.T_total, qty: qty, dcV: null, dcT: null, dcComb: null, dc: null, pctV: null, pctT: null, pctComb: null }; }
+    function emptyCap() { return { Zp: null, W: null, Wp: null, Wcap_withdrawal: null, WH: null, WHp: null, Wcap: null, withdrawalGov: null, Zalpha: null, alpha: null, Z_total: null, W_total: null }; }
 
     // ── cites and notes common to every row ─────────────────────────────────
     R.cites.push('NDS 2018 §12.3.1 Table 12.3.1A/B yield-limit equations; Table 12.3.3 fn 2 F_e rounded to the nearest 50 psi');
@@ -547,7 +598,7 @@
       var p_t = overlap(thr0, thr1, m0, m1);
       Lg = { p_tot: p_tot, tip_in: tip_in, p_excl: p_excl, l_m: p_tot - tip_in / 2, l_s: ts, p_t: p_t,
              p_min: (screwType === 'lag' ? 4 : 6) * D, exits_main: L > ts + tm + 1e-9, toeNail: false, head_gap: L - ts - tm };
-      if (Lg.exits_main) R.warnings.push('fastener exits the main member (L = ' + L + ' > t_s + t_m = ' + (ts + tm) + '); embedment limited to t_m');
+      if (Lg.exits_main) R.warnings.push('fastener exits the main member: L − t_s = ' + f3(L - ts) + ' > t_m = ' + f3(tm) + ' — lengths capped at t_m');   // spec §13.1 wording
       if (screwType === 'lag') { if (p_excl < Lg.p_min - 1e-9) R.flags.push('p_min'); R.cites.push('§12.1.4.6 lag p_min = 4D excluding the tip E; §12.3.5.3 l_m ≤ p − E/2'); }
       else { if (p_tot < Lg.p_min - 1e-9) R.flags.push('p_min'); R.cites.push((kind === 'nail' ? '§12.1.6.4' : '§12.1.5.6') + ' p_min = 6D including the tip; §12.3.5.3 l_m ≤ p − E/2 with E = 2D'); }
       if (Lg.l_m <= 0) R.flags.push('p_min');
@@ -620,6 +671,66 @@
       if (R.flags.some(function (f) { return f.indexOf('geom_') === 0; })) R.warnings.push('geometry below a Table 12.5.1 hard minimum (' + R.flags.filter(function (f) { return f.indexOf('geom_') === 0; }).join(', ') + ')');
       if (R.flags.indexOf('spread5') >= 0) R.warnings.push('across-grain spread between outermost fasteners > 5 in without shrinkage detailing (§12.5.1.3)');
     }
+
+    // ── minimum spacing requirements block (spec §13.3, FD "Minimum Spacing Requirements") ──────────────
+    // Required values are keyed to the main member's θ / towardEnd / hardwood (the side member when the main is steel).
+    // D ≥ 1/4: the very gm objects evaluated above (Tables 12.5.1A–D / E) so the numbers cannot diverge; checks echo the
+    //          hard minima that already drive the geom_* flags.
+    // D < 1/4: Commentary Table C12.1.5.7 / C12.1.6.6 recommendations (nD by nominal D) by side material and `prebored`;
+    //          checks are advisory — warnings only, never a flag, never a status change; blank inputs skip silently.
+    var SR = null;
+    var keyM = M.mat === 'wood' ? M : (S.mat === 'wood' ? S : null), keyName = keyM === M ? 'main' : 'side';
+    if (geomActive && keyM) {
+      var gmKey = null; geom.members.forEach(function (gm) { if (gm.member === keyName) gmKey = gm; });
+      var checks = [];
+      var chk = function (name, req, act) { checks.push({ name: name, required: req, actual: act, ok: isNum(act) && isNum(req) ? act >= req - 1e-9 : null }); };
+      if (withdrawalOnlyLag) {
+        SR = { basis: 'NDS Table 12.5.1E (lag in withdrawal only, not loaded laterally)', member: keyName,
+               a1_par: 4 * D, a2_perp: 4 * D, end_loaded: 4 * D, end_unloaded: 4 * D, edge_loaded: 1.5 * D, edge_unloaded: 1.5 * D,
+               rows_inline: 4 * D, rows_staggered: 4 * D, rowsStaggeredNote: 'Table 12.5.1E gives one spacing value (4D); no separate row-spacing value' };
+        geom.members.forEach(function (gm) { var mm = gm.member === 'main' ? M : S; chk(gm.member + ' end distance', gm.endMin, mm.endDist); chk(gm.member + ' edge distance', gm.edgeMin, mm.edgeDist); });
+        if (n >= 2) chk('spacing in a row s', geom.sMin, s);
+      } else {
+        SR = { basis: 'NDS Table 12.5.1A–D (C_Δ = 1.0 values; hard minima in checks)', member: keyName,
+               a1_par: 4 * D, a2_perp: 4 * D,                                    // Table 12.5.1B ∥ full 4D; attached-member rule (spec §6) 4D
+               end_loaded: gmKey.endFull, end_unloaded: 4 * D,                   // Table 12.5.1A full value at the row's θ / towardEnd / hardwood; compression / ⊥ 4D
+               edge_loaded: 4 * D, edge_unloaded: gmKey.edgeMin,                 // Table 12.5.1C loaded edge 4D; unloaded 1.5D or the ∥ l/D > 6 g/2 rule
+               rows_inline: gmKey.rowMin, rows_staggered: gmKey.rowMin,          // Table 12.5.1D by θ and l/D
+               rowsStaggeredNote: 'same as in-line (NDS gives no separate staggered value)' };
+        geom.members.forEach(function (gm) {
+          var mm = gm.member === 'main' ? M : S;
+          chk(gm.member + ' end distance (hard min = C_Δ 0.5 value)', gm.endHalf, mm.endDist);
+          chk(gm.member + ' edge distance', gm.edgeMin, mm.edgeDist);
+          if (gm.theta > 0) chk(gm.member + ' loaded edge distance', gm.loadedEdgeMin, mm.loadedEdgeDist);
+          if (rows >= 2) chk(gm.member + ' row spacing g', gm.rowMin, g);
+        });
+        if (n >= 2) chk('spacing in a row s (hard min 3D)', geom.sMin, s);
+      }
+      SR.checks = checks;
+    } else if (keyM) {
+      var tbl = SMALL_D_SPACING[S.mat === 'steel' ? 'steel' : 'wood'], pb = I.prebored ? 1 : 0;
+      var cite = SMALL_D_SPACING.cite[kind === 'nail' ? 'nail' : 'wood'] + ', ' + (I.prebored ? 'prebored' : 'not prebored');
+      var mult = { edge: tbl.edge[pb], endT: tbl.endTension[pb], endC: tbl.endCompression[pb], rowPar: tbl.rowPar[pb], rowPerp: tbl.rowPerp[pb], rowsIn: tbl.rowsInline[pb], rowsSt: tbl.rowsStaggered[pb] };
+      var thK = keyM.theta, sMult = thK === 0 ? mult.rowPar : (thK === 90 ? mult.rowPerp : Math.max(mult.rowPar, mult.rowPerp));   // ∥ at 0, ⊥ at 90, the larger between
+      var endMultOf = function (mm) { return mm.towardEnd ? mult.endT : mult.endC; };
+      SR = { basis: 'Commentary Table C12.1.5.7 (wood screws) / C12.1.6.6 (nails), advisory (PDF 268–269)', member: keyName, sideMat: S.mat, prebored: I.prebored,
+             a1_par: mult.rowPar * D, a2_perp: mult.rowPerp * D, end_loaded: endMultOf(keyM) * D, end_unloaded: mult.endC * D,
+             edge_loaded: mult.edge * D, edge_unloaded: mult.edge * D, rows_inline: mult.rowsIn * D, rows_staggered: mult.rowsSt * D,
+             s_required: sMult * D, s_rule: thK === 0 ? '∥ to grain (main θ = 0)' : (thK === 90 ? '⊥ to grain (main θ = 90)' : 'larger of ∥ / ⊥ (main θ = ' + thK + ')'),
+             multiples: { edge: mult.edge, endTension: mult.endT, endCompression: mult.endC, rowPar: mult.rowPar, rowPerp: mult.rowPerp, rowsInline: mult.rowsIn, rowsStaggered: mult.rowsSt, s: sMult },
+             checks: [] };
+      var adv = function (name, k, act) {
+        if (!isNum(act)) return;   // older files: geometry not typed for D < 1/4 → skip silently
+        var req = k * D, ok = act >= req - 1e-9;
+        SR.checks.push({ name: name, required: req, actual: act, ok: ok, mult: k });
+        if (!ok) R.warnings.push('advisory spacing: ' + name + ' = ' + f3(act) + ' < ' + k + 'D = ' + f3(req) + ' (' + cite + ')');
+      };
+      if (n >= 2) adv('s', sMult, s);
+      if (rows >= 2) adv('g', mult.rowsIn, g);
+      [['main', M], ['side', S]].forEach(function (p) { if (p[1].mat !== 'wood') return; adv(p[0] + ' end distance', endMultOf(p[1]), p[1].endDist); adv(p[0] + ' edge distance', mult.edge, p[1].edgeDist); });
+      R.notes.push('spacing for D < 1/4 in per NDS §12.1.5.7 / §12.1.6.5 (sufficient to prevent splitting); Commentary table used as the recommendation');
+    }
+    R.spacingReq = SR;
 
     // end-grain withdrawal refusal (nails / wood screws)
     if (withdrawalActive && M.endGrain && screwType !== 'lag' && Tw > 0) { R.flags.push('endgrain_withdrawal'); R.warnings.push((kind === 'nail' ? '§12.2.3.3' : '§12.2.2.3') + ': no withdrawal from end grain (C_eg = 0)'); }
@@ -710,7 +821,7 @@
 
     // ── capacities ───────────────────────────────────────────────────────────
     var Zp = (Y && Cg !== null) ? Y.Z * I.CD * cmL.v * Ct * Cg * Cdelta * Ceg * Cdi * Ctn : null;
-    var cap = { Zp: Zp, W: null, Wp: null, Wcap_withdrawal: null, WH: null, WHp: null, Wcap: null, withdrawalGov: null, Zalpha: null, alpha: null };
+    var cap = emptyCap(); cap.Zp = Zp;
     if (withdrawalActive) {
       var wkind = screwType === 'lag' ? 'lag' : (screwType === 'wood' ? 'wood' : 'nail');
       cap.W = withdrawalUnit(wkind, M.G, D);
@@ -734,17 +845,15 @@
         R.unresolved += 1;
       }
     }
+    // connection totals (spec §13.2): qty · per-fastener capacity; null when the per-fastener value is suppressed / n/a
+    cap.Z_total = isNum(cap.Zp) ? qty * cap.Zp : null;
+    cap.W_total = isNum(cap.Wcap) ? qty * cap.Wcap : null;
     R.capacity = cap;
 
     // ── status / demand ──────────────────────────────────────────────────────
     R.flags = R.flags.filter(function (f, i, a) { return a.indexOf(f) === i; });
-    if (R.flags.length) {
-      R.status = 'fail';
-      R.capacity = { Zp: null, W: null, Wp: null, Wcap_withdrawal: null, WH: null, WHp: null, Wcap: null, withdrawalGov: null, Zalpha: null, alpha: null };
-      R.demand = { V: V, T: I.T, dcV: null, dcT: null, dcComb: null, dc: null };
-      return R;
-    }
-    var dem = { V: V, T: I.T, dcV: null, dcT: null, dcComb: null, dc: null };
+    if (R.flags.length) { R.status = 'fail'; R.capacity = emptyCap(); R.demand = mkDemand(); return R; }
+    var dem = mkDemand();
     var Tv = withdrawalActive ? Tw : 0;
     if (V === 0 && Tv === 0) { R.status = 'nodemand'; R.demand = dem; return R; }
     if (V > 0) dem.dcV = V / Zp;
@@ -757,7 +866,11 @@
         : '§12.4.1 Eq. 12.4-1 (p.89/103): Z\'_α = (W\'p)Z\' / ((W\'p)cos²α + Z\' sin²α), p = length of thread penetration into the main member');
     }
     dem.dc = Math.max(dem.dcV || 0, dem.dcT || 0, dem.dcComb || 0);
-    if (!isFinite(dem.dc)) { R.flags.push('no_thread_in_main'); R.warnings.push('demand / capacity is not finite'); R.status = 'fail'; R.capacity = { Zp: null, W: null, Wp: null, Wcap_withdrawal: null, WH: null, WHp: null, Wcap: null, withdrawalGov: null, Zalpha: null, alpha: null }; R.demand = { V: V, T: I.T, dcV: null, dcT: null, dcComb: null, dc: null }; return R; }
+    if (!isFinite(dem.dc)) { R.flags.push('no_thread_in_main'); R.warnings.push('demand / capacity is not finite'); R.status = 'fail'; R.capacity = emptyCap(); R.demand = mkDemand(); return R; }
+    // FD "Demand/Resistance %" forms (per fastener and per connection give the same ratio)
+    dem.pctV = dem.dcV === null ? null : 100 * dem.dcV;
+    dem.pctT = dem.dcT === null ? null : 100 * dem.dcT;
+    dem.pctComb = dem.dcComb === null ? null : 100 * dem.dcComb;
     R.demand = dem;
     R.status = dem.dc > 1 + 1e-12 ? 'fail' : 'pass';
     return R;
@@ -786,7 +899,7 @@
       arr.forEach(function (row) {
         var r;
         try { r = computeRow(row || {}, kinds[tk], H); }
-        catch (e) { r = { id: row && row.id, type: kinds[tk], status: 'invalid', flags: [], warnings: ['Invalid: engine error — ' + String(e && e.message || e)], notes: [], cites: [], unresolved: 0, inputs: {}, members: { main: null, side: null }, lengths: null, yield: null, factors: null, capacity: null, demand: null }; }
+        catch (e) { r = { id: row && row.id, type: kinds[tk], status: 'invalid', flags: [], warnings: ['Invalid: engine error — ' + String(e && e.message || e)], notes: [], cites: [], unresolved: 0, inputs: {}, members: { main: null, side: null }, lengths: null, yield: null, factors: null, capacity: null, demand: null, spacingReq: null }; }
         if (H.errors.length && r.status !== 'invalid') { r.status = 'invalid'; H.errors.forEach(function (e) { r.warnings.push('Invalid: ' + e); }); }
         result.tables[tk].push(r);
         sum.counts[r.status] += 1; total.counts[r.status] += 1;
@@ -1448,7 +1561,107 @@
     fx('geomDefaults compression (towardEnd false) 2.0 at every θ; hardwood tension 45 → 2.5 + (2 − 2.5)/2 = 2.25', { table: 'GEOM_INTERP', cell: '' }, near(geomDefaults(0.5, 45, false).endDist, 2.0, 1e-12) && near(geomDefaults(0.5, 0, false).endDist, 2.0, 1e-12) && near(geomDefaults(0.5, 45, true, true).endDist, 2.25, 1e-12), true);
     r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 45, 0), { main: { endDist: geomDefaults(0.5, 45, true).endDist } }), DFL);
     fx('a fresh angled row at the geomDefaults end distance opens at C_Δ = 1.0', { table: 'GEOM_INTERP', cell: '' }, r.factors.Cdelta.v, 1, 1e-12);
-    var nr = newRow('bolt'); fxb('newRow carries stagger false / offset null; ENGINE.rev v1.1', { table: 'spec §12' }, nr.stagger === false && nr.offset === null && ENGINE.rev === '2026-09-19 v1.1' && ENGINE.version === 1, ENGINE.rev);
+    var nr = newRow('bolt'); fxb('newRow carries stagger false / offset null; ENGINE.rev v1.2 (was v1.1), version 1', { table: 'spec §12 / §13' }, nr.stagger === false && nr.offset === null && ENGINE.rev === '2026-09-20 v1.2' && ENGINE.version === 1, ENGINE.rev);
+
+    // ── 12. v1.2 — connection totals, fastener pattern for every type, spacing block, D_H echo (spec §13) ──
+    // 12.1 totals: 1/2 bolt DFL 1.5/1.5 ∥, n 3, rows 2 (g 0.75 = 1.5D ok), s 2 = 4D; demandBasis total, V_total 600, T_total 0.
+    //   qty = 3·2 = 6 → V = 600/6 = 100 per bolt. Z' = Z·C_g (n 3, s 2; C_Δ 1) — asserted as relations: Z_total = 6·Z', D/C = 100/Z', pctV = 100·D/C.
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { n: 3, rows: 2, s: 2, g: 0.75, V: null, demandBasis: 'total', V_total: 600, T_total: 0 }), DFL);
+    m = { table: 'spec §13.2', cell: 'bolt n 3 rows 2, total 600', inputs: r.inputs };
+    fx('totals: qty 6, V = 600/6 = 100, V_total 600 echoed, T / T_total null on a bolt', m, r.demand.qty === 6 && near(r.demand.V, 100, 1e-12) && r.demand.V_total === 600 && r.demand.T === null && r.demand.T_total === null && r.inputs.demandBasis === 'total', true);
+    fx('totals: Z_total = 6·Z\', W_total null (bolt), status pass', m, near(r.capacity.Z_total, 6 * r.capacity.Zp, 1e-9) && r.capacity.W_total === null && r.status === 'pass' && r.factors.Cg.v < 1, true);
+    fx('totals: D/C = 100/Z\', pctV = 100·D/C, pctT / pctComb null', m, near(r.demand.dcV, 100 / r.capacity.Zp, 1e-12) && near(r.demand.pctV, 100 * r.demand.dcV, 1e-9) && r.demand.pctT === null && r.demand.pctComb === null, true);
+    fx('totals: per-fastener V typed as null is ignored in total mode', m, r.status === 'pass', true);
+    // per basis on a nail with n 2 (v1.2: n / rows active for D < 1/4): V 20, T 5 → V_total 40, T_total 10, qty 2; W_total = 2·Wcap; pct forms.
+    r = run('nail', nailRow('16d', 1.5, { n: 2, rows: 1, s: 2.5, V: 20, T: 5 }), DFL);
+    m = { table: 'spec §13.2', cell: 'nail n 2, per basis', inputs: r.inputs };
+    fx('per basis nail: V_total = 20·2 = 40, T_total = 10, qty 2, demandBasis per', m, near(r.demand.V_total, 40, 1e-12) && near(r.demand.T_total, 10, 1e-12) && r.demand.qty === 2 && r.inputs.demandBasis === 'per', true);
+    fx('per basis nail: Z_total = 2·Z\', W_total = 2·Wcap, pctT = 100·T/Wcap, pctComb = 100·dcComb', m, near(r.capacity.Z_total, 2 * r.capacity.Zp, 1e-9) && near(r.capacity.W_total, 2 * r.capacity.Wcap, 1e-9) && near(r.demand.pctT, 100 * 5 / r.capacity.Wcap, 1e-9) && near(r.demand.pctComb, 100 * r.demand.dcComb, 1e-9), true);
+    r = run('nail', nailRow('16d', 1.5, { n: 3, rows: 2, s: 2.5, g: 1, demandBasis: 'total', V_total: 120, T_total: 30, V: null, T: null }), DFL);
+    fx('total basis nail: qty 6 → V 20, T 5 (same D/C as the per-fastener row above)', { table: 'spec §13.2', cell: 'nail total 120 / 30, qty 6' }, r.demand.qty === 6 && near(r.demand.V, 20, 1e-12) && near(r.demand.T, 5, 1e-12) && r.status === 'pass', true);
+    r = run('nail', nailRow('16d', 1.5, { demandBasis: 'total', V_total: null, T_total: 0, V: 20, T: 0 }), DFL);
+    fx('total mode with V_total blank → incomplete (per-fastener V present but not the input pair)', { table: 'spec §13.2 / §2', cell: '' }, r.status === 'incomplete' && r.warnings.some(function (x) { return x.indexOf('V_total') >= 0; }), true);
+    r = run('nail', nailRow('16d', 1.5, { demandBasis: 'total', V_total: 0, T_total: 0 }), DFL);
+    fx('total mode (0, 0) → nodemand', { table: 'spec §13.2 / §2', cell: '' }, r.status === 'nodemand', true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { demandBasis: 'total', V_total: 100, T_total: 10 }), DFL);
+    fx('bolt total mode with T_total 10 → invalid (§12.2.4 check follows the input pair)', { table: 'spec §13.2 / §2', cell: '' }, r.status === 'invalid', true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { demandBasis: 'total', V_total: 100, T_total: null, T: 10 }), DFL);
+    fx('bolt total mode: stale per-fastener T 10 ignored, T_total blank fine → pass', { table: 'spec §13.2', cell: '' }, r.status === 'pass', true);
+    r = run('nail', nailRow('16d', 1.5, { n: 0 }), DFL); fx('nail n = 0 → invalid (n active for every type)', { table: 'spec §13.2 / §2', cell: '' }, r.status === 'invalid', true);
+    r = run('nail', nailRow('16d', 1.5, { n: null, rows: null }), DFL); fx('nail n / rows blank → 1 (v1.1 files), qty 1, pass', { table: 'spec §13.2 (absent = v1.1)', cell: '' }, r.status === 'pass' && r.demand.qty === 1 && r.inputs.n === 1 && r.inputs.rows === 1, true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { n: null }), DFL); fx('bolt n blank → still incomplete (D ≥ 1/4)', { table: 'spec §2', cell: '' }, r.status === 'incomplete', true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { main: { endDist: 1.0 } }), DFL);   // geom_end fail
+    fx('fatal-flag row: demand still carries V_total 100 / qty 1 with null D/C and pct; Z_total / W_total null', { table: 'spec §13.2', cell: 'fail shape' }, r.status === 'fail' && r.demand.qty === 1 && r.demand.V_total === 100 && r.demand.pctV === null && r.capacity.Z_total === null && r.capacity.W_total === null, true);
+    // 12.2 spacingReq, D ≥ 1/4 (Table 12.5.1 values via the same gm objects). 1/2 bolt θ 0 tension softwood, 1.5/1.5 (l/D 3):
+    //   end_loaded = 7D = 3.5, a1 = 4D = 2.0, edge_unloaded = 1.5D = 0.75 (l/D ≤ 6), rows_inline = 1.5D = 0.75, edge_loaded 4D = 2.0, end_unloaded 4D = 2.0.
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), DFL);
+    m = { table: 'spec §13.3 / Tables 12.5.1A–D', cell: '1/2 bolt θ 0 tension', inputs: r.inputs };
+    var SRq = r.spacingReq;
+    fx('spacingReq bolt θ 0: end_loaded 3.5, a1 2.0, edge_unloaded 0.75, rows_inline 0.75', m, near(SRq.end_loaded, 3.5, 1e-12) && near(SRq.a1_par, 2.0, 1e-12) && near(SRq.edge_unloaded, 0.75, 1e-12) && near(SRq.rows_inline, 0.75, 1e-12), true);
+    fx('spacingReq bolt θ 0: a2 2.0, end_unloaded 2.0, edge_loaded 2.0, rows_staggered = in-line, basis text, member main', m, near(SRq.a2_perp, 2.0, 1e-12) && near(SRq.end_unloaded, 2.0, 1e-12) && near(SRq.edge_loaded, 2.0, 1e-12) && near(SRq.rows_staggered, 0.75, 1e-12) && SRq.basis === 'NDS Table 12.5.1A–D (C_Δ = 1.0 values; hard minima in checks)' && SRq.member === 'main', true);
+    fx('spacingReq bolt θ 0: checks echo the hard minima (main / side end 1.75, edge 0.75), all ok, no s / g checks at n 1 rows 1', m, SRq.checks.length === 4 && SRq.checks.every(function (c) { return c.ok === true; }) && near(SRq.checks[0].required, 1.75, 1e-12) && near(SRq.checks[1].required, 0.75, 1e-12), true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { main: { endDist: 1.74 }, n: 2, s: 1.49 }), DFL);
+    fx('spacingReq bolt: failing end 1.74 < 1.75 and s 1.49 < 3D → checks ok false on those lines, flags geom_end / geom_spacing (unchanged)', { table: 'spec §13.3', cell: 'checks mirror flags' }, r.status === 'fail' && r.spacingReq.checks.some(function (c) { return c.name === 'main end distance (hard min = C_Δ 0.5 value)' && c.ok === false; }) && r.spacingReq.checks.some(function (c) { return /spacing in a row/.test(c.name) && c.ok === false && near(c.required, 1.5, 1e-12); }), true);
+    // θ 90 (main ⊥, 1.5/1.5 → l/D 3): end 4D = 2.0, edge_loaded 4D = 2.0, rows_inline = (5·1.5 + 5)/8 = 1.5625 (Table 12.5.1D 2 < l/D < 6), edge_unloaded 1.5D.
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 90, 0), DFL);
+    m = { table: 'spec §13.3 / Table 12.5.1D', cell: '1/2 bolt main θ 90, l/D 3', inputs: r.inputs };
+    fx('spacingReq bolt θ 90: end_loaded 2.0, edge_loaded 2.0, rows_inline 1.5625 (l/D 3), edge_unloaded 0.75', m, near(r.spacingReq.end_loaded, 2.0, 1e-12) && near(r.spacingReq.edge_loaded, 2.0, 1e-12) && near(r.spacingReq.rows_inline, 1.5625, 1e-12) && near(r.spacingReq.edge_unloaded, 0.75, 1e-12), true);
+    fx('spacingReq bolt θ 90: main loaded-edge check present (2.0 vs 2.0 ok); rows_inline equals the C_Δ block rowMin', m, r.spacingReq.checks.some(function (c) { return c.name === 'main loaded edge distance' && near(c.required, 2.0, 1e-12) && c.ok === true; }) && near(r.spacingReq.rows_inline, r.factors.Cdelta.detail.members[0].rowMin, 1e-12), true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 45, 0), DFL);
+    fx('spacingReq bolt θ 45: end_loaded interpolated 2.75 = C_Δ block endFull', { table: 'spec §13.3 / C12.5.1.2', cell: '' }, near(r.spacingReq.end_loaded, 2.75, 1e-12) && near(r.spacingReq.end_loaded, r.factors.Cdelta.detail.members[0].endFull, 1e-12), true);
+    r = run('screw', lagRow(0.5, 4, 1.5, 0, 0, { V: 0, T: 50, main: { endDist: 2.0 } }), DFL);
+    fx('spacingReq lag withdrawal-only: Table 12.5.1E basis, edge 0.75, end 2.0, s 2.0', { table: 'spec §13.3 / Table 12.5.1E', cell: '' }, /12\.5\.1E/.test(r.spacingReq.basis) && near(r.spacingReq.edge_unloaded, 0.75, 1e-12) && near(r.spacingReq.end_loaded, 2.0, 1e-12) && near(r.spacingReq.a1_par, 2.0, 1e-12), true);
+    r = run('bolt', merge(boltRow(0.5, 0.25, 1.5, 0, 0), { mainSteel: true, main: { gauge: 'plate', t: 0.25, w: 3 } }), DFL);
+    fx('spacingReq steel main: keyed to the side member', { table: 'spec §13.3', cell: '' }, r.spacingReq.member === 'side' && near(r.spacingReq.end_loaded, 3.5, 1e-12), true);
+    // 12.3 spacingReq, D < 1/4 — Commentary Table C12.1.6.6 (PDF 269), 16d common D 0.162, wood side, not prebored:
+    //   edge 2.5D = 0.405; end tension 15D = 2.43; a1 (∥) 15D = 2.43; a2 (⊥) 10D = 1.62; rows in-line 5D = 0.81, staggered 2.5D = 0.405; end compression 10D = 1.62.
+    r = run('nail', nailRow('16d', 1.5), DFL);
+    m = { table: 'Commentary Table C12.1.6.6 p.255/269', cell: 'wood side, not prebored, 16d (0.162)', inputs: r.inputs };
+    SRq = r.spacingReq;
+    fx('C12.1.6.6 wood / not prebored: edge 0.405, end 2.43, a1 2.43, a2 1.62, rows 0.81 / 0.405', m, near(SRq.edge_unloaded, 0.405, 1e-12) && near(SRq.end_loaded, 2.43, 1e-12) && near(SRq.a1_par, 2.43, 1e-12) && near(SRq.a2_perp, 1.62, 1e-12) && near(SRq.rows_inline, 0.81, 1e-12) && near(SRq.rows_staggered, 0.405, 1e-12), true);
+    fx('C12.1.6.6: basis text, end_unloaded = compression 1.62, s_required ∥ 2.43 at θ 0, prebored false, wood side', m, SRq.basis === 'Commentary Table C12.1.5.7 (wood screws) / C12.1.6.6 (nails), advisory (PDF 268–269)' && near(SRq.end_unloaded, 1.62, 1e-12) && near(SRq.s_required, 2.43, 1e-12) && SRq.prebored === false && SRq.sideMat === 'wood', true);
+    fx('C12.1.6.6: fresh nail row at the v1.2 geomDefaults (end 2.43, edge 0.405) → checks ok, no advisory warning, note printed, status pass', m, r.status === 'pass' && SRq.checks.length === 4 && SRq.checks.every(function (c) { return c.ok; }) && !r.warnings.some(function (x) { return x.indexOf('advisory') >= 0; }) && r.notes.some(function (x) { return x.indexOf('§12.1.5.7 / §12.1.6.5') >= 0; }), true);
+    r = run('nail', nailRow('16d', 1.5, { prebored: true }), DFL);
+    fx('C12.1.6.6 wood / prebored: end 1.62, a1 1.62, a2 0.81, rows 0.486 / 0.405, edge 0.405', { table: 'Commentary Table C12.1.6.6 p.255/269', cell: 'wood side, prebored' }, near(r.spacingReq.end_loaded, 1.62, 1e-12) && near(r.spacingReq.a1_par, 1.62, 1e-12) && near(r.spacingReq.a2_perp, 0.81, 1e-12) && near(r.spacingReq.rows_inline, 0.486, 1e-12) && near(r.spacingReq.rows_staggered, 0.405, 1e-12) && near(r.spacingReq.edge_unloaded, 0.405, 1e-12) && r.spacingReq.prebored === true, true);
+    r = run('nail', nailRow('16d', 0.06, { side: { mat: 'steel', gauge: '16' } }), DFL);
+    fx('C12.1.6.6 steel side / not prebored: end 1.62, a1 1.62, a2 0.81, rows 0.486 / 0.405, edge 0.405', { table: 'Commentary Table C12.1.6.6 p.255/269', cell: 'steel side, not prebored' }, near(r.spacingReq.end_loaded, 1.62, 1e-12) && near(r.spacingReq.a1_par, 1.62, 1e-12) && near(r.spacingReq.a2_perp, 0.81, 1e-12) && near(r.spacingReq.rows_inline, 0.486, 1e-12) && near(r.spacingReq.rows_staggered, 0.405, 1e-12) && near(r.spacingReq.edge_unloaded, 0.405, 1e-12) && r.spacingReq.sideMat === 'steel', true);
+    r = run('nail', nailRow('16d', 0.06, { side: { mat: 'steel', gauge: '16' }, prebored: true }), DFL);
+    fx('C12.1.6.6 steel side / prebored: end 0.81 (5D), compression 0.486 (3D), a1 0.81, a2 0.405, rows 0.405 / 0.405', { table: 'Commentary Table C12.1.6.6 p.255/269', cell: 'steel side, prebored' }, near(r.spacingReq.end_loaded, 0.81, 1e-12) && near(r.spacingReq.end_unloaded, 0.486, 1e-12) && near(r.spacingReq.a1_par, 0.81, 1e-12) && near(r.spacingReq.a2_perp, 0.405, 1e-12) && near(r.spacingReq.rows_inline, 0.405, 1e-12), true);
+    // advisory warning: n 2, s 1.0 < 15D = 2.43 → warning with the exact spec text; status unchanged (pass), no flag.
+    r = run('nail', nailRow('16d', 1.5, { n: 2, s: 1.0 }), DFL);
+    m = { table: 'spec §13.3', cell: 'nail n 2, s 1.0', inputs: r.inputs };
+    fx('advisory: s 1.0 < 15D → warning text exact, status pass, flags empty, C_Δ 1', m, r.warnings.indexOf('advisory spacing: s = 1.000 < 15D = 2.430 (Commentary Table C12.1.6.6, not prebored)') >= 0 && r.status === 'pass' && r.flags.length === 0 && r.factors.Cdelta.v === 1, true);
+    fx('advisory: check line ok false with required 2.43, actual 1.0', m, r.spacingReq.checks.some(function (c) { return c.name === 's' && c.ok === false && near(c.required, 2.43, 1e-12) && c.actual === 1.0; }), true);
+    r = run('nail', nailRow('16d', 1.5, { n: 2, s: 1.0, main: { theta: 90, loadedEdgeDist: 0.405 }, side: { theta: 0 } }), DFL);
+    fx('advisory at main θ 90: s rule ⊥ 10D = 1.62 → "s = 1.000 < 10D = 1.620"', { table: 'spec §13.3', cell: '⊥ by main θ' }, near(r.spacingReq.s_required, 1.62, 1e-12) && r.warnings.some(function (x) { return x.indexOf('s = 1.000 < 10D = 1.620') >= 0; }) && r.status === 'pass', true);
+    r = run('nail', nailRow('16d', 1.5, { n: 2, s: 2.0, main: { theta: 45 }, side: { theta: 0 } }), DFL);
+    fx('advisory at main θ 45: the larger (∥ 15D = 2.43) governs → s 2.0 warns', { table: 'spec §13.3', cell: 'intermediate θ → larger' }, near(r.spacingReq.s_required, 2.43, 1e-12) && r.warnings.some(function (x) { return x.indexOf('advisory spacing: s') >= 0; }), true);
+    r = run('nail', nailRow('16d', 1.5, { rows: 2, g: 0.5, main: { towardEnd: false, endDist: 1.62 } }), DFL);
+    fx('advisory: rows 2 g 0.5 < 5D = 0.81 warns; compression end 10D = 1.62 exactly ok', { table: 'spec §13.3', cell: 'g / compression' }, r.warnings.some(function (x) { return x.indexOf('g = 0.500 < 5D = 0.810') >= 0; }) && near(r.spacingReq.end_loaded, 1.62, 1e-12) && !r.warnings.some(function (x) { return x.indexOf('end distance') >= 0; }) && r.status === 'pass', true);
+    r = run('nail', nailRow('16d', 1.5, { main: { endDist: 1.0, edgeDist: 0.3 }, side: { endDist: 1.0, edgeDist: 0.3 } }), DFL);
+    fx('advisory: main / side end 1.0 < 15D and edge 0.3 < 2.5D → four warnings, status still pass', { table: 'spec §13.3', cell: 'end / edge, both wood members' }, r.warnings.filter(function (x) { return x.indexOf('advisory spacing') === 0; }).length === 4 && r.warnings.some(function (x) { return x === 'advisory spacing: main edge distance = 0.300 < 2.5D = 0.405 (Commentary Table C12.1.6.6, not prebored)'; }) && r.status === 'pass', true);
+    r = run('nail', nailRow('16d', 1.5, { n: 2, s: null, g: null, main: { endDist: null, edgeDist: null }, side: { endDist: null, edgeDist: null } }), DFL);
+    fx('advisory: blank geometry on a nail (older file) → checks empty, no warnings, block still reports the required values, pass', { table: 'spec §13.3 (older files)', cell: '' }, r.status === 'pass' && r.spacingReq.checks.length === 0 && !r.warnings.some(function (x) { return x.indexOf('advisory') >= 0; }) && near(r.spacingReq.a1_par, 2.43, 1e-12), true);
+    r = run('nail', nailRow('16d', 1.5, { s: -1 }), DFL); fx('nail s = −1 → invalid (rejected input, §2)', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
+    r = run('screw', wsRow(10, 3, 1.5, { n: 2, s: 1.0 }), DFL);
+    fx('wood screw No. 10 (0.190) advisory cites Table C12.1.5.7: s 1.0 < 15D = 2.85', { table: 'Commentary Table C12.1.5.7 p.254/268', cell: 'wood side, not prebored' }, r.warnings.indexOf('advisory spacing: s = 1.000 < 15D = 2.850 (Commentary Table C12.1.5.7, not prebored)') >= 0 && near(r.spacingReq.edge_unloaded, 0.475, 1e-12) && r.status === 'pass', true);
+    fx('geomDefaults for D < 1/4 = Commentary not-prebored wood values: 16d s 2.43, g 0.81, end 2.43 (tension) / 1.62 (compression), edge 0.405; θ 90 s 1.62', { table: 'spec §13.3 / GEOM_INTERP', cell: 'D 0.162' }, (function () { var a = geomDefaults(0.162, 0, true), b = geomDefaults(0.162, 0, false), c9 = geomDefaults(0.162, 90, true); return near(a.s, 2.43, 1e-12) && near(a.g, 0.81, 1e-12) && near(a.endDist, 2.43, 1e-12) && near(b.endDist, 1.62, 1e-12) && near(a.edgeDist, 0.405, 1e-12) && near(c9.s, 1.62, 1e-12); })(), true);
+    // 12.4 fastener property echo: D_H (pull-through head diameter) and coating.
+    r = run('nail', nailRow('16d', 1.5), DFL); fx('inputs.D_H = 0.344 for 16d common (Table L4), coating null', { table: 'Table L4 p.182/196', cell: '16d common H' }, r.inputs.D_H === 0.344 && r.inputs.coating === null, true);
+    r = run('screw', wsRow(10, 3, 1.5), DFL); fx('inputs.D_H = 0.363 for No. 10 wood screw (Table L3)', { table: 'Table L3 p.182/196', cell: 'No. 10 D_H' }, r.inputs.D_H === 0.363, true);
+    r = run('screw', lagRow(0.5, 4, 1.5, 0, 0, { main: { t: 3.5 } }), DFL); fx('inputs.D_H null for a lag (hex head)', { table: 'spec §13.4', cell: '' }, r.inputs.D_H === null && r.inputs.coating === null, true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), DFL); fx('inputs.D_H null for a bolt', { table: 'spec §13.4', cell: '' }, r.inputs.D_H === null, true);
+    // 12.5 exits_main wording (spec §13.1): 16d (L 3.5) through t_s 1.5 into t_m 0.75 → L − t_s = 2.000 > t_m = 0.750.
+    r = run('nail', nailRow('16d', 1.5, { main: { t: 0.75 } }), DFL);
+    fx('exits_main warning text: "fastener exits the main member: L − t_s = 2.000 > t_m = 0.750 — lengths capped at t_m"', { table: 'spec §13.1', cell: '' }, r.warnings.indexOf('fastener exits the main member: L − t_s = 2.000 > t_m = 0.750 — lengths capped at t_m') >= 0, true);
+    // 12.6 newRow / shape
+    var n12 = newRow('nail'), b12 = newRow('bolt');
+    fxb('newRow carries demandBasis per, V_total / T_total null, prebored false (nail and bolt)', { table: 'spec §13' }, n12.demandBasis === 'per' && n12.V_total === null && n12.T_total === null && n12.prebored === false && b12.demandBasis === 'per' && b12.prebored === false, JSON.stringify({ demandBasis: n12.demandBasis, V_total: n12.V_total, T_total: n12.T_total, prebored: n12.prebored }));
+    fxb('newRow(nail) geometry defaults at the Commentary values: s 2.43, g 0.81, end 2.43, edge 0.405', { table: 'spec §13.3' }, near(n12.s, 2.43, 1e-12) && near(n12.g, 0.81, 1e-12) && near(n12.main.endDist, 2.43, 1e-12) && near(n12.main.edgeDist, 0.405, 1e-12), JSON.stringify({ s: n12.s, g: n12.g, end: n12.main.endDist, edge: n12.main.edgeDist }));
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), DFL);
+    fxb('rowResult v1.2 shape: spacingReq keys, capacity Z_total / W_total, demand V_total / T_total / qty / pct*', { table: 'spec §13' },
+        ['basis', 'a1_par', 'a2_perp', 'end_loaded', 'end_unloaded', 'edge_loaded', 'edge_unloaded', 'rows_inline', 'rows_staggered', 'checks'].every(function (k) { return r.spacingReq.hasOwnProperty(k); }) && ['Z_total', 'W_total'].every(function (k) { return r.capacity.hasOwnProperty(k); }) && ['V_total', 'T_total', 'qty', 'pctV', 'pctT', 'pctComb'].every(function (k) { return r.demand.hasOwnProperty(k); }) && r.hasOwnProperty('spacingReq'), Object.keys(r.spacingReq).join(','));
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { n: 0 }), DFL); fxb('invalid row: spacingReq null', { table: 'spec §13.3' }, r.spacingReq === null, String(r.spacingReq));
 
     var pass = 0, fail = 0;
     FX.forEach(function (f) { if (f.ok) pass++; else fail++; });

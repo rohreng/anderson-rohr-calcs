@@ -67,7 +67,10 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .wc-tbl tr.wc-sum td.tdl{text-align:left}
 .wc-tbl tr.wc-sum td.wc-c-idx{font-weight:700;color:var(--are-blue-3);width:28px}
 .wc-tbl tr.wc-sum td.wc-c-fast{font-size:.9em;color:var(--are-blue-1);white-space:nowrap}
-.wc-tbl tr.wc-sum td.wc-c-zp,.wc-tbl tr.wc-sum td.wc-c-wcap{font-weight:600;color:var(--are-blue-1);white-space:nowrap}
+.wc-tbl tr.wc-sum td.wc-c-ztot,.wc-tbl tr.wc-sum td.wc-c-wtot{font-weight:600;color:var(--are-blue-1);white-space:nowrap}
+.wc-tbl tr.wc-sum td.wc-c-qty{font-weight:600;white-space:nowrap}
+.wc-tbl tr.wc-sum td.wc-c-vtot,.wc-tbl tr.wc-sum td.wc-c-ttot{white-space:nowrap;font-variant-numeric:tabular-nums}
+.wc-exit{display:inline-block;color:var(--are-warn);font-size:.9em;margin-left:4px;cursor:help;white-space:nowrap}
 .wc-tbl tr.wc-in td{padding:3px 5px 6px;vertical-align:top;background:#fff}
 .wc-tbl tr.wc-det td{padding:2px 5px 10px;vertical-align:top;background:#fff}
 .wc-tbl td.wc-ind{width:28px;border-left:3px solid var(--are-blue-3);background:var(--are-gray-3) !important}
@@ -84,7 +87,15 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 #schedule input:focus,#schedule select:focus{border-color:var(--are-blue-2) !important;background:#fff;outline:none !important;box-shadow:none !important}
 #schedule input[type=checkbox]{margin:0 4px 0 0;vertical-align:middle}
 .wc-c-desc input{min-width:150px}
-.wc-c-V input,.wc-c-T input{width:72px}
+/* read-only derived chips (per-fastener ↔ total demand, qty, E) */
+.wc-f.ro b{color:var(--are-blue-1);font-weight:600;font-size:1.02em;white-space:nowrap}
+.wc-f.ro small{color:var(--are-gray-1);font-weight:400}
+/* segmented demand-basis toggle */
+.wc-seg{display:inline-flex;border:1px solid var(--are-gray-2);border-radius:4px;overflow:hidden;background:#fff}
+.wc-seg button{background:#fff;border:none;color:var(--are-blue-3);font-size:.9em;padding:2px 8px;cursor:pointer;line-height:1.4;white-space:nowrap}
+.wc-seg button+button{border-left:1px solid var(--are-gray-2)}
+.wc-seg button:hover{background:var(--are-gray-3)}
+.wc-seg button.on{background:var(--are-blue-3);color:#fff}
 /* input groups in the indented sub-row */
 .wc-grps{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:flex-start}
 .wc-grp{display:flex;flex-wrap:wrap;gap:3px 8px;align-items:flex-end;padding:3px 8px 4px;border-left:2px solid var(--are-gray-2);background:#fff}
@@ -129,6 +140,11 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .wc-d td{padding:1px 5px;border-bottom:1px solid var(--are-gray-3);vertical-align:top}
 .wc-d td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .wc-d tr.gov td{background:var(--are-input);font-weight:700}
+.wc-d tr.tot td{background:var(--are-gray-3);font-weight:600}
+.wc-d td.ok{color:var(--are-ok);font-weight:700;text-align:center;white-space:nowrap}
+.wc-d td.warn{color:var(--are-warn);font-weight:700;text-align:center;white-space:nowrap}
+.wc-d td.bad{color:var(--are-fail);font-weight:700;text-align:center;white-space:nowrap}
+.wc-d td.lbl{color:var(--are-gray-1)}
 .wc-d .kv{display:grid;grid-template-columns:auto 1fr;gap:1px 10px}
 .wc-d .kv span:nth-child(odd){color:var(--are-gray-1)}
 .wc-d ul{padding-left:16px;line-height:1.4}
@@ -166,7 +182,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 <div class="container">
   <div class="header">
     <h1>&#128295; Wood Connection Schedule<span data-are-mark data-are-prefix=" — "></span></h1>
-    <p>NDS 2018 Chapter 12 dowel-type fasteners &mdash; bolts, nails, wood screws, lag screws &mdash; per-project schedule, ASD per fastener &mdash; Anderson Rohr Engineering <span id="engRev" style="opacity:.7;font-size:.85em"></span></p>
+    <p>NDS 2018 Chapter 12 dowel-type fasteners &mdash; bolts, nails, wood screws, lag screws &mdash; per-project schedule, ASD per fastener or per connection &mdash; Anderson Rohr Engineering <span id="engRev" style="opacity:.7;font-size:.85em"></span></p>
     <div class="ref-tags">
       <span class="tag">NDS 2018</span>
       <span class="tag">ASD</span>
@@ -274,13 +290,13 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
         </div>
       </div>
       <div class="callout" style="margin:12px 0 0">
-        <strong>Code basis:</strong> NDS 2018 (AWC, with Commentary), ASD. Demands V (lateral) and T (withdrawal) are entered <strong>per fastener at ASD level</strong>; the engine applies no load factors. C<sub>D</sub> per connection from its load case, capped at 1.6 (&sect;11.3.2, Table 2.3.2). Reference values are computed from the yield-limit equations of Table 12.3.1A with the actual member thicknesses and penetrations (&sect;12.3.1); the tabulated Tables 12A&ndash;12P are fixtures, not the method.
+        <strong>Code basis:</strong> NDS 2018 (AWC, with Commentary), ASD. Demands V (lateral) and T (withdrawal) are entered at <strong>ASD level, per fastener or for the whole connection</strong> (toggle per row; qty = n &times; rows converts between them); the engine applies no load factors. C<sub>D</sub> per connection from its load case, capped at 1.6 (&sect;11.3.2, Table 2.3.2). Reference values are computed from the yield-limit equations of Table 12.3.1A with the actual member thicknesses and penetrations (&sect;12.3.1); the tabulated Tables 12A&ndash;12P are fixtures, not the method.
         <span id="hdrResolved"></span>
       </div>
     </div>
 
     <div class="callout howto">
-      <strong>How to use:</strong> Add a connection to the table of its fastener type. The summary line carries the description, the required <em>V</em> and <em>T</em> per fastener (ASD), and the results. The indented sub-row holds that connection's inputs &mdash; only the inputs that apply to its type and diameter are shown; factors that do not apply print as n/a with the reason. <strong>Details</strong> (&#9656;) expands every intermediate: penetrations, member properties, all six yield modes, R<sub>d</sub>, the factor chain with clauses, withdrawal and pull-through, the combined check and the engineer notes. Printing expands every connection. Main member = the member holding the point; side member = the member under the head. For a double-shear bolt the side block describes both (equal) side members.
+      <strong>How to use:</strong> Add a connection to the table of its fastener type. The summary line carries the description, the fastener, the quantity (n &times; rows), the connection totals <em>V</em><sub>total</sub> / <em>T</em><sub>total</sub> (ASD), the total capacities Z<sub>total</sub> / W<sub>total</sub>, D/C and status. The indented sub-row holds that connection's inputs in the Fastener Designer order &mdash; fastener, load (per fastener or total, toggle), Side Member A, Main Member B, pattern, factors; only the inputs that apply to its type and diameter are shown; factors that do not apply print as n/a with the reason. <strong>Details</strong> (&#9656;) expands every intermediate in the FD report order: fastener properties, adjustment factors, penetration, fastener pattern, minimum spacing requirements, withdrawal, lateral (all six yield modes with R<sub>d</sub>), combined, notes. Printing expands every connection. <strong>Main Member B</strong> = the member holding the point; <strong>Side Member A</strong> = the member under the head. <em>t</em> is the member dimension along the fastener (the depth it travels into that member); <em>w</em> is the face dimension across it. For a double-shear bolt the side block describes both (equal) side members.
     </div>
 
     <div id="modelMsgs"></div>
@@ -297,6 +313,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
         <li><strong>Method.</strong> Lateral reference values Z from the six yield modes of NDS 2018 Table 12.3.1A (four for double shear) with reduction terms R<sub>d</sub> per Table 12.3.1B, dowel bearing strengths per Table 12.3.3 (rounded to 50 psi), F<sub>yb</sub> per Table I1 by nominal diameter (override per row). Lag screws and wood screws use the root diameter D<sub>r</sub> inside the yield equations only (&sect;12.3.7.1); every other test uses the nominal D.</li>
         <li><strong>Penetration.</strong> The fastener length L is entered; penetrations are derived by intersecting the fastener with the members along its axis (side [0, t<sub>s</sub>], main [t<sub>s</sub>, t<sub>s</sub> + t<sub>m</sub>]). l<sub>m</sub> = p &minus; E/2 for the tapered tip in the main member (&sect;12.3.5.3); thread length in the main member for withdrawal by type (lag &sect;12.2.1.2 excludes the tip, wood screw &sect;12.2.2.2 keeps it, nail full length). Minimum penetration lag 4D excluding the tip (&sect;12.1.4.6), wood screw and nail 6D (&sect;12.1.5.6, &sect;12.1.6.4); below the minimum the row fails and no capacity is reported. No p/8D or p/10D table-footnote scaling is applied.</li>
         <li><strong>C<sub>g</sub> and C<sub>&Delta;</sub></strong> (nominal D &ge; 1/4 in only) are computed from the layout as entered: rows parallel to the load, equal fasteners per row. <strong>Staggered rows</strong> are modelled per &sect;11.3.6.2 (Fig. 11B): adjacent rows merge into one row for C<sub>g</sub> when the row spacing g is less than 1/4 of the closest longitudinal offset between fasteners in adjacent rows (min(offset, s &minus; offset)); the merged row carries 2n fasteners at s/2, and the lesser of the merged and separate-row C<sub>g</sub> governs; every physical geometry check keeps the physical s and g. <strong>Load angle</strong> 0&ndash;90&deg; per member: F<sub>e&theta;</sub> by Hankinson (Eq. 12.3-11), K<sub>&theta;</sub> on the largest angle, end distance interpolated between the &parallel; and &perp; values (Commentary C12.5.1.2), edge distance and row spacing by the governing of the &parallel;/&perp; rules. Gross member areas per &sect;11.3.6.3; a member loaded at an angle to grain uses the group width (rows &minus; 1)&middot;g measured along its grain, with the 3D minimum parallel-to-grain spacing for a single row; at an intermediate angle the lesser of the &parallel; and &perp; area interpretations governs. Hard geometry minimums (Tables 12.5.1A&ndash;E) fail the row; otherwise C<sub>&Delta;</sub> = min(1, end / full end, s / 4D). Across-grain spread over 5 in (((n &minus; 1)&middot;s + closest stagger offset)&middot;sin&theta; + (rows &minus; 1)&middot;g&middot;cos&theta; per member) fails the row unless shrinkage detailing is confirmed (&sect;12.5.1.3).</li>
+        <li><strong>Spacing for D &lt; 1/4 in</strong> (nails, wood screws) is "sufficient to prevent splitting" per &sect;12.1.5.7 / &sect;12.1.6.5; the Commentary tables C12.1.5.7 / C12.1.6.6 (with or without prebored lead holes, wood or steel side) are used as the recommendation and any shortfall is an advisory warning, never a row failure. The Minimum Spacing Requirements block prints required / actual / &#10003; or &#9888; per line for every row; for D &ge; 1/4 in the required values are the C<sub>&Delta;</sub> = 1.0 values of Tables 12.5.1A&ndash;D with the hard minima as the checks.</li>
         <li><strong>Withdrawal</strong> per Eq. 12.2-1/-2/-3 at the main-member G over the thread length in the main member; head pull-through per &sect;12.2.5 Eq. 12.2-6 for round-head nails and wood screws through a wood side member, W<sub>cap</sub> = min(W'&middot;p<sub>t</sub>, W<sub>H</sub>'). Lag (hex head) and steel-side pull-through / pull-over are the engineer's check and count as unresolved. Nails and wood screws in end grain carry no withdrawal (&sect;12.2.2.3, &sect;12.2.3.3); lags in end grain use C<sub>eg</sub> 0.75. Bolts have no NDS withdrawal value.</li>
         <li><strong>Combined loading</strong> &sect;12.4: Eq. 12.4-1 (cos&sup2;/sin&sup2;) for lag and wood screws, Eq. 12.4-2 (cos/sin) for nails; D/C = max(V/Z', T/W<sub>cap</sub>, &radic;(V&sup2;+T&sup2;)/Z'<sub>&alpha;</sub>).</li>
         <li><strong>Toe-nails</strong> (&sect;12.1.6.3, 30&deg;, L/3 from the end): l<sub>s</sub> = min(t<sub>s</sub>, L/3), l<sub>m</sub> = min(L&middot;cos30&deg; &minus; L/3, t<sub>m</sub>) (Commentary C12.5.4), withdrawal on the actual nail length in the main member; C<sub>tn</sub> 0.83 lateral / 0.67 withdrawal; C<sub>M</sub> = 1.0 for toe-nail withdrawal (&sect;12.5.4.1).</li>
@@ -359,8 +376,20 @@ var _rt=null;            // pending deferred render
 
 function haveEngine(){ return !!(window.WC&&typeof WC.compute==='function'); }
 
-function newRow(table,opts){ return WC.newRow(TYPE_OF[table],opts||{}); }
+function newRow(table,opts){ return normRow(WC.newRow(TYPE_OF[table],opts||{})); }
 function isPosInt(v){ return typeof v==='number'&&isFinite(v)&&v>0&&Math.floor(v)===v; }
+// v1.1 / v1.2 optional row fields: coerce to their types; absent = the older behavior.
+function normRow(r){
+  r.stagger=!!r.stagger;                                       // §11.3.6.2 staggered rows (v1.1)
+  r.offset=isNum(r.offset)?r.offset:null;
+  r.demandBasis=(r.demandBasis==='total')?'total':'per';       // §13.2 demand basis; absent = per fastener
+  r.V_total=isNum(r.V_total)?r.V_total:null;                   // §13.2 whole-connection demands (ASD lb)
+  r.T_total=isNum(r.T_total)?r.T_total:null;
+  r.prebored=!!r.prebored;                                     // §13.3 prebored lead holes (D < 1/4 advisory spacing)
+  return r;
+}
+// quantity of fasteners in the connection (n per row × rows), for display only — the engine reports demand.qty
+function qtyOf(row){ var n=isPosInt(row.n)?row.n:1, r=isPosInt(row.rows)?row.rows:1; return n*r; }
 // Rows from a file (or the engine default) are never trusted: keep plain objects
 // only, and give every row a positive-integer id that is unique on the page —
 // a missing, non-integer or duplicate id is reassigned from ++rowCnt. Ids are
@@ -378,15 +407,14 @@ function sanitizeRows(){
       seen[r.id]=true;
       if(!r.main||typeof r.main!=='object') r.main={};
       if(!r.side||typeof r.side!=='object') r.side={};
-      if(t==='bolts') r.T=null;   // T is inactive on bolts and never rendered; a stray T > 0 would be an uneditable invalid
-      r.stagger=!!r.stagger;                     // §11.3.6.2 staggered rows (v1.1); absent = false
-      r.offset=isNum(r.offset)?r.offset:null;
+      normRow(r);
+      if(t==='bolts'){ r.T=null; r.T_total=null; }   // T is inactive on bolts and never rendered; a stray T > 0 would be an uneditable invalid
     });
   });
 }
 function seedDefaults(){
   // One example row per table so the page is not empty on first load.
-  var nail=newRow('nails'); nail.nailType='common'; nail.penny='16d'; nail.desc='Example — 16d common, 2x to 2x'; nail.V=100; nail.T=0;
+  var nail=newRow('nails'); nail.nailType='common'; nail.penny='16d'; nail.desc='Example — 16d common, 2x to 2x, 2 per row'; nail.V=100; nail.T=0; nail.n=2; forceGeomDefaults(nail,'nail');
   var bolt=newRow('bolts'); bolt.D=0.5; bolt.shear='single'; bolt.desc='Example — 1/2 in bolt, single shear, 2x to 2x'; bolt.V=400; forceGeomDefaults(bolt,'bolt');
   var lag=newRow('screws',{screwType:'lag'}); lag.D=0.5; lag.L=4; lag.main.t=3.5; lag.desc='Example — 1/2 x 4 lag, 2x to 4x'; lag.V=200; lag.T=100; forceGeomDefaults(lag,'screw');
   [nail,bolt,lag].forEach(function(r){ r.id=++state.rowCnt; });
@@ -408,10 +436,18 @@ function findRow(id){
 function getPath(o,p){ var ks=p.split('.'),v=o; for(var i=0;i<ks.length;i++){ if(v==null)return undefined; v=v[ks[i]]; } return v; }
 function setPath(o,p,val){ var ks=p.split('.'),v=o; for(var i=0;i<ks.length-1;i++){ if(v[ks[i]]==null||typeof v[ks[i]]!=='object') v[ks[i]]={}; v=v[ks[i]]; } v[ks[ks.length-1]]=val; }
 
-// Nominal D for the UI's active-when tests. Geometry / C_g inputs are active only
-// for nominal D ≥ 1/4 in, which is every bolt and every lag; nails and wood screws
+// Nominal D for the UI's active-when tests. C_g / C_Δ geometry is active only for
+// nominal D ≥ 1/4 in, which is every bolt and every lag; nails and wood screws
 // (No. 14 = 0.242 in) never reach it. The engine repeats this test on its own D.
-function nomD(row,type){ if(type==='bolt')return row.D; if(type==='screw'&&row.screwType==='lag')return row.D; return null; }
+// Nail / wood-screw diameters are read from WC.DATA (Tables L3 / L4) for the
+// D < 1/4 advisory-spacing defaults (§13.3).
+function nomD(row,type){
+  if(type==='bolt') return isNum(row.D)?row.D:null;
+  if(type==='screw'&&row.screwType==='lag') return isNum(row.D)?row.D:null;
+  if(!window.WC||!WC.DATA) return null;
+  if(type==='screw'){ var ws=WC.DATA.WOOD_SCREWS&&WC.DATA.WOOD_SCREWS[String(row.no)]; return (ws&&isNum(ws.D))?ws.D:null; }
+  var tbl=WC.DATA.NAILS&&(WC.DATA.NAILS[row.nailType]||WC.DATA.NAILS.common), p=tbl&&tbl[row.penny]; return (p&&isNum(p.D))?p.D:null;
+}
 function isBig(row,type){ var D=nomD(row,type); return isNum(D)&&D>=0.25; }
 
 // Geometry defaults per spec §3.1 (s = 4D, g = 1.5D / 5D, end 7D / 4D, edge 1.5D,
@@ -421,12 +457,16 @@ function isBig(row,type){ var D=nomD(row,type); return isNum(D)&&D>=0.25; }
 // any 0 < θ < 90 is treated as 90 (the ⊥ rules govern edge / row spacing, spec §12.1).
 var GEOM_INTERP=false;
 function thDef(th){ th=isNum(th)?Math.max(0,Math.min(90,th)):0; return GEOM_INTERP?th:(th>0?90:0); }
+// D < 1/4 in (nails, wood screws): the engine's geomDefaults returns the Commentary
+// Table C12.1.5.7 / C12.1.6.6 recommendations (wood side, not prebored — the
+// conservative case, so a fresh row meets the advisory check whatever the side
+// material or lead holes); s follows the main member's θ (∥ 15D / ⊥ 10D).
 function geomDefaults(row,type){
   var D=nomD(row,type); if(!isNum(D)||!window.WC||typeof WC.geomDefaults!=='function') return {};
   var m=row.main||{}, s=row.side||{};
   var gm=WC.geomDefaults(D,thDef(m.theta),m.towardEnd), gs=WC.geomDefaults(D,thDef(s.theta),s.towardEnd), g0=WC.geomDefaults(D,0,true), g90=WC.geomDefaults(D,90,true);
   var anyPerp=(!(type==='bolt'&&row.mainSteel)&&isNum(m.theta)&&m.theta>0)||(s.mat!=='steel'&&isNum(s.theta)&&s.theta>0);
-  var d={s:g0.s, g:anyPerp?g90.g:g0.g};
+  var d={s:D<0.25?gm.s:g0.s, g:anyPerp?g90.g:g0.g};
   d['main.edgeDist']=gm.edgeDist; d['main.loadedEdgeDist']=gm.loadedEdgeDist; d['main.endDist']=gm.endDist;
   d['side.edgeDist']=gs.edgeDist; d['side.loadedEdgeDist']=gs.loadedEdgeDist; d['side.endDist']=gs.endDist;
   return d;
@@ -475,6 +515,13 @@ function upd(rowId,path,value,live){
   if(type==='screw'&&(path==='screwType'||path==='D'||path==='no')) ensureScrew(row);
   if(type==='nail'&&path==='nailType'&&pennies(row.nailType).indexOf(row.penny)<0) row.penny=pennies(row.nailType)[0];
   if((path==='stagger'||path==='rows'||path==='s')&&row.stagger&&isNum(row.rows)&&row.rows>=2&&!isNum(row.offset)&&isNum(row.s)) row.offset=row.s/2;   // §11.3.6.2 default offset
+  // §13.2 demand basis: switching carries the current demand across (V_total = V·qty, or V = V_total/qty)
+  // so the row's D/C does not change with the toggle; the engine then derives the other pair.
+  if(path==='demandBasis'){
+    var q=qtyOf(row);
+    if(value==='total'){ if(isNum(row.V)) row.V_total=row.V*q; if(isNum(row.T)&&type!=='bolt') row.T_total=row.T*q; }
+    else { if(isNum(row.V_total)) row.V=row.V_total/q; if(isNum(row.T_total)&&type!=='bolt') row.T=row.T_total/q; }
+  }
   if(type==='screw'&&path==='screwType'&&value==='lag') forceGeomDefaults(row,type);
   else applyGeomDefaults(row,type,before);
   recalc();
@@ -574,7 +621,8 @@ function render(){
   renderResolved();
   if(fid){ var el=document.getElementById(fid); if(el){ try{ el.focus({preventScroll:true}); }catch(e){ el.focus(); } if(s0!=null){ try{ el.setSelectionRange(s0,s1); }catch(e2){} } } }
 }
-function colCount(t){ return t==='bolts'?8:10; }
+// summary columns: # · description · fastener · qty · V_total · [T_total] · Z_total · [W_total] · D/C · status · buttons
+function colCount(t){ return t==='bolts'?9:11; }
 function sectionHTML(t){
   var rows=state[t], type=TYPE_OF[t];
   var o='<section data-table="'+t+'" class="wc-sec">';
@@ -583,10 +631,10 @@ function sectionHTML(t){
   if(_undoDel&&_undoDel.table===t) o+='<button class="btn-undo" id="wc_undo_'+t+'" onclick="undoDel()">&#8630; Undo delete</button>';
   o+='<button class="btn-add" id="wc_add_'+t+'" onclick="addRow(\''+t+'\')">+ Add '+(type==='screw'?'screw':type)+'</button></div></div>';
   o+='<div class="wc-sec-body"><div class="tbl-scroll"><table class="wc-tbl"><thead><tr>';
-  o+='<th>#</th><th class="thl">Description</th><th class="thl">Fastener</th><th>V (lb)</th>';
-  if(type!=='bolt') o+='<th>T (lb)</th>';
-  o+='<th>Z&prime; (lb)</th>';
-  if(type!=='bolt') o+='<th>W<sub>cap</sub> (lb)</th>';
+  o+='<th>#</th><th class="thl">Description</th><th class="thl">Fastener</th><th title="n per row × rows">qty</th><th title="lateral demand on the whole connection, ASD">V<sub>total</sub> (lb)</th>';
+  if(type!=='bolt') o+='<th title="withdrawal demand on the whole connection, ASD">T<sub>total</sub> (lb)</th>';
+  o+='<th title="qty × Z′">Z<sub>total</sub> (lb)</th>';
+  if(type!=='bolt') o+='<th title="qty × W_cap">W<sub>total</sub> (lb)</th>';
   o+='<th>D/C</th><th>Status</th><th></th></tr></thead>';
   if(!rows.length) o+='<tbody><tr class="wc-empty"><td colspan="'+colCount(t)+'">No '+t+' yet — use + Add.</td></tr></tbody>';
   rows.forEach(function(r,i){ o+=rowHTML(t,r,i); });
@@ -622,15 +670,35 @@ function dcHTML(res){
   if(!isNum(dc)) return '<span class="dc na">—</span>';
   return '<span class="dc '+(dc>1?'bad':'ok')+'">'+dc.toFixed(2)+'</span>';
 }
+// Demand values for display. The engine reports the resolved per-fastener and total
+// pair (demand.V/T/V_total/T_total/qty, §13.2); before it has run, or for a row it
+// could not resolve, the typed pair is echoed and the other pair is left blank.
+function demVals(row,res){
+  var Dm=(res&&res.demand)||{}, tot=row.demandBasis==='total';
+  var q=isNum(Dm.qty)?Dm.qty:qtyOf(row);
+  return {
+    qty:q, basis:tot?'total':'per',
+    V:isNum(Dm.V)?Dm.V:(tot?null:row.V),            T:isNum(Dm.T)?Dm.T:(tot?null:row.T),
+    V_total:isNum(Dm.V_total)?Dm.V_total:(tot?row.V_total:null), T_total:isNum(Dm.T_total)?Dm.T_total:(tot?row.T_total:null)
+  };
+}
+function capTot(res,key){ var C=res&&res.capacity; return (C&&isNum(C[key]))?C[key]:null; }
+function exitsChip(res){
+  if(!(res&&res.lengths&&res.lengths.exits_main)) return '';
+  var w=(res.warnings||[]).filter(function(x){ return /exit/i.test(x); })[0]||'fastener exits the main member';
+  return '<span class="wc-exit" title="'+xe(w)+'">&#9888; exits main</span>';
+}
+function fastCell(t,row,res){ return fastenerLabel(t,row)+exitsChip(res); }
 function sumCells(t,row,idx,res){
-  var id=Number(row.id), type=TYPE_OF[t], cap=res&&res.capacity?res.capacity:{};
+  var id=Number(row.id), type=TYPE_OF[t], dv=demVals(row,res);
   var o='<td class="wc-c-idx">'+(idx+1)+'</td>';
   o+='<td class="tdl wc-c-desc"><input type="text" id="wc_'+id+'_desc" maxlength="120" value="'+xe(row.desc)+'" placeholder="description" oninput="updS('+id+',\'desc\',this.value,true)" onchange="updS('+id+',\'desc\',this.value)"></td>';
-  o+='<td class="tdl wc-c-fast">'+fastenerLabel(t,row)+'</td>';
-  o+='<td class="wc-c-V"><input type="number" id="wc_'+id+'_V" step="1" min="0" value="'+xe(nS(row.V))+'" oninput="updN('+id+',\'V\',this.value,true)" onchange="updN('+id+',\'V\',this.value)"></td>';
-  if(type!=='bolt') o+='<td class="wc-c-T"><input type="number" id="wc_'+id+'_T" step="1" min="0" value="'+xe(nS(row.T))+'" oninput="updN('+id+',\'T\',this.value,true)" onchange="updN('+id+',\'T\',this.value)"></td>';
-  o+='<td class="wc-c-zp">'+n0(cap.Zp)+'</td>';
-  if(type!=='bolt') o+='<td class="wc-c-wcap">'+n0(cap.Wcap)+'</td>';
+  o+='<td class="tdl wc-c-fast">'+fastCell(t,row,res)+'</td>';
+  o+='<td class="wc-c-qty">'+xe(dv.qty)+'</td>';
+  o+='<td class="wc-c-vtot">'+n0(dv.V_total)+'</td>';
+  if(type!=='bolt') o+='<td class="wc-c-ttot">'+n0(dv.T_total)+'</td>';
+  o+='<td class="wc-c-ztot">'+n0(capTot(res,'Z_total'))+'</td>';
+  if(type!=='bolt') o+='<td class="wc-c-wtot">'+n0(capTot(res,'W_total'))+'</td>';
   o+='<td class="wc-c-dc">'+dcHTML(res)+'</td>';
   o+='<td class="wc-c-status">'+statusHTML(res)+'</td>';
   o+='<td class="wc-c-btn"><div class="wc-btns">'
@@ -645,7 +713,11 @@ function sumCells(t,row,idx,res){
 
 // input chip helpers — ids wc_<rowId>_<path with dots → _> so focus can be restored after a rebuild
 function fid(id,p){ return 'wc_'+id+'_'+p.replace(/\./g,'_'); }
-function numIn(id,p,val,label,opt){ opt=opt||{}; return '<label class="wc-f"><span>'+label+'</span><input type="number" id="'+fid(id,p)+'" value="'+xe(nS(val))+'" step="'+(opt.step||'any')+'"'+(opt.min!=null?' min="'+opt.min+'"':'')+(opt.w?' style="width:'+opt.w+'px"':'')+(opt.ph?' placeholder="'+xe(opt.ph)+'"':'')+' oninput="updN('+id+',\''+p+'\',this.value,true)" onchange="updN('+id+',\''+p+'\',this.value)"></label>'; }
+function numIn(id,p,val,label,opt){ opt=opt||{}; return '<label class="wc-f"'+(opt.title?' title="'+xe(opt.title)+'"':'')+'><span>'+label+'</span><input type="number" id="'+fid(id,p)+'" value="'+xe(nS(val))+'" step="'+(opt.step||'any')+'"'+(opt.min!=null?' min="'+opt.min+'"':'')+(opt.w?' style="width:'+opt.w+'px"':'')+(opt.ph?' placeholder="'+xe(opt.ph)+'"':'')+(opt.title?' title="'+xe(opt.title)+'"':'')+' oninput="updN('+id+',\''+p+'\',this.value,true)" onchange="updN('+id+',\''+p+'\',this.value)"></label>'; }
+// segmented toggle: opts [[value,label],…]; the lit button is the state value
+function segIn(id,p,val,label,opts,title){ var base=fid(id,p), o='<span class="wc-f"'+(title?' title="'+xe(title)+'"':'')+'><span>'+label+'</span><span class="wc-seg" id="'+base+'">'; opts.forEach(function(x){ o+='<button type="button" id="'+base+'_'+xe(x[0])+'" class="'+(String(val)===String(x[0])?'on':'')+'" onclick="upd('+id+',\''+p+'\',\''+xe(x[0])+'\')">'+x[1]+'</button>'; }); return o+'</span></span>'; }
+// read-only derived chip (patched live by id <base>_ro)
+function roChip(id,p,label,html,title){ return '<span class="wc-f ro" id="'+fid(id,p)+'_ro"'+(title?' title="'+xe(title)+'"':'')+'><span>'+label+'</span><b>'+html+'</b></span>'; }
 function selIn(id,p,val,label,opts){ var o='<label class="wc-f"><span>'+label+'</span><select id="'+fid(id,p)+'" onchange="updSel('+id+',\''+p+'\',this.value)">'; opts.forEach(function(x){ var v=Array.isArray(x)?x[0]:x, l=Array.isArray(x)?x[1]:x; o+='<option value="'+xe(v)+'"'+(String(v)===String(val==null?'':val)?' selected':'')+'>'+l+'</option>'; }); return o+'</select></label>'; }
 function thetaIn(id,p,val){
   var th=isNum(val)?val:0, base=fid(id,p);
@@ -658,10 +730,14 @@ function txtIn(id,p,val,label,cls){ return '<label class="wc-f '+(cls||'')+'"><s
 function naChip(label,reason){ return '<span class="wc-f na"><span>'+label+'</span><b>n/a — '+xe(reason)+'</b></span>'; }
 function speciesOpts(inherit){ var o=[]; if(inherit) o.push(['','inherit ('+(SPECIES_LABEL[state.header.species]||state.header.species)+')']); SPECIES_KEYS.forEach(function(k){ o.push([k,SPECIES_LABEL[k]]); }); return o; }
 
-function memberHTML(id,which,m,type,row,big){
+// §13.1 member dimension semantics: t along the fastener axis, w across it (C_g area only)
+var T_TITLE='t = depth the fastener travels into this member (its dimension along the fastener axis); a ledger into a stud\'s narrow face uses the stud depth (3.5 for a 2x4)';
+var W_TITLE='w = face dimension across the fastener (the other dimension of the member cross-section); used only for the C_g gross area';
+function memberE(id,which,res){ var m=res&&res.members&&res.members[which]; return roChip(id,which+'.E','E (psi)',(m&&isNum(m.E))?n0(m.E):'—','modulus of elasticity from the species (Supplement Table 4A/4B) or the header override; used only in C_g'); }
+function memberHTML(id,which,m,type,row,big,res){
   var p=which+'.', isSide=(which==='side'), o='';
   var steel=isSide?(m.mat==='steel'):!!row.mainSteel;
-  o+='<div class="wc-grp"><div class="wc-grp-t">'+(isSide?'Side member'+(type==='bolt'&&row.shear==='double'?' (each of two)':''):'Main member')+'</div>';
+  o+='<div class="wc-grp"><div class="wc-grp-t">'+(isSide?'Side Member A'+(type==='bolt'&&row.shear==='double'?' (each of two)':''):'Main Member B')+'</div>';
   if(isSide){
     if(type==='bolt'&&row.mainSteel) o+='<span class="wc-f"><span>material</span><b>wood (steel main)</b></span>';
     else o+=selIn(id,'side.mat',m.mat||'wood','material',[['wood','wood'],['steel','steel']]);
@@ -670,32 +746,44 @@ function memberHTML(id,which,m,type,row,big){
   }
   if(steel){
     o+=selIn(id,p+'gauge',m.gauge||'plate','gauge / plate',GAUGES);
-    if((m.gauge||'plate')==='plate') o+=numIn(id,p+'t',m.t,'t plate (in)',{step:'0.0625',min:0});
-    if(big) o+=numIn(id,p+'w',m.w,'w plate (in)',{step:'0.25',min:0});
+    if((m.gauge||'plate')==='plate') o+=numIn(id,p+'t',m.t,'t plate &mdash; along fastener (in)',{step:'0.0625',min:0,title:'plate thickness along the fastener axis (A36, t ≥ 1/4 in)'});
+    if(big) o+=numIn(id,p+'w',m.w,'w plate &mdash; across fastener (in)',{step:'0.25',min:0,title:'plate width across the fastener; C_g gross area only'});
     o+='<span class="wc-f na"><span>&theta;, distances</span><b>n/a — steel (AISC check)</b></span>';
   } else {
     o+=selIn(id,p+'species',m.species==null?'':m.species,'species',speciesOpts(true));
-    o+=numIn(id,p+'t',m.t,'t (in)',{step:'0.125',min:0});
-    if(big) o+=numIn(id,p+'w',m.w,'w (in)',{step:'0.25',min:0});
+    o+=numIn(id,p+'t',m.t,'t &mdash; along fastener (in)',{step:'0.125',min:0,title:T_TITLE});
+    if(big) o+=numIn(id,p+'w',m.w,'w &mdash; across fastener (in)',{step:'0.25',min:0,title:W_TITLE});
+    o+=memberE(id,which,res);
     o+=thetaIn(id,p+'theta',m.theta);
     if(!isSide) o+=chkIn(id,'main.endGrain',!!m.endGrain,'end grain');
-    if(big){
-      o+=chkIn(id,p+'towardEnd',m.towardEnd!==false,'bearing toward end');
-      o+=numIn(id,p+'endDist',m.endDist,'end dist (in)',{step:'0.125',min:0});
-      o+=numIn(id,p+'edgeDist',m.edgeDist,'edge dist (in)',{step:'0.125',min:0});
-      if(isNum(m.theta)&&m.theta>0) o+=numIn(id,p+'loadedEdgeDist',m.loadedEdgeDist,'loaded edge (in)',{step:'0.125',min:0});
-    }
+    // end / edge distances: hard Table 12.5.1 minima for D ≥ 1/4; advisory (Commentary C12.1.5.7 / C12.1.6.6) for D < 1/4
+    o+=chkIn(id,p+'towardEnd',m.towardEnd!==false,'bearing toward end');
+    o+=numIn(id,p+'endDist',m.endDist,'end dist (in)',{step:'0.125',min:0,title:big?'Table 12.5.1A end distance (hard minimum)':'advisory end distance, Commentary Table C12.1.5.7 / C12.1.6.6'});
+    o+=numIn(id,p+'edgeDist',m.edgeDist,'edge dist (in)',{step:'0.125',min:0,title:big?'Table 12.5.1C unloaded-edge distance (hard minimum)':'advisory edge distance 2.5D, Commentary Table C12.1.5.7 / C12.1.6.6'});
+    if(big&&isNum(m.theta)&&m.theta>0) o+=numIn(id,p+'loadedEdgeDist',m.loadedEdgeDist,'loaded edge (in)',{step:'0.125',min:0,title:'Table 12.5.1C loaded-edge distance 4D (θ > 0)'});
   }
   return o+'</div>';
 }
+// read-only demand chips (the pair the engine derives from the typed pair, §13.2)
+function demandChips(id,type,row,res){
+  var dv=demVals(row,res), q=dv.qty, out={};
+  if(row.demandBasis==='total'){
+    out.V=roChip(id,'V','V per fastener',isNum(dv.V)?'= '+n0(dv.V)+' lb <small>each of '+xe(q)+'</small>':'—','V = V_total / qty');
+    if(type!=='bolt') out.T=roChip(id,'T','T per fastener',isNum(dv.T)?'= '+n0(dv.T)+' lb <small>each of '+xe(q)+'</small>':'—','T = T_total / qty');
+  } else {
+    out.V_total=roChip(id,'V_total','V<sub>total</sub>',isNum(dv.V_total)?'= '+n0(dv.V_total)+' lb <small>('+n0(dv.V)+' &times; '+xe(q)+')</small>':'—','V_total = V × qty');
+    if(type!=='bolt') out.T_total=roChip(id,'T_total','T<sub>total</sub>',isNum(dv.T_total)?'= '+n0(dv.T_total)+' lb <small>('+n0(dv.T)+' &times; '+xe(q)+')</small>':'—','T_total = T × qty');
+  }
+  return out;
+}
 
+// §13.6 inputs order: Fastener · Load · Side Member A · Main Member B · Pattern · Factors
 function inputsHTML(t,row,res){
   var id=Number(row.id), type=TYPE_OF[t], big=isBig(row,type), o='<div class="wc-grps">';
   // fastener
   o+='<div class="wc-grp"><div class="wc-grp-t">Fastener</div>';
   if(type==='bolt'){
     o+=selIn(id,'D',row.D,'D (in)',BOLT_D.map(function(d){return [d,fracD(d)];}));
-    o+=selIn(id,'shear',row.shear||'single','shear planes',[['single','single'],['double','double']]);
   } else if(type==='nail'){
     o+=selIn(id,'nailType',row.nailType||'common','type',NAIL_TYPES);
     o+=selIn(id,'penny',row.penny||'16d','size',pennies(row.nailType));
@@ -713,23 +801,40 @@ function inputsHTML(t,row,res){
   }
   o+=selIn(id,'loadCase',row.loadCase||'L','load case (C<sub>D</sub>)',LOAD_CASES);
   o+=numIn(id,'Fyb_override',row.Fyb_override,'F<sub>yb</sub> override (psi)',{step:'1000',min:0,ph:'Table I1',w:80});
+  if(!big) o+=chkIn(id,'prebored',!!row.prebored,'prebored lead holes');   // §13.3 advisory spacing basis, D < 1/4 only
   o+='</div>';
-  // members
-  o+=memberHTML(id,'main',row.main||{},type,row,big);
-  o+=memberHTML(id,'side',row.side||{},type,row,big);
-  // layout (D ≥ 1/4 in)
-  o+='<div class="wc-grp"><div class="wc-grp-t">Layout</div>';
+  // load (§13.2): the typed pair is editable, the derived pair prints read-only
+  var tot=(row.demandBasis==='total'), dc=demandChips(id,type,row,res);
+  o+='<div class="wc-grp"><div class="wc-grp-t">Load (ASD)</div>';
+  o+=segIn(id,'demandBasis',tot?'total':'per','demand',[['per','per fastener'],['total','total connection']],'enter the demand per fastener, or for the whole connection (÷ qty = n × rows); switching converts the current value');
+  if(tot){
+    o+=numIn(id,'V_total',row.V_total,'V<sub>total</sub> (lb)',{step:'1',min:0,w:72,title:'lateral demand on the whole connection, ASD'});
+    if(type!=='bolt') o+=numIn(id,'T_total',row.T_total,'T<sub>total</sub> (lb)',{step:'1',min:0,w:72,title:'withdrawal demand on the whole connection, ASD'});
+    o+=dc.V+(dc.T||'');
+  } else {
+    o+=numIn(id,'V',row.V,'V per fastener (lb)',{step:'1',min:0,w:72,title:'lateral demand per fastener, ASD'});
+    if(type!=='bolt') o+=numIn(id,'T',row.T,'T per fastener (lb)',{step:'1',min:0,w:72,title:'withdrawal demand per fastener, ASD'});
+    o+=dc.V_total+(dc.T_total||'');
+  }
+  if(type==='bolt') o+=selIn(id,'shear',row.shear||'single','shear planes',[['single','single'],['double','double']]);
+  o+='</div>';
+  // members (FD order: side A, then main B)
+  o+=memberHTML(id,'side',row.side||{},type,row,big,res);
+  o+=memberHTML(id,'main',row.main||{},type,row,big,res);
+  // pattern — n / rows / qty for every type (§13.2); s / g always rendered (C_Δ for D ≥ 1/4, advisory for D < 1/4)
+  o+='<div class="wc-grp"><div class="wc-grp-t">Pattern</div>';
+  o+=numIn(id,'rows',row.rows,'rows',{step:'1',min:1,w:48,title:'rows of fasteners parallel to the load'});
+  o+=numIn(id,'n',row.n,'n per row',{step:'1',min:1,w:48,title:'fasteners in each row'});
+  o+=roChip(id,'qty','qty',xe(demVals(row,res).qty),'n per row × rows');
+  o+=numIn(id,'s',row.s,'s in row (in)',{step:'0.125',min:0,title:big?'spacing between fasteners in a row, Table 12.5.1B':'advisory in-row spacing, Commentary Table C12.1.5.7 / C12.1.6.6'});
+  o+=numIn(id,'g',row.g,'g row spacing (in)',{step:'0.125',min:0,title:big?'spacing between rows, Table 12.5.1D':'advisory row spacing, Commentary Table C12.1.5.7 / C12.1.6.6'});
   if(big){
-    o+=numIn(id,'n',row.n,'n per row',{step:'1',min:1,w:48});
-    o+=numIn(id,'rows',row.rows,'rows',{step:'1',min:1,w:48});
-    o+=numIn(id,'s',row.s,'s in row (in)',{step:'0.125',min:0});
-    o+=numIn(id,'g',row.g,'g row spacing (in)',{step:'0.125',min:0});
     o+=chkIn(id,'stagger',!!row.stagger,'staggered rows (&sect;11.3.6.2)');
     if(row.stagger&&isNum(row.rows)&&row.rows>=2) o+=numIn(id,'offset',row.offset,'offset (in)',{step:'0.125',min:0,ph:'s/2'})+'<span class="wc-f na" style="align-self:center"><b>closest-fastener offset &le; s/2 (&sect;11.3.6.2)</b></span>';
     o+=chkIn(id,'shrinkDetail',!!row.shrinkDetail,'shrinkage detailing (&sect;12.5.1.3)');
     o+=chkIn(id,'cmException',!!row.cmException,'C<sub>M</sub> fn 2 exception');
   } else {
-    o+=naChip('n, rows, s, g','D < 1/4 in: Cᵧ = CΔ = 1.0 (§11.3.6.1, §12.5.1.1)');
+    o+=naChip('C<sub>g</sub>, C<sub>&Delta;</sub>','D < 1/4 in: C_g = C_Δ = 1.0 (§11.3.6.1, §12.5.1.1); spacing advisory per Commentary C12.1.5.7 / C12.1.6.6');
   }
   o+='</div>';
   // factors (read-only, from the result)
@@ -787,84 +892,185 @@ function factorsHTML(t,row,res){
   return o;
 }
 
-// details block — every intermediate the engine reports
+// details block — every intermediate the engine reports, in the Simpson Fastener
+// Designer report order (spec §13.5): Fastener properties → Adjustment factors →
+// Penetration → Fastener pattern → Minimum spacing requirements → Withdrawal →
+// Lateral → Combined → Notes. Each section is a small titled table.
+function pctS(p,dc){ var v=isNum(p)?p:(isNum(dc)?dc*100:null); return isNum(v)?v.toFixed(1)+' %':'—'; }
+function kvTbl(rows,cls){ var o='<table'+(cls?' class="'+cls+'"':'')+'>'; rows.forEach(function(r){ if(!r) return; o+='<tr'+(r[2]?' class="'+r[2]+'"':'')+'><td class="lbl">'+r[0]+'</td><td class="n">'+r[1]+'</td></tr>'; }); return o+'</table>'; }
+function dsec(title,body,cls){ return '<div'+(cls?' class="'+cls+'"':'')+'><h4>'+title+'</h4>'+body+'</div>'; }
+function inch(v){ return isNum(v)?n3(v)+' in':'—'; }
+// Minimum spacing requirements (spec §13.3): result.spacingReq carries the eight required
+// values (all inches) and checks[{name, required, actual, ok}]. The engine's check names are
+// "main|side end distance…", "main|side edge distance", "main|side loaded edge distance",
+// "main|side row spacing g" / "g", "spacing in a row s…" / "s"; each is filed under its line
+// (end: loaded = that member bears toward the end, edge: loaded / unloaded, rows: staggered
+// when the row is staggered, s: a2 when the ⊥ value governs). For D ≥ 1/4 the line value is
+// the C_Δ = 1.0 value and the check's own required (hard minimum) prints beside it.
+var SPACING_LINES=[
+  ['a1_par','spacing in a row, &parallel; to grain a<sub>1</sub>'],
+  ['a2_perp','spacing in a row, &perp; to grain a<sub>2</sub>'],
+  ['end_loaded','end distance, loaded end'],
+  ['end_unloaded','end distance, unloaded end'],
+  ['edge_loaded','edge distance, loaded edge'],
+  ['edge_unloaded','edge distance, unloaded edge'],
+  ['rows_inline','between rows, in-line'],
+  ['rows_staggered','between rows, staggered']
+];
+function spacingLineFor(c,row,SR,big){
+  var name=String(c.name||''), mem=/^side/i.test(name)?'side':'main', m=row[mem]||{};
+  if(/loaded edge/i.test(name)) return 'edge_loaded';
+  if(/edge/i.test(name)) return 'edge_unloaded';
+  if(/end/i.test(name)) return (m.towardEnd!==false)?'end_loaded':'end_unloaded';
+  if(/^g$|row spacing/i.test(name)) return (big&&row.stagger&&isNum(row.rows)&&row.rows>=2)?'rows_staggered':'rows_inline';
+  if(/^s$|spacing in a row/i.test(name)){
+    var sr=isNum(SR.s_required)?SR.s_required:c.required;
+    if(isNum(sr)&&isNum(SR.a2_perp)&&isNum(SR.a1_par)&&Math.abs(sr-SR.a2_perp)<1e-9&&Math.abs(SR.a1_par-SR.a2_perp)>1e-9) return 'a2_perp';
+    return 'a1_par';
+  }
+  return null;
+}
+function spacingHTML(t,row,res){
+  var SR=res&&res.spacingReq;
+  if(!SR||typeof SR!=='object') return dsec('Minimum spacing requirements','<div class="cite">'+(res&&/invalid|incomplete/.test(String(res.status))?'not evaluated (row '+xe(res.status)+')':'not reported')+'</div>');
+  var type=TYPE_OF[t], big=isBig(row,type), advisory=(SR.advisory!=null)?!!SR.advisory:!big;
+  var checks=(Array.isArray(SR.checks)?SR.checks:[]).filter(function(c){ return c&&typeof c==='object'; });
+  var byLine={}, extra=[];
+  checks.forEach(function(c){ var k=spacingLineFor(c,row,SR,big); if(k){ (byLine[k]=byLine[k]||[]).push(c); } else extra.push(c); });
+  function mark(ok){ if(ok==null) return '<td></td>'; if(ok) return '<td class="ok" title="meets the requirement">&#10003;</td>'; return advisory?'<td class="warn" title="below the Commentary recommendation — advisory, the row does not fail">&#9888;</td>':'<td class="bad" title="below a Table 12.5.1 hard minimum — the row fails">&#10007;</td>'; }
+  var basis=xe(SR.basis||'');
+  if(SR.sideMat) basis+=' &mdash; '+xe(SR.sideMat)+' side member, '+(SR.prebored?'prebored':'not prebored');
+  if(SR.member) basis+=' &mdash; required values keyed to the '+xe(SR.member)+' member';
+  var o='<div class="cite">'+basis+(advisory?' &mdash; advisory: &#9888; never fails the row':'')+'</div>';
+  o+='<table><tr><th>requirement</th><th>required</th><th>actual</th><th></th></tr>';
+  SPACING_LINES.forEach(function(ln){
+    var key=ln[0], req=SR[key], cs=byLine[key]||[];
+    if(!cs.length){ o+='<tr><td>'+ln[1]+'</td><td class="n">'+inch(req)+'</td><td class="n">&mdash;</td><td></td></tr>'; return; }
+    cs.forEach(function(c,j){
+      var hard=(isNum(c.required)&&isNum(req)&&Math.abs(c.required-req)>1e-9)?' <small class="cite">(min '+n3(c.required)+')</small>':'';
+      o+='<tr><td>'+(j===0?ln[1]:'')+' <span class="cite">'+xe(c.name)+'</span></td><td class="n">'+inch(req)+hard+'</td><td class="n">'+inch(c.actual)+'</td>'+mark(c.ok==null?null:!!c.ok)+'</tr>';
+    });
+  });
+  extra.forEach(function(c){ o+='<tr><td><span class="cite">'+xe(c.name||'check')+'</span></td><td class="n">'+inch(c.required)+'</td><td class="n">'+inch(c.actual)+'</td>'+mark(c.ok==null?null:!!c.ok)+'</tr>'; });
+  o+='</table>';
+  var notes=[];
+  if(SR.s_rule) notes.push('s required: '+xe(SR.s_rule));
+  if(SR.rowsStaggeredNote) notes.push('staggered rows: '+xe(SR.rowsStaggeredNote));
+  if(SR.note) notes.push(xe(SR.note));
+  if(notes.length) o+='<div class="cite">'+notes.join(' &middot; ')+'</div>';
+  return dsec('Minimum spacing requirements',o);
+}
 function detailsHTML(t,row,res){
   if(!res) return '<div class="wc-d"><div class="span2 cite">'+xe(engineErr||'No result for this row.')+'</div></div>';
   var type=TYPE_OF[t], I=res.inputs||{}, M=res.members||{}, L=res.lengths||{}, Y=res.yield||{}, C=res.capacity||{}, Dm=res.demand||{};
+  var big=isBig(row,type), isLag=(type==='screw'&&row.screwType==='lag'), steelSide=!!(row.side&&row.side.mat==='steel');
+  var dv=demVals(row,res), q=dv.qty;
   var o='<div class="wc-d">';
-  // resolved fastener
-  o+='<div><h4>Fastener (resolved)</h4><div class="kv">'
-    +'<span>type</span><span>'+xe(res.type||type)+' &mdash; '+fastenerLabel(t,row)+'</span>'
-    +'<span>D nominal</span><span>'+n3(I.D)+' in</span>'
-    +'<span>D<sub>yield</sub></span><span>'+n3(I.D_yield)+' in'+(isNum(I.D_yield)&&isNum(I.D)&&Math.abs(I.D_yield-I.D)>1e-9?' (root diameter, &sect;12.3.7.1)':'')+'</span>'
-    +'<span>F<sub>yb</sub></span><span>'+n0(I.Fyb)+' psi'+(isNum(row.Fyb_override)?' (override)':' (Table I1)')+'</span>'
-    +(isNum(I.L)?'<span>L</span><span>'+n3(I.L)+' in</span>':'')
-    +(isNum(I.T_thread)?'<span>thread T</span><span>'+n3(I.T_thread)+' in</span>':'')
-    +(isNum(I.E_tip)?'<span>tip E</span><span>'+n3(I.E_tip)+' in</span>':'')
-    +'<span>C<sub>D</sub> case</span><span>'+xe(row.loadCase||'L')+'</span>'
-    +'</div></div>';
-  // members
-  o+='<div><h4>Members</h4><table><tr><th></th><th>mat</th><th>G</th><th>E (psi)</th><th>F<sub>e</sub> (psi)</th><th>&theta;</th><th>t (in)</th><th>w (in)</th><th>A (in&sup2;)</th></tr>';
-  ['main','side'].forEach(function(w){ var m=M[w]||{}; o+='<tr><td>'+w+'</td><td>'+xe(m.mat||'')+'</td><td class="n">'+nf(m.G,2)+'</td><td class="n">'+n0(m.E)+'</td><td class="n">'+n0(m.Fe)+'</td><td class="n">'+(isNum(m.theta)?m.theta+'&deg;':'—')+'</td><td class="n">'+n3(m.t)+'</td><td class="n">'+n3(m.w)+'</td><td class="n">'+n3(m.A)+'</td></tr>'; });
-  o+='</table></div>';
-  // lengths
-  o+='<div><h4>Penetration and bearing lengths</h4><div class="kv">';
-  [['p_tot','p<sub>tot</sub> in main'],['tip_in','tip in main'],['p_excl','p excl. tip'],['l_m','l<sub>m</sub>'],['l_s','l<sub>s</sub>'],['p_t','p<sub>t</sub> ('+(type==='nail'?'penetration in main, &sect;12.2.3.1(c)':'threads in main')+')'],['p_min','p<sub>min</sub>'],['lD','l/D (Tables 12.5.1C/D)']].forEach(function(d){ if(L[d[0]]!=null) o+='<span>'+d[1]+'</span><span>'+n3(L[d[0]])+(d[0]==='lD'?'':' in')+'</span>'; });
-  if(L.exits_main!=null) o+='<span>exits main</span><span>'+(L.exits_main?'yes (warning)':'no')+'</span>';
-  o+='</div></div>';
-  // yield
-  var gov=String(Y.governing||'').replace(/[^a-z0-9]/gi,'').toLowerCase();
-  o+='<div><h4>Yield modes (Table 12.3.1A/B)</h4><div class="kv">'
-    +'<span>R<sub>e</sub> = F<sub>em</sub>/F<sub>es</sub></span><span>'+nf(Y.Re,4)+'</span>'
-    +'<span>R<sub>t</sub> = l<sub>m</sub>/l<sub>s</sub></span><span>'+nf(Y.Rt,4)+'</span>'
-    +'<span>K<sub>&theta;</sub></span><span>'+nf(Y.Ktheta,3)+'</span>'
-    +(Y.KD!=null?'<span>K<sub>D</sub></span><span>'+nf(Y.KD,3)+'</span>':'')
-    +'<span>k<sub>1</sub>, k<sub>2</sub>, k<sub>3</sub></span><span>'+nf(Y.k1,4)+', '+nf(Y.k2,4)+', '+nf(Y.k3,4)+'</span>'
-    +'</div><table><tr><th>mode</th><th>R<sub>d</sub></th><th>Z (lb)</th></tr>';
-  var modes=Y.modes||{}, Rd=Y.Rd||{};
-  [['Im','I<sub>m</sub>'],['Is','I<sub>s</sub>'],['II','II'],['IIIm','III<sub>m</sub>'],['IIIs','III<sub>s</sub>'],['IV','IV']].forEach(function(d){ var v=modes[d[0]]; if(v==null&&Rd[d[0]]==null)return; var isGov=gov===d[0].toLowerCase(); o+='<tr'+(isGov?' class="gov"':'')+'><td>'+d[1]+(isGov?' &#9664; governs':'')+'</td><td class="n">'+n3(Rd[d[0]])+'</td><td class="n">'+(isNum(v)?nf(v,1):'—')+'</td></tr>'; });
-  o+='<tr class="gov"><td>Z = min</td><td></td><td class="n">'+(isNum(Y.Z)?nf(Y.Z,1):'—')+'</td></tr></table></div>';
-  // factors + capacities
+  // 1. fastener properties
+  var DH=isNum(I.D_H)?I.D_H:(isNum(I.DH)?I.DH:null);
+  o+=dsec('Fastener properties',kvTbl([
+    ['type / size',xe(res.type||type)+' &mdash; '+fastenerLabel(t,row)],
+    ['D (nominal)',inch(I.D)],
+    ['D<sub>r</sub> (root, yield equations)',inch(I.D_yield)+(isNum(I.D_yield)&&isNum(I.D)&&Math.abs(I.D_yield-I.D)>1e-9?' <span class="cite">&sect;12.3.7.1</span>':'')],
+    ['D<sub>H</sub> (head)',DH!=null?inch(DH):'&mdash; <span class="cite">'+(type==='bolt'?'bolt':(isLag?'hex head':'n/a'))+'</span>'],
+    ['L',inch(I.L)],
+    ['thread length T',isNum(I.T_thread)?inch(I.T_thread):'&mdash;'],
+    ['tip E',isNum(I.E_tip)?inch(I.E_tip):'&mdash;'],
+    ['F<sub>yb</sub>',n0(I.Fyb)+' psi <span class="cite">'+(isNum(row.Fyb_override)?'override':xe(I.FybSource||'Table I1'))+'</span>'],
+    ['coating','&mdash; <span class="cite">no product data</span>'],
+    ['load case (C<sub>D</sub>)',xe(row.loadCase||'L')]
+  ]));
+  // 2. adjustment factors
   var fl=factorList(t,row,res), chain=fl.filter(function(f){return f.v!=null;});
-  o+='<div><h4>Adjustment factors and capacities</h4><table><tr><th>factor</th><th>value</th><th>cite</th></tr>';
-  fl.forEach(function(f){ o+='<tr><td>'+f.label+'</td><td class="n">'+(f.v==null?'n/a':n3(f.v))+'</td><td class="cite">'+(f.v==null?xe(f.reason):xe(f.cite))+'</td></tr>'; });
-  o+='</table>';
-  var cgd=cgDetail(res);
+  var fo='<table><tr><th>factor</th><th>value</th><th>cite</th></tr>';
+  fl.forEach(function(f){ fo+='<tr><td>'+f.label+'</td><td class="n">'+(f.v==null?'n/a':n3(f.v))+'</td><td class="cite">'+(f.v==null?xe(f.reason):xe(f.cite))+'</td></tr>'; });
+  if(isNum(Y.Ktheta)) fo+='<tr><td>K<sub>&theta;</sub></td><td class="n">'+n3(Y.Ktheta)+'</td><td class="cite">Table 12.3.1B: 1 + 0.25(&theta;/90), &theta; = max over wood members</td></tr>';
+  fo+='</table>';
+  o+=dsec('Adjustment factors',fo);
+  // 3. penetration
+  var pen=[];
+  [['p_tot','p<sub>tot</sub> in main'],['tip_in','tip in main'],['p_excl','p excl. tip'],['l_m','l<sub>m</sub>'],['l_s','l<sub>s</sub>'],['p_t','p<sub>t</sub> ('+(type==='nail'?'penetration in main, &sect;12.2.3.1(c)':'threads in main')+')'],['p_min','p<sub>min</sub>'],['lD','l/D (Tables 12.5.1C/D)']].forEach(function(d){ if(L[d[0]]!=null) pen.push([d[1],d[0]==='lD'?n3(L[d[0]]):inch(L[d[0]])]); });
+  var penHTML=pen.length?kvTbl(pen):'<div class="cite">not computed (row invalid / incomplete)</div>';
+  if(L.exits_main!=null){ var ew=(res.warnings||[]).filter(function(x){ return /exit/i.test(x); })[0]; penHTML+='<div style="margin-top:3px'+(L.exits_main?';color:var(--are-warn);font-weight:600':'')+'">exits main member: '+(L.exits_main?'yes &mdash; '+xe(ew||'lengths capped at t_m'):'no')+'</div>'; }
+  o+=dsec('Penetration',penHTML);
+  // 4. fastener pattern
+  var pat=[['n per row',xe(isNum(row.n)?row.n:'—')],['rows',xe(isNum(row.rows)?row.rows:'—')],['qty = n &times; rows',xe(q),'tot'],['s in row',inch(row.s)],['g between rows',inch(row.g)]];
+  if(big){ pat.push(['staggered rows',row.stagger?'yes (&sect;11.3.6.2)'+(isNum(row.offset)?', offset '+inch(row.offset):''):'no']); }
+  var cgd=cgDetail(res), cgs=cgDetailShort(cgd), po=kvTbl(pat);
+  if(cgs) po+='<div class="cite" style="margin-top:3px"><b>C<sub>g</sub>:</b> '+cgs+'</div>';
   if(cgd){
-    o+='<div class="cite" style="margin-top:4px"><b>C<sub>g</sub> detail (&sect;11.3.6'+(cgd.stagger?', &sect;11.3.6.2 Fig. 11B':'')+'):</b> ';
+    po+='<div class="cite" style="margin-top:3px"><b>C<sub>g</sub> detail (&sect;11.3.6'+(cgd.stagger?', &sect;11.3.6.2 Fig. 11B':'')+'):</b> ';
     var kvs=function(obj,prefix){ return Object.keys(obj).filter(function(k){ var v=obj[k]; return v==null||typeof v==='number'||typeof v==='boolean'||typeof v==='string'; }).map(function(k){ var v=obj[k]; return xe(prefix+k)+' = '+(typeof v==='number'?(Math.abs(v)>=1000?n0(v):String(+v.toFixed(4))):xe(String(v))); }); };
     var items=kvs(cgd,'');
     Object.keys(cgd).forEach(function(k){ var v=cgd[k]; if(v&&typeof v==='object'&&!Array.isArray(v)){ Object.keys(v).forEach(function(k2){ var v2=v[k2]; if(v2&&typeof v2==='object'&&!Array.isArray(v2)) items=items.concat(kvs(v2,k+'.'+k2+'.')); }); items=items.concat(kvs(v,k+'.')); } });
-    o+=items.join(', ')+'</div>';
+    po+=items.join(', ')+'</div>';
   }
-  o+='<div class="kv" style="margin-top:4px">'
-    +'<span>Z&prime;</span><span>'+n0(C.Zp)+' lb'+(isNum(Y.Z)&&isNum(C.Zp)?' = '+nf(Y.Z,1)+' &times; '+chain.filter(function(f){return ['CD','CM','Ct','Cg','Cdelta','Ceg','Cdi','Ctn'].indexOf(f.k)>=0;}).map(function(f){return n3(f.v);}).join(' &times; '):'')+'</span>';
-  if(type!=='bolt'){
-    o+=(C.W!=null?'<span>W</span><span>'+nf(C.W,1)+' lb/in</span>':'')
-      +(C.Wp!=null?'<span>W&prime;</span><span>'+nf(C.Wp,1)+' lb/in</span>':'')
-      +(C.Wcap_withdrawal!=null?'<span>W&prime;&middot;p<sub>t</sub></span><span>'+n0(C.Wcap_withdrawal)+' lb</span>':'')
-      +(C.WH!=null?'<span>W<sub>H</sub></span><span>'+n0(C.WH)+' lb</span>':'')
-      +(C.WHp!=null?'<span>W<sub>H</sub>&prime;</span><span>'+n0(C.WHp)+' lb</span>':'')
-      +'<span>W<sub>cap</sub></span><span>'+n0(C.Wcap)+' lb'+(C.withdrawalGov?' ('+xe(C.withdrawalGov)+' governs)':'')+'</span>'
-      +(C.Zalpha!=null?'<span>Z&prime;<sub>&alpha;</sub></span><span>'+n0(C.Zalpha)+' lb at &alpha; = '+nf(C.alpha,1)+'&deg; ('+(type==='nail'?'Eq. 12.4-2':'Eq. 12.4-1')+')</span>':'');
+  o+=dsec('Fastener pattern',po);
+  // 5. minimum spacing requirements
+  o+=spacingHTML(t,row,res);
+  // 6. withdrawal
+  if(type==='bolt') o+=dsec('Withdrawal','<div class="cite">n/a &mdash; bolts have no NDS withdrawal value</div>');
+  else {
+    var wEq=isLag?'Eq. 12.2-1 (lag: 1800&middot;G<sup>3/2</sup>&middot;D<sup>3/4</sup>)':(type==='nail'?'Eq. 12.2-3 (nail: 1380&middot;G<sup>5/2</sup>&middot;D)':'Eq. 12.2-2 (wood screw: 2850&middot;G<sup>2</sup>&middot;D)');
+    var wChain=chain.filter(function(f){return ['CD','CMw','Ct','Cegw','Ctn'].indexOf(f.k)>=0;});
+    var whNA=steelSide?'steel side member (pull-over per AISC, engineer check)':(isLag?'hex head (washer bearing, engineer check)':(type==='bolt'?'bolt':null));
+    var wr=[
+      ['p<sub>t</sub>',inch(L.p_t)],
+      ['W (per in) '+'<span class="cite">'+wEq+'</span>',C.W!=null?nf(C.W,1)+' lb/in':'—'],
+      ['W&prime; = W'+(wChain.length?' &times; '+wChain.map(function(f){return f.label;}).join(' &times; '):''),C.Wp!=null?nf(C.Wp,1)+' lb/in':'—'],
+      ['W&prime;&middot;p<sub>t</sub>',C.Wcap_withdrawal!=null?n0(C.Wcap_withdrawal)+' lb':'—'],
+      ['W<sub>H</sub> (head pull-through)',C.WH!=null?n0(C.WH)+' lb':(whNA?'n/a &mdash; <span class="cite">'+xe(whNA)+'</span>':'—')],
+      ['W<sub>H</sub>&prime;',C.WHp!=null?n0(C.WHp)+' lb':(whNA?'n/a':'—')],
+      ['W<sub>cap</sub> per fastener'+(C.withdrawalGov?' <span class="cite">'+xe(C.withdrawalGov)+' governs</span>':''),n0(C.Wcap)+' lb'],
+      ['W<sub>total</sub> = qty &times; W<sub>cap</sub>',(capTot(res,'W_total')!=null?n0(capTot(res,'W_total'))+' lb':'—'),'tot'],
+      ['demand T per fastener / T<sub>total</sub>',n0(dv.T)+' / '+n0(dv.T_total)+' lb'],
+      ['Demand / Resistance',pctS(Dm.pctT,Dm.dcT),'tot']
+    ];
+    o+=dsec('Withdrawal',kvTbl(wr));
   }
-  o+='</div></div>';
-  // demand
-  o+='<div><h4>Demand (ASD, per fastener)</h4><div class="kv">'
-    +'<span>V</span><span>'+n0(Dm.V)+' lb</span>'
-    +(type!=='bolt'?'<span>T</span><span>'+n0(Dm.T)+' lb</span>':'')
-    +'<span>V / Z&prime;</span><span>'+nf(Dm.dcV,3)+'</span>'
-    +(type!=='bolt'?'<span>T / W<sub>cap</sub></span><span>'+nf(Dm.dcT,3)+'</span><span>combined</span><span>'+nf(Dm.dcComb,3)+'</span>':'')
-    +'<span><b>D/C</b></span><span><b>'+nf(Dm.dc,3)+'</b> &mdash; '+xe(String(res.status).toUpperCase())+'</span>'
-    +'</div></div>';
-  // messages
+  // 7. lateral
+  var gov=String(Y.governing||'').replace(/[^a-z0-9]/gi,'').toLowerCase(), mm=M.main||{}, ms=M.side||{};
+  var lo=kvTbl([
+    ['F<sub>em</sub> (main'+(isNum(mm.theta)?', &theta; '+mm.theta+'&deg;':'')+')',isNum(mm.Fe)?n0(mm.Fe)+' psi':'—'],
+    ['F<sub>es</sub> (side'+(isNum(ms.theta)?', &theta; '+ms.theta+'&deg;':'')+')',isNum(ms.Fe)?n0(ms.Fe)+' psi':'—'],
+    ['R<sub>e</sub> = F<sub>em</sub>/F<sub>es</sub>',nf(Y.Re,4)],
+    ['R<sub>t</sub> = l<sub>m</sub>/l<sub>s</sub>',nf(Y.Rt,4)],
+    ['K<sub>&theta;</sub>'+(Y.KD!=null?' / K<sub>D</sub>':''),nf(Y.Ktheta,3)+(Y.KD!=null?' / '+nf(Y.KD,3):'')],
+    ['k<sub>1</sub>, k<sub>2</sub>, k<sub>3</sub>',nf(Y.k1,4)+', '+nf(Y.k2,4)+', '+nf(Y.k3,4)]
+  ]);
+  lo+='<table style="margin-top:3px"><tr><th>yield mode (Table 12.3.1A/B)</th><th>R<sub>d</sub></th><th>Z (lb)</th></tr>';
+  var modes=Y.modes||{}, Rd=Y.Rd||{};
+  [['Im','I<sub>m</sub>'],['Is','I<sub>s</sub>'],['II','II'],['IIIm','III<sub>m</sub>'],['IIIs','III<sub>s</sub>'],['IV','IV']].forEach(function(d){ var v=modes[d[0]]; if(v==null&&Rd[d[0]]==null)return; var isGov=gov===d[0].toLowerCase(); lo+='<tr'+(isGov?' class="gov"':'')+'><td>'+d[1]+(isGov?' &#9664; governs':'')+'</td><td class="n">'+n3(Rd[d[0]])+'</td><td class="n">'+(isNum(v)?nf(v,1):'—')+'</td></tr>'; });
+  lo+='<tr class="gov"><td>Z = min'+(Y.governing?' (mode '+xe(Y.governing)+')':'')+'</td><td></td><td class="n">'+(isNum(Y.Z)?nf(Y.Z,1):'—')+'</td></tr></table>';
+  var zChain=chain.filter(function(f){return ['CD','CM','Ct','Cg','Cdelta','Ceg','Cdi','Ctn'].indexOf(f.k)>=0;});
+  lo+=kvTbl([
+    ['Z&prime;'+(isNum(Y.Z)&&isNum(C.Zp)?' = '+nf(Y.Z,1)+' &times; '+zChain.map(function(f){return n3(f.v);}).join(' &times; '):''),n0(C.Zp)+' lb'],
+    ['Z<sub>total</sub> = qty &times; Z&prime;',(capTot(res,'Z_total')!=null?n0(capTot(res,'Z_total'))+' lb':'—'),'tot'],
+    ['demand V per fastener / V<sub>total</sub>',n0(dv.V)+' / '+n0(dv.V_total)+' lb'],
+    ['Demand / Resistance',pctS(Dm.pctV,Dm.dcV),'tot']
+  ],'');
+  o+=dsec('Lateral',lo);
+  // 8. combined (§12.4)
+  var co;
+  if(type==='bolt') co='<div class="cite">n/a &mdash; no withdrawal on bolts</div>';
+  else if(C.Zalpha==null||!isNum(C.alpha)) co='<div class="cite">n/a &mdash; '+(isNum(dv.V)&&isNum(dv.T)&&dv.V>0&&dv.T>0?'not computed':'V or T is zero (no combined loading)')+'</div>';
+  else co=kvTbl([
+    ['&alpha; = atan(T / V)',nf(C.alpha,1)+'&deg;'],
+    ['equation',type==='nail'?'Eq. 12.4-2: Z&prime;<sub>&alpha;</sub> = (W&prime;p)Z&prime; / ((W&prime;p)cos&alpha; + Z&prime;sin&alpha;)':'Eq. 12.4-1: Z&prime;<sub>&alpha;</sub> = (W&prime;p)Z&prime; / ((W&prime;p)cos&sup2;&alpha; + Z&prime;sin&sup2;&alpha;)'],
+    ['Z&prime;<sub>&alpha;</sub>',n0(C.Zalpha)+' lb'],
+    ['combined demand &radic;(V&sup2; + T&sup2;) per fastener',(isNum(dv.V)&&isNum(dv.T))?n0(Math.sqrt(dv.V*dv.V+dv.T*dv.T))+' lb':'—'],
+    ['Demand / Resistance',pctS(Dm.pctComb,Dm.dcComb),'tot']
+  ]);
+  co+='<div class="kv" style="margin-top:4px"><span><b>D/C governing</b></span><span><b>'+nf(Dm.dc,3)+'</b> &mdash; '+xe(String(res.status).toUpperCase())+(isNum(Dm.dc)?' (max of V/Z&prime;'+(type!=='bolt'?', T/W<sub>cap</sub>, combined':'')+')':'')+'</span></div>';
+  o+=dsec('Combined loading (&sect;12.4)',co);
+  // 9. notes / engineer checks / cites
   function li(arr,cls){ return (arr||[]).map(function(x){ return '<li'+(cls?' class="'+cls+'"':'')+'>'+xe(x)+'</li>'; }).join(''); }
   var msgs='';
   if((res.flags||[]).length) msgs+='<ul>'+li(res.flags,'fl')+'</ul>';
   if((res.warnings||[]).length) msgs+='<ul>'+li(res.warnings,'wn')+'</ul>';
   if((res.notes||[]).length) msgs+='<ul>'+li(res.notes)+'</ul>';
   if(row.notes) msgs+='<div><em>Row notes:</em> '+xe(row.notes)+'</div>';
-  o+='<div class="span2"><h4>Flags, warnings and engineer notes'+(isNum(res.unresolved)&&res.unresolved>0?' <span class="badge">'+res.unresolved+' unresolved</span>':'')+'</h4>'+(msgs||'<div class="cite">none</div>')+'</div>';
+  o+='<div class="span2"><h4>Notes, engineer checks and flags'+(isNum(res.unresolved)&&res.unresolved>0?' <span class="badge">'+res.unresolved+' unresolved</span>':'')+'</h4>'+(msgs||'<div class="cite">none</div>')+'</div>';
   if((res.cites||[]).length) o+='<div class="span2"><h4>Cites</h4><ul class="cite">'+li(res.cites)+'</ul></div>';
   return o+'</div>';
 }
@@ -876,12 +1082,21 @@ function patchLive(id){
   var t=loc.table, row=loc.row, res=resById[id]||null;
   tb.className='wc-row st-'+(res?res.status:'none');
   function set(sel,html){ var e=tb.querySelector(sel); if(e)e.innerHTML=html; }
-  var cap=res&&res.capacity?res.capacity:{};
-  set('tr.wc-sum td.wc-c-fast',fastenerLabel(t,row));
-  set('tr.wc-sum td.wc-c-zp',n0(cap.Zp));
-  set('tr.wc-sum td.wc-c-wcap',n0(cap.Wcap));
+  function setRO(p,html){ var e=document.getElementById(fid(id,p)+'_ro'); if(e){ var b=e.querySelector('b'); if(b) b.innerHTML=html; } }
+  var dv=demVals(row,res), type=TYPE_OF[t];
+  set('tr.wc-sum td.wc-c-fast',fastCell(t,row,res));
+  set('tr.wc-sum td.wc-c-qty',xe(dv.qty));
+  set('tr.wc-sum td.wc-c-vtot',n0(dv.V_total));
+  set('tr.wc-sum td.wc-c-ttot',n0(dv.T_total));
+  set('tr.wc-sum td.wc-c-ztot',n0(capTot(res,'Z_total')));
+  set('tr.wc-sum td.wc-c-wtot',n0(capTot(res,'W_total')));
   set('tr.wc-sum td.wc-c-dc',dcHTML(res));
   set('tr.wc-sum td.wc-c-status',statusHTML(res));
+  // derived read-only chips in the sub-row (the other demand pair, qty, E)
+  var chips=demandChips(id,type,row,res), tmp=document.createElement('div');
+  Object.keys(chips).forEach(function(k){ tmp.innerHTML=chips[k]; var b=tmp.querySelector('b'); if(b) setRO(k,b.innerHTML); });
+  setRO('qty',xe(dv.qty));
+  ['main','side'].forEach(function(w){ var m=res&&res.members&&res.members[w]; setRO(w+'.E',(m&&isNum(m.E))?n0(m.E):'—'); });
   set('tr.wc-in .wc-fac',factorsHTML(t,row,res));
   set('tr.wc-det td:last-child',detailsHTML(t,row,res));
   renderSummary();
@@ -901,7 +1116,7 @@ function renderSummary(){
   if(S.total) o+=line('All tables',tot,S.total,'tot');
   o+='</tbody></table>';
   var eng=results.engine||WC.ENGINE;
-  o+='<div class="hint" style="margin-top:8px">Engine '+xe(eng.name||'wood-connection-schedule')+' '+xe(eng.rev||'')+' · NDS 2018 · ASD demands per fastener · fail is counted independently of D/C (a fatal geometry flag fails the row even with no demand) · "unresolved" = engineer checks printed but not computed (steel plate bearing / net section, fastener root-area tension, head pull-through where not computed).</div>';
+  o+='<div class="hint" style="margin-top:8px">Engine '+xe(eng.name||'wood-connection-schedule')+' '+xe(eng.rev||'')+' · NDS 2018 · ASD demands per fastener or per connection (qty = n × rows) · fail is counted independently of D/C (a fatal geometry flag fails the row even with no demand) · "unresolved" = engineer checks printed but not computed (steel plate bearing / net section, fastener root-area tension, head pull-through where not computed).</div>';
   el.innerHTML=o;
 }
 function renderResolved(){
