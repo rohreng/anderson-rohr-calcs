@@ -3,7 +3,7 @@
 Plan: `docs/plans/2026-09-19-wood-connection-schedule-plan.md` (rev 7, Codex-approved).
 Code: NDS 2018 (`AWC_NDS2018-withCommentary_20210917.pdf`, cites "p.printed/PDF"). Text
 extraction of the PDF with `=====PAGE n=====` markers (PDF page numbers) is at
-`%LOCALAPPDATA%\Temp\claude\C--Users-nickh-Claude\3e1266bc-f2f9-4d9b-86fd-b4108e60378d\scratchpad\nds.txt`
+`%LOCALAPPDATA%/Temp/claude/C--Users-nickh-Claude/3e1266bc-f2f9-4d9b-86fd-b4108e60378d/scratchpad/nds.txt` (forward slashes on purpose: a backslash-hex sequence such as this session id in any repo file trips the Tailwind v4 source scanner - Vercel dpl_FTR4JMcK7yD2bdLAFtkMdtZzi94d)
 — use it to read table cells; never cite from memory.
 
 Files:
