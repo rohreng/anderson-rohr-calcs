@@ -273,3 +273,10 @@ warning, edge g/2 needs rows>=2, nail p_t label, spec/code cmException wording) 
 Gates: npm run test:wc 285/285 · tools/_wc-ui-smoke.mjs 68/68 · tsc clean. Commits 9ade05a, 3ec25b5, 2c18c66 (local, not pushed).
 Spreadsheet case (16d, G 0.42, θ_s 90): engine Z 119.6 vs sheet 119.84 (F_e rounding only); the sheet's "127" is a stale typed value.
 Status wip until Nick reviews, then ready + deploy.
+
+## v1.1 — intermediate load angles + staggered rows (Nick, 2026-09-19/20)
+Spec §12 written from §12.6.2, Commentary C12.5.1.2 (end-distance interpolation) and §11.3.6.2 (stagger merge).
+Engine + page updated by the same subagents; Fable v1.1 verification: FIX FIRST (offset must be the closest-fastener
+distance; spread must include it; s_eff = s/2 with min(merged, separate); edge envelope at angles; no rounding after
+Hankinson; §12.6.2 as unresolved) → applied → re-verification SHIP. Gates: test:wc 338/338, smoke 82/82, tsc clean.
+Status flipped to ready; deployed.

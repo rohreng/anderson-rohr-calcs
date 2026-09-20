@@ -31,6 +31,9 @@
                             rounded to the nearest 50 psi; Table 12.3.3A (87/101) G by species
      §12.3.3.3 SCL F_e from the manufacturer / evaluation report (Custom species: typed F_e)
      §12.3.3.4 (84/98)  D ≥ 1/4" in end grain of the main member → F_e⊥ for F_em
+     §12.3.4 Eq. 12.3-11 (84/98) Hankinson F_eθ = F_e∥F_e⊥/(F_e∥sin²θ + F_e⊥cos²θ) for 0 < θ < 90 (v1.1)
+     §11.3.6.2 (68/82) staggered adjacent rows with g < offset/4 count as one row for C_g (Fig. 11B) (v1.1)
+     Commentary C12.5.1.2 (263/277) end distance at an angle to grain linearly interpolated (v1.1)
      §12.3.5.3 (85/99)  l_m ≤ p − E/2 (E from Table L2 for lags, 2D for wood screws and nails)
      §12.3.7.1 (85/99)  D for nails and bolts; D_r for lags and wood screws in Tables 12.3.1A/B
      §12.3.10.2 (88/102) toe-nail l_s = min(t_s, L/3); Commentary C12.5.4 (266/280):
@@ -60,7 +63,7 @@
   var COS30 = Math.cos(Math.PI / 6);
 
   // version = the state shape (the adapter gate); rev = the engine build.
-  var ENGINE = { name: 'wood-connection-schedule', version: 1, rev: '2026-09-19 v1', codes: ['NDS 2018'] };
+  var ENGINE = { name: 'wood-connection-schedule', version: 1, rev: '2026-09-19 v1.1', codes: ['NDS 2018'] };
 
   // ── DATA (spec §4) ─────────────────────────────────────────────────────────
   var SPECIES = {
@@ -158,6 +161,12 @@
     if (D < 0.25) { var s = round50(16600 * Math.pow(G, 1.84)); return { small: s, par: s, perp: s }; }
     return { small: null, par: round50(11200 * G), perp: round50(6100 * Math.pow(G, 1.45) / Math.sqrt(D)) };
   }
+  // Hankinson Eq. 12.3-11 between the Table 12.3.3 ∥ and ⊥ values (each already rounded to 50 psi); F_eθ used unrounded; exact at 0 / 90.
+  function feAtAngle(par, perp, theta) {
+    if (!(theta > 0)) return par; if (theta >= 90) return perp;
+    var sn = Math.sin(theta * Math.PI / 180), cs = Math.cos(theta * Math.PI / 180);
+    return par * perp / (par * sn * sn + perp * cs * cs);
+  }
   function KD(Dy) { return Dy <= 0.17 + 1e-12 ? 2.2 : 10 * Dy + 0.5; }
   function Ktheta(theta) { return 1 + 0.25 * (theta / 90); }
 
@@ -241,9 +250,19 @@
       bolts: [], nails: [], screws: [], rowCnt: 0
     };
   }
-  function geomDefaults(D, theta, towardEnd) {
-    var perp = Number(theta) === 90;
-    return { s: 4 * D, g: perp ? 5 * D : 1.5 * D, endDist: (!perp && towardEnd !== false) ? 7 * D : 4 * D, edgeDist: 1.5 * D, loadedEdgeDist: 4 * D };
+  // Table 12.5.1A end distance for C_Δ = 1.0 (full) and 0.5 (half) at any θ: the θ = 0 value (tension toward the end
+  // 7D / 3.5D softwood, 5D / 2.5D hardwood; compression 4D / 2D) interpolated linearly to the θ = 90 value (4D / 2D)
+  // by θ/90 (Commentary C12.5.1.2). Shared by compute() and geomDefaults().
+  function endDistance(D, theta, towardEnd, hardwood) {
+    var tt = Math.min(Math.max(Number(theta) || 0, 0), 90) / 90;
+    var endFull0 = towardEnd ? (hardwood ? 5 : 7) * D : 4 * D, endHalf0 = towardEnd ? (hardwood ? 2.5 : 3.5) * D : 2 * D;
+    return { full: endFull0 + (4 * D - endFull0) * tt, half: endHalf0 + (2 * D - endHalf0) * tt };
+  }
+  // geomDefaults(D, θ, towardEnd, hardwood): full-value defaults — s 4D, edge 1.5D, loaded edge 4D, end = interpolated full
+  // (same helper as compute), g = 1.5D at θ = 0, else the ⊥ row-spacing full default 5D. Page probe GEOM_INTERP.
+  function geomDefaults(D, theta, towardEnd, hardwood) {
+    var th = Number(theta) || 0;
+    return { s: 4 * D, g: th > 0 ? 5 * D : 1.5 * D, endDist: endDistance(D, th, towardEnd !== false, !!hardwood).full, edgeDist: 1.5 * D, loadedEdgeDist: 4 * D };
   }
   function kindOf(type) {
     var t = String(type || '').toLowerCase();
@@ -266,7 +285,7 @@
     var row = {
       id: isNum(opts.id) ? opts.id : 0, desc: '', V: null, T: null, loadCase: 'L', cmException: false,
       main: main, side: member('wood'),
-      n: 1, rows: 1, s: gd.s, g: gd.g, shrinkDetail: false, Fyb_override: null, notes: ''
+      n: 1, rows: 1, s: gd.s, g: gd.g, stagger: false, offset: null, shrinkDetail: false, Fyb_override: null, notes: ''
     };
     if (kind === 'bolt') { row.D = 0.75; row.shear = 'single'; row.mainSteel = false; }
     if (kind === 'nail') { row.nailType = 'common'; row.penny = '16d'; row.toeNail = false; row.diaphragm = false; }
@@ -408,7 +427,7 @@
       var out = { mat: 'wood', species: sp.key, label: sp.label, G: sp.G, E: sp.E, hardwood: !!sp.hardwood, custom: !!sp.custom, esr: sp.esr };
       out.t = needNum(name + ' thickness t', m.t, { pos: true });
       out.w = geomActive ? needNum(name + ' width w', m.w, { pos: true }) : num(m.w);
-      var th = num(m.theta); if (th === null) { missing.push(name + ' θ'); } else if (th !== 0 && th !== 90) { invalid(name + ' θ must be 0 or 90 (v1)'); th = null; }
+      var th = num(m.theta); if (th === null) { missing.push(name + ' θ'); } else if (!isNum(th) || th < 0 || th > 90) { invalid(name + ' θ must be 0–90 deg'); th = null; }
       out.theta = th;
       if (isNum(D) && sp.ok && isNum(sp.G)) {
         if (sp.custom) {
@@ -427,7 +446,7 @@
         out.towardEnd = m.towardEnd !== false;
         out.endDist = needNum(name + ' end distance', m.endDist, { nonneg: true });
         out.edgeDist = needNum(name + ' edge distance', m.edgeDist, { nonneg: true });
-        out.loadedEdgeDist = th === 90 ? needNum(name + ' loaded edge distance', m.loadedEdgeDist, { nonneg: true }) : num(m.loadedEdgeDist);
+        out.loadedEdgeDist = (th !== null && th > 0) ? needNum(name + ' loaded edge distance', m.loadedEdgeDist, { nonneg: true }) : num(m.loadedEdgeDist);   // §12.1: ⊥ component toward one edge for any θ > 0
       }
       return out;
     }
@@ -466,6 +485,16 @@
       g = needNum('row spacing g', row.g, { nonneg: true });
     }
     I.n = geomActive ? n : null; I.rows = geomActive ? rows : null; I.s = geomActive ? s : null; I.g = geomActive ? g : null;
+    // staggered rows (§11.3.6.2): active only when stagger && rows ≥ 2 && D ≥ 1/4
+    var staggerActive = geomActive && !!row.stagger && rows !== null && rows >= 2, offset = null;
+    if (staggerActive) {
+      offset = needNum('stagger offset', row.offset, { pos: true });
+      if (offset !== null && s !== null && offset >= s - 1e-12) invalid('stagger offset must be less than the in-row spacing s');
+    }
+    I.stagger = staggerActive; I.offset = staggerActive ? offset : null;
+    // §11.3.6.2 measures the distance between the CLOSEST fasteners in adjacent rows: min(offset, s − offset)
+    var offClosest = (staggerActive && offset !== null && s !== null) ? Math.min(offset, s - offset) : null;
+    I.offClosest = offClosest;
 
     // ── demands ──────────────────────────────────────────────────────────────
     var V = needNum('V', row.V, { nonneg: true });
@@ -490,9 +519,11 @@
     var Fem, Fes, thetaK = 0;
     if (M.mat === 'steel') Fem = M.Fe;
     else if (M.endGrain && geomActive) { Fem = M.FePerp; R.cites.push('§12.3.3.4 (p.84/98): "Where dowel-type fasteners with D ≥ 1/4" are inserted into the end grain of the main member, with the fastener axis parallel to the wood fibers, F_e⊥ shall be used in the determination of the dowel bearing strength of the main member, F_em."'); }
-    else Fem = M.theta === 90 ? M.FePerp : M.FePar;
-    Fes = S.mat === 'steel' ? S.Fe : (S.theta === 90 ? S.FePerp : S.FePar);
+    else Fem = feAtAngle(M.FePar, M.FePerp, M.theta);
+    Fes = S.mat === 'steel' ? S.Fe : feAtAngle(S.FePar, S.FePerp, S.theta);
     M.Fe = Fem; S.Fe = Fes;
+    var anyAngle = (M.mat === 'wood' && !M.endGrain && M.theta > 0 && M.theta < 90) || (S.mat === 'wood' && S.theta > 0 && S.theta < 90);
+    if (anyAngle) R.cites.push('§12.3.4 Eq. 12.3-11 (p.84/98) Hankinson: F_eθ = F_e∥·F_e⊥ / (F_e∥·sin²θ + F_e⊥·cos²θ) from the rounded ∥/⊥ values, used unrounded; K_θ = 1 + 0.25(θ_max/90) at the actual angle (Table 12.3.1B)');
     if (M.mat === 'wood') thetaK = Math.max(thetaK, M.endGrain ? 90 : M.theta);   // end grain: load ⊥ to the main member's grain
     if (S.mat === 'wood') thetaK = Math.max(thetaK, S.theta);
     if (M.mat === 'wood' && M.endGrain) R.cites.push('K_θ: end-grain main member taken at θ = 90 (load ⊥ to its grain), Table 12.3.1B note');
@@ -550,22 +581,28 @@
           gm.endMin = 4 * D; gm.edgeMin = 1.5 * D;
           if (m.edgeDist < gm.edgeMin - 1e-9) R.flags.push('geom_edge');
           if (m.endDist < gm.endMin - 1e-9) R.flags.push('geom_end');
-        } else if (m.theta === 90) {
-          gm.endFull = 4 * D; gm.endHalf = 2 * D; gm.loadedEdgeMin = 4 * D; gm.edgeMin = 1.5 * D;
-          gm.rowMin = lD <= 2 ? 2.5 * D : (lD < 6 ? (5 * lD * D + 10 * D) / 8 : 5 * D);
-          if (m.edgeDist < gm.edgeMin - 1e-9) R.flags.push('geom_edge');
-          if (m.loadedEdgeDist < gm.loadedEdgeMin - 1e-9) R.flags.push('geom_edge');
-          if (rows >= 2 && g < gm.rowMin - 1e-9) R.flags.push('geom_row');
-          if (m.endDist < gm.endHalf - 1e-9) R.flags.push('geom_end'); else ratios.push(m.endDist / gm.endFull);
-          gm.spread = (n - 1) * s;
         } else {
-          var hw = m.hardwood;
-          gm.endFull = m.towardEnd ? (hw ? 5 : 7) * D : 4 * D; gm.endHalf = m.towardEnd ? (hw ? 2.5 : 3.5) * D : 2 * D;
-          gm.edgeMin = (lD <= 6 || rows < 2) ? 1.5 * D : Math.max(1.5 * D, g / 2); gm.rowMin = 1.5 * D;   // Table 12.5.1C: "½ the spacing between rows" needs two rows
+          // General θ (spec §12.1): end distance interpolated between the θ = 0 and θ = 90 values by θ/90 (Commentary C12.5.1.2);
+          // edge = ⊥ rule for any θ > 0; row spacing = max of the ∥ and ⊥ minima; spread = (n−1)·s·sinθ + (rows−1)·g·cosθ.
+          var th = m.theta, sinT = Math.sin(th * Math.PI / 180), cosT = Math.cos(th * Math.PI / 180);
+          var ed = endDistance(D, th, m.towardEnd, m.hardwood);
+          gm.endFull = ed.full; gm.endHalf = ed.half;
+          var rowPar = 1.5 * D, rowPerp = lD <= 2 ? 2.5 * D : (lD < 6 ? (5 * lD * D + 10 * D) / 8 : 5 * D);
+          if (th === 0) {
+            gm.edgeMin = (lD <= 6 || rows < 2) ? 1.5 * D : Math.max(1.5 * D, g / 2); gm.rowMin = rowPar;   // Table 12.5.1C: "½ the spacing between rows" needs two rows
+          } else {
+            // D5: unloaded edge at 0 < θ < 90 envelopes the ∥ rule (g/2 when l/D > 6 and rows ≥ 2); θ = 90 is the pure ⊥ rule.
+            gm.edgeMin = th === 90 ? 1.5 * D : ((lD <= 6 || rows < 2) ? 1.5 * D : Math.max(1.5 * D, g / 2));
+            gm.loadedEdgeMin = 4 * D; gm.rowMin = th === 90 ? rowPerp : Math.max(rowPar, rowPerp);
+            if (m.loadedEdgeDist < gm.loadedEdgeMin - 1e-9) R.flags.push('geom_edge');
+          }
           if (m.edgeDist < gm.edgeMin - 1e-9) R.flags.push('geom_edge');
           if (rows >= 2 && g < gm.rowMin - 1e-9) R.flags.push('geom_row');
           if (m.endDist < gm.endHalf - 1e-9) R.flags.push('geom_end'); else ratios.push(m.endDist / gm.endFull);
-          gm.spread = (rows - 1) * g;
+          // along-row extent of the group: (n − 1)·s, plus the closest-fastener offset when rows are staggered (§12.5.1.3 outermost fasteners)
+          var alongRow = (n - 1) * s + (staggerActive ? offClosest : 0);
+          gm.spread = th === 90 ? alongRow : (th === 0 ? (rows - 1) * g : alongRow * sinT + (rows - 1) * g * cosT);
+          if (th > 0 && th < 90) { gm.interpolated = true; R.notes.push(mm.name + ' geometry at θ = ' + th + '° by interpolation (end) and the governing of the ∥/⊥ rules (edge, rows) — Commentary C12.5.1.2'); }
         }
         if (gm.spread > CONST.spreadMax + 1e-9) { if (I.shrinkDetail) R.notes.push(mm.name + ' across-grain spread ' + f3(gm.spread) + ' in > 5 in: shrinkage detailing provided (§12.5.1.3 exception)'); else R.flags.push('spread5'); }
         geom.members.push(gm);
@@ -604,22 +641,49 @@
 
     // ── C_g (Eq. 11.3-1) ─────────────────────────────────────────────────────
     var Cg = 1.0, cg = null;
-    function memberArea(m) {
+    var wGroup = rows >= 2 ? (rows - 1) * g : 3 * D;   // §11.3.6.3 ⊥ equivalent width (physical rows and g, also under stagger)
+    // rule 'gross' = t·w (θ = 0 interpretation); 'perp' = t·w_group (θ = 90 interpretation); members at exactly 0 / 90 keep their own rule.
+    function memberArea(m, rule) {
       if (m.mat === 'steel') return m.t * m.w;
-      if (m.theta === 90) return m.t * (rows >= 2 ? (rows - 1) * g : 3 * D);   // §11.3.6.3: single row → minimum ∥-to-grain spacing = 3D (Table 12.5.1B)
-      return m.t * m.w;
+      if (m.theta === 90) return m.t * wGroup;
+      if (m.theta === 0) return m.t * m.w;
+      return rule === 'perp' ? m.t * wGroup : m.t * m.w;
     }
+    // staggered rows: §11.3.6.2 merge rule
+    // merge test on the closest-fastener offset; merged row: n_eff = 2n at the mean spacing s/2, rows_eff = ceil(rows/2).
+    var nEff = n, sEff = s, rowsEff = rows, merged = false;
+    if (staggerActive) { merged = g < offClosest / 4 - 1e-12; if (merged) { nEff = 2 * n; sEff = s / 2; rowsEff = Math.ceil(rows / 2); } }
     if (geomActive) {
-      var Am = memberArea(M), As = memberArea(S) * (doubleShear ? 2 : 1);
-      M.A = Am; S.A = As;
-      if (n >= 2) {
-        cg = groupAction({ n: n, s: s, D: D, Em: M.E, Am: Am, Es: S.E, As: As, metal: M.mat === 'steel' || S.mat === 'steel' });
-        Cg = cg.Cg;
-      } else cg = { Cg: 1, n: n, note: 'n = 1 → C_g = 1.0' };
-      cg.Am = Am; cg.As = As; cg.Em = M.E; cg.Es = S.E;
-      if (M.mat === 'wood' && M.theta === 90) cg.wGroupMain = rows >= 2 ? (rows - 1) * g : 3 * D;
-      if (S.mat === 'wood' && S.theta === 90) cg.wGroupSide = rows >= 2 ? (rows - 1) * g : 3 * D;
-      if ((M.mat === 'wood' && M.theta === 90) || (S.mat === 'wood' && S.theta === 90)) cg.wGroupCite = rows >= 2 ? '§11.3.6.3: ⊥-loaded member area = t × overall width of the group, (rows − 1)·g' : '§11.3.6.3: single row → t × minimum ∥-to-grain spacing 3D (Table 12.5.1B)';
+      var angleCg = (M.mat === 'wood' && M.theta > 0 && M.theta < 90) || (S.mat === 'wood' && S.theta > 0 && S.theta < 90);
+      var runCg = function (rule, nn, ss) {
+        var Am = memberArea(M, rule), As = memberArea(S, rule) * (doubleShear ? 2 : 1), o;
+        if (nn >= 2) o = groupAction({ n: nn, s: ss, D: D, Em: M.E, Am: Am, Es: S.E, As: As, metal: M.mat === 'steel' || S.mat === 'steel' });
+        else o = { Cg: 1, n: nn, note: 'n = 1 → C_g = 1.0' };
+        o.Am = Am; o.As = As; o.rule = rule; o.s = ss; return o;
+      };
+      var lower = function (a, b) { return (b && (a.Cg === null || (b.Cg !== null && b.Cg < a.Cg))) ? b : a; };
+      // area interpretations (angle) × layouts (merged vs separate rows, D3 "most conservative interpretation" guard)
+      var cgGross = runCg('gross', nEff, sEff), cgPerp = angleCg ? runCg('perp', nEff, sEff) : null;
+      var cgGrossSep = merged ? runCg('gross', n, s) : null, cgPerpSep = (merged && angleCg) ? runCg('perp', n, s) : null;
+      cgGross.layout = merged ? 'merged' : 'separate'; if (cgPerp) cgPerp.layout = cgGross.layout;
+      var cgMergedBest = lower(cgGross, cgPerp), cgSepBest = cgGrossSep ? lower(cgGrossSep, cgPerpSep) : null;
+      if (cgSepBest) cgSepBest.layout = 'separate';
+      cg = lower(cgMergedBest, cgSepBest);
+      if (angleCg) { cg.interpretations = { gross: { Am: cgGross.Am, As: cgGross.As, Cg: cgGross.Cg }, perp: { Am: cgPerp.Am, As: cgPerp.As, Cg: cgPerp.Cg } }; cg.governingRule = cg.rule; R.notes.push('C_g at an angle: lesser of the ∥ and ⊥ area interpretations (§11.3.6.3)'); }
+      Cg = cg.Cg;
+      M.A = cg.Am; S.A = cg.As;
+      cg.Em = M.E; cg.Es = S.E; cg.n_phys = n; cg.s_phys = s;
+      cg.stagger = { stagger: staggerActive, offset: staggerActive ? offset : null, offClosest: offClosest, merged: merged, n_eff: nEff, s_eff: sEff, rows_eff: rowsEff,
+                     Cg_merged: merged ? cgMergedBest.Cg : null, Cg_separate: merged ? cgSepBest.Cg : (staggerActive ? cgMergedBest.Cg : null), governingLayout: cg.layout || 'separate' };
+      if (staggerActive) {
+        cg.staggerCite = '§11.3.6.2 (Fig. 11B): closest-fastener offset ' + f3(offClosest) + ' in; ' + (merged ? 'g = ' + f3(g) + ' < offset/4 = ' + f3(offClosest / 4) + ' → adjacent rows act as one row for C_g: n_eff = 2n = ' + nEff + ', s_eff = s/2 = ' + f3(sEff) + ', rows_eff = ' + rowsEff + '; C_g = min(merged ' + f3(cgMergedBest.Cg) + ', separate ' + f3(cgSepBest.Cg) + ')' : 'g = ' + f3(g) + ' ≥ offset/4 = ' + f3(offClosest / 4) + ' → rows stay separate for C_g');
+        if ((M.mat === 'wood' && M.theta > 0) || (S.mat === 'wood' && S.theta > 0)) R.notes.push('§12.6.1 — stagger symmetrically');
+      }
+      var wGroupUsed = (M.mat === 'wood' && M.theta === 90) || (S.mat === 'wood' && S.theta === 90) || (cg.rule === 'perp');
+      if (M.mat === 'wood' && M.theta > 0 && (M.theta === 90 || cg.rule === 'perp')) cg.wGroupMain = wGroup;
+      if (S.mat === 'wood' && S.theta > 0 && (S.theta === 90 || cg.rule === 'perp')) cg.wGroupSide = wGroup;
+      if (wGroupUsed) cg.wGroupCite = rows >= 2 ? '§11.3.6.3: ⊥-loaded member area = t × overall width of the group, (rows − 1)·g' : '§11.3.6.3: single row → t × minimum ∥-to-grain spacing 3D (Table 12.5.1B)';
+      if (anyAngle && n * rows > 1) { R.notes.push('gravity axis of each member must pass through the center of resistance of the fastener group (§12.6.2)'); R.unresolved += 1; }
     } else { M.A = null; S.A = null; }
 
     // ── adjustment factors ───────────────────────────────────────────────────
@@ -635,14 +699,14 @@
       CMw: { v: withdrawalActive ? cmW.v : null, cite: withdrawalActive ? cmW.cite : 'n/a (bolt)' },
       CMH: { v: cmH.v, cite: cmH.cite },
       Ct: { v: Ct, cite: 'Table 11.3.4: ' + H.temp + ', in-service ' + H.mcService },
-      Cg: { v: Cg, cite: geomActive ? (n >= 2 ? (Cg === null ? cg.reason : 'Eq. 11.3-1 (§11.3.6.1), γ = ' + (cg.metal ? '270,000' : '180,000') + '·D^1.5') : '§11.3.6.1: n = 1 → 1.0') : '§11.3.6.1: D < 1/4 in → 1.0', detail: cg },
+      Cg: { v: Cg, cite: geomActive ? ((nEff >= 2 ? (Cg === null ? cg.reason : 'Eq. 11.3-1 (§11.3.6.1), γ = ' + (cg.metal ? '270,000' : '180,000') + '·D^1.5') : '§11.3.6.1: n = 1 → 1.0') + (staggerActive ? '; ' + cg.staggerCite : '')) : '§11.3.6.1: D < 1/4 in → 1.0', detail: cg },
       Cdelta: { v: Cdelta, cite: geomActive ? '§12.5.1.2 / ' + geom.rule : '§12.5.1.1: D < 1/4 in → 1.0', detail: geom },
       Ceg: { v: Ceg, cite: Ceg < 1 ? '§12.5.2.2: dowel in end grain of the main member → 0.67' : '§12.5.2.2: side grain → 1.0' },
       Cegw: { v: withdrawalActive ? Cegw : null, cite: Cegw < 1 ? '§12.2.1.3 / §12.5.2.1: lag withdrawal from end grain → 0.75' : (withdrawalActive ? 'side grain → 1.0' : 'n/a (bolt)') },
       Cdi: { v: Cdi, cite: Cdi > 1 ? '§12.5.3: nails in diaphragm construction → 1.1' : '§12.5.3: not a diaphragm nail → 1.0' },
       Ctn: { v: Ctn, cite: toeNail ? '§12.5.4.2: toe-nail lateral 0.83 (withdrawal 0.67, §12.5.4.1)' : '§12.5.4: not toe-nailed → 1.0' }
     };
-    if (cg && n >= 2) R.factors.Cg.detail.metal = M.mat === 'steel' || S.mat === 'steel';
+    if (cg && nEff >= 2) R.factors.Cg.detail.metal = M.mat === 'steel' || S.mat === 'steel';
 
     // ── capacities ───────────────────────────────────────────────────────────
     var Zp = (Y && Cg !== null) ? Y.Z * I.CD * cmL.v * Ct * Cg * Cdelta * Ceg * Cdi * Ctn : null;
@@ -1201,7 +1265,7 @@
     r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), { species: 'CUSTOM', custom: { G: 0.5, E: 0, Fe_par: 5600, Fe_perp: 3150 } }); fx('custom E = 0 → invalid', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
     r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), { species: 'CUSTOM', custom: { G: 0.8, E: 1e6, Fe_par: 5600, Fe_perp: 3150 } }); fx('custom G = 0.8 → invalid', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
     r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, 0), { species: 'CUSTOM', custom: { G: 0.5, E: 1e6, Fe_par: null, Fe_perp: 3150 } }); fx('custom F_e∥ blank → incomplete', { table: 'spec §2', cell: '' }, r.status === 'incomplete', true);
-    r = run('bolt', boltRow(0.5, 1.5, 1.5, 45, 0), DFL); fx('θ = 45 → invalid', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 45, 0), DFL); fx('θ = 45 → accepted since v1.1 (spec §12.1), Hankinson F_em 4032', { table: 'spec §12.1', cell: '' }, r.status === 'pass' && near(r.inputs.Fem, 4032, 1e-9), true);
     r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { V: -5 }), DFL); fx('V = −5 → invalid', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
     r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { V: 'abc' }), DFL); fx('V = "abc" → invalid', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
     r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { D: 1.25 }), DFL); fx('bolt D 1.25 → invalid (not Table L1 / D > 1)', { table: 'spec §2', cell: '' }, r.status === 'invalid', true);
@@ -1285,6 +1349,107 @@
     fxb('null state / empty tables compute without throwing', { table: 'spec §1' }, (function () { var o = compute(null); var o2 = compute({ version: 1 }); return o.summary.total.rows === 0 && o2.summary.total.rows === 0; })());
     fxb('DATA.notes records the Table L4 head-diameter reading', { table: 'spec §4' }, DATA.notes.some(function (x) { return x.indexOf('Table L4') >= 0; }));
 
+    // ── 10. v1.1 — intermediate load angles (spec §12.1) ──────────────────────
+    // Hankinson at 45°, 1/2 bolt DFL: F_e∥ 5600, F_e⊥ 3150 → 5600·3150/(5600·0.5 + 3150·0.5) = 17,640,000/4375 = 4032 (used unrounded, D6).
+    // K_θ = 1 + 0.25·45/90 = 1.125; R_d = 4.5 / 4.05 / 3.6. Both members at 45: R_e = 1, R_t = 1, k1 = 0.41421 → II = 0.41421·0.5·1.5·4032/4.05 = 309.28;
+    // I_m = I_s = 0.5·1.5·4032/4.5 = 672; k3 = −1 + √(4 + 2·45000·3·0.25/(3·4032·2.25)) = 1.54562 → III_s = 432.77; IV = 0.25/3.6·√(2·4032·45000/6) = 540.06. Z = 309.28 (II).
+    fx('Hankinson 45°: F_e = 5600·3150/4375 = 4032 (unrounded)', { table: 'Eq. 12.3-11', cell: 'DFL 1/2, θ 45' }, feAtAngle(5600, 3150, 45), 4032, 1e-9);
+    fx('Hankinson 30°: 5600·2600/(5600·0.25 + 2600·0.75) = 4346.27 (unrounded)', { table: 'Eq. 12.3-11', cell: 'DFL 3/4, θ 30' }, feAtAngle(5600, 2600, 30), 4346.2687, 1e-4);
+    fx('Hankinson exact at 0 / 90', { table: 'Eq. 12.3-11', cell: '' }, feAtAngle(5600, 3150, 0) === 5600 && feAtAngle(5600, 3150, 90) === 3150, true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 45, 45), DFL);
+    m = { table: 'spec §12.1 (hand)', cell: '1/2 bolt 1.5/1.5, both members θ 45', inputs: r.inputs };
+    fx('θ 45 both: F_em = F_es = 4032, K_θ = 1.125', m, near(r.inputs.Fem, 4032, 1e-9) && near(r.inputs.Fes, 4032, 1e-9) && near(r.yield.Ktheta, 1.125, 1e-12), true);
+    fx('θ 45 both: R_d = 4.5 / 4.05 / 3.6', m, near(r.yield.Rd.Im, 4.5, 1e-12) && near(r.yield.Rd.II, 4.05, 1e-12) && near(r.yield.Rd.IV, 3.6, 1e-12), true);
+    fx('θ 45 both: Z = 309.28 (II), I_m 672, III_s 432.77, IV 540.06', m, near(r.yield.Z, 309.2795, 1e-3) && r.yield.governing === 'II' && near(r.yield.modes.Im, 672, 1e-9) && near(r.yield.modes.IIIs, 432.7724, 1e-3) && near(r.yield.modes.IV, 540.0617, 1e-3), true);
+    fx('θ 45 both: Hankinson cite, §12.6.2 note absent for a single fastener (unresolved 0), interpolation note present, status pass', m, r.cites.some(function (x) { return x.indexOf('Hankinson') >= 0; }) && !r.notes.some(function (x) { return x.indexOf('12.6.2') >= 0; }) && r.unresolved === 0 && r.notes.some(function (x) { return x.indexOf('C12.5.1.2') >= 0; }) && r.status === 'pass', true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 45, 0), DFL);
+    // main 45 / side 0: R_e = 4032/5600 = 0.72, R_t 1, k1 = 0.35481 → II = 0.35481·0.5·1.5·5600/4.05 = 367.96 (II); I_m 672.
+    fx('main 45 / side 0: F_em 4032, F_es 5600, K_θ 1.125, Z = 367.96 (II)', { table: 'spec §12.1 (hand)', cell: 'main θ 45, side 0' }, near(r.inputs.Fem, 4032, 1e-9) && r.inputs.Fes === 5600 && near(r.yield.Ktheta, 1.125, 1e-12) && near(r.yield.Z, 367.9552, 1e-3) && r.yield.governing === 'II', true);
+    r = run('nail', nailRow('16d', 1.5, { main: { theta: 45 }, side: { theta: 30 } }), DFL);
+    fx('nail (D < 1/4) at 45 / 30: F_e 4650 unchanged (no angle), K_θ not applied (R_d = K_D 2.2)', { table: 'Table 12.3.3 / 12.3.1B', cell: 'D < 1/4' }, r.inputs.Fem === 4650 && r.inputs.Fes === 4650 && near(r.yield.Rd.IV, 2.2, 1e-12) && r.status === 'pass', true);
+    // end distance interpolation, 1/2 bolt softwood tension: full 3.5 → 2.0 at 90 → 2.75 at 45; half 1.75 → 1.0 → 1.375 at 45.
+    var b45 = function (extra) { return run('bolt', merge(boltRow(0.5, 1.5, 1.5, 45, 0), extra || {}), DFL); };
+    r = b45({ main: { endDist: 2.75 } }); fx('θ 45 end 2.75 = interpolated full → C_Δ 1.0', { table: 'C12.5.1.2', cell: 'end full 2.75' }, near(r.factors.Cdelta.v, 1, 1e-12) && near(r.factors.Cdelta.detail.members[0].endFull, 2.75, 1e-12) && near(r.factors.Cdelta.detail.members[0].endHalf, 1.375, 1e-12), true);
+    r = b45({ main: { endDist: 2.0625 } }); fx('θ 45 end 2.0625 → C_Δ = 2.0625/2.75 = 0.75', { table: 'C12.5.1.2', cell: '' }, r.factors.Cdelta.v, 0.75, 1e-12);
+    r = b45({ main: { endDist: 1.375 } }); fx('θ 45 end 1.375 = interpolated half → C_Δ 0.5', { table: 'C12.5.1.2', cell: '' }, r.factors.Cdelta.v, 0.5, 1e-12);
+    r = b45({ main: { endDist: 1.37 } }); fx('θ 45 end 1.37 < half → fail geom_end', { table: 'C12.5.1.2', cell: '' }, r.status === 'fail' && r.flags.indexOf('geom_end') >= 0, true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 45, 0), { main: { towardEnd: false, endDist: 2.0 } }), DFL); fx('θ 45 compression (4D/2D at both angles): full stays 2.0 → C_Δ 1', { table: 'Table 12.5.1A', cell: '' }, near(r.factors.Cdelta.v, 1, 1e-12) && near(r.factors.Cdelta.detail.members[0].endFull, 2.0, 1e-12), true);
+    // loaded edge active for θ > 0
+    r = b45({ main: { loadedEdgeDist: 1.99 } }); fx('θ 45 loaded edge 1.99 < 4D → fail geom_edge', { table: 'Table 12.5.1C', cell: '⊥ rule at θ > 0' }, r.status === 'fail' && r.flags.indexOf('geom_edge') >= 0, true);
+    r = b45({ main: { loadedEdgeDist: null } }); fx('θ 45 loaded edge blank → incomplete', { table: 'spec §12.1', cell: '' }, r.status === 'incomplete', true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 0, 0), { main: { loadedEdgeDist: null } }), DFL); fx('θ 0 loaded edge blank → still fine (inactive)', { table: 'spec §12.1', cell: '' }, r.status === 'pass', true);
+    // row spacing at 45 = max(∥ 1.5D, ⊥ by l/D): 1/2 bolt 3.5/1.5 → l/D 3 → ⊥ 1.5625 governs; g 1.5 fails, 1.5625 passes.
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { rows: 2, g: 1.5, main: { w: 9.25 } }), DFL); fx('θ 45 row spacing min = max(0.75, 1.5625) → g 1.5 fails', { table: 'Table 12.5.1D', cell: 'θ 45' }, r.status === 'fail' && r.flags.indexOf('geom_row') >= 0 && near(r.factors.Cdelta.detail.members[0].rowMin, 1.5625, 1e-12), true);
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { rows: 2, g: 1.5625, main: { w: 9.25 } }), DFL); fx('θ 45 g 1.5625 → pass', { table: 'Table 12.5.1D', cell: '' }, r.status === 'pass', true);
+    // D5: unloaded edge at 45 with l/D > 6 and rows 2 envelopes the ∥ g/2 rule: 1/2 bolt 3.5/3.5 (l/D 7), rows 2, g 4 → edge min = max(0.75, 2.0) = 2.0.
+    r = run('bolt', merge(boltRow(0.5, 3.5, 3.5, 45, 0), { rows: 2, g: 4, main: { edgeDist: 1.9, w: 9.25 }, side: { w: 9.25 } }), DFL);
+    fx('θ 45, l/D 7, rows 2, g 4: unloaded edge min = g/2 = 2.0 → 1.9 fails geom_edge', { table: 'Table 12.5.1C (D5)', cell: 'θ 45 envelope' }, r.status === 'fail' && r.flags.indexOf('geom_edge') >= 0 && near(r.factors.Cdelta.detail.members[0].edgeMin, 2.0, 1e-12), true);
+    r = run('bolt', merge(boltRow(0.5, 3.5, 3.5, 90, 0), { rows: 2, g: 4, main: { edgeDist: 0.75, loadedEdgeDist: 2, endDist: 2, w: 9.25 }, side: { w: 9.25, edgeDist: 2 } }), DFL);   // side (θ 0, l/D 7, rows 2) needs edge g/2 = 2
+    fx('θ 90 keeps the pure ⊥ rule: unloaded edge 1.5D = 0.75 ok', { table: 'Table 12.5.1C', cell: 'θ 90' }, r.status === 'pass' && near(r.factors.Cdelta.detail.members[0].edgeMin, 0.75, 1e-12), true);
+    // spread at 45: n 3, s 2, rows 2, g 1.5 → (3−1)·2·sin45 + (2−1)·1.5·cos45 = 2.8284 + 1.0607 = 3.889 (≤ 5, pass)
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { n: 3, s: 2, rows: 2, g: 1.5625, main: { w: 9.25 } }), DFL);
+    fx('θ 45 spread = 2·2·sin45 + 1.5625·cos45 = 3.933', { table: '§12.5.1.3', cell: 'θ 45' }, r.factors.Cdelta.detail.members[0].spread, 2 * 2 * Math.SQRT1_2 + 1.5625 * Math.SQRT1_2, 1e-9);
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { n: 3, s: 2, rows: 2, g: 1.5, main: { w: 9.25 }, shrinkDetail: true }), DFL);
+    fx('θ 45 spread with g 1.5 = 3.889 (spec value); §12.6.2 note printed and counted unresolved (n·rows > 1)', { table: '§12.5.1.3 / §12.6.2', cell: '' }, near(r.factors.Cdelta.detail.members[0].spread, 3.889087, 1e-5) && r.notes.some(function (x) { return x.indexOf('12.6.2') >= 0; }) && r.unresolved === 1, true);
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { n: 5, s: 2, rows: 1, main: { w: 9.25 } }), DFL);
+    fx('θ 45 spread 4·2·sin45 = 5.657 > 5 → fail spread5', { table: '§12.5.1.3', cell: '' }, r.status === 'fail' && r.flags.indexOf('spread5') >= 0, true);
+    // C_g at 45 = min of the two area interpretations. 1/2 bolt DFL, main 3.5 × 5.5 at 45 (gross 19.25; ⊥ equivalent rows 1 → 3D = 1.5 → 5.25), side 1.5 × 5.5 at 0 (8.25), n 2, s 2.
+    // γ = 63,640. gross: R_EA = 8.25/19.25 = 0.428571, u = 1 + 63640·1·(1/3.08e7 + 1/1.32e7) = 1.006887, m = 0.889319, C_g = 0.997271.
+    // perp: R_EA = 0.636364, u = 1 + 63640·(1/8.4e6 + 1/1.32e7) = 1.012397, m = 0.854447, C_g = 0.997286. min = gross 0.997271.
+    r = run('bolt', merge(boltRow(0.5, 3.5, 1.5, 45, 0), { n: 2, s: 2, main: { w: 5.5 } }), DFL);
+    m = { table: 'spec §12.1 (hand)', cell: 'C_g at 45: gross vs ⊥ equivalent', inputs: r.inputs };
+    fx('C_g at 45: gross interpretation 0.997271 (A_m 19.25)', m, near(r.factors.Cg.detail.interpretations.gross.Cg, 0.997271, 1e-5) && near(r.factors.Cg.detail.interpretations.gross.Am, 19.25, 1e-9), true);
+    fx('C_g at 45: ⊥ interpretation 0.997286 (A_m 5.25)', m, near(r.factors.Cg.detail.interpretations.perp.Cg, 0.997286, 1e-5) && near(r.factors.Cg.detail.interpretations.perp.Am, 5.25, 1e-9), true);
+    fx('C_g at 45: v = min = 0.997271, governing rule gross, note printed', m, near(r.factors.Cg.v, 0.997271, 1e-5) && r.factors.Cg.detail.governingRule === 'gross' && r.notes.some(function (x) { return x.indexOf('lesser of the ∥ and ⊥') >= 0; }), true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 91, 0), DFL); fx('θ = 91 → invalid', { table: 'spec §12.1', cell: '' }, r.status === 'invalid', true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 0, -1), DFL); fx('θ = −1 → invalid', { table: 'spec §12.1', cell: '' }, r.status === 'invalid', true);
+    r = run('bolt', boltRow(0.5, 1.5, 1.5, 90, 90), DFL); fx('θ 90 / 90 unchanged: Z⊥ = 220 (12A), no angle notes', { table: 'Table 12A', cell: 'regression' }, near(r.yield.Z, 220, 5) && !r.notes.some(function (x) { return x.indexOf('C12.5.1.2') >= 0; }), true);
+
+    // ── 11. v1.1 — staggered rows (spec §12.2, §11.3.6.2; Fable D1/D3 closest-fastener offset, s_eff = s/2, min(merged, separate)) ──
+    // 1/2 bolt DFL, main 3.5 × 5.5 ∥ (A_m 19.25), side 1.5 × 5.5 ∥ (A_s 8.25), γ = 63,640.
+    // merged layout: n 2, rows 2, s 8, g 0.75, offset 4 → offClosest = min(4, 8 − 4) = 4, offClosest/4 = 1.0 > g → merged: n_eff 4, s_eff = s/2 = 4, rows_eff 1:
+    //   u = 1 + 63640·2·(1/3.08e7 + 1/1.32e7) = 1.013775, m = 0.847223, R_EA 0.428571, C_g(merged) = 0.956757.
+    //   separate rows (n 2, s 8): u = 1.027550, m = 0.791206, C_g = 0.989389. min → merged 0.956757.
+    // unmerged reference (n 2, s 4, g 1.5, offset 2 → offClosest 2, /4 = 0.5 ≤ g): C_g = 0.994594 = non-stagger value.
+    var stg = function (extra) { return run('bolt', merge(boltRow(0.5, 3.5, 1.5, 0, 0), merge({ n: 2, rows: 2, s: 8, g: 0.75, main: { w: 5.5 }, side: { w: 5.5 } }, extra || {})), DFL); };
+    r = stg({ stagger: true, offset: 4 });
+    m = { table: 'spec §12.2 (hand)', cell: 's 8, offset 4 → offClosest 4; g 0.75 < 1.0 → merged', inputs: r.inputs };
+    fx('stagger merged: offClosest 4, n_eff 4, s_eff = s/2 = 4, rows_eff 1, merged true', m, r.factors.Cg.detail.stagger.merged === true && near(r.factors.Cg.detail.stagger.offClosest, 4, 1e-12) && r.factors.Cg.detail.stagger.n_eff === 4 && near(r.factors.Cg.detail.stagger.s_eff, 4, 1e-12) && r.factors.Cg.detail.stagger.rows_eff === 1 && r.factors.Cg.detail.stagger.offset === 4, true);
+    fx('stagger merged: C_g = min(merged 0.956757, separate 0.989389) = 0.956757 (u 1.013775, m 0.847223)', m, near(r.factors.Cg.v, 0.956757, 1e-5) && near(r.factors.Cg.detail.stagger.Cg_merged, 0.956757, 1e-5) && near(r.factors.Cg.detail.stagger.Cg_separate, 0.989389, 1e-5) && r.factors.Cg.detail.stagger.governingLayout === 'merged' && near(r.factors.Cg.detail.u, 1.013775, 1e-5) && near(r.factors.Cg.detail.m, 0.847223, 1e-5), true);
+    fx('stagger merged: physical checks keep s 8 / g 0.75 (∥ rows 1.5D = 0.75 ok), spread (rows−1)·g = 0.75 at θ 0, cite §11.3.6.2 (Fig. 11B), status pass', m, r.status === 'pass' && near(r.factors.Cdelta.detail.members[0].spread, 0.75, 1e-12) && r.factors.Cg.cite.indexOf('§11.3.6.2 (Fig. 11B)') >= 0, true);
+    var ref = stg({ s: 4, g: 1.5 });
+    fx('non-stagger reference (n 2, s 4): C_g = 0.994594', { table: 'spec §12.2 (hand)', cell: 'n 2 s 4' }, ref.factors.Cg.v, 0.994594, 1e-5);
+    r = stg({ stagger: true, offset: 2.0, s: 4, g: 1.5 });
+    fx('stagger unmerged (offClosest 2, g 1.5 ≥ 0.5): C_g equals the non-stagger result, merged false, n_eff 2, s_eff 4', { table: 'spec §12.2', cell: '' }, near(r.factors.Cg.v, ref.factors.Cg.v, 1e-12) && r.factors.Cg.detail.stagger.merged === false && r.factors.Cg.detail.stagger.n_eff === 2 && r.factors.Cg.detail.stagger.s_eff === 4 && near(r.factors.Cg.detail.stagger.offClosest, 2, 1e-12), true);
+    r = stg({ stagger: true, offset: 7, s: 8, g: 0.75 });
+    fx('offset 7 of s 8 → offClosest = 1 (mirror), /4 = 0.25 ≤ g 0.75 → not merged', { table: '§11.3.6.2 closest fasteners', cell: '' }, near(r.factors.Cg.detail.stagger.offClosest, 1, 1e-12) && r.factors.Cg.detail.stagger.merged === false, true);
+    r = stg({ stagger: true, offset: 4, rows: 3 });
+    fx('stagger rows 3 merged: rows_eff = ceil(3/2) = 2, n_eff 4, s_eff 4, C_g = min(merged, separate) = 0.956757', { table: 'spec §12.2', cell: 'odd rows' }, r.factors.Cg.detail.stagger.rows_eff === 2 && r.factors.Cg.detail.stagger.n_eff === 4 && near(r.factors.Cg.v, 0.956757, 1e-5), true);
+    r = stg({ stagger: true, offset: 8 }); fx('stagger offset = s → invalid', { table: 'spec §12.2', cell: '' }, r.status === 'invalid', true);
+    r = stg({ stagger: true, offset: 9 }); fx('stagger offset > s → invalid', { table: 'spec §12.2', cell: '' }, r.status === 'invalid', true);
+    r = stg({ stagger: true, offset: 0 }); fx('stagger offset 0 → invalid', { table: 'spec §12.2', cell: '' }, r.status === 'invalid', true);
+    r = stg({ stagger: true, offset: null }); fx('stagger offset blank → incomplete', { table: 'spec §12.2', cell: '' }, r.status === 'incomplete', true);
+    r = stg({ stagger: true, offset: 4, rows: 1 });
+    fx('stagger with rows 1 → inactive: inputs.stagger false, offset null, no merge, n_eff 2', { table: 'spec §12.2', cell: 'inactive' }, r.inputs.stagger === false && r.inputs.offset === null && r.factors.Cg.detail.stagger.merged === false && r.factors.Cg.detail.stagger.n_eff === 2, true);
+    r = run('nail', nailRow('16d', 1.5, { stagger: true, offset: 0 }), DFL); fx('stagger on a nail (D < 1/4) ignored → pass', { table: 'spec §12.2', cell: '' }, r.status === 'pass' && r.inputs.stagger === false, true);
+    r = stg({ stagger: true, offset: 2, s: 4, main: { theta: 90, w: 9.25, loadedEdgeDist: 2, endDist: 2 }, g: 1.5625 });
+    fx('stagger with a ⊥ member: §12.6.1 note; ⊥ equivalent width uses physical (rows−1)·g = 1.5625 (not merged rows)', { table: 'spec §12.2', cell: '' }, r.notes.some(function (x) { return x.indexOf('12.6.1') >= 0; }) && near(r.factors.Cg.detail.wGroupMain, 1.5625, 1e-12) && r.factors.Cg.detail.stagger.merged === false, true);
+    // D2: spread with stagger — along-row extent (n − 1)·s + offClosest: θ 90, n 3, s 2.25, rows 2, offset 1.125 → 2·2.25 + 1.125 = 5.625 > 5 → spread5.
+    r = stg({ stagger: true, offset: 1.125, n: 3, s: 2.25, g: 1.5625, main: { theta: 90, w: 9.25, loadedEdgeDist: 2, endDist: 2 } });
+    fx('spread with stagger at θ 90: 2·2.25 + 1.125 = 5.625 → fail spread5', { table: '§12.5.1.3 (D2)', cell: 'n 3 s 2.25 offset 1.125', inputs: r.inputs }, r.status === 'fail' && r.flags.indexOf('spread5') >= 0 && near(r.factors.Cdelta.detail.members[0].spread, 5.625, 1e-9), true);
+    r = stg({ stagger: false, n: 3, s: 2.25, g: 1.5625, main: { theta: 90, w: 9.25, loadedEdgeDist: 2, endDist: 2 } });
+    fx('same layout without stagger: spread 4.5 → pass', { table: '§12.5.1.3', cell: '' }, r.status === 'pass' && near(r.factors.Cdelta.detail.members[0].spread, 4.5, 1e-9), true);
+    r = stg({ stagger: false, s: 4, g: 1.5 });
+    fx('absent / false stagger: detail.stagger inactive, behavior unchanged', { table: 'spec §12', cell: '' }, r.factors.Cg.detail.stagger.stagger === false && near(r.factors.Cg.v, ref.factors.Cg.v, 1e-12), true);
+    var gdA = geomDefaults(0.5, 45, true), gdB = geomDefaults(0.5, 90, true), gdC = geomDefaults(0.5, 0, true);
+    fx('geomDefaults(0.5, 45, true) endDist = 2.75 (interpolated), g 5D, loaded edge 2, edge 0.75, s 2', { table: 'spec §12.1 / GEOM_INTERP', cell: 'θ 45' }, near(gdA.endDist, 2.75, 1e-12) && near(gdA.g, 2.5, 1e-12) && near(gdA.loadedEdgeDist, 2, 1e-12) && near(gdA.edgeDist, 0.75, 1e-12) && near(gdA.s, 2, 1e-12), true);
+    fx('geomDefaults(0.5, 90, true) endDist = 2.0', { table: 'GEOM_INTERP', cell: 'θ 90' }, gdB.endDist, 2.0, 1e-12);
+    fx('geomDefaults(0.5, 0, true) endDist = 3.5, g 1.5D = 0.75', { table: 'GEOM_INTERP', cell: 'θ 0' }, near(gdC.endDist, 3.5, 1e-12) && near(gdC.g, 0.75, 1e-12), true);
+    fx('geomDefaults compression (towardEnd false) 2.0 at every θ; hardwood tension 45 → 2.5 + (2 − 2.5)/2 = 2.25', { table: 'GEOM_INTERP', cell: '' }, near(geomDefaults(0.5, 45, false).endDist, 2.0, 1e-12) && near(geomDefaults(0.5, 0, false).endDist, 2.0, 1e-12) && near(geomDefaults(0.5, 45, true, true).endDist, 2.25, 1e-12), true);
+    r = run('bolt', merge(boltRow(0.5, 1.5, 1.5, 45, 0), { main: { endDist: geomDefaults(0.5, 45, true).endDist } }), DFL);
+    fx('a fresh angled row at the geomDefaults end distance opens at C_Δ = 1.0', { table: 'GEOM_INTERP', cell: '' }, r.factors.Cdelta.v, 1, 1e-12);
+    var nr = newRow('bolt'); fxb('newRow carries stagger false / offset null; ENGINE.rev v1.1', { table: 'spec §12' }, nr.stagger === false && nr.offset === null && ENGINE.rev === '2026-09-19 v1.1' && ENGINE.version === 1, ENGINE.rev);
+
     var pass = 0, fail = 0;
     FX.forEach(function (f) { if (f.ok) pass++; else fail++; });
     return { pass: pass, fail: fail, total: FX.length, results: FX };
@@ -1296,7 +1461,7 @@
     newRow: newRow, defaultState: defaultState, geomDefaults: geomDefaults, resolveHeader: resolveHeader, resolveSpecies: resolveSpecies,
     // test hooks / building blocks
     _combined: combined, _yield: yieldModes, _groupAction: groupAction, _pullThrough: pullThrough, _withdrawalUnit: withdrawalUnit,
-    _fe: feWood, _KD: KD, _Ktheta: Ktheta, _cmLateral: cmLateral, _cmWithdrawal: cmWithdrawal, _cmPullThrough: cmPullThrough, _ct: ctFactor,
+    _fe: feWood, _feAtAngle: feAtAngle, _KD: KD, _Ktheta: Ktheta, _cmLateral: cmLateral, _cmWithdrawal: cmWithdrawal, _cmPullThrough: cmPullThrough, _ct: ctFactor,
     clone: clone
   };
   root.WC = WC;

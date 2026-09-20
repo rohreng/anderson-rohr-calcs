@@ -128,10 +128,11 @@ const car = await page.evaluate((id) => { const el = document.getElementById('wc
 check('typing in description keeps focus with the caret at the end', car.active === 'wc_' + nailId + '_desc' && car.caretAtEnd && /ledger$/.test(car.desc), JSON.stringify(car));
 // a select change in the sub-row re-renders and keeps focus on that select
 await page.focus('#wc_' + nailId + '_main_theta');
-await page.selectOption('#wc_' + nailId + '_main_theta', '90');
+await page.fill('#wc_' + nailId + '_main_theta', '90');
+await page.keyboard.press('Enter');
 await tick();
 const sel = await page.evaluate((id) => ({ active: document.activeElement.id, theta: window.__WC_STATE.nails[0].main.theta }), nailId);
-check('select change writes a number to state and keeps focus after the rebuild', sel.theta === 90 && sel.active === 'wc_' + nailId + '_main_theta', JSON.stringify(sel));
+check('θ typed + Enter writes a number to state and keeps focus after the rebuild', sel.theta === 90 && sel.active === 'wc_' + nailId + '_main_theta', JSON.stringify(sel));
 // desc sanitising
 await ev((id) => updS(id, 'desc', 'a <b> ' + 'x'.repeat(200)), nailId);
 const san = await page.evaluate(() => window.__WC_STATE.nails[0].desc);
@@ -368,6 +369,50 @@ await ev((id) => { updN(id, 'n', '2'); updN(id, 's', '0'); }, bg);
 const cg = await page.evaluate((id) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + id + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.bolts[0]; return { cite: r.factors.Cg.cite, v: r.factors.Cg.v, fac: tb.querySelector('.wc-fac').innerText.replace(/\s+/g, ' '), det: tb.querySelector('tr.wc-det').innerText.replace(/\s+/g, ' ') }; }, bg);
 check('C_g null with an engine reason on a D ≥ 1/4 row prints that reason, not "D < 1/4 in"', cg.v === null && cg.cite.length > 0 && cg.fac.indexOf(cg.cite) >= 0 && cg.det.indexOf(cg.cite) >= 0 && cg.fac.indexOf('D < 1/4 in') < 0, JSON.stringify(cg).slice(0, 400));
 await ev((id) => { updN(id, 's', '2'); updN(id, 'n', '1'); }, bg);
+
+// ── v1.1: intermediate load angle + staggered rows ───────────────────────────
+const v11 = await page.evaluate(() => window.WC.ENGINE.rev);
+check('engine rev is 2026-09-19 v1.1', v11 === '2026-09-19 v1.1', v11);
+const ab = await page.evaluate(() => window.__WC_STATE.bolts[0].id);
+let an = await page.evaluate((id) => ({ isNumber: document.getElementById('wc_' + id + '_main_theta').type === 'number', q0: !!document.getElementById('wc_' + id + '_main_theta_0'), q90: !!document.getElementById('wc_' + id + '_main_theta_90'), loaded: !!document.getElementById('wc_' + id + '_main_loadedEdgeDist'), label: document.querySelector('label:has(#wc_' + id + '_main_theta) > span').innerText }), ab);
+check('θ is a numeric input with 0° / 90° quick buttons, loaded edge hidden at θ = 0', an.isNumber && an.q0 && an.q90 && !an.loaded && /θ load to grain/.test(an.label), JSON.stringify(an));
+await ev((id) => updN(id, 'main.theta', '45'), ab);
+an = await page.evaluate((id) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + id + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.bolts[0]; return { theta: window.__WC_STATE.bolts[0].main.theta, loaded: !!document.getElementById('wc_' + id + '_main_loadedEdgeDist'), fac: tb.querySelector('.wc-fac').innerText.replace(/\s+/g, ' '), K: r.yield.Ktheta, status: r.status, end: window.__WC_STATE.bolts[0].main.endDist, notes: (r.notes || []).join(' | ') }; }, ab);
+check('θ_main = 45 → loaded-edge input appears, K_θ chip reads 1.125, row still computes', an.theta === 45 && an.loaded && /Kθ 1\.125/.test(an.fac) && Math.abs(an.K - 1.125) < 1e-9 && an.status !== 'invalid', JSON.stringify(an).slice(0, 500));
+console.log('      end distance re-defaulted at θ = 45: ' + an.end + ' (engine geomDefaults interpolates: ' + (await page.evaluate(() => GEOM_INTERP)) + ')');
+await page.click('#wc_' + ab + '_main_theta_90');
+await tick();
+an = await page.evaluate((id) => ({ theta: window.__WC_STATE.bolts[0].main.theta, on: document.getElementById('wc_' + id + '_main_theta_90').classList.contains('on') }), ab);
+check('90° quick button sets θ = 90 and lights up', an.theta === 90 && an.on, JSON.stringify(an));
+await ev((id) => updN(id, 'main.theta', '45'), ab);
+await ev((id) => { updN(id, 'n', '2'); updN(id, 'rows', '2'); updN(id, 's', '8'); updN(id, 'g', '0.75'); }, ab);
+await ev((id) => updB(id, 'stagger', true), ab);
+let sg = await page.evaluate((id) => ({ stagger: window.__WC_STATE.bolts[0].stagger, offset: window.__WC_STATE.bolts[0].offset, s: window.__WC_STATE.bolts[0].s, input: !!document.getElementById('wc_' + id + '_offset'), val: document.getElementById('wc_' + id + '_offset') && document.getElementById('wc_' + id + '_offset').value }), ab);
+check('stagger checked with rows = 2 → offset input appears defaulting to s/2', sg.stagger && sg.input && sg.offset === sg.s / 2 && +sg.val === sg.s / 2, JSON.stringify(sg));
+await ev((id) => updN(id, 'offset', String(window.__WC_STATE.bolts[0].s)), ab);
+sg = await page.evaluate((id) => ({ st: document.querySelector('#schedule tbody[data-row-id="' + id + '"] .st').textContent, msgs: document.querySelector('#schedule tbody[data-row-id="' + id + '"] .wc-c-status').innerText }), ab);
+check('offset ≥ s → row INVALID with the engine reason shown', sg.st === 'INVALID' && /offset/i.test(sg.msgs), JSON.stringify(sg));
+await ev((id) => updN(id, 'offset', '4'), ab);
+sg = await page.evaluate((id) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + id + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.bolts[0]; const d = r.factors && r.factors.Cg && r.factors.Cg.detail; const st = d && d.stagger; return { st: r.status, merged: !!(st && st.merged), stg: st, Cg: r.factors.Cg.v, offClosest: r.inputs.offClosest, fac: tb.querySelector('.wc-fac').innerText.replace(/\s+/g, ' '), det: tb.querySelector('tr.wc-det').innerText.replace(/\s+/g, ' '), notes: (r.notes || []).join(' | ') }; }, ab);
+console.log('      stagger s 8 / offset 4 / g 0.75: status ' + sg.st + ', merged ' + sg.merged + ', C_g ' + sg.Cg);
+check('engine merged case (s 8, offset 4, g 0.75): offClosest 4, n_eff 4, s_eff 4 (= s/2), rows_eff 1, C_g = min(merged, separate) with merged governing',
+  sg.merged && sg.offClosest === 4 && sg.stg.n_eff === 4 && sg.stg.s_eff === 4 && sg.stg.rows_eff === 1 && sg.stg.governingLayout === 'merged' && Math.abs(sg.Cg - Math.min(sg.stg.Cg_merged, sg.stg.Cg_separate)) < 1e-12, JSON.stringify(sg.stg));
+check('C_g chip names the governing layout and both C_g values', /rows merged/.test(sg.fac) && /merged 0\.\d{3} \/ separate 0\.\d{3}, merged governs/.test(sg.fac), sg.fac);
+check('C_g detail (merged / n_eff / s_eff / rows_eff, both angle interpretations) is printed in the details block; merge + angle chip in the factor group', /n_eff/.test(sg.det) && /rows_eff/.test(sg.det) && /interpretations\.gross\.Cg/.test(sg.det) && /interpretations\.perp\.Cg/.test(sg.det) && (!sg.merged || /rows merged/.test(sg.fac)) && /at an angle: /.test(sg.fac), JSON.stringify(sg).slice(0, 600));
+check('§12.6.2 note (angle + group) and §12.6.1 stagger note from the engine reach the details block', /12\.6\.2/.test(sg.det) && /12\.6\.1/.test(sg.det), sg.notes);
+// typed offset above s/2 is folded to the closest-fastener offset and the chip says so
+await ev((id) => updN(id, 'offset', '6'), ab);
+sg = await page.evaluate((id) => { const tb = document.querySelector('#schedule tbody[data-row-id="' + id + '"]'); const r = window.WC.compute(window.__WC_STATE).tables.bolts[0]; return { off: r.factors.Cg.detail.stagger.offset, close: r.factors.Cg.detail.stagger.offClosest, merged: r.factors.Cg.detail.stagger.merged, fac: tb.querySelector('.wc-fac').innerText.replace(/\s+/g, ' ') }; }, ab);
+check('offset 6 on s 8 → offClosest 2 (g 0.75 ≥ 0.5: rows separate); chip shows "typed offset 6 → closest 2"', sg.off === 6 && sg.close === 2 && sg.merged === false && /typed offset 6\.000 → closest 2\.000/.test(sg.fac) && /rows separate/.test(sg.fac), sg.fac);
+await ev((id) => updN(id, 'offset', '4'), ab);
+const rt2 = await page.evaluate(() => { const a = window.__WC_ADAPTER, m = a.getModel(), before = JSON.stringify(m); a.setModel(JSON.parse(before)); const b = a.getModel().bolts[0]; return { same: JSON.stringify(a.getModel()) === before, theta: b.main.theta, stagger: b.stagger, offset: b.offset }; });
+check('adapter round trip preserves θ = 45, stagger = true and the offset', rt2.same && rt2.theta === 45 && rt2.stagger === true && rt2.offset === 4, JSON.stringify(rt2));
+await ev((id) => updB(id, 'stagger', false), ab);
+sg = await page.evaluate((id) => ({ input: !!document.getElementById('wc_' + id + '_offset'), stagger: window.__WC_STATE.bolts[0].stagger, st: document.querySelector('#schedule tbody[data-row-id="' + id + '"] .st').textContent }), ab);
+check('unchecking stagger removes the offset input and the row is valid again', !sg.input && sg.stagger === false && sg.st !== 'INVALID', JSON.stringify(sg));
+await ev((id) => { updN(id, 'n', '1'); updN(id, 'rows', '1'); updN(id, 's', '2'); updN(id, 'main.theta', '0'); }, ab);
+const bad2 = await page.evaluate(() => { const a = window.__WC_ADAPTER, keep = JSON.stringify(a.getModel()); const m = JSON.parse(keep); m.bolts[0].stagger = 'yes'; m.bolts[0].offset = 'x'; a.setModel(m); const b = a.getModel().bolts[0]; const out = { stagger: b.stagger, offset: b.offset }; a.setModel(JSON.parse(keep)); return out; });
+check('sanitizeRows coerces stagger to a boolean and a non-numeric offset to null', bad2.stagger === true && bad2.offset === null, JSON.stringify(bad2));
 
 // ── print media ──────────────────────────────────────────────────────────────
 await page.emulateMedia({ media: 'print' });

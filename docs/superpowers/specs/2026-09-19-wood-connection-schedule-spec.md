@@ -285,3 +285,57 @@ Tolerance = half the unit of the cell's last printed digit, asserted on the unro
 - The ∥ edge-distance "½ row spacing" term (Table 12.5.1C, l/D > 6) applies only when rows ≥ 2.
 - Withdrawal-only lag rows (Table 12.5.1E branch) do not run the §12.5.1.3 5 in spread check (that clause governs laterally loaded groups).
 - Rows that are `invalid` / `incomplete` must not contribute to the summary's unresolved-check count.
+
+## 12. v1.1 — intermediate load angles and staggered rows (Nick, 2026-09-19)
+`WC.ENGINE.rev = '2026-09-19 v1.1'`; state `version` stays 1 (new fields optional, absent = old behavior).
+
+### 12.1 Load angle θ per wood member, any 0 ≤ θ ≤ 90 (typed, deg)
+- Validation: θ non-finite, < 0 or > 90 → `invalid`. Steel members have no θ.
+- F_e(θ) per member: Table 12.3.3 F_e∥ / F_e⊥ (D ≥ 1/4) combined by Hankinson Eq. 12.3-11
+  `F_eθ = F_e∥·F_e⊥ / (F_e∥·sin²θ + F_e⊥·cos²θ)`, then rounded to 50 psi; D < 1/4 unchanged (no angle).
+- K_θ = 1 + 0.25·(θ_max/90) with the actual max θ over wood members (Table 12.3.1B).
+- Geometry (§12.5.1, Tables 12.5.1A–D) for a member with 0 < θ < 90 — the mandatory text gives no
+  intermediate rule, so: **end distance** full and half values linearly interpolated between the θ = 0
+  value (tension `towardEnd` 7D/3.5D softwood, 5D/2.5D hardwood; compression 4D/2D) and the θ = 90 value
+  (4D/2D) by θ/90 (Commentary C12.5.1.2: "End distances for angle to grain tension loadings may be
+  linearly interpolated…"); **spacing in a row** 4D full / 3D min (same at both angles); **edge
+  distance** = the ⊥ rule (loaded edge 4D, unloaded edge 1.5D) — the load has a ⊥ component toward one
+  edge, so `loadedEdgeDist` is active for 0 < θ ≤ 90; **row spacing** = the greater of the ∥ (1.5D)
+  and ⊥ (Table 12.5.1D by l/D) minima. Print a note "geometry at θ = … by interpolation (end) and the
+  governing of the ∥/⊥ rules (edge, rows) — Commentary C12.5.1.2".
+- Across-grain spread for the 5 in rule (§12.5.1.3), per member: extent of the group measured ⊥ to
+  that member's grain = `(n − 1)·s·sinθ + (rows − 1)·g·cosθ` (reduces to the θ = 0 / 90 cases).
+- C_g areas at 0 < θ < 90: compute C_g twice — with the gross areas (θ = 0 rule) and with the
+  ⊥ equivalent areas (θ = 90 rule, w_group as §6) — and use the **smaller C_g**; `factors.Cg.detail`
+  records both. Note printed: "C_g at an angle: lesser of the ∥ and ⊥ area interpretations (§11.3.6.3)".
+- §12.6.2 note printed for any row with 0 < θ < 90 and n·rows > 1: "gravity axis of each member must
+  pass through the center of resistance of the fastener group (§12.6.2)".
+- UI: θ becomes a numeric input (0–90, step 1) with 0 / 90 quick buttons; `loadedEdgeDist` shown when
+  θ > 0.
+
+### 12.2 Staggered rows (§11.3.6.2, D ≥ 1/4 only)
+- New row fields: `stagger` (bool, default false) and `offset` (in, longitudinal offset between the
+  closest fasteners in adjacent rows measured parallel to the rows; default s/2 when stagger is turned
+  on; active only when `stagger && rows ≥ 2`). Validation: offset must be > 0 and < s, else `invalid`.
+- Rule: if `g < offset / 4` the adjacent rows are one row for C_g: `n_eff = 2n`, `s_eff = offset`,
+  `rows_eff = ceil(rows / 2)` (even rows → each pair merges; odd rows → "most conservative
+  interpretation": the merged-row n_eff = 2n, s_eff = offset governs the whole group). Otherwise
+  (g ≥ offset/4) rows stay separate: n_eff = n, s_eff = s. C_g uses n_eff and s_eff; all physical
+  geometry checks (Table 12.5.1B spacing s, 12.5.1D row spacing g, edge, end, spread) use the physical
+  s and g; the ⊥ equivalent width uses the physical (rows − 1)·g. `factors.Cg.detail` records
+  `{stagger, offset, merged, n_eff, s_eff, rows_eff}`; cite "§11.3.6.2 (Fig. 11B)".
+- Note printed when stagger is on and a member is loaded ⊥ to grain: "§12.6.1 — stagger symmetrically".
+- Fixtures: g < offset/4 → merged (n_eff 2n, s_eff offset), C_g hand-computed; g ≥ offset/4 → unmerged
+  equals the non-stagger result; rows = 3 stagger → rows_eff 2; offset ≥ s → invalid; stagger with
+  rows = 1 → ignored (fields inactive). Angle fixtures: θ = 45 F_e by Hankinson (rounded), K_θ 1.125,
+  end full = interpolated (e.g. softwood tension 1/2 bolt: 3.5 → 2.0 at 90, 2.75 at 45), loaded edge
+  active, row-spacing = max(∥, ⊥), spread at 45 with n = 3, s = 2, rows = 2, g = 1.5 → 2·2·sin45 +
+  1.5·cos45 = 3.889; C_g at 45 = min of the two interpretations; θ = 91 / −1 → invalid.
+
+### 12.3 Post-verification amendments (Fable v1.1 report, 2026-09-20)
+- Stagger merge uses the closest-fastener offset `offClosest = min(offset, s − offset)` (§11.3.6.2); merged row `s_eff = s/2`, `n_eff = 2n`, `rows_eff = ceil(rows/2)`; `C_g = min(merged, separate)`.
+- Spread with stagger: along-row extent `(n − 1)·s + offClosest`.
+- Unloaded edge at 0 < θ < 90 = max(1.5D, g/2 when l/D > 6 and rows ≥ 2).
+- F_eθ by Hankinson from the rounded ∥/⊥ values, used unrounded (exact at 0/90).
+- The §12.6.2 center-of-resistance note counts as an unresolved engineer check.
+- `geomDefaults(D, θ, towardEnd, hardwood)` interpolates the end distance like `compute`.

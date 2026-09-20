@@ -422,7 +422,7 @@ export const CALCS: CalcMeta[] = [
     htmlFile: "/Calcs/wood_connection_schedule_calculator.html",
     category: "Connections",
     spec: "NDS 2018",
-    status: "wip",
+    status: "ready",
     keywords: ["wood", "connection", "bolt", "nail", "lag", "wood screw", "NDS", "yield", "withdrawal", "dowel", "schedule"],
     material: "Wood",
     calcType: "Connections",
