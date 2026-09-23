@@ -23,7 +23,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .header p{font-size:.95em;opacity:.9}
 .ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
 .tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
-.content{padding:24px}
+.content{padding:16px}
 .blk{background:#fff;padding:18px 22px;border-radius:10px;margin-bottom:18px;border-left:4px solid var(--are-blue-2)}
 .blk h2{color:var(--are-blue-1);margin-bottom:14px;font-size:1.1em;border-bottom:2px solid var(--are-gray-2);padding-bottom:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .badge{font-size:.7em;background:var(--are-input);color:var(--are-blue-3);padding:2px 8px;border-radius:10px;font-weight:600}
@@ -36,6 +36,10 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .ig input:focus,.ig select:focus{border-color:var(--are-blue-2);outline:none}
 .hint{font-size:.74em;color:var(--are-gray-1);margin-top:3px}
 .callout{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:6px;padding:8px 13px;font-size:.82em;color:var(--are-blue-1);margin-bottom:12px}
+.how-to ul{margin:4px 0 0;padding-left:18px}
+.how-to li{margin:3px 0;line-height:1.45}
+.how-ex{margin-top:6px;padding:5px 9px;background:#fff;border:1px dashed var(--are-gray-2);border-radius:4px;line-height:1.45}
+.how-ex code{font-size:.95em}
 .note-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:8px;padding:12px 15px;font-size:.82em;color:#2b2b2b;margin-top:14px}
 .note-box ul{padding-left:18px}.note-box li{margin-bottom:4px;line-height:1.5}
 .err-box{background:var(--are-gray-3);border:1px solid var(--are-gray-2);border-left:3px solid var(--are-fail);border-radius:8px;padding:12px 15px;font-size:.84em;color:var(--are-fail);margin-bottom:14px}
@@ -63,14 +67,41 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .fh-5{background:var(--are-blue-1)}
 .fh-base{background:var(--are-blue-1)}
 .floor-hdr-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.floor-body{padding:12px 14px}
+.floor-body{padding:10px 8px}
 .tbl-scroll{overflow-x:auto}
 /* Wall table */
-/* ── Resizable columns (same mechanism as the stacked headers/studs calc) ──
-   table-layout:fixed makes the <th> widths authoritative; applyColW() sets an
-   inline min-width equal to the column sum so the .tbl-scroll wrapper scrolls
-   instead of the columns compressing back down. Widths persist per browser. */
-.wall-table{width:100%;border-collapse:collapse;font-size:.80em;table-layout:fixed}
+/* ── Resizable columns ──
+   table-layout:fixed makes the <th> widths authoritative. The table is NOT
+   width:100% — applyColW() sets its width to the exact column sum, so dragging
+   one grip moves only that column (a 100 % table would re-stretch every column
+   proportionally). Past the wrapper width .tbl-scroll scrolls; the first column
+   and the results panes stay pinned at its left edge. Widths persist per browser. */
+.wall-table{width:auto;border-collapse:collapse;font-size:.80em;table-layout:fixed}
+/* Sticky first column (wall label). Opaque backgrounds so scrolled cells do not
+   show through; th keeps position (sticky is also a containing block for the grip). */
+.wall-table thead th:first-child{position:sticky;left:0;z-index:4}
+.wall-table tbody tr:not(.wres-row) > td:first-child{position:sticky;left:0;z-index:2;background:var(--are-input);box-shadow:1px 0 0 var(--are-gray-2)}
+/* Results row: the pane is pinned to the scroller's left edge at the scroller's
+   width (set by sizeResPanes()), so it never scrolls away with the columns. */
+.wall-table td.wres-cell{padding:0;overflow:visible}
+.wall-table td.wres-cell .wres{position:sticky;left:0}
+/* Actions: ▶ Check on top, ✕ and + wall below */
+.act-cell{display:flex;flex-direction:column;align-items:center;gap:3px}
+.act-cell .act-row{display:flex;gap:3px;justify-content:center}
+.act-cell .btn-chk{padding:2px 6px}
+.act-cell .btn-x{height:20px}
+/* are-calc.css pads every button .625rem 1.25rem, which blew the 22 px ✕ out to ~40 px */
+.act-cell .btn-x:not(.btn-line){padding:0}
+/* S5/S8 — are-theme-v2.css pads every input/select 8px 11px at .92em (!important),
+   which clipped "10.5" in the level h box and hid "(2)" in the ply select. Win back
+   the cells with !important, scoped to this page's table and level headers —
+   #floor-con lifts these to (1,2,1): the theme's input[type=text]:not(.are-bar-job)
+   is already (0,2,1) and loads later, so a class-only selector would tie and lose. */
+#floor-con .wall-table input.ti,#floor-con .wall-table select.ti,#floor-con .floor-hdr input.ti{padding:2px 4px !important;font-size:.80em !important;border-width:1px !important;border-radius:3px !important;height:auto}
+#floor-con .wall-table select.ti{padding:2px 1px !important}
+#floor-con .floor-hdr input.ti{border-color:rgba(255,255,255,.35) !important}
+/* are-calc.css spaces every th .06em (uppercase); tighter here so narrow headers wrap less */
+.wall-table th{letter-spacing:.02em}
 .wall-table th{background:var(--are-blue-1);color:#fff;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:break-word;overflow:hidden;position:relative;font-size:.74em;font-weight:600}
 .wall-table td{overflow:hidden}
 .col-grip{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;z-index:3}
@@ -78,11 +109,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 body.col-resizing{user-select:none;cursor:col-resize}
 .btn-resetcol{background:#fff;border:1px solid var(--are-blue-3);color:var(--are-blue-3);padding:9px 14px;border-radius:6px;cursor:pointer;font-size:.86em;font-weight:600}
 .btn-resetcol:hover{background:var(--are-gray-3)}
-@media print{
-  .col-grip,.btn-resetcol{display:none !important}
-  .wall-table{table-layout:auto !important;min-width:0 !important}
-  .wall-table th,.wall-table td{width:auto !important}
-}
+/* Print rules: see <style id="sw-print"> after the are-calc.css link. */
 .wall-table th.thl{text-align:left;padding-left:7px}
 .wall-table td{padding:3px 3px;border-bottom:1px solid var(--are-gray-2);vertical-align:middle}
 .wall-table tr:nth-child(even) td{background:var(--are-gray-3)}
@@ -109,6 +136,16 @@ select.ti{cursor:pointer;padding:2px 1px}
 /* "line A1 · 2 walls · share 40 %" under the Line key, from the engine result */
 .line-chip{display:block;font-size:.68em;color:var(--are-blue-3);white-space:normal;line-height:1.2;margin-top:2px}
 .line-chip:empty{display:none}
+/* Rows sharing one wall line: left bracket on the label cell (and the results row
+   under it); continuation rows carry a "↳ same line" cue under the label.
+   #floor-con lifts these over the sticky first-column rule (keeps its 1 px edge). */
+#floor-con .wall-table tr.line-grp > td:first-child,#floor-con .wall-table tr.line-cont > td:first-child{box-shadow:inset 3px 0 0 var(--are-blue-3),1px 0 0 var(--are-gray-2)}
+#floor-con .wall-table tr.line-grp-res > td,#floor-con .wall-table tr.line-cont-res > td{box-shadow:inset 3px 0 0 var(--are-blue-3)}
+#floor-con .wall-table tr.line-grp > td:first-child{border-top:2px solid var(--are-blue-3)}
+.line-cue{display:block;font-size:.66em;color:var(--are-blue-3);text-align:left;line-height:1.2;margin-top:1px;white-space:nowrap}
+/* HD inside n/a (no 10d common face): greyed, caption under the box */
+.wall-table td.hd-na input{opacity:.45;cursor:not-allowed}
+.hd-na-cap{display:block;font-size:.64em;color:var(--are-gray-1);line-height:1.1}
 .btn-chk{background:#fff;color:var(--are-blue-3);border:1px solid var(--are-blue-3);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.76em;font-weight:700;white-space:nowrap}
 .btn-chk:hover{background:var(--are-gray-3)}
 .btn-sm{padding:5px 12px;border:none;border-radius:5px;font-size:.79em;cursor:pointer;font-weight:600;transition:all .15s}
@@ -150,7 +187,10 @@ select.ti{cursor:pointer;padding:2px 1px}
 .chk-tbl tr.row-pass td{background:#fff !important;border-left:3px solid var(--are-ok)}
 .chk-tbl tr.row-req td{background:#fff !important;border-left:3px solid var(--are-warn)}
 .chk-tbl tr.det-row td{padding:0 !important;background:#fff !important;border:none !important}
-.dc-bar{height:10px;border-radius:5px;background:var(--are-gray-2);min-width:48px}
+.dc-bar{position:relative;height:10px;border-radius:5px;background:var(--are-gray-2);min-width:48px}
+/* The bar spans D/C 0–1.5; the tick marks D/C = 1.0 (2/3 along). */
+.dc-tick{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--are-blue-1);border-radius:1px}
+.dc-hint{font-weight:400;opacity:.8;font-size:.9em;white-space:nowrap}
 .dc-fill{height:100%;border-radius:5px}
 .dc-cell{display:flex;align-items:center;gap:5px}
 .pass{color:var(--are-ok);font-weight:700}.fail{color:var(--are-fail);font-weight:700}.na{color:var(--are-gray-1)}
@@ -189,61 +229,63 @@ select.ti{cursor:pointer;padding:2px 1px}
 #selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.78em;background:var(--are-blue-1);color:#fff;padding:12px;border-radius:8px;margin-top:16px}
 
 
-/* ── Print / PDF — letter portrait, fills 8.5×11 ───────────────────────── */
-@page {
-  size: letter portrait;
-  margin: 0.45in 0.5in 0.45in 0.5in;
-}
-@media print {
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  html, body {
-    background: #fff !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  .container {
-    max-width: 100% !important;
-    width: 100% !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* Strip card rounding/shadow so blocks bleed to margins */
-  .blk, .floor-blk, .dem-card, .sum-pass, .sum-fail, .sum-req, .note-box, .callout, .info-box {
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-  /* Hide interactive-only UI */
-  .btn-add-floor, .btn-x, #sendPanel,
-  button.det-btn, button.btn-chk, button.btn-del-fl, button.btn-undo, button.btn-sm,
-  .layout-btn,
-  input[type=button], input[type=submit] { display: none !important; }
-  /* Force-expand all ▶ Calc detail panels */
-  .calc-det {
-    display: block !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-  /* Tables must not clip on paper */
-  .tbl-scroll { overflow: visible !important; }
-  .wall-table { min-width: 0 !important; }
-  /* Keep section colors exact */
-  .header, .blk, .floor-hdr, .chk-table thead th,
-  .sum-pass, .sum-fail, .sum-req, .dem-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  /* Avoid mid-block page breaks */
-  .blk, .floor-blk, .chk-table, .dem-grid, .floor-section {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-  /* Results always visible */
-  #results, .wres { display: block !important; }
-  #printBtn { display: none !important; }
-}
-
 </style>
   <link rel="stylesheet" href="./are-calc.css">
+<!-- Print / PDF. After are-calc.css so its letter-portrait @page and generic print
+     rules lose the cascade; the toolbar's injected @page is suppressed by the
+     data-are-print-page attribute on the are-utils-v2.js script tag. -->
+<style id="sw-print">
+/* Print-value spans: syncPrintVals() writes each table / level-header control's
+   current value (or its placeholder) next to it; only print shows them, so the
+   paper carries wrapping text instead of clipped form controls. */
+.pv{display:none}
+/* Tabloid landscape: a 22-column wall table is unreadable on letter portrait. */
+@page { size: 17in 11in; margin: .4in .45in; }
+@media print {
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { background: #fff !important; width: auto !important; margin: 0 !important; padding: 0 !important; font-size: 9pt !important; }
+  .container { max-width: none !important; width: auto !important; box-shadow: none !important; border-radius: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+  .content { padding: 0 !important; }
+  /* are-calc.css prints every h1 navy (!important) — on the navy band it vanished */
+  .header h1 { color: #fff !important; }
+  .blk, .floor-blk, .dem-card, .sum-pass, .sum-fail, .sum-req, .note-box, .callout { border-radius: 0 !important; box-shadow: none !important; }
+  .blk, .floor-blk { padding: 8px 10px !important; margin-bottom: 10px !important; }
+  .floor-body { padding: 6px 0 0 !important; }
+  /* Interactive-only UI */
+  .btn-add-floor, .btn-x, .btn-resetcol, .col-grip, #sendPanel, #printBtn,
+  button.det-btn, button.btn-chk, button.btn-del-fl, button.btn-undo, button.btn-sm,
+  .layout-btn, input[type=button], input[type=submit] { display: none !important; }
+  #selftest-result:empty { display: none !important; }
+  /* Wall table: natural (auto) layout at 100 % of the sheet, small type, no
+     scroller, no sticky, no Actions column, controls replaced by their values. */
+  .tbl-scroll { overflow: visible !important; }
+  .wall-table { table-layout: auto !important; width: 100% !important; min-width: 0 !important; font-size: 7.5pt !important; }
+  .wall-table th, .wall-table td { width: auto !important; }
+  .wall-table th { font-size: 6.5pt !important; padding: 3px 2px !important; }
+  .wall-table td { padding: 2px 3px !important; overflow: visible !important; }
+  .wall-table thead { display: table-header-group; }
+  .wall-table thead th:first-child, .wall-table tbody td:first-child, .wall-table td.wres-cell .wres { position: static !important; box-shadow: none !important; }
+  .wall-table td.wres-cell .wres { width: auto !important; }
+  /* Line bracket survives the print reset of the sticky column's shadow */
+  #floor-con .wall-table tr.line-grp > td:first-child, #floor-con .wall-table tr.line-cont > td:first-child,
+  #floor-con .wall-table tr.line-grp-res > td, #floor-con .wall-table tr.line-cont-res > td { box-shadow: inset 3px 0 0 var(--are-blue-3) !important; }
+  .wall-table .col-act { display: none !important; }
+  .wall-table .ti, .floor-hdr input { display: none !important; }
+  .pv { display: inline; white-space: normal; overflow-wrap: anywhere; }
+  .pv.pv-ph { color: var(--are-gray-1); font-style: italic; }
+  .floor-hdr .pv { font-weight: 700; padding: 0 3px; }
+  .wall-table > tbody > tr:not(.wres-row) { break-inside: avoid; page-break-inside: avoid; }
+  /* Results / details */
+  .calc-det { display: block !important; max-height: none !important; overflow: visible !important; }
+  #results, .wres { display: block !important; }
+  .chk-tbl thead { display: table-header-group; }
+  .chk-tbl tr:not(.det-row), .dem-grid, .conn-box, .msg-list, .sum-pass, .sum-fail, .sum-req, .dem-card, .lh-panel, .ref-tbl tr {
+    break-inside: avoid; page-break-inside: avoid;
+  }
+  .blk h2, .floor-hdr { break-after: avoid; page-break-after: avoid; }
+  .dem-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important; }
+}
+</style>
 </head>
 <body>
 <!-- Floating Print Button -->
@@ -318,14 +360,17 @@ select.ti{cursor:pointer;padding:2px 1px}
     </div>
 
     <!-- Instructions -->
-    <div class="callout" style="margin-bottom:14px">
-      <strong>How to use:</strong> Levels stack top to bottom; the last panel is the base level at the foundation.
-      Enter <em>P<sub>W</sub></em> and <em>P<sub>E</sub></em> = the <strong>strength-level, incremental</strong> force delivered to this wall line at each level.
-      The engine applies 0.6W, 0.7E and 0.6D, runs both cases in full, and reports the controlling one per check.
-      Give each wall its full length <em>L</em>, a <strong>Method</strong>, the list of full-height segment widths <em>b<sub>i</sub></em>, and an opening schedule (width &times; clear height).
-      <strong>Perforated</strong> (&sect;4.3.2.3): one wall with openings, C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends and the &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
-      <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own full-height shear wall with its own hold-down pair; story shear is shared in proportion to design capacity with 2b/h on segments of h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), so v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> is checked against v<sub>ASD</sub>; openings are gaps between segments (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), the unsheathed area is ignored, no uniform uplift row, and a segment of h/b &gt; 3.5 is refused. A segmented wall keeps the same segment count on every level it exists.
-      <strong>Several walls on one line:</strong> the Diaphragm Designer delivers <em>one</em> force per wall line; the split into walls happens here. <em>+ line</em> on a row adds a wall to that line (same construction and line force &mdash; enter its <em>L</em> and segments); walls with the same <strong>Line</strong> key share the line's story shear at each level in proportion to design capacity from geometry, C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so every wall of the line carries the same unit shear (&sect;4.3.5.5.1 Exc. 1); a wall absent below leaves the whole story shear to the walls present there. Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; a change on one wall fans out to the others; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear a wall's Line key to make it its own line. <strong>&#8681; Copy walls to levels below</strong> on a level header copies that level's walls (geometry, method, line, label, construction) onto the same wall ids below, creating them where missing; each lower level keeps its h, level forces, dead loads and transfers, and the base keeps its anchor-bolt sill and HDUE. One-step Undo.
+    <div class="callout how-to" style="margin-bottom:14px">
+      <strong>How to use</strong>
+      <ul>
+        <li><strong>Levels and forces.</strong> Levels stack top to bottom; the last panel is the base at the foundation. <em>P<sub>W</sub></em>, <em>P<sub>E</sub></em> = the <strong>strength-level, incremental</strong> force delivered to the wall line at that level. The engine applies 0.6W, 0.7E and 0.6D, runs both cases in full and reports the controlling one per check.</li>
+        <li><strong>Each wall:</strong> full length <em>L</em>, a <strong>Method</strong>, full-height segment widths <em>b<sub>i</sub></em>, openings (width &times; clear height).
+          <strong>Perforated</strong> (&sect;4.3.2.3): C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends, &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
+          <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own shear wall with its own hold-down pair; v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> against v<sub>ASD</sub>, 2b/h on h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), h/b &gt; 3.5 refused; openings are gaps (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), unsheathed area ignored, no uniform uplift row; same segment count on every level.</li>
+        <li><strong>Several walls on one line.</strong> The Diaphragm Designer delivers <em>one</em> force per wall line; the split happens here. <em>+ wall</em> on a row adds a wall to that line (enter its <em>L</em> and segments). Walls with the same <strong>Line</strong> key share the line's story shear at each level by C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so all carry the same unit shear (&sect;4.3.5.5.1 Exc. 1); a wall absent below leaves the story shear to the walls present there. Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; an edit fans out; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear the Line key to make a wall its own line.
+          <strong>&#8681; Copy walls to levels below</strong> copies a level's walls (geometry, method, line, label, construction) onto the same wall ids below, creating them where missing; lower levels keep h, level forces, dead loads and transfers; the base keeps its anchor-bolt sill and HDUE. One-step Undo.</li>
+      </ul>
+      <div class="how-ex"><strong>Example &mdash; Line B:</strong> wall <em>B</em> (L 20 ft, b<sub>i</sub> 8, 8, one 4 ft opening) and <em>B-2</em> (L 12 ft, b<sub>i</sub> 12), both Line key <code>B</code>. B carries C<sub>o,B</sub>&middot;16 / (C<sub>o,B</sub>&middot;16 + 1.0&middot;12) of V<sub>line</sub> and B-2 the rest &mdash; the same unit shear on both. The chip under each Line cell shows the share; the rows of one line are bracketed on the left.</div>
     </div>
 
     <div id="modelMsgs"></div>
@@ -431,7 +476,8 @@ function dcBar(dc,pass){
   if(!isFinite(dc))return '<span class="na">&mdash;</span>';
   var pct=Math.min(dc,1.5)/1.5*100;
   var col=dc<=0.80?'#1a7a4a':dc<=1.0?'#c47d0e':'#c42b2b';
-  return '<div class="dc-cell"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+f1(pct)+'%;background:'+col+'"></div></div><span style="font-weight:700;color:'+col+'">'+f2(dc)+'</span></div>';
+  var tip='D/C = '+f2(dc)+'. The bar spans D/C 0 to 1.5 (full bar = 1.5 or more); the tick marks D/C = 1.0. Green ≤ 0.80, amber 0.80–1.00, red > 1.00.';
+  return '<div class="dc-cell" title="'+tip+'"><div class="dc-bar" style="flex:1"><div class="dc-fill" style="width:'+f1(pct)+'%;background:'+col+'"></div><div class="dc-tick" style="left:66.667%"></div></div><span style="font-weight:700;color:'+col+'">'+f2(dc)+'</span></div>';
 }
 
 // ─── Model ────────────────────────────────────────────────────────────────────
@@ -492,11 +538,22 @@ function delFloor(fi){
   if(!confirm('Remove "'+state.floors[fi].name+'"?'))return;
   state.floors.splice(fi,1); render();
 }
+// wCnt mints "+ Wall Line" ids ('w'+wCnt). A loaded model can carry a wCnt
+// below its highest wN id (older importProject never refreshed it; a file saved
+// after that kept the stale value) — a minted duplicate id silently merged two
+// walls into one line. Called after every model swap (importProject, setModel).
+function refreshWCnt(){
+  var max=0;
+  (state.floors||[]).forEach(function(f){ (f.walls||[]).forEach(function(w){
+    var m=/^w(\d+)$/.exec(String(w.id||'')); if(m) max=Math.max(max, +m[1]);
+  }); });
+  wCnt=Math.max(+wCnt||0, max);
+}
 function addWall(fi){
-  wCnt++;
+  do { wCnt++; } while(idExists('w'+wCnt));   // never re-use an id, stale counter or not
   var ref = state.floors[fi].walls[0];
   var w = newWallFrom(ref, 'w'+wCnt);
-  delete w.line;   // a new wall LINE, not another wall on the source's line ("+ line" does that)
+  delete w.line;   // a new wall LINE, not another wall on the source's line ("+ wall" does that)
   w.label = 'Wall Line '+String.fromCharCode(65+state.floors[fi].walls.length);
   state.floors[fi].walls.push(w);
   render();
@@ -505,7 +562,7 @@ function delWall(fi,wi){
   if(state.floors[fi].walls.length<=1){alert('Keep at least one wall.');return;}
   state.floors[fi].walls.splice(wi,1); render();
 }
-// "+ line": another wall on the same wall line, inserted under this row. It
+// "+ wall": another wall on the same wall line, inserted under this row. It
 // clones the construction and the line force (both are per line) and takes
 // id = base id + '#n', unique over every level so it stacks by id like any
 // wall; the user then enters its L and segments. The base wall gets its line
@@ -689,7 +746,10 @@ function undoCopyDown(){
 // ── Resizable wall-table columns ─────────────────────────────────────────────
 // Widths are stored per browser (not in the calc state) and re-applied after
 // every render(), exactly as in stacked_headers_studs_calculator.html.
-var COLW_KEY='areCalcs_sw_colWidths';
+// v2 (2026-09-22): defaults resized to fit a 2048 px viewport and Detail + ✕
+// merged into one Actions column — widths stored under the old key are dropped once.
+var COLW_KEY='areCalcs_sw_colWidths_v2';
+try{ localStorage.removeItem('areCalcs_sw_colWidths'); }catch(e){}
 var COLW={};
 try{ COLW=JSON.parse(localStorage.getItem(COLW_KEY))||{}; }catch(e){ COLW={}; }
 if(typeof COLW!=='object'||!COLW||Array.isArray(COLW)) COLW={};
@@ -707,9 +767,45 @@ function applyColW(){
       if(!isFinite(w)||w<32) w=+ths[j].getAttribute('data-dw');
       ths[j].style.width=w+'px'; sum+=w;
     }
-    tbls[i].style.minWidth=sum+'px';
+    // Exact width (not min-width on a 100 % table): only the dragged column moves.
+    tbls[i].style.width=sum+'px';
+  }
+  sizeResPanes();
+}
+// Results panes are position:sticky at the scroller's left edge and as wide as
+// the scroller's visible area, so they stay in view when the columns scroll.
+function sizeResPanes(){
+  var scs=document.querySelectorAll('#floor-con .tbl-scroll');
+  for(var i=0;i<scs.length;i++){
+    var w=Math.floor(scs[i].clientWidth);
+    var ps=scs[i].querySelectorAll('.wres');
+    for(var j=0;j<ps.length;j++) ps[j].style.width=w+'px';
   }
 }
+window.addEventListener('resize',sizeResPanes);
+// The Wide toggle changes the width without a window resize.
+try{ if(window.ResizeObserver){ new ResizeObserver(function(){ sizeResPanes(); }).observe(document.getElementById('floor-con')); } }catch(e){}
+// Print values: a hidden <span class="pv"> after every wall-table / level-header
+// control carries its current value (selected option text; placeholder in italics
+// when blank). The print stylesheet hides the controls and shows the spans, so a
+// long sheathing label wraps on paper instead of being clipped by its select.
+function pvText(el){
+  if(el.tagName==='SELECT'){ var o=el.options[el.selectedIndex]; return {t:o?o.text:'',ph:false}; }
+  if(el.type==='checkbox') return null;
+  var v=el.value;
+  return (v===''&&el.placeholder)?{t:el.placeholder,ph:true}:{t:v,ph:false};
+}
+function syncPrintVals(root){
+  var cs=(root||document).querySelectorAll('#floor-con .wall-table .ti, #floor-con .floor-hdr input');
+  for(var i=0;i<cs.length;i++){
+    var el=cs[i], r=pvText(el); if(!r) continue;
+    var sp=el.nextElementSibling;
+    if(!sp||!sp.classList.contains('pv')){ sp=document.createElement('span'); sp.className='pv'; el.insertAdjacentElement('afterend',sp); }
+    sp.textContent=r.t;
+    if(r.ph) sp.classList.add('pv-ph'); else sp.classList.remove('pv-ph');
+  }
+}
+window.addEventListener('beforeprint',function(){ syncPrintVals(); });
 function resetColW(){ COLW={}; saveColW(); applyColW(); }
 function gripOf(e){ return e.target&&e.target.closest?e.target.closest('.col-grip'):null; }
 document.addEventListener('mousedown',function(e){
@@ -756,7 +852,7 @@ function render(){
     out+='<input style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.5);color:#fff;font-size:.95em;font-weight:700;width:140px;padding:1px 4px" value="'+xe(fl.name)+'" onchange="updFloor('+fi+',\'name\',this.value)">';
     if(isBase)out+='<span style="font-size:.76em;opacity:.9;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:10px">Base level (foundation)</span>';
     out+='<span style="font-size:.8em;opacity:.85;margin-left:8px">h = </span>';
-    out+='<input class="ti" type="number" value="'+fl.h_ft+'" step="0.5" min="1" max="20" style="width:58px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'h_ft\',this.value)">';
+    out+='<input class="ti" type="number" value="'+fl.h_ft+'" step="0.5" min="1" max="20" style="width:66px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'h_ft\',this.value)">';
     out+='<span style="font-size:.8em;opacity:.85"> ft</span>';
     out+='</div>';
     out+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
@@ -773,42 +869,48 @@ function render(){
 
     out+='<div class="floor-body"><div class="tbl-scroll">';
     out+='<table class="wall-table"><thead><tr>';
-    out+=thc('wall_label',95,'Wall Label','thl');
-    out+=thc('line',105,'Line','thl','Wall-line key. Walls with the same key on this level are one wall line and share its force in proportion to design capacity (C_o·Σb_i or Σb_eff — by length for equal opening-free walls); construction and the line force are per line, geometry per wall. Blank = its own line. "+ line" on a row adds a wall to that line.');
-    out+=thc('l_ft',55,'L (ft)','');
-    out+=thc('method',88,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
-    out+=thc('pw_lb',70,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
-    out+=thc('pe_lb',70,'P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level; blank = use the level force');
-    out+=thc('bi_ft',95,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated, listed from End 1. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each; segment 1 carries P_D,end');
-    out+=thc('openings_w_hc',110,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
-    out+=thc('unsh_sf',60,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception) — perforated walls only');
-    out+=thc('face_1_wsp',150,'Face 1 (WSP)','th-chk');
-    out+=thc('face_2',150,'Face 2','th-chk');
-    out+=thc('hd_inside',52,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
-    out+=thc('end_post',110,'End Post','');
-    out+=thc('hold_down',72,'Hold-down','');
-    out+=thc('sill_connector',130,'Sill connector','th-sh');
-    out+=thc('spacing',62,'Spacing','th-sh');
-    out+=thc('over_sheathing',90,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
-    out+=thc('sill_species',70,'Sill species','th-sh');
-    out+=thc('uplift',190,'Uplift','th-sh','Bottom-plate uplift, t = v_max (§4.3.6.4.2.1, perforated walls only; a segmented wall anchors its segment ends, §4.3.6.4.2). Auto: capacity from the sill connection — nail / SDS withdrawal over the fastener penetration (default = length − 1½" plate − ¾" subfloor above the base; blank = default), or plate-washer bearing at anchor bolts (washer side). Manual: typed plf. The penetration also sets the nail shear value (Table 12N fn. 3).');
-    out+=thc('gravity_dl_source',100,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
-    out+=thc('wd_plf',62,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
-    out+=thc('pd_end_lb',70,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
-    out+=thc('detail',64,'Detail','th-chk');
-    out+=thc('x',64,'','');
+    out+=thc('wall_label',85,'Wall Label','thl');
+    out+=thc('line',90,'Line','thl','Wall-line key. Walls with the same key on this level are one wall line and share its force in proportion to design capacity (C_o·Σb_i or Σb_eff — by length for equal opening-free walls); construction and the line force are per line, geometry per wall. Blank = its own line. "+ wall" on a row adds a wall to that line; rows of one line are bracketed on the left.');
+    out+=thc('l_ft',50,'L (ft)','');
+    out+=thc('method',78,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
+    out+=thc('pw_lb',66,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
+    out+=thc('pe_lb',66,'P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level; blank = use the level force');
+    out+=thc('bi_ft',85,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated, listed from End 1. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each; segment 1 carries P_D,end');
+    out+=thc('openings_w_hc',95,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
+    out+=thc('unsh_sf',50,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception) — perforated walls only');
+    out+=thc('face_1_wsp',125,'Face 1 (WSP)','th-chk');
+    out+=thc('face_2',125,'Face 2','th-chk');
+    out+=thc('hd_inside',44,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
+    out+=thc('end_post',100,'End Post','');
+    out+=thc('hold_down',64,'Hold-down','');
+    out+=thc('sill_connector',112,'Sill connector','th-sh');
+    out+=thc('spacing',58,'Spacing','th-sh');
+    out+=thc('over_sheathing',78,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
+    out+=thc('sill_species',66,'Sill species','th-sh');
+    out+=thc('uplift',165,'Uplift','th-sh','Bottom-plate uplift, t = v_max (§4.3.6.4.2.1, perforated walls only; a segmented wall anchors its segment ends, §4.3.6.4.2). Auto: capacity from the sill connection — nail / SDS withdrawal over the fastener penetration (default = length − 1½" plate − ¾" subfloor above the base; blank = default), or plate-washer bearing at anchor bolts (washer side). Manual: typed plf. The penetration also sets the nail shear value (Table 12N fn. 3).');
+    out+=thc('gravity_dl_source',86,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
+    out+=thc('wd_plf',56,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
+    out+=thc('pd_end_lb',62,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
+    out+=thc('actions',84,'Actions','th-chk col-act','▶ Check opens every calc detail of the wall; ✕ removes the wall; + wall adds another wall on its line');
     out+='</tr></thead><tbody>';
 
+    // Rows sharing a line key: the first carries .line-grp, the rest .line-cont
+    // ("↳ same line" cue); both get the left bracket, results rows included.
+    var lnCount={}, lnFirst={};
+    fl.walls.forEach(function(x){ var k=SW.lineKey(x); lnCount[k]=(lnCount[k]||0)+1; });
     for(var wi=0; wi<fl.walls.length; wi++){
       var w=fl.walls[wi];
+      var lk=SW.lineKey(w), inGrp=lnCount[lk]>1, grpCls='';
+      if(inGrp){ grpCls=lnFirst[lk]===undefined?'line-grp':'line-cont'; if(lnFirst[lk]===undefined) lnFirst[lk]=wi; }
       // Segmented walls have no A_o and no §4.3.6.4.2.1 uplift: those cells are
       // greyed (still editable — the values are kept for a switch back) with a
       // title saying why. `segTd` is the cell style, `segTitle` the hint.
       var isSeg=(w.method==='segmented');
       var segTd=isSeg?' style="background:var(--are-gray-3);opacity:.55"':'';
       var segTitle=function(why){ return isSeg?' title="'+why+'"':''; };
-      out+='<tr>';
-      out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)"></td>';
+      out+='<tr'+(grpCls?' class="'+grpCls+'"':'')+'>';
+      out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.label)+'" onchange="updWall('+fi+','+wi+',\'label\',this.value)">'
+         +(grpCls==='line-cont'?'<span class="line-cue" title="Same wall line as '+xe(fl.walls[lnFirst[lk]].label||fl.walls[lnFirst[lk]].id)+' (Line key '+xe(lk)+')">&#8627; same line</span>':'')+'</td>';
       // Line key + the share chip, filled from the engine result in renderResults().
       out+='<td><input class="ti ti-lbl" type="text" value="'+xe(w.line||'')+'" placeholder="own line" title="Wall-line key — walls with the same key share the line force; blank = its own line" onchange="updWall('+fi+','+wi+',\'line\',this.value)">'
          +'<span class="line-chip" id="lchip_'+fi+'_'+wi+'"></span></td>';
@@ -822,8 +924,17 @@ function render(){
       out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: ignored — the unsheathed area enters A_o, which the segmented method does not use')+'><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
       out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'wsp',false)+'</select></td>';
       out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'any',true)+'</select></td>';
-      out+='<td style="text-align:center"><input type="checkbox" '+(w.sheathing.insideFaceHoldown?'checked':'')+' onchange="updWall('+fi+','+wi+',\'insideFaceHoldown\',this.checked)"></td>';
-      out+='<td><div style="display:flex;gap:2px"><select class="ti" style="font-size:.72em;width:44px" onchange="updWall('+fi+','+wi+',\'postN\',this.value)">'+nOpts(w.endPost.n)+'</select>'
+      // HD inside only acts on 10d common faces (Table 4.3A fn. 10, × 0.92): disabled
+      // with an "n/a" caption otherwise. The state value is kept, so the box comes
+      // back as it was when a face changes to 10d.
+      var hd10=[w.sheathing.face1,w.sheathing.face2].some(function(f){ return f&&f.nail==='10d common'; });
+      if(hd10){
+        out+='<td style="text-align:center"><input type="checkbox" '+(w.sheathing.insideFaceHoldown?'checked':'')+' title="Hold-down attached to the inside face of the end post — 10d common nails × 0.92 (SDPWS Table 4.3A fn. 10)" onchange="updWall('+fi+','+wi+',\'insideFaceHoldown\',this.checked)"></td>';
+      } else {
+        out+='<td class="hd-na" style="text-align:center;background:var(--are-gray-3)" title="Not applicable: the Table 4.3A fn. 10 reduction (× 0.92) applies only to 10d common nails, and neither face uses them. The setting is kept and comes back if a face changes to 10d common.">'
+           +'<input type="checkbox" disabled '+(w.sheathing.insideFaceHoldown?'checked':'')+'><span class="hd-na-cap">n/a</span></td>';
+      }
+      out+='<td><div style="display:flex;gap:2px"><select class="ti" style="font-size:.72em;width:48px;flex:none" onchange="updWall('+fi+','+wi+',\'postN\',this.value)">'+nOpts(w.endPost.n)+'</select>'
          +'<select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'postSize\',this.value)">'+sizeOpts(w.endPost.size)+'</select></div></td>';
       if(isBase){
         out+='<td style="text-align:center;font-size:.72em;color:var(--are-gray-1)">HDUE only</td>';
@@ -839,7 +950,7 @@ function render(){
       } else {
         out+='<td style="background:var(--are-gray-3);text-align:center;font-size:.72em;color:var(--are-gray-1)">&mdash;</td>';
       }
-      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpecies\',this.value)">'+speciesOpts(w.sillSpecies)+'</select></td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'sillSpecies\',this.value)">'+speciesOpts(w.sillSpecies,true)+'</select></td>';
       // The penetration input stays live on a segmented wall (it sets the nail
       // shear value, Table 12N fn. 3); the source / plf / washer are perforated-only.
       out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: no §4.3.6.4.2.1 uniform uplift row — the segment ends are anchored by their hold-downs (§4.3.6.4.2). The penetration still sets the nail shear value (Table 12N fn. 3).')+'>'+upliftCellHTML(fi,wi,w,isBase)+'</td>';
@@ -860,11 +971,12 @@ function render(){
         out+='<td><input class="ti" type="number" value="'+(w.dead.w_plf||0)+'" step="10" min="0" onchange="updWall('+fi+','+wi+',\'w_plf\',this.value)"></td>';
         out+='<td><input class="ti" type="number" value="'+(w.dead.P_end_lb||0)+'" step="100" min="0" onchange="updWall('+fi+','+wi+',\'P_end_lb\',this.value)"></td>';
       }
-      out+='<td style="background:var(--are-gray-3);text-align:center"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button></td>';
-      out+='<td><div style="display:flex;gap:3px;justify-content:center"><button class="btn-x" onclick="delWall('+fi+','+wi+')" title="Remove this wall">✕</button>'
-         +'<button class="btn-x btn-line" onclick="splitWall('+fi+','+wi+')" title="+ Wall on this line — another wall sharing this line\'s force and construction; enter its L and segments">+ line</button></div></td>';
+      // Actions (one column): ▶ Check, then ✕ and + wall.
+      out+='<td class="col-act" style="background:var(--are-gray-3)"><div class="act-cell"><button class="btn-chk" onclick="expandWall('+fi+','+wi+')">▶ Check</button>'
+         +'<div class="act-row"><button class="btn-x" onclick="delWall('+fi+','+wi+')" title="Remove this wall">✕</button>'
+         +'<button class="btn-x btn-line" onclick="splitWall('+fi+','+wi+')" title="Add another wall on this line — it shares this line\'s force and construction; enter its L and segments">+ wall</button></div></div></td>';
       out+='</tr>';
-      out+='<tr><td colspan="24" style="padding:0"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
+      out+='<tr class="wres-row'+(grpCls?' '+grpCls+'-res':'')+'"><td class="wres-cell" colspan="23"><div class="wres" id="wres_'+fi+'_'+wi+'"></div></td></tr>';
     }
     out+='</tbody></table></div>';
     out+='<div style="margin-top:7px"><button class="btn-sm btn-add" onclick="addWall('+fi+')">+ Wall Line</button></div>';
@@ -872,6 +984,7 @@ function render(){
   }
   con.innerHTML=out;
   applyColW();
+  syncPrintVals();
   renderResults();
 }
 
@@ -901,8 +1014,12 @@ function ltp4Opts(sel){
   });
   return o;
 }
-function speciesOpts(sel){
+// withFraming: the sill-species select also offers "= framing" (value ""), which
+// the engine resolves to the framing species (SPECIES[w.sillSpecies] ? … : state.species);
+// an old wall with no / unknown sill species shows it too, as that is what computes.
+function speciesOpts(sel,withFraming){
   var o='';
+  if(withFraming) o+='<option value=""'+(SW.SPECIES[sel]?'':' selected')+' title="Sill plate of the framing species selected above">= framing</option>';
   Object.keys(SW.SPECIES).forEach(function(k){
     o+='<option value="'+k+'"'+(k===sel?' selected':'')+'>'+xe(SW.SPECIES[k].label)+'</option>';
   });
@@ -972,7 +1089,17 @@ function lateralProvHTML(){
   var files=Array.isArray(L.files)?L.files:[];
   var when=''; try{ when=new Date(L.importedAt).toLocaleString(); }catch(e){}
   return '<div class="lh-prov" title="'+xe(files.join(', '))+'">Imported from Diaphragm Designer &mdash; direction '+xe(L.dir)+' &mdash; '+(files.length?files.length+' file'+(files.length===1?'':'s'):'quick send')+' &mdash; '+xe(when)
-       + (L.project?' &mdash; '+xe(L.project):'')+'</div>';
+       + (L.project?' &mdash; '+xe(L.project):'')+titleblockHTML(L.titleblock)+'</div>';
+}
+// Titleblock carried by the record (lateral-handoff WP-1): job no. / project /
+// engineer / date, non-blank keys only. Older records and files have none
+// (state.lateral.titleblock null or absent) and print nothing extra.
+var TB_KEYS=[['jobNumber','Job '],['projectName',''],['engineer','Eng. '],['date','']];
+function titleblockHTML(tb){
+  if(!tb||typeof tb!=='object') return '';
+  var h='';
+  TB_KEYS.forEach(function(k){ var v=tb[k[0]]; v=(v==null?'':String(v)).trim(); if(v) h+=' &middot; '+xe(k[1]+v); });
+  return h;
 }
 
 // ─── Diaphragm import (are.lateral.v1) ───────────────────────────────────────
@@ -1014,6 +1141,7 @@ function importPanelHTML(record, warnings, names){
   // Project first: the cross-project guard for this page is the engineer reading
   // it before clicking Import (no confirm() — the harness dismisses dialogs).
   h+='<span style="margin-left:10px;color:var(--are-gray-1)">Project: '+(record.project?xe(record.project):'<em>(none)</em>')
+    +(function(tb){ var o=''; if(tb&&typeof tb==='object'){ var j=String(tb.jobNumber||'').trim(), e=String(tb.engineer||'').trim(); if(j) o+=' &mdash; Job no.: '+xe(j); if(e) o+=' &mdash; Engineer: '+xe(e); } return o; })(record.titleblock)
     +' &mdash; '+(names.length?names.length+' file'+(names.length===1?'':'s')+': '+xe(names.join(', ')):'from the Diaphragm Designer quick send')+'</span>';
   var job=(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'';
   if(record.project&&job&&String(record.project).trim().toLowerCase()!==job.toLowerCase()){
@@ -1071,9 +1199,11 @@ function applyDiaphragmImport(){
   catch(e){ alert('Import failed: '+(e.message||e)); return; }
   state=next;
   wCnt=state.floors.reduce(function(n,f){ return n+((f.walls&&f.walls.length)||0); }, 0);
-  // Toolbar Project prefilled from the payload when blank, as the diaphragm page does.
-  var jobEl=document.getElementById('areJob');
-  if(jobEl&&!jobEl.value.trim()&&rec.project){ jobEl.value=String(rec.project).trim(); jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
+  // Toolbar Project prefilled from the payload when blank, as the diaphragm page
+  // does: the record's Project, else "jobNumber projectName" from its titleblock.
+  var jobEl=document.getElementById('areJob'), tb=(rec.titleblock&&typeof rec.titleblock==='object')?rec.titleblock:{};
+  var jobFill=String(rec.project||'').trim()||(String(tb.jobNumber||'').trim()+' '+String(tb.projectName||'').trim()).trim();
+  if(jobEl&&!jobEl.value.trim()&&jobFill){ jobEl.value=jobFill; jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
   closeImportDialog();
   render();
   var msg=document.getElementById('modelMsgs');
@@ -1207,7 +1337,7 @@ function wallHtml(res,fl,w,fi,wi){
   if(seg) html+=segmentTableHtml(w);
 
   html+='<table class="chk-tbl"><thead><tr>'
-      +'<th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Detail</th>'
+      +'<th>Check</th><th>Reference</th><th>Demand</th><th>Capacity</th><th title="The bar spans D/C 0 to 1.5 (full bar = 1.5 or more); the tick marks D/C = 1.0. Green ≤ 0.80, amber 0.80–1.00, red &gt; 1.00.">D/C <span class="dc-hint">(bar 0–1.5 · | = 1.0)</span></th><th>Detail</th>'
       +'</tr></thead><tbody>';
   w.checks.forEach(function(c,ci){
     var detId='det'+(_dc+ci+1);
@@ -1231,6 +1361,7 @@ function wallHtml(res,fl,w,fi,wi){
   html+='<div class="conn-row"><span class="conn-lbl">SHEATHING:</span><span class="conn-val">'+xe(w.cap.face1.label)+'</span>'
       + (w.cap.face2&&w.cap.face2.ok?' &nbsp;+ face 2: '+xe(w.cap.face2.label):' (one side)')
       + ' &mdash; v<sub>n</sub> = '+f1(w.cap[gov.vmaxCase].vn)+' plf, '+xe(w.cap[gov.vmaxCase].rule)
+      + (((w.cap.face1&&w.cap.face1.fn10<1)||(w.cap.face2&&w.cap.face2.ok&&w.cap.face2.fn10<1))?' &times; 0.92 (HD inside, Table 4.3A fn. 10)':'')
       + '</div>';
   html+='<div class="conn-row"><span class="conn-lbl">END POST:</span><span class="conn-val">'+xe(w.endPost.label)+'</span>'
       + ' &mdash; '+f2(w.endPost.thk)+'" thick × '+f2(w.endPost.width)+'" wide, A = '+f2(w.endPost.A)+' in²</div>';
@@ -1264,7 +1395,7 @@ function segmentTableHtml(w){
   var g=w.geom, govN=w.holdown&&w.holdown.segment;
   var h='<table class="chk-tbl seg-tbl"><thead><tr>'
       +'<th>Segment</th><th>b<sub>i</sub> (ft)</th><th>h/b</th><th>f<sub>i</sub></th><th>share b<sub>i</sub>f<sub>i</sub>/Σb<sub>eff</sub></th>'
-      +'<th>V<sub>i</sub> (lb)</th><th>v<sub>i</sub> (plf)</th><th>T<sub>1</sub> (lb)</th><th>T<sub>2</sub> (lb)</th><th>Hold-down</th><th>C (lb)</th><th>Post D/C</th>'
+      +'<th>V<sub>i</sub> (lb)</th><th>v<sub>i</sub> (plf)</th><th>T<sub>1</sub> (lb)</th><th>T<sub>2</sub> (lb)</th><th>Hold-down</th><th>C (lb)</th><th title="Bar spans D/C 0 to 1.5; the tick marks D/C = 1.0">Post D/C <span class="dc-hint">(bar 0–1.5)</span></th>'
       +'</tr></thead><tbody>';
   w.segments.forEach(function(s){
     var hdOk = s.T<=0 || (s.holdown.capacity>0 && s.T<=s.holdown.capacity);
@@ -1606,6 +1737,7 @@ function importProject(evt){
       if(!st.floors||!Array.isArray(st.floors)||!st.floors.length){ alert('Invalid project file — no level data found.'); evt.target.value=''; return; }
       normalizeFloors(st.floors);
       state=st;
+      wCnt=0; refreshWCnt();   // from the file's walls, not the previous model's counter
       syncGlobals();
       render();
       var btn=evt.target.closest('label');
@@ -1665,7 +1797,7 @@ window.onload=function(){
 };
 
 </script>
-<script src="/are-utils-v2.js" data-are-wide-default></script>
+<script src="/are-utils-v2.js" data-are-wide-default data-are-print-page></script>
 <script>
 // ── ARE save/load adapter (Tier B) ──────────────────────────────────────────
 // The level/wall model lives in `state.floors`; #floor-con is rendered from it
@@ -1711,6 +1843,7 @@ window.onload=function(){
       wCnt = m.wCnt || m.floors.reduce(function (n, f) {
         return n + ((f.walls && f.walls.length) || 0);
       }, 0);
+      refreshWCnt();   // a saved wCnt can be stale (below the highest wN id)
       readGlobalsFromDOM();
       render();
     },

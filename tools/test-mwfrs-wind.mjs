@@ -318,6 +318,16 @@ if (!CAPTURE) {
     check('lateral: level F_net / F_parapet / V_cum / sh match __mwfrsLast + story inputs', badLv.length === 0, badLv.join('\n      '));
     check('lateral: geometry B/D/h/hp', !!lat && lat.geometry.B_ft === c.B && lat.geometry.D_ft === c.D && lat.geometry.h_ft === c.h && lat.geometry.hp_ft === c.hp, JSON.stringify(lat && lat.geometry));
     check('lateral: meta from the inputs', !!lat && lat.source.mwfrs.calcFile === FILE && lat.source.mwfrs.V_mph === c.V && lat.source.mwfrs.exposure === c.exp && lat.source.mwfrs.enclosure === c.encl, JSON.stringify(lat && lat.source));
+    // D1: Project Information rides as titleblock metadata (sanitized, toolbar Project unchanged).
+    const tb = await page.evaluate(() => {
+      const set = (id, v) => { document.getElementById(id).value = v; };
+      set('projName', 'Red <Bluff> Hotel'); set('projNum', '26-038-HNR'); set('projEng', 'NH'); set('projDate', '2026-09-14');
+      const r = buildLateralPayload();
+      set('projName', ''); set('projNum', ''); set('projEng', '');
+      return r && r.titleblock;
+    });
+    check('lateral: titleblock carries job no. / name / engineer / date (sanitized)',
+      !!tb && tb.jobNumber === '26-038-HNR' && tb.projectName === 'Red Bluff Hotel' && tb.engineer === 'NH' && tb.date === '2026-09-14', JSON.stringify(tb));
     const ui = await page.evaluate(() => {
       const sel = document.querySelector('#sendBody #diaStory'), a = document.getElementById('diaSendLink');
       return {
@@ -338,6 +348,7 @@ if (!CAPTURE) {
     const sent = await page.evaluate(() => ({ ls: JSON.parse(localStorage.getItem('are_lateral_v1') || 'null'), urls: window.__opened, link: getComputedStyle(document.getElementById('diaSendLink')).display }));
     check('send: localStorage.are_lateral_v1 written for the diaphragm file',
       !!sent.ls && sent.ls.file === 'rectangular_diaphragm_calculator.html' && !!sent.ls.record && sent.ls.record.schema === 'are.lateral.v1' && sent.ls.record.levels.length === 3 && Date.now() - sent.ls.ts < 60000, JSON.stringify(sent.ls).slice(0, 200));
+    check('send: staged record carries the four-key titleblock', !!sent.ls && !!sent.ls.record.titleblock && ['projectName', 'jobNumber', 'engineer', 'date'].every((k) => typeof sent.ls.record.titleblock[k] === 'string'), JSON.stringify(sent.ls && sent.ls.record.titleblock));
     const u = sent.urls[0] || '';
     check('send: URL carries lat=1 + legacy vx/vy/B/D/story for the chosen level',
       sent.urls.length === 1 && /rectangular_diaphragm_calculator\.html\?src=mwfrs&lat=1&/.test(u) && u.indexOf('&vx=' + Math.round(snap.last.wx.rows[1].F_net)) > 0 && u.indexOf('&vy=' + Math.round(snap.last.wy.rows[1].F_net)) > 0 && u.indexOf('&B=60&D=120') > 0 && /&story=Floor(%20|\+)1$/.test(u), u);

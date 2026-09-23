@@ -395,6 +395,56 @@ await page.evaluate((f) => localStorage.removeItem('are_v1_' + f), FILE);
 page.removeAllListeners('dialog');
 page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
 
+// ── 17b. D1 titleblock: fill BLANK fields only, never overwrite ────────────
+const TB = { projectName: 'Red Bluff Hotel', jobNumber: '26-038-HNR', engineer: 'NH', date: '2026-09-14' };
+const tbSeed = Object.assign({}, MW_RECORD, { project: '', titleblock: TB });
+const today = await val('projDate');
+await gotoLat('?src=mwfrs&lat=1&story=3RD', { record: tbSeed, ts: Date.now(), file: FILE });
+const tbImp = { name: await val('projName'), eng: await val('projEng'), date: await val('projDate'), job: await val('areJob'), level: await val('level') };
+check('titleblock import: blank #projName/#projEng filled, #areJob = job no. + name (record.project blank)',
+  tbImp.level === '3RD' && tbImp.name === 'Red Bluff Hotel' && tbImp.eng === 'NH' && tbImp.job === '26-038-HNR Red Bluff Hotel', JSON.stringify(tbImp));
+check('titleblock import: #projDate already set (page default today) is not overwritten', tbImp.date === today && today !== '', `${tbImp.date} vs ${today}`);
+const tbKeep = await page.evaluate((rec) => {
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  set('projName', 'Mine'); set('projEng', 'BA'); set('projDate', ''); set('areJob', 'JOB-1');
+  window.applyLateralRecord(rec, '3RD');
+  const g = (id) => document.getElementById(id).value;
+  return { name: g('projName'), eng: g('projEng'), date: g('projDate'), job: g('areJob') };
+}, tbSeed);
+check('titleblock import: filled fields kept (name Mine, engineer BA, #areJob JOB-1); blank date filled 2026-09-14',
+  tbKeep.name === 'Mine' && tbKeep.eng === 'BA' && tbKeep.job === 'JOB-1' && tbKeep.date === '2026-09-14', JSON.stringify(tbKeep));
+const tbProj = await page.evaluate((rec) => {
+  ['projName', 'projEng', 'areJob'].forEach((id) => { document.getElementById(id).value = ''; });
+  window.applyLateralRecord(Object.assign({}, rec, { project: '26-038 Toolbar' }), '3RD');
+  return { name: document.getElementById('projName').value, job: document.getElementById('areJob').value };
+}, tbSeed);
+check('titleblock import: record.project wins over the job no. fallback for #areJob / #projName', tbProj.job === '26-038 Toolbar' && tbProj.name === '26-038 Toolbar', JSON.stringify(tbProj));
+// Quick send carries the page titleblock merged with the embedded MWFRS one.
+const tbSend = await page.evaluate(() => {
+  document.getElementById('projEng').value = 'NH'; document.getElementById('projName').value = 'Red Bluff Hotel';
+  localStorage.removeItem('are_lateral_v1'); window.open = function () { return {}; };
+  window.sendToShearwall();
+  const x = JSON.parse(localStorage.getItem('are_lateral_v1') || 'null');
+  localStorage.removeItem('are_lateral_v1');
+  return x && x.record && x.record.titleblock;
+});
+check('quick send: record.titleblock = page name/engineer/date + MWFRS job no.', !!tbSend && tbSend.projectName === 'Red Bluff Hotel' && tbSend.jobNumber === '26-038-HNR' && tbSend.engineer === 'NH' && tbSend.date === '2026-09-14', JSON.stringify(tbSend));
+
+// ── 17c. D2 labels / headings / hint ────────────────────────────────────────
+await gotoLat('', null);
+const d2 = await page.evaluate(() => {
+  window.addSW('X');
+  const heads = Array.from(document.querySelectorAll('h3.sec')).map((h) => h.textContent);
+  const blk = Array.from(document.querySelectorAll('.blk')).find((b) => /Shearwall Layout/.test(b.querySelector('.blk-hd').textContent));
+  return {
+    X: Array.from(document.querySelectorAll('#swX .sw-label')).map((e) => e.value), Y: Array.from(document.querySelectorAll('#swY .sw-label')).map((e) => e.value),
+    heads, hint: blk ? blk.querySelector('.blk-body > p.ref').textContent : ''
+  };
+});
+check('D2: default labels North/South/East/West side, added row "Interior line 3"', d2.X.join('|') === 'North side|South side|Interior line 3' && d2.Y.join('|') === 'East side|West side', JSON.stringify([d2.X, d2.Y]));
+check('D2: headings "EW/NS shearwall lines — resist Wind-X/Y"', d2.heads.some((h) => /^EW shearwall lines — resist Wind-X \(Vx\)$/.test(h)) && d2.heads.some((h) => /^NS shearwall lines — resist Wind-Y \(Vy\)$/.test(h)), JSON.stringify(d2.heads));
+check('D2: Shearwall Layout hint — one row per wall line, not per segment', /One row per wall line \(grid line\), not per wall segment/.test(d2.hint) && /Stacked Shearwall Designer/.test(d2.hint), d2.hint);
+
 // ── 18. P5.3: "Copy layout from file…" pulls only the wall rows ─────────────
 // Fresh page (B 60 / D 120, default 2+2 walls), level/force typed by hand, then
 // the ROOF snapshot (B 120 / D 360, 25+5 walls) is picked through #layoutFile:

@@ -73,8 +73,8 @@ const ui = await page.evaluate(() => {
   };
 });
 check('four levels rendered', ui.levels === 4, 'levels=' + ui.levels);
-check('wall table has 24 columns (Line, L, Method, P_W, P_E line-force cells) and the results row spans them',
-  ui.cols === 24 && ui.resColspan === 24, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
+check('wall table has 23 columns (Line, L, Method, P_W, P_E line-force cells; Detail + ✕ merged into Actions) and the results row spans them',
+  ui.cols === 23 && ui.resColspan === 23, 'cols=' + ui.cols + ' colspan=' + ui.resColspan);
 check('a results pane per wall', ui.panes === 4, 'panes=' + ui.panes);
 check('base level labelled', ui.baseTag === true, JSON.stringify(ui));
 check('five check rows + header + case table', ui.checkRows >= 8, 'rows=' + ui.checkRows);
@@ -598,7 +598,7 @@ const ln = await page.evaluate(() => {
 });
 check('"+ Wall Line" after a split starts its own line (no line key, walls 1)', ln.addedLine === false && ln.addedWalls === 1, JSON.stringify([ln.addedLine, ln.addedWalls]));
 check('+ line: a second wall on the roof line — id w1#2, label "Wall Line A-2", line w1 on both (cells show it), same P_W, P_E blank, lower levels untouched',
-  ln.n === 2 && ln.ids === 'w1,w1#2' && ln.labels === 'Wall Line A,Wall Line A-2' && ln.lines === 'w1,w1' && ln.lineCells === 'w1,w1' && ln.P === '4000,4000' && ln.Pseis === ',' && ln.rows === 2 && ln.lowerWalls === '1,1,1' && /Wall on this line/.test(ln.btnTitle), JSON.stringify(ln));
+  ln.n === 2 && ln.ids === 'w1,w1#2' && ln.labels === 'Wall Line A,Wall Line A-2' && ln.lines === 'w1,w1' && ln.lineCells === 'w1,w1' && ln.P === '4000,4000' && ln.Pseis === ',' && ln.rows === 2 && ln.lowerWalls === '1,1,1' && /^Add another wall on this line/.test(ln.btnTitle), JSON.stringify(ln));
 check('+ line: chip "line w1 · 2 walls · share 50 %" on both rows; engine line {w1, 2, 0.5}; V = 0.6 × 4,000 × 0.5 = 1,200 lb each; note printed, no error',
   ln.chips.join('|') === 'line w1 · 2 walls · share 50 %|line w1 · 2 walls · share 50 %' && ln.eng.every((l) => l.key === 'w1' && l.walls === 2 && Math.abs(l.share - 0.5) < 1e-9) && ln.V.every((v) => Math.abs(v - 1200) < 1e-6) && ln.notes === 1 && ln.err0 === 0, JSON.stringify([ln.chips, ln.eng, ln.V, ln.notes, ln.err0]));
 check('+ line: floor Σ counts the line once — "Σ wall lines = 4,000 lb (level 4,638 lb)"', ln.sum.indexOf('Σ wall lines = 4,000 lb (level 4,638 lb)') >= 0, ln.sum);
@@ -715,6 +715,138 @@ check('copy-down Undo restores JSON.stringify(state.floors) and wCnt exactly, re
   cd.undoSame === true && cd.undoWCnt === true && cd.undoMsgGone === true && cd.undoTwice === true, JSON.stringify([cd.undoSame, cd.undoWCnt, cd.undoMsgGone, cd.undoTwice]));
 check('copy-down Undo lapses on the next model change (message gone, undoCopyDown a no-op)', cd.lapseMsgGone === true && cd.lapseNoop === true, JSON.stringify([cd.lapseMsgGone, cd.lapseNoop]));
 check('copy-down: no dialogs', dialogs.length === 0, dialogs.join('\n      '));
+
+// ── WP-3 S4: "HD inside" only acts on 10d common faces (Table 4.3A fn. 10) ──
+// Column 12 = HD inside, column 10 = Face 1, column 11 = Face 2.
+const hd = await page.evaluate(() => {
+  window.state = window.SW.defaultState(); window.render();
+  const row0 = () => [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.wall-table tbody tr')].filter((tr) => tr.querySelector('.line-chip'))[0];
+  const hdCell = () => row0().querySelector('td:nth-child(12)');
+  const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change')); };
+  const sheRow = () => { const r = [...document.querySelectorAll('#wres_0_0 .conn-row')].filter((x) => x.innerText.indexOf('SHEATHING:') === 0)[0]; return r ? r.innerText : ''; };
+  const snap = () => { const c = hdCell(), b = c.querySelector('input[type=checkbox]'); return { na: c.classList.contains('hd-na'), dis: b.disabled, chk: b.checked, cap: c.innerText.trim(), title: c.getAttribute('title') || '' }; };
+  const out = {};
+  out.nail = window.state.floors[0].walls[0].sheathing.face1.nail;
+  out.def = snap();
+  // a ticked state on an 8d wall (older file / line-mate) is kept but shown n/a, no factor
+  window.state.floors[0].walls[0].sheathing.insideFaceHoldown = true; window.render();
+  out.kept = snap(); out.keptRow = sheRow(); out.keptFn10 = window.SW.compute(window.state).floors[0].walls[0].cap.face1.fn10;
+  // face 1 -> 10d common: the box re-enables with the kept tick; the row names the factor
+  set(row0().querySelector('td:nth-child(10) select'), 'wsp1532_10d_4');
+  out.on = snap(); out.onRow = sheRow(); out.onFn10 = window.SW.compute(window.state).floors[0].walls[0].cap.face1.fn10;
+  // untick through the UI: no factor, no suffix
+  const b = hdCell().querySelector('input[type=checkbox]'); b.checked = false; b.dispatchEvent(new Event('change'));
+  out.off = snap(); out.offRow = sheRow(); out.offState = window.state.floors[0].walls[0].sheathing.insideFaceHoldown;
+  // face 1 back to 8d, face 2 10d -> still applicable (either face)
+  set(row0().querySelector('td:nth-child(10) select'), window.SW.SHEATHING.filter((s) => s.type === 'wsp' && s.nail === '8d common')[0].id);
+  out.f1Only8 = snap().na;
+  set(row0().querySelector('td:nth-child(11) select'), 'wsp1532_10d_6');
+  out.face2 = snap().na;
+  out.pv = !!hdCell().querySelector('.pv');   // a checkbox gets no print-value span
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('HD inside: default 8d wall -> box disabled, "n/a" caption, title names Table 4.3A fn. 10 and 10d common',
+  hd.nail === '8d common' && hd.def.na && hd.def.dis && hd.def.cap === 'n/a' && /fn\. 10/.test(hd.def.title) && /10d common/.test(hd.def.title), JSON.stringify(hd.def));
+check('HD inside: a ticked state on an 8d wall is kept (checked, disabled), fn10 = 1, no × 0.92 on the SHEATHING row',
+  hd.kept.chk && hd.kept.dis && hd.keptFn10 === 1 && hd.keptRow.indexOf('0.92') < 0, JSON.stringify([hd.kept, hd.keptFn10, hd.keptRow]));
+check('HD inside: face 1 -> 10d common re-enables the box with the kept tick; fn10 = 0.92; row ends "× 0.92 (HD inside, Table 4.3A fn. 10)"',
+  !hd.on.na && !hd.on.dis && hd.on.chk && hd.onFn10 === 0.92 && hd.onRow.indexOf('× 0.92 (HD inside, Table 4.3A fn. 10)') >= 0, JSON.stringify([hd.on, hd.onFn10, hd.onRow]));
+check('HD inside: unticking removes the factor note', !hd.off.chk && hd.offState === false && hd.offRow.indexOf('0.92') < 0, JSON.stringify([hd.off, hd.offRow]));
+check('HD inside: n/a follows the faces — 8d face 1 only -> n/a; 10d on face 2 -> applicable', hd.f1Only8 === true && hd.face2 === false, JSON.stringify([hd.f1Only8, hd.face2]));
+
+// ── WP-3 S4: wCnt refresh after a model swap (stale counter -> duplicate id ->
+// two walls silently merged into one line) ─────────────────────────────────
+// importProject through the page's own Load File input, with a counter left
+// stale by the previous model; then the adapter's setModel with a stale wCnt.
+const staleFile = OUT_DIR + 'sw-stale-wcnt.json';
+{
+  const st = await page.evaluate(() => {
+    window.state = window.SW.defaultState(); window.wCnt = 1; window.render();
+    window.addWall(0); window.addWall(0);   // w2, w3 on the roof -> three lines
+    const s = JSON.parse(JSON.stringify(window.state));
+    window.state = window.SW.defaultState(); window.wCnt = 1; window.render();   // previous model: counter back at 1
+    return s;
+  });
+  writeFileSync(staleFile, JSON.stringify({ version: 2, state: st }));
+}
+await page.setInputFiles('input[type=file][accept=".json"]', staleFile);
+await page.waitForFunction(() => window.state.floors[0].walls.length === 3);
+const stale = await page.evaluate(() => {
+  const out = { wCntLoaded: window.wCnt, idsLoaded: window.state.floors[0].walls.map((w) => w.id).join(',') };
+  window.addWall(0);
+  const r = window.SW.compute(window.state);
+  out.idsAfter = window.state.floors[0].walls.map((w) => w.id).join(',');
+  out.lineWalls = r.floors[0].walls.map((w) => w.line.walls).join(',');
+  // adapter path: a file saved with a stale wCnt
+  const a = window.__SW_ADAPTER, m = a.getModel();
+  m.wCnt = 1; a.setModel(m);
+  out.wCntSet = window.wCnt;
+  window.addWall(0);
+  out.idsSet = window.state.floors[0].walls.map((w) => w.id).join(',');
+  out.lineWallsSet = window.SW.compute(window.state).floors[0].walls.map((w) => w.line.walls).join(',');
+  // addWall itself steps past a taken id even with a stale counter
+  window.wCnt = 1; window.addWall(0);
+  out.idsGuard = window.state.floors[0].walls.map((w) => w.id).join(',');
+  window.state = window.SW.defaultState(); window.wCnt = 1; window.render();
+  return out;
+});
+check('stale wCnt: Load File refreshes the counter to the highest wN id (3); "+ Wall Line" then mints w4, every wall its own line',
+  stale.idsLoaded === 'w1,w2,w3' && stale.wCntLoaded === 3 && stale.idsAfter === 'w1,w2,w3,w4' && stale.lineWalls === '1,1,1,1', JSON.stringify(stale));
+check('stale wCnt: setModel with a saved wCnt of 1 refreshes to 4; next wall w5, no merged line',
+  stale.wCntSet === 4 && stale.idsSet === 'w1,w2,w3,w4,w5' && stale.lineWallsSet === '1,1,1,1,1', JSON.stringify(stale));
+check('stale wCnt: addWall skips an id already taken (counter forced to 1 -> w6)', stale.idsGuard === 'w1,w2,w3,w4,w5,w6', stale.idsGuard);
+
+// ── WP-3 S9: "How to use" bullets + worked example; line grouping; "+ wall" ──
+const s9 = await page.evaluate(() => {
+  const c = document.querySelector('.callout.how-to');
+  const out = { li: c ? c.querySelectorAll('li').length : 0, text: c ? c.innerText : '', ex: c && c.querySelector('.how-ex') ? c.querySelector('.how-ex').innerText : '' };
+  window.state = window.SW.defaultState(); window.render();
+  const rows = () => [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.wall-table > tbody > tr')];
+  const btn = rows()[0].querySelector('.btn-line');
+  out.btnText = btn.innerText.trim(); out.btnTitle = btn.getAttribute('title');
+  out.noGrp = rows().filter((tr) => tr.className.indexOf('line-') >= 0).length;
+  btn.click();
+  out.cls = rows().map((tr) => tr.className).join('|');
+  out.cue = [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.line-cue')].map((x) => x.innerText.trim());
+  const first = rows().filter((tr) => tr.classList.contains('line-grp'))[0].querySelector('td');
+  out.bracket = getComputedStyle(first).boxShadow;
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('How to use: 3 bullets + a worked example of two walls on Line B',
+  s9.li === 3 && /Line B/.test(s9.ex) && /B-2/.test(s9.ex) && /C.*o,B/.test(s9.ex), JSON.stringify({ li: s9.li, ex: s9.ex }));
+check('How to use keeps the rules: strength-level incremental forces, 0.6W/0.7E/0.6D, perforated / segmented, Line key, fan-out, copy-down + Undo, base keeps anchor-bolt sill',
+  ['strength-level, incremental', '0.6W, 0.7E and 0.6D', '§4.3.2.3', '§4.3.2.1', 'h/b > 3.5 refused', 'same segment count on every level', 'Line key', 'an edit fans out', 'Clear the Line key', 'Copy walls to levels below', 'anchor-bolt sill and HDUE', 'One-step Undo', 'a wall absent below']
+    .every((t) => s9.text.indexOf(t) >= 0), s9.text);
+check('"+ wall" button (was "+ line") titled "Add another wall on this line"', s9.btnText === '+ wall' && /^Add another wall on this line/.test(s9.btnTitle), JSON.stringify([s9.btnText, s9.btnTitle]));
+check('line grouping: none on a single wall; after + wall the rows read line-grp / line-grp-res / line-cont / line-cont-res with one "↳ same line" cue and a left bracket',
+  s9.noGrp === 0 && s9.cls === 'line-grp|wres-row line-grp-res|line-cont|wres-row line-cont-res' && s9.cue.join() === '↳ same line' && /inset/.test(s9.bracket) && s9.bracket.indexOf('3px 0px 0px') >= 0,
+  JSON.stringify(s9));
+
+// ── WP-3 S7: "= framing" on the sill-species select; the default is unchanged ──
+// Column 18 = Sill species.
+const s7 = await page.evaluate(() => {
+  window.state = window.SW.defaultState(); window.render();
+  const sel = () => [...document.querySelectorAll('#floor-con .floor-blk')[3].querySelectorAll('.wall-table tbody tr')].filter((tr) => tr.querySelector('.line-chip'))[0].querySelector('td:nth-child(18) select');
+  const out = { first: sel().options[0].text, firstVal: sel().options[0].value, def: sel().value, defState: window.state.floors[3].walls[0].sillSpecies };
+  out.frameSel = document.getElementById('species').options.length === Object.keys(window.SW.SPECIES).length;   // the framing select has no "= framing"
+  const dfl = window.SW.compute(window.state).floors[3].walls[0];
+  out.dflCap = dfl.uplift.plf;
+  const s = sel(); s.value = ''; s.dispatchEvent(new Event('change'));
+  const g = document.getElementById('species'); g.value = 'SPF'; g.dispatchEvent(new Event('change'));
+  const r = window.SW.compute(window.state), w = r.floors[3].walls[0];
+  out.state = window.state.floors[3].walls[0].sillSpecies; out.sel = sel().value; out.sillSp = w.sill.species; out.upSp = w.uplift.sillSpecies; out.err = r.errors.length;
+  const a = window.__SW_ADAPTER; a.setModel(a.getModel());
+  out.rt = window.state.floors[3].walls[0].sillSpecies; out.rtSel = sel().value;
+  g.value = 'DFL'; g.dispatchEvent(new Event('change'));
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('sill species: "= framing" (value "") listed first; the default wall still selects Douglas Fir-Larch; framing select unchanged',
+  s7.first === '= framing' && s7.firstVal === '' && s7.def === 'DFL' && s7.defState === 'DFL' && s7.frameSel === true, JSON.stringify(s7));
+check('sill species "= framing": state "", engine sill and uplift use the framing species (SPF), no errors, survives setModel',
+  s7.state === '' && s7.sel === '' && s7.sillSp === 'SPF' && s7.upSp === 'SPF' && s7.err === 0 && s7.rt === '' && s7.rtSel === '', JSON.stringify(s7));
 
 // ── AREv2 adapter: `lateral` provenance survives getModel → setModel ────────
 const lat = await page.evaluate(() => {
@@ -926,6 +1058,46 @@ await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { wait
 await rx.waitForSelector('#diaImportPanel');
 const rxPrefill = await rx.evaluate(() => { window.applyDiaphragmImport(); return { job: document.getElementById('areJob').value, prov: document.querySelector('#floor-con .lh-prov').innerText }; });
 check('import prefills a blank toolbar Project from the payload; provenance says "quick send"', rxPrefill.job === 'TEST-PROJ' && rxPrefill.prov.indexOf('quick send') >= 0, JSON.stringify(rxPrefill));
+// D1 receiver (WP-3): a record carrying the WP-1 titleblock and no toolbar
+// Project -> the panel shows job no. / engineer; Import fills a blank #areJob
+// with "jobNumber projectName"; the provenance line carries job / project /
+// engineer / date; the model round-trips through AREv2 with no BAD_MODEL.
+const tbRec = JSON.parse(JSON.stringify(oneLevel));
+tbRec.project = '';
+tbRec.titleblock = { projectName: 'Red Bluff Apartments', jobNumber: '26-055', engineer: 'N. Rohr', date: '2026-09-22' };
+await rx.evaluate((rec) => localStorage.setItem('are_lateral_v1', JSON.stringify({ record: rec, ts: Date.now(), file: 'stacked_shearwall_calculator.html' })), tbRec);
+await rx.goto('http://calcs.test/Calcs/' + FILE + '?src=diaphragm&lat=1', { waitUntil: 'load' });
+await rx.waitForSelector('#diaImportPanel');
+const rxTb = await rx.evaluate(() => {
+  const out = { panel: document.getElementById('diaImportPanel').innerText, jobBefore: document.getElementById('areJob').value };
+  window.applyDiaphragmImport();
+  out.job = document.getElementById('areJob').value;
+  out.prov = document.querySelector('#floor-con .lh-prov').innerText;
+  out.tb = window.state.lateral && window.state.lateral.titleblock;
+  const snap = window.AREv2.captureState();
+  out.snapTb = snap && JSON.stringify(snap).indexOf('N. Rohr') >= 0;
+  window.state.lateral = null; window.render();   // mutate, then load the snapshot back
+  const res = window.AREv2.loadFromState(snap);
+  out.ok = res.ok; out.code = res.code || null; out.mm = res.mismatches;
+  out.provAfter = (document.querySelector('#floor-con .lh-prov') || {}).innerText || '';
+  out.tbAfter = window.state.lateral && window.state.lateral.titleblock;
+  // old-file guard: lateral without a titleblock, and lateral null
+  const a = window.__SW_ADAPTER, m = a.getModel();
+  delete m.lateral.titleblock; a.setModel(m);
+  out.provOld = document.querySelector('#floor-con .lh-prov').innerText;
+  m.lateral = null; a.setModel(m);
+  out.provNull = !!document.querySelector('#floor-con .lh-prov');
+  return out;
+});
+check('D1: import panel shows the titleblock job no. and engineer', rxTb.panel.indexOf('Job no.: 26-055') >= 0 && rxTb.panel.indexOf('Engineer: N. Rohr') >= 0, rxTb.panel.slice(0, 300));
+check('D1: Import fills a blank toolbar Project with "jobNumber projectName" (record.project blank)', rxTb.jobBefore === '' && rxTb.job === '26-055 Red Bluff Apartments', JSON.stringify([rxTb.jobBefore, rxTb.job]));
+check('D1: provenance line appends Job / project / Eng. / date; state.lateral.titleblock kept',
+  rxTb.prov.indexOf('· Job 26-055 · Red Bluff Apartments · Eng. N. Rohr · 2026-09-22') >= 0 && rxTb.tb && rxTb.tb.engineer === 'N. Rohr', JSON.stringify([rxTb.prov, rxTb.tb]));
+check('D1: AREv2 capture -> load round-trips the titleblock (no BAD_MODEL, no mismatches), provenance restored',
+  rxTb.snapTb && rxTb.ok === true && rxTb.code === null && rxTb.mm.missingOnPage.length === 0 && rxTb.mm.notInFile.length === 0 && rxTb.provAfter.indexOf('Eng. N. Rohr') >= 0 && rxTb.tbAfter && rxTb.tbAfter.jobNumber === '26-055',
+  JSON.stringify({ ok: rxTb.ok, code: rxTb.code, mm: rxTb.mm, provAfter: rxTb.provAfter }));
+check('D1: older files — lateral without a titleblock prints the plain provenance; lateral null prints none',
+  rxTb.provOld.indexOf('Imported from Diaphragm Designer') >= 0 && rxTb.provOld.indexOf('·') < 0 && rxTb.provNull === false, JSON.stringify([rxTb.provOld, rxTb.provNull]));
 // Malformed record (schema missing) -> loud alert, key consumed.
 const rxDialogs = [];
 rx.on('dialog', (d) => { rxDialogs.push(d.message()); d.dismiss(); });

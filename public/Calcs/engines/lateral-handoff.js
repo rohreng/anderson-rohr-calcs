@@ -23,6 +23,14 @@
    calcDir, never copied from rendered output; the MWFRS page loads LH without
    RD (fromMwfrs needs no engine).  SW (engines/stacked-shearwall.js) inside
    toShearwallState only: the diaphragm page loads LH without it.
+
+   Titleblock (additive, record.titleblock = {projectName, jobNumber,
+   engineer, date}, every string through safeText): senders ALWAYS emit it —
+   MWFRS from its Project Information fields, the diaphragm stage from its own
+   #projName/#projEng/#projDate merged over the embedded #mwfrsJSON titleblock
+   (first non-blank per key wins; a differing non-blank name/job/engineer is a
+   warning).  Receivers fill BLANK fields only, never overwrite.  Old readers
+   check only schema + levels[], so they ignore it.
    ========================================================================== */
 (function (root, factory) {
   var LH = factory(root);
@@ -57,6 +65,36 @@
   function safeText(s) { return str(s).replace(UNSAFE, '').slice(0, 120); }   // wall label / floor name, same adapter rule
   function pct(a, b) { return b === 0 ? (a === 0 ? 0 : Infinity) : Math.abs(a - b) / Math.abs(b); }
 
+  // ── titleblock ─────────────────────────────────────────────────────────────
+  var TB_KEYS = ['projectName', 'jobNumber', 'engineer', 'date'];
+  var TB_NAMES = { projectName: 'project name', jobNumber: 'job no.', engineer: 'engineer', date: 'date' };
+  // o = {projectName, jobNumber, engineer, date} (any may be missing) -> all four keys, sanitized strings.
+  function titleblock(o) {
+    o = o || {};
+    var t = {};
+    TB_KEYS.forEach(function (k) { t[k] = safeText(str(o[k]).trim()).trim(); });
+    return t;
+  }
+  // list = [titleblock|null, ...] in precedence order -> one titleblock.  First
+  // non-blank per key wins; a later non-blank that differs (case-insensitive)
+  // is a warning.  Dates are not compared: each calc is dated when it is run.
+  // where (optional) prefixes the warning, e.g. the level label.
+  function mergeTitleblock(list, warnings, where) {
+    var out = titleblock(null);
+    (list || []).forEach(function (tb) {
+      if (!tb) return;
+      tb = titleblock(tb);
+      TB_KEYS.forEach(function (k) {
+        if (isBlank(tb[k])) return;
+        if (isBlank(out[k])) { out[k] = tb[k]; return; }
+        if (k !== 'date' && norm(tb[k]) !== norm(out[k]) && warnings) {
+          warnings.push((where ? where + ': ' : '') + 'titleblock ' + TB_NAMES[k] + ' "' + tb[k] + '" differs from "' + out[k] + '" — kept "' + out[k] + '".');
+        }
+      });
+    });
+    return out;
+  }
+
   function getRD() {
     var RD = root.RD || (typeof require === 'function' ? require('./rect-diaphragm.js') : null);
     if (!RD || !RD.calcDir) throw new Error('lateral-handoff.js: RD engine (engines/rect-diaphragm.js) is not loaded.');
@@ -69,7 +107,7 @@
   // =========================================================================
   // MWFRS stage — from the page's computed rows, not its state
   // =========================================================================
-  // o = { B, D, h, hp, stories:[{label, sh}], wx:{rows}, wy:{rows}, project, meta }
+  // o = { B, D, h, hp, stories:[{label, sh}], wx:{rows}, wy:{rows}, project, titleblock, meta }
   // rows[i] (asce716_mwfrs_calculator.html calcDir): label, F_net (lb, strength,
   // wall + parapet at rows[0]), F_parapet (lb, 0 when no parapet), V_cum (lb).
   function fromMwfrs(o) {
@@ -92,7 +130,7 @@
       });
     }
     return {
-      schema: SCHEMA, loadLevel: 'strength', project: str(o.project),
+      schema: SCHEMA, loadLevel: 'strength', project: str(o.project), titleblock: titleblock(o.titleblock),
       source: { mwfrs: o.meta || null, files: [] },
       geometry: { B_ft: num(o.B, null), D_ft: num(o.D, null), h_ft: num(o.h, null), hp_ft: num(o.hp, null) },
       axes: AXES, levels: levels
@@ -232,7 +270,12 @@
         });
       }
     }
-    return { level: level, storyTable: table, warnings: warnings, B_ft: B, D_ft: D, project: str(state.project), loadLevel: loadLevel };
+    // Titleblock: this page's own fields first, then the MWFRS table's (job no. lives only there).
+    var tb = mergeTitleblock([
+      { projectName: f['#projName'], engineer: f['#projEng'], date: f['#projDate'] },
+      table ? table.titleblock : null
+    ], warnings, label);
+    return { level: level, storyTable: table, warnings: warnings, B_ft: B, D_ft: D, project: str(state.project), titleblock: tb, loadLevel: loadLevel };
   }
 
   // =========================================================================
@@ -353,8 +396,10 @@
     unifyIds(levels, errors, warnings);
     if (errors.length) return { record: null, errors: errors, warnings: warnings };
 
+    // Titleblock across levels, in the caller's file order (results without one — hand-built — are skipped).
+    var tb = mergeTitleblock(results.map(function (r) { return r.titleblock || null; }), warnings);
     var record = {
-      schema: SCHEMA, loadLevel: 'strength', project: project,
+      schema: SCHEMA, loadLevel: 'strength', project: project, titleblock: tb,
       source: {
         mwfrs: table && table.source ? (table.source.mwfrs || null) : null,
         files: (opts.files || []).map(safeName)
@@ -407,6 +452,8 @@
       floors: floors,
       lateral: {
         schema: SCHEMA, project: str(record.project), dir: dir,
+        // Metadata only (no field ids); re-sanitized because the record may come from storage.
+        titleblock: record.titleblock ? titleblock(record.titleblock) : null,
         files: ((o.files || (record.source && record.source.files)) || []).map(safeName),
         importedAt: new Date().toISOString()
       }
@@ -437,6 +484,7 @@
   return {
     ENGINE: ENGINE, SCHEMA: SCHEMA, WIND_FACTOR: WIND_FACTOR, SEIS_FACTOR: SEIS_FACTOR, LOC_TOL_FT: LOC_TOL_FT, AXES: AXES,
     wallId: wallId, fromMwfrs: fromMwfrs, levelFromDiaphragmState: levelFromDiaphragmState,
-    assemble: assemble, toShearwallState: toShearwallState, summarize: summarize
+    assemble: assemble, toShearwallState: toShearwallState, summarize: summarize,
+    titleblock: titleblock, mergeTitleblock: mergeTitleblock, safeText: safeText
   };
 });

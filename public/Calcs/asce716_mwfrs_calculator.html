@@ -1728,10 +1728,13 @@ function buildLateralPayload(){
   if(typeof L==='undefined'||!L) return null;
   if(L.encl==='open'||!L.wx||!window.LH) return null;
   var stories=L.wx.rows.map(function(r){ return {label:r.label, sh:r.h}; });
+  var tv=function(id){ var e=document.getElementById(id); return e?e.value:''; };
   try{
     return LH.fromMwfrs({
       B:L.B, D:L.D, h:L.h, hp:L.hp, stories:stories, wx:L.wx, wy:L.wy,
       project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
+      // Project Information block rides along as titleblock metadata (LH.safeText inside fromMwfrs).
+      titleblock:{ projectName:tv('projName'), jobNumber:tv('projNum'), engineer:tv('projEng'), date:tv('projDate') },
       meta:{ calcFile:'asce716_mwfrs_calculator.html', V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
     });
   }catch(e){ alert(e.message||String(e)); return null; }

@@ -78,7 +78,10 @@ const fm = LH.fromMwfrs({
   wx: { rows: mwRows([131315, 79782, 87306], [131315, 211098, 298403], 87160) }, wy: { rows: mwRows([40861, 20904, 22618], [40861, 61765, 84383], 29053) },
   project: '', meta: mwfrsRecord.source.mwfrs
 });
-check('fromMwfrs produces the expected MWFRS-stage record', JSON.stringify(fm) === JSON.stringify(mwfrsRecord), JSON.stringify(fm).slice(0, 400));
+// The fixture predates the titleblock (additive): compare without it, then check it is emitted blank.
+const fmNoTb = clone(fm); delete fmNoTb.titleblock;
+check('fromMwfrs produces the expected MWFRS-stage record (titleblock aside)', JSON.stringify(fmNoTb) === JSON.stringify(mwfrsRecord), JSON.stringify(fmNoTb).slice(0, 400));
+check('fromMwfrs always emits a titleblock (all four keys blank when none given)', JSON.stringify(fm.titleblock) === JSON.stringify({ projectName: '', jobNumber: '', engineer: '', date: '' }), JSON.stringify(fm.titleblock));
 check('fromMwfrs record has no walls', fm.levels.every((l) => !('walls' in l)), '');
 
 // ── 3. levelFromDiaphragmState — ROOF (legacy shape) ────────────────────────
@@ -298,6 +301,55 @@ check('Vx 5 % off the story table -> warning only', has(offRes.warnings, /3RD.*W
   } catch (e) { msg = String(e); }
   delete require.cache[key]; delete require.cache[swKey]; if (saved) require.cache[swKey] = saved;
   check('levelFromDiaphragmState / assemble never load SW', ok, msg);
+}
+
+// ── 10. titleblock (D1): MWFRS -> diaphragm -> shearwall ────────────────────
+{
+  const SW_STR = new RegExp('^[^<>' + String.fromCharCode(0) + '-' + String.fromCharCode(31) + String.fromCharCode(127) + ']*$');   // SW adapter stringPattern
+  const swSafe = (tb) => !!tb && Object.keys(tb).length === 4 && Object.values(tb).every((v) => typeof v === 'string' && v.length <= 120 && SW_STR.test(v));
+  check('LH exports titleblock / mergeTitleblock / safeText', typeof LH.titleblock === 'function' && typeof LH.mergeTitleblock === 'function' && typeof LH.safeText === 'function', Object.keys(LH).join(','));
+  // sanitized on the sender
+  const dirtyTb = { projectName: '  Red <b>Bluff</b>' + String.fromCharCode(7) + ' Hotel ', jobNumber: '26-038-HNR', engineer: 'N' + String.fromCharCode(0) + 'H', date: '2026-09-15', extra: 'dropped' };
+  const fmTb = LH.fromMwfrs({
+    B: 120, D: 360, h: 35.5, hp: 4.5,
+    stories: [{ label: 'Roof', sh: '11' }, { label: '3RD', sh: '10.5' }, { label: '2ND', sh: '14' }],
+    wx: { rows: mwRows([131315, 79782, 87306], [131315, 211098, 298403], 87160) }, wy: { rows: mwRows([40861, 20904, 22618], [40861, 61765, 84383], 29053) },
+    project: '', titleblock: dirtyTb, meta: mwfrsRecord.source.mwfrs
+  });
+  check('fromMwfrs titleblock: < > and control chars stripped, trimmed, only the four keys',
+    JSON.stringify(fmTb.titleblock) === JSON.stringify({ projectName: 'Red bBluff/b Hotel', jobNumber: '26-038-HNR', engineer: 'NH', date: '2026-09-15' }), JSON.stringify(fmTb.titleblock));
+  const longTb = LH.titleblock({ projectName: 'x'.repeat(200) });
+  check('titleblock strings capped at 120 chars', longTb.projectName.length === 120, String(longTb.projectName.length));
+  // job no. from the MWFRS table + page name/engineer/date -> all four keys populated
+  const mwTb = clone(mwfrsRecord); mwTb.titleblock = { projectName: 'Red Bluff Hotel', jobNumber: '26-038-HNR', engineer: 'NH', date: '2026-09-14' };
+  const tbState = clone(thirdState);
+  tbState.fields['#mwfrsJSON'] = JSON.stringify(mwTb);
+  tbState.fields['#projName'] = 'Red Bluff Hotel'; tbState.fields['#projEng'] = ''; tbState.fields['#projDate'] = '2026-09-15';
+  const tbRes = LH.levelFromDiaphragmState(tbState);
+  check('diaphragm level: four keys from page (name, date) + embedded MWFRS (job no., engineer); page wins the date',
+    JSON.stringify(tbRes.titleblock) === JSON.stringify({ projectName: 'Red Bluff Hotel', jobNumber: '26-038-HNR', engineer: 'NH', date: '2026-09-15' }) && tbRes.warnings.length === 0,
+    JSON.stringify(tbRes.titleblock) + ' ' + JSON.stringify(tbRes.warnings));
+  // differing engineer on ONE level (page vs MWFRS) -> warning, page kept
+  const engState = clone(tbState); engState.fields['#projEng'] = 'BA';
+  const engRes = LH.levelFromDiaphragmState(engState);
+  check('diaphragm level: page engineer BA vs MWFRS NH -> warning, BA kept', engRes.titleblock.engineer === 'BA' && has(engRes.warnings, /3RD: titleblock engineer "NH" differs from "BA"/), JSON.stringify(engRes.warnings));
+  // across levels: differing engineers -> warning, first file wins; dates never warn
+  const lvA = clone(secondState); lvA.fields['#projEng'] = 'NH'; lvA.fields['#projDate'] = '2026-09-10';
+  const lvB = clone(tbState); lvB.fields['#projEng'] = 'TN'; delete lvB.fields['#mwfrsJSON'];
+  const tbAsm = LH.assemble([LH.levelFromDiaphragmState(lvA), LH.levelFromDiaphragmState(lvB), roofRes]);
+  check('assemble: differing engineers across levels -> warning, first non-blank kept', tbAsm.errors.length === 0 && tbAsm.record.titleblock.engineer === 'NH' && has(tbAsm.warnings, /titleblock engineer "TN" differs from "NH"/), JSON.stringify(tbAsm.warnings));
+  check('assemble: blank keys filled from later levels; dates differ without a warning', tbAsm.record.titleblock.projectName === 'Red Bluff Hotel' && tbAsm.record.titleblock.date === '2026-09-10' && !has(tbAsm.warnings, /titleblock date/), JSON.stringify(tbAsm.record.titleblock));
+  const tbAsm2 = LH.assemble([tbRes, roofRes, secondRes]);
+  check('assemble: record.titleblock carries the four keys', JSON.stringify(tbAsm2.record.titleblock) === JSON.stringify(tbRes.titleblock), JSON.stringify(tbAsm2.record.titleblock));
+  // shearwall state: lateral.titleblock present, passes the SW adapter string rule
+  const swTb = LH.toShearwallState(tbAsm2.record, { dir: 'X' });
+  check('toShearwallState: lateral.titleblock = record titleblock, SW adapter stringPattern / 120-char rule pass', swSafe(swTb.lateral.titleblock) && swTb.lateral.titleblock.jobNumber === '26-038-HNR' && SW.validate(swTb).ok === true, JSON.stringify(swTb.lateral.titleblock));
+  const dirtyRec = clone(tbAsm2.record); dirtyRec.titleblock.engineer = '<script>' + String.fromCharCode(127);
+  const swDirty = LH.toShearwallState(dirtyRec, { dir: 'X' });
+  check('toShearwallState re-sanitizes a stored record titleblock', swSafe(swDirty.lateral.titleblock) && swDirty.lateral.titleblock.engineer === 'script', JSON.stringify(swDirty.lateral.titleblock));
+  const oldRec = clone(tbAsm2.record); delete oldRec.titleblock;
+  check('toShearwallState: pre-titleblock record -> lateral.titleblock null', LH.toShearwallState(oldRec, { dir: 'X' }).lateral.titleblock === null, '');
+  check('no titleblock anywhere -> blank titleblock, no warning', JSON.stringify(asm.record.titleblock) === JSON.stringify({ projectName: '', jobNumber: '', engineer: '', date: '2026-09-15' }) && !has(asm.warnings, /titleblock/), JSON.stringify(asm.record.titleblock));
 }
 
 if (failures.length) { console.error(`\n${failures.length} failure(s)`); process.exit(1); }

@@ -339,6 +339,15 @@
     }
   };
 
+  // A calc that sets its own sheet size opts out of the injected letter-portrait
+  // @page (which, appended last, would otherwise win the cascade):
+  //     <script src="/are-utils-v2.js" data-are-print-page></script>
+  // Additive: without the attribute every calc prints exactly as before.
+  function pageOwnsPrintPage() {
+    var s = document.querySelector('script[src*="are-utils-v2.js"]');
+    return !!(s && s.hasAttribute('data-are-print-page'));
+  }
+
   // Minimal print-mode rules (v1 parity) injected as style
   function injectPrintRules() {
     if (document.getElementById('are-print-v2')) return;
@@ -350,7 +359,7 @@
       'body[data-pm="s"] .det-row{display:none!important}body[data-pm="s"] .chk-table{display:table!important}' +
       'body[data-pm="s"] .summary{display:block!important}body[data-pm="s"] #sumBox{display:block!important}' +
       'body[data-pm="f"] .det-row{display:table-row!important}body[data-pm="f"] .calc-det{display:block!important}' +
-      '@page{margin:.75in;size:letter portrait}}' +
+      (pageOwnsPrintPage() ? '' : '@page{margin:.75in;size:letter portrait}') + '}' +
       '.are-ph{display:none}';
     var el = document.createElement('style'); el.id = 'are-print-v2'; el.textContent = css;
     document.head.appendChild(el);
@@ -1440,7 +1449,7 @@
           cssText + '\n' +
           "body{font-family:'DM Sans',Segoe UI,system-ui,Arial,sans-serif}\n" +
           PRINT_TOGGLE_CSS + '\n' +
-          '@media print{@page{margin:.75in;size:letter portrait}}';
+          (pageOwnsPrintPage() ? '' : '@media print{@page{margin:.75in;size:letter portrait}}');
         head.appendChild(style);
 
         var json = escapeJsonForHtml(JSON.stringify(state));

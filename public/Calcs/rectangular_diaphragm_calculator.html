@@ -180,18 +180,19 @@ svg.diagram{max-width:100%;border-radius:8px}
 <div class="blk">
   <div class="blk-hd open" onclick="togBlk(this)"><span>Shearwall Layout</span><span class="tog">▶</span></div>
   <div class="blk-body">
+    <p class="ref" style="margin:0 0 10px">One row per wall line (grid line), not per wall segment. The Stacked Shearwall Designer takes each line reaction and splits it into walls.</p>
     <!-- Wall rows only, from another level's file; forces/geometry/level stay. -->
     <div class="save-load-bar" style="margin:0 0 10px">
       <button type="button" class="sl-btn" onclick="document.getElementById('layoutFile').click()" title="Replace the wall rows below with those of another Diaphragm Designer file (.html snapshot or Save Inputs .json)">📂 Copy layout from file…</button>
       <input type="file" id="layoutFile" accept=".html,text/html,.json" style="display:none" onchange="copyLayoutFromFile(this)"/>
       <span class="sl-label">Wall rows only — level, forces, B/D and the MWFRS table are not changed</span>
     </div>
-    <h3 class="sec" style="margin-top:0">EW Shearwalls — resist Wind-X (V<sub>x</sub>)</h3>
+    <h3 class="sec" style="margin-top:0">EW shearwall lines — resist Wind-X (V<sub>x</sub>)</h3>
     <p class="ref" style="margin-bottom:8px">Walls running EW, resisting EW (X-direction) wind. Typically the North and South walls. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
     <input type="hidden" id="swJSON">
     <div id="swX">
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="North Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="North side" class="sw-label" oninput="updateDiagram()"/></div>
         <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
@@ -200,7 +201,7 @@ svg.diagram{max-width:100%;border-radius:8px}
         </div>
       </div>
       <div class="sw-row" data-dir="X">
-        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="South Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="South side" class="sw-label" oninput="updateDiagram()"/></div>
         <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="60" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from S (ft)</label>
@@ -211,11 +212,11 @@ svg.diagram{max-width:100%;border-radius:8px}
     </div>
     <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('X')" id="btnAddX">+ Add EW Wall Line</button>
 
-    <h3 class="sec">NS Shearwalls — resist Wind-Y (V<sub>y</sub>)</h3>
+    <h3 class="sec">NS shearwall lines — resist Wind-Y (V<sub>y</sub>)</h3>
     <p class="ref" style="margin-bottom:8px">Walls running NS, resisting NS (Y-direction) wind. Typically the East and West walls. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
     <div id="swY">
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="East Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="East side" class="sw-label" oninput="updateDiagram()"/></div>
         <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
@@ -224,7 +225,7 @@ svg.diagram{max-width:100%;border-radius:8px}
         </div>
       </div>
       <div class="sw-row" data-dir="Y">
-        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="West Wall" class="sw-label" oninput="updateDiagram()"/></div>
+        <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="West side" class="sw-label" oninput="updateDiagram()"/></div>
         <div class="ig"><label>Total SW Length (ft)</label><input type="number" data-are-ignore class="sw-len" value="120" min="1" step="1" oninput="updateDiagram()"/></div>
         <div class="ig">
           <label>Location — dist. from W (ft)</label>
@@ -335,7 +336,7 @@ function swRowHTML(dir, label, len, loc){
 function addSW(dir){
   var container=document.getElementById('sw'+dir);
   var n=container.children.length+1;
-  var label='Interior Wall '+n;
+  var label='Interior line '+n;
   // dir X = EW shearwalls (N/S walls, run EW, length≈B); dir Y = NS shearwalls (E/W walls, run NS, length≈D)
   var B=parseFloat(document.getElementById('B').value)||60;
   var D=parseFloat(document.getElementById('D').value)||120;
@@ -993,10 +994,15 @@ function applyLateralRecord(record, story){
   document.getElementById('loadLevel').value='strength';
   var g=record.geometry||{}, B=document.getElementById('B'), D=document.getElementById('D');
   if(B.value==='60'&&D.value==='120'){ if(g.B_ft>0) B.value=g.B_ft; if(g.D_ft>0) D.value=g.D_ft; }   // page defaults only
-  var pn=document.getElementById('projName');
-  if(!pn.value.trim()&&proj) pn.value=proj;
+  // Titleblock (record.titleblock, additive): fill BLANK fields only, never overwrite.
+  var tb=(window.LH&&LH.titleblock)?LH.titleblock(record.titleblock):{projectName:'',jobNumber:'',engineer:'',date:''};
+  var fillBlank=function(id,v){ var e=document.getElementById(id); if(e&&!e.value.trim()&&v) e.value=v; };
+  fillBlank('projName', proj||tb.projectName);
+  fillBlank('projEng', tb.engineer);
+  fillBlank('projDate', tb.date);
+  var jobFill=proj||(tb.jobNumber+' '+tb.projectName).trim();
   var jobEl=document.getElementById('areJob');
-  if(jobEl&&!jobEl.value.trim()&&proj){ jobEl.value=proj; jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
+  if(jobEl&&!jobEl.value.trim()&&jobFill){ jobEl.value=jobFill; jobEl.dispatchEvent(new Event('input',{bubbles:true})); }
   buildLevelSelect();
   var idx=0, want=String(story||'').trim().toLowerCase();
   record.levels.forEach(function(l,i){ if(want&&String(l.label).trim().toLowerCase()===want) idx=i; });
