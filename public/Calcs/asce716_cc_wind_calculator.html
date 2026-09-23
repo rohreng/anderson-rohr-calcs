@@ -414,7 +414,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
       <li><strong>GC<sub>p</sub> interpolation:</strong> Values are piecewise log-linear between figure breakpoints for the entered effective wind area A (floored at 10 sf).</li>
       <li><strong>Velocity pressure:</strong> <span data-ref="qEq">q<sub>h</sub> = 0.00256 K<sub>h</sub> K<sub>zt</sub> K<sub>d</sub> K<sub>e</sub> V&sup2;</span> (<span data-ref="code">ASCE 7-16</span> <span data-ref="qEqRef">Eq. 26.10-1</span>). K<sub>h</sub> is linearly interpolated between <span data-ref="kzTable">Table 26.10-1</span> height rows per Note 3.</li>
       <li><strong>Minimum pressure:</strong> <span data-ref="code">ASCE 7-16</span> <span data-ref="minP">§30.2.2</span> requires C&amp;C pressures not less than +16 / &minus;16 psf net. Verify this minimum independently for cladding elements.</li>
-      <li><strong>Overhangs:</strong> <span id="overhangNote">GC<sub>p</sub> values for overhangs act on the bottom surface and are additive to the top-surface pressure for the same zone. Not combined here — apply separately per Fig. notes.</span></li>
+      <li><strong>Overhangs:</strong> <span id="overhangNote">Overhang GC<sub>p</sub> values from the figures include both upper and lower surfaces (figure notes); the overhang rows are net pressures.</span></li>
       <li><strong>This calculator does not substitute for engineering judgment.</strong> Verify figure applicability (roof slope, h limits) before using pressures in design.</li>
     </ul>
   </div>
@@ -528,7 +528,7 @@ function applyEdition(){
   if(hint) hint.innerHTML=hint.innerHTML.replace(/ASCE 7-(16|22)/,REF[edition].code);
   document.getElementById('overhangNote').innerHTML=edition==='7-22'
     ?'For Fig 30.3-2B–2G, 30.3-5A and 30.4-1, net overhang GC<sub>p</sub> is roof top suction minus wall bottom positive GC<sub>p</sub> per &sect;30.7. Fig 30.3-2A uses its plotted overhang curves.'
-    :'GC<sub>p</sub> values for overhangs act on the bottom surface and are additive to the top-surface pressure for the same zone. Not combined here — apply separately per Fig. notes.';
+    :'Overhang GC<sub>p</sub> values from the figures include both upper and lower surfaces (figure notes); the overhang rows are net pressures.';
   updateFigNotes();
 }
 // ─── Number formatters ────────────────────────────────────────────────────────
@@ -754,20 +754,20 @@ var GCP22={
   '22:30.3-2E':{title:'Figure 30.3-2E — Hip Roof, 7° < θ ≤ 20°, h ≤ 60 ft', ref:'ASCE 7-22 §30.3.2',
     zones:withSumOH([
       {name:'Zone 1', desc:'Roof Interior', oh:false, pos:PHIP, neg:[[10,-1.8],[200,-0.8]]},
-      {name:'Zone 2', desc:'Bands a wide along hips and ridge', oh:false, pos:PHIP, neg:[[10,-2.4],[200,-1.3]]},
+      {name:'Zone 2', desc:'Bands a each side of hips and ridge', oh:false, pos:PHIP, neg:[[10,-2.4],[200,-1.3]]},
       {name:'Zone 3', desc:'Eave strips a deep, full perimeter', oh:false, pos:PHIP, neg:[[10,-2.6],[200,-1.4]]}
     ], W22_POS)},
   '22:30.3-2F':{title:'Figure 30.3-2F — Hip Roof, 20° < θ ≤ 27°, h ≤ 60 ft', ref:'ASCE 7-22 §30.3.2',
     zones:withSumOH([
       {name:'Zone 1', desc:'Roof Interior', oh:false, pos:PHIP, neg:H2F_1},
-      {name:'Zone 2', desc:'Bands a wide along hips and ridge', oh:false, pos:PHIP, neg:H2F_23},
+      {name:'Zone 2', desc:'Bands a each side of hips and ridge', oh:false, pos:PHIP, neg:H2F_23},
       {name:'Zone 3', desc:'Eave strips a deep, full perimeter', oh:false, pos:PHIP, neg:H2F_23}
     ], W22_POS)},
   // neg = Fig 30.3-2G (θ = 45°); neg2F = Fig 30.3-2F. Note 6 interpolates on θ between 27° and 45°.
   '22:30.3-2G':{title:'Figure 30.3-2G — Hip Roof, 27° < θ ≤ 45°, h ≤ 60 ft (Note 6)', ref:'ASCE 7-22 §30.3.2',
     zones:withSumOH([
       {name:'Zone 1', desc:'Roof Interior', oh:false, pos:PHIP, neg:[[10,-1.5],[100,-0.7]], neg2F:H2F_1},
-      {name:'Zone 2', desc:'Bands a wide along hips and ridge', oh:false, pos:PHIP, neg:[[10,-1.8],[100,-0.8]], neg2F:H2F_23},
+      {name:'Zone 2', desc:'Bands a each side of hips and ridge', oh:false, pos:PHIP, neg:[[10,-1.8],[100,-0.8]], neg2F:H2F_23},
       {name:'Zone 3', desc:'Eave strips a deep, full perimeter', oh:false, pos:PHIP, neg:[[10,-2.4],[100,-1.0]], neg2F:H2F_23}
     ], W22_POS)},
   '22:30.3-5A':{title:'Figure 30.3-5A — Monoslope Roof, 3° < θ ≤ 10°, h ≤ 60 ft', ref:'ASCE 7-22 §30.3.2',
@@ -805,7 +805,7 @@ var FIG_NOTES22={
   '22:30.3-2B':'<strong>ASCE 7-22 Fig 30.3-2B — Gable 7&deg;&ndash;20&deg;:</strong> Zone 2 = rake strips a deep and a strip a each side of the ridge; Zone 3 = a &times; a where the ridge strip meets the rakes; Zone 1 elsewhere (includes eaves). Overhangs: roof zone + wall positive GC<sub>p</sub> per &sect;30.7.',
   '22:30.3-2C':'<strong>ASCE 7-22 Fig 30.3-2C — Gable 20&deg;&ndash;27&deg;:</strong> Same zone plan as Fig 30.3-2B. Overhangs: roof zone + wall positive GC<sub>p</sub> per &sect;30.7.',
   '22:30.3-2D':'<strong>ASCE 7-22 Fig 30.3-2D — Gable 27&deg;&ndash;45&deg;:</strong> Zone 3 = a &times; a corners; Zone 2 = rake strips a deep between corners; Zone 1 elsewhere (eaves and ridge). Check positive and negative cases. Overhangs per &sect;30.7.',
-  '22:30.3-2E':'<strong>ASCE 7-22 Fig 30.3-2E — Hip 7&deg;&ndash;20&deg;:</strong> Zone 3 = eave strips a deep around the full perimeter; Zone 2 = bands a wide along the hips and ridge; Zone 1 = remaining roof faces. Overhangs per &sect;30.7.',
+  '22:30.3-2E':'<strong>ASCE 7-22 Fig 30.3-2E — Hip 7&deg;&ndash;20&deg;:</strong> Zone 3 = eave strips a deep around the full perimeter; Zone 2 = bands a each side of the hips and ridge; Zone 1 = remaining roof faces. Overhangs per &sect;30.7.',
   '22:30.3-2F':'<strong>ASCE 7-22 Fig 30.3-2F — Hip 20&deg;&ndash;27&deg;:</strong> Zone plan as Fig 30.3-2E; Zones 2 and 3 share one curve. Overhangs per &sect;30.7.',
   '22:30.3-2G':'<strong>ASCE 7-22 Fig 30.3-2G — Hip 27&deg;&ndash;45&deg;:</strong> Fig 30.3-2G is plotted for &theta; = 45&deg;. For 27&deg; &lt; &theta; &lt; 45&deg;, Note 6 interpolates each negative GC<sub>p</sub> linearly between Fig 30.3-2F and Fig 30.3-2G on &theta;. Enter &theta; below. Overhangs per &sect;30.7.',
   '22:30.3-5A':'<strong>ASCE 7-22 Fig 30.3-5A — Monoslope 3&deg;&ndash;10&deg;:</strong> Primed zones (2&prime;, 3&prime;) are on the high-eave side. Overhangs: roof zone + wall positive GC<sub>p</sub> per &sect;30.7.',
@@ -814,7 +814,7 @@ var FIG_NOTES22={
 };
 var FIG_NOTES={
   '30.3-1':'<strong>Fig 30.3-1 — Walls:</strong> Applies to all enclosed/partially enclosed buildings with h &le; 60 ft. Zone 4 = wall field (interior); Zone 5 = wall corners within distance <em>a</em> from corner.',
-  '30.3-2A':'<strong>Fig 30.3-2A — Gable/Monoslope &theta; &le; 7&deg;:</strong> Zone 2 is the 0.6h perimeter band; Zone 3 is the 0.6h by 0.2h corner L; Zone 1 is 0.6h–1.2h from edges; Zone 1&prime; is beyond 1.2h. Overhang zones are additive to top-surface pressures.',
+  '30.3-2A':'<strong>Fig 30.3-2A — Gable/Monoslope &theta; &le; 7&deg;:</strong> Zone 2 is the 0.6h perimeter band; Zone 3 is the 0.6h by 0.2h corner L; Zone 1 is 0.6h–1.2h from edges; Zone 1&prime; is beyond 1.2h. Overhang curves include both upper and lower surfaces (Note 6).',
   '30.3-2B':'<strong>Fig 30.3-2B — Gable 7&deg;&ndash;20&deg;:</strong> Zones 1/2e (eave), 2n (rake), 2r (ridge), 3e (eave corner), 3r (ridge corner). Hip roofs and 20&deg;&ndash;27&deg; gables: use the ASCE 7-22 edition.',
   '30.3-2D':'<strong>Fig 30.3-2D — Gable 27&deg;&ndash;45&deg;:</strong> Steep gable roofs. Positive GCp values are significant; check both positive and negative cases. Zone 3e (eave corner) typically governs.',
   '30.3-5A':'<strong>Fig 30.3-5A — Monoslope 3&deg;&ndash;10&deg;:</strong> Single-slope roofs. Primed zones (2&prime;, 3&prime;) are on the high-eave side and have larger suctions. No 7-16 overhang coefficients exist for monoslope roofs; use the ASCE 7-22 edition (&sect;30.7 sum rule).',
@@ -1281,8 +1281,9 @@ function updateFigDiagram(){
     var W=480, H=285, rx=50, ry=52, rw=340, rh=158, a=26, ym=ry+rh/2;
     var x1=rx+rh/2, x2=rx+rw-rh/2;
     function mark(x,y,l){return '<text x="'+x+'" y="'+y+'" text-anchor="middle" '+FONT+' font-size="10" font-weight="700" fill="'+C_NAVY+'" opacity="0.7">'+l+'</text>';}
-    var band='stroke="'+C_Z2+'" stroke-width="'+a+'" stroke-linecap="butt"';
+    var band='stroke="'+C_Z2+'" stroke-width="'+(2*a)+'" stroke-linecap="butt" clip-path="url(#hipClip)"';
     var s='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:624px;height:auto;display:block;margin:auto">';
+    s+='<defs><clipPath id="hipClip"><rect x="'+rx+'" y="'+ry+'" width="'+rw+'" height="'+rh+'"/></clipPath></defs>';
     s+='<rect x="'+rx+'" y="'+ry+'" width="'+rw+'" height="'+rh+'" fill="'+C_Z1+'"/>';
     s+='<line x1="'+x1+'" y1="'+ym+'" x2="'+x2+'" y2="'+ym+'" '+band+'/>';
     [[rx,ry,x1],[rx,ry+rh,x1],[rx+rw,ry,x2],[rx+rw,ry+rh,x2]].forEach(function(c){s+='<line x1="'+c[0]+'" y1="'+c[1]+'" x2="'+c[2]+'" y2="'+ym+'" '+band+'/>';});
@@ -1295,7 +1296,7 @@ function updateFigDiagram(){
     [[rx,ry,x1],[rx,ry+rh,x1],[rx+rw,ry,x2],[rx+rw,ry+rh,x2]].forEach(function(c){s+='<line x1="'+c[0]+'" y1="'+c[1]+'" x2="'+c[2]+'" y2="'+ym+'" stroke="'+C_NAVY+'" stroke-width="1.2"/>';});
     s+='<rect x="'+rx+'" y="'+ry+'" width="'+rw+'" height="'+rh+'" fill="none" stroke="'+C_NAVY+'" stroke-width="2"/>';
     s+=mark(rx+rw/2,ry+a/2+4,'3')+mark(rx+rw/2,ym-4,'2')+mark(rx+rw/2,ry+a+22,'1')+mark(rx+rw/2,ry+rh-a-12,'1')+mark(rx+a+18,ym+4,'1');
-    s+='<text x="'+(rx+rw/2)+'" y="'+(ry+rh+12)+'" text-anchor="middle" '+FONT+' font-size="8" fill="'+C_DIM+'">Zone 3 = eave strips a deep (full perimeter) · Zone 2 = bands a wide along hips and ridge</text>';
+    s+='<text x="'+(rx+rw/2)+'" y="'+(ry+rh+12)+'" text-anchor="middle" '+FONT+' font-size="8" fill="'+C_DIM+'">Zone 3 = eave strips a deep (full perimeter) · Zone 2 = bands a each side of hips and ridge</text>';
     s+=dimH(rx,ry+rh+20,rx+a,'a');
     s+=viewTitle(W/2,H-8,'Roof Plan — '+figLabel+'  ('+rangeLabel+')');
     return s+'</svg>';
@@ -1505,8 +1506,12 @@ function runCalc(){
 
   // 7-22-only applicability callouts
   var callouts=[];
-  if(ed22 && h>60 && (/^22:30\.3-/.test(wallFig) || /^22:30\.3-/.test(roofFig)))
-    callouts.push('h &gt; 60 ft with a Fig 30.3 figure: &sect;30.4.2 Exception permits this only for 60 &lt; h &lt; 90 ft with h &le; least horizontal dimension.');
+  if(ed22 && h>60 && /^22:30\.3-1$/.test(wallFig))
+    callouts.push('h &gt; 60 ft with Fig 30.3-1 walls: &sect;30.4.2 Exception permits this only for 60 &lt; h &lt; 90 ft with h &le; least horizontal dimension.');
+  if(ed22 && h>60 && roofFig==='22:30.3-2A')
+    callouts.push('h &gt; 60 ft with Fig 30.3-2A: flat roofs over 60 ft use Fig 30.4-1 unless the &sect;30.4.2 Exception applies (60 &lt; h &lt; 90 ft, h &le; least horizontal dimension).');
+  if(ed22 && h>60 && /^22:30\.3-(2[B-G]|5A)$/.test(roofFig))
+    callouts.push('h &gt; 60 ft: Fig 30.4-1 Note 6 &mdash; roofs with &theta; &gt; 7&deg; use Fig 30.3-2 / 30.3-5 with q<sub>h</sub> (applied here).');
   if(ed22 && h<=60 && /22:30\.4-1/.test(wallFig+' '+roofFig))
     callouts.push('Fig 30.4-1 applies to h &gt; 60 ft.');
   if(thetaClamped) callouts.push('&theta; limited to 27&deg;&ndash;45&deg; for Fig 30.3-2G Note 6; using &theta; = '+theta+'&deg;.');
@@ -1517,8 +1522,13 @@ function runCalc(){
     if(figKey==='none') return;
     var data=figData(figKey);
     if(!data) return;
+    var note5=hp>=3 && /^(22:)?30\.3-2A$/.test(figKey);
     data.zones.forEach(function(z){
       if(z.oh && !inclOH) return;
+      // Fig 30.3-2A Note 5 (h_p >= 3 ft): positive GCp in roof Zones 2 and 3 = wall Zones 4 and 5 (Fig 30.3-1).
+      // The Zone 3 negative reduction in the same note is not taken (conservative).
+      if(note5 && !z.oh && /^Zone [23]$/.test(z.name))
+        z={name:z.name, desc:z.desc+' — (+) per Fig 30.3-2A Note 5, h<sub>p</sub> ≥ 3 ft', oh:false, pos:W16_POS, neg:z.neg};
       allZoneItems.push({z:z, figKey:figKey, figTitle:data.title});
     });
   });
@@ -1570,14 +1580,17 @@ function runCalc(){
            wallPosGCp:wallPosGCp, wallNegGCp:wallNegGCp, roofNegGCp:roofNegGCp,
            netGCp_A:netGCp_A, netGCp_B:netGCp_B,
            caseA:caseA, caseB:caseB, govNet:govNet, govCase:govCase,
-           roofZoneNum:(zoneNum===4?2:3)},
+           roofZoneNum:(/^22:30\.3-2[EFG]$/.test(roofFig)?'2/3':(zoneNum===4?2:3))},
         figKey:'parapet', qhOverride:qh_par,
         h_eff:h+hp, Kh_eff:Kh_par, khRow_eff:khRow_par
       };
     }
     var parItems=[];
-    if(z4src) parItems.push(buildParapetItem(z4src, roofZ2, 4));
-    if(z5src) parItems.push(buildParapetItem(z5src, roofZ3, 5));
+    // Hip roofs (Figs 30.3-2E/2F/2G): Zone 3 is the eave strip along every parapet, so both
+    // parapet rows take the more negative of roof Zones 2 and 3.
+    var hipRoof=/^22:30\.3-2[EFG]$/.test(roofFig);
+    if(z4src) parItems.push(buildParapetItem(z4src, hipRoof?roofZ2.concat(roofZ3):roofZ2, 4));
+    if(z5src) parItems.push(buildParapetItem(z5src, hipRoof?roofZ2.concat(roofZ3):roofZ3, 5));
     // Find insertion point: after last wall fig item
     var insertAt=0;
     allZoneItems.forEach(function(item,idx){ if(item.figKey===wallFig) insertAt=idx+1; });
@@ -1609,9 +1622,9 @@ function runCalc(){
     +'<div class="dem-card"><div class="v">'+f3(Kh)+'</div><div class="l">K<sub>h</sub><br>Exp '+exp+' @ h='+f1(hh)+' ft</div></div>'
     +'<div class="dem-card"><div class="v">'+f3(Kzt)+'</div><div class="l">K<sub>zt</sub><br>Topo Factor</div></div>'
     +'<div class="dem-card"><div class="v">'+f2(Kd)+'</div><div class="l">K<sub>d</sub><br>'+(ed22?'Directional (applied in p)':'Directional')+'</div></div>'
-    +(ed22?'<div class="dem-card"><div class="v">'+f3(Ke)+'</div><div class="l">K<sub>e</sub><br>Ground Elevation</div></div>':'')
+    +'<div class="dem-card"><div class="v">'+f3(Ke)+'</div><div class="l">K<sub>e</sub><br>Ground Elevation</div></div>'
     +'<div class="dem-card"><div class="v">\u00b1'+GCpi+'</div><div class="l">GC<sub>pi</sub><br>Internal Pressure</div></div>'
-    +'<div class="dem-card hilite"><div class="v">'+f1(a)+' ft</div><div class="l">Zone dim. a<br>'+(hi?'a = max(0.1&times;L, 3)':'a = max(min(0.1&times;L, 0.4&times;h), max(0.04&times;L, 3))')+(roofFig==='30.3-2A'?'<br>0.6h = '+f1(0.6*h)+' ft, 0.2h = '+f1(0.2*h)+' ft (zone dims use h)':'')+'</div></div>'
+    +'<div class="dem-card hilite"><div class="v">'+f1(a)+' ft</div><div class="l">Zone dim. a<br>'+(hi?'a = max(0.1&times;L, 3)':'a = max(min(0.1&times;L, 0.4&times;h), max(0.04&times;L, 3))')+(/^(22:)?30\.3-2A$/.test(roofFig)?'<br>0.6h = '+f1(0.6*h)+' ft, 0.2h = '+f1(0.2*h)+' ft (zone dims use h)':'')+'</div></div>'
     +'<div class="dem-card"><div class="v">'+f1(A)+' sf</div><div class="l">Component Area<br>Used for GCp</div></div>';
 
   // ─── Reference table: 10, 50, 100 sf ─────────────────────────────────────
@@ -1943,7 +1956,7 @@ function buildZoneDet(z, gcpPos, gcpNeg, pPos, pNeg, govP, A, V, exp, h, Kh, khR
   if(z.oh && z.negSum){
     d+='<div class="mrow" style="color:#92400e;font-size:.9em;margin-top:4px">&#9888; Net overhang pressure (top and bottom surfaces combined per '+R.secOH+'). Use directly for the overhang.</div>';
   } else if(z.oh){
-    d+='<div class="mrow" style="color:#92400e;font-size:.9em;margin-top:4px">&#9888; Overhang pressure acts on the bottom surface and must be <em>added</em> to the top-surface zone pressure for net overhang load. Do not use as a standalone design pressure.</div>';
+    d+='<div class="mrow" style="color:#92400e;font-size:.9em;margin-top:4px">&#9888; Plotted overhang GC<sub>p</sub> include both upper and lower surfaces (figure note). Use directly as the net overhang pressure; do not add the top-surface zone pressure.</div>';
   }
   d+='</div>';
 

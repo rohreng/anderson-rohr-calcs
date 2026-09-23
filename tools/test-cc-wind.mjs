@@ -134,7 +134,10 @@ const PHASE0 = {
   'b6-walls-5A-oh-D-A75': { Kh: 1.06, qh: 38.9809, a: 7.2, rows: R6 },
   'b7-walls-2A-parapet3': { Kh: .90, KhPar: .924, qh: 25.8998, qp: 26.5905, a: 5, rows: [
     ...R1.slice(0, 2), P('Zone 4 — Parapet|2.943|78.3|51.1|78.3'),
-    P('Zone 5 — Parapet|3.576|95.1|56.7|95.1'), ...R1.slice(2)] },
+    P('Zone 5 — Parapet|3.576|95.1|56.7|95.1'), ...R1.slice(2, 4),
+    // Fig 30.3-2A Note 5 (h_p >= 3 ft): roof Zones 2/3 positive = wall Zones 4/5 = 1.1766 − 0.1766·log 32 = 0.9108;
+    // p+ = 25.8998 × (0.9108 + 0.18) = 28.25 psf.
+    N('Zone 2|0.911|-2.032|28.3|-57.3|57.3'), N('Zone 3|0.911|-2.665|28.3|-73.7|73.7')] },
   'b8-high-walls-roof-h80': { Kh: 1.21, qh: 34.8209, a: 10, rows: R8 },
   'b9-high-parapet4-pe': { Kh: 1.21, KhPar: 1.222, qh: 34.8209, qp: 35.1662, a: 10, rows: R9 },
   'b10-walls-2A-A600-Kzt': { Kh: .90, qh: 52.8768, a: 5, rows: R10 },
@@ -246,8 +249,10 @@ function verifyPhase0(c, s) {
       if (z.gcpPos !== null || z.gcpNeg !== null || z.pPos !== null || z.pNeg !== null) mathBad.push(`${z.name}: parapet pressure fields should be null`);
       return;
     }
-    const curve = expectCurves.find(x => x.figKey === z.figKey && x.name === z.name);
+    let curve = expectCurves.find(x => x.figKey === z.figKey && x.name === z.name);
     if (!curve) { mathBad.push(`${z.name}: no harness curve for ${z.figKey}`); return; }
+    // Fig 30.3-2A Note 5: parapet >= 3 ft sets roof Zones 2/3 positive to the wall curve.
+    if (c.hp >= 3 && z.figKey === '30.3-2A' && /^Zone [23]$/.test(z.name)) curve = { ...curve, pos: WPOS };
     const gp = curve.pos ? interpSeg(curve.pos, c.A) : null, gn = interpSeg(curve.neg, c.A);
     const pp = gp === null ? null : qh * (gp + c.GCpi), pn = qh * (gn - c.GCpi);
     for (const [key, val, tol] of [['gcpPos', gp, 1e-9], ['gcpNeg', gn, 1e-9], ['pPos', pp, 1e-6], ['pNeg', pn, 1e-6]]) {
@@ -427,6 +432,12 @@ async function verify722() {
     && near(p5.terms.caseA, 95.077, 1e-3) && near(p5.terms.caseB, 56.702, 1e-3) && p5.terms.govCase === 'A', JSON.stringify([p4?.terms, p5?.terms]));
   const parRow = s.rows.find(r => r[0].startsWith('Zone 4 — Parapet'));
   check('T15 parapet row cites §30.6 / Fig 30.6-1', !!parRow && /§30\.6/.test(parRow[0]) && /Fig 30\.6-1/.test(parRow[1]), JSON.stringify(parRow));
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2G', theta: 45, hp: 3 });
+  const h4 = zp(s, 'Zone 4 — Parapet'), h5 = zp(s, 'Zone 5 — Parapet');
+  // Hip roofs: Zone 3 (eave strip, −3.8 + 1.4·log 32 = −1.69279) is next to every parapet → both rows use it.
+  check('T18 7-22 hip parapet uses the eave Zone 3 for both rows (Case A 69.231)', !!h4 && !!h5
+    && near(h4.terms.roofNegGCp, -1.692790, 1e-5) && near(h5.terms.roofNegGCp, -1.692790, 1e-5)
+    && near(h4.terms.caseA, 69.2308, 1e-3), JSON.stringify([h4?.terms, h5?.terms]));
   s = await runCase22({ ...T1, exp: 'B', h: 40 });
   expectP('T16 7-22 Table 26.10-1 Exp B h 40 (Kh 0.74)', s, [['Zone 4', 23.229, -25.359], ['Zone 5', 23.229, -29.848]]);
   s = await runCase22({ ...T1, exp: 'B', h: 40, edition: '7-16', wallFig: '30.3-1' });
