@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>ASCE 7-16 MWFRS Wind — Directional Procedure</title>
+<title>MWFRS Wind — Directional Procedure</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px}
@@ -85,8 +85,8 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 
 <div class="container">
 <div class="header">
-  <h1>ASCE 7-16 MWFRS Wind Pressure Calculator</h1>
-  <div class="sub">Chapter 27, Part 1 — Directional Procedure, All Heights | Enclosed, Partially Enclosed, Partially Open &amp; Open Buildings (free roofs per Figs. 27.3-4 to 27.3-7, §28.3.5 frames)</div>
+  <h1 id="hdrTitle">MWFRS Wind Pressure Calculator</h1>
+  <div class="sub" id="hdrSub"></div>
 </div>
 
 <!-- PROJECT INFO -->
@@ -115,7 +115,8 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
   <div class="blk-hd open" onclick="togBlk(this)"><span>Wind Parameters</span><span class="tog">▶</span></div>
   <div class="blk-body">
     <div class="row">
-      <div class="ig"><label>Wind Speed V (mph)</label><input type="number" id="V" value="115" min="85" max="200" step="1"/></div>
+      <div class="ig"><label>Code Edition</label><select id="codeEd" onchange="applyEditionLabels();drawMWFRSDiagram();if(document.getElementById('results').style.display==='block') calculate()"><option value="7-16" selected>ASCE 7-16</option><option value="7-22">ASCE 7-22</option></select></div>
+      <div class="ig"><label id="vLabel">Wind Speed V (mph)</label><input type="number" id="V" value="115" min="85" max="200" step="1"/></div>
       <div class="ig">
         <label>Exposure Category</label>
         <select id="exp">
@@ -137,7 +138,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
       <div class="ig"><label>Ground Elev. (ft)</label><input type="number" id="groundElev" value="0" min="-1000" max="12000" step="10" oninput="updateKeFromElev()"/></div>
       <div class="ig"><label>Ke (Ground Elev. Factor)</label><input type="number" id="Ke" value="1.00" min="0.6" max="1.05" step="0.001"/></div>
     </div>
-    <div class="ref">Kd = 0.85 (Table 26.6-1, Buildings) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Kd·Ke·V² | Ke = e<sup>−0.0000362·z<sub>g</sub></sup> (Table 26.9-1) — computed from ground elevation, editable | GCpi per Table 26.13-1: Enclosed ±0.18, Partially Enclosed ±0.55, Partially Open ±0.18, Open 0</div>
+    <div class="ref" id="windRef"></div>
   </div>
 </div>
 
@@ -195,7 +196,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
     <div class="row">
       <div class="ig" id="hpRow"><label>Max. parapet height above roof datum h (ft) — q<sub>p</sub> at its top <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig" id="hpTypRow"><label>Typical parapet height (ft) <span style="font-weight:400;color:#718096">(blank = max)</span></label><input type="number" id="hpTyp" value="" min="0" step="0.5" placeholder="= max" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig hide" id="frameRowN"><label>Transverse Frames n (§28.3.5)</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
+      <div class="ig hide" id="frameRowN"><label>Transverse Frames n</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
       <div class="ig hide" id="frameRowAs"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
     </div>
     <div class="ref"><b>Wind-X:</b> wind E–W, normal to the E and W faces — resisted in-plane by the N and S shearwalls (EW walls); L = B, B<sub>⊥</sub> = D | <b>Wind-Y:</b> wind N–S, normal to the N and S faces — resisted in-plane by the E and W shearwalls (NS walls); L = D, B<sub>⊥</sub> = B | Parapet: q<sub>p</sub> at h + h<sub>p,max</sub> (§27.3.4); the typical height loads the full building width; on a sloped roof h + h<sub>p,max</sub> must be the highest parapet top elevation; stepped parapets are entered in the Diaphragm Designer (roof level, flat roofs only) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure</div>
@@ -257,7 +258,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
     <div class="blk-body" id="openTransBody"></div>
   </div>
   <div class="blk" id="frameBlk" style="display:none">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Longitudinal Wind on Transverse Frames (§28.3.5, Eqs. 28.3-3 &amp; 28.3-4)</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Longitudinal Wind on Transverse Frames</span><span class="tog">▶</span></div>
     <div class="blk-body" id="frameBody"></div>
   </div>
   <div class="blk" id="minBlk" style="display:none">
@@ -276,15 +277,83 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
 var Kd = 0.85, G = 0.85;
 
-// Table 26.10-1 — Kz values [z_ft, B, C, D]
-var KZ_TABLE = [
-  [0,0.57,0.85,1.03],[15,0.57,0.85,1.03],[20,0.62,0.90,1.08],
-  [25,0.66,0.94,1.12],[30,0.70,0.98,1.16],[40,0.76,1.04,1.22],
-  [50,0.81,1.09,1.27],[60,0.85,1.13,1.31],[70,0.89,1.17,1.34],
-  [80,0.93,1.21,1.38],[90,0.96,1.24,1.40],[100,0.99,1.26,1.43],
-  [120,1.04,1.31,1.48],[140,1.09,1.36,1.52],[160,1.13,1.39,1.55],
-  [180,1.17,1.43,1.58],[200,1.20,1.46,1.61]
-];
+// Table 26.10-1 — Kz values [z_ft, B, C, D]. Table interpolation per Note 3.
+// Note 1: 7-16 uses 2.01(z/zg)^(2/α); 7-22 uses 2.41(z/zg)^(2/α),
+// with Kz = 2.41 for zg < z ≤ 3,280 ft. ALPHA_ZG documents Table 26.11-1.
+var CODE = {
+  '7-16': {
+    key:'7-16', name:'ASCE 7-16', kdInQ:true,
+    KZ:[
+      [0,0.57,0.85,1.03],[15,0.57,0.85,1.03],[20,0.62,0.90,1.08],
+      [25,0.66,0.94,1.12],[30,0.70,0.98,1.16],[40,0.76,1.04,1.22],
+      [50,0.81,1.09,1.27],[60,0.85,1.13,1.31],[70,0.89,1.17,1.34],
+      [80,0.93,1.21,1.38],[90,0.96,1.24,1.40],[100,0.99,1.26,1.43],
+      [120,1.04,1.31,1.48],[140,1.09,1.36,1.52],[160,1.13,1.39,1.55],
+      [180,1.17,1.43,1.58],[200,1.20,1.46,1.61],[250,1.28,1.53,1.68],
+      [300,1.35,1.59,1.73],[350,1.41,1.64,1.78],[400,1.47,1.69,1.82],
+      [450,1.52,1.73,1.86],[500,1.56,1.77,1.89]
+    ],
+    ALPHA_ZG:{B:[7.0,1200],C:[9.5,900],D:[11.5,700]},
+    CN_TROUGHED_30B_CNW_CLEAR:-0.1, fig2737_hL:true,
+    L:{section:'§28.3.5', frameCase:'Load Case B', frameGeometry:'', frameKs:'Eq. 28.3-4: ',
+      monoNote:'Monoslope: entire roof is windward OR leeward (Fig. 27.3-1 Note 4) — check both rows',
+      mansardNote:'Mansard: top horizontal + leeward slope treated as leeward (Fig. 27.3-1 Note 6)',
+      monoSmall:'θ < 7.5°: monoslope 0° coefficients apply (Fig. 27.3-4 Note 3)',
+      pitchedSmall:'θ < 7.5°: monoslope 0° coefficients apply (Figs. 27.3-5/6 Note 3)',
+      parallelRange:'Fig. 27.3-7 does not apply directly; verify by other means.',
+      minException:'§27.3.5 exception (D.1.1)',
+      tornado:'', troughedNote:'',
+      frameRef:'Eq. 28.3-3: F = qh[(GCpf)<sub>WW</sub> − (GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>A<sub>E</sub>',
+      wallFormula:'p = q·G·Cp ± qh·GCpi', wallWW:'qz·G·Cp,WW', wallInternal:'qh·GCpi', wallNet:'Cp,LW·qh·G',
+      roofFormula:'p = qh·G·Cp ± qh·GCpi', openFormula:'qh·G',
+      parapetFormula:'qp·GCpn', parapetNet:'2.5 q<sub>p</sub>', parapetLine:'2.5 q<sub>p</sub> h<sub>p,typ</sub>',
+      frameP:'qh[(GCpf)<sub>WW</sub>−(GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>',
+      windRef:'Kd = 0.85 (Table 26.6-1, Buildings) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Kd·Ke·V² | Ke = e<sup>−0.0000362·z<sub>g</sub></sup> (Table 26.9-1)'
+    }
+  },
+  '7-22': {
+    key:'7-22', name:'ASCE 7-22', kdInQ:false,
+    KZ:[
+      [0,0.57,0.85,1.03],[15,0.57,0.85,1.03],[20,0.62,0.90,1.08],
+      [25,0.66,0.94,1.12],[30,0.70,0.98,1.16],[40,0.74,1.04,1.22],
+      [50,0.79,1.09,1.27],[60,0.83,1.13,1.31],[70,0.86,1.17,1.34],
+      [80,0.90,1.21,1.38],[90,0.92,1.24,1.40],[100,0.95,1.26,1.43],
+      [120,1.00,1.31,1.48],[140,1.04,1.34,1.52],[160,1.08,1.39,1.55],
+      [180,1.11,1.41,1.58],[200,1.14,1.44,1.61],[250,1.21,1.51,1.68],
+      [300,1.27,1.57,1.73],[350,1.33,1.62,1.78],[400,1.38,1.66,1.82],
+      [450,1.42,1.70,1.86],[500,1.46,1.74,1.89]
+    ],
+    ALPHA_ZG:{B:[7.5,3280],C:[9.8,2460],D:[11.5,1935]},
+    CN_TROUGHED_30B_CNW_CLEAR:0.1, fig2737_hL:false,
+    L:{section:'§28.3.7', frameCase:'Load Case 2', frameGeometry:' (geometry Fig. 28.3-3)', frameKs:'',
+      monoNote:'Monoslope: entire roof is windward OR leeward (Fig. 27.3-1 monoslope elevations) — check both rows',
+      mansardNote:'Mansard: top horizontal + leeward slope treated as leeward (Fig. 27.3-1 Note 5)',
+      monoSmall:'θ < 7.5°: Fig. 27.3-4 "<7.5°" row applies',
+      pitchedSmall:'θ < 7.5°: Fig. 27.3-4 "<7.5°" row applies (Figs. 27.3-5/6 Note 3)',
+      parallelRange:'the Figs. 27.3-4/5/6 range; Fig. 27.3-7 (7-22) states no h/L limit (Fig. 27.3-4 Note 4 sends 0.05 ≤ h/L < 0.25, θ < 5° roofs here). Verify.',
+      minException:'§27.3.5 exception (Appendix D §D.1)',
+      tornado:'Risk Category III/IV buildings also require tornado loads per Chapter 32 (§26.1.1) — not computed here.',
+      troughedNote:'Fig. 27.3-6, θ = 30°, Case B, clear: ASCE 7-22 prints C_NW = +0.1; ASCE 7-16 prints −0.1.',
+      frameRef:'Eq. 28.3-3: p = qh·Kd[(GCpf)<sub>WW</sub> − (GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>, Eq. 28.3-4: F = p·A<sub>E</sub>',
+      wallFormula:'p = q·Kd·G·Cp ± qh·Kd·GCpi (Eq. 27.3-1)', wallWW:'qz·Kd·G·Cp,WW', wallInternal:'qh·Kd·GCpi', wallNet:'Cp,LW·qh·Kd·G',
+      roofFormula:'p = qh·Kd·G·Cp ± qh·Kd·GCpi', openFormula:'qh·Kd·G',
+      parapetFormula:'qp·Kd·GCpn (Eq. 27.3-3)', parapetNet:'2.5 Kd q<sub>p</sub>', parapetLine:'2.5 Kd q<sub>p</sub> h<sub>p,typ</sub>',
+      frameP:'qh·Kd[(GCpf)<sub>WW</sub>−(GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>',
+      windRef:'Kd = 0.85 (Table 26.6-1, Buildings — applied in the pressure equations, Eqs. 27.3-1/2/3, 28.3-3) | G = 0.85 (§26.11.1, Rigid) | Eq. 26.10-1: q = 0.00256·Kz·Kzt·Ke·V² | Ke = e<sup>−0.0000362·z<sub>e</sub></sup> (Table 26.9-1, Note 2)'
+    }
+  }
+};
+function ed(){ var s=document.getElementById('codeEd'); return CODE[s&&s.value]||CODE['7-16']; }
+function applyEditionLabels(){
+  var E=ed(), tail=' — computed from ground elevation, editable | GCpi per Table 26.13-1: Enclosed ±0.18, Partially Enclosed ±0.55, Partially Open ±0.18, Open 0';
+  document.title=E.name+' MWFRS Wind — Directional Procedure';
+  document.getElementById('hdrTitle').textContent=E.name+' MWFRS Wind Pressure Calculator';
+  document.getElementById('hdrSub').textContent='Chapter 27, Part 1 — Directional Procedure, All Heights | Enclosed, Partially Enclosed, Partially Open & Open Buildings (free roofs per Figs. 27.3-4 to 27.3-7, '+E.L.section+' frames)';
+  document.getElementById('windRef').innerHTML=E.L.windRef+tail;
+  document.getElementById('frameRowN').querySelector('label').textContent='Transverse Frames n ('+E.L.section+')';
+  document.querySelector('#frameBlk .blk-hd span').textContent='Longitudinal Wind on Transverse Frames ('+E.L.section+', Eqs. 28.3-3 & 28.3-4)';
+  document.getElementById('vLabel').textContent='Wind Speed V (mph) — Fig. 26.5-1 of '+E.name;
+}
 
 // Sloped roof Cp table (Fig. 27.3-1)
 // [theta, {h/L≤0.25:[WW_low,WW_high,LW]}, {h/L=0.5:[...]}, {h/L≥1.0:[...]}]
@@ -338,7 +407,7 @@ var CN_TRANSVERSE=[
   {zone:'> h, ≤ 2h', A:{clear:-0.6, obs:-0.9}, B:{clear:0.5, obs:0.5}},
   {zone:'> 2h',      A:{clear:-0.3, obs:-0.6}, B:{clear:0.3, obs:0.3}}
 ];
-// Fig. 28.3-1, Load Case B (wind parallel to ridge): zones 5, 6, 5E, 6E — used by §28.3.5
+// Fig. 28.3-1 Load Case B (7-16) = Load Case 2 (7-22): zones 5, 6, 5E, 6E.
 var GCPF_LC_B={z5:0.40, z6:-0.29, z5E:0.61, z6E:-0.43};
 
 // ─── UTILITIES ───────────────────────────────────────────────────────────────
@@ -348,11 +417,11 @@ function f3(v){return (Math.round(v*1000)/1000).toFixed(3)}
 function fi(v){return Math.round(v).toLocaleString()}
 function escHtml(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-function getKz(z, exp){
+function getKz(z, exp, E){
   var ei = exp==='B'?1:exp==='C'?2:3;
-  var rows = KZ_TABLE;
+  var rows = E.KZ;
   if(z<=0) return rows[0][ei];
-  if(z>=200) return rows[rows.length-1][ei];
+  if(z>=rows[rows.length-1][0]) return rows[rows.length-1][ei];
   for(var i=0;i<rows.length-1;i++){
     if(z>=rows[i][0] && z<=rows[i+1][0]){
       var t=(z-rows[i][0])/(rows[i+1][0]-rows[i][0]);
@@ -362,9 +431,9 @@ function getKz(z, exp){
   return rows[rows.length-1][ei];
 }
 
-function qz(z,Kzt,Ke,V,exp){
-  var kz=getKz(z,exp);
-  return 0.00256*kz*Kzt*Kd*Ke*V*V;
+function qz(z,Kzt,Ke,V,exp,E){
+  var kz=getKz(z,exp,E);
+  return 0.00256*kz*Kzt*(E.kdInQ?Kd:1)*Ke*V*V;
 }
 
 function lerpCpLW(LB){
@@ -452,21 +521,22 @@ function cnRow(table, th){
 }
 
 // Figs. 27.3-4/5/6 — rows for wind normal to ridge. Returns [{gamma,kase,CNW,CNL,note}]
-function openRoofCN(shape, flow, theta){
+function cnTroughed(E){ var t=JSON.parse(JSON.stringify(CN_TROUGHED)); t[30].B[0]=E.CN_TROUGHED_30B_CNW_CLEAR; return t; }
+function openRoofCN(shape, flow, theta, E){
   var out=[];
   var push=function(g,k,w,l,note){ out.push({gamma:g,kase:k,CNW:w,CNL:l,note:note||''}); };
   if(shape==='monoslope'){
-    var row=cnRow(CN_MONO, theta<7.5?0:theta), nm=theta<7.5?'θ < 7.5°: monoslope 0° coefficients apply (Fig. 27.3-4 Note 3)':'';
+    var row=cnRow(CN_MONO, theta<7.5?0:theta), nm=theta<7.5?E.L.monoSmall:'';
     var ix=flow==='clear'?[0,1,4,5]:[2,3,6,7];
     push('0°','A',row.A[ix[0]],row.A[ix[1]],nm);   push('0°','B',row.B[ix[0]],row.B[ix[1]],nm);
     push('180°','A',row.A[ix[2]],row.A[ix[3]],nm); push('180°','B',row.B[ix[2]],row.B[ix[3]],nm);
   } else {
     var ix2=flow==='clear'?[0,1]:[2,3];
     if(theta<7.5){
-      var r0=CN_MONO[0], n='θ < 7.5°: monoslope 0° coefficients apply (Figs. 27.3-5/6 Note 3)';
+      var r0=CN_MONO[0], n=E.L.pitchedSmall;
       push('0°, 180°','A',r0.A[ix2[0]],r0.A[ix2[1]],n); push('0°, 180°','B',r0.B[ix2[0]],r0.B[ix2[1]],n);
     } else {
-      var row2=cnRow(shape==='pitched'?CN_PITCHED:CN_TROUGHED, theta);
+      var row2=cnRow(shape==='pitched'?CN_PITCHED:cnTroughed(E), theta);
       push('0°, 180°','A',row2.A[ix2[0]],row2.A[ix2[1]]); push('0°, 180°','B',row2.B[ix2[0]],row2.B[ix2[1]]);
     }
   }
@@ -480,12 +550,13 @@ function openTransverseCN(flow){
   });
 }
 
-// §28.3.5 — longitudinal force on transverse frames, Eqs. 28.3-3 / 28.3-4.
+// §28.3.5 (7-16) / §28.3.7 (7-22) — longitudinal force on transverse frames.
 // o = {Wperp (width normal to ridge), Lridge (length along ridge), h (mean roof ht), theta, n, AS, qh, Kh}
 // Gable end-wall geometry: rise = (Wperp/2)·tanθ, eave = h − rise/2, AE = Wperp·eave + ½·Wperp·rise.
 // Edge zone (5E/6E) = end-wall strip of width a at the windward corner, full height to the roof line (Gate 1 S-09):
 //   Aedge = a·eave + ½·a²·tanθ. GCpf windward/leeward are the area-weighted averages of zones 5/5E and 6/6E over AE.
 // o.qh must be the Chapter 28 qh: Exposure B with h < 30 ft uses Kz = 0.70 (Table 26.10-1 fn. a, Gate 1 S-01).
+// Fig. 28.3-1 strip-width exception for least dimension > 300 ft and θ 0–7° remains outside this calculator.
 function longFrameForce(o){
   var rise=(o.Wperp/2)*Math.tan(o.theta*Math.PI/180);
   var eaveH=o.h-rise/2;
@@ -498,9 +569,10 @@ function longFrameForce(o){
   var KB=o.Wperp<100?1.8-0.01*o.Wperp:0.8;
   var n=Math.max(3,o.n||3), phiRaw=AE>0?(o.AS||0)/AE:0, phi=Math.min(1,phiRaw);   // φ = solid fraction of the end wall, ≤ 1
   var KS=0.60+0.073*(n-3)+1.25*Math.pow(phi,1.8);
-  var p=o.qh*(gcpfW-gcpfL)*KB*KS;
+  var kdp=o.Kdp||1;
+  var p=o.qh*kdp*(gcpfW-gcpfL)*KB*KS;
   return {Wperp:o.Wperp,Lridge:o.Lridge,theta:o.theta,rise:rise,eaveH:eaveH,AE:AE,a:a,Aedge:Aedge,Abulk:Abulk,
-          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kh:o.Kh,kzFloor:!!o.Kh28Applied,p:p,F:p*AE};
+          gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kdp:kdp,Kh:o.Kh,kzFloor:!!o.Kh28Applied,p:p,F:p*AE};
 }
 
 // ─── UI HELPERS ──────────────────────────────────────────────────────────────
@@ -577,6 +649,7 @@ function reindexStories(){
 // ─── MAIN CALCULATION ────────────────────────────────────────────────────────
 function calculate(){
   // --- gather inputs ---
+  var E=ed(), KDP=E.kdInQ?1:Kd;
   var V=parseFloat(document.getElementById('V').value)||115;
   var exp=document.getElementById('exp').value;
   var encl=document.getElementById('encl').value;
@@ -611,14 +684,14 @@ function calculate(){
   var GCpi = GCPI_MAP[encl]!==undefined?GCPI_MAP[encl]:0.18;
 
   // qh
-  var qh_val=qz(hVal,Kzt,Ke,V,exp);
-  var Kh=getKz(hVal,exp);
+  var qh_val=qz(hVal,Kzt,Ke,V,exp,E);
+  var Kh=getKz(hVal,exp,E);
 
   // ─── §28.3.5 longitudinal frame force (open + pitched free roof, or partially enclosed + gable) ──
   var Wperp = normalX ? B : Ddim, Lridge = normalX ? Ddim : B;
   // Chapter 28 velocity pressure: Table 26.10-1 footnote a — Exposure B, z < 30 ft → Kz = 0.70 (Gate 1 S-01)
   var Kh28 = (exp==='B' && hVal<30) ? 0.70 : Kh;
-  var qh28 = 0.00256*Kh28*Kzt*Kd*Ke*V*V;
+  var qh28 = 0.00256*Kh28*Kzt*(E.kdInQ?Kd:1)*Ke*V*V;
   // Geometry guard: eave height = h − rise/2 must be positive, else AE / GCpf weighting are meaningless
   var frameElig = frameEligible() && theta>0 && theta<=45;
   var riseChk=(Wperp/2)*Math.tan(theta*Math.PI/180);
@@ -626,7 +699,7 @@ function calculate(){
   var frame = (frameElig && !frameReason)
     ? longFrameForce({Wperp:Wperp, Lridge:Lridge, h:hVal, theta:theta,
                       n:parseInt(document.getElementById('numFrames').value)||3,
-                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28,
+                      AS:parseFloat(document.getElementById('AsArea').value)||0, qh:qh28, Kh:Kh28, Kdp:KDP,
                       Kh28Applied:(exp==='B' && hVal<30)})
     : null;
 
@@ -638,12 +711,12 @@ function calculate(){
       shape:shape, flow:flow, theta:theta, Wperp:Wperp, Lridge:Lridge, hL:hVal/Wperp, hL90:hVal/Lridge,
       normalLabel: normalX ? 'Wind-X (EW)' : 'Wind-Y (NS)',
       parallelLabel: normalX ? 'Wind-Y (NS)' : 'Wind-X (EW)',
-      rows: openRoofCN(shape,flow,theta).map(function(r){ r.pW=qh_val*G*r.CNW; r.pL=qh_val*G*r.CNL; return r; }),
+      rows: openRoofCN(shape,flow,theta,E).map(function(r){ r.pW=qh_val*KDP*G*r.CNW; r.pL=qh_val*KDP*G*r.CNL; return r; }),
       // Fig. 27.3-7 zones measured from the windward edge along the ridge: 0–h, h–2h, 2h–Lridge.
       // Zones that start at or beyond the ridge length do not exist on the roof (G2-05).
       trans: openTransverseCN(flow).map(function(z,i){
         z.from=[0,hVal,2*hVal][i]; z.to=Math.min([hVal,2*hVal,Lridge][i],Lridge);
-        z.pA=qh_val*G*z.A; z.pB=qh_val*G*z.B; return z;
+        z.pA=qh_val*KDP*G*z.A; z.pB=qh_val*KDP*G*z.B; return z;
       }).filter(function(z){ return z.from<Lridge; })
     };
     document.getElementById('results').style.display='block';
@@ -662,11 +735,11 @@ function calculate(){
         {symbol:'pRoof', label:'Max free-roof uplift', value:_pMin, unit:'psf', kind:'pressure'},
         {symbol:'pRoofDown', label:'Max free-roof downward', value:_pMax, unit:'psf', kind:'pressure'}
       ];
-      if(frame) pub.push({symbol:'Flong', label:'Longitudinal frame force F (§28.3.5)', value:frame.F/1000, unit:'kips', kind:'shear'});
+      if(frame) pub.push({symbol:'Flong', label:'Longitudinal frame force F ('+E.L.section+')', value:frame.F/1000, unit:'kips', kind:'shear'});
       AREv2.publish(pub);
     }
     drawMWFRSDiagram();
-    window.__mwfrsLast={V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:null, theta:theta, hp:0, hpTyp:0, GCpi:GCpi, qh:qh_val,
+    window.__mwfrsLast={code:E.key, Kd:Kd, qIncludesKd:E.kdInQ, V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:null, theta:theta, hp:0, hpTyp:0, GCpi:GCpi, qh:qh_val,
                         ridgeDir:ridgeDir, open:open, frame:frame, wx:null, wy:null, roofX:null, roofY:null, parapet:null};
     try{ localStorage.removeItem('ARE_mwfrs_wind'); }catch(e){}
     document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
@@ -698,20 +771,20 @@ function calculate(){
     var rows=[];
     for(var i=0;i<stories.length;i++){
       var zmid=Math.max(0,stElevMid[i]);
-      var kz_i=getKz(zmid,exp);
-      var qz_i=qz(zmid,Kzt,Ke,V,exp);
+      var kz_i=getKz(zmid,exp,E);
+      var qz_i=qz(zmid,Kzt,Ke,V,exp,E);
 
       // Case A: +GCpi (max suction), Case B: -GCpi (max inward)
       // Net wall pressure = qz·G·Cp_WW - qh·G·Cp_LW ± qh·GCpi (but for story shear GCpi cancels)
       // Individual face pressures:
-      var pWW_A = qz_i*G*Cp_WW - qh_val*GCpi;  // Case A: pos (inward) on WW
-      var pWW_B = qz_i*G*Cp_WW + qh_val*GCpi;
-      var pLW_A = qh_val*G*Cp_LW + qh_val*GCpi;  // Case A: suction on LW
-      var pLW_B = qh_val*G*Cp_LW - qh_val*GCpi;
-      var pSW   = qh_val*G*Cp_SW;                // side wall (no GCpi in net for design table)
+      var pWW_A = qz_i*KDP*G*Cp_WW - qh_val*KDP*GCpi;  // Case A: pos (inward) on WW
+      var pWW_B = qz_i*KDP*G*Cp_WW + qh_val*KDP*GCpi;
+      var pLW_A = qh_val*KDP*G*Cp_LW + qh_val*KDP*GCpi;  // Case A: suction on LW
+      var pLW_B = qh_val*KDP*G*Cp_LW - qh_val*KDP*GCpi;
+      var pSW   = qh_val*KDP*G*Cp_SW;                // side wall (no GCpi in net for design table)
 
       // Net story shear (GCpi cancels in lateral sum)
-      var p_net = qz_i*G*Cp_WW - qh_val*G*Cp_LW;  // psf net lateral
+      var p_net = qz_i*KDP*G*Cp_WW - qh_val*KDP*G*Cp_LW;  // psf net lateral
       // Tributary height to diaphragm at this level:
       //   Roof (i=0): only upper half of story height reaches roof diaphragm
       //   Intermediate floor (i>0): half of story above + half of story below
@@ -761,22 +834,22 @@ function calculate(){
   var parapetData=null;
   if(hp>0){
     var zp=hVal+hp;
-    var qp=qz(zp,Kzt,Ke,V,exp);
-    var Kp=getKz(zp,exp);
+    var qp=qz(zp,Kzt,Ke,V,exp,E);
+    var Kp=getKz(zp,exp,E);
     // §27.3.4: pp = qp × GCpn  (GCpn=+1.5 WW parapet, -1.0 LW parapet)
     // qp at the top of the MAX parapet (z = h + hp,max); the TYPICAL height loads the full B⊥.
     parapetData={
       zp:zp, hp:hp,
       Kp:Kp, qp:qp,
-      pp_WW: qp*1.5,
-      pp_LW: qp*(-1.0),
+      pp_WW: qp*KDP*1.5,
+      pp_LW: qp*KDP*(-1.0),
       GCpn_WW:1.5, GCpn_LW:-1.0,
       // additive (parapet steps, 2026-09-23)
       hp_max:hp, hp_typ:hpTyp, hpTypClamped:hpTypClamped, z_p:zp,
-      pp_ww: qp*1.5,            // windward, +1.5 qp
-      pp_lw: qp*1.0,            // leeward magnitude, 1.0 qp (acts in the same sense as windward)
-      pp_net: qp*1.5 - qp*(-1.0),   // 2.5 qp, same expression as the force below
-      w_typ_plf: (qp*1.5 - qp*(-1.0)) * hpTyp
+      pp_ww: qp*KDP*1.5,            // windward, +1.5 Kd qp
+      pp_lw: qp*KDP*1.0,            // leeward magnitude
+      pp_net: qp*KDP*1.5 - qp*KDP*(-1.0),
+      w_typ_plf: (qp*KDP*1.5 - qp*KDP*(-1.0)) * hpTyp
     };
     // Apply parapet force to the roof diaphragm level (top story, index 0)
     // Net parapet force = (pp,WW − pp,LW) × hp,typ × B⊥ — acts at roof level
@@ -802,8 +875,8 @@ function calculate(){
       var out=[];
       zones.forEach(function(z){
         // governs: case A = Cp1 + GCpi, Case B = Cp2 - GCpi  (uplift/suction on roof)
-        var p_caseA=qhv*G*z.Cp1 - qhv*GCpi; // Case A: max uplift (GCpi adding to suction)
-        var p_caseB=qhv*G*z.Cp2 + qhv*GCpi; // Case B: min uplift
+        var p_caseA=qhv*KDP*G*z.Cp1 - qhv*KDP*GCpi; // Case A: max uplift
+        var p_caseB=qhv*KDP*G*z.Cp2 + qhv*KDP*GCpi; // Case B: min uplift
         out.push({zone:z.zone, from:z.from, to:z.to, Cp1:z.Cp1, Cp2:z.Cp2, pA:p_caseA, pB:p_caseB});
       });
       var why = roofType==='flat' ? 'flat' : (theta<10 ? 'lowslope' : 'parallel');
@@ -813,12 +886,12 @@ function calculate(){
       var cp=slopedRoofCp(theta,hL);
       var Cp_WW_low=cp[0], Cp_WW_high=cp[1], Cp_LW_r=cp[2];
       // Governing WW: use both values per Fig 27.3-1 footnotes
-      var p_WW_A_low  = qhv*G*Cp_WW_low  - qhv*GCpi;
-      var p_WW_A_high = qhv*G*Cp_WW_high - qhv*GCpi;
-      var p_LW_A      = qhv*G*Cp_LW_r    - qhv*GCpi;
-      var p_WW_B_low  = qhv*G*Cp_WW_low  + qhv*GCpi;
-      var p_WW_B_high = qhv*G*Cp_WW_high + qhv*GCpi;
-      var p_LW_B      = qhv*G*Cp_LW_r    + qhv*GCpi;
+      var p_WW_A_low  = qhv*KDP*G*Cp_WW_low  - qhv*KDP*GCpi;
+      var p_WW_A_high = qhv*KDP*G*Cp_WW_high - qhv*KDP*GCpi;
+      var p_LW_A      = qhv*KDP*G*Cp_LW_r    - qhv*KDP*GCpi;
+      var p_WW_B_low  = qhv*KDP*G*Cp_WW_low  + qhv*KDP*GCpi;
+      var p_WW_B_high = qhv*KDP*G*Cp_WW_high + qhv*KDP*GCpi;
+      var p_LW_B      = qhv*KDP*G*Cp_LW_r    + qhv*KDP*GCpi;
       return {
         type:'sloped', roofType:roofType, theta:theta, hL:hL,
         Cp_WW_low:Cp_WW_low, Cp_WW_high:Cp_WW_high, Cp_LW:Cp_LW_r,
@@ -867,7 +940,7 @@ function calculate(){
   drawMWFRSDiagram();
 
   // stash last results for Revit export
-  window.__mwfrsLast = {V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:roofType, theta:theta, hp:hp, hpTyp:(hp>0?hpTyp:0), GCpi:GCpi, qh:qh_val, wx:wx, wy:wy, roofX:roofX, roofY:roofY, parapet:parapetData, ridgeDir:ridgeDir, frame:frame, open:null};
+  window.__mwfrsLast = {code:E.key, Kd:Kd, qIncludesKd:E.kdInQ, V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:roofType, theta:theta, hp:hp, hpTyp:(hp>0?hpTyp:0), GCpi:GCpi, qh:qh_val, wx:wx, wy:wy, roofX:roofX, roofY:roofY, parapet:parapetData, ridgeDir:ridgeDir, frame:frame, open:null};
 
   // publish wind pressures to localStorage for the ARE Revit joist tools
   try{ var _rp=buildRevitWindPayload(); if(_rp) localStorage.setItem('ARE_mwfrs_wind', JSON.stringify(_rp)); }catch(e){}
@@ -879,10 +952,12 @@ var ENCL_LABEL={enclosed:'Enclosed', partial:'Partially Enclosed', partialOpen:'
 var ROOF_LABEL={flat:'Flat / Low-slope', gablehip:'Gable / Hip', monoslope:'Monoslope', mansard:'Mansard'};
 function renderParams(V,exp,encl,Kzt,Ke,GCpi,qh,Kh,B,Ddim,h,rType,theta,hp,x){
   x=x||{};
+  var E=ed();
   var roofTxt = x.open
     ? x.open.shape.charAt(0).toUpperCase()+x.open.shape.slice(1)+' free roof, '+x.open.flow+', θ='+f1(theta)+'°'
     : (rType==='flat' ? ROOF_LABEL.flat : ROOF_LABEL[rType]+' θ='+f1(theta)+'°');
   var html='<div class="kv">'
+    +'<div class="kv-item">Code = <span>'+E.name+'</span></div>'
     +'<div class="kv-item">V = <span>'+V+' mph</span></div>'
     +'<div class="kv-item">Exposure = <span>'+exp+'</span></div>'
     +'<div class="kv-item">Enclosure = <span>'+(ENCL_LABEL[encl]||encl)+'</span></div>'
@@ -900,11 +975,12 @@ function renderParams(V,exp,encl,Kzt,Ke,GCpi,qh,Kh,B,Ddim,h,rType,theta,hp,x){
   if(hp>0) html+='<div class="kv-item">Parapet h<sub>p,max</sub> = <span>'+f1(hp)+' ft</span></div>'
     +(x.hpTyp!==undefined&&x.hpTyp!==hp?'<div class="kv-item">Parapet h<sub>p,typ</sub> = <span>'+f1(x.hpTyp)+' ft</span></div>':'');
   html+='</div>';
-  html+='<div class="ref" style="margin-top:4px">qh = 0.00256 × Kh × Kzt × Kd × Ke × V² = 0.00256 × '+f3(Kh)+' × '+f2(Kzt)+' × '+f2(Kd)+' × '+f3(Ke)+' × '+V+'² = '+f2(qh)+' psf</div>';
+  html+='<div class="ref" style="margin-top:4px">qh = 0.00256 × Kh × Kzt '+(E.kdInQ?'× Kd ':'')+'× Ke × V² = 0.00256 × '+f3(Kh)+' × '+f2(Kzt)+' × '+(E.kdInQ?f2(Kd)+' × ':'')+f3(Ke)+' × '+V+'² = '+f2(qh)+' psf</div>';
   document.getElementById('paramSummary').innerHTML=html;
 }
 
 function renderDir(dir, container){
+  var E=ed();
   var html='';
   // Direction params
   html+='<div class="kv">'
@@ -917,14 +993,14 @@ function renderDir(dir, container){
     +'</div>';
 
   // Wall pressure table
-  html+='<h3 class="sec">Wall Pressures — Design Pressures p = q·G·Cp ± qh·GCpi</h3>'
+  html+='<h3 class="sec">Wall Pressures — Design Pressures '+E.L.wallFormula+'</h3>'
     +'<div class="ref" style="margin-bottom:8px;line-height:1.6">'
     +'<b>Case A (+GCpi):</b> Positive internal pressure — acts outward on all surfaces. Gives lower WW pressure; governs LW and side wall element design. '
     +'<b>Case B (−GCpi):</b> Negative internal pressure — acts inward on all surfaces. Gives higher WW pressure; governs windward wall element design. '
     +'<b>Net P_lat</b> = WW + |LW| (GCpi cancels in lateral sum) — used for story shear force only, <i>not</i> parapet or element design.'
     +'</div>';
   html+='<table class="res-tbl"><thead><tr>'
-    +'<th>Story</th><th>z_mid (ft)</th><th>Kz</th><th>qz (psf)</th>'
+    +'<th>Story</th><th>z_mid (ft)</th><th>Kz</th><th>'+(E.kdInQ?'qz (psf)':'qz (psf, no Kd)')+'</th>'
     +'<th>WW Case A (psf)<br><span style="font-weight:400;font-size:.85em">+GCpi (pos. internal pressure)</span></th>'
     +'<th>WW Case B (psf)<br><span style="font-weight:400;font-size:.85em">−GCpi (neg. internal, governs WW)</span></th>'
     +'<th>LW (psf)<br><span style="font-weight:400;font-size:.85em">Case B (−GCpi), pairs w/ WW Case B</span></th>'
@@ -946,7 +1022,7 @@ function renderDir(dir, container){
       +'</tr>';
   });
   html+='</tbody></table>';
-  html+='<div class="ref" style="margin-top:4px">Case A (+GCpi, pos. internal): WW = qz·G·Cp,WW − qh·(+GCpi) → lower WW, governs LW/SW element design | Case B (−GCpi, neg. internal): WW = qz·G·Cp,WW + qh·GCpi → higher WW, governs WW element design | LW shown is Case B (−GCpi) paired with WW Case B | Net P_lat = WW − Cp,LW·qh·G (GCpi cancels) — for story shear only, not parapet design | Ref: Fig. 27.3-1, §26.13</div>';
+  html+='<div class="ref" style="margin-top:4px">Case A (+GCpi, pos. internal): WW = '+E.L.wallWW+' − '+E.L.wallInternal.replace('GCpi','(+GCpi)')+' → lower WW, governs LW/SW element design | Case B (−GCpi, neg. internal): WW = '+E.L.wallWW+' + '+E.L.wallInternal+' → higher WW, governs WW element design | LW shown is Case B (−GCpi) paired with WW Case B | Net P_lat = WW − '+E.L.wallNet+' (GCpi cancels) — for story shear only, not parapet design | Ref: Fig. 27.3-1, §26.13</div>';
 
   // Story shear table
   html+='<h3 class="sec">Diaphragm Forces &amp; Story Shears</h3>';
@@ -987,6 +1063,7 @@ function renderDir(dir, container){
 }
 
 function renderParapet(pd, container, wx, wy){
+  var E=ed();
   var html=pd.hpTypClamped ? '<div class="warn">Typical parapet height exceeds the maximum — h<sub>p,typ</sub> capped at h<sub>p,max</sub> = '+f1(pd.hp_max)+' ft.</div>' : '';
   html+='<div class="kv">'
     +'<div class="kv-item">h<sub>p,max</sub> = <span>'+f1(pd.hp_max)+' ft</span></div>'
@@ -994,12 +1071,12 @@ function renderParapet(pd, container, wx, wy){
     +'<div class="kv-item">z_p = h + h<sub>p,max</sub> = <span>'+f1(pd.z_p)+' ft</span></div>'
     +'<div class="kv-item">Kp = <span>'+f3(pd.Kp)+'</span></div>'
     +'<div class="kv-item">qp = <span>'+f2(pd.qp)+' psf</span></div>'
-    +'<div class="kv-item">p<sub>p,net</sub> = 2.5 q<sub>p</sub> = <span>'+f2(pd.pp_net)+' psf</span></div>'
-    +'<div class="kv-item">w<sub>typ</sub> = 2.5 q<sub>p</sub> h<sub>p,typ</sub> = <span>'+f1(pd.w_typ_plf)+' plf</span></div>'
+    +'<div class="kv-item">p<sub>p,net</sub> = '+E.L.parapetNet+' = <span>'+f2(pd.pp_net)+' psf</span></div>'
+    +'<div class="kv-item">w<sub>typ</sub> = '+E.L.parapetLine+' = <span>'+f1(pd.w_typ_plf)+' plf</span></div>'
     +'</div>';
 
   html+='<table class="res-tbl" style="margin-top:10px"><thead><tr>'
-    +'<th>Parapet Type</th><th>GCpn</th><th>qp (psf)</th><th>pp = qp × GCpn (psf)</th>'
+    +'<th>Parapet Type</th><th>GCpn</th><th>qp (psf)</th><th>pp = '+E.L.parapetFormula+' (psf)</th>'
     +'</tr></thead><tbody>'
     +'<tr><td>Windward Parapet</td><td>+1.5</td><td>'+f2(pd.qp)+'</td>'
     +'<td style="font-weight:700;color:#1e3c72">+'+f1(pd.pp_WW)+'</td></tr>'
@@ -1012,7 +1089,7 @@ function renderParapet(pd, container, wx, wy){
     +'<tr><td>Wind-X (wind E–W; E and W face parapets)</td><td>'+f1(wx.Bperp)+'</td><td>'+f1(pd.w_typ_plf)+'</td><td style="font-weight:700;color:#1e3c72">'+fi(wx.rows[0].F_parapet)+'</td></tr>'
     +'<tr><td>Wind-Y (wind N–S; N and S face parapets)</td><td>'+f1(wy.Bperp)+'</td><td>'+f1(pd.w_typ_plf)+'</td><td style="font-weight:700;color:#1e3c72">'+fi(wy.rows[0].F_parapet)+'</td></tr>'
     +'</tbody></table>';
-  html+='<div class="ref" style="margin-top:6px">§27.3.4: pp = qp·GCpn | qp evaluated at z = h + h<sub>p,max</sub> = '+f1(pd.z_p)+' ft (top of the highest parapet; on a sloped roof h + h<sub>p,max</sub> must be the highest parapet top elevation) | GCpn: WW=+1.5, LW=−1.0 | Net parapet force per unit length = (pp,WW − pp,LW) × h<sub>p,typ</sub> = '+f1(pd.pp_net)+' psf × '+f1(pd.hp_typ)+' ft = '+f1(pd.w_typ_plf)+' lb/ft, applied over the full building width B⊥ at the roof diaphragm | Stepped parapets (portions taller than h<sub>p,typ</sub>) are entered in the Diaphragm Designer (roof level, flat roofs only) using q<sub>p</sub> above</div>';
+  html+='<div class="ref" style="margin-top:6px">§27.3.4: pp = '+E.L.parapetFormula+' | qp evaluated at z = h + h<sub>p,max</sub> = '+f1(pd.z_p)+' ft (top of the highest parapet; on a sloped roof h + h<sub>p,max</sub> must be the highest parapet top elevation) | GCpn: WW=+1.5, LW=−1.0 | Net parapet force per unit length = (pp,WW − pp,LW) × h<sub>p,typ</sub> = '+f1(pd.pp_net)+' psf × '+f1(pd.hp_typ)+' ft = '+f1(pd.w_typ_plf)+' lb/ft, applied over the full building width B⊥ at the roof diaphragm | Stepped parapets (portions taller than h<sub>p,typ</sub>) are entered in the Diaphragm Designer (roof level, flat roofs only) using q<sub>p</sub> above</div>';
   container.innerHTML=html;
 }
 
@@ -1021,6 +1098,7 @@ function renderParapet(pd, container, wx, wy){
 function dirSense(lbl){ return String(lbl).indexOf('Wind-Y')===0 ? 'wind N–S, normal to the N and S faces' : 'wind E–W, normal to the E and W faces'; }
 function dirShort(lbl){ return String(lbl).indexOf('Wind-Y')===0 ? 'Wind-Y (wind N–S)' : 'Wind-X (wind E–W)'; }
 function renderRoof(roofs, container){
+  var E=ed();
   var html='';
   roofs.forEach(function(r){
     html+='<h3 class="sec">'+escHtml(r.dir)+' — '+dirSense(r.dir)+'</h3>';
@@ -1028,7 +1106,7 @@ function renderRoof(roofs, container){
       var why = r.why==='parallel' ? 'Wind parallel to ridge — Fig. 27.3-1 zone table applies for all θ'
               : r.why==='lowslope' ? 'Low-slope roof (θ < 10°) — zone table, Fig. 27.3-1'
               : 'Flat/Low-slope roof (θ<10°) — Cp from Fig. 27.3-1';
-      html+='<p class="ref" style="margin-bottom:6px">'+why+' | p = qh·G·Cp ± qh·GCpi | Negative = uplift/suction | −1.3 value not reduced with area (Fig. 27.3-1 fn. b), conservative</p>';
+      html+='<p class="ref" style="margin-bottom:6px">'+why+' | '+E.L.roofFormula+' | Negative = uplift/suction | −1.3 value not reduced with area (Fig. 27.3-1 fn. b), conservative</p>';
       html+='<table class="res-tbl"><thead><tr>'
         +'<th>Zone (from WW)</th><th>Cp₁</th><th>Cp₂</th>'
         +'<th>Case A (psf)<br><span style="font-weight:400;font-size:.85em">Cp₁ − GCpi</span></th>'
@@ -1041,10 +1119,10 @@ function renderRoof(roofs, container){
       });
       html+='</tbody></table>';
     } else {
-      var note = r.roofType==='monoslope' ? 'Monoslope: entire roof is windward OR leeward (Fig. 27.3-1 Note 4) — check both rows'
-               : r.roofType==='mansard'   ? 'Mansard: top horizontal + leeward slope treated as leeward (Fig. 27.3-1 Note 6)'
+      var note = r.roofType==='monoslope' ? E.L.monoNote
+               : r.roofType==='mansard'   ? E.L.mansardNote
                : 'Gable/Hip — wind normal to ridge';
-      html+='<p class="ref" style="margin-bottom:6px">'+note+' | θ='+f1(r.theta)+'° | h/L = '+f2(r.hL)+' | Fig. 27.3-1 bilinear interpolation | p = qh·G·Cp ± qh·GCpi</p>';
+      html+='<p class="ref" style="margin-bottom:6px">'+note+' | θ='+f1(r.theta)+'° | h/L = '+f2(r.hL)+' | Fig. 27.3-1 bilinear interpolation | '+E.L.roofFormula+'</p>';
       var wwLbl = r.roofType==='monoslope' ? 'Entire roof as WW' : r.roofType==='mansard' ? 'WW slope' : 'WW Roof';
       var lwLbl = r.roofType==='monoslope' ? 'Entire roof as LW' : r.roofType==='mansard' ? 'Top + LW slope' : 'LW Roof';
       html+='<table class="res-tbl"><thead><tr>'
@@ -1069,10 +1147,11 @@ function renderRoof(roofs, container){
 }
 
 function renderOpen(o, bodyN, bodyT){
+  var E=ed();
   var warn = (o.hL<0.25||o.hL>1.0)
     ? '<div class="warn">h/L = '+f2(o.hL)+' (wind normal to ridge) is outside 0.25 ≤ h/L ≤ 1.0 — Figs. 27.3-4/5/6 do not apply directly; verify by other means.</div>' : '';
   var warn90 = (o.hL90<0.25||o.hL90>1.0)
-    ? '<div class="warn">h/L = '+f2(o.hL90)+' (wind parallel to ridge, L = ridge length) is outside 0.25 ≤ h/L ≤ 1.0 — Fig. 27.3-7 does not apply directly; verify by other means.</div>' : '';
+    ? '<div class="'+(E.fig2737_hL?'warn':'ref')+'">h/L = '+f2(o.hL90)+' (wind parallel to ridge, L = ridge length) is outside 0.25 ≤ h/L ≤ 1.0 — '+E.L.parallelRange+'</div>' : '';
   var warnT = o.theta>45 ? '<div class="warn">θ = '+f1(o.theta)+'° exceeds the 45° limit of Figs. 27.3-4/5/6 — coefficients shown are the 45° row; verify by other means.</div>' : '';
   var html=warnT+warn+'<div class="kv">'
     +'<div class="kv-item">Normal-to-ridge direction = <span>'+dirShort(o.normalLabel)+'</span></div>'
@@ -1082,7 +1161,7 @@ function renderOpen(o, bodyN, bodyT){
     +'<div class="kv-item">Flow = <span>'+o.flow+'</span></div>'
     +'<div class="kv-item">θ = <span>'+f1(o.theta)+'°</span></div>'
     +'</div>';
-  html+='<table class="res-tbl"><thead><tr><th>γ</th><th>Load Case</th><th>C<sub>NW</sub></th><th>C<sub>NL</sub></th><th>p<sub>W</sub> = qh·G·C<sub>NW</sub> (psf)</th><th>p<sub>L</sub> = qh·G·C<sub>NL</sub> (psf)</th></tr></thead><tbody>';
+  html+='<table class="res-tbl"><thead><tr><th>γ</th><th>Load Case</th><th>C<sub>NW</sub></th><th>C<sub>NL</sub></th><th>p<sub>W</sub> = '+E.L.openFormula+'·C<sub>NW</sub> (psf)</th><th>p<sub>L</sub> = '+E.L.openFormula+'·C<sub>NL</sub> (psf)</th></tr></thead><tbody>';
   o.rows.forEach(function(r){
     html+='<tr><td>'+r.gamma+'</td><td>'+r.kase+'</td><td>'+f2(r.CNW)+'</td><td>'+f2(r.CNL)+'</td>'
       +'<td style="font-weight:700;color:'+(r.pW<0?'#dc2626':'#1e3c72')+'">'+f1(r.pW)+'</td>'
@@ -1090,7 +1169,8 @@ function renderOpen(o, bodyN, bodyT){
   });
   html+='</tbody></table>';
   var notes=o.rows.filter(function(r){return r.note;}).map(function(r){return r.note;});
-  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind arriving at the high eave, γ = 180° at the low eave — Fig. 27.3-4). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Fascia panels on free roofs with θ ≤ 5° are designed as inverted parapets (§27.3.2, qp = qh, GCpn = +1.5 / −1.0) — not computed here. Ref: Figs. 27.3-4/5/6, Eq. 27.3-2, G = 0.85</div>';
+  html+='<div class="ref" style="margin-top:4px">CNW = windward half, CNL = leeward half of the roof (monoslope: γ = 0° wind arriving at the high eave, γ = 180° at the low eave — Fig. 27.3-4). Positive = toward the surface (down on top face), negative = uplift. Load cases A and B are both required. Linear interpolation on θ between tabulated rows. '+(notes.length?notes[0]+'. ':'')+'Fascia panels on free roofs with θ ≤ 5° are designed as inverted parapets (§27.3.2, qp = qh, GCpn = +1.5 / −1.0) — not computed here. Ref: Figs. 27.3-4/5/6, Eq. 27.3-2'+(E.kdInQ?'':' (p = qh·Kd·G·CN)')+', G = 0.85</div>';
+  if(o.shape==='troughed'&&E.L.troughedNote) html+='<div class="ref">'+E.L.troughedNote+'</div>';
   bodyN.innerHTML=html;
 
   var t=warn90+'<div class="kv"><div class="kv-item">Parallel-to-ridge direction = <span>'+dirShort(o.parallelLabel)+'</span></div><div class="kv-item">L (ridge) = <span>'+f1(o.Lridge)+' ft</span></div><div class="kv-item">h/L = <span>'+f2(o.hL90)+'</span></div><div class="kv-item">Zones: <span>h and 2h from the windward edge</span></div></div>';
@@ -1103,11 +1183,12 @@ function renderOpen(o, bodyN, bodyT){
 }
 
 function renderFrame(fr, body, isOpen, reason){
+  var E=ed();
   if(!fr){
     if(reason==='geometry'){
-      body.innerHTML='<div class="warn">§28.3.5 not evaluated: mean roof height h must exceed half the gable rise ((B/2)·tanθ / 2) so the eave height is positive.</div>';
+      body.innerHTML='<div class="warn">'+E.L.section+' not evaluated: mean roof height h must exceed half the gable rise ((B/2)·tanθ / 2) so the eave height is positive.</div>';
     } else {
-      body.innerHTML='<div class="ref">§28.3.5 not applicable: requires an open or partially enclosed building with transverse frames and a pitched (gable) roof, 0° &lt; θ ≤ 45°.</div>';
+      body.innerHTML='<div class="ref">'+E.L.section+' not applicable: requires an open or partially enclosed building with transverse frames and a pitched (gable) roof, 0° &lt; θ ≤ 45°.</div>';
     }
     return;
   }
@@ -1123,15 +1204,16 @@ function renderFrame(fr, body, isOpen, reason){
     +'<div class="kv-item">A<sub>S</sub> = <span>'+f1(fr.AS)+' ft²</span></div>'
     +'<div class="kv-item">φ = A<sub>S</sub>/A<sub>E</sub> = <span>'+f3(fr.phi)+'</span></div>'
     +'</div>';
-  html+='<table class="res-tbl"><thead><tr><th>(GCpf)<sub>WW</sub></th><th>(GCpf)<sub>LW</sub></th><th>K<sub>B</sub></th><th>K<sub>S</sub></th><th>qh (psf)</th><th>p = qh[(GCpf)<sub>WW</sub>−(GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub> (psf)</th><th>F = p·A<sub>E</sub></th></tr></thead><tbody>'
+  html+='<table class="res-tbl"><thead><tr><th>(GCpf)<sub>WW</sub></th><th>(GCpf)<sub>LW</sub></th><th>K<sub>B</sub></th><th>K<sub>S</sub></th><th>qh (psf)</th><th>p = '+E.L.frameP+' (psf)</th><th>F = p·A<sub>E</sub></th></tr></thead><tbody>'
     +'<tr><td>'+f3(fr.gcpfW)+'</td><td>'+f3(fr.gcpfL)+'</td><td>'+f3(fr.KB)+'</td><td>'+f3(fr.KS)+'</td><td>'+f2(fr.qh)+'</td>'
     +'<td style="font-weight:700;color:#1e3c72">'+f1(fr.p)+'</td><td style="font-weight:700;color:#0369a1">'+fi(fr.F)+' lb ('+f2(fr.F/1000)+' kips)</td></tr></tbody></table>';
-  html+='<div class="ref" style="margin-top:4px">Eq. 28.3-3: F = qh[(GCpf)<sub>WW</sub> − (GCpf)<sub>LW</sub>]K<sub>B</sub>K<sub>S</sub>A<sub>E</sub> | Eq. 28.3-4: K<sub>S</sub> = 0.60 + 0.073(n−3) + 1.25φ<sup>1.8</sup> | K<sub>B</sub> = 1.8 − 0.01B (B &lt; 100 ft), 0.8 (B ≥ 100 ft) | qh at mean roof height with Kh = '+f3(fr.Kh)+(fr.kzFloor?' (Exposure B, h &lt; 30 ft → Kz = 0.70 per Table 26.10-1 fn. a)':' per Table 26.10-1')+' | GCpf from Fig. 28.3-1 Load Case B zones 5/6 (bulk) and 5E/6E (end zone, width a) area-weighted over A<sub>E</sub> | F is the total longitudinal force resisted by the MWFRS bracing (apply per §28.3.5 at the end-wall / frame line)'
+  html+='<div class="ref" style="margin-top:4px">'+E.L.frameRef+' | '+E.L.frameKs+'K<sub>S</sub> = 0.60 + 0.073(n−3) + 1.25φ<sup>1.8</sup> | K<sub>B</sub> = 1.8 − 0.01B (B &lt; 100 ft), 0.8 (B ≥ 100 ft) | qh at mean roof height with Kh = '+f3(fr.Kh)+(fr.kzFloor?' (Exposure B, h &lt; 30 ft → Kz = 0.70 per Table 26.10-1 fn. a)':' per Table 26.10-1')+' | GCpf from Fig. 28.3-1 '+E.L.frameCase+' zones 5/6 (bulk) and 5E/6E (end zone, width a) area-weighted over A<sub>E</sub>'+E.L.frameGeometry+' | F is the total longitudinal force resisted by the MWFRS bracing (apply per '+E.L.section+' at the end-wall / frame line)'
     +(isOpen?'':' | Partially enclosed gable building: this force is in addition to the wall pressures above')+'</div>';
   body.innerHTML=html;
 }
 
 function renderMinLoads(isOpen, body){
+  var E=ed();
   var html = isOpen
     ? '<div class="kv"><div class="kv-item">Min. design force (open) = <span>16 psf × A<sub>f</sub></span></div></div>'
       +'<div class="ref">§27.1.5: the design wind force for open buildings shall be not less than 16 psf multiplied by A<sub>f</sub> (area of the roof projected on a vertical plane normal to the wind).</div>'
@@ -1142,7 +1224,8 @@ function renderMinLoads(isOpen, body){
     +'<b>Case 2</b> 75% of Case 1 with torsional moment M<sub>T</sub> = 0.75(P<sub>WX</sub>+P<sub>LX</sub>)B<sub>X</sub>e<sub>X</sub> (e = ±0.15B); '
     +'<b>Case 3</b> 75% of Case 1 on both axes simultaneously; '
     +'<b>Case 4</b> 75% of Case 2 on both axes simultaneously. '
-    +'Buildings meeting §27.3.5 exception (D.1.1) need only Cases 1 and 3.</div>';
+    +'Buildings meeting '+E.L.minException+' need only Cases 1 and 3.</div>';
+  if(E.L.tornado) html+='<div class="ref">'+E.L.tornado+'</div>';
   body.innerHTML=html;
 }
 
@@ -1323,7 +1406,7 @@ function drawMWFRSDiagram(){
 
   // ── View title (below elevation) ─────────────────────────────────────────
   var eTitleY = elevOy + 28;
-  AREDraw.viewTitle(vE, vE.px(B/2), eTitleY, 'Wind-X Elevation (wind E–W) — MWFRS (ASCE 7-16 Ch. 27)');
+  AREDraw.viewTitle(vE, vE.px(B/2), eTitleY, 'Wind-X Elevation (wind E–W) — MWFRS ('+ed().name+' Ch. 27)');
 
   // Code caption
   var capY = eTitleY + 18;
@@ -1596,14 +1679,14 @@ function drawMWFRSDiagram(){
 }
 
 // ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
-var MWFRS_INPUT_IDS=['V','exp','encl','Kzt','groundElev','Ke','B','D','h','roofType','freeRoofShape','windFlow','ridgeDir','roofAngleMode','theta','pitchRise','hp','hpTyp','numFrames','AsArea'];
+var MWFRS_INPUT_IDS=['codeEd','V','exp','encl','Kzt','groundElev','Ke','B','D','h','roofType','freeRoofShape','windFlow','ridgeDir','roofAngleMode','theta','pitchRise','hp','hpTyp','numFrames','AsArea'];
 function collectInputsMWFRS(){
   var storyRows=document.getElementById('storyRows').children;
   var stories=[];
   for(var i=0;i<storyRows.length;i++){
     stories.push({ label: storyRows[i].querySelector('input[type=text]').value, h: storyRows[i].querySelector('.sh').value });
   }
-  var data={ _version:2, _calc:'mwfrs',
+  var data={ _version:3, _calc:'mwfrs',
     projName: document.getElementById('projName').value,
     projNum:  document.getElementById('projNum').value,
     projDate: document.getElementById('projDate').value,
@@ -1715,12 +1798,15 @@ function buildRevitWindPayload(){
       engineer:document.getElementById('projEng').value
     },
     inputs:{
+      code:CODE[L.code].name, q_includes_Kd:true, q_eq2610_includes_Kd:L.qIncludesKd,
       V_mph:L.V, exposure:L.exp, enclosure:L.encl,
       Kzt:L.Kzt, Ke:L.Ke, Kd:0.85, G:0.85, GCpi:L.GCpi,
       B_ft:L.B, D_ft:L.D, h_ft:L.h,
       roofType:L.roofType, theta_deg:L.theta, parapet_ft:L.hp, parapet_typ_ft:L.hpTyp
     },
-    qh_psf:r1(L.qh),
+    // Legacy qh_psf includes Kd in both editions; the additive field is raw Eq. 26.10-1.
+    qh_psf:r1(L.qIncludesKd?L.qh:L.qh*L.Kd),
+    qh_eq2610_psf:L.qh,
     roof:{
       directions:dirs,
       governing_uplift_psf:r1(upliftVal),
@@ -1739,7 +1825,8 @@ function buildRevitWindPayload(){
     },
     parapet:L.parapet?{
       hp_ft:L.parapet.hp,
-      qp_psf:r1(L.parapet.qp),
+      qp_psf:r1(L.qIncludesKd?L.parapet.qp:L.parapet.qp*L.Kd),
+      qp_eq2610_psf:L.parapet.qp,
       pp_windward_psf:r1(L.parapet.pp_WW),
       pp_leeward_psf:r1(L.parapet.pp_LW),
       // additive (2026-09-23): typical parapet height loads the full width; qp at h + hp,max
@@ -1772,13 +1859,15 @@ function buildLateralPayload(){
       project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
       // Project Information block rides along as titleblock metadata (LH.safeText inside fromMwfrs).
       titleblock:{ projectName:tv('projName'), jobNumber:tv('projNum'), engineer:tv('projEng'), date:tv('projDate') },
-      meta:{ calcFile:'asce716_mwfrs_calculator.html', V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
+      meta:{ calcFile:'asce716_mwfrs_calculator.html', code:CODE[L.code].name, V_mph:L.V, exposure:L.exp, enclosure:L.encl, Kzt:L.Kzt, Ke:L.Ke }
     });
     // Additive keys (plan 2026-09-23 Data contract, R2/R20). LH.fromMwfrs copies
     // them; set here only when an older engine left them out, so the record
     // always carries them.
     if(rec){
       if(rec.parapet===undefined) rec.parapet=parapet;
+      // lateral-handoff.js copies only its established parapet keys; add the raw edition q after that copy.
+      if(rec.parapet) rec.parapet.qp_eq2610_psf=L.parapet.qp;
       if(rec.geometry && rec.geometry.hp_typ_ft===undefined) rec.geometry.hp_typ_ft=(L.hp>0?L.hpTyp:0);
     }
     return rec;
@@ -1791,8 +1880,9 @@ function buildLateralPayload(){
 function lateralParapet(L){
   var p=L&&L.parapet;
   if(!p||!(L.hp>0)) return null;
+  // are.lateral.v1 qp_psf includes Kd (7-16 Eq. 26.10-1 meaning); consumers (engines/rect-diaphragm.js) never apply Kd.
   return {
-    hp_max_ft:p.hp_max, hp_typ_ft:p.hp_typ, z_p_ft:p.z_p, qp_psf:p.qp,
+    hp_max_ft:p.hp_max, hp_typ_ft:p.hp_typ, z_p_ft:p.z_p, qp_psf:L.qIncludesKd?p.qp:p.qp*L.Kd,
     GCpn_ww:1.5, GCpn_lw:1.0,
     pp_ww_psf:p.pp_ww, pp_lw_psf:p.pp_lw, pp_net_psf:p.pp_net, w_typ_plf:p.w_typ_plf,
     roofType:L.roofType, roof_theta_deg:L.theta, roofFlat:L.roofType==='flat'
@@ -1839,12 +1929,14 @@ function copyRevitWind(){
   }
 }
 
-// Applies a saved input object (v1 or v2). v1 files carry roofType 'sloped' → gablehip; missing v2 keys keep the page default.
+// Applies a saved input object (v1–v3). v1 files carry roofType 'sloped' → gablehip.
 function applyInputsMWFRS(d){
   if(d._calc!=='mwfrs') throw new Error('This file is not an MWFRS calculator save file.');
   var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined&&v!==null)el.value=v;};
   set('projName',d.projName); set('projNum',d.projNum); set('projDate',d.projDate); set('projEng',d.projEng);
   MWFRS_INPUT_IDS.forEach(function(id){ set(id, id==='roofType'&&d.roofType==='sloped'?'gablehip':d[id]); });
+  if(d.codeEd===undefined||!CODE[d.codeEd]) set('codeEd','7-16');
+  applyEditionLabels();
   if(d.groundElev===undefined) set('groundElev', 0);   // v1: Ke was a direct input; keep it, do not overwrite from elevation
   if(d.hpTyp===undefined||d.hpTyp===null) set('hpTyp', '');   // pre-2026-09-23 files: typical parapet = max (blank)
   toggleRoofInputs();
@@ -1892,6 +1984,7 @@ document.addEventListener('DOMContentLoaded',function(){
       }
     }
   });
+  applyEditionLabels();
   if(qp.has('groundElev')&&!qp.has('Ke')) updateKeFromElev();   // G2-03: Ke follows a prefilled elevation
 
   // Initialize block states
@@ -1969,7 +2062,7 @@ document.addEventListener('DOMContentLoaded',function(){
   AREv2.loadFromState = function (state, opts) {
     if (state && state.calcFile === 'asce716_mwfrs_calculator.html' && state.fields) {
       state = JSON.parse(JSON.stringify(state));
-      var DEFAULTS = { '#hpTyp': '' };
+      var DEFAULTS = { '#hpTyp': '', '#codeEd': '7-16' };
       Object.keys(DEFAULTS).forEach(function (k) {
         if (!Object.prototype.hasOwnProperty.call(state.fields, k) && document.getElementById(k.slice(1))) state.fields[k] = DEFAULTS[k];
       });

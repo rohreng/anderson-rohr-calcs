@@ -74,6 +74,7 @@ async function snapshot() {
 }
 async function runWalled(c) {
   await fresh();
+  if (c.code) await page.selectOption('#codeEd', c.code);
   const legacy = (await page.$('#roofType option[value="sloped"]')) !== null;
   await page.fill('#V', String(c.V)); await page.selectOption('#exp', c.exp); await page.selectOption('#encl', c.encl);
   await page.fill('#B', String(c.B)); await page.fill('#D', String(c.D)); await page.fill('#h', String(c.h)); await page.fill('#hp', String(c.hp));
@@ -532,6 +533,207 @@ if (!CAPTURE) {
       && domTxt.indexOf('wind N–S, normal to the N and S faces') >= 0 && domTxt.indexOf('resisted in-plane by the E and W shearwalls (NS walls)') >= 0, 'wording missing');
   } catch (e) {
     check('parapet steps WP-2 block', false, String(e.message || e).split('\n')[0]);
+  }
+
+  // ── 11. ASCE 7-22 edition ──
+  try {
+    const near22 = (a, b, tol = 1e-9) => typeof a === 'number' && Math.abs(a - b) <= tol;
+    const q22 = (k, v = 115) => 0.00256 * k * v * v;
+    const rowsNear = (rows, key, expected, tol) => rows.length === expected.length && rows.every((r, i) => near22(r[key], expected[i], tol));
+    const flat = (name, exp, B, D, h, hp, stories) => ({ name, code: '7-22', encl: 'enclosed', roof: 'flat', theta: 0, V: 115, exp, B, D, h, hp, stories });
+    await fresh();
+    check('7-22: default edition is 7-16', (await page.$eval('#codeEd', e => e.value)) === '7-16');
+    await page.click('button.calc-btn');
+    const switchQ16=await page.evaluate(()=>window.__mwfrsLast.qh);
+    await page.selectOption('#codeEd','7-22');
+    const switched=await page.evaluate(()=>({qh:window.__mwfrsLast.qh,code:window.__mwfrsLast.code,text:document.getElementById('results').innerText}));
+    check('7-22 switch: visible results recalculate immediately', switched.code==='7-22' && /Code = ASCE 7-22/.test(switched.text)
+      && near22(switched.qh,switchQ16/0.85,1e-6) && !near22(switched.qh,switchQ16,1e-6),JSON.stringify({old:switchQ16,now:switched.qh}));
+
+    // C1 — Exp B, 40 ft. Check table interpolation, all pressure families, and both force directions.
+    const c1 = await runWalled(flat('C1', 'B', 60, 120, 40, 3, [14, 13, 13]));
+    const a1 = c1.last, q1 = q22(0.74), qp1 = q22(0.755);
+    check('7-22 C1: edition, qh, Kz and qz', a1.code === '7-22' && a1.Kd === 0.85 && a1.qIncludesKd === false && near22(a1.qh, q1, 1e-3) && near22(a1.wx.Kh, 0.74)
+      && rowsNear(a1.wx.rows, 'Kz', [0.712, 0.615, 0.57], 1e-9) && rowsNear(a1.wx.rows, 'qz', [q22(0.712), q22(0.615), q22(0.57)], 1e-3), JSON.stringify(a1.wx.rows));
+    const net1x = [0.712, 0.615, 0.57].map(k => q22(k) * 0.85 * 0.85 * 0.8 + q1 * 0.85 * 0.85 * 0.5);
+    const net1y = [0.712, 0.615, 0.57].map(k => q22(k) * 0.85 * 0.85 * 0.8 + q1 * 0.85 * 0.85 * 0.3);
+    check('7-22 C1: wall pressures and shears', rowsNear(a1.wx.rows, 'p_net', net1x, 5e-3) && rowsNear(a1.wy.rows, 'p_net', net1y, 5e-3)
+      && near22(a1.wx.rows[0].pWW_A, q22(0.712)*0.85*0.85*0.8-q1*0.85*0.18, 5e-3)
+      && near22(a1.wx.rows[0].pWW_B, q22(0.712)*0.85*0.85*0.8+q1*0.85*0.18, 5e-3)
+      && near22(a1.wx.rows[0].pLW_A, -q1*0.85*0.85*0.5+q1*0.85*0.18, 5e-3)
+      && near22(a1.wx.rows[0].pSW, -q1*0.85*0.85*0.7, 5e-3)
+      && near22(a1.wx.rows[2].V_cum, net1x[0]*7*120+net1x[1]*13.5*120+net1x[2]*13*120+2.5*qp1*0.85*3*120, 1), JSON.stringify(a1.wx.rows));
+    check('7-22 C1: parapet and roof zones', near22(a1.parapet.Kp, 0.755) && near22(a1.parapet.qp, qp1, 1e-3)
+      && near22(a1.wx.rows[0].F_parapet, 2.5*qp1*0.85*3*120, 1)
+      && rowsNear(a1.roofX.zones, 'pA', [-1.0333333333333334, -0.8333333333333334, -0.5666666666666667].map(cp => q1*0.85*0.85*cp-q1*0.85*0.18), 5e-3)
+      && near22(a1.roofX.zones[0].pB, q1*0.85*0.85*(-0.18)+q1*0.85*0.18, 5e-3), JSON.stringify(a1.roofX));
+    const lat1 = await page.evaluate(() => buildLateralPayload());
+    check('7-22 C1: Revit and lateral carry edition', c1.revit.inputs.code === 'ASCE 7-22' && c1.revit.inputs.q_includes_Kd === true
+      && c1.revit.inputs.q_eq2610_includes_Kd === false && lat1.source.mwfrs.code === 'ASCE 7-22', JSON.stringify({ revit:c1.revit.inputs, lateral:lat1.source }));
+    check('7-22 C1: downstream qh and qp include Kd; raw Eq. 26.10-1 values remain available',
+      c1.revit.qh_psf===Math.round(q1*0.85*10)/10 && near22(c1.revit.qh_eq2610_psf,q1,1e-3)
+      && c1.revit.parapet.qp_psf===Math.round(qp1*0.85*10)/10 && near22(c1.revit.parapet.qp_eq2610_psf,qp1,1e-3)
+      && near22(lat1.parapet.qp_psf,qp1*0.85,1e-3) && near22(lat1.parapet.qp_eq2610_psf,qp1,1e-3),
+      JSON.stringify({revit:{qh:c1.revit.qh_psf,qhRaw:c1.revit.qh_eq2610_psf,parapet:c1.revit.parapet},lateral:lat1.parapet}));
+    const oldPayload=results['enclosed-flat-3story-parapet'];
+    check('7-16 payload: legacy Kd-inclusive q fields unchanged',oldPayload.revit.inputs.q_includes_Kd===true && oldPayload.revit.inputs.q_eq2610_includes_Kd===true
+      && oldPayload.revit.qh_psf===Math.round(oldPayload.last.qh*10)/10
+      && oldPayload.revit.parapet.qp_psf===Math.round(oldPayload.last.parapet.qp*10)/10);
+    const c1saved=await page.evaluate(()=>collectInputsMWFRS());
+    await fresh(); await page.evaluate(d=>{applyInputsMWFRS(d);calculate();},c1saved);
+    const c1diff=[]; diff(c1,await snapshot(),'root',c1diff,[]);
+    check('7-22 C1: JSON round trip reproduces complete snapshot',c1saved.codeEd==='7-22' && c1diff.length===0,c1diff.join('\n      '));
+    check('7-22 C1: Wind-Y force and zone pressures',near22(a1.wy.rows[2].V_cum,net1y[0]*7*60+net1y[1]*13.5*60+net1y[2]*13*60+2.5*qp1*0.85*3*60,1)
+      && rowsNear(a1.roofY.zones,'pA',[-0.9,-0.9,-0.5,-0.3].map(cp=>q1*0.85*0.85*cp-q1*0.85*0.18),5e-3),JSON.stringify(a1.roofY));
+
+    // C2 — Exp C table changes at 140, 180, 200 ft and uses the 180–200 interpolation for parapet.
+    const c2 = await runWalled(flat('C2', 'C', 100, 150, 180, 4, [30,30,30,30,30,30]));
+    const a2 = c2.last, q2 = q22(1.41), qp2 = q22(1.416);
+    check('7-22 C2: 180 ft Kz, story interpolation, qh', near22(a2.wx.Kh, 1.41) && near22(a2.qh, q2, 1e-3)
+      && rowsNear(a2.wx.rows, 'Kz', [1.395,1.3325,1.2725,1.19,1.065,0.85], 1e-9)
+      && rowsNear(a2.wx.rows, 'qz', [1.395,1.3325,1.2725,1.19,1.065,0.85].map(k => q22(k)), 1e-3), JSON.stringify(a2.wx.rows));
+    check('7-22 C2: parapet, wall forces, roof zones', near22(a2.parapet.Kp, 1.416) && near22(a2.parapet.qp, qp2, 1e-3)
+      && near22(a2.wx.rows[0].F_parapet, 2.5*qp2*0.85*4*150, 1)
+      && rowsNear(a2.wx.rows, 'p_net', [1.395,1.3325,1.2725,1.19,1.065,0.85].map(k => q22(k)*0.85*0.85*0.8+q2*0.85*0.85*0.5), 5e-3)
+      && rowsNear(a2.roofX.zones, 'pA', [-1.3,-0.7].map(cp => q2*0.85*0.85*cp-q2*0.85*0.18), 5e-3), JSON.stringify(a2.roofX));
+    check('7-22 C2: Wind-Y pressures and both base shears',rowsNear(a2.wy.rows,'p_net',[1.395,1.3325,1.2725,1.19,1.065,0.85].map(k=>q22(k)*0.85*0.85*0.8+q2*0.85*0.85*0.4),5e-3)
+      && near22(a2.wx.rows[5].V_cum,1052178,2) && near22(a2.wy.rows[5].V_cum,644543,2),JSON.stringify({x:a2.wx.rows[5],y:a2.wy.rows[5]}));
+
+    // C3 — Exp D coefficients are unchanged, so moving Kd must preserve all p/F values.
+    const c3arg = { code:'7-22', encl:'partial', roof:'sloped', theta:25, hp:0, V:130, exp:'D', B:60, D:150, h:28, stories:[10,9,9] };
+    const c3 = await runWalled(c3arg);
+    await page.fill('#numFrames', '6'); await page.fill('#AsArea', '400'); await page.click('button.calc-btn');
+    const a3 = (await snapshot()).last;
+    const q3 = q22(1.144, 130);
+    check('7-22 C3: Exp D qh, GCpi, walls and roof', near22(a3.qh, q3, 1e-3) && a3.GCpi === 0.55
+      && near22(a3.wx.rows[0].p_net, a3.wx.rows[0].qz*0.85*0.85*0.8+a3.qh*0.85*0.85*0.5, 5e-3)
+      && near22(a3.roofX.p_WW_A_low, q3*0.85*0.85*a3.roofX.Cp_WW_low-q3*0.85*0.55, 5e-3), JSON.stringify(a3.wx.rows[0]));
+    check('7-22 C3: frame §28.3.7', !!a3.frame && near22(a3.frame.qh, q3, 1e-3) && a3.frame.Kdp === 0.85
+      && near22(a3.frame.AE, 1680, 1) && near22(a3.frame.p, q3*0.85*(a3.frame.gcpfW-a3.frame.gcpfL)*a3.frame.KB*a3.frame.KS, 5e-3)
+      && near22(a3.frame.F, 55624, 1), JSON.stringify(a3.frame));
+    check('7-22 C3: typed wall pressures',near22(a3.wx.rows[0].pWW_A,4.469,5e-3) && near22(a3.wx.rows[0].pWW_B,50.746,5e-3)
+      && near22(a3.wx.rows[0].pLW_A,5.259,5e-3) && near22(a3.wx.rows[0].pSW,-25.032,5e-3),JSON.stringify(a3.wx.rows[0]));
+    check('7-22 C3: typed roof pressure cases',
+      [a3.roofX.p_WW_A_low,a3.roofX.p_WW_A_high,a3.roofX.p_LW_A].every((v,i)=>near22(v,[-33.389,-15.510,-44.594][i],5e-3))
+      && [a3.roofX.p_WW_B_low,a3.roofX.p_WW_B_high,a3.roofX.p_LW_B].every((v,i)=>near22(v,[12.887,30.767,1.683][i],5e-3)),JSON.stringify(a3.roofX));
+    // Published coefficient targets are rounded to four decimals.
+    check('7-22 C3: typed frame coefficients and pressure',near22(a3.frame.gcpfW,0.4168,5e-5) && near22(a3.frame.KS,0.9134,5e-5)
+      && near22(a3.frame.p,33.109,5e-3),JSON.stringify(a3.frame));
+    const rise3=30*Math.tan(25*Math.PI/180), eave3=28-rise3/2, ae3=60*eave3+30*rise3;
+    const edge3=6*eave3+18*Math.tan(25*Math.PI/180);
+    const gw3=(0.40*(ae3-edge3)+0.61*edge3)/ae3;
+    const ks3=0.60+0.073*(6-3)+1.25*Math.pow(400/ae3,1.8);
+    check('7-22 C3: full-precision independent frame coefficients',near22(a3.frame.gcpfW,gw3,1e-9)
+      && near22(a3.frame.KS,ks3,1e-9),JSON.stringify({gw:a3.frame.gcpfW,gwExpected:gw3,ks:a3.frame.KS,ksExpected:ks3}));
+    await page.selectOption('#codeEd', '7-16'); await page.click('button.calc-btn');
+    const b3 = (await snapshot()).last;
+    const inv3 = [];
+    for (const key of ['wx','wy']) a3[key].rows.forEach((r,i) => ['pWW_A','pWW_B','pLW_A','pLW_B','pSW','p_net','F_net','V_cum'].forEach(k => { if (!near22(r[k],b3[key].rows[i][k],1e-6)) inv3.push(`${key}[${i}].${k}`); }));
+    check('7-22 C3: Exp D p/F invariance and qh scaling', inv3.length === 0 && near22(a3.qh,b3.qh/0.85,1e-6) && near22(a3.frame.F,b3.frame.F,1e-6), inv3.join(', '));
+
+    // C4 — open pitched roof, Exp B at 40 ft; Fig. 27.3-7 and frame load case 2.
+    await fresh(); await page.selectOption('#codeEd','7-22'); await page.selectOption('#encl','open');
+    await page.selectOption('#exp','B'); await page.fill('#V','120'); await page.fill('#B','50'); await page.fill('#D','120'); await page.fill('#h','40');
+    await page.selectOption('#freeRoofShape','pitched'); await page.selectOption('#windFlow','clear'); await page.selectOption('#ridgeDir','D'); await page.fill('#theta','22.5');
+    await page.fill('#numFrames','5'); await page.fill('#AsArea','0'); await page.click('button.calc-btn');
+    const a4=(await snapshot()).last, q4=q22(0.74,120), fac4=q4*0.85*0.85;
+    check('7-22 C4: open roof coefficients and pressures', near22(a4.qh,q4,1e-3) && near22(a4.open.rows[0].CNW,1.1)
+      && near22(a4.open.rows[0].pW,fac4*1.1,5e-3) && near22(a4.open.rows[1].pL,fac4*(-0.8),5e-3)
+      && rowsNear(a4.open.trans,'pA',[-0.8,-0.6,-0.3].map(c=>fac4*c),5e-3), JSON.stringify(a4.open));
+    check('7-22 C4: typed Case B and Fig. 27.3-7 positive pressures',near22(a4.open.rows[1].pW,-1.971,5e-3)
+      && near22(a4.open.rows[1].pL,-15.767,5e-3)
+      && rowsNear(a4.open.trans,'pB',[15.767,9.855,5.913],5e-3),JSON.stringify(a4.open));
+    check('7-22 C4: open frame and no walled payloads', !!a4.frame && a4.frame.Kdp===0.85 && near22(a4.frame.F,32443,1)
+      && (await page.evaluate(()=>buildRevitWindPayload()))===null && (await page.evaluate(()=>buildLateralPayload()))===null, JSON.stringify(a4.frame));
+
+    // C5 — low-rise Exp C: all external pressures and forces remain invariant.
+    const c5arg=flat('C5','C',100,200,18,2,[18]);
+    const c5=(await runWalled(c5arg)).last, q5=q22(0.88);
+    check('7-22 C5: low-rise velocity, parapet and roof', near22(c5.qh,q5,1e-3) && near22(c5.wx.rows[0].Kz,0.85)
+      && near22(c5.parapet.Kp,0.90) && near22(c5.wx.rows[0].F_parapet,2.5*q22(0.9)*0.85*2*200,1)
+      && rowsNear(c5.roofX.zones,'pA',[-0.9,-0.9,-0.5,-0.3].map(cp=>q5*0.85*0.85*cp-q5*0.85*0.18),5e-3), JSON.stringify(c5.roofX));
+    check('7-22 C5: typed Wind-X and Wind-Y forces',near22(c5.wx.rows[0].F_net,75213,1)
+      && near22(c5.wy.rows[0].F_net,33732,1),JSON.stringify({x:c5.wx.rows[0].F_net,y:c5.wy.rows[0].F_net}));
+    await page.selectOption('#codeEd','7-16'); await page.click('button.calc-btn');
+    const b5=(await snapshot()).last, inv5=[];
+    for(const key of ['wx','wy']) c5[key].rows.forEach((r,i)=>['pWW_A','pWW_B','pLW_A','pLW_B','pSW','p_net','F_net','V_cum'].forEach(k=>{if(!near22(r[k],b5[key].rows[i][k],1e-6)) inv5.push(`${key}[${i}].${k}`);}));
+    check('7-22 C5: Exp C low-rise p/F invariance', inv5.length===0 && near22(c5.qh,b5.qh/0.85,1e-6), inv5.join(', '));
+
+    // C6 — partially open monoslope, Exp B at 60 ft, ridge along B.
+    await fresh(); await page.selectOption('#codeEd','7-22'); await page.selectOption('#encl','partialOpen'); await page.selectOption('#exp','B');
+    await page.fill('#V','110'); await page.fill('#B','80'); await page.fill('#D','50'); await page.fill('#h','60'); await page.fill('#hp','0');
+    await page.selectOption('#roofType','monoslope'); await page.selectOption('#ridgeDir','B'); await page.fill('#theta','12'); await setStories([15,15,15,15]); await page.click('button.calc-btn');
+    const a6=(await snapshot()).last, q6=q22(0.83,110);
+    check('7-22 C6: mid-rise B Kz, qz, wall pressure', near22(a6.qh,q6,1e-3) && rowsNear(a6.wx.rows,'Kz',[0.80,0.73,0.64,0.57],1e-9)
+      && rowsNear(a6.wx.rows,'qz',[0.80,0.73,0.64,0.57].map(k=>q22(k,110)),1e-3)
+      && near22(a6.wx.rows[0].p_net,q22(0.8,110)*0.85*0.85*0.8+q6*0.85*0.85*0.38,5e-3), JSON.stringify(a6.wx.rows));
+    check('7-22 C6: normal monoslope and parallel zone pressures', a6.roofY.type==='sloped' && near22(a6.roofY.Cp_WW_low,-1.18,1e-9)
+      && near22(a6.roofY.p_WW_A_low,q6*0.85*0.85*(-1.18)-q6*0.85*0.18,5e-3)
+      && a6.roofX.type==='flat' && near22(a6.roofX.zones[0].pA,q6*0.85*0.85*(-1.1)-q6*0.85*0.18,5e-3), JSON.stringify(a6.roofY));
+    check('7-22 C6: Wind-Y pressure and base shears',near22(a6.wy.rows[0].p_net,q22(0.8,110)*0.85*0.85*0.8+q6*0.85*0.85*0.5,5e-3)
+      && near22(a6.wx.rows[3].V_cum,49951,2) && near22(a6.wy.rows[3].V_cum,89283,2));
+    const kz500=await page.evaluate(()=>({old:[getKz(500,'B',CODE['7-16']),getKz(600,'C',CODE['7-16'])],now:[getKz(500,'B',CODE['7-22']),getKz(600,'C',CODE['7-22'])]}));
+    check('7-22 D3: both Kz tables extend and clamp at 500 ft',JSON.stringify(kz500)===JSON.stringify({old:[1.56,1.77],now:[1.46,1.74]}),JSON.stringify(kz500));
+
+    await fresh(); await page.selectOption('#roofType','monoslope'); await page.fill('#theta','15'); await page.click('button.calc-btn');
+    check('7-16 label: monoslope Note 4',/monoslope: entire roof.*Note 4/i.test(await page.$eval('#roofBody',e=>e.innerText)));
+    await page.selectOption('#roofType','mansard'); await page.click('button.calc-btn');
+    check('7-16 label: mansard Note 6',/Mansard:.*Note 6/.test(await page.$eval('#roofBody',e=>e.innerText)));
+    await page.selectOption('#codeEd','7-22'); await page.selectOption('#roofType','monoslope'); await page.click('button.calc-btn');
+    check('7-22 label: monoslope elevations',/monoslope elevations/.test(await page.$eval('#roofBody',e=>e.innerText)));
+    await page.selectOption('#roofType','mansard'); await page.click('button.calc-btn');
+    check('7-22 label: mansard Note 5',/Mansard:.*Note 5/.test(await page.$eval('#roofBody',e=>e.innerText)));
+
+    // D1 and D2: printed troughed cell and informational Fig. 27.3-7 range note.
+    await fresh(); await page.selectOption('#codeEd','7-22'); await page.selectOption('#encl','open'); await page.selectOption('#freeRoofShape','troughed');
+    await page.fill('#theta','30'); await page.fill('#h','20'); await page.fill('#D','120'); await page.click('button.calc-btn');
+    const t22=(await snapshot()).last, openTxt=await page.$eval('#openBody',e=>e.innerText);
+    const parallelClass=await page.$eval('#openTransBody > div',e=>e.className);
+    check('7-22 D1: troughed 30° Case B clear +0.1 with discrepancy note', near22(t22.open.rows[1].CNW,0.1) && /prints C_NW = \+0\.1/.test(openTxt));
+    check('7-22 D2: out-of-range parallel note is informational', parallelClass==='ref' && /states no h\/L limit/.test(await page.$eval('#openTransBody',e=>e.innerText)),parallelClass);
+    await page.selectOption('#codeEd','7-16'); await page.click('button.calc-btn');
+    check('7-16 D1/D2: troughed −0.1 and warning', near22((await snapshot()).last.open.rows[1].CNW,-0.1) && (await page.$eval('#openTransBody > div',e=>e.className))==='warn');
+
+    // Labels, saved JSON, toolbar, legacy state, URL prefill, and 7-22 render sweep.
+    await runWalled({ ...c3arg, code:'7-22' });
+    const labels22=await page.evaluate(()=>document.title+' '+document.querySelector('.header').innerText+' '+document.getElementById('results').innerText);
+    check('7-22 labels: section and load case switched', /ASCE 7-22/.test(labels22) && /§28\.3\.7/.test(labels22) && /Load Case 2/.test(labels22)
+      && /Code = ASCE 7-22/.test(labels22) && !/ASCE 7-16|§28\.3\.5|Load Case B/.test(labels22),labels22.slice(0,250));
+    await page.selectOption('#codeEd','7-16'); await page.click('button.calc-btn');
+    const labels16=await page.evaluate(()=>document.title+' '+document.querySelector('.header').innerText+' '+document.getElementById('results').innerText);
+    check('7-16 labels: section and load case preserved', /ASCE 7-16/.test(labels16) && /§28\.3\.5/.test(labels16) && /Load Case B/.test(labels16) && !/§28\.3\.7|ASCE 7-22/.test(labels16),labels16.slice(0,250));
+    await page.selectOption('#codeEd','7-22');
+    const saved22=await page.evaluate(()=>collectInputsMWFRS()), toolbar22=await page.evaluate(()=>AREv2.captureState());
+    check('7-22 state: JSON v3 and toolbar capture edition', saved22._version===3 && saved22.codeEd==='7-22' && toolbar22.fields['#codeEd']==='7-22');
+    await fresh(); await page.evaluate(d=>{applyInputsMWFRS(d);calculate();},saved22);
+    check('7-22 state: JSON round trip restores edition', (await page.$eval('#codeEd',e=>e.value))==='7-22' && (await snapshot()).last.code==='7-22');
+    await fresh(); const toolbarResult=await page.evaluate(s=>AREv2.loadFromState(s),toolbar22);
+    check('7-22 state: toolbar round trip', toolbarResult.ok===true && !toolbarResult.rolledBack && (await page.$eval('#codeEd',e=>e.value))==='7-22'
+      && /ASCE 7-22/.test(await page.$eval('#hdrTitle',e=>e.innerText)),JSON.stringify(toolbarResult));
+    await page.evaluate(()=>applyInputsMWFRS({_calc:'mwfrs',_version:2}));
+    check('7-22 state: legacy JSON defaults to 7-16', (await page.$eval('#codeEd',e=>e.value))==='7-16' && /ASCE 7-16/.test(await page.$eval('#hdrTitle',e=>e.innerText)));
+    const RB22=JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/mwfrs-state.json',import.meta.url)),'utf8'));
+    await page.selectOption('#codeEd','7-22');
+    const rb22=await page.evaluate(s=>AREv2.loadFromState(s),RB22);
+    check('7-22 state: old Red Bluff toolbar snapshot defaults to 7-16', rb22.ok===true && !rb22.rolledBack && rb22.mismatches.notInFile.length===0
+      && (await page.$eval('#codeEd',e=>e.value))==='7-16',JSON.stringify(rb22));
+    await page.goto('http://calcs.test/Calcs/'+FILE+'?codeEd=7-22',{waitUntil:'load'});
+    check('7-22 URL prefill updates header before Calculate', (await page.$eval('#codeEd',e=>e.value))==='7-22' && /ASCE 7-22/.test(await page.$eval('#hdrTitle',e=>e.innerText)));
+    const sweep22=[];
+    for(const cb of combos){
+      await fresh(); await page.selectOption('#codeEd','7-22'); await page.selectOption('#encl',cb.encl);
+      if(cb.roofType) await page.selectOption('#roofType',cb.roofType);
+      if(cb.shape){await page.selectOption('#freeRoofShape',cb.shape);await page.selectOption('#windFlow',cb.flow);}
+      await page.click('button.calc-btn');
+      const txt=await page.$eval('#results',e=>e.innerText);
+      if(/NaN|undefined/.test(txt)||txt.length<200) sweep22.push(JSON.stringify(cb));
+    }
+    check('7-22 sweep: all 18 enclosure/roof combinations render',sweep22.length===0,sweep22.join(', '));
+    const src22=readFileSync(PUBLIC_DIR+'Calcs/'+FILE,'utf8');
+    const remainder=src22.replace(/var CODE = \{[\s\S]*?\n\};/,'').replace(/<option value="7-16" selected>ASCE 7-16<\/option>/,'').replace(/\/\/[^\n]*/g,'');
+    check('7-22 source: edition-specific printed references live in CODE',!/ASCE 7-16|§28\.3\.5|Load Case B/.test(remainder));
+  } catch (e) {
+    check('ASCE 7-22 edition block',false,String(e.stack||e));
   }
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }
