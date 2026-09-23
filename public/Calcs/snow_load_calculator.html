@@ -458,7 +458,7 @@
                     </svg>
                 </div>
                 <h1>Snow Load Calculator</h1>
-                <span class="badge">ASCE 7-10 / 7-16</span>
+                <span class="badge">ASCE 7-16</span>
             </div>
             <p class="subtitle">Calculate snow drift loads for parapets, leeward, and windward conditions with joist analysis</p>
         </div>
@@ -496,7 +496,7 @@
                     <div class="form-group">
                         <div class="form-row form-row-3">
                             <div>
-                                <label>C<sub>e</sub> (Exposure) — Table 7-2</label>
+                                <label>C<sub>e</sub> (Exposure) — Table 7.3-1</label>
                                 <select id="ce">
                                     <option value="0.7">0.7 — Windswept above tree line / AK no trees, fully exposed</option>
                                     <option value="0.8">0.8 — Terrain D fully exposed; windswept partially exposed</option>
@@ -507,7 +507,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label>C<sub>t</sub> (Thermal) — Table 7-3</label>
+                                <label>C<sub>t</sub> (Thermal) — Table 7.3-2</label>
                                 <select id="ct">
                                     <option value="0.85">0.85 — Continuously heated greenhouse</option>
                                     <option value="1.0" selected>1.0 — All structures except as noted</option>
@@ -551,6 +551,7 @@
             <!-- Drift Calculations Table -->
             <div class="table-container">
                 <table>
+                    <caption style="text-align:left;padding:8px 12px;color:#6b7280;font-size:0.75rem">Drift height: ASCE 7-16 Fig. 7.6-1 (l<sub>u</sub> ≥ 20 ft; small-fetch cap √(I<sub>s</sub>·p<sub>g</sub>·l<sub>u</sub>/4γ))</caption>
                     <thead>
                         <tr>
                             <th>Configuration</th>
@@ -827,8 +828,8 @@
                         <li>• γ = MIN((0.13 × p<sub>g</sub> + 14), 30)</li>
                         <li>• h<sub>b</sub> = p<sub>f</sub> / γ</li>
                         <li>• h<sub>c</sub> = MAX((h<sub>r</sub> - h<sub>b</sub>), 0)</li>
-                        <li>• h<sub>d</sub> = 0.43 × l<sub>u</sub><sup>1/3</sup> × (p<sub>g</sub> + 10)<sup>1/4</sup> - 1.5</li>
-                        <li>• l<sub>u</sub> taken &ge; 25 ft in the h<sub>d</sub> equation (ASCE 7 Fig. 7-9)</li>
+                        <li>• h<sub>d</sub> = √I<sub>s</sub> × (0.43 × l<sub>u</sub><sup>1/3</sup> × (p<sub>g</sub> + 10)<sup>1/4</sup> − 1.5) — ASCE 7-16 Fig. 7.6-1</li>
+                        <li>• If l<sub>u</sub> &lt; 20 ft, use 20 ft in the equation; cap h<sub>d</sub> at √(I<sub>s</sub>·p<sub>g</sub>·l<sub>u</sub>/4γ) using the actual l<sub>u</sub>.</li>
                     </ul>
                 </div>
                 <div class="explanation-section">
@@ -881,6 +882,19 @@
             updateDropdowns();
         }
 
+        // Edition-specific snow provisions. Additional editions are added in later phases.
+        const ED = {
+            '7-16': {
+                label: 'ASCE 7-16',
+                hd: (pg, lu, W2, gamma, Is) => {
+                    const luE = Math.max(lu, 20);
+                    let hd = Math.sqrt(Is) * (0.43 * Math.pow(luE, 1/3) * Math.pow(pg + 10, 1/4) - 1.5);
+                    if (lu < 20) hd = Math.min(hd, Math.sqrt(Is * pg * lu / (4 * gamma))); // actual fetch
+                    return Math.max(hd, 0);
+                }
+            }
+        };
+
         // Get input values
         function getInputs() {
             return {
@@ -923,9 +937,8 @@
             // Calculate drift height based on type
             let driftHeight = 0;
             if (hcHbRatio >= 0.2) {
-                // hd = 0.43 * lu^(1/3) * (pg + 10)^(1/4) - 1.5  (ASCE 7 Fig. 7-9; lu taken >= 25 ft)
-                const luEff = Math.max(lu, 25);
-                const hd = 0.43 * Math.pow(luEff, 1/3) * Math.pow(inputs.pg + 10, 1/4) - 1.5;
+                // ASCE 7-16 Fig. 7.6-1: Is, 20 ft minimum fetch, and actual-fetch small-fetch cap.
+                const hd = ED['7-16'].hd(inputs.pg, lu, null, gamma, inputs.is);
                 
                 if (type === 'parapet' || type === 'windward') {
                     driftHeight = 0.75 * hd; // 0.75hd for parapet and windward
