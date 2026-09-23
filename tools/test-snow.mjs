@@ -288,7 +288,7 @@ try {
       basic: document.getElementById('basicCalcsTable').innerText,
       caption: document.getElementById('driftCaption').textContent,
     }));
-    check('R1 7-16 references and labels', labels.title === 'Snow Load Calculator - ASCE 7-10'
+    check('R1 7-16 references and labels', labels.title === 'Snow Load Calculator - ASCE 7-16'
       && labels.badge === 'ASCE 7-16'
       && /ASCE 7-16 Eq\. 7\.3-1/.test(labels.basic)
       && /Table 7\.3-1/.test(labels.basic) && /Table 7\.3-2/.test(labels.basic)
@@ -339,7 +339,7 @@ try {
     check('V1 edition controls and title', v16.is && v16.ct && v16.slipperyR && !v16.riskCat && !v16.ct22 && !v16.w2
       && !v16.rroof && v16.badge === 'ASCE 7-16' && !v22.is && !v22.ct && !v22.slipperyR
       && v22.riskCat && v22.ct22 && v22.w2 && v22.rroof && v22.badge === 'ASCE 7-22'
-      && !v22select.rroof && v22.title === 'Snow Load Calculator - ASCE 7-10',
+      && !v22select.rroof && v16.title === 'Snow Load Calculator - ASCE 7-16' && v22.title === 'Snow Load Calculator - ASCE 7-22',
       JSON.stringify({ v16, v22, v22select }));
 
     const c1 = await runSnowCase({ edition:'7-22', fill:{ pg:30, rroof:30, w2:0.55 }, rows:[] });
