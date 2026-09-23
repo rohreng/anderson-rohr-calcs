@@ -58,6 +58,25 @@ svg.diagram{max-width:100%;border-radius:8px}
 .sl-btn.save{border-color:#15803d;color:#15803d}
 .sl-btn.save:hover{background:#f0fdf4}
 .sl-label{font-size:.77em;color:#718096}
+/* Stepped parapets — container-scoped overrides (are-theme-v2.css sizes every .ig input with !important) */
+#ppBlk .pp-chk{display:flex;align-items:center;gap:7px;font-size:.82em;color:#374151;cursor:pointer;margin:2px 0}
+#ppBlk .pp-chk input[type=checkbox]{width:auto !important;height:auto !important;margin:0 !important;padding:0 !important;flex:0 0 auto}
+#ppBlk .ig label{text-transform:none !important}
+#ppBlk .ig input[readonly]{background:#eef2f7 !important;color:#475569 !important;cursor:not-allowed}
+.step-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:8px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px}
+.step-row .ig{flex:1;min-width:100px}
+.step-row .st-ro{flex:1 1 100%;font-size:.78em;color:#1e3c72}
+.step-row .st-ro.off{color:#92400e}
+.err-box{background:#fef2f2;border:2px solid #dc2626;border-radius:8px;padding:12px 16px;color:#7f1d1d;font-size:.86em;margin:0 0 14px;text-align:left}
+.err-box ul{margin:6px 0 6px 18px}
+.res-tbl tr.sum td{font-weight:700;background:#eef2ff}
+.res-tbl tr.chk td{font-weight:700;color:#15803d;background:#f0fdf4}
+.res-tbl tr.chk.bad td{color:#b91c1c;background:#fef2f2}
+.res-tbl td.lft{text-align:left}
+.case-card{border:1px solid #cbd5e1;border-radius:7px;padding:10px 12px;margin:10px 0;background:#fff}
+.case-card h4{font-size:.88em;color:#1e3c72;margin:0 0 6px;border:none;padding:0}
+details.span-split{margin-top:8px;font-size:.9em}
+details.span-split summary{cursor:pointer;font-weight:600;color:#1e3c72;font-size:.85em}
 @page{size:letter portrait;margin:.45in .5in .45in .5in}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -135,11 +154,11 @@ svg.diagram{max-width:100%;border-radius:8px}
   <div class="blk-body">
     <div class="row">
       <div class="ig">
-        <label>V<sub>x</sub> — Wind-X Force, along EW (kips)</label>
+        <label>V<sub>x</sub> — Wind-X force: wind E–W, normal to E &amp; W faces (kips)</label>
         <input type="number" id="Vx" value="20" min="0" step="0.1" oninput="updateDiagram()"/>
       </div>
       <div class="ig">
-        <label>V<sub>y</sub> — Wind-Y Force, along NS (kips)</label>
+        <label>V<sub>y</sub> — Wind-Y force: wind N–S, normal to N &amp; S faces (kips)</label>
         <input type="number" id="Vy" value="30" min="0" step="0.1" oninput="updateDiagram()"/>
       </div>
     </div>
@@ -187,8 +206,8 @@ svg.diagram{max-width:100%;border-radius:8px}
       <input type="file" id="layoutFile" accept=".html,text/html,.json" style="display:none" onchange="copyLayoutFromFile(this)"/>
       <span class="sl-label">Wall rows only — level, forces, B/D and the MWFRS table are not changed</span>
     </div>
-    <h3 class="sec" style="margin-top:0">EW shearwall lines — resist Wind-X (V<sub>x</sub>)</h3>
-    <p class="ref" style="margin-bottom:8px">Walls running EW, resisting EW (X-direction) wind. Typically the North and South walls. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
+    <h3 class="sec" style="margin-top:0">EW shearwall lines (N &amp; S walls) — resist Wind-X (V<sub>x</sub>)</h3>
+    <p class="ref" style="margin-bottom:8px">Walls running EW, typically the North and South walls. They resist Wind-X in-plane: wind E–W, normal to the E and W faces. <strong>Location = distance from South wall (ft).</strong> South wall = 0; North wall = D (building NS depth).</p>
     <input type="hidden" id="swJSON">
     <div id="swX">
       <div class="sw-row" data-dir="X">
@@ -212,8 +231,8 @@ svg.diagram{max-width:100%;border-radius:8px}
     </div>
     <button class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:6px" onclick="addSW('X')" id="btnAddX">+ Add EW Wall Line</button>
 
-    <h3 class="sec">NS shearwall lines — resist Wind-Y (V<sub>y</sub>)</h3>
-    <p class="ref" style="margin-bottom:8px">Walls running NS, resisting NS (Y-direction) wind. Typically the East and West walls. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
+    <h3 class="sec">NS shearwall lines (E &amp; W walls) — resist Wind-Y (V<sub>y</sub>)</h3>
+    <p class="ref" style="margin-bottom:8px">Walls running NS, typically the East and West walls. They resist Wind-Y in-plane: wind N–S, normal to the N and S faces. <strong>Location = distance from West wall (ft).</strong> West wall = 0; East wall = B (building EW width).</p>
     <div id="swY">
       <div class="sw-row" data-dir="Y">
         <div class="ig"><label>Line Label</label><input type="text" data-are-ignore value="East side" class="sw-label" oninput="updateDiagram()"/></div>
@@ -238,6 +257,34 @@ svg.diagram{max-width:100%;border-radius:8px}
   </div>
 </div>
 
+<!-- STEPPED PARAPETS (roof level) -->
+<div class="blk" id="ppBlk">
+  <div class="blk-hd open" onclick="togBlk(this)"><span>Stepped Parapets (roof level, ASCE 7-16 §27.3.4)</span><span class="tog">▶</span></div>
+  <div class="blk-body">
+    <p class="ref" style="margin:0 0 10px">p<sub>p</sub> = q<sub>p</sub>·GC<sub>pn</sub> (Eq. 27.3-3): GC<sub>pn</sub> = +1.5 on the windward face, 1.0 on the leeward face, q<sub>p</sub> at the top of the highest parapet (h + h<sub>p,max</sub>). The typical parapet (h<sub>p,typ</sub> along the full face) is already inside V<sub>x</sub>/V<sub>y</sub> from the MWFRS; each step adds only its height above typical: F = GC<sub>pn</sub>·q<sub>p</sub>·(h − h<sub>p,typ</sub>)·width. N/S-face steps load Wind-Y; E/W-face steps load Wind-X. Both wind senses are analyzed and enveloped.</p>
+    <div class="row">
+      <div class="ig"><label>q<sub>p</sub> at h + h<sub>p,max</sub> (psf, strength)</label><input type="number" id="ppQp" value="" min="0" step="0.01" placeholder="from MWFRS"/></div>
+      <div class="ig"><label>h<sub>p,max</sub> — max parapet height above roof datum h (ft)</label><input type="number" id="ppHmax" value="" min="0" step="0.1" placeholder="from MWFRS"/></div>
+      <div class="ig"><label>h<sub>p,typ</sub> — typical parapet height (ft)</label><input type="number" id="ppHtyp" value="" min="0" step="0.1" placeholder="blank = h_p,max"/></div>
+      <div class="ig"><label>Steps at this level</label>
+        <select id="stepsAtLevel">
+          <option value="on">On — roof level, apply the steps below</option>
+          <option value="off">Off — not the roof; steps kept, not applied</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" id="ppRoof" value="">
+    <label class="pp-chk"><input type="checkbox" id="ppUnlock"/> Unlock to override the MWFRS values (q_p, h_p,max, h_p,typ)</label>
+    <label class="pp-chk"><input type="checkbox" id="ppCommonBase"/> All parapet bases are at roof datum h (parapet top = h + height)</label>
+    <p class="ref" id="ppSrc" style="margin:4px 0 8px"></p>
+    <div class="warn" style="margin-bottom:10px">Flat roof, common base only: every parapet height above is measured from the same roof datum h the MWFRS used. Steps on a sloped (gable / hip / monoslope) roof, or without the common-base box checked, are an error — no results. Sloped roofs stay on the MWFRS typical-parapet load.</div>
+    <textarea id="stepJSON" hidden>[]</textarea>
+    <div id="stepRows"></div>
+    <button type="button" class="calc-btn" style="padding:6px 14px;font-size:.8em;margin-top:2px" onclick="addStep()" id="btnAddStep">+ Add Parapet Step</button>
+    <p class="ref" id="stepNote" style="margin-top:6px"></p>
+  </div>
+</div>
+
 <!-- DIAPHRAGM PLAN DIAGRAM -->
 <div class="blk">
   <div class="blk-hd open" onclick="togBlk(this)"><span>Diaphragm Plan</span><span class="tog">▶</span></div>
@@ -251,6 +298,7 @@ svg.diagram{max-width:100%;border-radius:8px}
 <div style="text-align:center;margin:18px 0">
   <button class="calc-btn" onclick="calculate()">▶ Calculate Diaphragm Forces</button>
 </div>
+<div id="calcErr" class="err-box" style="display:none"></div>
 
 <!-- RESULTS -->
 <div id="results" style="display:none">
@@ -261,12 +309,12 @@ svg.diagram{max-width:100%;border-radius:8px}
   </div>
 
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X Direction — Wind Along EW (B = width) | N &amp; S Shearwalls</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-X — wind E–W, normal to the E and W faces — resisted in-plane by the N and S shearwalls (EW walls)</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wxBody"></div>
   </div>
 
   <div class="blk">
-    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y Direction — Wind Along NS (D = depth) | E &amp; W Shearwalls</span><span class="tog">▶</span></div>
+    <div class="blk-hd open" onclick="togBlk(this)"><span>Wind-Y — wind N–S, normal to the N and S faces — resisted in-plane by the E and W shearwalls (NS walls)</span><span class="tog">▶</span></div>
     <div class="blk-body" id="wyBody"></div>
   </div>
 
@@ -367,6 +415,161 @@ function syncSwJSON(){
   var el=document.getElementById('swJSON');
   if(!el) return;
   el.value=JSON.stringify({X:getSWRowsForDiagram('X'), Y:getSWRowsForDiagram('Y')});
+}
+
+// ─── STEPPED PARAPETS ────────────────────────────────────────────────────────
+// #stepJSON (hidden textarea, Tier A) is the authoritative carrier; the row
+// inputs are data-are-ignore, same pattern as #swJSON. #ppQp/#ppHmax/#ppHtyp
+// and #ppRoof are source-owned: an MWFRS import overwrites them and they stay
+// read-only (while a record with a parapet is on the page) unless #ppUnlock.
+var FACES=['N','S','E','W'];
+function stepStartLabel(face){
+  return (face==='E'||face==='W')?'Start — y from S corner (ft)':'Start — x from W corner (ft)';
+}
+function stepRowHTML(s){
+  var face=String(s.face||'N').trim().toUpperCase();
+  if(FACES.indexOf(face)<0) face='N';
+  var num=function(v){ return (v===undefined||v===null)?'':escHtml(v); };
+  return '<div class="ig" style="flex:1.3"><label>Label</label><input type="text" data-are-ignore class="st-label" value="'+escHtml(s.label==null?'':s.label)+'"/></div>'
+    +'<div class="ig" style="flex:0 0 96px;min-width:96px"><label>Face</label><select data-are-ignore class="st-face">'
+    +FACES.map(function(f){ return '<option value="'+f+'"'+(f===face?' selected':'')+'>'+f+'</option>'; }).join('')+'</select></div>'
+    +'<div class="ig"><label class="st-startlab">'+stepStartLabel(face)+'</label><input type="number" data-are-ignore class="st-start" value="'+num(s.start_ft)+'" min="0" step="0.5"/></div>'
+    +'<div class="ig"><label>Width (ft)</label><input type="number" data-are-ignore class="st-width" value="'+num(s.width_ft)+'" min="0" step="0.5"/></div>'
+    +'<div class="ig"><label>Step total height h (ft)</label><input type="number" data-are-ignore class="st-h" value="'+num(s.h_ft)+'" min="0" step="0.1"/></div>'
+    +'<button type="button" class="btn-rm-sw" onclick="this.parentElement.remove();onStepEdit();" style="align-self:flex-end;padding:5px 10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:5px;cursor:pointer;font-size:.8em;color:#7f1d1d">✕</button>'
+    +'<div class="st-ro"></div>';
+}
+function readStepRows(){
+  var out=[];
+  document.querySelectorAll('#stepRows .step-row').forEach(function(r){
+    out.push({
+      label: r.querySelector('.st-label').value,
+      face: r.querySelector('.st-face').value,
+      start_ft: parseFloat(r.querySelector('.st-start').value)||0,
+      width_ft: parseFloat(r.querySelector('.st-width').value)||0,
+      h_ft: parseFloat(r.querySelector('.st-h').value)||0
+    });
+  });
+  return out;
+}
+function syncStepJSON(){ document.getElementById('stepJSON').value=JSON.stringify(readStepRows()); }
+function readStepJSON(){
+  var a; try{ a=JSON.parse(document.getElementById('stepJSON').value||'[]'); }catch(e){ a=[]; }
+  return Array.isArray(a)?a.filter(function(s){ return s&&typeof s==='object'; }):[];
+}
+// Rebuild the rows from an array; sync=true also rewrites #stepJSON (legacy
+// JSON load / add). The #stepJSON change listener passes sync=false so a
+// restore never rewrites the carrier it is reading.
+function rebuildStepRows(arr, sync){
+  var c=document.getElementById('stepRows');
+  c.innerHTML='';
+  (arr||[]).forEach(function(s){
+    var div=document.createElement('div');
+    div.className='step-row';
+    div.innerHTML=stepRowHTML(s||{});
+    c.appendChild(div);
+  });
+  if(sync) syncStepJSON();
+  refreshStepReadouts();
+  updateDiagram();
+}
+function addStep(){
+  var arr=readStepRows();
+  arr.push({label:'Step '+(arr.length+1), face:'N', start_ft:0, width_ft:10, h_ft:''});
+  rebuildStepRows(arr, true);
+}
+function onStepEdit(e){
+  if(e&&e.target&&e.target.classList&&e.target.classList.contains('st-face')){
+    var row=e.target.closest('.step-row');
+    if(row) row.querySelector('.st-startlab').textContent=stepStartLabel(e.target.value);
+  }
+  syncStepJSON();
+  refreshStepReadouts();
+  updateDiagram();
+}
+function numOrNull(v){ return (v===''||v===null||v===undefined||!isFinite(+v))?null:+v; }
+function isAsdPage(){ return document.getElementById('loadLevel').value==='asd'; }
+// Snapshot-shaped view of the parapet fields ('#id' keys; checkboxes as
+// booleans, the way AREv2.captureState stores them) for LH.parapetFromFields.
+function ppFields(){
+  var g=function(id){ return document.getElementById(id); };
+  return {
+    '#ppQp':g('ppQp').value, '#ppHmax':g('ppHmax').value, '#ppHtyp':g('ppHtyp').value,
+    '#ppRoof':g('ppRoof').value, '#ppUnlock':g('ppUnlock').checked, '#ppCommonBase':g('ppCommonBase').checked,
+    '#stepsAtLevel':g('stepsAtLevel').value, '#stepJSON':g('stepJSON').value
+  };
+}
+// Shared builder: LH.parapetFromFields (engines/lateral-handoff.js) when it is
+// loaded, else this local copy of the same contract. null = no steps at this
+// level (unstepped pages then run exactly as before).
+function parapetFromFields(f){
+  if(window.LH&&typeof LH.parapetFromFields==='function') return LH.parapetFromFields(f);
+  var steps=[];
+  if(String(f['#stepsAtLevel']==null?'':f['#stepsAtLevel'])==='on'){
+    try{ steps=JSON.parse(f['#stepJSON']||'[]'); }catch(e){ steps=[]; }
+  }
+  if(!Array.isArray(steps)||!steps.length) return null;
+  var roof=String(f['#ppRoof']==null?'':f['#ppRoof']), cb=f['#ppCommonBase'];
+  return {
+    qp_psf:numOrNull(f['#ppQp']), GCpn_ww:1.5, GCpn_lw:1.0,
+    h_typ_ft:numOrNull(f['#ppHtyp']), h_max_ft:numOrNull(f['#ppHmax']),
+    commonBase: cb===true||cb==='true',
+    roofFlat: roof==='flat'?true:(roof==='sloped'?false:null),
+    steps: steps
+  };
+}
+function recordParapet(){
+  var t=readMwfrsTable();
+  return (t&&t.parapet&&typeof t.parapet==='object')?t.parapet:null;
+}
+function syncPpLock(){
+  var rp=recordParapet(), lock=!!rp&&!document.getElementById('ppUnlock').checked;
+  ['ppQp','ppHmax','ppHtyp'].forEach(function(id){ document.getElementById(id).readOnly=lock; });
+  var roof=document.getElementById('ppRoof').value;
+  var roofTxt=roof==='flat'?'flat':(roof==='sloped'?'sloped — steps not allowed':'not imported (hand entry)');
+  document.getElementById('ppSrc').textContent=rp
+    ?('From the MWFRS record: q_p = '+f2(+rp.qp_psf)+' psf, h_p,max = '+f2(+rp.hp_max_ft)+' ft, h_p,typ = '+f2(+rp.hp_typ_ft)+' ft; roof '+roofTxt+'. '+(lock?'Locked — check Unlock to override.':'UNLOCKED — overrides differing from the record are flagged in the results.'))
+    :('Roof type: '+roofTxt+'. No MWFRS parapet on this page — enter q_p and the heights by hand.');
+}
+// Override check (R7): #ppUnlock values that differ from the record's.
+function ppOverrideDiffs(){
+  var rp=recordParapet();
+  if(!rp||!document.getElementById('ppUnlock').checked) return [];
+  var out=[], pairs=[['ppQp','qp_psf','q_p','psf'],['ppHmax','hp_max_ft','h_p,max','ft'],['ppHtyp','hp_typ_ft','h_p,typ','ft']];
+  pairs.forEach(function(p){
+    var mine=numOrNull(document.getElementById(p[0]).value), theirs=numOrNull(rp[p[1]]);
+    if(theirs===null) return;
+    if(p[0]==='ppHtyp'&&mine===null) mine=numOrNull(document.getElementById('ppHmax').value);
+    if(mine===null||Math.abs(mine-theirs)>0.005) out.push(p[2]+' '+(mine===null?'blank':f2(mine))+' '+p[3]+' vs MWFRS '+f2(theirs)+' '+p[3]);
+  });
+  return out;
+}
+// Read-outs per row: direction, Δh, F windward / leeward, x̄ (display basis).
+function refreshStepReadouts(){
+  var rows=document.querySelectorAll('#stepRows .step-row');
+  var on=document.getElementById('stepsAtLevel').value==='on';
+  var asd=isAsdPage();
+  var B=parseFloat(document.getElementById('B').value)||60, D=parseFloat(document.getElementById('D').value)||120;
+  var sf=RD.stepForces({
+    qp_psf:numOrNull(document.getElementById('ppQp').value), GCpn_ww:1.5, GCpn_lw:1.0,
+    h_typ_ft:numOrNull(document.getElementById('ppHtyp').value), h_max_ft:numOrNull(document.getElementById('ppHmax').value),
+    asdFactor:asd?0.6:1, steps:readStepRows()
+  }, B, D);
+  rows.forEach(function(r,i){
+    var s=sf.steps[i], ro=r.querySelector('.st-ro');
+    if(!s||!ro) return;
+    var dirTxt=s.dir==='Y'?'Wind-Y (wind N–S)':'Wind-X (wind E–W)';
+    var txt=dirTxt+' · Δh = h − h_typ = '+f2(s.h_ft)+' − '+(isFinite(sf.h_typ_ft)?f2(sf.h_typ_ft):'?')+' = '+f2(s.dh_ft)+' ft'
+      +' · F windward = '+f2(s.F_ww_k)+' k / F leeward = '+f2(s.F_lw_k)+' k'+(asd?' (ASD, ×0.6)':'')
+      +' · x̄ = '+f1(s.x_ft)+' ft from the '+(s.origin||'corner');
+    if(!s.active) txt+=' — inactive (Δh or width is 0)';
+    ro.textContent=txt;
+    ro.className='st-ro'+(s.active&&on?'':' off');
+  });
+  var note=document.getElementById('stepNote');
+  var n=rows.length;
+  note.textContent=!n?'No steps. Add a row for each parapet segment taller than h_p,typ.'
+    :(on?n+' step'+(n>1?'s':'')+' — applied at this level.':n+' step'+(n>1?'s':'')+' saved but OFF at this level (not the roof) — not applied.');
 }
 
 // ─── PLAN DIAGRAM ────────────────────────────────────────────────────────────
@@ -503,23 +706,43 @@ function updateDiagram(){
 
   addS(mk('rect',{x:pxW,y:pyN,width:bwPx,height:dhPx,fill:'none',stroke:NAVY,'stroke-width':2.5}));
 
+  // Parapet steps: a heavy bar just outside the face over [start, start+width]
+  // (N/S faces measured from the W corner, E/W faces from the S corner).
+  var stepsOn=document.getElementById('stepsAtLevel').value==='on';
+  readStepJSON().forEach(function(s){
+    var f=String(s.face||'').toUpperCase(), a=+s.start_ft||0, wd=+s.width_ft||0;
+    if(!(wd>0)||FACES.indexOf(f)<0) return;
+    var col=stepsOn?'#ea580c':'#cbd5e1', off=5, x1,y1,x2,y2,tx,ty,anchor='middle';
+    if(f==='N'||f==='S'){
+      var yy=f==='N'?pyN-off:pyS+off;
+      x1=px_(Math.max(0,a)); x2=px_(Math.min(B,a+wd)); y1=y2=yy;
+      tx=(x1+x2)/2; ty=f==='N'?pyN+12:pyS-5;   // label just inside the face
+    } else {
+      var xx=f==='E'?pxE+off:pxW-off;
+      y1=py_(Math.max(0,a)); y2=py_(Math.min(D,a+wd)); x1=x2=xx;
+      tx=f==='E'?pxE-5:pxW+5; ty=(y1+y2)/2+3; anchor=f==='E'?'end':'start';
+    }
+    addA(mk('line',{x1:x1,y1:y1,x2:x2,y2:y2,stroke:col,'stroke-width':4,'stroke-linecap':'butt'}));
+    addTxt(String(s.label||'step'),{x:tx,y:ty,'text-anchor':anchor,'font-size':8.5,'font-weight':700,'font-family':FONT,fill:stepsOn?'#9a3412':MUTED});
+  });
+
   AREDraw.centerline(v, 0, D/2, B, D/2);
   AREDraw.centerline(v, B/2, 0, B/2, D);
 
-  // Vx arrow: from west face, pointing east along EW CL; label pulled left outside
+  // Vx arrow (Wind-X): from west face, pointing east on the EW CL; label pulled left outside
   var vxFtLen=Math.max(B*0.22,10);
   AREDraw.forceArrow(v, 0, D*0.72, 1, 0, vxFtLen*sc, '');
-  var vxStr='Vx (EW)'+(Vx>0?' = '+f1(Vx)+' k':'');
+  var vxStr='Vx (wind E–W)'+(Vx>0?' = '+f1(Vx)+' k':'');
   var vxLX=pxW-14, vxLY=py_(D*0.72);
   addA(mk('circle',{cx:px_(0),cy:py_(D*0.72),r:1.7,fill:FORCE}));
   addA(mk('line',{x1:px_(0),y1:py_(D*0.72),x2:vxLX+2,y2:vxLY,stroke:FORCE,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
   addTxt(vxStr,{x:vxLX,y:vxLY+4,'text-anchor':'end','font-size':11,'font-weight':600,'font-family':FONT,fill:FORCE});
   dwg.extend(vxLX-vxStr.length*5.8,vxLY-13); dwg.extend(vxLX+2,vxLY+4);
 
-  // Vy arrow: from south face, pointing north along NS CL; label pulled right outside
+  // Vy arrow (Wind-Y): from south face, pointing north on the NS CL; label pulled right outside
   var vyFtLen=Math.max(D*0.18,10);
   AREDraw.forceArrow(v, B*0.72, 0, 0, 1, vyFtLen*sc, '');
-  var vyStr='Vy (NS)'+(Vy>0?' = '+f1(Vy)+' k':'');
+  var vyStr='Vy (wind N–S)'+(Vy>0?' = '+f1(Vy)+' k':'');
   var vyLX=pxE+14, vyLY=pyS+16;
   addA(mk('circle',{cx:px_(B*0.72),cy:py_(0),r:1.7,fill:FORCE}));
   addA(mk('line',{x1:px_(B*0.72),y1:py_(0),x2:vyLX-2,y2:vyLY,stroke:FORCE,'stroke-width':0.8,'stroke-dasharray':'2 2'}));
@@ -539,9 +762,9 @@ function updateDiagram(){
   // Legend: below building, below dim line
   var lgY=pyS+74, lgX=pxW;
   addA(mk('line',{x1:lgX,y1:lgY,x2:lgX+20,y2:lgY,stroke:NAVY,'stroke-width':3}));
-  addTxt('EW Wall (N/S line) resists Vx',{x:lgX+24,y:lgY+4,'font-size':9.5,'font-family':FONT,fill:'#374151'});
+  addTxt('EW wall line (N/S walls) — resists Vx, wind E–W',{x:lgX+24,y:lgY+4,'font-size':9.5,'font-family':FONT,fill:'#374151'});
   addA(mk('line',{x1:lgX,y1:lgY+16,x2:lgX+20,y2:lgY+16,stroke:NAVY,'stroke-width':3,'stroke-dasharray':'6 3'}));
-  addTxt('NS Wall (E/W line) resists Vy',{x:lgX+24,y:lgY+20,'font-size':9.5,'font-family':FONT,fill:'#374151'});
+  addTxt('NS wall line (E/W walls) — resists Vy, wind N–S',{x:lgX+24,y:lgY+20,'font-size':9.5,'font-family':FONT,fill:'#374151'});
   dwg.extend(lgX,lgY-4); dwg.extend(lgX+230,lgY+24);
 
   // View title below figure, underlined per standard
@@ -561,119 +784,6 @@ function updateDiagram(){
   dwg.commit();
   syncSwJSON();
 
-  // ─── LEGACY CODE BLOCK (removed — replaced with AREDraw above) ─────────
-  var _LEGACY_REMOVED_=true;
-  if(false){
-  var W=600, H=370;
-  var svg='<svg width="'+W+'" height="'+H+'" class="diagram" xmlns="http://www.w3.org/2000/svg">'
-    +'<defs><pattern id="hatch" patternUnits="userSpaceOnUse" width="10" height="10"><path d="M0,10 L10,0" stroke="#eab308" stroke-width="0.7"/></pattern>'
-      +'<marker id="rdaDimS" markerWidth="7" markerHeight="5" refX="3.5" refY="2.5" orient="auto"><polygon points="7 2.5,0 0,0 5" fill="#1a7a4a"/></marker>'
-      +'<marker id="rdaDimE" markerWidth="7" markerHeight="5" refX="3.5" refY="2.5" orient="auto"><polygon points="0 2.5,7 0,7 5" fill="#1a7a4a"/></marker>'
-      +'</defs>'
-    +((typeof AREv2!=='undefined'&&AREv2.svgDefs)?AREv2.svgDefs('rd'):'<defs>'
-      +'<marker id="rdaLoad" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#c42b2b"/></marker>'
-      +'<marker id="rdaReact" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4z" fill="#2e4a8a"/></marker>'
-      +'<marker id="rdaDim" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L0,7 L7,3.5z" fill="#1a7a4a"/></marker>'
-      +'</defs>')
-    +'<rect width="'+W+'" height="'+H+'" fill="#f8faff" rx="8"/>'
-    // Diaphragm fill + hatch
-    +'<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="#fde68a"/>'
-    +'<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="url(#hatch)"/>';
-
-  // ── EW shearwalls (horizontal lines = N/S walls running EW, resist V_x) ──
-  swX.forEach(function(sw){
-    var sy=bottom-sw.loc*scale; // loc from S: 0=bottom, D=top
-    if(sy>bottom+2||sy<top-2) return;
-    var isSouth=(sw.loc/D<0.03), isNorth=(sw.loc/D>0.97);
-    svg+='<line x1="'+left+'" y1="'+sy+'" x2="'+right+'" y2="'+sy+'" stroke="#1a2b5f" stroke-width="4" stroke-linecap="round"/>';
-    // Label: horizontal, centred on building width
-    var ly;
-    if(isNorth){ ly=top-14; }         // above building
-    else if(isSouth){ ly=bottom+16; } // below building
-    else { ly=sy-10; }                // above line, inside
-    svg+='<text x="'+cx+'" y="'+ly+'" text-anchor="middle" font-size="9" font-weight="700" fill="#1a2b5f">'+sw.label+'</text>';
-    if(sw.len>0){
-      var lly=isNorth?(top-24):isSouth?(bottom+27):(sy-21);
-      svg+='<text x="'+cx+'" y="'+lly+'" text-anchor="middle" font-size="8" fill="#1a2b5f">'+sw.len+' ft</text>';
-    }
-  });
-
-  // ── NS shearwalls (vertical lines = E/W walls running NS, resist V_y) ────
-  swY.forEach(function(sw){
-    var sx=left+sw.loc*scale; // loc from W: 0=left, B=right
-    if(sx<left-2||sx>right+2) return;
-    var isWest=(sw.loc/B<0.03), isEast=(sw.loc/B>0.97);
-    svg+='<line x1="'+sx+'" y1="'+top+'" x2="'+sx+'" y2="'+bottom+'" stroke="#7c3aed" stroke-width="4" stroke-linecap="round"/>';
-    // Label: rotated -90°, vertically centred on wall
-    var lx;
-    if(isWest){  lx=left-14; }
-    else if(isEast){ lx=right+14; }
-    else { lx=sx+14; }
-    svg+='<text x="'+lx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle"'
-      +' font-size="9" font-weight="700" fill="#7c3aed"'
-      +' transform="rotate(-90,'+lx+','+cy+')">'+sw.label+'</text>';
-    if(sw.len>0){
-      var llx=isWest?(lx-13):isEast?(lx+13):(lx+13);
-      svg+='<text x="'+llx+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle"'
-        +' font-size="8" fill="#7c3aed"'
-        +' transform="rotate(-90,'+llx+','+cy+')">'+sw.len+' ft</text>';
-    }
-  });
-
-  // ── Building outline (on top) ─────────────────────────────────────────────
-  svg+='<rect x="'+left+'" y="'+top+'" width="'+bw+'" height="'+dh+'" fill="none" stroke="#1a202c" stroke-width="2.5"/>';
-
-  // ── "DIAPHRAGM" centre label ──────────────────────────────────────────────
-  svg+='<text x="'+cx+'" y="'+(cy-8)+'" text-anchor="middle" font-size="12" fill="#1a2b5f" font-weight="700">DIAPHRAGM</text>'
-    +'<text x="'+cx+'" y="'+(cy+8)+'" text-anchor="middle" font-size="10" fill="#374151">B='+f1(B)+' ft × D='+f1(D)+' ft</text>';
-
-  // ── V_x arrow INSIDE building — upper portion, pointing right ────────────
-  var vxArrLen=Math.min(50, bw*0.22);
-  var vxAy=top+dh*0.30;  // y position of arrow (upper area)
-  var vxAx1=left+bw*0.07, vxAx2=vxAx1+vxArrLen;
-  svg+='<line x1="'+vxAx1+'" y1="'+vxAy+'" x2="'+vxAx2+'" y2="'+vxAy+'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#rdaLoad)"/>'
-    +'<text x="'+(vxAx2+5)+'" y="'+(vxAy-7)+'" font-size="10" font-weight="700" fill="#c42b2b">V\u2093 (EW)</text>';
-  if(Vx>0){
-    svg+='<text x="'+(vxAx2+5)+'" y="'+(vxAy+10)+'" font-size="9" fill="#c42b2b">'+f1(Vx)+' kips</text>';
-  }
-
-  // ── V_y arrow INSIDE building — right portion, pointing up ───────────────
-  var vyArrLen=Math.min(45, dh*0.30);
-  var vyAx=left+bw*0.72;  // x position
-  var vyAy2=bottom-dh*0.10, vyAy1=vyAy2-vyArrLen;  // y1 (tip, up) y2 (tail, down)
-  svg+='<line x1="'+vyAx+'" y1="'+vyAy2+'" x2="'+vyAx+'" y2="'+vyAy1+'" stroke="#c42b2b" stroke-width="2.5" marker-end="url(#rdaLoad)"/>'
-    +'<text x="'+(vyAx+7)+'" y="'+(vyAy1+10)+'" font-size="10" font-weight="700" fill="#c42b2b">V\u1D67 (NS)</text>';
-  if(Vy>0){
-    svg+='<text x="'+(vyAx+7)+'" y="'+(vyAy1+23)+'" font-size="9" fill="#c42b2b">'+f1(Vy)+' kips</text>';
-  }
-
-  // ── Dimension string B (below building) ───────────────────────────────────
-  var bdY=bottom+26;
-  svg+='<line x1="'+left+'" y1="'+bdY+'" x2="'+right+'" y2="'+bdY+'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#rdaDimS)" marker-end="url(#rdaDimE)"/>'
-    +'<text x="'+cx+'" y="'+(bdY+14)+'" text-anchor="middle" font-size="10" font-weight="600" fill="#1a7a4a">WIDTH B = '+f1(B)+' ft (EW)</text>';
-
-  // ── Dimension string D (right of building) ────────────────────────────────
-  var ddX=right+44;
-  svg+='<line x1="'+ddX+'" y1="'+top+'" x2="'+ddX+'" y2="'+bottom+'" stroke="#1a7a4a" stroke-width="1" marker-start="url(#rdaDimS)" marker-end="url(#rdaDimE)"/>'
-    +'<text x="'+(ddX+14)+'" y="'+cy+'" text-anchor="middle" dominant-baseline="middle" font-size="10" font-weight="600" fill="#1a7a4a"'
-    +' transform="rotate(90,'+(ddX+14)+','+cy+')">DEPTH D = '+f1(D)+' ft (NS)</text>';
-
-  // ── X-Y axis indicator (bottom-left, dedicated zone) ─────────────────────
-  var axO=18, axOy=H-18, axL=24;
-  svg+='<circle cx="'+axO+'" cy="'+axOy+'" r="2" fill="#374151"/>'
-    +'<line x1="'+axO+'" y1="'+axOy+'" x2="'+(axO+axL)+'" y2="'+axOy+'" stroke="#374151" stroke-width="1.5" marker-end="url(#rdaLoad)"/>'
-    +'<text x="'+(axO+axL+3)+'" y="'+(axOy+4)+'" font-size="9" font-weight="700" fill="#374151">X (EW)</text>'
-    +'<line x1="'+axO+'" y1="'+axOy+'" x2="'+axO+'" y2="'+(axOy-axL)+'" stroke="#374151" stroke-width="1.5" marker-end="url(#rdaLoad)"/>'
-    +'<text x="'+(axO-3)+'" y="'+(axOy-axL-3)+'" text-anchor="end" font-size="9" font-weight="700" fill="#374151">Y (NS)</text>';
-
-  // ── Legend (bottom-centre) ────────────────────────────────────────────────
-  var lgy=H-10, lgx=cx-110;
-  svg+='<rect x="'+lgx+'" y="'+(lgy-7)+'" width="16" height="4" fill="#1a2b5f" rx="1"/>'
-    +'<text x="'+(lgx+20)+'" y="'+lgy+'" font-size="9" fill="#374151">N/S Wall — resist V\u2093 (EW)</text>'
-    +'<rect x="'+(lgx+160)+'" y="'+(lgy-7)+'" width="16" height="4" fill="#7c3aed" rx="1"/>'
-    +'<text x="'+(lgx+180)+'" y="'+lgy+'" font-size="9" fill="#374151">E/W Wall — resist V\u1D67 (NS)</text>';
-
-  } // end if(false) legacy block
 } // end updateDiagram
 
 // ─── DIRECTION CALCULATION ───────────────────────────────────────────────────
@@ -683,71 +793,211 @@ function updateDiagram(){
 var calcDir = RD.calcDir;
 
 // ─── RENDER DIRECTION ────────────────────────────────────────────────────────
-function renderDir(res, container){
+// Unstepped direction: the single calcDir result (today's layout) plus the
+// "Reactions by statics about (0,0)" table. Stepped direction (roof wind with
+// parapet steps): both wind-sense cases, the per-wall envelope and each design
+// quantity with its governing case (plan R12/R18).
+function z0(v){ return Math.abs(v)<5e-7?0:v; }
+function dirKey(res){ return res.dir||(String(res.label).indexOf('X')>=0?'X':'Y'); }
+// R9: Wind-X spans N–S between the N and S shearwalls (depth B) -> chords are
+// the NS-running members at the E and W edges; Wind-Y is the mirror.
+function chordText(dk){
+  return dk==='X'
+    ?'Chords: NS-running members (top plates, bond beams) at the E and W edges — the diaphragm spans N–S between the N and S shearwalls; chord depth B.'
+    :'Chords: EW-running members (top plates, bond beams) at the N and S edges — the diaphragm spans E–W between the E and W shearwalls; chord depth D.';
+}
+function caseTitle(c){
+  return c.id+' — wind from '+c.windward+': '+c.windward+' face windward (GC_pn +1.5), '+c.leeward+' face leeward (1.0)';
+}
+
+// ΣM about (0,0) table from the engine's moment rows (every direction).
+function momentHtml(r, dk, title){
+  var m=r.moment;
+  if(!m) return '';
+  var co=dk==='X'?'y':'x', from=dk==='X'?'measured N from the S wall line y = 0':'measured E from the W wall line x = 0';
+  var h='<h3 class="sec">'+(title||'Reactions by statics about (0,0)')+'</h3>'
+    +'<div class="ref" style="margin-bottom:4px">(0,0) = SW building corner; '+co+' '+from+'. Loads (UDL at L/2, each parapet step at x̄) and reactions are positive in the wind sense.</div>'
+    +'<table class="res-tbl mom-tbl"><thead><tr><th>Item</th><th>Type</th><th>'+co+' from (0,0) (ft)</th><th>F (k)</th><th>F·'+co+' (k·ft)</th></tr></thead><tbody>';
+  var nLoad=0;
+  m.rows.forEach(function(row){
+    var type;
+    if(row.kind==='load'){ type=nLoad===0?'UDL at L/2':'Parapet step at x̄'; nLoad++; }
+    else type='Shearwall line reaction R';
+    h+='<tr><td class="lft">'+escHtml(row.item)+'</td><td>'+type+'</td><td>'+f2(row.x)+'</td><td>'+f2(z0(row.F))+'</td><td>'+f2(z0(row.Fx))+'</td></tr>';
+  });
+  var bad=(m.ok===false&&r.sws.length>=2)?' bad':'';
+  h+='<tr class="sum"><td class="lft">Σ loads</td><td>ΣF, ΣM₀</td><td></td><td>'+f2(m.sumF)+'</td><td>'+f2(m.sumM)+'</td></tr>'
+    +'<tr class="sum"><td class="lft">Σ reactions</td><td>ΣR, ΣR·'+co+'</td><td></td><td>'+f2(m.sumR)+'</td><td>'+f2(m.sumRx)+'</td></tr>'
+    +'<tr class="chk'+bad+'"><td class="lft">Check ΣF: ΣR − Σloads = 0</td><td></td><td></td><td>'+f2(z0(m.checkF))+'</td><td></td></tr>'
+    +'<tr class="chk'+bad+'"><td class="lft">Check ΣM₀: ΣR·'+co+' − ΣM₀ = 0</td><td></td><td></td><td></td><td>'+f2(z0(m.checkM))+'</td></tr>'
+    +'</tbody></table>';
+  if(m.note) h+='<div class="ref" style="margin-top:4px">'+escHtml(m.note)+'</div>';
+  var s=r.sws;
+  if(s.length===2){
+    var a=s[0].loc, b=s[1].loc, Rb=(m.sumM-m.sumF*a)/(b-a);
+    h+='<div class="ref" style="margin-top:4px">Two lines: R<sub>'+escHtml(s[1].label)+'</sub> = (ΣM₀ − ΣF·a)/(b − a) = ('+f2(m.sumM)+' − '+f2(m.sumF)+' × '+f1(a)+')/('+f1(b)+' − '+f1(a)+') = '+f2(Rb)+' k;  R<sub>'+escHtml(s[0].label)+'</sub> = ΣF − R<sub>'+escHtml(s[1].label)+'</sub> = '+f2(m.sumF)+' − '+f2(Rb)+' = '+f2(m.sumF-Rb)+' k</div>';
+  }
+  if(r.spans&&r.spans.length){
+    h+='<details class="span-split"><summary>Per-span split ('+r.spans.length+' spans) — simple spans between adjacent lines, overhangs cantilevered on the end spans</summary>'
+      +'<table class="res-tbl"><thead><tr><th>Span</th><th>a → b (ft)</th><th>s (ft)</th><th>Load segment</th><th>p → q (ft)</th><th>F (k)</th><th>c (ft)</th><th>R_a = F(b − c)/s</th><th>R_b = F(c − a)/s</th></tr></thead><tbody>';
+    r.spans.forEach(function(sp){
+      sp.segments.forEach(function(sg,i){
+        h+='<tr><td>'+(i===0?(sp.k+1):'')+'</td><td>'+(i===0?f1(sp.a)+' → '+f1(sp.b):'')+'</td><td>'+(i===0?f1(sp.s):'')+'</td>'
+          +'<td class="lft">'+escHtml(sg.item)+(sg.overhang?' (overhang)':'')+'</td><td>'+f2(sg.p)+' → '+f2(sg.q)+'</td><td>'+f3(sg.F)+'</td><td>'+f2(sg.c)+'</td><td>'+f3(sg.Ra)+'</td><td>'+f3(sg.Rb)+'</td></tr>';
+      });
+      h+='<tr class="sum"><td></td><td colspan="6" class="lft">Span '+(sp.k+1)+' totals</td><td>'+f3(sp.Ra)+'</td><td>'+f3(sp.Rb)+'</td></tr>';
+    });
+    h+='</tbody></table><div class="ref" style="margin-top:4px">Line reaction = R_b of the span to its left + R_a of the span to its right.</div></details>';
+  }
+  return h;
+}
+
+// Line table. R = reactions (signed kips), extra = optional [head, fn(i)] column.
+function reactTable(sws, R, cls, extra){
+  var h='<table class="res-tbl '+cls+'"><thead><tr>'
+    +'<th>SW Line</th><th>Location (ft)</th><th>Total SW Length (ft)</th>'
+    +'<th>Reaction R (kips)</th><th>Unit Shear v_sw (plf)</th>'+(extra?'<th>'+extra[0]+'</th>':'')
+    +'</tr></thead><tbody>';
+  sws.forEach(function(sw,i){
+    h+='<tr>'
+      +'<td>'+escHtml(sw.label)+'</td>'
+      +'<td>'+f1(sw.loc)+'</td>'
+      +'<td>'+f1(sw.len)+'</td>'
+      +'<td style="font-weight:700;color:#1e3c72">'+f2(R[i])+'</td>'
+      +'<td style="font-weight:700;color:#dc2626">'+f2(R[i]/sw.len*1000)+' plf</td>'
+      +(extra?'<td>'+extra[1](i)+'</td>':'')
+      +'</tr>';
+  });
+  return h+'</tbody></table>';
+}
+
+function renderDir(res, container, ctx){
+  ctx=ctx||{};
+  if(res.stepped){ container.innerHTML=renderStepped(res, ctx); return; }
+  var dk=dirKey(res), Vudl=(res.V_udl!==undefined?res.V_udl:res.V), Vst=res.V_steps||0;
   var html='';
-  // Overview metrics
   html+='<div class="metric-grid">'
-    +'<div class="metric"><div class="label">Total Lateral Force</div><div class="val">'+f2(res.V)+' kips</div></div>'
+    +'<div class="metric"><div class="label">Total Lateral Force (V_udl + steps)</div><div class="val">'+f2(res.V)+' kips</div></div>'
     +'<div class="metric"><div class="label">Diaphragm Span (between shearwalls)</div><div class="val">'+f1(res.L_along)+' ft</div></div>'
     +'<div class="metric"><div class="label">Chord Length (B_perp)</div><div class="val">'+f1(res.B_perp)+' ft</div></div>'
     +'<div class="metric"><div class="label">Distributed Load w</div><div class="val">'+f2(res.w*1000)+' plf</div></div>'
     +'</div>';
+  html+='<div class="ref" style="margin:-4px 0 8px">V = V_udl + ΣF_steps = '+f2(Vudl)+' + '+f2(Vst)+' = '+f2(res.V)+' kips'+(Vst?'':' (no parapet steps in this direction)')+'</div>';
 
-  // Diaphragm shear
   html+='<h3 class="sec">Diaphragm Unit Shear</h3>';
   html+='<div class="metric-grid">'
     +'<div class="metric"><div class="label">Max Reaction (each SW line)</div><div class="val">'+f2(Math.max.apply(null,res.reactions))+' kips</div></div>'
     +'<div class="metric"><div class="label">Unit Diaphragm Shear v</div><div class="val warn-val">'+f2(res.v_dia*1000)+' plf</div></div>'
     +'</div>';
-  html+='<div class="ref" style="margin-bottom:10px">v = V_max,beam/B_perp = '+f2(res.Vmax_beam)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf | V_max,beam = max diaphragm (beam-analogy) shear from actual wall layout | Diaphragm must have unit shear capacity ≥ v</div>';
+  html+='<div class="ref" style="margin-bottom:10px">v = V_max,beam/B_perp = '+f2(res.Vmax_beam)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf | V_max,beam = max diaphragm (beam-analogy) shear from actual wall layout, incl. parapet step loads | Diaphragm must have unit shear capacity ≥ v</div>';
 
-  // Shearwall reactions table
   html+='<h3 class="sec">Shearwall Line Reactions</h3>';
-  html+='<table class="res-tbl"><thead><tr>'
-    +'<th>SW Line</th><th>Location (ft)</th><th>Total SW Length (ft)</th>'
-    +'<th>Reaction R (kips)</th><th>Unit Shear v_sw (plf)</th>'
-    +'</tr></thead><tbody>';
-  res.sws.forEach(function(sw,i){
-    var v_sw_plf = res.unitShears[i]*1000;
-    html+='<tr>'
-      +'<td>'+sw.label+'</td>'
-      +'<td>'+f1(sw.loc)+'</td>'
-      +'<td>'+f1(sw.len)+'</td>'
-      +'<td style="font-weight:700;color:#1e3c72">'+f2(res.reactions[i])+'</td>'
-      +'<td style="font-weight:700;color:#dc2626">'+f2(v_sw_plf)+' plf</td>'
-      +'</tr>';
-  });
-  html+='</tbody></table>';
+  html+=reactTable(res.sws, res.reactions, 'sw-react');
   html+='<div class="ref" style="margin-top:4px">v_sw = R / L_sw | Unit shear governs sheathing schedule and hold-down design</div>';
 
-  // Chord forces
   html+='<h3 class="sec">Chord Forces (Tension / Compression)</h3>';
   html+='<div class="metric-grid">'
     +'<div class="metric"><div class="label">Chord Design Moment M</div><div class="val">'+f1(res.M_max)+' kip·ft</div></div>'
     +'<div class="metric"><div class="label">Chord Force T = C = M/B_perp</div><div class="val warn-val">'+f2(res.chord_T)+' kips</div></div>'
     +'</div>';
-  html+='<div class="ref">'+res.M_note+' → M = '+f1(res.M_max)+' kip·ft | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
-  // Wind-X = EW wind: diaphragm spans EW, chord members at N & S edges (running EW)
-  // Wind-Y = NS wind: diaphragm spans NS, chord members at E & W edges (running NS)
-  var chordEdge=res.label.indexOf('X')>=0
-    ?'EW chord members (top plates, bond beams) at N and S edges'
-    :'NS chord members (top plates, bond beams) at E and W edges';
-  html+='<div class="ref" style="margin-top:4px">'+chordEdge+'</div>';
+  html+='<div class="ref">'+escHtml(res.M_note)+' → M = '+f1(res.M_max)+' kip·ft (incl. parapet step loads) | T = C = M/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips</div>';
+  html+='<div class="ref" style="margin-top:4px">'+chordText(dk)+'</div>';
 
-  // Calc detail — uses actual computed reactions (not the symmetric V/2 assumption)
-  var rList = res.sws.map(function(sw,i){ return sw.label+': R = '+f2(res.reactions[i])+' kips'; }).join('  |  ');
+  html+=momentHtml(res, dk);
+
+  var rList=res.sws.map(function(sw,i){ return escHtml(sw.label)+': R = '+f2(res.reactions[i])+' kips'; }).join('  |  ');
   html+='<div class="calc-det" style="background:#f7fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;margin-top:10px;font-size:.8em;color:#374151;line-height:1.7">'
     +'<strong>Calculation Detail</strong><br>'
-    +'Distributed lateral load:  w = V / L = '+f2(res.V)+' / '+f1(res.L_along)+' = '+f3(res.w)+' k/ft = '+f2(res.w*1000)+' plf<br>'
-    +'Shearwall reactions (moment equilibrium / tributary):  '+rList+'<br>'
-    +'Max beam-analogy shear:  V_max = '+f2(res.Vmax_beam)+' kips<br>'
+    +'Distributed lateral load:  w = V_udl / L = '+f2(Vudl)+' / '+f1(res.L_along)+' = '+f3(res.w)+' k/ft = '+f2(res.w*1000)+' plf<br>'
+    +'Shearwall reactions (statics about (0,0) / simple spans):  '+rList+'<br>'
+    +'Max beam-analogy shear (incl. parapet step loads):  V_max = '+f2(res.Vmax_beam)+' kips<br>'
     +'Unit diaphragm shear:  v = V_max/B_perp = '+f2(res.Vmax_beam)+'/'+f1(res.B_perp)+' = '+f2(res.v_dia)+' k/ft = '+f2(res.v_dia*1000)+' plf<br>'
-    +'Chord design moment ('+res.M_note+'):  M = '+f1(res.M_max)+' kip·ft<br>'
+    +'Chord design moment ('+escHtml(res.M_note)+'):  M = '+f1(res.M_max)+' kip·ft<br>'
     +'Chord tension/compression:  T = M/B_perp = '+f1(res.M_max)+'/'+f1(res.B_perp)+' = '+f2(res.chord_T)+' kips<br>'
-    +'Ref: SDPWS 2021 §4.2 | Diaphragm beam analogy, simply-supported with UDL'
+    +'Ref: SDPWS 2021 §4.2 | Diaphragm beam analogy, UDL plus parapet step loads (ASCE 7-16 §27.3.4)'
     +'</div>';
-
   container.innerHTML=html;
+}
+
+function renderStepped(res, ctx){
+  var dk=res.dir, env=res.envelope, cs=res.cases, asd=!!ctx.asd;
+  var origin=dk==='Y'?'W corner':'S corner';
+  var h='<div class="ok">Parapet steps load this direction. Both wind senses are analyzed ('+cs.map(function(c){ return c.id; }).join(' / ')+'); every design quantity below is the envelope and names its governing case. Equilibrium is checked per case.'+(asd?' Step forces shown at ASD (×0.6), beside the ASD baseline.':'')+'</div>';
+  h+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">Total Lateral Force (V_udl + steps)</div><div class="val">'+f2(env.V_total.value)+' kips</div><div class="ref">'+env.V_total.cases.join(', ')+'</div></div>'
+    +'<div class="metric"><div class="label">V_udl (typical, from V input)</div><div class="val">'+f2(res.V_udl)+' kips</div></div>'
+    +'<div class="metric"><div class="label">Parapet steps ΣF</div><div class="val">'+cs.map(function(c){ return f2(c.V_steps); }).join(' / ')+' kips</div><div class="ref">'+cs.map(function(c){ return c.id; }).join(' / ')+'</div></div>'
+    +'<div class="metric"><div class="label">Span / Chord depth / w</div><div class="val">'+f1(res.L_along)+' / '+f1(res.B_perp)+' ft · '+f2(res.w*1000)+' plf</div></div>'
+    +'</div>';
+  h+='<div class="ref" style="margin:-4px 0 8px">V = V_udl + ΣF_steps: '+cs.map(function(c){ return c.id+' '+f2(c.V_udl)+' + '+f2(c.V_steps)+' = '+f2(c.V_total); }).join(';  ')+' kips</div>';
+
+  // Step loads
+  h+='<h3 class="sec">Parapet Step Loads</h3>';
+  h+='<table class="res-tbl step-tbl"><thead><tr><th>Step</th><th>Face</th><th>Start → end (ft from '+origin+')</th><th>Width (ft)</th><th>h (ft)</th><th>Δh = h − h_typ (ft)</th>'
+    +cs.map(function(c){ return '<th>F '+c.id+' (k)</th>'; }).join('')+'<th>x̄ (ft)</th></tr></thead><tbody>';
+  res.steps.forEach(function(s,j){
+    h+='<tr><td>'+escHtml(s.label)+'</td><td>'+s.face+'</td><td>'+f2(s.start_ft)+' → '+f2(s.end_ft)+'</td><td>'+f2(s.width_ft)+'</td><td>'+f2(s.h_ft)+'</td><td>'+f2(s.dh_ft)+'</td>'
+      +cs.map(function(c){ var cst=c.steps.filter(function(t){ return t.index===j; })[0]; return '<td>'+(cst?f2(cst.F)+' <span class="ref">('+cst.GC_role+')</span>':'—')+'</td>'; }).join('')
+      +'<td>'+f2(s.x_ft)+'</td></tr>';
+  });
+  h+='</tbody></table><div class="ref" style="margin-top:4px">F = GC_pn · q_p · Δh · width'+(asd?' × 0.6 (ASD display)':'')+'; GC_pn 1.5 on the windward face, 1.0 on the leeward face; each step is a partial UDL over its width, resultant at x̄.</div>';
+
+  // Envelope reactions
+  h+='<h3 class="sec">Shearwall Line Reactions — envelope of both cases</h3>';
+  var R=env.reactions.map(function(e){ return e.abs; });
+  h+=reactTable(res.sws, R, 'sw-react', ['Governing case(s)', function(i){
+    var e=env.reactions[i];
+    return e.governing_cases.join(', ')+(e.sign<0?' <strong style="color:#b91c1c">NEGATIVE (line pulls)</strong>':'');
+  }]);
+  h+='<div class="ref" style="margin-top:4px">|R| = max over the cases per line; Σ of envelopes exceeds either case total by design. v_sw = |R| / L_sw.</div>';
+
+  h+='<h3 class="sec">Diaphragm Unit Shear</h3>';
+  h+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">V_max,beam (incl. parapet step loads)</div><div class="val">'+f2(env.Vmax.value)+' kips</div><div class="ref">'+env.Vmax.cases.join(', ')+'</div></div>'
+    +'<div class="metric"><div class="label">Unit Diaphragm Shear v</div><div class="val warn-val">'+f2(env.v_dia.value*1000)+' plf</div><div class="ref">'+env.v_dia.cases.join(', ')+'</div></div>'
+    +'</div>';
+  h+='<div class="ref" style="margin-bottom:10px">v = V_max,beam/B_perp = '+f2(env.Vmax.value)+'/'+f1(res.B_perp)+' = '+f2(env.v_dia.value*1000)+' plf</div>';
+
+  h+='<h3 class="sec">Chord Forces (Tension / Compression)</h3>';
+  h+='<div class="metric-grid">'
+    +'<div class="metric"><div class="label">Chord Design Moment M (incl. steps)</div><div class="val">'+f1(env.Mmax.value)+' kip·ft</div><div class="ref">'+env.Mmax.cases.join(', ')+'</div></div>'
+    +'<div class="metric"><div class="label">Chord Force T = C = M/B_perp</div><div class="val warn-val">'+f2(env.chord_T.value)+' kips</div><div class="ref">'+env.chord_T.cases.join(', ')+'</div></div>'
+    +'</div>';
+  h+='<div class="ref">T = C = '+f1(env.Mmax.value)+'/'+f1(res.B_perp)+' = '+f2(env.chord_T.value)+' kips</div>';
+  h+='<div class="ref" style="margin-top:4px">'+chordText(dk)+'</div>';
+
+  // Each physical case
+  cs.forEach(function(c){
+    var gov=function(i){ return env.reactions[i].governing_cases.indexOf(c.id)>=0?'<strong style="color:#dc2626">governs</strong>':''; };
+    h+='<div class="case-card case-'+c.id+'"><h4>Case '+escHtml(caseTitle(c))+'</h4>'
+      +'<div class="ref" style="margin-bottom:4px">V = '+f2(c.V_total)+' k · V_max = '+f2(c.Vmax)+' k · M = '+f1(c.Mmax)+' kip·ft · T = '+f2(c.chord_T)+' k · v = '+f2(c.v_dia*1000)+' plf</div>'
+      +reactTable(c.sws, c.reactions, 'case-react', ['Envelope', gov])
+      +momentHtml(c, dk, 'Reactions by statics about (0,0) — '+c.id)
+      +'</div>';
+  });
+  return h;
+}
+
+// Envelope/single result -> the scalar view the governing table, publish and
+// the masonry handoff read.
+function flatDir(r){
+  if(!r||!r.stepped) return r;
+  var e=r.envelope;
+  return { v_dia:e.v_dia.value, chord_T:e.chord_T.value,
+    reactions:e.reactions.map(function(x){ return x.abs; }),
+    unitShears:e.reactions.map(function(x,i){ return x.abs/r.sws[i].len; }) };
+}
+
+function showCalcError(msgs){
+  var el=document.getElementById('calcErr');
+  el.innerHTML='<strong>Cannot analyze this level — stepped parapet input error. No results shown.</strong><ul>'
+    +msgs.map(function(m){ return '<li>'+escHtml(m)+'</li>'; }).join('')
+    +'</ul>Fix the Stepped Parapets block (or set “Steps at this level” to Off) and calculate again.';
+  el.style.display='';
+  document.getElementById('results').style.display='none';
+  document.getElementById('sendToMasonryWallBtn').style.display='none';
+  document.getElementById('sendToShearwallBtn').style.display='none';
+  el.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 // ─── MAIN CALCULATE ──────────────────────────────────────────────────────────
@@ -784,20 +1034,29 @@ function calculate(){
     }
     return true;
   }
-  if(!checkSwLocs(swX,'EW (V\u2093)','North',f1(D))) return;
-  if(!checkSwLocs(swY,'NS (V\u1D67)','East',f1(B))) return;
+  if(!checkSwLocs(swX,'EW-wall (Wind-X, Vₓ)','North',f1(D))) return;
+  if(!checkSwLocs(swY,'NS-wall (Wind-Y, Vᵧ)','East',f1(B))) return;
 
-  // Wind-X: EW wind, N/S walls are shearwalls; span = D (NS, between N/S walls), chord = B (EW edges)
-  // Wind-Y: NS wind, E/W walls are shearwalls; span = B (EW, between E/W walls), chord = D (NS edges)
-  // Seismic (if entered) — same geometry; null when the seismic V is 0.
-  var an=RD.analyze({B:B, D:D, Vx:Vx, Vy:Vy, Vx_s:Vx_s, Vy_s:Vy_s, swX:swX, swY:swY});
+  // Wind-X: wind E–W, N/S walls resist; span = D (between the N/S walls), chord depth = B.
+  // Wind-Y: wind N–S, E/W walls resist; span = B (between the E/W walls), chord depth = D.
+  // Parapet steps (roof only): the shared builder returns null when there are
+  // none, so unstepped pages run exactly as before. q_p is strength level; an
+  // ASD-entered page displays step forces ×0.6 beside its ASD baseline (R4).
+  var asd=isAsdPage();
+  var par;
+  try{ par=parapetFromFields(ppFields()); }catch(e){ showCalcError([e.message||String(e)]); return; }
+  if(par){ par=JSON.parse(JSON.stringify(par)); par.asdFactor=asd?0.6:1; }
+  var an=RD.analyze({B:B, D:D, Vx:Vx, Vy:Vy, Vx_s:Vx_s, Vy_s:Vy_s, swX:swX, swY:swY, parapet:par||undefined});
+  if(an.fatal){ showCalcError(an.fatal); return; }
+  document.getElementById('calcErr').style.display='none';
   var wx=an.wx, wy=an.wy, sx=an.sx, sy=an.sy;
+  var fx=flatDir(wx), fy=flatDir(wy);
 
   // Governing
-  var gov_v_x = Math.max(wx.v_dia, sx?sx.v_dia:0);
-  var gov_v_y = Math.max(wy.v_dia, sy?sy.v_dia:0);
-  var gov_T_x = Math.max(wx.chord_T, sx?sx.chord_T:0);
-  var gov_T_y = Math.max(wy.chord_T, sy?sy.chord_T:0);
+  var gov_v_x = Math.max(fx.v_dia, sx?sx.v_dia:0);
+  var gov_v_y = Math.max(fy.v_dia, sy?sy.v_dia:0);
+  var gov_T_x = Math.max(fx.chord_T, sx?sx.chord_T:0);
+  var gov_T_y = Math.max(fy.chord_T, sy?sy.chord_T:0);
   var gov_v   = Math.max(gov_v_x, gov_v_y);
   var gov_T   = Math.max(gov_T_x, gov_T_y);
 
@@ -807,7 +1066,7 @@ function calculate(){
 
   // Summary — lead with the load level so the reactions/plf below (and the
   // printed summary, same DOM) cannot be read at the wrong level.
-  var lvlNote=document.getElementById('loadLevel').value==='asd'
+  var lvlNote=asd
     ?'Forces entered at ASD (0.6W / 0.7E already applied); reactions and unit shears below are ASD. Converted ÷0.6 / ÷0.7 when sent to Stacked Shearwall.'
     :'Forces entered at strength level (ASCE 7 W / E); reactions and unit shears below are strength level. Stacked Shearwall applies 0.6W / 0.7E.';
   var sumHtml='<p class="ref" id="loadLevelNote" style="margin:0 0 8px">'+lvlNote+'</p>'
@@ -819,20 +1078,37 @@ function calculate(){
     +(Vx_s>0?'<div class="kv-item">V_x (Seismic) = <span>'+f2(Vx_s)+' kips</span></div>':'')
     +(Vy_s>0?'<div class="kv-item">V_y (Seismic) = <span>'+f2(Vy_s)+' kips</span></div>':'')
     +'</div>';
+  // Parapet steps: what was applied, and anything the engineer must see.
+  var notes=[], pf=an.parapet;
+  if(pf){
+    var nX=pf.X.length, nY=pf.Y.length;
+    sumHtml+='<div class="kv" id="ppSummary">'
+      +'<div class="kv-item">q_p = <span>'+f2(pf.qp_psf)+' psf</span></div>'
+      +'<div class="kv-item">h_p,max / h_p,typ = <span>'+f2(pf.h_max_ft)+' / '+f2(pf.h_typ_ft)+' ft</span></div>'
+      +'<div class="kv-item">Parapet steps applied = <span>'+nY+' Wind-Y, '+nX+' Wind-X</span></div>'
+      +'</div>';
+    var idle=pf.steps.filter(function(s){ return !s.active; });
+    if(idle.length) notes.push(idle.length+' step row(s) inactive (Δh = h − h_typ or width is 0): '+idle.map(function(s){ return s.label; }).join(', ')+'.');
+  } else if(readStepJSON().length&&document.getElementById('stepsAtLevel').value!=='on'){
+    notes.push(readStepJSON().length+' parapet step(s) saved but “Steps at this level” is Off — not applied.');
+  }
+  var ov=ppOverrideDiffs();
+  if(ov.length) notes.push('Parapet values overridden (Unlock): '+ov.join('; ')+'. The typical parapet load inside V_x/V_y came from the MWFRS values and is no longer consistent with them.');
+  if(notes.length) sumHtml+='<div class="warn" id="ppWarn">'+notes.map(escHtml).join('<br>')+'</div>';
   document.getElementById('summaryBody').innerHTML=sumHtml;
 
-  renderDir(wx, document.getElementById('wxBody'));
-  renderDir(wy, document.getElementById('wyBody'));
+  renderDir(wx, document.getElementById('wxBody'), {asd:asd});
+  renderDir(wy, document.getElementById('wyBody'), {asd:asd});
 
   if(Vx_s>0||Vy_s>0){
     var sBody='';
-    if(sx){ sBody+='<h3 class="sec">Seismic-X (EW)</h3>'; var tmp=document.createElement('div'); renderDir(sx,tmp); sBody+=tmp.innerHTML; }
-    if(sy){ sBody+='<h3 class="sec">Seismic-Y (NS)</h3>'; var tmp2=document.createElement('div'); renderDir(sy,tmp2); sBody+=tmp2.innerHTML; }
+    if(sx){ sBody+='<h3 class="sec">Seismic-X — E–W, resisted by the N &amp; S shearwalls (EW walls)</h3>'; var tmp=document.createElement('div'); renderDir(sx,tmp); sBody+=tmp.innerHTML; }
+    if(sy){ sBody+='<h3 class="sec">Seismic-Y — N–S, resisted by the E &amp; W shearwalls (NS walls)</h3>'; var tmp2=document.createElement('div'); renderDir(sy,tmp2); sBody+=tmp2.innerHTML; }
     document.getElementById('seismicBody').innerHTML=sBody;
   }
 
   // Governing summary
-  var govHtml='<div class="ok" style="margin-bottom:12px">Governing forces for diaphragm sheathing and chord member design.</div>';
+  var govHtml='<div class="ok" style="margin-bottom:12px">Governing forces for diaphragm sheathing and chord member design'+(pf?' (wind incl. parapet step loads, enveloped over both wind senses)':'')+'.</div>';
   govHtml+='<table class="res-tbl"><thead><tr>'
     +'<th>Check</th><th>Wind-X</th><th>Wind-Y</th>'
     +(Vx_s>0||Vy_s>0?'<th>Seismic-X</th><th>Seismic-Y</th>':'')
@@ -841,22 +1117,22 @@ function calculate(){
   function govTd(val, govVal){ return '<td'+(Math.abs(val-govVal)<0.001?' class="gov"':'')+'>'+f2(val)+'</td>'; }
 
   govHtml+='<tr><td>Unit Diaphragm Shear v (plf)</td>'
-    +govTd(wx.v_dia*1000, gov_v*1000)
-    +govTd(wy.v_dia*1000, gov_v*1000)
+    +govTd(fx.v_dia*1000, gov_v*1000)
+    +govTd(fy.v_dia*1000, gov_v*1000)
     +(Vx_s>0?govTd((sx?sx.v_dia:0)*1000,gov_v*1000):'')
     +(Vy_s>0?govTd((sy?sy.v_dia:0)*1000,gov_v*1000):'')
     +'<td class="gov">'+f2(gov_v*1000)+' plf</td></tr>';
 
   govHtml+='<tr><td>Chord Force T/C (kips)</td>'
-    +govTd(wx.chord_T, gov_T)
-    +govTd(wy.chord_T, gov_T)
+    +govTd(fx.chord_T, gov_T)
+    +govTd(fy.chord_T, gov_T)
     +(Vx_s>0?govTd(sx?sx.chord_T:0, gov_T):'')
     +(Vy_s>0?govTd(sy?sy.chord_T:0, gov_T):'')
     +'<td class="gov">'+f2(gov_T)+' kips</td></tr>';
 
   // Max SW unit shear
-  var maxSW_wx=Math.max.apply(null,wx.unitShears)*1000;
-  var maxSW_wy=Math.max.apply(null,wy.unitShears)*1000;
+  var maxSW_wx=Math.max.apply(null,fx.unitShears)*1000;
+  var maxSW_wy=Math.max.apply(null,fy.unitShears)*1000;
   var maxSW_sx=sx?Math.max.apply(null,sx.unitShears)*1000:0;
   var maxSW_sy=sy?Math.max.apply(null,sy.unitShears)*1000:0;
   var gov_sw=Math.max(maxSW_wx,maxSW_wy,maxSW_sx,maxSW_sy);
@@ -907,6 +1183,7 @@ function readMwfrsTable(){
 function buildLevelSelect(){
   var row=document.getElementById('mwfrsRow'), sel=document.getElementById('mwfrsLevel'), info=document.getElementById('mwfrsInfo');
   var t=readMwfrsTable();
+  syncPpLock();   // the record decides whether the parapet fields are source-owned
   if(!t){ row.style.display='none'; sel.innerHTML=''; info.textContent=''; return; }
   var cur=document.getElementById('level').value.trim().toLowerCase(), html='';
   t.levels.forEach(function(l,i){
@@ -917,8 +1194,9 @@ function buildLevelSelect(){
   info.textContent=info.dataset.base;
   row.style.display='';
 }
-// Put one level on the page: #level, #Vx/#Vy (strength kips) and the Mark.
-// Seismic, B/D and the wall rows are the engineer's and are left alone.
+// Put one level on the page: #level, #Vx/#Vy (strength kips), the Mark and
+// #stepsAtLevel (parapet steps apply to the roof = level 0 only). Seismic, B/D,
+// the wall rows and the step table are the engineer's and are left alone.
 function applyMwfrsLevel(idx){
   var t=readMwfrsTable(), lv=t&&t.levels[idx];
   if(!lv) return;
@@ -930,7 +1208,9 @@ function applyMwfrsLevel(idx){
   document.getElementById('Vx').value=((parseFloat(lv.F_wind_x_strength_lb)||0)/1000).toFixed(2);
   document.getElementById('Vy').value=((parseFloat(lv.F_wind_y_strength_lb)||0)/1000).toFixed(2);
   document.getElementById('loadLevel').value='strength';
+  document.getElementById('stepsAtLevel').value=idx===0?'on':'off';
   setMarkForLevel(prev,label);
+  refreshStepReadouts();
   updateDiagram();
   // Recompute shown results here; the toolbar's mark-triggered autorun only
   // fires when the Mark actually changed.
@@ -984,6 +1264,18 @@ function showImportBanner(infoStr){
   document.getElementById('importInfo').textContent=infoStr;
   document.getElementById('importBanner').style.display='block';
 }
+// Parapet values are SOURCE-OWNED (plan R7): overwritten from record.parapet on
+// every import (unlike the titleblock's fill-blank) and re-locked. A record
+// without a parapet (hp = 0, or an older MWFRS) blanks them.
+function applyRecordParapet(record){
+  var pp=(record&&record.parapet&&typeof record.parapet==='object')?record.parapet:null;
+  var r2=function(v){ var n=parseFloat(v); return isFinite(n)?String(Math.round(n*100)/100):''; };
+  document.getElementById('ppQp').value=pp?r2(pp.qp_psf):'';
+  document.getElementById('ppHmax').value=pp?r2(pp.hp_max_ft):'';
+  document.getElementById('ppHtyp').value=pp?r2(pp.hp_typ_ft):'';
+  document.getElementById('ppRoof').value=pp?(pp.roofFlat===true?'flat':(pp.roofFlat===false?'sloped':'')):'';
+  document.getElementById('ppUnlock').checked=false;
+}
 function applyLateralRecord(record, story){
   var proj=String(record.project||'').trim();
   var job=(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'';
@@ -994,6 +1286,7 @@ function applyLateralRecord(record, story){
   document.getElementById('loadLevel').value='strength';
   var g=record.geometry||{}, B=document.getElementById('B'), D=document.getElementById('D');
   if(B.value==='60'&&D.value==='120'){ if(g.B_ft>0) B.value=g.B_ft; if(g.D_ft>0) D.value=g.D_ft; }   // page defaults only
+  applyRecordParapet(record);
   // Titleblock (record.titleblock, additive): fill BLANK fields only, never overwrite.
   var tb=(window.LH&&LH.titleblock)?LH.titleblock(record.titleblock):{projectName:'',jobNumber:'',engineer:'',date:''};
   var fillBlank=function(id,v){ var e=document.getElementById(id); if(e&&!e.value.trim()&&v) e.value=v; };
@@ -1016,7 +1309,7 @@ function applyLateralRecord(record, story){
   var record=p.get('lat')==='1'?takeLateralRecord():null;
   if(record){ window.addEventListener('load',function(){ applyLateralRecord(record, story); }); return; }
 
-  // Legacy single level. MWFRS sends: vx = EW wind force (Wind-X), vy = NS wind force (Wind-Y) — matches X=EW, Y=NS convention
+  // Legacy single level. MWFRS sends: vx = Wind-X force (wind E–W), vy = Wind-Y force (wind N–S)
   var vx=parseFloat(p.get('vx')||p.get('lateral_x')||p.get('lateral')||'0'); // EW force → V_x
   var vy=parseFloat(p.get('vy')||p.get('lateral_y')||'0');                   // NS force → V_y
   var B=parseFloat(p.get('B')||'0');
@@ -1030,8 +1323,8 @@ function applyLateralRecord(record, story){
   document.getElementById('loadLevel').value='strength';
 
   var infoStr='';
-  if(vx>0) infoStr+='V\u2093 = '+((vx/1000).toFixed(2))+' kips (Wind-X EW)  ';
-  if(vy>0) infoStr+='V\u1D67 = '+((vy/1000).toFixed(2))+' kips (Wind-Y NS)  ';
+  if(vx>0) infoStr+='V\u2093 = '+((vx/1000).toFixed(2))+' kips (Wind-X, wind E–W)  ';
+  if(vy>0) infoStr+='V\u1D67 = '+((vy/1000).toFixed(2))+' kips (Wind-Y, wind N–S)  ';
   if(story) infoStr+='Level: '+story+'  ';
   showImportBanner(infoStr);
 
@@ -1064,7 +1357,16 @@ function saveInputsDia(){
     Vx_s: document.getElementById('Vx_s').value,
     Vy_s: document.getElementById('Vy_s').value,
     swX:  getSWRows('X'),
-    swY:  getSWRows('Y')
+    swY:  getSWRows('Y'),
+    loadLevel: document.getElementById('loadLevel').value,
+    ppQp:   document.getElementById('ppQp').value,
+    ppHmax: document.getElementById('ppHmax').value,
+    ppHtyp: document.getElementById('ppHtyp').value,
+    ppRoof: document.getElementById('ppRoof').value,
+    ppUnlock: document.getElementById('ppUnlock').checked,
+    ppCommonBase: document.getElementById('ppCommonBase').checked,
+    stepsAtLevel: document.getElementById('stepsAtLevel').value,
+    steps: readStepJSON()
   };
   var proj=data.projName||data.level||'diaphragm';
   var lvl=data.level?'_'+data.level:'';
@@ -1093,6 +1395,16 @@ function loadInputsDia(input){
       // Rebuild shearwall rows with the shared markup (same as the toolbar path)
       if(d.swX&&d.swX.length) rebuildSWRows('X',d.swX);
       if(d.swY&&d.swY.length) rebuildSWRows('Y',d.swY);
+      // Parapet steps: files saved before the steps existed carry none, so the
+      // table is cleared (never inherited from the page); the source-owned
+      // parapet values are kept unless the file has them.
+      if(d.loadLevel==='strength'||d.loadLevel==='asd') set('loadLevel',d.loadLevel);
+      set('ppQp',d.ppQp); set('ppHmax',d.ppHmax); set('ppHtyp',d.ppHtyp); set('ppRoof',d.ppRoof);
+      if(typeof d.ppUnlock==='boolean') document.getElementById('ppUnlock').checked=d.ppUnlock;
+      document.getElementById('ppCommonBase').checked=d.ppCommonBase===true;
+      document.getElementById('stepsAtLevel').value=d.stepsAtLevel==='off'?'off':'on';
+      rebuildStepRows(Array.isArray(d.steps)?d.steps:[], true);
+      syncPpLock();
       updateDiagram();
       alert('Inputs loaded successfully.');
     }catch(err){alert('Error reading file: '+err.message);}
@@ -1194,6 +1506,19 @@ document.addEventListener('DOMContentLoaded',function(){
   });
   // Same for the MWFRS story table: the toolbar Load fires change on #mwfrsJSON
   document.getElementById('mwfrsJSON').addEventListener('change', buildLevelSelect);
+  // Parapet steps: #stepJSON is the carrier; rows are rebuilt from it on restore.
+  document.getElementById('stepJSON').addEventListener('change',function(){ rebuildStepRows(readStepJSON(), false); });
+  var stepRows=document.getElementById('stepRows');
+  stepRows.addEventListener('input', onStepEdit);
+  stepRows.addEventListener('change', onStepEdit);
+  ['ppQp','ppHmax','ppHtyp','stepsAtLevel','loadLevel','B','D'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', refreshStepReadouts);
+    document.getElementById(id).addEventListener('change', function(){ refreshStepReadouts(); updateDiagram(); });
+  });
+  document.getElementById('ppUnlock').addEventListener('change', syncPpLock);
+  document.getElementById('ppRoof').addEventListener('change', syncPpLock);
+  rebuildStepRows(readStepJSON(), false);
+  syncPpLock();
   updateDiagram();
 });
 </script>
@@ -1235,7 +1560,13 @@ document.addEventListener('DOMContentLoaded',function(){
       Object.keys(state.fields).forEach(function(k){
         if(LEGACY_ROW_KEY.test(k)) delete state.fields[k];
       });
-      var DEFAULTS={'#loadLevel':'strength', '#mwfrsJSON':keepPageTable(state)};
+      // Parapet steps (2026-09-23): an older file has no steps -> '[]' (the
+      // page's steps are cleared, never inherited). The source-owned parapet
+      // values follow #mwfrsJSON: kept when the page table is kept, else blank.
+      var keep=keepPageTable(state), cur=function(id){ return keep?document.getElementById(id).value:''; };
+      var DEFAULTS={'#loadLevel':'strength', '#mwfrsJSON':keep,
+        '#ppQp':cur('ppQp'), '#ppHmax':cur('ppHmax'), '#ppHtyp':cur('ppHtyp'), '#ppRoof':cur('ppRoof'),
+        '#ppUnlock':false, '#ppCommonBase':false, '#stepsAtLevel':'on', '#stepJSON':'[]'};
       Object.keys(DEFAULTS).forEach(function(k){
         if(!Object.prototype.hasOwnProperty.call(state.fields,k) && document.getElementById(k.slice(1))) state.fields[k]=DEFAULTS[k];
       });
@@ -1246,7 +1577,12 @@ document.addEventListener('DOMContentLoaded',function(){
   // #mwfrsJSON's change listener fires mid-restore, possibly before #level is
   // applied; rebuild once more after every field is in so the right option is
   // selected.
-  if(AREv2.onAfterRestore) AREv2.onAfterRestore(buildLevelSelect);
+  if(AREv2.onAfterRestore) AREv2.onAfterRestore(function(){
+    buildLevelSelect();
+    // readOnly parapet fields are restored without events (isDerivedField):
+    // re-lock and refresh the read-outs once everything is in.
+    syncPpLock(); refreshStepReadouts(); updateDiagram();
+  });
 })();
 </script>
 <script src="/are-draw.js"></script>

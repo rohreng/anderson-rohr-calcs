@@ -113,8 +113,8 @@ const gold = await page.evaluate(() => {
     Y: wy.reactions.map((r) => r * 1000), Ylab: wy.sws.map((s) => s.label),
     shown: document.getElementById('results').style.display !== 'none',
     // Line table: SW Line | Location | Length | Reaction R (kips, 2 dp) | v_sw
-    wxRows: Array.from(document.querySelectorAll('#wxBody tbody tr')).map((r) => r.cells[0].innerText + '=' + r.cells[3].innerText),
-    wyRows: Array.from(document.querySelectorAll('#wyBody tbody tr')).map((r) => r.cells[0].innerText + '=' + r.cells[3].innerText)
+    wxRows: Array.from(document.querySelectorAll('#wxBody table.sw-react tbody tr')).map((r) => r.cells[0].innerText + '=' + r.cells[3].innerText),
+    wyRows: Array.from(document.querySelectorAll('#wyBody table.sw-react tbody tr')).map((r) => r.cells[0].innerText + '=' + r.cells[3].innerText)
   };
 });
 const within = (got, want) => got.length === want.length && got.every((v, i) => Math.abs(v - want[i]) <= 1);
@@ -282,10 +282,10 @@ await page.evaluate(() => {
 await page.evaluate(() => window.applyMwfrsLevel(0));   // Roof: 131.31 k
 await page.fill('#areMark', '3RD LEVEL');
 await page.evaluate(() => window.calculate());
-const roofRx = await page.$eval('#wxBody tbody tr', (r) => r.cells[3].innerText);
+const roofRx = await page.$eval('#wxBody table.sw-react tbody tr', (r) => r.cells[3].innerText);
 await page.evaluate(() => window.applyMwfrsLevel(1));   // 3RD: 79.78 k, mark "3RD LEVEL" unchanged
 const stale = await page.evaluate(() => ({ mark: document.getElementById('areMark').value, info: document.getElementById('mwfrsInfo').textContent,
-  rx: document.querySelector('#wxBody tbody tr').cells[3].innerText, sum: document.getElementById('summaryBody').innerText }));
+  rx: document.querySelector('#wxBody table.sw-react tbody tr').cells[3].innerText, sum: document.getElementById('summaryBody').innerText }));
 check('switch with mark left alone: results recomputed for 79.78 k', stale.mark === '3RD LEVEL' && roofRx !== stale.rx && /V_x \(Wind-X\) = 79\.78 kips/.test(stale.sum) && !/131\.31/.test(stale.sum), `mark=${stale.mark} R ${roofRx} -> ${stale.rx}; ${stale.sum.replace(/\s+/g, ' ').slice(0, 160)}`);
 check('switch with mark left alone: #mwfrsInfo has no stale "Mark set to"', !/Mark set to/.test(stale.info), stale.info);
 // A label with < and & survives buildLevelSelect (escaped in the option, still selectable).
@@ -307,7 +307,7 @@ await page.fill('#areMark', '3RD LEVEL');
 const before = await capFields();
 await page.selectOption('#mwfrsLevel', '2');   // 2ND
 const after = await capFields();
-const SKIP = { '#level': 1, '#Vx': 1, '#Vy': 1, '#mwfrsJSON': 1 };
+const SKIP = { '#level': 1, '#Vx': 1, '#Vy': 1, '#mwfrsJSON': 1, '#stepsAtLevel': 1 };
 const changed = Object.keys(after).filter((k) => !SKIP[k] && after[k] !== before[k]);
 const missing = Object.keys(before).filter((k) => !(k in after));
 check('switch to 2ND: #level/#Vx/#Vy follow the level', after['#level'] === '2ND' && after['#Vx'] === '87.31' && after['#Vy'] === '22.62', `${after['#level']} ${after['#Vx']} ${after['#Vy']}`);
@@ -442,7 +442,7 @@ const d2 = await page.evaluate(() => {
   };
 });
 check('D2: default labels North/South/East/West side, added row "Interior line 3"', d2.X.join('|') === 'North side|South side|Interior line 3' && d2.Y.join('|') === 'East side|West side', JSON.stringify([d2.X, d2.Y]));
-check('D2: headings "EW/NS shearwall lines — resist Wind-X/Y"', d2.heads.some((h) => /^EW shearwall lines — resist Wind-X \(Vx\)$/.test(h)) && d2.heads.some((h) => /^NS shearwall lines — resist Wind-Y \(Vy\)$/.test(h)), JSON.stringify(d2.heads));
+check('D2: headings "EW/NS shearwall lines (N & S / E & W walls) — resist Wind-X/Y"', d2.heads.some((h) => /^EW shearwall lines \(N & S walls\) — resist Wind-X \(Vx\)$/.test(h)) && d2.heads.some((h) => /^NS shearwall lines \(E & W walls\) — resist Wind-Y \(Vy\)$/.test(h)), JSON.stringify(d2.heads));
 check('D2: Shearwall Layout hint — one row per wall line, not per segment', /One row per wall line \(grid line\), not per wall segment/.test(d2.hint) && /Stacked Shearwall Designer/.test(d2.hint), d2.hint);
 
 // ── 18. P5.3: "Copy layout from file…" pulls only the wall rows ─────────────
@@ -486,6 +486,187 @@ check('copy layout: refused files leave the rows alone', sameRows(await readRows
 await page.evaluate(() => { window.rebuildSWRows('X', [{ label: 'A"<B', len: 20, loc: 0 }, { label: 'C', len: 20, loc: 120 }]); window.updateDiagram(); });
 const odd = await page.evaluate(() => ({ v: document.querySelector('#swX .sw-label').value, n: document.querySelectorAll('#swX .sw-row input').length }));
 check('row label A"<B: attribute escaped, value read back verbatim', odd.v === 'A"<B' && odd.n === 6, JSON.stringify(odd));
+
+// =============================================================================
+// Parapet steps + wind-direction nomenclature (plan 2026-09-23, WP-3)
+// =============================================================================
+const EXPECTED = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/expected.json', import.meta.url)), 'utf8'));
+const readState = (name) => JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/' + name, import.meta.url)), 'utf8'));
+const cleanLoad = (r) => r.ok === true && !r.rolledBack && r.mismatches.missingOnPage.length === 0 && r.mismatches.notInFile.length === 0;
+// Numeric cells of the check rows (F column 4, F·x column 5) of every ΣM table under `sel`.
+const CHK = (sel) => sel + ' table.mom-tbl tr.chk td:nth-child(4), ' + sel + ' table.mom-tbl tr.chk td:nth-child(5)';
+
+// ── 19. old ROOF / 3RD / 2ND files: clean load, identical goldens, ΣM table ──
+for (const [lvl, name] of [['Roof', 'diaphragm-roof-state.json'], ['3RD', 'diaphragm-3rd-state.json'], ['2ND', 'diaphragm-2nd-state.json']]) {
+  await gotoLat('', null);
+  const r = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), readState(name));
+  check(`${lvl} file (pre-steps): loadFromState ok, zero mismatches`, cleanLoad(r), JSON.stringify(r.mismatches || r));
+  const out = await page.evaluate((chkSel) => {
+    window.calculate();
+    const rd = (b) => Array.from(document.querySelectorAll(b + ' table.sw-react tbody tr')).map((tr) => parseFloat(tr.cells[3].innerText));
+    return { X: rd('#wxBody'), Y: rd('#wyBody'), steps: document.querySelectorAll('#stepRows .step-row').length, stepJSON: document.getElementById('stepJSON').value,
+      err: getComputedStyle(document.getElementById('calcErr')).display, cases: document.querySelectorAll('#results .case-card').length,
+      mom: document.querySelectorAll('#wxBody table.mom-tbl').length + document.querySelectorAll('#wyBody table.mom-tbl').length,
+      chk: Array.from(document.querySelectorAll(chkSel)).map((td) => td.innerText.trim()).filter(Boolean) };
+  }, CHK('#wxBody') + ', ' + CHK('#wyBody'));
+  const exp = EXPECTED.levels[lvl], srt = (a) => a.slice().sort((p, q) => p - q);
+  const eqK = (got, lb) => got.length === lb.length && srt(got).every((v, i) => Math.abs(v - srt(lb)[i] / 1000) <= 0.0051);
+  check(`${lvl} file: rendered reactions = expected.json goldens (kips, 2 dp)`, eqK(out.X, exp.X) && eqK(out.Y, exp.Y), JSON.stringify({ X: out.X.slice(0, 3), Y: out.Y }));
+  check(`${lvl} file: no steps, no cases, no error; ΣM tables in both directions with zero check rows`,
+    out.steps === 0 && out.stepJSON === '[]' && out.err === 'none' && out.cases === 0 && out.mom === 2 && out.chk.length === 4 && out.chk.every((t) => t === '0.00'), JSON.stringify(out).slice(0, 300));
+}
+
+// ── 20. page defaults + one N-face step (fixture a): q_p 30, h_typ 3, [10, 30], h 6 ──
+await gotoLat('', null);
+await page.fill('#ppQp', '30'); await page.fill('#ppHmax', '6'); await page.fill('#ppHtyp', '3');
+await page.evaluate(() => { document.getElementById('ppRoof').value = 'flat'; });
+await page.check('#ppCommonBase');
+await page.click('#btnAddStep');
+await page.fill('#stepRows .st-label', 'Step 1');
+await page.selectOption('#stepRows .st-face', 'N');
+await page.fill('#stepRows .st-start', '10'); await page.fill('#stepRows .st-width', '20'); await page.fill('#stepRows .st-h', '6');
+const ui = await page.evaluate(() => ({ json: JSON.parse(document.getElementById('stepJSON').value), ro: document.querySelector('#stepRows .st-ro').textContent,
+  lab: document.querySelector('#stepRows .st-startlab').textContent, ign: Array.from(document.querySelectorAll('#stepRows input, #stepRows select')).every((e) => e.hasAttribute('data-are-ignore')) }));
+check('step row UI → #stepJSON [{Step 1, N, 10, 20, 6}], row inputs data-are-ignore', JSON.stringify(ui.json) === JSON.stringify([{ label: 'Step 1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 6 }]) && ui.ign, JSON.stringify(ui));
+check('step read-out: Wind-Y, Δh 3.00 ft, F 2.70 k windward / 1.80 k leeward, x̄ 20.0 ft from the W corner; start label "x from W corner"',
+  /Wind-Y/.test(ui.ro) && /= 3\.00 ft/.test(ui.ro) && /F windward = 2\.70 k \/ F leeward = 1\.80 k/.test(ui.ro) && /x̄ = 20\.0 ft from the W corner/.test(ui.ro) && /x from W corner/.test(ui.lab), ui.ro + ' | ' + ui.lab);
+await page.selectOption('#stepRows .st-face', 'E');
+check('face E relabels the start "y from S corner"', /y from S corner/.test(await page.$eval('#stepRows .st-startlab', (e) => e.textContent)), await page.$eval('#stepRows .st-startlab', (e) => e.textContent));
+await page.selectOption('#stepRows .st-face', 'N');
+const runStepped = () => page.evaluate((chkSel) => {
+  window.calculate();
+  const rows = Array.from(document.querySelectorAll('#wyBody table.sw-react tbody tr')).map((r) => ({ l: r.cells[0].innerText, R: r.cells[3].innerText, gov: r.cells[5].innerText }));
+  return { rows, txt: document.getElementById('wyBody').innerText, cases: Array.from(document.querySelectorAll('#wyBody .case-card')).map((c) => c.className),
+    chk: Array.from(document.querySelectorAll(chkSel)).map((td) => td.innerText.trim()).filter(Boolean), bad: document.querySelectorAll('#wyBody tr.chk.bad').length,
+    err: getComputedStyle(document.getElementById('calcErr')).display, shown: document.getElementById('results').style.display,
+    wxCases: document.querySelectorAll('#wxBody .case-card').length, wxMom: document.querySelectorAll('#wxBody table.mom-tbl').length,
+    total: document.querySelector('#wyBody .metric .val').innerText, gov: document.getElementById('govBody').innerText, sum: document.getElementById('summaryBody').innerText };
+}, CHK('#wyBody'));
+const sa = await runStepped();
+check('fixture a: results shown, no error', sa.shown === 'block' && sa.err === 'none', JSON.stringify({ shown: sa.shown, err: sa.err }));
+check('fixture a: envelope reactions West side 16.80 / East side 15.90, both governed by fromN',
+  sa.rows.length === 2 && sa.rows[0].l === 'West side' && sa.rows[0].R === '16.80' && /fromN/.test(sa.rows[0].gov) && sa.rows[1].l === 'East side' && sa.rows[1].R === '15.90' && /fromN/.test(sa.rows[1].gov), JSON.stringify(sa.rows));
+check('fixture a: total 32.70 k (V_udl 30 + step 2.70), v 140.00 plf, M 252.6 kip·ft, T 2.11 k',
+  sa.total === '32.70 kips' && /140\.00 plf/.test(sa.txt) && /252\.6/.test(sa.txt) && /2\.11 kips/.test(sa.txt) && /30\.00 \+ 2\.70 = 32\.70/.test(sa.txt), sa.total + ' | ' + sa.txt.replace(/\s+/g, ' ').slice(0, 400));
+check('fixture a: both cases shown (fromN, fromS), ΣM₀ 954.00 k·ft in fromN, every check row 0.00',
+  sa.cases.length === 2 && sa.cases.some((c) => /case-fromN/.test(c)) && sa.cases.some((c) => /case-fromS/.test(c)) && /954\.00/.test(sa.txt) && sa.chk.length === 4 && sa.chk.every((t) => t === '0.00') && sa.bad === 0, JSON.stringify({ cases: sa.cases, chk: sa.chk }));
+check('fixture a: two-line equation R = (ΣM₀ − ΣF·a)/(b − a) = 15.90 shown', /\(954\.00 − 32\.70 × 0\.0\)\/\(60\.0 − 0\.0\) = 15\.90 k/.test(sa.txt), sa.txt.match(/Two lines:.{0,160}/) ? sa.txt.match(/Two lines:.{0,160}/)[0] : '');
+check('fixture a: Wind-X unstepped (no cases) with its own ΣM table', sa.wxCases === 0 && sa.wxMom === 1, JSON.stringify({ wxCases: sa.wxCases, wxMom: sa.wxMom }));
+check('fixture a: governing summary v 140.00, summary lists 1 Wind-Y step', /140\.00/.test(sa.gov) && /1 Wind-Y, 0 Wind-X/.test(sa.sum), sa.sum.replace(/\s+/g, ' '));
+
+// ── 21. ΣM table for an unstepped run (steps kept but OFF) ─────────────────
+await page.selectOption('#stepsAtLevel', 'off');
+const un = await page.evaluate((chkSel) => {
+  window.calculate();
+  const mom = document.querySelector('#wyBody table.mom-tbl');
+  return { rows: Array.from(document.querySelectorAll('#wyBody table.sw-react tbody tr')).map((r) => r.cells[3].innerText), cases: document.querySelectorAll('#wyBody .case-card').length,
+    momRows: mom ? Array.from(mom.querySelectorAll('tbody tr')).map((r) => Array.from(r.cells).map((c) => c.innerText).join('|')) : [],
+    chk: Array.from(document.querySelectorAll(chkSel)).map((td) => td.innerText.trim()).filter(Boolean), sum: document.getElementById('summaryBody').innerText, ro: document.querySelector('#stepRows .st-ro').className };
+}, CHK('#wyBody'));
+check('unstepped: 15.00 / 15.00, no cases', un.rows.join(',') === '15.00,15.00' && un.cases === 0, JSON.stringify(un.rows));
+check('unstepped: ΣM table lists the UDL at L/2 and each line with its distance from (0,0), check rows 0.00',
+  un.momRows.some((r) => /^Diaphragm UDL \(w·L\)\|UDL at L\/2\|30\.00\|30\.00\|900\.00$/.test(r)) && un.momRows.some((r) => /^West side\|Shearwall line reaction R\|0\.00\|15\.00\|0\.00$/.test(r))
+  && un.momRows.some((r) => /^East side\|Shearwall line reaction R\|60\.00\|15\.00\|900\.00$/.test(r)) && un.chk.length === 2 && un.chk.every((t) => t === '0.00'), JSON.stringify(un.momRows));
+check('steps off: summary says the saved step is not applied, read-out greyed', /saved but .Steps at this level. is Off/.test(un.sum) && /off/.test(un.ro), un.sum.replace(/\s+/g, ' '));
+await page.selectOption('#stepsAtLevel', 'on');
+
+// ── 22. fatal validation (R10/R20): error shown, NO results ────────────────
+const fatalRun = (setup) => page.evaluate((fn) => {
+  (new Function(fn))();
+  window.calculate();
+  const e = document.getElementById('calcErr');
+  return { err: getComputedStyle(e).display, txt: e.innerText, shown: document.getElementById('results').style.display,
+    send: document.getElementById('sendToShearwallBtn').style.display };
+}, setup);
+await page.evaluate(() => window.calculate());
+const fz = [
+  ['sloped roof', "document.getElementById('ppRoof').value='sloped';", /flat roof/],
+  ['common-base box unchecked', "document.getElementById('ppRoof').value='flat'; document.getElementById('ppCommonBase').checked=false;", /common-base checkbox/],
+  ['h_step 7 > h_p,max 6', "document.getElementById('ppCommonBase').checked=true; window.rebuildStepRows([{label:'Step 1',face:'N',start_ft:10,width_ft:20,h_ft:7}], true);", /exceeds the maximum parapet height/],
+  ['single Wind-Y line', "window.rebuildStepRows([{label:'Step 1',face:'N',start_ft:10,width_ft:20,h_ft:6}], true); window.rebuildSWRows('Y',[{label:'East side',len:120,loc:60}]);", /≥ 2 shearwall lines/]
+];
+for (const [name, setup, re] of fz) {
+  const r = await fatalRun(setup);
+  check(`fatal (${name}): error shown, results hidden, send hidden`, r.err !== 'none' && re.test(r.txt) && r.shown === 'none' && r.send === 'none', JSON.stringify(r));
+}
+const ok2 = await fatalRun("window.rebuildSWRows('Y',[{label:'East side',len:120,loc:60},{label:'West side',len:120,loc:0}]);");
+check('fatal cleared: error hidden, results back', ok2.err === 'none' && ok2.shown === 'block', JSON.stringify(ok2));
+
+// ── 23. ASD page: steps displayed ×0.6 beside the ASD baseline (R4) ─────────
+await page.selectOption('#loadLevel', 'asd'); await page.fill('#Vy', '18');
+const asdR = await runStepped();
+check('ASD: total 19.62 k = 18 + 2.70 × 0.6; step table F fromN 1.62', asdR.total === '19.62 kips' && /1\.62/.test(asdR.txt) && /ASD/.test(asdR.txt), asdR.total);
+check('ASD: step read-out tagged ASD ×0.6', /F windward = 1\.62 k .*ASD/.test(await page.$eval('#stepRows .st-ro', (e) => e.textContent)), await page.$eval('#stepRows .st-ro', (e) => e.textContent));
+await page.selectOption('#loadLevel', 'strength'); await page.fill('#Vy', '30');
+
+// ── 24. capture / restore round trip rebuilds the rows from #stepJSON ───────
+const capS = await page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState())));
+const PP_KEYS = ['#ppQp', '#ppHmax', '#ppHtyp', '#ppRoof', '#ppUnlock', '#ppCommonBase', '#stepsAtLevel', '#stepJSON'];
+check('capture: parapet keys present, checkboxes as booleans, #swJSON still the only sw* key, no path: keys',
+  PP_KEYS.every((k) => k in capS.fields) && capS.fields['#ppCommonBase'] === true && capS.fields['#ppUnlock'] === false && capS.fields['#ppQp'] === '30'
+  && Object.keys(capS.fields).filter((k) => /^#sw/i.test(k)).join() === '#swJSON' && Object.keys(capS.fields).every((k) => k.indexOf('path:') !== 0) && (capS._problems || []).length === 0,
+  JSON.stringify(PP_KEYS.map((k) => [k, capS.fields[k]])));
+await page.evaluate(() => { window.rebuildStepRows([], true); document.getElementById('ppCommonBase').checked = false; document.getElementById('ppQp').value = ''; });
+const rtS = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), capS);
+const rtRows = await page.evaluate(() => Array.from(document.querySelectorAll('#stepRows .step-row')).map((r) => [r.querySelector('.st-label').value, r.querySelector('.st-face').value, r.querySelector('.st-start').value, r.querySelector('.st-width').value, r.querySelector('.st-h').value].join('|')));
+check('round trip: loadFromState clean, 1 step row rebuilt from #stepJSON', cleanLoad(rtS) && rtRows.join() === 'Step 1|N|10|20|6', JSON.stringify(rtRows) + ' ' + JSON.stringify(rtS.mismatches));
+const rtCalc = await runStepped();
+check('round trip: q_p / common base restored, reactions 16.80 / 15.90 again', rtCalc.rows.map((r) => r.R).join(',') === '16.80,15.90' && (await val('ppQp')) === '30', JSON.stringify(rtCalc.rows));
+const capS2 = await page.evaluate(() => JSON.parse(JSON.stringify(window.AREv2.captureState().fields)));
+check('round trip: second capture identical', JSON.stringify(capS2) === JSON.stringify(capS.fields), JSON.stringify(capS2).slice(0, 200));
+
+// ── 25. Legacy Save / Load Inputs JSON carries steps + parapet fields ───────
+const [dl] = await Promise.all([page.waitForEvent('download'), page.evaluate(() => window.saveInputsDia())]);
+const saved = JSON.parse(readFileSync(await dl.path(), 'utf8'));
+check('Save Inputs JSON: steps + ppQp/ppHmax/ppHtyp/ppRoof/ppCommonBase/stepsAtLevel', Array.isArray(saved.steps) && saved.steps.length === 1 && saved.steps[0].h_ft === 6 && saved.ppQp === '30' && saved.ppHmax === '6' && saved.ppHtyp === '3' && saved.ppRoof === 'flat' && saved.ppCommonBase === true && saved.stepsAtLevel === 'on', JSON.stringify(saved).slice(0, 300));
+const dlgJ = dialogs.length;
+await page.setInputFiles('#diaLoadFile', asFile('old.json', 'application/json', JSON.stringify(Object.assign({}, legacyJson, { B: '60', D: '120', swX: saved.swX, swY: saved.swY }))));
+await waitDialogs(dlgJ + 1);
+const oldJ = await page.evaluate(() => ({ n: document.querySelectorAll('#stepRows .step-row').length, json: document.getElementById('stepJSON').value, cb: document.getElementById('ppCommonBase').checked }));
+check('Load Inputs of a pre-steps JSON clears the page steps and the common-base box', oldJ.n === 0 && oldJ.json === '[]' && oldJ.cb === false, JSON.stringify(oldJ));
+await page.setInputFiles('#diaLoadFile', asFile('new.json', 'application/json', JSON.stringify(saved)));
+await waitDialogs(dlgJ + 2);
+const newJ = await page.evaluate(() => ({ n: document.querySelectorAll('#stepRows .step-row').length, json: JSON.parse(document.getElementById('stepJSON').value), cb: document.getElementById('ppCommonBase').checked }));
+check('Load Inputs of a saved JSON rebuilds the step and the box', newJ.n === 1 && newJ.json[0].start_ft === 10 && newJ.cb === true, JSON.stringify(newJ));
+
+// ── 26. old snapshot loaded into a page holding steps → steps cleared ───────
+const oldIntoSteps = await page.evaluate((s) => JSON.parse(JSON.stringify(window.AREv2.loadFromState(s))), fixture);
+const cleared = await page.evaluate(() => ({ n: document.querySelectorAll('#stepRows .step-row').length, json: document.getElementById('stepJSON').value, cb: document.getElementById('ppCommonBase').checked,
+  on: document.getElementById('stepsAtLevel').value, qp: document.getElementById('ppQp').value }));
+check('old ROOF file into a stepped page: clean load, steps cleared, box off, parapet values blank (no table on the page)',
+  cleanLoad(oldIntoSteps) && cleared.n === 0 && cleared.json === '[]' && cleared.cb === false && cleared.on === 'on' && cleared.qp === '', JSON.stringify(cleared) + ' ' + JSON.stringify(oldIntoSteps.mismatches));
+
+// ── 27. MWFRS import: parapet values source-owned; level switch drives steps ──
+const ppRec = Object.assign({}, MW_RECORD, { project: '', parapet: { hp_max_ft: 4.5, hp_typ_ft: 3, z_p_ft: 40, qp_psf: 21.5234, GCpn_ww: 1.5, GCpn_lw: 1.0, roofFlat: true } });
+await gotoLat('?src=mwfrs&lat=1&story=Roof', { record: ppRec, ts: Date.now(), file: FILE });
+const pp = () => page.evaluate(() => ({ qp: document.getElementById('ppQp').value, hmax: document.getElementById('ppHmax').value, htyp: document.getElementById('ppHtyp').value,
+  roof: document.getElementById('ppRoof').value, ro: document.getElementById('ppQp').readOnly, unlock: document.getElementById('ppUnlock').checked, on: document.getElementById('stepsAtLevel').value }));
+const imp1 = await pp();
+check('import Roof: q_p 21.52, h_p,max 4.5, h_p,typ 3, roof flat, locked, steps on', imp1.qp === '21.52' && imp1.hmax === '4.5' && imp1.htyp === '3' && imp1.roof === 'flat' && imp1.ro === true && imp1.unlock === false && imp1.on === 'on', JSON.stringify(imp1));
+await page.evaluate(() => window.applyMwfrsLevel(1));
+check('level switch Roof → 3RD: #stepsAtLevel off', (await val('stepsAtLevel')) === 'off', await val('stepsAtLevel'));
+await page.evaluate(() => window.applyMwfrsLevel(0));
+check('level switch back to Roof: #stepsAtLevel on', (await val('stepsAtLevel')) === 'on', await val('stepsAtLevel'));
+await page.check('#ppUnlock');
+check('unlock: fields editable', (await pp()).ro === false, JSON.stringify(await pp()));
+await page.fill('#ppQp', '30');
+await page.check('#ppCommonBase');
+await page.evaluate(() => window.rebuildStepRows([{ label: 'Step 1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 4 }], true));
+const ovr = await page.evaluate(() => { window.calculate(); const w = document.getElementById('ppWarn'); return w ? w.innerText : ''; });
+check('override differing from the record → results warning', /overridden/.test(ovr) && /q_p 30\.00 psf vs MWFRS 21\.52 psf/.test(ovr), ovr);
+await page.evaluate((rec) => window.applyLateralRecord(rec, 'Roof'), ppRec);
+const imp2 = await pp();
+check('re-import overwrites the override (21.52) and re-locks', imp2.qp === '21.52' && imp2.unlock === false && imp2.ro === true, JSON.stringify(imp2));
+const noWarn = await page.evaluate(() => { window.calculate(); return !document.getElementById('ppWarn'); });
+check('locked record values → no override warning', noWarn, 'warning shown');
+
+// ── 28. nomenclature: no "along EW/NS" anywhere in the DOM text ─────────────
+const domTxt = await page.evaluate(() => document.body.innerText);
+check('nomenclature: no "along EW/NS" in DOM text', !/along\s+(the\s+)?(EW|NS)(?![A-Za-z])/i.test(domTxt), (domTxt.match(/.{0,40}along\s+(the\s+)?(EW|NS).{0,40}/i) || [''])[0]);
+check('nomenclature: result headers use the approved Wind-X / Wind-Y wording',
+  /Wind-X — wind E–W, normal to the E and W faces — resisted in-plane by the N and S shearwalls \(EW walls\)/.test(domTxt) && /Wind-Y — wind N–S, normal to the N and S faces — resisted in-plane by the E and W shearwalls \(NS walls\)/.test(domTxt), '');
+check('R9 chords: Wind-X NS-running at E/W edges, Wind-Y EW-running at N/S edges',
+  /NS-running members .* at the E and W edges/.test(await page.$eval('#wxBody', (e) => e.innerText)) && /EW-running members .* at the N and S edges/.test(await page.$eval('#wyBody', (e) => e.innerText)), '');
 
 check('no page errors', pageErrors.length === 0, pageErrors.join('\n      '));
 await browser.close();

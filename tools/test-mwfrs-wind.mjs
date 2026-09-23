@@ -392,6 +392,147 @@ if (!CAPTURE) {
     const lat9 = await page.evaluate(() => buildLateralPayload().levels.map((l) => l.label).join(','));
     check('labels: lateral payload carries the kept labels', lat9 === 'Roof,2ND,Floor 2', lat9);
   }
+
+  // ── 10. parapet steps plan 2026-09-23 (WP-2): typical parapet height, payload, legacy loaders ──
+  try {
+    const near = (a, b, tol) => typeof a === 'number' && Math.abs(a - b) <= tol;
+    // 10a. blank #hpTyp = max: the baseline case carries hpTyp = hp and the additive parapet keys.
+    const c0 = results['enclosed-flat-3story-parapet'].last, p0 = c0.parapet;
+    check('hpTyp blank: __mwfrsLast.hpTyp = hp, parapet.hp_typ = hp_max = 3', c0.hpTyp === 3 && p0.hp_typ === 3 && p0.hp_max === 3 && p0.z_p === 43,
+      JSON.stringify({ hpTyp: c0.hpTyp, hp_typ: p0.hp_typ, hp_max: p0.hp_max, z_p: p0.z_p }));
+    check('hpTyp blank: pp_ww 1.5qp, pp_lw 1.0qp (magnitude), pp_net 2.5qp, w_typ 2.5qp*3',
+      near(p0.pp_ww, 1.5 * p0.qp, 1e-12) && near(p0.pp_lw, p0.qp, 1e-12) && near(p0.pp_net, 2.5 * p0.qp, 1e-12) && near(p0.w_typ_plf, 7.5 * p0.qp, 1e-9),
+      JSON.stringify(p0));
+
+    // 10b. hp 3, hpTyp 2 -> F_parapet x 2/3 (both directions), qp unchanged, roof F_net and V_cum drop by F_par/3.
+    const snap2 = await (async () => {
+      await fresh();
+      const c = CASES[0];
+      await page.fill('#V', String(c.V)); await page.selectOption('#exp', c.exp); await page.selectOption('#encl', c.encl);
+      await page.fill('#B', String(c.B)); await page.fill('#D', String(c.D)); await page.fill('#h', String(c.h)); await page.fill('#hp', '3');
+      await page.fill('#hpTyp', '2');
+      await setStories(c.stories);
+      await page.click('button.calc-btn');
+      return snapshot();
+    })();
+    const L2 = snap2.last, bad2 = [];
+    ['wx', 'wy'].forEach((d) => {
+      const b = c0[d].rows[0], a = L2[d].rows[0];
+      if (!near(a.F_parapet, b.F_parapet * 2 / 3, 1e-6)) bad2.push(`${d} F_parapet ${a.F_parapet} vs ${b.F_parapet * 2 / 3}`);
+      if (!near(a.F_net, b.F_net - b.F_parapet / 3, 1e-6)) bad2.push(`${d} F_net ${a.F_net} vs ${b.F_net - b.F_parapet / 3}`);
+      const n = a.V_cum, m = c0[d].rows[c0[d].rows.length - 1].V_cum - b.F_parapet / 3, last = L2[d].rows[L2[d].rows.length - 1].V_cum;
+      if (!near(last, m, 1e-6)) bad2.push(`${d} base V ${last} vs ${m} (${n})`);
+    });
+    if (L2.parapet.qp !== c0.parapet.qp || L2.parapet.z_p !== 43) bad2.push(`qp ${L2.parapet.qp} vs ${c0.parapet.qp}, z_p ${L2.parapet.z_p}`);
+    if (L2.hpTyp !== 2 || L2.parapet.hp_typ !== 2 || L2.parapet.hp_max !== 3 || L2.hp !== 3) bad2.push(`hpTyp ${L2.hpTyp}, hp_typ ${L2.parapet.hp_typ}, hp_max ${L2.parapet.hp_max}`);
+    check('hpTyp 2 / hp 3: F_parapet x 2/3, q_p and z_p unchanged', bad2.length === 0, bad2.join('\n      '));
+    const par2 = await page.$eval('#parapetBody', (e) => e.innerText);
+    check('hpTyp 2: parapet block shows h_p,typ, w_typ and the Diaphragm Designer step note',
+      /2\.0 ft/.test(par2) && /Diaphragm Designer/.test(par2) && /flat roofs only/.test(par2) && !/NaN|undefined/.test(par2), par2.slice(0, 300));
+    check('hpTyp 2: Revit payload additive keys', snap2.revit.parapet.hp_ft === 3 && snap2.revit.parapet.hp_max_ft === 3 && snap2.revit.parapet.hp_typ_ft === 2 && snap2.revit.inputs.parapet_typ_ft === 2,
+      JSON.stringify(snap2.revit.parapet));
+    // hpTyp above hp is capped at hp (typical cannot exceed max).
+    await page.fill('#hpTyp', '5'); await page.click('button.calc-btn');
+    const capped = await page.evaluate(() => ({ t: window.__mwfrsLast.parapet.hp_typ, warn: /capped/.test(document.getElementById('parapetBody').innerText) }));
+    check('hpTyp > hp: capped at hp with a warning', capped.t === 3 && capped.warn, JSON.stringify(capped));
+
+    // 10c. Red Bluff (fixtures/lateral/red-bluff/mwfrs-state.json, h 35.5, hp 4.5) with hpTyp 3 — old state loaded
+    //      through the toolbar path, then hpTyp set. Independent: Kz(40 ft, B) = 0.76, Ke 0.984, V 115.
+    const RB = JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/lateral/red-bluff/mwfrs-state.json', import.meta.url)), 'utf8'));
+    check('fixture: Red Bluff state predates #hpTyp', !Object.prototype.hasOwnProperty.call(RB.fields, '#hpTyp'), 'fixture already has #hpTyp');
+    await fresh();
+    await page.fill('#hpTyp', '2');   // page holds a typical height; the old file must clear it
+    const rbRes = await page.evaluate((s) => JSON.parse(JSON.stringify(AREv2.loadFromState(s))), RB);
+    const rbAfter = await page.evaluate(() => ({ hpTyp: document.getElementById('hpTyp').value, hp: document.getElementById('hp').value }));
+    check('old state (no #hpTyp) into a page holding hpTyp 2: ok, no rollback, no mismatch, #hpTyp reset to blank',
+      rbRes.ok === true && !rbRes.rolledBack && rbRes.mismatches.missingOnPage.length === 0 && rbRes.mismatches.notInFile.length === 0 && rbAfter.hpTyp === '' && rbAfter.hp === '4.5',
+      JSON.stringify({ rbRes, rbAfter }));
+    await page.evaluate(() => calculate());
+    const rbMax = await page.evaluate(() => ({ x: window.__mwfrsLast.wx.rows[0].F_parapet, y: window.__mwfrsLast.wy.rows[0].F_parapet }));
+    check('old Red Bluff state reproduces the fixture parapet forces (87,160 / 29,053 lb)', Math.round(rbMax.x) === 87160 && Math.round(rbMax.y) === 29053, JSON.stringify(rbMax));
+    await page.fill('#hpTyp', '3'); await page.click('button.calc-btn');
+    const rb = await page.evaluate(() => {
+      const L = window.__mwfrsLast;
+      let passed = null;
+      const orig = LH.fromMwfrs;
+      LH.fromMwfrs = function (o) { passed = JSON.parse(JSON.stringify({ hp: o.hp, hpTyp: o.hpTyp, parapet: o.parapet, roofType: o.roofType, theta: o.theta })); return orig.apply(this, arguments); };
+      let rec;
+      try { rec = JSON.parse(JSON.stringify(buildLateralPayload())); } finally { LH.fromMwfrs = orig; }
+      return { Fx: L.wx.rows[0].F_parapet, Fy: L.wy.rows[0].F_parapet, p: L.parapet, passed, rec };
+    });
+    const qpRB = 0.00256 * 0.76 * 1.0 * 0.85 * 0.984 * 115 * 115;
+    check('Red Bluff hpTyp 3: F_par,x ~ 58,106.8 lb, F_par,y ~ 19,368.9 lb',
+      near(rb.Fx, 58106.8, 0.5) && near(rb.Fy, 19368.9, 0.5) && near(rb.Fx, 2.5 * qpRB * 3 * 360, 1e-6) && near(rb.Fy, 2.5 * qpRB * 3 * 120, 1e-6), `${rb.Fx} / ${rb.Fy}`);
+    check('Red Bluff hpTyp 3: q_p 21.52 at z_p 40, p_ww 32.2816, p_lw 21.52, p_net 53.80, w_typ 161.408',
+      near(rb.p.qp, qpRB, 1e-9) && rb.p.z_p === 40 && near(rb.p.pp_ww, 32.2816, 5e-4) && near(rb.p.pp_lw, qpRB, 1e-9) && near(rb.p.pp_net, 53.80, 5e-3) && near(rb.p.w_typ_plf, 161.408, 5e-3),
+      JSON.stringify(rb.p));
+
+    // 10d. handoff payload: the object passed to LH.fromMwfrs and the returned record both carry the parapet block.
+    const KEYS = ['hp_max_ft', 'hp_typ_ft', 'z_p_ft', 'qp_psf', 'GCpn_ww', 'GCpn_lw', 'pp_ww_psf', 'pp_lw_psf', 'pp_net_psf', 'w_typ_plf', 'roofType', 'roof_theta_deg', 'roofFlat'];
+    const pp = rb.passed && rb.passed.parapet;
+    check('payload: fromMwfrs input carries hpTyp 3, roofType/theta and parapet with exactly the contract keys',
+      !!pp && rb.passed.hpTyp === 3 && rb.passed.hp === 4.5 && rb.passed.roofType === 'flat' && rb.passed.theta === 0
+      && JSON.stringify(Object.keys(pp).sort()) === JSON.stringify(KEYS.slice().sort()),
+      JSON.stringify(rb.passed));
+    check('payload: parapet values (strength, q_p at h + h_p,max; GCpn 1.5 / 1.0; flat)',
+      !!pp && pp.hp_max_ft === 4.5 && pp.hp_typ_ft === 3 && pp.z_p_ft === 40 && near(pp.qp_psf, qpRB, 1e-9) && pp.GCpn_ww === 1.5 && pp.GCpn_lw === 1.0
+      && near(pp.pp_ww_psf, 1.5 * qpRB, 1e-9) && near(pp.pp_lw_psf, qpRB, 1e-9) && near(pp.pp_net_psf, 2.5 * qpRB, 1e-9) && near(pp.w_typ_plf, 7.5 * qpRB, 1e-9)
+      && pp.roofType === 'flat' && pp.roof_theta_deg === 0 && pp.roofFlat === true, JSON.stringify(pp));
+    check('payload: returned record carries parapet + geometry.hp_typ_ft 3 (levels unchanged in shape)',
+      !!rb.rec && !!rb.rec.parapet && rb.rec.parapet.hp_typ_ft === 3 && rb.rec.geometry.hp_typ_ft === 3 && rb.rec.geometry.hp_ft === 4.5
+      && rb.rec.levels[0].F_parapet_x_strength_lb === Math.round(rb.Fx), JSON.stringify(rb.rec && { parapet: rb.rec.parapet, geometry: rb.rec.geometry }));
+    // gable roof: parapet block says not flat (R20 gate lives on the Diaphragm).
+    await page.selectOption('#roofType', 'gablehip'); await page.selectOption('#roofAngleMode', 'deg'); await page.fill('#theta', '5');
+    await page.click('button.calc-btn');
+    const gb = await page.evaluate(() => buildLateralPayload().parapet);
+    check('payload: gable/hip roof -> roofFlat false, roofType gablehip, theta carried', !!gb && gb.roofFlat === false && gb.roofType === 'gablehip' && gb.roof_theta_deg === 5, JSON.stringify(gb));
+    // hp = 0 -> parapet null, hp_typ_ft 0.
+    await page.fill('#hp', '0'); await page.click('button.calc-btn');
+    const np = await page.evaluate(() => { const r = buildLateralPayload(); return { parapet: r.parapet, g: r.geometry }; });
+    check('payload: hp 0 -> parapet null, geometry.hp_typ_ft 0', np.parapet === null && np.g.hp_typ_ft === 0, JSON.stringify(np));
+
+    // 10e. new-format toolbar round trip keeps hpTyp.
+    await fresh();
+    await page.fill('#hp', '4'); await page.fill('#hpTyp', '2.5'); await page.click('button.calc-btn');
+    const newSnap = await page.evaluate(() => AREv2.captureState());
+    await fresh();
+    const nRes = await page.evaluate((s) => JSON.parse(JSON.stringify(AREv2.loadFromState(s))), newSnap);
+    const nVal = await page.$eval('#hpTyp', (e) => e.value);
+    check('toolbar round trip: #hpTyp captured and restored', newSnap.fields['#hpTyp'] === '2.5' && nRes.ok === true && !nRes.rolledBack && nVal === '2.5', JSON.stringify({ f: newSnap.fields['#hpTyp'], nRes, nVal }));
+
+    // 10f. legacy JSON (applyInputsMWFRS) without hpTyp resets a held value; with hpTyp restores it.
+    await fresh();
+    await page.fill('#hpTyp', '2');
+    const legacyObj = { _version: 2, _calc: 'mwfrs', V: '115', exp: 'B', encl: 'enclosed', Kzt: '1', Ke: '0.984', groundElev: '459', B: '120', D: '360', h: '35.5', roofType: 'flat', hp: '4.5', stories: [{ label: 'Roof', h: '11' }, { label: '3RD', h: '10.5' }, { label: '2ND', h: '14' }] };
+    await page.evaluate((d) => applyInputsMWFRS(d), legacyObj);
+    const lj = await page.evaluate(() => { calculate(); return { v: document.getElementById('hpTyp').value, Fx: window.__mwfrsLast.wx.rows[0].F_parapet }; });
+    check('legacy JSON (no hpTyp) into a page holding hpTyp 2: #hpTyp reset to blank, typical = max', lj.v === '' && Math.round(lj.Fx) === 87160, JSON.stringify(lj));
+    const saved10 = await page.evaluate(() => { document.getElementById('hpTyp').value = '3'; return collectInputsMWFRS(); });
+    await fresh();
+    await page.evaluate((d) => { applyInputsMWFRS(d); calculate(); }, saved10);
+    const lj2 = await page.evaluate(() => ({ v: document.getElementById('hpTyp').value, Fx: window.__mwfrsLast.wx.rows[0].F_parapet }));
+    check('JSON save/load carries hpTyp', saved10.hpTyp === '3' && lj2.v === '3' && near(lj2.Fx, 58106.8, 0.5), JSON.stringify(lj2));
+
+    // 10g. #hpTypRow visibility mirrors #hpRow.
+    await fresh();
+    await page.selectOption('#encl', 'enclosed');
+    const shown = await vis('hpTypRow');
+    await page.selectOption('#encl', 'open');
+    const hidden = !(await vis('hpTypRow')) && !(await vis('hpRow'));
+    await page.selectOption('#encl', 'partial');
+    check('vis: #hpTypRow shown when walled, hidden for open (mirrors #hpRow)', shown && hidden && (await vis('hpTypRow')), `shown ${shown}, hidden ${hidden}`);
+
+    // 10h. nomenclature: no "along EW/NS" phrasing in the DOM (inputs, results, drawings).
+    await fresh();
+    await page.fill('#hp', '3'); await page.click('button.calc-btn');
+    const domTxt = await page.evaluate(() => document.body.innerText + ' ' + Array.from(document.querySelectorAll('svg text, option, label, .blk-hd')).map((e) => e.textContent).join(' '));
+    check('nomenclature: no "along EW/NS" in DOM text', !/along\s+(the\s+)?(EW|NS)(?![A-Za-z])/i.test(domTxt), (domTxt.match(/.{0,40}along\s+(the\s+)?(EW|NS).{0,40}/i) || [''])[0]);
+    check('nomenclature: approved Wind-X / Wind-Y wording present',
+      domTxt.indexOf('Wind-X:') >= 0 && domTxt.indexOf('wind E–W, normal to the E and W faces') >= 0 && domTxt.indexOf('resisted in-plane by the N and S shearwalls (EW walls)') >= 0
+      && domTxt.indexOf('wind N–S, normal to the N and S faces') >= 0 && domTxt.indexOf('resisted in-plane by the E and W shearwalls (NS walls)') >= 0, 'wording missing');
+  } catch (e) {
+    check('parapet steps WP-2 block', false, String(e.message || e).split('\n')[0]);
+  }
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }
 

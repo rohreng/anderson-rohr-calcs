@@ -45,9 +45,10 @@ function throwsWith(fn, re) {
 const within = (got, want, tol) => got.length === want.length && got.every((v, i) => Math.abs(v - want[i]) <= tol);
 const sum = (a) => a.reduce((s, v) => s + v, 0);
 const has = (list, re) => list.some((s) => re.test(s));
+const DIRS_ALL = ['X', 'Y'];
 
 // ── 0. engines load ─────────────────────────────────────────────────────────
-check('RD engine loads (rect-diaphragm v1)', RD && RD.ENGINE && RD.ENGINE.name === 'rect-diaphragm' && RD.ENGINE.version === 1, JSON.stringify(RD && RD.ENGINE));
+check('RD engine loads (rect-diaphragm v2)', RD && RD.ENGINE && RD.ENGINE.name === 'rect-diaphragm' && RD.ENGINE.version === 2, JSON.stringify(RD && RD.ENGINE));
 check('LH engine tag', LH.ENGINE && LH.ENGINE.name === 'lateral-handoff' && LH.ENGINE.version === 1, JSON.stringify(LH.ENGINE));
 check('LH constants', LH.SCHEMA === 'are.lateral.v1' && LH.WIND_FACTOR === 0.6 && LH.SEIS_FACTOR === 0.7 && LH.LOC_TOL_FT === 0.5,
   JSON.stringify([LH.SCHEMA, LH.WIND_FACTOR, LH.SEIS_FACTOR, LH.LOC_TOL_FT]));
@@ -73,7 +74,7 @@ function mwRows(F, V, par) {
   return F.map((f, i) => ({ label: ['Roof', '3RD', '2ND'][i], F_net: f, F_parapet: i === 0 ? par : 0, V_cum: V[i] }));
 }
 const fm = LH.fromMwfrs({
-  B: 120, D: 360, h: 35.5, hp: 4.5,
+  B: 120, D: 360, h: 35.5, hp: 4.5, hpTyp: 4.5, roofType: 'flat', theta: 0, parapet: mwfrsRecord.parapet,
   stories: [{ label: 'Roof', sh: '11' }, { label: '3RD', sh: '10.5' }, { label: '2ND', sh: '14' }],
   wx: { rows: mwRows([131315, 79782, 87306], [131315, 211098, 298403], 87160) }, wy: { rows: mwRows([40861, 20904, 22618], [40861, 61765, 84383], 29053) },
   project: '', meta: mwfrsRecord.source.mwfrs
@@ -350,6 +351,151 @@ check('Vx 5 % off the story table -> warning only', has(offRes.warnings, /3RD.*W
   const oldRec = clone(tbAsm2.record); delete oldRec.titleblock;
   check('toShearwallState: pre-titleblock record -> lateral.titleblock null', LH.toShearwallState(oldRec, { dir: 'X' }).lateral.titleblock === null, '');
   check('no titleblock anywhere -> blank titleblock, no warning', JSON.stringify(asm.record.titleblock) === JSON.stringify({ projectName: '', jobNumber: '', engineer: '', date: '2026-09-15' }) && !has(asm.warnings, /titleblock/), JSON.stringify(asm.record.titleblock));
+}
+
+// ── 11. parapet steps (plan 2026-09-23 WP-4) ────────────────────────────────
+{
+  // (0) MWFRS stage: new keys carried, null when absent, sanitized.
+  check('fromMwfrs: geometry.hp_typ_ft / roofType / theta_deg and parapet carried',
+    fm.geometry.hp_typ_ft === 4.5 && fm.geometry.roofType === 'flat' && fm.geometry.theta_deg === 0 && fm.parapet && fm.parapet.qp_psf === 21.521 && fm.parapet.roofFlat === true && fm.parapet.GCpn_lw === 1,
+    JSON.stringify([fm.geometry, fm.parapet]));
+  const fmBare = LH.fromMwfrs({ B: 60, D: 120, h: 20, hp: 0, stories: [{ label: 'Roof', sh: 10 }], wx: { rows: [{ F_net: 1000, F_parapet: 0 }] }, wy: { rows: [{ F_net: 500, F_parapet: 0 }] } });
+  check('fromMwfrs: absent parapet keys -> null (geometry.hp_typ_ft / roofType / theta_deg, parapet)',
+    fmBare.geometry.hp_typ_ft === null && fmBare.geometry.roofType === null && fmBare.geometry.theta_deg === null && fmBare.parapet === null, JSON.stringify([fmBare.geometry, fmBare.parapet]));
+  const fmDirty = LH.fromMwfrs({ B: 60, D: 120, h: 20, hp: 3, hpTyp: 'x', roofType: 'fl<at>', theta: 'NaN', parapet: { qp_psf: '30', hp_max_ft: Infinity, roofType: '<b>', roofFlat: 'yes', extra: 1 },
+    stories: [{ label: 'Roof', sh: 10 }], wx: { rows: [{ F_net: 1000 }] }, wy: { rows: [{ F_net: 500 }] } });
+  check('fromMwfrs: parapet block sanitized (finite numbers or null, safe strings, roofFlat boolean|null, unknown keys dropped)',
+    fmDirty.geometry.hp_typ_ft === null && fmDirty.geometry.roofType === 'flat' && fmDirty.geometry.theta_deg === null && fmDirty.parapet.qp_psf === 30 && fmDirty.parapet.hp_max_ft === null && fmDirty.parapet.roofType === 'b' && fmDirty.parapet.roofFlat === null && !('extra' in fmDirty.parapet),
+    JSON.stringify([fmDirty.geometry, fmDirty.parapet]));
+  check('AXES: Nick convention (Wind-X resisted by the N and S shearwalls, loc from S; Wind-Y by E and W, loc from W)',
+    LH.AXES.X === 'Wind-X: wind E–W, normal to the E and W faces; resisted by the N and S shearwalls (EW walls); loc_ft from S' &&
+    LH.AXES.Y === 'Wind-Y: wind N–S, normal to the N and S faces; resisted by the E and W shearwalls (NS walls); loc_ft from W', JSON.stringify(LH.AXES));
+
+  // (1) parapetFromFields — the shared builder.
+  const STEP_A = [{ label: 'S1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 6 }];
+  const pf = (extra) => Object.assign({ '#ppQp': '30', '#ppHmax': '6', '#ppHtyp': '3', '#ppRoof': 'flat', '#ppCommonBase': true, '#stepsAtLevel': 'on', '#stepJSON': JSON.stringify(STEP_A) }, extra || {});
+  const pa = LH.parapetFromFields(pf());
+  check('parapetFromFields: contract shape (q_p, GCpn 1.5/1.0, h_typ, h_max, commonBase bool, roofFlat, steps)',
+    JSON.stringify(pa) === JSON.stringify({ qp_psf: 30, GCpn_ww: 1.5, GCpn_lw: 1, h_typ_ft: 3, h_max_ft: 6, commonBase: true, roofFlat: true, steps: [{ label: 'S1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 6 }] }), JSON.stringify(pa));
+  check('parapetFromFields: null when #stepsAtLevel off / absent, #stepJSON blank or []',
+    LH.parapetFromFields(pf({ '#stepsAtLevel': 'off' })) === null && LH.parapetFromFields(roofState.fields) === null && LH.parapetFromFields(pf({ '#stepJSON': '' })) === null && LH.parapetFromFields(pf({ '#stepJSON': '[]' })) === null && LH.parapetFromFields({}) === null, '');
+  check('parapetFromFields: checkbox as AREv2 boolean or string; #ppRoof sloped -> false, blank -> null; blank h_typ -> null',
+    LH.parapetFromFields(pf({ '#ppCommonBase': 'true' })).commonBase === true && LH.parapetFromFields(pf({ '#ppCommonBase': false })).commonBase === false && LH.parapetFromFields(pf({ '#ppCommonBase': undefined })).commonBase === false &&
+    LH.parapetFromFields(pf({ '#ppRoof': 'sloped' })).roofFlat === false && LH.parapetFromFields(pf({ '#ppRoof': '' })).roofFlat === null && LH.parapetFromFields(pf({ '#ppHtyp': '' })).h_typ_ft === null, '');
+  const badStep = throwsWith(() => LH.parapetFromFields(pf({ '#stepJSON': '[{' })), /#stepJSON/);
+  check('parapetFromFields: malformed #stepJSON throws', badStep.threw, badStep.msg);
+
+  // (2) fixture (a) round trip at q_p 30 (45 psf windward): B 60, D 120,
+  // Wind-Y 30 k on W @ 0 / E @ 60, one N-face step [10, 30] 6 ft over h_typ 3.
+  const stepState = (extra, sw) => {
+    const s = clone(roofState);
+    Object.keys(s.fields).forEach((k) => { if (/^#sw[XY]_/.test(k)) delete s.fields[k]; });
+    Object.assign(s.fields, { '#level': 'Roof', '#B': '60', '#D': '120', '#Vx': '0', '#Vy': '30', '#Vx_s': '0', '#Vy_s': '0', '#loadLevel': 'strength',
+      '#swJSON': JSON.stringify(sw || { X: [{ label: 'S', len: 60, loc: 0 }, { label: 'N', len: 60, loc: 120 }], Y: [{ label: 'W', len: 120, loc: 0 }, { label: 'E', len: 120, loc: 60 }] }) }, pf(), extra || {});
+    return s;
+  };
+  const ra = LH.levelFromDiaphragmState(stepState());
+  const la = ra.level, wa = la.walls.Y;
+  check('(a) walls.Y W 16,800 / E 15,900 lb (envelope, governing fromN), F_wind_y 32,700, F_parapet_step_y 2,700',
+    wa[0].R_wind_strength_lb === 16800 && wa[1].R_wind_strength_lb === 15900 && la.F_wind_y_strength_lb === 32700 && la.F_parapet_step_y_strength_lb === 2700 && wa[0].case_wind === 'fromN' && wa[1].case_wind === 'fromN',
+    JSON.stringify({ wa, F: la.F_wind_y_strength_lb, st: la.F_parapet_step_y_strength_lb }));
+  check('(a) stepped walls carry sign_wind +1 / sign_seis +1, no legacy sign; X direction unstepped (no sign_wind, no cases_x)',
+    wa.every((w) => w.sign_wind === 1 && w.sign_seis === 1 && !('sign' in w)) && la.walls.X.every((w) => !('sign_wind' in w)) && !('cases_x' in la) && !('F_parapet_step_x_strength_lb' in la), JSON.stringify(la.walls));
+  check('(a) cases_y: fromN 32,700 (W 16,800 / E 15,900), fromS 31,800 (W 16,200 / E 15,600), signed per wall id',
+    JSON.stringify(la.cases_y) === JSON.stringify([{ id: 'fromN', total_lb: 32700, reactions: { 'Y@0': 16800, 'Y@60': 15900 } }, { id: 'fromS', total_lb: 31800, reactions: { 'Y@0': 16200, 'Y@60': 15600 } }]), JSON.stringify(la.cases_y));
+  check('(a) level parapet block: q_p 30, h_typ 3, h_max 6, step dh 3, F_ww 2,700 / F_lw 1,800 lb',
+    la.parapet && la.parapet.qp_psf === 30 && la.parapet.h_typ_ft === 3 && la.parapet.h_max_ft === 6 && la.parapet.steps.length === 1 && la.parapet.steps[0].dh_ft === 3 && la.parapet.steps[0].F_ww_lb === 2700 && la.parapet.steps[0].F_lw_lb === 1800 && la.parapet.steps[0].face === 'N' && la.parapet.steps[0].dir === 'Y',
+    JSON.stringify(la.parapet));
+  // assemble -> SW: every new key survives, SW floor total = max case total.
+  const asmA = LH.assemble([ra], { heights: [11] });
+  const lvA = asmA.record && asmA.record.levels[0];
+  check('(a) assemble preserves F_parapet_step_y, cases_y, level parapet and per-wall sign_wind / case_wind / sign_seis',
+    asmA.errors.length === 0 && lvA.F_parapet_step_y_strength_lb === 2700 && JSON.stringify(lvA.cases_y) === JSON.stringify(la.cases_y) && JSON.stringify(lvA.parapet) === JSON.stringify(la.parapet) &&
+    JSON.stringify(lvA.walls.Y) === JSON.stringify(la.walls.Y) && lvA.F_wind_y_strength_lb === 32700 && lvA.V_cum_y_strength_lb === 32700,
+    JSON.stringify(lvA));
+  const swA = LH.toShearwallState(asmA.record, { dir: 'Y' });
+  const flA = swA.floors[0];
+  check('(a) toShearwallState Y: floor P_wind 32,700; walls 16,800 / 15,900 with sign_wind / case_wind / sign_seis; lh cases carried',
+    flA.P_wind_lb === 32700 && flA.walls[0].P_wind_lb === 16800 && flA.walls[1].P_wind_lb === 15900 && flA.walls[0].sign_wind === 1 && flA.walls[0].case_wind === 'fromN' && flA.walls[1].sign_seis === 1 &&
+    flA.lh && flA.lh.dir === 'Y' && flA.lh.P_wind_lb === 32700 && flA.lh.F_parapet_step_lb === 2700 && JSON.stringify(flA.lh.imported) === JSON.stringify({ 'Y@0': 16800, 'Y@60': 15900 }) && JSON.stringify(flA.lh.cases) === JSON.stringify(la.cases_y),
+    JSON.stringify(flA));
+  check('(a) SW.validate ok; X import of the same record has no lh (unstepped direction)', SW.validate(swA).ok === true && !('lh' in LH.toShearwallState(asmA.record, { dir: 'X' }).floors[0]), JSON.stringify(SW.validate(swA).errors));
+  const sumA = LH.summarize(asmA.record, []);
+  check('(a) summarize notes the steps and each case Σ', /Wind-Y 32,700 lb incl\. parapet steps 2,700 lb \(max case fromN\) over 2 lines, enveloped per wall \(fromN Σ 32,700 of 32,700; fromS Σ 31,800 of 31,800\)/.test(sumA[0]), JSON.stringify(sumA));
+  const stepsOff = LH.levelFromDiaphragmState(stepState({ '#stepsAtLevel': 'off' }));
+  check('(a) #stepsAtLevel off -> the unstepped result (30,000; 15,000 / 15,000), no step keys',
+    stepsOff.level.F_wind_y_strength_lb === 30000 && stepsOff.level.walls.Y.map((w) => w.R_wind_strength_lb).join('/') === '15000/15000' && !('cases_y' in stepsOff.level) && !('parapet' in stepsOff.level), JSON.stringify(stepsOff.level));
+
+  // (3) ASD page: baseline 18 k ASD -> 30 k strength, steps at strength -> 32.70 k.
+  const rAsd = LH.levelFromDiaphragmState(stepState({ '#loadLevel': 'asd', '#Vy': '18' }));
+  check('ASD page: export F_wind_y 32,700 (18 / 0.6 + 2.70 strength step), walls 16,800 / 15,900',
+    rAsd.level.F_wind_y_strength_lb === 32700 && rAsd.level.F_parapet_step_y_strength_lb === 2700 && rAsd.level.walls.Y[0].R_wind_strength_lb === 16800 && rAsd.level.walls.Y[1].R_wind_strength_lb === 15900,
+    JSON.stringify(rAsd.level));
+
+  // (4) R13 negative-reaction record: Y lines at 0 / 20, step N-face [0, 20], Δh 3.
+  const rNeg = LH.levelFromDiaphragmState(stepState({ '#stepJSON': JSON.stringify([{ label: 'S1', face: 'N', start_ft: 0, width_ft: 20, h_ft: 6 }]) },
+    { X: [{ label: 'S', len: 60, loc: 0 }, { label: 'N', len: 60, loc: 120 }], Y: [{ label: 'L1', len: 20, loc: 0 }, { label: 'L2', len: 20, loc: 20 }] }));
+  const wn = rNeg.level.walls.Y;
+  check('R13: envelope magnitudes 14,100 (−, fromS) / 46,350 (+, fromN); legacy sign -1 on the negative line; warning names L1',
+    wn[0].R_wind_strength_lb === 14100 && wn[0].sign_wind === -1 && wn[0].case_wind === 'fromS' && wn[0].sign === -1 && wn[1].R_wind_strength_lb === 46350 && wn[1].sign_wind === 1 && wn[1].case_wind === 'fromN' && !('sign' in wn[1]) && has(rNeg.warnings, /"L1".*negative wind reaction/),
+    JSON.stringify({ wn, w: rNeg.warnings }));
+  const cn = rNeg.level.cases_y;
+  check('R13: cases fromN −13,650 / 46,350 (32,700), fromS −14,100 / 45,900 (31,800); each case signed Σ = its total',
+    JSON.stringify(cn) === JSON.stringify([{ id: 'fromN', total_lb: 32700, reactions: { 'Y@0': -13650, 'Y@20': 46350 } }, { id: 'fromS', total_lb: 31800, reactions: { 'Y@0': -14100, 'Y@20': 45900 } }]) &&
+    cn.every((c) => Math.abs(sum(Object.values(c.reactions)) - c.total_lb) <= 1), JSON.stringify(cn));
+  const swNeg = LH.toShearwallState(LH.assemble([rNeg], { heights: [11] }).record, { dir: 'Y' });
+  check('R13: SW receives magnitudes 14,100 / 46,350, negative flagged (sign_wind -1), floor 32,700',
+    swNeg.floors[0].walls[0].P_wind_lb === 14100 && swNeg.floors[0].walls[0].sign_wind === -1 && swNeg.floors[0].walls[1].P_wind_lb === 46350 && swNeg.floors[0].P_wind_lb === 32700 && SW.validate(swNeg).ok === true,
+    JSON.stringify(swNeg.floors[0].walls.map((w) => [w.P_wind_lb, w.sign_wind, w.case_wind])));
+
+  // (5) fatal (R20) -> levelFromDiaphragmState throws; the message lists the fatal.
+  const fatal = (extra, re) => throwsWith(() => LH.levelFromDiaphragmState(stepState(extra)), re);
+  const fGable = fatal({ '#ppRoof': 'sloped' }, /stepped parapets cannot be analyzed.*flat roof/);
+  check('fatal: sloped (gable) roof record + active step -> throws', fGable.threw, fGable.msg);
+  const fBase = fatal({ '#ppCommonBase': false }, /common-base/);
+  check('fatal: common-base checkbox unchecked -> throws', fBase.threw, fBase.msg);
+  const fTall = fatal({ '#stepJSON': JSON.stringify([{ label: 'S1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 7 }]) }, /exceeds the maximum parapet height/);
+  check('fatal: step taller than h_p,max -> throws', fTall.threw, fTall.msg);
+  const fOne = throwsWith(() => LH.levelFromDiaphragmState(stepState({}, { X: [{ label: 'S', len: 60, loc: 0 }, { label: 'N', len: 60, loc: 120 }], Y: [{ label: 'W', len: 120, loc: 0 }] })), /≥ 2 shearwall lines/);
+  check('fatal: one Y line with an N-face step -> throws', fOne.threw, fOne.msg);
+  // A saved ineligible file whose steps are switched off at this level analyzes as unstepped.
+  check('ineligible steps with #stepsAtLevel off -> no throw, unstepped', LH.levelFromDiaphragmState(stepState({ '#ppRoof': 'sloped', '#stepsAtLevel': 'off' })).level.F_wind_y_strength_lb === 30000, '');
+
+  // (6) Red Bluff import with the MWFRS parapet (q_p 21.52): ROOF with the new
+  // story table and one N-face step [10, 30] 4.5 ft over h_typ 3 (Δh 1.5).
+  const qpRB = mwfrsRecord.parapet.qp_psf;
+  const rbState = clone(roofState);
+  Object.assign(rbState.fields, { '#loadLevel': 'strength', '#mwfrsJSON': JSON.stringify(mwfrsRecord), '#ppQp': String(qpRB), '#ppHmax': '4.5', '#ppHtyp': '3', '#ppRoof': 'flat', '#ppCommonBase': true,
+    '#stepsAtLevel': 'on', '#stepJSON': JSON.stringify([{ label: 'N1', face: 'N', start_ft: 10, width_ft: 20, h_ft: 4.5 }]) });
+  const rb = LH.levelFromDiaphragmState(rbState);
+  const Fww = 1.5 * qpRB * 1.5 * 20, Flw = 1.0 * qpRB * 1.5 * 20;   // lb
+  const rbY = rb.level.walls.Y.map((w) => w.R_wind_strength_lb);
+  check('Red Bluff: step F_ww = 1.5 × 21.52 × 1.5 × 20 = 968 lb; F_wind_y = 40,860 + 968; no MWFRS cross-check warning (baseline compared)',
+    rb.level.F_parapet_step_y_strength_lb === Math.round(40860 + Fww) - 40860 && rb.level.F_wind_y_strength_lb === Math.round(40860 + Fww) && !has(rb.warnings, /differs from the MWFRS table/) && rb.level.parapet.steps[0].F_lw_lb === Math.round(Flw),
+    JSON.stringify({ F: rb.level.F_wind_y_strength_lb, st: rb.level.F_parapet_step_y_strength_lb, w: rb.warnings }));
+  check('Red Bluff: simple-span split of the step (span 0-30, c = 20): Y@0 5,107 + F/3, Y@30 10,215 + 2F/3, others unchanged',
+    Math.abs(rbY[0] - (5107.5 + Fww / 3)) <= 1 && Math.abs(rbY[1] - (10215 + 2 * Fww / 3)) <= 1 && within(rbY.slice(2), gold('Roof').Y.slice(2), 1), rbY.join(' '));
+  check('Red Bluff: X unstepped -> goldens identical, no cases_x', within(rb.level.walls.X.map((w) => w.R_wind_strength_lb), gold('Roof').X, 1) && !('cases_x' in rb.level), '');
+  const rbAsm = LH.assemble([rb, thirdRes, secondRes], { files: ['r.html', '3.html', '2.html'] });
+  check('Red Bluff assemble: record.parapet and geometry.hp_typ_ft / roofType / theta_deg from the story table; stepped Roof keeps its keys; 3RD/2ND untouched',
+    rbAsm.errors.length === 0 && rbAsm.record.parapet && rbAsm.record.parapet.qp_psf === qpRB && rbAsm.record.geometry.hp_typ_ft === 4.5 && rbAsm.record.geometry.roofType === 'flat' && rbAsm.record.geometry.theta_deg === 0 &&
+    Array.isArray(rbAsm.record.levels[0].cases_y) && rbAsm.record.levels[0].parapet && !('cases_y' in rbAsm.record.levels[1]) && JSON.stringify(rbAsm.record.levels[1].walls) === JSON.stringify(thirdRes.level.walls),
+    JSON.stringify(rbAsm.errors) + JSON.stringify(rbAsm.record && rbAsm.record.geometry));
+  const rbSW = LH.toShearwallState(rbAsm.record, { dir: 'Y' });
+  check('Red Bluff SW Y: Roof floor lh with 2 cases, lower floors none; SW.validate ok', rbSW.floors[0].lh && rbSW.floors[0].lh.cases.length === 2 && !('lh' in rbSW.floors[1]) && SW.validate(rbSW).ok === true, JSON.stringify(SW.validate(rbSW).errors));
+
+  // (7) unstepped goldens: old ROOF / 3RD / 2ND levels have exactly today's keys.
+  const LEGACY_KEYS = 'label,F_wind_x_strength_lb,F_wind_y_strength_lb,F_seis_x_strength_lb,F_seis_y_strength_lb,walls';
+  check('old ROOF / 3RD / 2ND: level keys unchanged, walls carry no sign_wind / case_wind / sign_seis, record has no parapet key',
+    [roofRes, thirdRes, secondRes].every((r) => Object.keys(r.level).join(',') === LEGACY_KEYS && DIRS_ALL.every((d) => r.level.walls[d].every((w) => !('sign_wind' in w) && !('case_wind' in w) && !('sign_seis' in w)))) &&
+    !('parapet' in asm.record) && !('hp_typ_ft' in asm.record.geometry) && asm.record.levels.every((l) => !('cases_x' in l) && !('cases_y' in l)) && swX.floors.every((f) => !('lh' in f)), '');
+  // assemble remaps case keys when a wall is stacked onto a nearby id.
+  const snapState = stepState({}, { X: [{ label: 'S', len: 60, loc: 0 }, { label: 'N', len: 60, loc: 120 }], Y: [{ label: 'W', len: 120, loc: 0.3 }, { label: 'E', len: 120, loc: 60 }] });
+  const lowState = stepState({ '#level': 'L2', '#stepsAtLevel': 'off' });
+  const snapAsm = LH.assemble([LH.levelFromDiaphragmState(lowState), LH.levelFromDiaphragmState(snapState)], { heights: [10, 11] });
+  const snapCases = snapAsm.record.levels[1].cases_y;
+  check('assemble: a stepped wall stacked onto a nearby id (Y@0.3 -> Y@0) has its case reactions re-keyed',
+    snapAsm.record.levels[1].walls.Y[0].id === 'Y@0' && snapCases.every((c) => 'Y@0' in c.reactions && !('Y@0.3' in c.reactions)), JSON.stringify(snapCases));
 }
 
 if (failures.length) { console.error(`\n${failures.length} failure(s)`); process.exit(1); }

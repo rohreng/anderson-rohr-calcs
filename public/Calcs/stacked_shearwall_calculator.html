@@ -523,6 +523,7 @@ function newWallFrom(ref, id){
   w.dead = {w_plf:0, P_end_lb:0, source:'manual'};
   w.transfer = false;
   w.P_wind_lb = null; w.P_seis_lb = null;   // inherit the level force, not the source wall's line force
+  delete w.sign_wind; delete w.case_wind; delete w.sign_seis;   // stepped-parapet import metadata belongs to the imported row only
   return w;
 }
 // "+ Add Floor" inserts at the TOP; the base level is always floors[length-1].
@@ -1069,18 +1070,83 @@ function expandWall(fi,wi){
 // wallsFor), so the sum is signed. The seismic Σ is hidden while the level
 // P_E is 0: imported walls all carry P_seis_lb = 0 then, and "Σ 0 vs level 0"
 // would only be noise.
+// Wind and seismic signs are separate (stepped-parapet imports carry
+// sign_wind / sign_seis); a wall without them uses the legacy sign for both.
+function lineSign(w, key){
+  var s = key==='P_seis_lb' ? w.sign_seis : w.sign_wind;
+  if(s===-1||s===1) return s;
+  return w.sign===-1?-1:1;
+}
 function lineSumHTML(fl, key, tag){
+  if(key==='P_wind_lb' && lhStepped(fl)) return steppedSumHTML(fl);
   var any=false, sum=0, seen={};
   (fl.walls||[]).forEach(function(w){
     var lk=SW.lineKey(w);
     if(seen[lk] || w[key]==null || !isFinite(w[key])) return;
-    seen[lk]=true; any=true; sum+=(w.sign===-1?-1:1)*(+w[key]);
+    seen[lk]=true; any=true; sum+=lineSign(w,key)*(+w[key]);
   });
   var lvl=+fl[key]||0;
   if(!any || (key==='P_seis_lb' && !(lvl>0))) return '';
   var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl);
   return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level, once per wall line (walls left blank inherit the level force and are not counted)">'
        + '&Sigma; wall lines'+(tag==='E'?' (E)':'')+' = '+f0(sum)+' lb (level '+f0(lvl)+' lb)</span>';
+}
+// ─── Stepped-parapet levels (plan 2026-09-23 R13 / R17) ─────────────────────
+// A level imported with parapet steps in this direction carries fl.lh =
+// {dir, P_wind_lb, F_parapet_step_lb, imported:{wallId: envelope lb},
+// cases:[{id, total_lb, reactions:{wallId: signed lb}}]} (LH.toShearwallState).
+// Each wall row holds its ENVELOPE (max |R| over the physical wind cases), so
+// the Σ of the rows is not the story total by design; instead each case's
+// signed Σ is checked against that case's total. The check stands only while
+// every line still carries its imported force: an edited, deleted, added or
+// regrouped line (or an edited level P_W) withdraws it (OVERRIDDEN).
+function lhStepped(fl){
+  var L=fl&&fl.lh;
+  return !!(L && typeof L==='object' && Array.isArray(L.cases) && L.cases.length && L.imported && typeof L.imported==='object');
+}
+// -> [{id, text}] of the lines that no longer match the import (empty = reconciled).
+function lhReconcile(fl){
+  var L=fl.lh, imp=L.imported, walls=fl.walls||[], lines=Object.create(null), diffs=[];
+  walls.forEach(function(w){
+    var lk=SW.lineKey(w), P=(w.P_wind_lb==null||!isFinite(w.P_wind_lb))?null:+w.P_wind_lb;
+    if(!(lk in lines)) lines[lk]=P;
+    else if(lines[lk]===null && P!==null) lines[lk]=P;   // the engine takes the first finite value on the line
+  });
+  var cur=function(P){ return P===null?'blank (inherits the level force)':f0(P)+' lb'; };
+  Object.keys(imp).forEach(function(id){
+    var want=+imp[id]||0, w=null;
+    for(var i=0;i<walls.length;i++) if(walls[i].id===id){ w=walls[i]; break; }
+    if(!w){ diffs.push({id:id, text:id+': imported '+f0(want)+' lb, current — deleted'}); return; }
+    var lk=SW.lineKey(w);
+    if(lk!==id){ diffs.push({id:id, text:id+': imported '+f0(want)+' lb, current — regrouped onto line "'+lk+'"'}); return; }
+    var P=lines[id];
+    if(P===null || Math.abs(P-want)>1) diffs.push({id:id, text:id+': imported '+f0(want)+' lb, current '+cur(P)});
+  });
+  Object.keys(lines).forEach(function(lk){
+    if(!Object.prototype.hasOwnProperty.call(imp, lk)) diffs.push({id:lk, text:lk+': not imported, current '+cur(lines[lk])+' — line added'});
+  });
+  if(Math.abs((+fl.P_wind_lb||0)-(+L.P_wind_lb||0))>1) diffs.push({id:'level', text:'level P_W: imported '+f0(+L.P_wind_lb||0)+' lb, current '+f0(+fl.P_wind_lb||0)+' lb'});
+  return diffs;
+}
+function steppedSumHTML(fl){
+  var L=fl.lh, diffs=lhReconcile(fl);
+  if(diffs.length){
+    return '<span class="lf-sum lf-bad lh-override" title="The wall-line forces no longer match the stepped-parapet import, so the per-case equilibrium check no longer applies to them. Re-import the diaphragm levels to restore it.">'
+         + 'OVERRIDDEN &mdash; imported-load validation withdrawn: '+diffs.map(function(d){ return xe(d.text); }).join('; ')+'</span>';
+  }
+  var n=Object.keys(L.imported).length, tol=Math.max(1, n);   // case reactions are rounded to 1 lb per line
+  var parts=L.cases.map(function(c){
+    var s=0; Object.keys(c.reactions||{}).forEach(function(k){ s+=+c.reactions[k]||0; });
+    var ok=Math.abs(s-(+c.total_lb||0))<=tol;
+    return {ok:ok, html:'&Sigma; '+xe(c.id)+' = '+f0(s)+' lb (case '+f0(+c.total_lb||0)+' lb)'+(ok?' &#10003;':' &#10007;')};
+  });
+  var bad=parts.some(function(p){ return !p.ok; });
+  var neg=(fl.walls||[]).filter(function(w){ return w.sign_wind===-1 && Object.prototype.hasOwnProperty.call(L.imported, w.id); });
+  return '<span class="lf-sum lh-cases'+(bad?' lf-bad':'')+'" title="Parapet steps at this level: each wall row carries its envelope (max |R| over the wind cases, governing case in its case_wind), so the Σ of the rows is not the story total by design. Each physical case is checked instead: its signed Σ of line reactions equals its total. Level P_W = the governing case total.">'
+       + parts.map(function(p){ return p.html; }).join(' &middot; ')
+       + ' &mdash; enveloped per wall &mdash; &Sigma; of envelopes &ne; story total by design'
+       + (neg.length?' &mdash; negative wind reaction: '+neg.map(function(w){ return xe(w.id)+(w.case_wind?' ('+xe(w.case_wind)+')':''); }).join(', ')+' (|R| carried)':'')
+       + '</span>';
 }
 // Import provenance, rendered from state.lateral (written by the diaphragm import).
 function lateralProvHTML(){

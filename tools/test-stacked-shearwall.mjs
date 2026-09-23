@@ -905,7 +905,7 @@ check('import panel: 3 level rows top→bottom Roof/3RD/2ND with story-table hei
 check('import panel: direction X selected, Import enabled, every control data-are-ignore, outside #floor-con',
   pnl.dir === 'X' && pnl.importDisabled === false && pnl.ignored === true && pnl.inFloorCon === false, JSON.stringify(pnl));
 check('import panel: summary lines and the axis convention shown',
-  pnl.text.indexOf('Roof — h 11 ft — Wind-X 131,310 lb over 25 lines') >= 0 && pnl.text.indexOf('EW walls resist') >= 0, pnl.text.slice(0, 400));
+  pnl.text.indexOf('Roof — h 11 ft — Wind-X 131,310 lb over 25 lines') >= 0 && pnl.text.indexOf('Wind-X: wind E–W, normal to the E and W faces; resisted by the N and S shearwalls (EW walls); loc_ft from S') >= 0, pnl.text.slice(0, 400));
 check('import panel: no dialogs while picking', dialogs.length === 0, dialogs.join('\n      '));
 
 // (2) Import (replace model), direction X
@@ -1123,6 +1123,140 @@ check('receiver: lat=1 with nothing usable shows the "Nothing staged for this pa
   rxForeign.msgs.indexOf('Nothing staged for this page') >= 0 && rxDialogs.length === 1, JSON.stringify({ msgs: rxForeign.msgs.slice(0, 200), n: rxDialogs.length }));
 check('receiver page has no errors', rxErrors.length === 0, rxErrors.join('\n      '));
 await rx.close();
+
+// ── Stepped-parapet import (plan 2026-09-23 WP-4, R13 / R17) ───────────────
+// R13 negative-reaction record: B 60 x D 120, Wind-Y 30 k on Y lines at 0 / 20,
+// N-face step [0, 20] 6 ft over h_typ 3, q_p 30 -> envelope 14,100 (−, fromS)
+// / 46,350 (+, fromN); cases fromN 32,700, fromS 31,800.
+{
+  const roofFix = JSON.parse(readFileSync(FIX_DIR + 'diaphragm-roof-state.json', 'utf8'));
+  const stepFile = (name, extra) => {
+    const s = JSON.parse(JSON.stringify(roofFix));
+    Object.keys(s.fields).forEach((k) => { if (/^#sw[XY]_/.test(k)) delete s.fields[k]; });
+    Object.assign(s.fields, {
+      '#level': 'Roof', '#B': '60', '#D': '120', '#Vx': '0', '#Vy': '30', '#Vx_s': '0', '#Vy_s': '0', '#loadLevel': 'strength',
+      '#swJSON': JSON.stringify({ X: [{ label: 'S', len: 60, loc: 0 }, { label: 'N', len: 60, loc: 120 }], Y: [{ label: 'L1', len: 20, loc: 0 }, { label: 'L2', len: 20, loc: 20 }] }),
+      '#ppQp': '30', '#ppHmax': '6', '#ppHtyp': '3', '#ppRoof': 'flat', '#ppCommonBase': true, '#stepsAtLevel': 'on',
+      '#stepJSON': JSON.stringify([{ label: 'S1', face: 'N', start_ft: 0, width_ft: 20, h_ft: 6 }])
+    }, extra || {});
+    const p = OUT_DIR + name;
+    writeFileSync(p, wrapSnapshot(JSON.stringify(s)));
+    return p;
+  };
+  const negFile = stepFile('dia-step-neg.html');
+  const gableFile = stepFile('dia-step-gable.html', { '#ppRoof': 'sloped' });
+  const sp = await browser.newPage();
+  const spErrors = [], spDialogs = [];
+  sp.on('pageerror', (e) => spErrors.push(e.message));
+  sp.on('dialog', (d) => { spDialogs.push(d.message()); d.dismiss(); });
+  await sp.route('**/*', (route) => {
+    const p = new URL(route.request().url()).pathname.replace(/^\//, '');
+    try {
+      const ext = p.split('.').pop();
+      route.fulfill({ status: 200, contentType: MIME[ext] || 'application/octet-stream', body: readFileSync(PUBLIC_DIR + p) });
+    } catch { route.fulfill({ status: 404, body: '' }); }
+  });
+  await sp.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
+  await sp.waitForSelector('#wres_0_0 .inline-res');
+
+  // fatal record (sloped roof + active step) -> the importer names the fatal, no panel
+  await sp.setInputFiles('#diaImport', [gableFile]);
+  await sp.waitForFunction(() => document.getElementById('diaImport').value === '');
+  const spFatal = { panel: await sp.evaluate(() => !!document.getElementById('diaImportPanel')), dialogs: spDialogs.slice() };
+  check('stepped import: ineligible (sloped roof) file -> alert names the fatal, no panel',
+    spFatal.panel === false && spFatal.dialogs.length === 1 && /dia-step-gable\.html: Roof: stepped parapets cannot be analyzed.*flat roof/.test(spFatal.dialogs[0]), JSON.stringify(spFatal));
+  spDialogs.length = 0;
+
+  await sp.setInputFiles('#diaImport', [negFile]);
+  await sp.waitForSelector('#diaImportPanel');
+  await sp.fill('#diaImportPanel input[data-lh="h"]', '11');
+  await sp.check('#diaImportPanel input[name="diaDir"][value="Y"]');
+  const spPanel = await sp.evaluate(() => document.getElementById('diaImportPanel').innerText);
+  check('stepped import panel: summary notes the steps and each case Σ',
+    spPanel.indexOf('Wind-Y 32,700 lb incl. parapet steps 2,700 lb (max case fromN) over 2 lines, enveloped per wall (fromN Σ 32,700 of 32,700; fromS Σ 31,800 of 31,800)') >= 0, spPanel.slice(0, 600));
+  await sp.click('#diaImportPanel button[data-lh="import"]');
+  const readStep = () => sp.evaluate(() => {
+    const blk = document.querySelector('#floor-con .floor-blk');
+    const q = (sel) => { const e = blk.querySelector(sel); return e ? { text: e.innerText, cls: e.className } : null; };
+    const s = window.state, f = s.floors[0];
+    return {
+      PW: f.P_wind_lb, P: f.walls.map((w) => w.P_wind_lb), sw: f.walls.map((w) => w.sign_wind), cw: f.walls.map((w) => w.case_wind), ss: f.walls.map((w) => w.sign_seis),
+      lh: f.lh, cases: q('.lh-cases'), over: q('.lh-override'), sums: [...blk.querySelectorAll('.lf-sum')].map((e) => e.innerText),
+      errors: window.SW.validate(s).errors
+    };
+  });
+  let so = await readStep();
+  check('stepped import Y: floor P_W 32,700 (max case); walls 14,100 / 46,350 (envelope magnitudes); sign_wind -1 / +1, case_wind fromS / fromN, sign_seis +1',
+    so.PW === 32700 && so.P.join('/') === '14100/46350' && so.sw.join('/') === '-1/1' && so.cw.join('/') === 'fromS/fromN' && so.ss.join('/') === '1/1' && so.errors.length === 0, JSON.stringify(so));
+  check('stepped import Y: per-case Σ checks pass and say "enveloped per wall"; negative line flagged; not red',
+    so.cases && so.cases.text.indexOf('Σ fromN = 32,700 lb (case 32,700 lb) ✓') >= 0 && so.cases.text.indexOf('Σ fromS = 31,800 lb (case 31,800 lb) ✓') >= 0 &&
+    so.cases.text.indexOf('enveloped per wall — Σ of envelopes ≠ story total by design') >= 0 && so.cases.text.indexOf('negative wind reaction: Y@0 (fromS)') >= 0 &&
+    so.cases.cls.indexOf('lf-bad') < 0 && so.over === null, JSON.stringify(so));
+  // persistence: adapter and AREv2 round trips keep fl.lh and the per-wall metadata (validateModel passes)
+  const spRt = await sp.evaluate(() => {
+    const a = window.__SW_ADAPTER, before = JSON.stringify(a.getModel());
+    a.setModel(JSON.parse(before));
+    const out = { adapter: JSON.stringify(a.getModel()) === before };
+    const snap = window.AREv2.captureState();
+    window.state.floors[0].lh = null; window.render();
+    const res = window.AREv2.loadFromState(snap);
+    out.ok = res.ok; out.code = res.code || null; out.mm = res.mismatches; out.after = JSON.stringify(a.getModel()) === before;
+    out.cases = !!document.querySelector('#floor-con .lh-cases');
+    return out;
+  });
+  check('stepped import: adapter getModel → setModel and AREv2 capture → load keep fl.lh (no BAD_MODEL, no mismatches)',
+    spRt.adapter && spRt.ok === true && spRt.code === null && spRt.mm.missingOnPage.length === 0 && spRt.mm.notInFile.length === 0 && spRt.after && spRt.cases, JSON.stringify(spRt));
+  // seismic sign is separate from the wind sign
+  const spSeis = await sp.evaluate(() => {
+    const f = window.state.floors[0]; f.P_seis_lb = 1000; f.walls[0].P_seis_lb = 400; f.walls[1].P_seis_lb = 600; window.render();
+    const t = [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.lf-sum')].map((e) => e.innerText).filter((x) => x.indexOf('(E)') >= 0)[0] || '';
+    f.P_seis_lb = 0; f.walls[0].P_seis_lb = 0; f.walls[1].P_seis_lb = 0; window.render();
+    return t;
+  });
+  check('seismic Σ uses sign_seis (+1), not the wall\'s negative wind sign: Σ (E) = 1,000', spSeis.indexOf('Σ wall lines (E) = 1,000 lb (level 1,000 lb)') >= 0, spSeis);
+  // edit line 2 (Y@20) to 0 -> OVERRIDDEN listing that line; case checks hidden
+  await sp.evaluate(() => window.updWall(0, 1, 'P_wind_lb', '0'));
+  so = await readStep();
+  check('edit Y@20 to 0 -> "OVERRIDDEN — imported-load validation withdrawn" lists that line (imported vs current); case checks hidden',
+    so.over && so.over.text.indexOf('OVERRIDDEN — imported-load validation withdrawn') >= 0 && so.over.text.indexOf('Y@20: imported 46,350 lb, current 0 lb') >= 0 && so.over.text.indexOf('Y@0') < 0 && so.over.cls.indexOf('lf-bad') >= 0 && so.cases === null,
+    JSON.stringify(so));
+  await sp.evaluate(() => window.updWall(0, 1, 'P_wind_lb', '46350'));
+  so = await readStep();
+  check('restoring the imported value reconciles the level again', so.cases && so.over === null, JSON.stringify(so));
+  // regroup, delete, level edit
+  await sp.evaluate(() => window.updWall(0, 0, 'line', 'Y@20'));
+  so = await readStep();
+  check('regrouping Y@0 onto line Y@20 -> OVERRIDDEN names the regroup', so.over && so.over.text.indexOf('Y@0: imported 14,100 lb, current — regrouped onto line "Y@20"') >= 0, JSON.stringify(so.over));
+  await sp.evaluate(() => { window.updWall(0, 0, 'line', ''); window.updFloor(0, 'P_wind_lb', '30000'); });
+  so = await readStep();
+  check('editing the level P_W -> OVERRIDDEN names the level', so.over && so.over.text.indexOf('level P_W: imported 32,700 lb, current 30,000 lb') >= 0 && so.over.text.indexOf('Y@0') < 0, JSON.stringify(so.over));
+  await sp.evaluate(() => { window.updFloor(0, 'P_wind_lb', '32700'); window.delWall(0, 0); });
+  so = await readStep();
+  check('deleting Y@0 -> OVERRIDDEN lists it as deleted', so.over && so.over.text.indexOf('Y@0: imported 14,100 lb, current — deleted') >= 0, JSON.stringify(so.over));
+  await sp.evaluate(() => window.addWall(0));
+  so = await readStep();
+  check('an added wall line (blank force) is listed as added', so.over && /w\d+: not imported, current blank \(inherits the level force\) — line added/.test(so.over.text), JSON.stringify(so.over));
+
+  // old SW file without lh: legacy sign applies to both W and E, results unchanged
+  const spOld = await sp.evaluate(() => {
+    const a = window.__SW_ADAPTER, m = JSON.parse(JSON.stringify(a.getModel()));
+    const f = m.floors[0]; delete f.lh;
+    f.P_wind_lb = 120000; f.P_seis_lb = 1000;
+    const w0 = f.walls[0]; delete w0.sign_wind; delete w0.case_wind; delete w0.sign_seis;
+    const w1 = JSON.parse(JSON.stringify(w0)); w1.id = 'Y@20'; w1.loc_ft = 20;
+    w0.id = 'Y@0'; w0.sign = -1; w0.P_wind_lb = 240000; w0.P_seis_lb = 500; w1.P_wind_lb = 360000; w1.P_seis_lb = 1500; delete w1.sign;
+    f.walls = [w0, w1];
+    a.setModel(m);
+    const before = JSON.stringify(window.SW.compute(window.state));
+    a.setModel(JSON.parse(JSON.stringify(a.getModel())));
+    return { sums: [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.lf-sum')].map((e) => e.innerText),
+      cases: !!document.querySelector('#floor-con .lh-cases, #floor-con .lh-override'), same: JSON.stringify(window.SW.compute(window.state)) === before };
+  });
+  check('old file (no lh, legacy sign -1): Σ wall lines signed for W and E as before, no case / override line, identical results',
+    spOld.sums.indexOf('Σ wall lines = 120,000 lb (level 120,000 lb)') >= 0 && spOld.sums.indexOf('Σ wall lines (E) = 1,000 lb (level 1,000 lb)') >= 0 && spOld.cases === false && spOld.same, JSON.stringify(spOld));
+  check('stepped import page: no page errors, no stray dialogs', spErrors.length === 0 && spDialogs.length === 0, spErrors.concat(spDialogs).join('\n      '));
+  await sp.close();
+}
 
 // ── selftest query string ───────────────────────────────────────────────────
 const st = await browser.newPage();
