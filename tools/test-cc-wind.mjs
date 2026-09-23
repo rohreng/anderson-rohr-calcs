@@ -320,8 +320,8 @@ async function verifyTables() {
 async function verifySweep() {
   await fresh();
   const opts = await page.evaluate(() => ({
-    walls: Array.from(document.querySelectorAll('#wallFig option')).map(o => o.value),
-    roofs: Array.from(document.querySelectorAll('#roofFig option')).map(o => o.value),
+    walls: Array.from(document.querySelectorAll('#wallFig option')).filter(o => !o.disabled).map(o => o.value),
+    roofs: Array.from(document.querySelectorAll('#roofFig option')).filter(o => !o.disabled).map(o => o.value),
   }));
   const bad = [];
   let n = 0;
@@ -336,6 +336,180 @@ async function verifySweep() {
     if (/NaN|undefined/.test(state.txt) || !state.zones || state.txt.length < 200) bad.push(`${wall}/${roof}/${oh}: ${state.zones} zones`);
   }
   check(`Phase 0 sweep: ${n} wall × roof × overhang combinations render`, n === 34 && bad.length === 0, bad.join('\n      '));
+}
+
+// ── ASCE 7-22 (plan §9.4 / §9.5). Expected values are typed constants, hand-checked
+// from the §7 tables; T15 uses the Note 3 interpolated Kh at the 23 ft parapet top (0.924).
+const T1 = { V: 115, exp: 'C', h: 20, minDim: 50, hp: 0, A: 32, wallFig: '22:30.3-1', roofFig: 'none', oh: false };
+async function runCase22(c) {
+  await fresh();
+  await page.selectOption('#edition', c.edition || '7-22');
+  for (const k of ['V', 'h', 'minDim', 'hp']) await page.fill('#' + k, String(c[k]));
+  await page.fill('#Ke', String(c.Ke ?? 1));
+  await page.selectOption('#exp', c.exp);
+  await page.selectOption('#GCpi', '0.18');
+  await page.selectOption('#wallFig', c.wallFig);
+  await page.selectOption('#roofFig', c.roofFig);
+  if (c.theta !== undefined) await page.fill('#theta', String(c.theta));
+  await page.selectOption('#overhangs', c.oh ? 'yes' : 'no');
+  await page.fill('#effArea', String(c.A));
+  await page.click('button.calc-btn');
+  await page.waitForSelector('#results.show');
+  return snapshot();
+}
+function zp(s, name) { return s.last.zones.find(z => z.name === name); }
+function expectP(label, s, want) {
+  const bad = [];
+  for (const [name, pos, neg] of want) {
+    const z = zp(s, name);
+    if (!z) { bad.push(`${name}: missing`); continue; }
+    if (pos !== null && !near(z.pPos, pos, 1e-3)) bad.push(`${name} p+: expected ${pos}, got ${z.pPos}`);
+    if (neg !== null && !near(z.pNeg, neg, 1e-3)) bad.push(`${name} p−: expected ${neg}, got ${z.pNeg}`);
+  }
+  check(label, bad.length === 0, bad.join('\n      '));
+}
+async function verify722() {
+  let s = await runCase22(T1);
+  expectP('T1 7-22 walls A 32', s, [['Zone 4', 28.252, -30.842], ['Zone 5', 28.252, -36.301]]);
+  check('T1 qh card excludes Kd (30.47)', s.dem['qh (psf)'] === '30.47' && s.last.edition === '7-22'
+    && near(s.last.qhDisp, .00256 * .90 * 115 * 115, 1e-9) && near(s.last.qEff, .00256 * .90 * 115 * 115 * .85, 1e-9), JSON.stringify(s.dem));
+  const det = await page.evaluate(() => Array.from(document.querySelectorAll('.calc-det')).map(d => d.innerHTML));
+  const step2 = det[0].split('Step 3')[0].split('Step 2')[1] || '', step4 = det[0].split('Step 4')[1] || '';
+  check('7-22 detail: Step 2 has no Kd, Step 4 applies Kd', !/K<sub>d<\/sub>/.test(step2) && /K<sub>d<\/sub>/.test(step4), step2.slice(0, 300));
+  const txt22 = await page.evaluate(() => document.getElementById('results').innerText + ' ' + Array.from(document.querySelectorAll('.calc-det')).map(d => d.textContent).join(' '));
+  const leak = ['7-16', '30.5-1', '30.8-1', '30.9-1'].filter(x => txt22.includes(x));
+  check('7-22 results carry no 7-16 references', leak.length === 0, leak.join(', '));
+
+  s = await runCase22({ ...T1, A: 100 });
+  expectP('T2 7-22 walls A 100', s, [['Zone 4', 25.988, -28.578], ['Zone 5', 25.988, -31.775]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2A' });
+  expectP('T3 7-22 Fig 30.3-2A A 32', s, [['Zone 1', 11.124, -43.301], ['Zone 1′', 11.124, -27.972], ['Zone 2', 11.124, -57.301], ['Zone 3', 11.124, -73.680]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2A', oh: true, A: 200 });
+  expectP('T4 7-22 Fig 30.3-2A overhang curves A 200', s, [['Overhang 1/1′', null, -39.409], ['Overhang 2', null, -40.431], ['Overhang 3', null, -45.891]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2A', A: 600 });
+  expectP('T5 7-22 Zone 1′ A 600', s, [['Zone 1′', null, -17.895]]);
+  const T6 = { V: 120, exp: 'B', h: 30, minDim: 40, hp: 0, A: 50, wallFig: '22:30.3-1', roofFig: '22:30.3-2B', oh: false };
+  s = await runCase22(T6);
+  expectP('T6 7-22 Fig 30.3-2B Exp B A 50', s, [['Zone 1', 13.573, -32.248], ['Zone 2', 13.573, -43.137], ['Zone 3', 13.573, -55.315]]);
+  s = await runCase22({ ...T6, oh: true });
+  expectP('T7 7-22 §30.7 sum-rule overhangs', s, [['Overhang 1', null, -51.474], ['Overhang 2', null, -62.364], ['Overhang 3', null, -74.541]]);
+  check('T7 sum-rule terms: roof − wall(+)', near(zp(s, 'Overhang 1').terms.wallPos, .87658, 1e-5) && near(zp(s, 'Overhang 1').gcpNeg, -2.16678, 1e-5),
+    JSON.stringify(zp(s, 'Overhang 1')));
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2C', A: 150 });
+  expectP('T8 7-22 Fig 30.3-2C A 150', s, [['Zone 1', 13.178, -27.123], ['Zone 2', 13.178, -35.742], ['Zone 3', 13.178, -40.922]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2D', A: 10 });
+  expectP('T9 7-22 Fig 30.3-2D A 10', s, [['Zone 1', 27.972, -51.282], ['Zone 2', 27.972, -56.462], ['Zone 3', 27.972, -69.412]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2D', A: 600 });
+  expectP('T9 7-22 Fig 30.3-2D A 600', s, [['Zone 1', 17.612, -25.382], ['Zone 2', 17.612, -30.562], ['Zone 3', 17.612, -30.562]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2E' });
+  expectP('T10 7-22 Fig 30.3-2E A 32', s, [['Zone 1', 17.559, -41.226], ['Zone 2', 17.559, -55.760], ['Zone 3', 17.559, -59.934]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2F' });
+  expectP('T11 7-22 Fig 30.3-2F A 32', s, [['Zone 1', null, -33.072], ['Zone 2', null, -43.378], ['Zone 3', null, -43.378]]);
+  check('T11 #thetaRow hidden for 2F', await page.$eval('#thetaRow', e => getComputedStyle(e).display === 'none'));
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2G', theta: 36 });
+  expectP('T12 7-22 Fig 30.3-2G Note 6 θ 36', s, [['Zone 1', null, -33.058], ['Zone 2', null, -40.788], ['Zone 3', null, -45.942]]);
+  check('T12 #thetaRow visible for 2G; t = 0.5', await page.$eval('#thetaRow', e => getComputedStyle(e).display !== 'none')
+    && near(zp(s, 'Zone 1').terms.t, .5, 1e-12) && s.last.theta === 36);
+  const rt = await page.evaluate(() => AREv2.captureState());
+  const z12 = s.last.zones;
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2G', theta: 45 });
+  expectP('T12 θ 45 = Fig 30.3-2G', s, [['Zone 3', null, -48.505]]);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-5A', oh: true });
+  expectP('T13 7-22 Fig 30.3-5A A 32', s, [['Zone 1', 11.124, -33.152], ['Zone 2', 11.124, -37.023], ['Zone 2′', 11.124, -44.793], ['Zone 3', 11.124, -43.432], ['Zone 3′', 11.124, -58.918]]);
+  check('T13 five sum-rule overhang rows', s.last.zones.filter(z => z.oh).length === 5, s.last.zones.map(z => z.name).join(', '));
+  s = await runCase22({ V: 115, exp: 'C', h: 80, minDim: 100, hp: 0, A: 32, wallFig: '22:30.4-1-wall', roofFig: '22:30.4-1-roof', oh: false });
+  expectP('T14 7-22 Fig 30.4-1 h 80', s, [['Wall Zone 4', 36.081, -36.590], ['Wall Zone 5', 36.081, -64.878], ['Roof Zone 1', null, -49.840], ['Roof Zone 2', null, -79.109], ['Roof Zone 3', null, -108.377]]);
+  check('T14 a = 10.0 ft', s.dem['Zone dim. a'] === '10.0 ft', s.dem['Zone dim. a']);
+  s = await runCase22({ ...T1, roofFig: '22:30.3-2A', hp: 3 });
+  const p4 = zp(s, 'Zone 4 — Parapet'), p5 = zp(s, 'Zone 5 — Parapet');
+  check('T15 7-22 parapet, qp at 23 ft (Kh 0.924), Kd in p', !!p4 && !!p5 && near(s.last.qpEff, 26.5905024, 1e-6)
+    && near(p4.terms.caseA, 78.261, 1e-3) && near(p4.terms.caseB, 51.096, 1e-3) && p4.terms.govCase === 'A'
+    && near(p5.terms.caseA, 95.077, 1e-3) && near(p5.terms.caseB, 56.702, 1e-3) && p5.terms.govCase === 'A', JSON.stringify([p4?.terms, p5?.terms]));
+  const parRow = s.rows.find(r => r[0].startsWith('Zone 4 — Parapet'));
+  check('T15 parapet row cites §30.6 / Fig 30.6-1', !!parRow && /§30\.6/.test(parRow[0]) && /Fig 30\.6-1/.test(parRow[1]), JSON.stringify(parRow));
+  s = await runCase22({ ...T1, exp: 'B', h: 40 });
+  expectP('T16 7-22 Table 26.10-1 Exp B h 40 (Kh 0.74)', s, [['Zone 4', 23.229, -25.359], ['Zone 5', 23.229, -29.848]]);
+  s = await runCase22({ ...T1, exp: 'B', h: 40, edition: '7-16', wallFig: '30.3-1' });
+  check('T16 7-16 counterpart card 21.87 (Kh 0.76, Kd in q)', s.dem['qh (psf)'] === '21.87', s.dem['qh (psf)']);
+  s = await runCase22({ ...T1, Ke: .93 });
+  expectP('T17 7-22 Ke 0.93', s, [['Zone 5', null, -33.760]]);
+  check('T17 qh card 28.34', s.dem['qh (psf)'] === '28.34' && s.dem['Ke'] === '0.930', JSON.stringify(s.dem));
+  s = await runCase22({ ...T1, Ke: .93, edition: '7-16', wallFig: '30.3-1' });
+  check('T17 7-16 with Ke 0.93 card 24.09', s.dem['qh (psf)'] === '24.09', s.dem['qh (psf)']);
+
+  // §9.5 UI / state
+  await fresh();
+  const ui16 = await page.evaluate(() => ({
+    ed: document.getElementById('edition').value, title: document.title, h1: document.querySelector('h1').innerText,
+    hidden22: Array.from(document.querySelectorAll('option[data-ed="7-22"]')).every(o => o.hidden && o.disabled),
+    theta: getComputedStyle(document.getElementById('thetaRow')).display }));
+  check('default edition 7-16, 7-22 options hidden+disabled, θ hidden', ui16.ed === '7-16' && /ASCE 7-16/.test(ui16.title) && /ASCE 7-16/.test(ui16.h1)
+    && ui16.hidden22 && ui16.theta === 'none', JSON.stringify(ui16));
+  await page.click('button.calc-btn');
+  const txt16 = await page.evaluate(() => document.getElementById('results').innerText);
+  const leak16 = ['7-22', '30.4-1', 'Kd['].filter(x => txt16.includes(x));
+  check('7-16 results carry no 7-22 references', leak16.length === 0, leak16.join(', '));
+  await page.selectOption('#edition', '7-22');
+  const ui22 = await page.evaluate(() => ({ wall: document.getElementById('wallFig').value, roof: document.getElementById('roofFig').value, title: document.title,
+    hidden16: Array.from(document.querySelectorAll('option[data-ed="7-16"]')).every(o => o.hidden && o.disabled),
+    gcpi: document.querySelector('#GCpi option[value="0.18"]').textContent }));
+  check('switch to 7-22 resets figures, hides 7-16 options, relabels GCpi', ui22.wall === '22:30.3-1' && ui22.roof === 'none'
+    && /ASCE 7-22/.test(ui22.title) && ui22.hidden16 && /Partially Open/.test(ui22.gcpi), JSON.stringify(ui22));
+
+  // Legacy file into a page holding 7-22 state
+  await fresh();
+  await page.selectOption('#edition', '7-22');
+  await page.fill('#Ke', '0.9');
+  await page.evaluate(() => { document.getElementById('theta').value = '30'; });
+  const legacy = JSON.parse(readFileSync(FIX_DIR + 'legacy-state.json', 'utf8'));
+  const load = await page.evaluate(st => AREv2.loadFromState(st), legacy);
+  const after = await page.evaluate(() => ({ ed: document.getElementById('edition').value, Ke: document.getElementById('Ke').value, th: document.getElementById('theta').value }));
+  check('legacy file loads as 7-16 (Ke 1.00, θ 45) without rollback', load.ok === true && !load.rolledBack
+    && load.mismatches.missingOnPage.length === 0 && load.mismatches.notInFile.length === 0
+    && after.ed === '7-16' && after.Ke === '1.00' && after.th === '45', JSON.stringify({ load, after }));
+  await page.click('button.calc-btn');
+  const base = JSON.parse(readFileSync(FIX_DIR + 'baseline.json', 'utf8')).cases;
+  const out = [];
+  diff(base['b1-walls-2A-default'], await snapshot(), 'root', out);
+  check('legacy file reproduces baseline b1', out.length === 0, out.slice(0, 10).join('\n      '));
+
+  // Round trip of the T12 state
+  await fresh();
+  const load2 = await page.evaluate(st => AREv2.loadFromState(st), rt);
+  const rtIn = await page.evaluate(() => ({ ed: document.getElementById('edition').value, roof: document.getElementById('roofFig').value, th: document.getElementById('theta').value }));
+  await page.click('button.calc-btn');
+  const rtOut = [];
+  diff(z12, (await snapshot()).last.zones, 'zones', rtOut);
+  check('7-22 save/load round trip (2G, θ 36) reproduces zones', load2.ok === true && !load2.rolledBack && rtIn.ed === '7-22'
+    && rtIn.roof === '22:30.3-2G' && rtIn.th === '36' && rtOut.length === 0, JSON.stringify({ load2, rtIn, rtOut: rtOut.slice(0, 5) }));
+  check('#sendZoneSel excluded from saved state', await page.evaluate(() => document.getElementById('sendZoneSel').hasAttribute('data-are-ignore')
+    && !('#sendZoneSel' in AREv2.captureState().fields)));
+  const pay = await page.evaluate(() => ({ ls: JSON.parse(localStorage.getItem('ARE_cc_wind')), rv: buildRevitCCPayload() }));
+  check('localStorage and Revit payload carry the edition', pay.ls.edition === '7-22' && pay.rv.inputs.edition === '7-22'
+    && pay.rv.schema === 'are.cc.wind.v1' && pay.rv.code === 'ASCE 7-22' && pay.rv.inputs.theta_deg === 36, JSON.stringify({ ls: pay.ls.edition, inputs: pay.rv.inputs }));
+
+  // 7-22 sweep: every enabled wall × roof × overhang, with a 3 ft parapet
+  await fresh();
+  await page.selectOption('#edition', '7-22');
+  await page.fill('#hp', '3');
+  const opts = await page.evaluate(() => ({
+    walls: Array.from(document.querySelectorAll('#wallFig option')).filter(o => !o.disabled).map(o => o.value),
+    roofs: Array.from(document.querySelectorAll('#roofFig option')).filter(o => !o.disabled).map(o => o.value) }));
+  const OH = { '22:30.3-2A': 3, '22:30.3-5A': 5, '22:30.4-1-roof': 3 };
+  const bad = [];
+  let n = 0;
+  for (const wall of opts.walls) for (const roof of opts.roofs) for (const oh of ['no', 'yes']) {
+    if (wall === 'none' && roof === 'none') continue;
+    await page.selectOption('#wallFig', wall);
+    await page.selectOption('#roofFig', roof);
+    await page.selectOption('#overhangs', oh);
+    await page.click('button.calc-btn');
+    const st = await page.evaluate(() => ({ txt: document.getElementById('results').innerText, zones: window.__ccLast?.zones || [] }));
+    n++;
+    const ohN = st.zones.filter(z => z.oh).length, want = oh === 'yes' && roof !== 'none' ? (OH[roof] ?? 3) : 0;
+    if (/NaN|undefined/.test(st.txt) || !st.zones.length || ohN !== want) bad.push(`${wall}/${roof}/${oh}: ${st.zones.length} zones, ${ohN} overhang rows (want ${want})`);
+  }
+  check(`7-22 sweep: ${n} wall × roof × overhang combinations (hp 3) render`, n === 58 && bad.length === 0, bad.join('\n      '));
 }
 
 try {
@@ -369,6 +543,8 @@ try {
       diff(base[c.name], results[c.name], 'root', out);
       check('baseline ' + c.name, out.length === 0, out.slice(0, 12).join('\n      '));
     }
+    await verify722();
+    await verifySweep();
   } else {
     for (const c of CASES) verifyPhase0(c, results[c.name]);
     await verifyTables();
