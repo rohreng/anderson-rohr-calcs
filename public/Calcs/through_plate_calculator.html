@@ -338,6 +338,50 @@
         </div>
 
         <div class="input-section blk">
+            <h3>Attachment of Through-Plates to Beam Flanges</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="attachType">Attachment:</label>
+                    <select id="attachType" onchange="applyAttachMode()">
+                        <option value="bolted" selected>Bolted (DG24 Example 4.2)</option>
+                        <option value="welded">Welded &mdash; fillet welds along the beam flange (Design Example II.B-2 method)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-section blk" id="weldSection" style="display:none">
+            <h3>Weld Properties (plate to beam flange)</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="weldSize">Fillet Weld Leg w (in):</label>
+                    <input type="number" id="weldSize" value="0.3125" step="0.0625" min="0.125">
+                </div>
+                <div class="input-group">
+                    <label for="weldFexx">Electrode F_EXX (ksi):</label>
+                    <input type="number" id="weldFexx" value="70" step="10" min="60">
+                </div>
+                <div class="input-group">
+                    <label for="plateExt">Plate Projection Beyond Column Face (in):</label>
+                    <input type="number" id="plateExt" value="16.75" step="0.25" min="2">
+                </div>
+                <div class="input-group">
+                    <label for="setback">Beam End Setback from Column Face (in):</label>
+                    <input type="number" id="setback" value="0.5" step="0.125" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="weldLen">Weld Length per Side l (in, blank = auto):</label>
+                    <input type="number" id="weldLen" placeholder="auto = projection - setback - w" step="0.01" min="0">
+                </div>
+                <div class="input-group">
+                    <label for="endWeld">Transverse Weld Across Plate End:</label>
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 0"><input type="checkbox" id="endWeld" style="width:auto"> <span id="endWeldLbl" style="font-size:.85em;color:#555">on the beam flange (plate narrower than b<sub>f</sub>)</span></div>
+                </div>
+            </div>
+            <div class="note" style="margin:10px 0 0">Two longitudinal fillet welds per plate at the beam flange edges (plate wider than the flange) or along the plate edges (plate narrower than the flange), each of length l, plus an optional transverse weld across the plate end when the plate sits on the flange. Weld group strength per AISC 360-22 &sect;J2.4 Eq. J2-6a/b, base metal per Manual Eq. 9-2, beam flange shear rupture at the welds per Eq. J4-4 &mdash; the same procedure as Design Example II.B-2 and the Flange-Plated Moment Connection to HSS Column calc.</div>
+        </div>
+
+        <div class="input-section blk" id="boltSection">
             <h3>Bolt Properties</h3>
             <div class="input-row">
                 <div class="input-group">
@@ -895,6 +939,32 @@
         }
 
 
+        // ============ ATTACHMENT MODE (bolted | welded) ============
+        function attachMode(){ var e=document.getElementById('attachType'); return e && e.value==='welded' ? 'welded' : 'bolted'; }
+        function applyAttachMode(){
+            var welded = attachMode()==='welded';
+            var bs=document.getElementById('boltSection'), ws=document.getElementById('weldSection');
+            if (bs) bs.style.display = welded ? 'none' : '';
+            if (ws) ws.style.display = welded ? '' : 'none';
+            // the transverse end weld exists only when the plate sits on the flange
+            var cb=document.getElementById('endWeld'), lbl=document.getElementById('endWeldLbl');
+            if (cb){
+                var bf=NaN; try{ var b=getShapeProperties('beam', document.getElementById('beamSize').value); bf=b?parseFloat(b.bf):NaN; }catch(e){}
+                var pw=parseFloat(document.getElementById('plateWidth').value);
+                var ok = (isFinite(bf)&&isFinite(pw)) ? pw<=bf+1e-9 : true;
+                cb.disabled=!ok;
+                if (lbl) lbl.innerHTML = ok ? 'on the beam flange (plate narrower than b<sub>f</sub>)' : 'not possible: plate wider than the beam flange, longitudinal welds only';
+            }
+            if (typeof areDrawSchematic==='function') areDrawSchematic();
+        }
+        (function(){
+            function bind(){
+                ['beamSize','plateWidth'].forEach(function(id){ var el=document.getElementById(id); if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,applyAttachMode)});} });
+                applyAttachMode();
+            }
+            if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',bind); else bind();
+        })();
+
         // ============ LIVE SCHEMATIC ============
         function areDrawSchematic(){
             var svg=document.getElementById('areSchemSvg'); if(!svg) return;
@@ -928,6 +998,9 @@
             var sp = gv('boltSpacing',3);
             var ed = gv('edgeDist',1.25);
             var dia= gv('boltDiameter',1.0);
+            var welded = attachMode()==='welded';
+            var wSz = gv('weldSize',0.3125), pExt = gv('plateExt',16.75), sbk = welded ? gv('setback',0.5) : 0;
+            var lwIn = gv('weldLen', NaN); if(!isFinite(lwIn)) lwIn = pExt - sbk - wSz;
 
             // Factored loads for display
             var VuL = gv('shearDeadLeft',0)*1.2  + gv('shearLiveLeft',0)*1.6;
@@ -937,31 +1010,37 @@
             var Pu  = gv('deadLoad',0)*1.2 + gv('liveLoad',0)*1.6;
 
             // Layout: origin = HSS column centroid. +x right, +y up (flipY:true).
-            var halfBc = Bc / 2;
-            // Bolt group extent from column face (edge dist + bolts)
-            var pLen  = ed + (nb-1)*sp + ed;
+            // ELEVATION: the column is a vertical tube seen from the side, so its
+            // width in the beam direction is H (the dimension the equilibrium arm
+            // H/2 uses) and it runs the full height of the view. B is out of plane.
+            var halfBc = Hc / 2;
+            // Plate extent from the column face: bolt group (edge dist + bolts) or the
+            // welded plate projection
+            var pLen  = welded ? pExt : ed + (nb-1)*sp + ed;
             // Beam drawn beyond plates + room for dim labels on the right
             var bmLen = pLen + 8;
+            // column shaft runs well past the plates so the view reads as an elevation
+            var colExt = Math.max(14, 0.8*Hc);
+            var colTop = d/2 + tp + colExt, colBot = -(d/2 + tp + colExt);
 
-            // Scale to fit both HSS height and total width in ~210 px height
-            var sc = AREDraw.fitScale(Math.max(Hc, d+2*tp+8), 210, {min:3, max:10});
+            // Scale to fit the column height and total width in ~260 px height
+            var sc = AREDraw.fitScale(colTop - colBot, 260, {min:3, max:10});
 
             var dwg = new AREDraw.Drawing(svg, {});
             var st  = dwg.style;
             var v   = new AREDraw.View(dwg, { scale: sc, ox: 0, oy: 0, flipY: true });
 
-            // ── HSS column (shown as vertical rectangular tube) ─────────────────
-            // Outer box
-            AREDraw.plate(v, -halfBc, -Hc/2, Bc, Hc, { fill: st.steelFill });
-            // Inner void to show wall thickness
-            AREDraw.plate(v, -halfBc+tc, -Hc/2+tc, Bc-2*tc, Hc-2*tc, { fill:'#ffffff' });
+            // ── HSS column in ELEVATION (vertical tube, walls as inner lines) ────
+            AREDraw.plate(v, -halfBc, colBot, Hc, colTop-colBot, { fill: st.steelFill });
+            // Near and far wall faces (the tube is hollow behind the plane of the drawing)
+            AREDraw.plate(v, -halfBc+tc, colBot, Hc-2*tc, colTop-colBot, { fill:'none' });
             // Column vertical centerline
-            AREDraw.centerline(v, 0, -Hc/2-1, 0, Hc/2+1);
+            AREDraw.centerline(v, 0, colBot-1, 0, colTop+1);
 
             // ── Left & right W-beams ────────────────────────────────────────────
             var bGeom  = { d:d, tf:tf };
-            var lbX    = -(halfBc + bmLen);   // left beam left face world x
-            var rbX    =   halfBc;            // right beam left face world x
+            var lbX    = -(halfBc + sbk + bmLen);   // left beam left face world x
+            var rbX    =   halfBc + sbk;            // right beam left face world x
             AREDraw.wElevation(v, lbX, 0, bmLen, bGeom, { fill: st.steelFill });
             AREDraw.wElevation(v, rbX, 0, bmLen, bGeom, { fill: st.steelFill });
             // Beam centreline dashes
@@ -976,13 +1055,25 @@
             AREDraw.plate(v, plX,  d/2,      plW, tp, { highlight:true }); // top
             AREDraw.plate(v, plX, -(d/2+tp), plW, tp, { highlight:true }); // bottom
 
-            // ── Bolts (at plate mid-height, on each side of column) ─────────────
-            for(var i=0;i<nb;i++){
-                var bOff = halfBc + ed + i*sp;
-                AREDraw.bolt(v, -bOff,  d/2+tp/2, dia, {cross:false});
-                AREDraw.bolt(v,  bOff,  d/2+tp/2, dia, {cross:false});
-                AREDraw.bolt(v, -bOff, -(d/2+tp/2), dia, {cross:false});
-                AREDraw.bolt(v,  bOff, -(d/2+tp/2), dia, {cross:false});
+            if (welded){
+                // ── Fillet welds along the plate / flange faying line, each side ──
+                var wx0 = halfBc + sbk, wx1 = Math.min(halfBc + sbk + lwIn, halfBc + pLen);
+                if (wx1 > wx0){
+                    AREDraw.weldFillet(v,  wx0,  d/2,  wx1,  d/2, { side:'up' });
+                    AREDraw.weldFillet(v, -wx1,  d/2, -wx0,  d/2, { side:'up' });
+                    AREDraw.weldFillet(v,  wx0, -d/2,  wx1, -d/2, { side:'down' });
+                    AREDraw.weldFillet(v, -wx1, -d/2, -wx0, -d/2, { side:'down' });
+                }
+                AREDraw.dimLine(v, wx0, -(d/2+tp), wx1, -(d/2+tp), 'l = '+lwIn.toFixed(2)+'"', {off:-22});
+            } else {
+                // ── Bolts (at plate mid-height, on each side of column) ─────────
+                for(var i=0;i<nb;i++){
+                    var bOff = halfBc + ed + i*sp;
+                    AREDraw.bolt(v, -bOff,  d/2+tp/2, dia, {cross:false});
+                    AREDraw.bolt(v,  bOff,  d/2+tp/2, dia, {cross:false});
+                    AREDraw.bolt(v, -bOff, -(d/2+tp/2), dia, {cross:false});
+                    AREDraw.bolt(v,  bOff, -(d/2+tp/2), dia, {cross:false});
+                }
             }
 
             // ── Member labels — pulled OUTSIDE all filled regions ─────────────────
@@ -996,10 +1087,10 @@
             AREDraw.calloutLabel(v, rbMid, 0,
                 v.px(rbMid), v.py(-d/2 - 3),
                 beamSize||'W-beam', {color:st.steel, anchor:'middle'});
-            // HSS column: callout from column centroid → below the column, clear of beam labels
-            AREDraw.calloutLabel(v, 0, 0,
-                v.px(0), v.py(-Hc/2 - 3),
-                hssSize||'HSS col.', {color:st.steel, anchor:'middle'});
+            // HSS column: callout from the column shaft → above the column top, left of the Pu arrow
+            AREDraw.calloutLabel(v, -halfBc/2, colTop-2,
+                v.px(-halfBc-2), v.py(colTop+2.5),
+                hssSize||'HSS col.', {color:st.steel, anchor:'end'});
 
             // ── Plate callout leader from top plate ──────────────────────────────
             // Target: mid of top plate. Label goes up-left above beam, outside steel.
@@ -1028,7 +1119,7 @@
 
             // ── Force arrows through centroids, labels pulled outside ────────────
             // Axial Pu — arrives at top of column, arrow pointing down, centroid x=0
-            var topY = Hc/2;
+            var topY = colTop;
             AREDraw.forceArrow(v, 0, topY+4.5, 0, -1, v.s(4.5), '', {color:st.force});
             AREDraw.calloutLabel(v, 0, topY+4.5,
                 v.px(halfBc+3), v.py(topY+2.5),
@@ -1072,7 +1163,8 @@
             function bind(){
                 ['beamSize','hssSize','plateThickness','boltsPerLine','boltSpacing','edgeDist','numRows',
                  'shearDeadLeft','shearLiveLeft','shearDeadRight','shearLiveRight','deadLoad','liveLoad',
-                 'momentDeadLeft','momentLiveLeft','momentDeadRight','momentLiveRight'].forEach(function(id){
+                 'momentDeadLeft','momentLiveLeft','momentDeadRight','momentLiveRight',
+                 'weldSize','plateExt','setback','weldLen','endWeld','plateWidth'].forEach(function(id){
                     var el=document.getElementById(id);
                     if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
                 });
@@ -1099,6 +1191,13 @@
                 const numBolts = numRows * boltsPerLine;                                      // total bolts each side
                 const boltSpacing = parseFloat(document.getElementById('boltSpacing').value);
                 const edgeDist = parseFloat(document.getElementById('edgeDist').value);
+                const attach = attachMode();
+                const weldSize = parseFloat(document.getElementById('weldSize').value);
+                const weldFexx = parseFloat(document.getElementById('weldFexx').value);
+                const plateExt = parseFloat(document.getElementById('plateExt').value);
+                const setback = parseFloat(document.getElementById('setback').value);
+                const weldLenIn = parseFloat(document.getElementById('weldLen').value);
+                const endWeldReq = document.getElementById('endWeld').checked;
                 
                 // Load inputs
                 const VD_left = parseFloat(document.getElementById('shearDeadLeft').value);
@@ -1180,10 +1279,12 @@
                 const stdHole = boltDiameter + (boltDiameter >= 1.0 ? 0.125 : 0.0625);
                 const holeSize = stdHole + 0.0625;
                 const Ag_plate = plateThickness * plateWidth;
-                // Net section: deduct one hole per gage LINE across the width (not total bolts)
-                let An = plateThickness * (plateWidth - numRows * holeSize);
+                const welded = attach === 'welded';
+                // Net section: deduct one hole per gage LINE across the width (not total bolts).
+                // A welded plate has no holes: An = Ag and the 0.85 splice-plate cap does not apply.
+                let An = welded ? Ag_plate : plateThickness * (plateWidth - numRows * holeSize);
                 const An_cap = 0.85 * Ag_plate; // bolted splice plate cap, AISC J4.1(b)
-                const AnCapped = An > An_cap;
+                const AnCapped = !welded && An > An_cap;
                 if (AnCapped) An = An_cap;
                 const Rn_rupture = plateMat.Fu * An;
                 const phi_rup = 0.75;
@@ -1221,6 +1322,40 @@
                 const brgOK_LRFD = Ru_LRFD <= Pu_brg;
                 const brgOK_ASD = Ra_ASD <= Pa_brg;
 
+                // Step 6W/7W: welded plate-to-beam-flange connection (Design Example II.B-2 method)
+                let W = null;
+                if (welded) {
+                    if (!(weldSize > 0) || !(weldFexx > 0) || !(plateExt > 0) || !(setback >= 0)) throw new Error('Weld size, F_EXX, plate projection and setback must be positive numbers.');
+                    const onFlange = plateWidth <= beam.bf + 1e-9;          // plate sits on the flange: welds along the plate edges
+                    const lw = isFinite(weldLenIn) && weldLenIn > 0 ? weldLenIn : plateExt - setback - weldSize;
+                    if (!(lw > 0)) throw new Error('Plate projection must exceed setback + weld size so the plate-to-flange weld has a length.');
+                    const endWeld = endWeldReq && onFlange;
+                    const D = weldSize * 16;
+                    const Rnwl = 2 * 0.6 * weldFexx * 0.707 * weldSize * lw;
+                    const Rnwt = endWeld ? 0.6 * weldFexx * 0.707 * weldSize * plateWidth : 0;
+                    const RnA = Rnwl + Rnwt, RnB = 0.85 * Rnwl + 1.5 * Rnwt;
+                    const Rn_weld = endWeld ? Math.max(RnA, RnB) : Rnwl;
+                    const Pu_weld = 0.75 * Rn_weld, Pa_weld = Rn_weld / 2.00;
+                    const per16L = 0.75 * 0.6 * weldFexx * 0.707 / 16, per16A = 0.6 * weldFexx * 0.707 / 16 / 2.00;   // 1.392 / 0.928 for E70
+                    const lMin_LRFD = Ru_LRFD / (2 * per16L * D), lMin_ASD = Ra_ASD / (2 * per16A * D);
+                    const tminF = 3.09 * D / beamMat.Fu, tminP = 3.09 * D / plateMat.Fu;
+                    const Anv = 2 * beam.tf * lw;
+                    const Rn_fr = 0.6 * beamMat.Fu * Anv, Pu_fr = 0.75 * Rn_fr, Pa_fr = Rn_fr / 2.00;
+                    const tThin = Math.min(plateThickness, beam.tf), tEdge = onFlange ? plateThickness : beam.tf;
+                    const wmin = tThin <= 0.25 ? 0.125 : tThin <= 0.5 ? 0.1875 : tThin <= 0.75 ? 0.25 : 0.3125;
+                    const wmax = tEdge < 0.25 ? tEdge : tEdge - 0.0625;
+                    W = {
+                        onFlange, lw, lwAuto: !(isFinite(weldLenIn) && weldLenIn > 0), endWeld, endWeldReq, D, Rnwl, Rnwt, RnA, RnB, Rn_weld, Pu_weld, Pa_weld,
+                        per16L, per16A, lMin_LRFD, lMin_ASD, tminF, tminP, Anv, Rn_fr, Pu_fr, Pa_fr,
+                        weldOK_LRFD: Ru_LRFD <= Pu_weld, weldOK_ASD: Ra_ASD <= Pa_weld,
+                        bmFOK: tminF <= beam.tf + 1e-9, bmPOK: tminP <= plateThickness + 1e-9,
+                        frOK_LRFD: Ru_LRFD <= Pu_fr, frOK_ASD: Ra_ASD <= Pa_fr,
+                        wmin, wmax, tThin, tEdge, minOK: weldSize >= wmin - 1e-9, maxOK: weldSize <= wmax + 1e-9, lenOK: lw >= 4 * weldSize,
+                        weldSize, weldFexx, plateExt, setback
+                    };
+                    W.limOK = W.minOK && W.maxOK && W.lenOK;
+                }
+
                 // Generate results
                 generateResults({
                     beam, hss, beamMat, hssMat, plateMat,
@@ -1239,13 +1374,14 @@
                     holeSize, An, AnCapped, Rn_rupture, Pu_rupture, Pa_rupture,
                     ruptureOK_LRFD, ruptureOK_ASD,
                     boltFnv, boltArea, Rn_bolts, Pu_bolts, Pa_bolts, boltsOK_LRFD, boltsOK_ASD,
+                    attach, welded, W,
                     isLoaded
                 });
 
                 areDrawSchematic();
 
                 if (typeof AREv2 !== 'undefined') {
-                    var govCap = Math.min(phi_t*Rn_yield, Pu_rupture, Pu_bolts, Pu_brg);
+                    var govCap = welded ? Math.min(phi_t*Rn_yield, Pu_rupture, W.Pu_weld, W.Pu_fr) : Math.min(phi_t*Rn_yield, Pu_rupture, Pu_bolts, Pu_brg);
                     AREv2.publish([
                         {symbol:'Mu', label:'Governing Connection Moment', value:M_max_LRFD, unit:'kip-ft', kind:'moment'},
                         {symbol:'Ruf', label:'Through-Plate Force Ru', value:Ru_LRFD, unit:'kips', kind:'axial'},
@@ -1301,8 +1437,11 @@
 
         function generateResults(data) {
             const dataSource = data.isLoaded ? "AISC Shapes Database v16.0" : "Built-in Properties";
+            const W = data.W;
             const allOK = data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD
-                && data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD;
+                && (data.welded
+                    ? (W.weldOK_LRFD && W.weldOK_ASD && W.bmFOK && W.bmPOK && W.frOK_LRFD && W.frOK_ASD && W.limOK)
+                    : (data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD));
             const Lc_end = data.edgeDist - data.stdHole / 2;
             const Lc_int = data.boltSpacing - data.stdHole;
             const okNg = function (ok) { return ok ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'; };
@@ -1354,8 +1493,10 @@
             const detRupture = `
                 <div class="cref-hdr">AISC 360-22 &sect;J4.1(b) — Tensile Rupture of Through-Plate</div>
                 <div class="cbox">
-                    <div class="mrow">d<sub>hole</sub> = ${data.stdHole.toFixed(4)}" + 1/16" = <span class="cval">${data.holeSize.toFixed(4)} in</span> &nbsp;(Table J3.3 std hole + B4.3b net-area allowance)</div>
-                    <div class="mrow"><span class="formula">A<sub>n</sub> = t<sub>p</sub>(w &minus; n<sub>lines</sub>&middot;d<sub>hole</sub>)</span> = ${data.plateThickness} &times; (${data.plateWidth} &minus; ${data.numRows} &times; ${data.holeSize.toFixed(3)})${data.AnCapped ? ' &rarr; capped at 0.85&middot;A<sub>g</sub> (bolted splice plate)' : ''} = <span class="cval">${data.An.toFixed(2)} in&sup2;</span></div>
+                    ${data.welded
+                        ? `<div class="mrow">Welded plate, no holes: <span class="formula">A<sub>n</sub> = A<sub>g</sub></span> = ${data.plateThickness} &times; ${data.plateWidth} = <span class="cval">${data.An.toFixed(2)} in&sup2;</span> &nbsp;(the 0.85A<sub>g</sub> cap applies to bolted splice plates only)</div>`
+                        : `<div class="mrow">d<sub>hole</sub> = ${data.stdHole.toFixed(4)}" + 1/16" = <span class="cval">${data.holeSize.toFixed(4)} in</span> &nbsp;(Table J3.3 std hole + B4.3b net-area allowance)</div>
+                    <div class="mrow"><span class="formula">A<sub>n</sub> = t<sub>p</sub>(w &minus; n<sub>lines</sub>&middot;d<sub>hole</sub>)</span> = ${data.plateThickness} &times; (${data.plateWidth} &minus; ${data.numRows} &times; ${data.holeSize.toFixed(3)})${data.AnCapped ? ' &rarr; capped at 0.85&middot;A<sub>g</sub> (bolted splice plate)' : ''} = <span class="cval">${data.An.toFixed(2)} in&sup2;</span></div>`}
                     <div class="mrow"><span class="formula">R<sub>n</sub> = F<sub>u</sub>&middot;A<sub>n</sub></span> = ${data.plateMat.Fu} &times; ${data.An.toFixed(2)} = <span class="cval">${data.Rn_rupture.toFixed(1)} kips</span></div>
                     <hr class="csep">
                     <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${data.Rn_rupture.toFixed(1)} = <span class="cval">${data.Pu_rupture.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.ruptureOK_LRFD)}</div>
@@ -1387,13 +1528,73 @@
                     <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${data.Rn_brg.toFixed(1)} / 2.00 = <span class="cval">${data.Pa_brg.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.brgOK_ASD)}</div>
                 </div>`;
 
+            // ── Det panels: welded attachment (Design Example II.B-2 method) ──
+            const f16 = function (w) { const s = w * 16; return (Math.abs(s - Math.round(s)) < 1e-6 ? Math.round(s) : s.toFixed(2)) + '/16'; };
+            let detWeld = '', detBmF = '', detBmP = '', detFr = '', detLim = '';
+            if (data.welded) {
+                detWeld = `
+                <div class="cref-hdr">AISC 360-22 &sect;J2.4 — Fillet Welds, Through-Plate to Beam Flange (each plate, each side of the column)</div>
+                <div class="cbox">
+                    <div class="mrow">Weld length per side l = ${W.lwAuto ? `projection &minus; setback &minus; w = ${W.plateExt} &minus; ${W.setback} &minus; ${W.weldSize.toFixed(4)} = ` : 'user value '}<span class="cval">${W.lw.toFixed(2)} in</span>; &nbsp;D = ${W.D.toFixed(2)} sixteenths, F<sub>EXX</sub> = ${W.weldFexx} ksi</div>
+                    <div class="mrow">${W.onFlange ? 'Plate narrower than the flange (' + data.plateWidth + ' &le; b<sub>f</sub> = ' + data.beam.bf + ' in): welds along the plate edges.' : 'Plate wider than the flange (' + data.plateWidth + ' &gt; b<sub>f</sub> = ' + data.beam.bf + ' in): welds along the beam flange edges, no transverse end weld possible.'}</div>
+                    <div class="mrow"><span class="formula">R<sub>nwl</sub> = 2 &times; 0.60F<sub>EXX</sub>(&radic;2/2)(D/16)&middot;l</span> = 2 &times; 0.60 &times; ${W.weldFexx} &times; 0.707 &times; ${W.weldSize.toFixed(4)} &times; ${W.lw.toFixed(2)} = <span class="cval">${W.Rnwl.toFixed(1)} kips</span></div>
+                    ${W.endWeld
+                        ? `<div class="mrow"><span class="formula">R<sub>nwt</sub> = 0.60F<sub>EXX</sub>(&radic;2/2)(D/16)&middot;w<sub>p</sub></span> = 0.60 &times; ${W.weldFexx} &times; 0.707 &times; ${W.weldSize.toFixed(4)} &times; ${data.plateWidth} = <span class="cval">${W.Rnwt.toFixed(1)} kips</span></div>
+                    <div class="mrow">Eq. J2-6a: R<sub>nwl</sub> + R<sub>nwt</sub> = <span class="cval">${W.RnA.toFixed(1)} kips</span>; &nbsp;Eq. J2-6b: 0.85R<sub>nwl</sub> + 1.5R<sub>nwt</sub> = <span class="cval">${W.RnB.toFixed(1)} kips</span> &rarr; R<sub>n</sub> = <span class="cval">${W.Rn_weld.toFixed(1)} kips</span></div>`
+                        : `<div class="mrow">Longitudinal welds only: R<sub>n</sub> = R<sub>nwl</sub> = <span class="cval">${W.Rn_weld.toFixed(1)} kips</span>${W.endWeldReq && !W.onFlange ? ' (transverse end weld requested but not possible)' : ''}</div>`}
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${W.Rn_weld.toFixed(1)} = <span class="cval">${W.Pu_weld.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(W.weldOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${W.Rn_weld.toFixed(1)} / 2.00 = <span class="cval">${W.Pa_weld.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(W.weldOK_ASD)}</div>
+                    <hr class="csep">
+                    <div class="mrow">Required length, longitudinal welds alone (Manual Eq. 8-2a/b): l<sub>min</sub> = R<sub>u</sub>/(2 &times; ${W.per16L.toFixed(3)} &times; D) = <span class="cval">${W.lMin_LRFD.toFixed(2)} in</span> (LRFD); &nbsp;R<sub>a</sub>/(2 &times; ${W.per16A.toFixed(3)} &times; D) = <span class="cval">${W.lMin_ASD.toFixed(2)} in</span> (ASD)</div>
+                </div>`;
+                detBmF = `
+                <div class="cref-hdr">AISC Manual Eq. 9-2 — Beam Flange Base Metal at the Welds</div>
+                <div class="cbox">
+                    <div class="mrow"><span class="formula">t<sub>min</sub> = 3.09D / F<sub>u</sub></span> = 3.09 &times; ${W.D.toFixed(2)} / ${data.beamMat.Fu} = <span class="cval">${W.tminF.toFixed(3)} in</span> &le; t<sub>f</sub> = ${data.beam.tf} in &rarr; ${okNg(W.bmFOK)}</div>
+                </div>`;
+                detBmP = `
+                <div class="cref-hdr">AISC Manual Eq. 9-2 — Through-Plate Base Metal at the Welds</div>
+                <div class="cbox">
+                    <div class="mrow"><span class="formula">t<sub>min</sub> = 3.09D / F<sub>u</sub></span> = 3.09 &times; ${W.D.toFixed(2)} / ${data.plateMat.Fu} = <span class="cval">${W.tminP.toFixed(3)} in</span> &le; t<sub>p</sub> = ${data.plateThickness} in &rarr; ${okNg(W.bmPOK)}</div>
+                </div>`;
+                detFr = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.2(b), Eq. J4-4 — Beam Flange Shear Rupture Along the Weld Lines</div>
+                <div class="cbox">
+                    <div class="mrow">A<sub>nv</sub> = 2 &times; t<sub>f</sub> &times; l = 2 &times; ${data.beam.tf} &times; ${W.lw.toFixed(2)} = <span class="cval">${W.Anv.toFixed(2)} in&sup2;</span></div>
+                    <div class="mrow"><span class="formula">R<sub>n</sub> = 0.60F<sub>u</sub>A<sub>nv</sub></span> = 0.60 &times; ${data.beamMat.Fu} &times; ${W.Anv.toFixed(2)} = <span class="cval">${W.Rn_fr.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.75 &times; ${W.Rn_fr.toFixed(1)} = <span class="cval">${W.Pu_fr.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(W.frOK_LRFD)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${W.Rn_fr.toFixed(1)} / 2.00 = <span class="cval">${W.Pa_fr.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(W.frOK_ASD)}</div>
+                </div>`;
+                detLim = `
+                <div class="cref-hdr">AISC 360-22 &sect;J2.2b — Fillet Weld Limitations</div>
+                <div class="cbox">
+                    <div class="mrow">Thinner part joined t = ${W.tThin.toFixed(3)} in &rarr; Table J2.4 minimum w = <span class="cval">${f16(W.wmin)} in</span> &rarr; ${okNg(W.minOK)}</div>
+                    <div class="mrow">Weld along the edge of the ${W.onFlange ? 'plate (t = ' + data.plateThickness : 'beam flange (t<sub>f</sub> = ' + data.beam.tf} in) &rarr; &sect;J2.2b(b) maximum w = <span class="cval">${f16(W.wmax)} in</span> &rarr; ${okNg(W.maxOK)}</div>
+                    <div class="mrow">Minimum length 4w = ${(4 * W.weldSize).toFixed(2)} in &le; l = ${W.lw.toFixed(2)} in &rarr; ${okNg(W.lenOK)}</div>
+                </div>`;
+            }
+
             const chks = [
                 { grp: true, n: 'Load Analysis &amp; Equilibrium (Steps 1&ndash;3) &mdash; R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips, R<sub>a</sub> = ' + data.Ra_ASD.toFixed(1) + ' kips', det: detLoads },
                 { n: 'Plate Tensile Yielding', r: 'AISC J4.1(a)', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_yield.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_yield, ok: data.yieldOK_LRFD && data.yieldOK_ASD, det: detYield },
-                { n: 'Plate Tensile Rupture', r: 'AISC J4.1(b)', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_rupture.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_rupture, ok: data.ruptureOK_LRFD && data.ruptureOK_ASD, det: detRupture },
-                { n: 'Bolt Group Shear', r: 'AISC J3.7', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_bolts.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_bolts, ok: data.boltsOK_LRFD && data.boltsOK_ASD, det: detBolts },
-                { n: 'Bolt Bearing / Tearout', r: 'AISC J3.10, Eq. J3-6a', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_brg.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_brg, ok: data.brgOK_LRFD && data.brgOK_ASD, det: detBrg }
+                { n: 'Plate Tensile Rupture', r: 'AISC J4.1(b)', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_rupture.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_rupture, ok: data.ruptureOK_LRFD && data.ruptureOK_ASD, det: detRupture }
             ];
+            if (data.welded) {
+                chks.push(
+                    { n: 'Plate-to-Beam-Flange Welds', r: 'AISC J2.4' + (W.endWeld ? ', Eq. J2-6a/b' : ', Table J2.5'), d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + W.Pu_weld.toFixed(1) + ' kips', dc: data.Ru_LRFD / W.Pu_weld, ok: W.weldOK_LRFD && W.weldOK_ASD, det: detWeld },
+                    { n: 'Beam Flange Base Metal at Welds', r: 'AISC Manual Eq. 9-2', d: 't<sub>min</sub> = ' + W.tminF.toFixed(3) + ' in', c: 't<sub>f</sub> = ' + data.beam.tf + ' in', dc: W.tminF / data.beam.tf, ok: W.bmFOK, det: detBmF },
+                    { n: 'Plate Base Metal at Welds', r: 'AISC Manual Eq. 9-2', d: 't<sub>min</sub> = ' + W.tminP.toFixed(3) + ' in', c: 't<sub>p</sub> = ' + data.plateThickness + ' in', dc: W.tminP / data.plateThickness, ok: W.bmPOK, det: detBmP },
+                    { n: 'Beam Flange Shear Rupture at Welds', r: 'AISC J4.2(b), Eq. J4-4', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + W.Pu_fr.toFixed(1) + ' kips', dc: data.Ru_LRFD / W.Pu_fr, ok: W.frOK_LRFD && W.frOK_ASD, det: detFr },
+                    { n: 'Fillet Weld Size &amp; Length Limits', r: 'AISC Table J2.4, J2.2b', d: 'w = ' + f16(W.weldSize) + ' in', c: 'min ' + f16(W.wmin) + ' &middot; max ' + f16(W.wmax) + ' in', dc: null, ok: W.limOK, det: detLim }
+                );
+            } else {
+                chks.push(
+                    { n: 'Bolt Group Shear', r: 'AISC J3.7', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_bolts.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_bolts, ok: data.boltsOK_LRFD && data.boltsOK_ASD, det: detBolts },
+                    { n: 'Bolt Bearing / Tearout', r: 'AISC J3.10, Eq. J3-6a', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + data.Pu_brg.toFixed(1) + ' kips', dc: data.Ru_LRFD / data.Pu_brg, ok: data.brgOK_LRFD && data.brgOK_ASD, det: detBrg }
+                );
+            }
 
             const results = `
                 <h3>Complete Through-Plate Connection Analysis - Example 4.2 Methodology</h3>
@@ -1401,7 +1602,8 @@
                     <strong>Reference:</strong> AISC Design Guide 24, Example 4.2<br>
                     <strong>Connection Type:</strong> Through-plate fully-restrained (FR) moment connection<br>
                     <strong>Data Source:</strong> ${dataSource}<br>
-                    <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), bolt group shear (J3.7), bolt bearing/tearout (J3.10). Weld design and block shear must be checked separately.
+                    <strong>Attachment:</strong> ${data.welded ? 'Welded — fillet welds along the beam flanges (Design Example II.B-2 method)' : 'Bolted (Example 4.2)'}<br>
+                    <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), ${data.welded ? 'plate-to-flange fillet welds (J2.4), base metal (Manual Eq. 9-2), beam flange shear rupture at the welds (J4-4), fillet size limits (J2.2b). The plate-to-HSS weld and block shear must be checked separately.' : 'bolt group shear (J3.7), bolt bearing/tearout (J3.10). Weld design and block shear must be checked separately.'}
                 </div>
 
                 <div class="calc-step ok">
@@ -1409,7 +1611,9 @@
                     Beam: ${data.beamSize} (d=${data.beam.d}", bf=${data.beam.bf}", tf=${data.beam.tf}")<br>
                     HSS: ${data.hssSize} (H=${data.hss.H}", B=${data.hss.B}", t=${data.hss.t}")<br>
                     Plate: ${data.plateThickness}" &times; ${data.plateWidth}" ASTM ${data.plateMaterial}<br>
-                    Bolts: ${data.numRows} lines &times; ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>
+                    ${data.welded
+                        ? `Welds: ${f16(W.weldSize)}" fillet, E${W.weldFexx}, 2 &times; ${W.lw.toFixed(2)}" per plate each side of the column${W.endWeld ? ' + transverse end weld' : ''}; plate projection ${W.plateExt}" beyond the column face, setback ${W.setback}"<br>`
+                        : `Bolts: ${data.numRows} lines &times; ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>`}
                     <em>Properties from: ${dataSource}</em>
                 </div>
 
@@ -1423,7 +1627,7 @@
                     &bull; Minimum plate thickness: <span class="value">${Math.max(data.tp_req_LRFD, data.tp_req_ASD).toFixed(3)} in</span><br>
                     &bull; Provided plate thickness: <span class="value">${data.plateThickness} in</span><br>
                     &bull; Database Integration: <span class="value">${data.isLoaded ? 'Active (AISC v16.0)' : 'Fallback Mode'}</span><br><br>
-                    <em>Note: This is a preliminary analysis. Complete design requires additional limit state checks including block shear, HSS wall plastification (Chapter K limits of applicability), and weld design.</em>
+                    <em>Note: This is a preliminary analysis. Complete design requires additional limit state checks including block shear, HSS wall plastification (Chapter K limits of applicability), and the plate-to-HSS weld.</em>
                 </div>
 
                 <div class="note">
