@@ -325,7 +325,7 @@
                 </div>
                 <div class="input-group">
                     <label for="plateThickness">Trial Plate Thickness (in):</label>
-                    <input type="number" id="plateThickness" value="0.75" step="0.125" min="0.25" max="2">
+                    <input type="number" id="plateThickness" value="0.625" step="0.125" min="0.25" max="2">
                 </div>
                 <div class="input-group">
                     <label for="plateMaterial">Plate Material:</label>
@@ -389,7 +389,7 @@
                     <select id="boltDiameter">
                         <option value="0.75">3/4"</option>
                         <option value="0.875">7/8"</option>
-                        <option value="1.0">1" (Example 4.2 Default)</option>
+                        <option value="1.0" selected>1" (Example 4.2 Default)</option>
                         <option value="1.125">1-1/8"</option>
                         <option value="1.25">1-1/4"</option>
                     </select>
@@ -404,9 +404,7 @@
                 <div class="input-group">
                     <label for="numRows">Bolt Lines Across Plate Width (gage lines):</label>
                     <select id="numRows">
-                        <option value="2" selected>2 lines (Example 4.2)</option>
-                        <option value="3">3 lines</option>
-                        <option value="4">4 lines</option>
+                        <option value="2" selected>2 lines (Example 4.2; calc is limited to 2 lines)</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -418,10 +416,41 @@
                     <input type="number" id="boltSpacing" value="3" step="0.25" min="2">
                 </div>
                 <div class="input-group">
-                    <label for="edgeDist">End Edge Distance L_e (in):</label>
-                    <input type="number" id="edgeDist" value="1.25" step="0.125" min="1">
+                    <label for="edgeDist">Plate End Edge Distance L_e,p (in):</label>
+                    <input type="number" id="edgeDist" value="1.75" step="0.125" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="boltGage">Gage g Between Bolt Lines (in):</label>
+                    <input type="number" id="boltGage" value="3.5" step="0.25" min="2">
+                </div>
+                <div class="input-group">
+                    <label for="beamEndDist">Beam-End Edge Distance L_e,b (in):</label>
+                    <input type="number" id="beamEndDist" value="2" step="0.125" min="1">
+                </div>
+                <div class="input-group">
+                    <label for="firstBoltDist">HSS Face to First Bolt (in):</label>
+                    <input type="number" id="firstBoltDist" value="3" step="0.25" min="1">
                 </div>
             </div>
+        </div>
+
+        <div class="input-section blk" id="hssWeldSection">
+            <h3>Plate-to-HSS Weld and Column</h3>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="hssWeldSize">Fillet Weld Leg, Plate to HSS (in):</label>
+                    <input type="number" id="hssWeldSize" value="0.5625" step="0.0625" min="0.125">
+                </div>
+                <div class="input-group">
+                    <label for="hssWeldFexx">Electrode F_EXX (ksi):</label>
+                    <input type="number" id="hssWeldFexx" value="70" step="10" min="60">
+                </div>
+                <div class="input-group">
+                    <label for="weldIncludePZ">Panel-Zone Shear on the Weld:</label>
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 0"><input type="checkbox" id="weldIncludePZ" checked style="width:auto"> <span style="font-size:.85em;color:#555">include full &Delta;R, story shear neglected (beyond DG24)</span></div>
+                </div>
+            </div>
+            <div class="note" style="margin:10px 0 0"><strong>Scope:</strong> continuous column, the same HSS above and below the joint (DG24 Example 4.2). The joint moment splits equally between the column segments above and below. Column tops and changes of HSS size at the joint are outside this calc. DG24 sizes a &frac12; in weld without the panel-zone shear; with it included the default is 9/16 in.</div>
         </div>
 
         <div class="input-section blk">
@@ -487,6 +516,130 @@
         <div id="results" class="results" style="display: none;"></div>
     </div>
 
+    <script>
+    /* ============================================================
+       TPC — through-plate additional checks, DOM-free (2026-09-23).
+       Block shear (J4.3), plate compression (J4.4), plate-to-HSS weld
+       (DG24 Ex. 4.2 elastic model), HSS base metal (Manual Eq. 9-2),
+       HSS panel-zone shear (J10.6 analogue, beyond DG24).
+       Plan: docs/superpowers/plans/2026-09-22-through-plate-additional-checks.md
+       Every function takes plain numbers and returns the intermediates the
+       detail panels print. ?selftest=1 runs TPC.runFixtures().
+       ============================================================ */
+    window.TPC = (function(){
+      'use strict';
+      var E = 29000;
+      function j45(Fu, Fy, Agv, Anv, Ant, Ubs){
+        Ubs = (Ubs==null) ? 1.0 : Ubs;
+        var rup = 0.6*Fu*Anv + Ubs*Fu*Ant, yld = 0.6*Fy*Agv + Ubs*Fu*Ant;
+        return {rup:rup, yld:yld, Rn:Math.min(rup,yld), side: rup<=yld ? 'rupture (left side)' : 'yield cap (right side)'};
+      }
+      // Two bolt lines at gage g, n bolts per line at spacing s. dh = hole for net area.
+      function blockShearBolted(o){
+        var n=o.n, s=o.s, dh=o.dh;
+        var LgvP = o.LeP + (n-1)*s, LgvB = o.LeB + (n-1)*s, nh = 2*(n-0.5);
+        var P = {Lgv:LgvP, Agv:2*LgvP*o.tp}; P.Anv = P.Agv - nh*dh*o.tp;
+        P.AntInt = (o.g - dh)*o.tp;
+        P.AntExt = (o.wp - o.g - dh)*o.tp;
+        P.int = j45(o.Fup, o.Fyp, P.Agv, P.Anv, P.AntInt);
+        P.ext = j45(o.Fup, o.Fyp, P.Agv, P.Anv, P.AntExt);
+        P.gov = P.int.Rn <= P.ext.Rn ? 'interior (between bolt lines)' : 'exterior (bolt lines to plate edges)';
+        P.Rn = Math.min(P.int.Rn, P.ext.Rn);
+        var F = {Lgv:LgvB, Agv:2*LgvB*o.tf}; F.Anv = F.Agv - nh*dh*o.tf;
+        F.Ant = (o.bf - o.g - dh)*o.tf;
+        F.r = j45(o.Fub, o.Fyb, F.Agv, F.Anv, F.Ant);
+        F.Rn = F.r.Rn;
+        return {plate:P, flange:F, geomOK: (o.g + dh < o.wp) && (o.g + dh < o.bf)};
+      }
+      // Welded: plate strip between flange-edge welds (plate wider than the flange); null otherwise.
+      function blockShearWelded(o){
+        if (o.onFlange) return null;
+        var Agv = 2*o.tp*o.lw, Ant = o.bf*o.tp, r = j45(o.Fup, o.Fyp, Agv, Agv, Ant);
+        return {Agv:Agv, Anv:Agv, Ant:Ant, r:r, Rn:r.Rn};
+      }
+      // J4.4 compression of the unbraced plate between the HSS face and the first fastener.
+      function plateCompression(o){
+        var r = o.tp/Math.sqrt(12), KLr = o.K*o.Lc/r, Ag = o.tp*o.wp, Fcr, branch;
+        if (KLr <= 25){ Fcr = o.Fy; branch = 'J4-6'; }
+        else { var Fe = Math.PI*Math.PI*E/(KLr*KLr);
+               Fcr = (o.Fy/Fe <= 2.25) ? Math.pow(0.658, o.Fy/Fe)*o.Fy : 0.877*Fe; branch = 'Chapter E, E3-2/E3-3'; }
+        return {r:r, KLr:KLr, Ag:Ag, Fcr:Fcr, Pn:Fcr*Ag, branch:branch};
+      }
+      // DG24 Ex. 4.2: perimeter weld as a line group; demand per inch at the extreme wall.
+      function hssWeld(o){
+        var AwT = 2*(o.B + o.H), IT = 2*Math.pow(o.H,3)/12 + 2*o.B*Math.pow(o.H/2,2);
+        // |M|: the beam loads may be reversed (DG24 Ex. 4.2 "the connection should be symmetric"); the
+        // additive compression side is the design value whichever beam carries the larger moment.
+        var fu = o.Pu/AwT + Math.abs(o.MuSeg)*12*(o.H/2)/IT, fa = o.Pa/AwT + Math.abs(o.MaSeg)*12*(o.H/2)/IT;
+        var fvu = o.includePZ ? o.dRu/(2*o.H) : 0, fva = o.includePZ ? o.dRa/(2*o.H) : 0;
+        var ru = Math.sqrt(fu*fu + fvu*fvu), ra = Math.sqrt(fa*fa + fva*fva);
+        var D = o.w*16, perL = 0.75*0.6*o.Fexx*0.707/16, perA = 0.6*o.Fexx*0.707/16/2.00;
+        var phirn = perL*D, rnO = perA*D;
+        var tThin = Math.min(o.tHSS, o.tp);
+        var wmin = tThin<=0.25?0.125 : tThin<=0.5?0.1875 : tThin<=0.75?0.25 : 0.3125;
+        return {AwT:AwT, IT:IT, fu:fu, fa:fa, fvu:fvu, fva:fva, ru:ru, ra:ra, D:D, perL:perL, perA:perA,
+                phirn:phirn, rnO:rnO, dcL:ru/phirn, dcA:ra/rnO, DreqL:ru/perL, DreqA:ra/perA,
+                tminHSS:3.09*D/o.FuHSS, tminPl:3.09*D/o.Fup, wmin:wmin, tThin:tThin,
+                bmL:0.75*0.6*o.FuHSS*o.tHSS, bmA:0.6*o.FuHSS*o.tHSS/2.00,
+                dcBmL:ru/(0.75*0.6*o.FuHSS*o.tHSS), dcBmA:ra/(0.6*o.FuHSS*o.tHSS/2.00),
+                geomOK: o.wp >= o.B + 2*o.w - 1e-9, wpMin:o.B + 2*o.w};
+      }
+      // J10.6 analogue on the two H walls of the HSS segment between the plates.
+      function panelZone(o){
+        var Aw = 2*o.H*o.t, Rn0 = 0.6*o.Fy*Aw, Py = isFinite(o.Ag) ? o.Fy*o.Ag : NaN;
+        // Clamped at 0: past aPr = 1.4Py the J10-10 form goes negative, which would print a negative D/C as a pass.
+        function red(aPr){ return (isFinite(Py) && aPr > 0.4*Py) ? Math.max(0, 1.4 - aPr/Py) : 1.0; }
+        var kL = red(o.Pu), kA = red(1.6*o.Pa);
+        return {Aw:Aw, Rn0:Rn0, Py:Py, kL:kL, kA:kA, RnL:Rn0*kL, RnA:Rn0*kA, phiRn:0.90*Rn0*kL, RnO:Rn0*kA/1.67,
+                dcL:o.dRu/(0.90*Rn0*kL), dcA:o.dRa/(Rn0*kA/1.67), screened:isFinite(Py)};
+      }
+
+      function near(label, got, want, tol){ return [label, Math.abs(got-want) <= tol, (+got).toFixed(4)+' vs '+want+' (\u00b1'+tol+')']; }
+      function is(label, got, want){ return [label, got === want, String(got)+' vs '+String(want)]; }
+      var EX42 = {tp:0.625, wp:14, Fyp:36, Fup:58, tf:0.715, bf:7.12, Fyb:50, Fub:65, n:5, s:3, g:3.5, LeP:1.75, LeB:2.0};
+      function mix(a,b){ var o={}, k; for(k in a) o[k]=a[k]; for(k in b) o[k]=b[k]; return o; }
+      var dRu = (360-72)*12/(16.4+0.625), dRa = (240-60)*12/(16.4+0.625);
+      var FIXTURES = [
+        {id:'BS-DG24', src:'DG24 Ex. 4.2 p.43-44, 360-10 hole (1-1/16 std, 1-1/8 net)', run:function(){ var r=blockShearBolted(mix(EX42,{dh:1.125}));
+          return [near('plate Agv', r.plate.Agv, 17.19, 0.01), near('plate Anv', r.plate.Anv, 10.86, 0.01), near('plate Ant', r.plate.AntInt, 1.484, 0.001),
+                  near('plate Rn (DG24 460 from rounded areas)', r.plate.Rn, 457.3, 0.1), is('plate governed by interior block', r.plate.gov.indexOf('interior')===0, true),
+                  near('flange Agv', r.flange.Agv, 20.02, 0.01), near('flange Rn (DG24 615)', r.flange.Rn, 614.4, 0.3)]; }},
+        {id:'BS-360-22', src:'DG24 Ex. 4.2 geometry, 360-22 Table J3.3 hole (1-1/8 std, 1-3/16 net)', run:function(){ var r=blockShearBolted(mix(EX42,{dh:1.1875}));
+          return [near('plate Rn', r.plate.Rn, 449.5, 0.1), near('plate phiRn', 0.75*r.plate.Rn, 337.1, 0.1), near('flange Rn', r.flange.Rn, 595.8, 0.1), near('flange phiRn', 0.75*r.flange.Rn, 446.9, 0.1)]; }},
+        {id:'BS-W1', src:'hand calc, welded plate 3/4 x 14 on W16X57, lw 15.94', run:function(){ var r=blockShearWelded({onFlange:false, tp:0.75, lw:16.75-0.5-0.3125, bf:7.12, Fyp:36, Fup:58});
+          return [near('Agv', r.Agv, 23.906, 0.001), near('Ant', r.Ant, 5.34, 0.001), near('Rn (yield side)', r.Rn, 826.1, 0.1), is('plate on flange -> no block', blockShearWelded({onFlange:true}), null)]; }},
+        {id:'PC-DG24', src:'DG24 Ex. 4.2 p.40, KL/r = 16.7 < 25', run:function(){ var r=plateCompression({tp:0.625, wp:14, Fy:36, Lc:3.0, K:1.0});
+          return [near('KL/r', r.KLr, 16.63, 0.01), is('J4-6 branch', r.branch, 'J4-6'), near('Pn = FyAg', r.Pn, 315, 0.01)]; }},
+        {id:'W-DG24', src:'DG24 Ex. 4.2 p.44-45, M_seg = 160 / 100 kip-ft, PZ off', run:function(){ var r=hssWeld({B:12, H:20, tHSS:0.465, tp:0.625, wp:14, FuHSS:58, Fup:58, Pu:345.6, Pa:232, MuSeg:160, MaSeg:100, w:0.5, Fexx:70, includePZ:false, dRu:dRu, dRa:dRa});
+          return [near('Aw/t', r.AwT, 64.0, 1e-9), near('I/t (DG24 3,730)', r.IT, 3733.3, 0.1), near('f LRFD (DG24 10.6)', r.fu, 10.55, 0.01), near('f ASD', r.fa, 6.84, 0.01),
+                  near('Dreq LRFD (DG24 7.61)', r.DreqL, 7.58, 0.01), near('Dreq ASD', r.DreqA, 7.37, 0.01), near('1/2 in D/C LRFD', r.dcL, 0.947, 0.002), near('1/2 in D/C ASD', r.dcA, 0.921, 0.002),
+                  near('HSS tmin', r.tminHSS, 0.426, 0.001), near('HSS wall J4.2(b) D/C', r.dcBmL, 0.869, 0.002), is('plate overhangs B + 2w', r.geomOK, true)]; }},
+        {id:'W-PZ', src:'hand calc, full panel-zone shear on the weld (plan W4a)', run:function(){ var base={B:12, H:20, tHSS:0.465, tp:0.625, wp:14, FuHSS:58, Fup:58, Pu:345.6, Pa:232, MuSeg:160, MaSeg:100, Fexx:70, includePZ:true, dRu:dRu, dRa:dRa};
+          var a=hssWeld(mix(base,{w:0.5})), b=hssWeld(mix(base,{w:0.5625}));
+          return [near('dR LRFD', dRu, 203.0, 0.1), near('fv', a.fvu, 5.075, 0.001), near('1/2 in D/C', a.dcL, 1.051, 0.002), near('9/16 in D/C', b.dcL, 0.934, 0.002),
+                  near('9/16 in: tmin exceeds wall', b.tminHSS, 0.4795, 0.001), near('HSS wall J4.2(b) D/C', b.dcBmL, 0.964, 0.002)]; }},
+        {id:'PZ-DG24', src:'hand calc, J10.6 analogue on Ex. 4.2', run:function(){ var r=panelZone({H:20, t:0.465, Fy:46, Ag:28.3, Pu:345.6, Pa:232, dRu:dRu, dRa:dRa});
+          var r2=panelZone({H:20, t:0.465, Fy:46, Ag:28.3, Pu:700, Pa:450, dRu:dRu, dRa:dRa});
+          return [near('Rn', r.Rn0, 513.4, 0.1), near('phiRn', r.phiRn, 462.1, 0.1), near('D/C', r.dcL, 0.439, 0.002), is('no J10-10 reduction below 0.4Py', r.kL, 1.0),
+                  near('J10-10 factor at Pu 700', r2.kL, 1.4 - 700/(46*28.3), 1e-9),
+                  is('J10-10 factor clamped at 0 (Pu 2000 > 1.4Py)', panelZone({H:20, t:0.465, Fy:46, Ag:28.3, Pu:2000, Pa:1300, dRu:dRu, dRa:dRa}).kL, 0)]; }},
+        {id:'W-REV', src:'verifier 2026-09-23: reversed beam loads (left beam carries the moment) must give the same weld demand', run:function(){
+          var base={B:12, H:20, tHSS:0.465, tp:0.625, wp:14, FuHSS:58, Fup:58, Pu:345.6, Pa:232, w:0.5625, Fexx:70, includePZ:true, dRu:dRu, dRa:dRa};
+          var a=hssWeld(mix(base,{MuSeg:160, MaSeg:100})), b=hssWeld(mix(base,{MuSeg:-160, MaSeg:-100}));
+          return [near('f LRFD unchanged under reversal', b.fu, a.fu, 1e-9), near('f ASD unchanged under reversal', b.fa, a.fa, 1e-9), near('D/C unchanged', b.dcL, a.dcL, 1e-9)]; }}
+      ];
+      function runFixtures(){
+        var lines=[], pass=0, total=0;
+        FIXTURES.forEach(function(fx){ var items;
+          try { items = fx.run(); } catch(e){ items = [['threw', false, String(e)]]; }
+          items.forEach(function(it){ total++; if (it[1]) pass++; lines.push((it[1]?'PASS ':'FAIL ')+fx.id+' ['+fx.src+'] '+it[0]+'  ->  '+it[2]); });
+        });
+        return {pass:pass, total:total, lines:lines};
+      }
+      return {blockShearBolted:blockShearBolted, blockShearWelded:blockShearWelded, plateCompression:plateCompression,
+              hssWeld:hssWeld, panelZone:panelZone, j45:j45, FIXTURES:FIXTURES, runFixtures:runFixtures};
+    })();
+    </script>
     <script>
         // Enhanced Steel Database Class (copied from working HSS calculator)
         class SteelShapesDB {
@@ -707,11 +860,11 @@
         };
 
         const fallbackHSS = {
-            "HSS20X12X1/2": { H: 20.0, B: 12.0, t: 0.465, label: "HSS20X12X1/2" },
-            "HSS16X8X1/2": { H: 16.0, B: 8.0, t: 0.465, label: "HSS16X8X1/2" },
-            "HSS12X8X3/8": { H: 12.0, B: 8.0, t: 0.349, label: "HSS12X8X3/8" },
-            "HSS14X10X1/2": { H: 14.0, B: 10.0, t: 0.465, label: "HSS14X10X1/2" },
-            "HSS18X12X5/8": { H: 18.0, B: 12.0, t: 0.581, label: "HSS18X12X5/8" }
+            "HSS20X12X1/2": { H: 20.0, B: 12.0, t: 0.465, area: 28.3, label: "HSS20X12X1/2" },
+            "HSS16X8X1/2": { H: 16.0, B: 8.0, t: 0.465, area: 20.9, label: "HSS16X8X1/2" },
+            "HSS12X8X3/8": { H: 12.0, B: 8.0, t: 0.349, area: 13.2, label: "HSS12X8X3/8" },
+            "HSS14X10X1/2": { H: 14.0, B: 10.0, t: 0.465, area: 20.9, label: "HSS14X10X1/2" },
+            "HSS18X12X5/8": { H: 18.0, B: 12.0, t: 0.581, area: 32.6, label: "HSS18X12X5/8" }
         };
 
         function updateStatus(message, type = 'loading') {
@@ -1016,7 +1169,8 @@
             var halfBc = Hc / 2;
             // Plate extent from the column face: bolt group (edge dist + bolts) or the
             // welded plate projection
-            var pLen  = welded ? pExt : ed + (nb-1)*sp + ed;
+            var fb  = gv('firstBoltDist',3);
+            var pLen  = welded ? pExt : fb + (nb-1)*sp + ed;
             // Beam drawn beyond plates + room for dim labels on the right
             var bmLen = pLen + 8;
             // column shaft runs well past the plates so the view reads as an elevation
@@ -1068,13 +1222,21 @@
             } else {
                 // ── Bolts (at plate mid-height, on each side of column) ─────────
                 for(var i=0;i<nb;i++){
-                    var bOff = halfBc + ed + i*sp;
+                    var bOff = halfBc + fb + i*sp;
                     AREDraw.bolt(v, -bOff,  d/2+tp/2, dia, {cross:false});
                     AREDraw.bolt(v,  bOff,  d/2+tp/2, dia, {cross:false});
                     AREDraw.bolt(v, -bOff, -(d/2+tp/2), dia, {cross:false});
                     AREDraw.bolt(v,  bOff, -(d/2+tp/2), dia, {cross:false});
                 }
             }
+
+            // ── Plate-to-HSS fillet welds: HSS walls meet both faces of each plate ──
+            var hw = Math.min(1.0, Math.max(0.4, tp));
+            [d/2+tp, d/2, -d/2, -(d/2+tp)].forEach(function(yF, k){
+                var sd = (k % 2 === 0) ? 'up' : 'down';
+                AREDraw.weldFillet(v, -halfBc-hw, yF, -halfBc, yF, { side: sd });
+                AREDraw.weldFillet(v,  halfBc, yF,  halfBc+hw, yF, { side: sd });
+            });
 
             // ── Member labels — pulled OUTSIDE all filled regions ─────────────────
             var lbMid = lbX + bmLen/2;
@@ -1164,7 +1326,7 @@
                 ['beamSize','hssSize','plateThickness','boltsPerLine','boltSpacing','edgeDist','numRows',
                  'shearDeadLeft','shearLiveLeft','shearDeadRight','shearLiveRight','deadLoad','liveLoad',
                  'momentDeadLeft','momentLiveLeft','momentDeadRight','momentLiveRight',
-                 'weldSize','plateExt','setback','weldLen','endWeld','plateWidth'].forEach(function(id){
+                 'weldSize','plateExt','setback','weldLen','endWeld','plateWidth','firstBoltDist'].forEach(function(id){
                     var el=document.getElementById(id);
                     if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
                 });
@@ -1198,6 +1360,12 @@
                 const setback = parseFloat(document.getElementById('setback').value);
                 const weldLenIn = parseFloat(document.getElementById('weldLen').value);
                 const endWeldReq = document.getElementById('endWeld').checked;
+                const boltGage = parseFloat(document.getElementById('boltGage').value);
+                const beamEndDist = parseFloat(document.getElementById('beamEndDist').value);
+                const firstBoltDist = parseFloat(document.getElementById('firstBoltDist').value);
+                const hssWeldSize = parseFloat(document.getElementById('hssWeldSize').value);
+                const hssWeldFexx = parseFloat(document.getElementById('hssWeldFexx').value);
+                const weldIncludePZ = document.getElementById('weldIncludePZ').checked;
                 
                 // Load inputs
                 const VD_left = parseFloat(document.getElementById('shearDeadLeft').value);
@@ -1254,8 +1422,20 @@
                 const M_max_LRFD = Math.max(Math.abs(Mu_right), Math.abs(Mu_left), Math.abs(Mu_conn));
                 const M_max_ASD = Math.max(Math.abs(Ma_right), Math.abs(Ma_left), Math.abs(Ma_conn));
                 
+                // Per column segment: continuous column, same HSS above and below (DG24 Ex. 4.2 equal split,
+                // the 2M_uconn term in its moment equilibrium). Column tops / size changes are out of scope.
+                const Mu_seg = Mu_conn / 2;
+                const Ma_seg = Ma_conn / 2;
+
                 // Lever arm = distance between plate centroids = d + tp (plates bear on outside of flanges)
                 const lever = beam.d + plateThickness;
+                // Unbalanced flange force delivered by each plate into the HSS segment between the plates
+                const dR_u = Math.abs(Mu_right - Mu_left) * 12 / lever;
+                const dR_a = Math.abs(Ma_right - Ma_left) * 12 / lever;
+                // HSS wall and area from either the AISC database (t column is '–' for HSS; use tdes) or the fallback table
+                const hssT = parseFloat(hss.tdes) || parseFloat(hss.t);
+                const hssA = parseFloat(hss.area);
+                const hssH = parseFloat(hss.H), hssB = parseFloat(hss.B);
                 const Ru_LRFD = (M_max_LRFD * 12) / lever;
                 const Ra_ASD = (M_max_ASD * 12) / lever;
 
@@ -1307,15 +1487,15 @@
 
                 // Step 7: Bolt bearing/tearout per AISC J3.10(a)(i) — Eq. J3-6a (deformation considered)
                 // On the through-plate and on the beam flange; end bolts = one per gage line, rest interior
-                function bearingRn(tEl, FuEl){
-                    const Lc_end = edgeDist - stdHole/2;
+                function bearingRn(tEl, FuEl, LeEl){
+                    const Lc_end = LeEl - stdHole/2;
                     const Lc_int = boltSpacing - stdHole;
                     const rEnd = Math.min(1.2*Lc_end*tEl*FuEl, 2.4*boltDiameter*tEl*FuEl);
                     const rInt = Math.min(1.2*Lc_int*tEl*FuEl, 2.4*boltDiameter*tEl*FuEl);
                     return numRows*rEnd + (numBolts - numRows)*rInt;
                 }
-                const Rn_brgPlate = bearingRn(plateThickness, plateMat.Fu);
-                const Rn_brgFlange = bearingRn(beam.tf, beamMat.Fu);
+                const Rn_brgPlate = bearingRn(plateThickness, plateMat.Fu, edgeDist);
+                const Rn_brgFlange = bearingRn(beam.tf, beamMat.Fu, beamEndDist);
                 const Rn_brg = Math.min(Rn_brgPlate, Rn_brgFlange);
                 const Pu_brg = 0.75 * Rn_brg;
                 const Pa_brg = Rn_brg / 2.00;
@@ -1356,6 +1536,42 @@
                     W.limOK = W.minOK && W.maxOK && W.lenOK;
                 }
 
+                // ── Additional checks (TPC engine): block shear, plate compression, plate-to-HSS weld, panel zone ──
+                if (!(hssWeldSize > 0) || !(hssWeldFexx > 0)) throw new Error('Plate-to-HSS weld size and F_EXX must be positive numbers.');
+                if (!(hssT > 0) || !(hssH > 0) || !(hssB > 0)) throw new Error('HSS H, B and design wall thickness are required.');
+                let BS = null, BSW = null;
+                if (!welded) {
+                    if (!(boltGage > 0) || !(beamEndDist > 0) || !(firstBoltDist > 0)) throw new Error('Bolt gage, beam-end edge distance and HSS-face-to-first-bolt distance must be positive numbers.');
+                    BS = TPC.blockShearBolted({ tp: plateThickness, wp: plateWidth, Fyp: plateMat.Fy, Fup: plateMat.Fu, tf: beam.tf, bf: beam.bf, Fyb: beamMat.Fy, Fub: beamMat.Fu,
+                                                n: boltsPerLine, s: boltSpacing, g: boltGage, dh: holeSize, LeP: edgeDist, LeB: beamEndDist });
+                    if (!BS.geomOK) throw new Error('Bolt gage plus one hole must fit inside both the plate width and the beam flange width (g + d_h < w_p and g + d_h < b_f).');
+                } else {
+                    BSW = TPC.blockShearWelded({ onFlange: W.onFlange, tp: plateThickness, lw: W.lw, bf: beam.bf, Fyp: plateMat.Fy, Fup: plateMat.Fu });
+                }
+                const Lc_comp = welded ? Math.max(plateExt - W.lw, 0) : firstBoltDist;
+                const PC = TPC.plateCompression({ tp: plateThickness, wp: plateWidth, Fy: plateMat.Fy, Lc: Lc_comp, K: 1.0 });
+                const HW = TPC.hssWeld({ B: hssB, H: hssH, tHSS: hssT, tp: plateThickness, wp: plateWidth, FuHSS: hssMat.Fu, Fup: plateMat.Fu,
+                                         Pu: Pu_conn, Pa: Pa_conn, MuSeg: Mu_seg, MaSeg: Ma_seg, w: hssWeldSize, Fexx: hssWeldFexx,
+                                         includePZ: weldIncludePZ, dRu: dR_u, dRa: dR_a });
+                if (!HW.geomOK) throw new Error('Plate width must be at least B + 2w (' + HW.wpMin.toFixed(2) + ' in) so the fillet weld can be placed along the HSS walls.');
+                const PZ = TPC.panelZone({ H: hssH, t: hssT, Fy: hssMat.Fy, Ag: hssA, Pu: Pu_conn, Pa: Pa_conn, dRu: dR_u, dRa: dR_a });
+                const X = {
+                    BS, BSW, PC, HW, PZ, Lc_comp, boltGage, beamEndDist, firstBoltDist, hssWeldSize, hssWeldFexx, weldIncludePZ,
+                    Mu_seg, Ma_seg, dR_u, dR_a, hssT, hssA, hssH, hssB,
+                    bsP_u: BS ? 0.75 * BS.plate.Rn : null, bsP_a: BS ? BS.plate.Rn / 2.00 : null,
+                    bsF_u: BS ? 0.75 * BS.flange.Rn : null, bsF_a: BS ? BS.flange.Rn / 2.00 : null,
+                    bsW_u: BSW ? 0.75 * BSW.Rn : null, bsW_a: BSW ? BSW.Rn / 2.00 : null,
+                    pc_u: 0.90 * PC.Pn, pc_a: PC.Pn / 1.67
+                };
+                X.bsOK = welded ? (!BSW || (Ru_LRFD <= X.bsW_u && Ra_ASD <= X.bsW_a))
+                                : (Ru_LRFD <= X.bsP_u && Ra_ASD <= X.bsP_a && Ru_LRFD <= X.bsF_u && Ra_ASD <= X.bsF_a);
+                X.pcOK = Ru_LRFD <= X.pc_u && Ra_ASD <= X.pc_a;
+                X.hwOK = HW.dcL <= 1.0 && HW.dcA <= 1.0;
+                X.hbmOK = HW.dcBmL <= 1.0 && HW.dcBmA <= 1.0;
+                X.hminOK = hssWeldSize >= HW.wmin - 1e-9;
+                X.pzOK = PZ.dcL <= 1.0 && PZ.dcA <= 1.0;
+                X.allOK = X.bsOK && X.pcOK && X.hwOK && X.hbmOK && X.hminOK && X.pzOK;
+
                 // Generate results
                 generateResults({
                     beam, hss, beamMat, hssMat, plateMat,
@@ -1368,7 +1584,7 @@
                     PD_top, PL_top,
                     Vu_left, Vu_right, Mu_left, Mu_right, Pu_top,
                     Va_left, Va_right, Ma_left, Ma_right, Pa_top,
-                    Pu_conn, Pa_conn, Mu_conn, Ma_conn,
+                    Pu_conn, Pa_conn, Mu_conn, Ma_conn, X, beamEndDist,
                     M_max_LRFD, M_max_ASD, Ru_LRFD, Ra_ASD,
                     tp_req_LRFD, tp_req_ASD, yieldOK_LRFD, yieldOK_ASD,
                     holeSize, An, AnCapped, Rn_rupture, Pu_rupture, Pa_rupture,
@@ -1381,7 +1597,8 @@
                 areDrawSchematic();
 
                 if (typeof AREv2 !== 'undefined') {
-                    var govCap = welded ? Math.min(phi_t*Rn_yield, Pu_rupture, W.Pu_weld, W.Pu_fr) : Math.min(phi_t*Rn_yield, Pu_rupture, Pu_bolts, Pu_brg);
+                    var govCap = welded ? Math.min(phi_t*Rn_yield, Pu_rupture, W.Pu_weld, W.Pu_fr, X.pc_u, X.bsW_u == null ? Infinity : X.bsW_u)
+                                        : Math.min(phi_t*Rn_yield, Pu_rupture, Pu_bolts, Pu_brg, X.pc_u, X.bsP_u, X.bsF_u);
                     AREv2.publish([
                         {symbol:'Mu', label:'Governing Connection Moment', value:M_max_LRFD, unit:'kip-ft', kind:'moment'},
                         {symbol:'Ruf', label:'Through-Plate Force Ru', value:Ru_LRFD, unit:'kips', kind:'axial'},
@@ -1414,7 +1631,7 @@
                 let dcCell, stxt;
                 if (c.dc === null || c.dc === undefined || !isFinite(c.dc)) {
                     dcCell = '<span class="na">—</span>';
-                    stxt = c.ok === false ? '<span class="fail">FAIL</span>' : '<span class="pass">PASS</span>';
+                    stxt = c.na ? '<span class="na">N/A</span>' : (c.ok === false ? '<span class="fail">FAIL</span>' : '<span class="pass">PASS</span>');
                 } else {
                     const col = c.dc <= 0.8 ? '#16a34a' : c.dc <= 1.0 ? '#d97706' : '#dc2626';
                     const pct = Math.min(c.dc * 100, 150);
@@ -1441,7 +1658,8 @@
             const allOK = data.yieldOK_LRFD && data.yieldOK_ASD && data.ruptureOK_LRFD && data.ruptureOK_ASD
                 && (data.welded
                     ? (W.weldOK_LRFD && W.weldOK_ASD && W.bmFOK && W.bmPOK && W.frOK_LRFD && W.frOK_ASD && W.limOK)
-                    : (data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD));
+                    : (data.boltsOK_LRFD && data.boltsOK_ASD && data.brgOK_LRFD && data.brgOK_ASD))
+                && data.X.allOK;
             const Lc_end = data.edgeDist - data.stdHole / 2;
             const Lc_int = data.boltSpacing - data.stdHole;
             const okNg = function (ok) { return ok ? '<span class="pass">OK</span>' : '<span class="fail">NG</span>'; };
@@ -1463,8 +1681,9 @@
                     <div class="mrow">ASD: P<sub>a,conn</sub> = ${data.Va_left.toFixed(1)} + ${data.Va_right.toFixed(1)} + ${data.Pa_top.toFixed(1)} = <span class="cval">${data.Pa_conn.toFixed(1)} kips</span></div>
                     <hr class="csep">
                     <div class="mrow"><span class="formula">&Sigma;M<sub>A</sub>: M<sub>conn</sub> = M<sub>right</sub> &minus; M<sub>left</sub> + (H/2)(V<sub>right</sub> &minus; V<sub>left</sub>)/12</span></div>
-                    <div class="mrow">LRFD: M<sub>u,conn</sub> = ${data.Mu_right.toFixed(1)} &minus; ${data.Mu_left.toFixed(1)} + (${data.hss.H}/2)(${data.Vu_right.toFixed(1)} &minus; ${data.Vu_left.toFixed(1)})/12 = <span class="cval">${data.Mu_conn.toFixed(1)} kip-ft</span></div>
+                    <div class="mrow">LRFD: M<sub>u,conn</sub> = ${data.Mu_right.toFixed(1)} &minus; ${data.Mu_left.toFixed(1)} + (${data.hss.H}/2)(${data.Vu_right.toFixed(1)} &minus; ${data.Vu_left.toFixed(1)})/12 = <span class="cval">${data.Mu_conn.toFixed(1)} kip-ft</span> &nbsp;(total joint unbalanced moment)</div>
                     <div class="mrow">ASD: M<sub>a,conn</sub> = <span class="cval">${data.Ma_conn.toFixed(1)} kip-ft</span></div>
+                    <div class="mrow">Per column segment, continuous column with the same HSS above and below (DG24 Ex. 4.2 equal split): M<sub>u,seg</sub> = ${data.Mu_conn.toFixed(1)}/2 = <span class="cval">${data.X.Mu_seg.toFixed(1)} kip-ft</span>; &nbsp;M<sub>a,seg</sub> = <span class="cval">${data.X.Ma_seg.toFixed(1)} kip-ft</span></div>
                 </div>
                 <div class="cref-hdr" style="margin-top:12px">Step 3 — Through-Plate Force (DG24 Example 4.2)</div>
                 <div class="cbox">
@@ -1596,6 +1815,128 @@
                 );
             }
 
+            // ── Det panels + rows: additional checks (TPC engine) ──
+            const X = data.X, BS = X.BS, BSW = X.BSW, PC = X.PC, HW = X.HW, PZ = X.PZ;
+            const holeNote = `<div class="mrow" style="color:#555">Hole for net areas d<sub>h</sub> = ${data.holeSize.toFixed(4)} in (360-22 Table J3.3 standard hole + 1/16 in). DG24 Ex. 4.2 was written to 360-10 hole sizes (1-1/16 in standard hole for a 1 in bolt), so its block shear values (460 / 615 kips) run slightly higher than 360-22.</div>`;
+            const j45rows = function (r, Fu, Fy, Anv, Agv, Ant) {
+                return `<div class="mrow">Rupture: 0.60F<sub>u</sub>A<sub>nv</sub> + U<sub>bs</sub>F<sub>u</sub>A<sub>nt</sub> = 0.60 &times; ${Fu} &times; ${Anv.toFixed(3)} + 1.0 &times; ${Fu} &times; ${Ant.toFixed(3)} = <span class="cval">${r.rup.toFixed(1)} kips</span></div>
+                    <div class="mrow">Yield cap: 0.60F<sub>y</sub>A<sub>gv</sub> + U<sub>bs</sub>F<sub>u</sub>A<sub>nt</sub> = 0.60 &times; ${Fy} &times; ${Agv.toFixed(3)} + 1.0 &times; ${Fu} &times; ${Ant.toFixed(3)} = <span class="cval">${r.yld.toFixed(1)} kips</span></div>
+                    <div class="mrow">R<sub>n</sub> = min = <span class="cval">${r.Rn.toFixed(1)} kips</span> (${r.side})</div>`;
+            };
+            const lrfdAsd = function (Rn, phi, om, okL, okA) {
+                return `<hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = ${phi.toFixed(2)} &times; ${Rn.toFixed(1)} = <span class="cval">${(phi * Rn).toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(okL)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${Rn.toFixed(1)} / ${om.toFixed(2)} = <span class="cval">${(Rn / om).toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(okA)}</div>`;
+            };
+            const addRows = [];
+            if (!data.welded) {
+                const P = BS.plate, F = BS.flange;
+                const detBsP = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.3, Eq. J4-5 — Block Shear of the Through-Plate (DG24 Ex. 4.2)</div>
+                <div class="cbox">
+                    ${holeNote}
+                    <div class="mrow">Shear planes along both bolt lines from the plate end: L<sub>gv</sub> = L<sub>e,p</sub> + (n &minus; 1)s = ${data.edgeDist} + (${data.boltsPerLine} &minus; 1)(${data.boltSpacing}) = <span class="cval">${P.Lgv.toFixed(2)} in</span></div>
+                    <div class="mrow">A<sub>gv</sub> = 2L<sub>gv</sub>t<sub>p</sub> = <span class="cval">${P.Agv.toFixed(3)} in&sup2;</span>; &nbsp;A<sub>nv</sub> = A<sub>gv</sub> &minus; 2(n &minus; &frac12;)d<sub>h</sub>t<sub>p</sub> = <span class="cval">${P.Anv.toFixed(3)} in&sup2;</span>; &nbsp;U<sub>bs</sub> = 1.0 (uniform tension)</div>
+                    <hr class="csep">
+                    <div class="mrow"><b>Interior block</b> (tension across the gage between the lines): A<sub>nt</sub> = (g &minus; d<sub>h</sub>)t<sub>p</sub> = (${X.boltGage} &minus; ${data.holeSize.toFixed(4)})(${data.plateThickness}) = <span class="cval">${P.AntInt.toFixed(3)} in&sup2;</span></div>
+                    ${j45rows(P.int, data.plateMat.Fu, data.plateMat.Fy, P.Anv, P.Agv, P.AntInt)}
+                    <hr class="csep">
+                    <div class="mrow"><b>Exterior blocks</b> (tension from each line to the plate edge): A<sub>nt</sub> = (w<sub>p</sub> &minus; g &minus; d<sub>h</sub>)t<sub>p</sub> = (${data.plateWidth} &minus; ${X.boltGage} &minus; ${data.holeSize.toFixed(4)})(${data.plateThickness}) = <span class="cval">${P.AntExt.toFixed(3)} in&sup2;</span></div>
+                    ${j45rows(P.ext, data.plateMat.Fu, data.plateMat.Fy, P.Anv, P.Agv, P.AntExt)}
+                    <hr class="csep">
+                    <div class="mrow">Governing: <b>${P.gov}</b>, R<sub>n</sub> = <span class="cval">${P.Rn.toFixed(1)} kips</span></div>
+                    ${lrfdAsd(P.Rn, 0.75, 2.00, data.Ru_LRFD <= X.bsP_u, data.Ra_ASD <= X.bsP_a)}
+                </div>`;
+                const detBsF = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.3, Eq. J4-5 — Block Shear of the Beam Flange (DG24 Ex. 4.2)</div>
+                <div class="cbox">
+                    ${holeNote}
+                    <div class="mrow">Shear along both bolt lines from the beam end, tension from each line to the flange tips. The interior block is not free (the web sits under it) and is not checked.</div>
+                    <div class="mrow">L<sub>gv</sub> = L<sub>e,b</sub> + (n &minus; 1)s = ${X.beamEndDist} + (${data.boltsPerLine} &minus; 1)(${data.boltSpacing}) = <span class="cval">${F.Lgv.toFixed(2)} in</span>; &nbsp;A<sub>gv</sub> = 2L<sub>gv</sub>t<sub>f</sub> = <span class="cval">${F.Agv.toFixed(3)} in&sup2;</span>; &nbsp;A<sub>nv</sub> = <span class="cval">${F.Anv.toFixed(3)} in&sup2;</span></div>
+                    <div class="mrow">A<sub>nt</sub> = (b<sub>f</sub> &minus; g &minus; d<sub>h</sub>)t<sub>f</sub> = (${data.beam.bf} &minus; ${X.boltGage} &minus; ${data.holeSize.toFixed(4)})(${data.beam.tf}) = <span class="cval">${F.Ant.toFixed(3)} in&sup2;</span></div>
+                    ${j45rows(F.r, data.beamMat.Fu, data.beamMat.Fy, F.Anv, F.Agv, F.Ant)}
+                    ${lrfdAsd(F.Rn, 0.75, 2.00, data.Ru_LRFD <= X.bsF_u, data.Ra_ASD <= X.bsF_a)}
+                </div>`;
+                addRows.push(
+                    { n: 'Plate Block Shear', r: 'AISC J4.3, Eq. J4-5', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + X.bsP_u.toFixed(1) + ' kips (' + P.gov.split(' ')[0] + ')', dc: data.Ru_LRFD / X.bsP_u, ok: data.Ru_LRFD <= X.bsP_u && data.Ra_ASD <= X.bsP_a, det: detBsP },
+                    { n: 'Beam Flange Block Shear', r: 'AISC J4.3, Eq. J4-5', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + X.bsF_u.toFixed(1) + ' kips', dc: data.Ru_LRFD / X.bsF_u, ok: data.Ru_LRFD <= X.bsF_u && data.Ra_ASD <= X.bsF_a, det: detBsF }
+                );
+            } else if (BSW) {
+                const detBsW = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.3, Eq. J4-5 — Block Shear of the Through-Plate Along the Weld Lines</div>
+                <div class="cbox">
+                    <div class="mrow">Plate wider than the flange: the strip of plate between the two flange-edge welds can tear out, shear along the welds and tension across b<sub>f</sub>. No holes: A<sub>nv</sub> = A<sub>gv</sub>.</div>
+                    <div class="mrow">A<sub>gv</sub> = A<sub>nv</sub> = 2t<sub>p</sub>l = 2 &times; ${data.plateThickness} &times; ${data.W.lw.toFixed(2)} = <span class="cval">${BSW.Agv.toFixed(3)} in&sup2;</span>; &nbsp;A<sub>nt</sub> = b<sub>f</sub>t<sub>p</sub> = ${data.beam.bf} &times; ${data.plateThickness} = <span class="cval">${BSW.Ant.toFixed(3)} in&sup2;</span>; &nbsp;U<sub>bs</sub> = 1.0</div>
+                    ${j45rows(BSW.r, data.plateMat.Fu, data.plateMat.Fy, BSW.Anv, BSW.Agv, BSW.Ant)}
+                    ${lrfdAsd(BSW.Rn, 0.75, 2.00, data.Ru_LRFD <= X.bsW_u, data.Ra_ASD <= X.bsW_a)}
+                    <div class="mrow" style="color:#555">The beam flange has no free block with edge welds; the flange shear rupture row (Eq. J4-4) is the governing flange check, as in Design Example II.B-2.</div>
+                </div>`;
+                addRows.push({ n: 'Plate Block Shear at Welds', r: 'AISC J4.3, Eq. J4-5', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + X.bsW_u.toFixed(1) + ' kips', dc: data.Ru_LRFD / X.bsW_u, ok: data.Ru_LRFD <= X.bsW_u && data.Ra_ASD <= X.bsW_a, det: detBsW });
+            } else {
+                addRows.push({ n: 'Plate Block Shear at Welds', r: 'AISC J4.3', d: '&mdash;', c: 'same as J4.1(b)', dc: null, na: true,
+                    det: `<div class="cref-hdr">AISC 360-22 &sect;J4.3 — Block Shear, Plate on the Flange</div><div class="cbox"><div class="mrow">The plate is narrower than the flange and is welded along its own edges, so the only block is the whole plate width: this is the tensile rupture row (J4.1(b)). The flange shear rupture row (Eq. J4-4) covers the flange.</div></div>` });
+            }
+            const detPC = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.4 — Compression Plate Between the HSS Face and the ${data.welded ? 'Start of the Flange Weld' : 'First Bolt'} (DG24 Ex. 4.2)</div>
+                <div class="cbox">
+                    <div class="mrow">r = t<sub>p</sub>/&radic;12 = ${data.plateThickness}/&radic;12 = <span class="cval">${PC.r.toFixed(4)} in</span>; &nbsp;L = ${data.welded ? 'projection &minus; weld length = ' + data.W.plateExt + ' &minus; ' + data.W.lw.toFixed(2) : 'HSS face to first bolt'} = <span class="cval">${X.Lc_comp.toFixed(2)} in</span>; &nbsp;K = 1.0 (DG24)</div>
+                    <div class="mrow">KL/r = <span class="cval">${PC.KLr.toFixed(2)}</span> ${PC.KLr <= 25 ? '&le; 25 &rarr; Eq. J4-6: P<sub>n</sub> = F<sub>y</sub>A<sub>g</sub>' : '&gt; 25 &rarr; Chapter E: F<sub>cr</sub> = ' + PC.Fcr.toFixed(2) + ' ksi'} = ${PC.Fcr.toFixed(2)} &times; ${PC.Ag.toFixed(3)} = <span class="cval">${PC.Pn.toFixed(1)} kips</span></div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;P<sub>n</sub> = 0.90 &times; ${PC.Pn.toFixed(1)} = <span class="cval">${X.pc_u.toFixed(1)} kips</span> &ge; R<sub>u</sub> = ${data.Ru_LRFD.toFixed(1)} kips &rarr; ${okNg(data.Ru_LRFD <= X.pc_u)}</div>
+                    <div class="mrow">ASD: P<sub>n</sub>/&Omega; = ${PC.Pn.toFixed(1)} / 1.67 = <span class="cval">${X.pc_a.toFixed(1)} kips</span> &ge; R<sub>a</sub> = ${data.Ra_ASD.toFixed(1)} kips &rarr; ${okNg(data.Ra_ASD <= X.pc_a)}</div>
+                </div>`;
+            addRows.push({ n: 'Compression Plate (J4.4)', r: 'AISC J4.4, Eq. J4-6', d: 'R<sub>u</sub> = ' + data.Ru_LRFD.toFixed(1) + ' kips', c: '&phi;P<sub>n</sub> = ' + X.pc_u.toFixed(1) + ' kips', dc: data.Ru_LRFD / X.pc_u, ok: X.pcOK, det: detPC });
+
+            const detHW = `
+                <div class="cref-hdr">Plate-to-HSS Fillet Weld — DG24 Ex. 4.2 Elastic Weld Group, AISC 360-22 &sect;J2.4</div>
+                <div class="cbox">
+                    <div class="mrow">Full-perimeter weld between each plate face and the HSS it caps, treated as a line group. Governing weld: bottom plate to the column segment, with the axial force below the joint and the per-segment moment.</div>
+                    <div class="mrow">A<sub>w</sub>/t = 2(B + H) = 2(${X.hssB} + ${X.hssH}) = <span class="cval">${HW.AwT.toFixed(1)} in</span>; &nbsp;I/t = 2H&sup3;/12 + 2B(H/2)&sup2; = <span class="cval">${HW.IT.toFixed(0)} in&sup3;</span> (throat neglected in the (H/2)&sup2; term, DG24 3,730)</div>
+                    <div class="mrow">LRFD: f = P<sub>u,conn</sub>/(A<sub>w</sub>/t) + |M<sub>u,seg</sub>|(12)(H/2)/(I/t) = ${data.Pu_conn.toFixed(1)}/${HW.AwT.toFixed(1)} + ${Math.abs(X.Mu_seg).toFixed(1)} &times; 12 &times; ${(X.hssH / 2).toFixed(2)}/${HW.IT.toFixed(0)} = <span class="cval">${HW.fu.toFixed(2)} kips/in</span></div>
+                    <div class="mrow">ASD: f = ${data.Pa_conn.toFixed(1)}/${HW.AwT.toFixed(1)} + ${Math.abs(X.Ma_seg).toFixed(1)} &times; 12 &times; ${(X.hssH / 2).toFixed(2)}/${HW.IT.toFixed(0)} = <span class="cval">${HW.fa.toFixed(2)} kips/in</span></div>
+                    ${X.weldIncludePZ
+                        ? `<div class="mrow">Panel-zone shear on the two H walls (beyond DG24; full &Delta;R, story shear neglected): &Delta;R<sub>u</sub> = |M<sub>u,right</sub> &minus; M<sub>u,left</sub>|(12)/(d + t<sub>p</sub>) = <span class="cval">${X.dR_u.toFixed(1)} kips</span>; f<sub>v</sub> = &Delta;R/(2H) = <span class="cval">${HW.fvu.toFixed(2)} kips/in</span> (ASD ${HW.fva.toFixed(2)})</div>
+                    <div class="mrow">Resultant: &radic;(f&sup2; + f<sub>v</sub>&sup2;) = <span class="cval">${HW.ru.toFixed(2)} kips/in</span> LRFD, <span class="cval">${HW.ra.toFixed(2)} kips/in</span> ASD</div>`
+                        : `<div class="mrow">Panel-zone shear not included (DG24 convention). With it: see the checkbox in the weld block.</div>`}
+                    <hr class="csep">
+                    <div class="mrow">Capacity, ${f16(X.hssWeldSize)} in E${X.hssWeldFexx}: &phi;r<sub>n</sub> = 0.75 &times; 0.60F<sub>EXX</sub> &times; 0.707w = ${HW.perL.toFixed(3)} &times; ${HW.D.toFixed(2)} = <span class="cval">${HW.phirn.toFixed(2)} kips/in</span>; &nbsp;r<sub>n</sub>/&Omega; = ${HW.perA.toFixed(3)} &times; ${HW.D.toFixed(2)} = <span class="cval">${HW.rnO.toFixed(2)} kips/in</span></div>
+                    <div class="mrow">Required D = ${HW.DreqL.toFixed(2)} sixteenths (LRFD), ${HW.DreqA.toFixed(2)} (ASD); DG24 Ex. 4.2 gets 7.61 &rarr; &frac12; in without panel-zone shear</div>
+                    <div class="mrow">LRFD D/C = ${HW.ru.toFixed(2)}/${HW.phirn.toFixed(2)} = <span class="cval">${HW.dcL.toFixed(3)}</span> &rarr; ${okNg(HW.dcL <= 1.0)}; &nbsp;ASD D/C = <span class="cval">${HW.dcA.toFixed(3)}</span> &rarr; ${okNg(HW.dcA <= 1.0)}</div>
+                    <div class="mrow" style="color:#555">Plate base metal (information): t<sub>min</sub> = 3.09D/F<sub>u,p</sub> = <span class="cval">${HW.tminPl.toFixed(3)} in</span> &le; t<sub>p</sub> = ${data.plateThickness} in. Table K5.1 effective lengths do not apply: this is an end weld around the cut HSS, not a weld to a continuous HSS face.</div>
+                </div>`;
+            const detHBM = `
+                <div class="cref-hdr">AISC 360-22 &sect;J4.2(b) — HSS Wall Base Metal at the Plate-to-HSS Weld (per inch); Table J2.4 Minimum Size</div>
+                <div class="cbox">
+                    <div class="mrow">Shear rupture of the wall along the weld leg, per inch: &phi;R<sub>n</sub> = 0.75 &times; 0.60F<sub>u</sub>t = 0.75 &times; 0.60 &times; ${data.hssMat.Fu} &times; ${X.hssT} = <span class="cval">${HW.bmL.toFixed(2)} kips/in</span>; &nbsp;R<sub>n</sub>/&Omega; = <span class="cval">${HW.bmA.toFixed(2)} kips/in</span></div>
+                    <div class="mrow">LRFD D/C = ${HW.ru.toFixed(2)}/${HW.bmL.toFixed(2)} = <span class="cval">${HW.dcBmL.toFixed(3)}</span> &rarr; ${okNg(HW.dcBmL <= 1.0)}; &nbsp;ASD D/C = ${HW.ra.toFixed(2)}/${HW.bmA.toFixed(2)} = <span class="cval">${HW.dcBmA.toFixed(3)}</span> &rarr; ${okNg(HW.dcBmA <= 1.0)}</div>
+                    <div class="mrow" style="color:#555">Reference, Manual Eq. 9-2: t<sub>min</sub> = 3.09D/F<sub>u</sub> = <span class="cval">${HW.tminHSS.toFixed(3)} in</span> vs t = ${X.hssT} in. ${HW.tminHSS > X.hssT ? 'The wall cannot develop the full weld strength; the check above against the actual weld demand governs (the Manual reduces the weld strength by t/t<sub>min</sub>, which is the same thing).' : 'The wall develops the full weld strength.'}</div>
+                    <div class="mrow">Table J2.4, thinner part t = ${HW.tThin.toFixed(3)} in &rarr; minimum w = <span class="cval">${f16(HW.wmin)} in</span>; provided ${f16(X.hssWeldSize)} in &rarr; ${okNg(X.hminOK)}</div>
+                </div>`;
+            const detPZ = `
+                <div class="cref-hdr">HSS Panel-Zone Shear Between the Plates — AISC 360-22 &sect;J10.6 Analogue (beyond DG24)</div>
+                <div class="cbox">
+                    <div class="mrow">Each plate delivers the unbalanced flange force to the HSS segment between the plates as in-plane shear, resisted by the two H walls. Story shear in the column is neglected (conservative).</div>
+                    <div class="mrow">&Delta;R<sub>u</sub> = |${data.Mu_right.toFixed(1)} &minus; ${data.Mu_left.toFixed(1)}| &times; 12/${data.lever.toFixed(3)} = <span class="cval">${X.dR_u.toFixed(1)} kips</span>; &nbsp;&Delta;R<sub>a</sub> = <span class="cval">${X.dR_a.toFixed(1)} kips</span></div>
+                    <div class="mrow">Eq. J10-9 form: R<sub>n</sub> = 0.60F<sub>y</sub>(2Ht) = 0.60 &times; ${data.hssMat.Fy} &times; 2 &times; ${X.hssH} &times; ${X.hssT} = <span class="cval">${PZ.Rn0.toFixed(1)} kips</span></div>
+                    <div class="mrow">${PZ.screened ? `Axial screen: P<sub>y</sub> = F<sub>y</sub>A<sub>g</sub> = ${data.hssMat.Fy} &times; ${X.hssA} = ${PZ.Py.toFixed(0)} kips; 0.4P<sub>y</sub> = ${(0.4 * PZ.Py).toFixed(0)} kips vs P<sub>u,conn</sub> = ${data.Pu_conn.toFixed(1)} kips ${PZ.kL < 1 ? '&rarr; Eq. J10-10 reduction (1.4 &minus; P<sub>r</sub>/P<sub>y</sub>) = ' + PZ.kL.toFixed(3) : '&rarr; no reduction'}` : 'HSS area not available: Eq. J10-10 axial screen skipped.'}</div>
+                    <hr class="csep">
+                    <div class="mrow">LRFD: &phi;R<sub>n</sub> = 0.90 &times; ${PZ.RnL.toFixed(1)} = <span class="cval">${PZ.phiRn.toFixed(1)} kips</span> &ge; &Delta;R<sub>u</sub> = ${X.dR_u.toFixed(1)} kips &rarr; ${okNg(PZ.dcL <= 1.0)}</div>
+                    <div class="mrow">ASD: R<sub>n</sub>/&Omega; = ${PZ.RnA.toFixed(1)} / 1.67 = <span class="cval">${PZ.RnO.toFixed(1)} kips</span> &ge; &Delta;R<sub>a</sub> = ${X.dR_a.toFixed(1)} kips &rarr; ${okNg(PZ.dcA <= 1.0)}</div>
+                </div>`;
+            const detColNote = `
+                <div class="cref-hdr">Column Side — What Applies to a Through-Plate</div>
+                <div class="cbox">
+                    <div class="mrow">The HSS is cut and each plate passes through it, so no HSS face is loaded out of plane. HSS wall plastification (DG24 Table 7-2) is a longitudinal-plate limit state and does not apply; neither do the transverse-plate face checks (B<sub>e</sub>, punching, sidewall yielding/crippling) or the Table 7-2A / &sect;K1.3 limits of applicability.</div>
+                    <div class="mrow">With the same HSS above and below, the column wall force passes wall to wall through the plate in direct bearing, so no cap-plate bearing check is needed. Column tops and HSS size changes at the joint are outside this calc.</div>
+                </div>`;
+            addRows.push(
+                { grp: true, n: 'Column Side &mdash; HSS ' + data.hssSize + ' (continuous, same section above and below)', det: detColNote },
+                { n: 'Plate-to-HSS Weld', r: 'DG24 Ex. 4.2, AISC J2.4', d: 'f = ' + HW.ru.toFixed(2) + ' kips/in', c: '&phi;r<sub>n</sub> = ' + HW.phirn.toFixed(2) + ' kips/in', dc: HW.dcL, ok: X.hwOK, det: detHW },
+                { n: 'HSS Wall Base Metal at Weld', r: 'AISC J4.2(b), Table J2.4', d: 'f = ' + HW.ru.toFixed(2) + ' kips/in', c: '&phi;R<sub>n</sub> = ' + HW.bmL.toFixed(2) + ' kips/in', dc: HW.dcBmL, ok: X.hbmOK && X.hminOK, det: detHBM },
+                { n: 'HSS Panel-Zone Shear', r: 'AISC J10.6 analogue (beyond DG24)', d: '&Delta;R<sub>u</sub> = ' + X.dR_u.toFixed(1) + ' kips', c: '&phi;R<sub>n</sub> = ' + PZ.phiRn.toFixed(1) + ' kips', dc: PZ.dcL, ok: X.pzOK, det: detPZ }
+            );
+            chks.push.apply(chks, addRows);
+
             const results = `
                 <h3>Complete Through-Plate Connection Analysis - Example 4.2 Methodology</h3>
                 <div class="note">
@@ -1603,17 +1944,19 @@
                     <strong>Connection Type:</strong> Through-plate fully-restrained (FR) moment connection<br>
                     <strong>Data Source:</strong> ${dataSource}<br>
                     <strong>Attachment:</strong> ${data.welded ? 'Welded — fillet welds along the beam flanges (Design Example II.B-2 method)' : 'Bolted (Example 4.2)'}<br>
-                    <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), ${data.welded ? 'plate-to-flange fillet welds (J2.4), base metal (Manual Eq. 9-2), beam flange shear rupture at the welds (J4-4), fillet size limits (J2.2b). The plate-to-HSS weld and block shear must be checked separately.' : 'bolt group shear (J3.7), bolt bearing/tearout (J3.10). Weld design and block shear must be checked separately.'}
+                    <strong>Analysis Includes:</strong> Connection equilibrium, plate tensile yield/rupture (J4.1), ${data.welded ? 'plate-to-flange fillet welds (J2.4), base metal (Manual Eq. 9-2), beam flange shear rupture at the welds (J4-4), fillet size limits (J2.2b)' : 'bolt group shear (J3.7), bolt bearing/tearout (J3.10)'}, block shear (J4.3), compression plate (J4.4), plate-to-HSS weld (DG24 Ex. 4.2) with HSS base metal, and HSS panel-zone shear (J10.6 analogue).<br>
+                    <strong>Scope:</strong> continuous column, same HSS above and below; 2 bolt lines. The beam web shear connection is a separate calc.
                 </div>
 
                 <div class="calc-step ok">
                     <strong>Given Data Summary:</strong><br>
                     Beam: ${data.beamSize} (d=${data.beam.d}", bf=${data.beam.bf}", tf=${data.beam.tf}")<br>
-                    HSS: ${data.hssSize} (H=${data.hss.H}", B=${data.hss.B}", t=${data.hss.t}")<br>
+                    HSS: ${data.hssSize} (H=${data.X.hssH}", B=${data.X.hssB}", t<sub>des</sub>=${data.X.hssT}")<br>
                     Plate: ${data.plateThickness}" &times; ${data.plateWidth}" ASTM ${data.plateMaterial}<br>
                     ${data.welded
                         ? `Welds: ${f16(W.weldSize)}" fillet, E${W.weldFexx}, 2 &times; ${W.lw.toFixed(2)}" per plate each side of the column${W.endWeld ? ' + transverse end weld' : ''}; plate projection ${W.plateExt}" beyond the column face, setback ${W.setback}"<br>`
-                        : `Bolts: ${data.numRows} lines &times; ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (s=${data.boltSpacing}", L_e=${data.edgeDist}")<br>`}
+                        : `Bolts: ${data.numRows} lines &times; ${data.boltsPerLine} = ${data.numBolts} total ${data.boltDiameter}" ${data.boltGrade} bolts each side (g=${data.X.boltGage}", s=${data.boltSpacing}", L_e,p=${data.edgeDist}", L_e,b=${data.beamEndDist}", ${data.X.firstBoltDist}" from HSS face to first bolt)<br>`}
+                    Plate-to-HSS weld: ${f16(data.X.hssWeldSize)}" fillet, E${data.X.hssWeldFexx}, both faces of each plate${data.X.weldIncludePZ ? ', panel-zone shear included' : ''}<br>
                     <em>Properties from: ${dataSource}</em>
                 </div>
 
@@ -1627,7 +1970,7 @@
                     &bull; Minimum plate thickness: <span class="value">${Math.max(data.tp_req_LRFD, data.tp_req_ASD).toFixed(3)} in</span><br>
                     &bull; Provided plate thickness: <span class="value">${data.plateThickness} in</span><br>
                     &bull; Database Integration: <span class="value">${data.isLoaded ? 'Active (AISC v16.0)' : 'Fallback Mode'}</span><br><br>
-                    <em>Note: This is a preliminary analysis. Complete design requires additional limit state checks including block shear, HSS wall plastification (Chapter K limits of applicability), and the plate-to-HSS weld.</em>
+                    <em>Note: HSS wall plastification and the Chapter K face checks do not apply to a through-plate (see the Column Side row). The beam web shear connection and HSS column member design are checked separately.</em>
                 </div>
 
                 <div class="note">
@@ -1636,7 +1979,7 @@
                     &bull; Provides 2&times; capacity compared to branch-plate connections<br>
                     &bull; Requires HSS to be cut and spliced at connection<br>
                     &bull; Field shimming required between plate and beam flanges<br>
-                    &bull; Complete force transfer through plate eliminates HSS moment<br>
+                    &bull; Plate force passes through the cut HSS; the column segment between the plates carries the panel-zone shear<br>
                     &bull; All limit states must be checked per AISC Specification Chapters J &amp; K
                 </div>
             `;
@@ -1647,6 +1990,13 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
+            try {
+                if (new URLSearchParams(window.location.search).get('selftest') === '1') {
+                    var st = TPC.runFixtures(), okAll = st.pass === st.total;
+                    document.title = (okAll ? 'SELFTEST PASS ' : 'SELFTEST FAIL ') + st.pass + '/' + st.total;
+                    console.log(document.title + '\n' + st.lines.join('\n'));
+                }
+            } catch (e) {}
             initializeDatabase();
         });
     </script>
