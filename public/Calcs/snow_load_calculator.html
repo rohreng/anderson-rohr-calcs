@@ -18,6 +18,9 @@
             line-height: 1.6;
         }
 
+        .ed16, .ed22 { display: none; }
+        body.ed-7-16 .ed16, body.ed-7-22 .ed22 { display: block; }
+
         .container {
             max-width: 1400px;
             margin: 0 auto;
@@ -477,14 +480,21 @@
                 <!-- Input Parameters -->
                 <div class="card card-blue">
                     <h2 class="card-title card-title-blue">Input Parameters</h2>
+                    <div class="form-group"><div class="form-row form-row-2">
+                        <div><label for="edition">Code edition</label>
+                            <select id="edition"><option value="7-16" selected>ASCE 7-16</option><option value="7-22">ASCE 7-22</option></select></div>
+                        <div id="riskCatWrap" class="ed22"><label for="riskCat">Risk Category — ASCE 7-22 Table 1.5-1</label>
+                            <select id="riskCat"><option value="I">I</option><option value="II" selected>II</option><option value="III">III</option><option value="IV">IV</option></select></div>
+                    </div></div>
                     <div class="form-group">
                         <div class="form-row form-row-2">
                             <div>
-                                <label>Ground Snow Load (p<sub>g</sub>)</label>
+                                <label id="pgLabel">Ground Snow Load (p<sub>g</sub>)</label>
                                 <div class="input-group">
                                     <input type="number" id="pg" value="42.9" step="0.1">
                                     <span class="input-addon">psf</span>
                                 </div>
+                                <p id="pg22Note" class="ed22 subtitle" style="font-size:0.75rem;margin-top:4px">ASCE 7-22 §7.2: snow provisions need not be considered where p<sub>g</sub> ≤ 10 psf and l<sub>u</sub> ≤ 100 ft, or p<sub>g</sub> ≤ 5 psf and l<sub>u</sub> ≤ 300 ft.</p>
                             </div>
                             <div>
                                 <label>Flat-Roof Factor (0.7 per Eq. 7.3-1)</label>
@@ -506,7 +516,7 @@
                                     <option value="1.2">1.2 — Terrain B sheltered</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="ed16">
                                 <label>C<sub>t</sub> (Thermal) — Table 7.3-2</label>
                                 <select id="ct">
                                     <option value="0.85">0.85 — Continuously heated greenhouse</option>
@@ -516,7 +526,7 @@
                                     <option value="1.3">1.3 — Intentionally kept below freezing</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="ed16">
                                 <label>I<sub>s</sub> (Importance) — Table 1.5-2</label>
                                 <select id="is">
                                     <option value="0.8">0.8 — Risk Category I</option>
@@ -527,6 +537,19 @@
                             </div>
                         </div>
                     </div>
+                    <div class="form-group ed22"><div class="form-row form-row-2">
+                        <div><label for="ct22">C<sub>t</sub> (Thermal) — ASCE 7-22 Tables 7.3-2 / 7.3-3</label>
+                            <select id="ct22">
+                                <option value="r" selected>Heated, unventilated roof — Table 7.3-3 (R-value)</option>
+                                <option value="1.2">Unheated / open-air / kept just above freezing (40–50 °F) / cold ventilated roof meeting the energy code (Table 7.3-2)</option>
+                                <option value="1.3">Freezer building</option>
+                                <option value="0.85">Continuously heated greenhouse, R &lt; 2.0 or U &gt; 0.5</option>
+                            </select></div>
+                        <div id="rroofWrap"><label for="rroof">R<sub>roof</sub> (h·ft²·°F/Btu) — Table 7.3-3</label>
+                            <input type="number" id="rroof" value="30" step="1" min="0"></div>
+                    </div></div>
+                    <div class="form-group ed22"><label for="w2">Winter wind parameter W2 — ASCE 7-22 Fig. 7.6-1</label>
+                        <input type="number" id="w2" step="0.05" min="0.1" max="0.9" placeholder="0.25–0.65 (Fig. 7.6-1)"></div>
                 </div>
 
                 <!-- Basic Calculations -->
@@ -541,6 +564,21 @@
                 </div>
             </div>
 
+            <div class="card card-blue" style="margin-bottom:24px">
+                <h2 class="card-title card-title-blue">Roof Geometry (balanced-load cases)</h2>
+                <div class="form-row form-row-3">
+                    <div><label for="slopeRise">Roof slope rise per 12</label><input type="number" id="slopeRise" value="0" step="0.25" min="0"></div>
+                    <div><label for="roofSurface">Roof surface</label><select id="roofSurface">
+                        <option value="other" selected>All other surfaces</option><option value="slippery">Unobstructed slippery surface with space below the eaves</option>
+                    </select><p id="roofSurface22Note" class="ed22 subtitle" style="font-size:0.75rem;margin-top:4px">ASCE 7-22 Fig. 7.4-1(a): warm roofs with C<sub>t</sub> ≤ 1.1 use the All Surfaces curve; slippery surface reduces C<sub>s</sub> only in panels (b) and (c).</p></div>
+                    <div class="ed16" id="slipperyRWrap"><label><input type="checkbox" id="slipperyR"> Warm-roof slippery R gate met (unventilated R ≥ 30 or ventilated R ≥ 20)</label></div>
+                </div>
+                <div class="form-row form-row-2" style="margin-top:16px">
+                    <div><label for="eaveRidgeW">Eave-to-ridge W (ft)</label><input type="number" id="eaveRidgeW" min="0" step="0.1"></div>
+                    <div><label><input type="checkbox" id="gableSimple"> Simply supported prismatic members spanning ridge to eave</label></div>
+                </div>
+            </div>
+
             <!-- Configuration Management -->
             <div class="section-header">
                 <h2 class="section-title">Drift Configurations</h2>
@@ -551,7 +589,7 @@
             <!-- Drift Calculations Table -->
             <div class="table-container">
                 <table>
-                    <caption style="text-align:left;padding:8px 12px;color:#6b7280;font-size:0.75rem">Drift height: ASCE 7-16 Fig. 7.6-1 (l<sub>u</sub> ≥ 20 ft; small-fetch cap √(I<sub>s</sub>·p<sub>g</sub>·l<sub>u</sub>/4γ))</caption>
+                    <caption id="driftCaption" style="text-align:left;padding:8px 12px;color:#6b7280;font-size:0.75rem">Drift height: ASCE 7-16 Fig. 7.6-1 (l<sub>u</sub> ≥ 20 ft; small-fetch cap √(I<sub>s</sub>·p<sub>g</sub>·l<sub>u</sub>/4γ))</caption>
                     <thead>
                         <tr>
                             <th>Configuration</th>
@@ -611,7 +649,7 @@
                     <div class="form-group">
                         <div class="form-row form-row-3">
                             <div>
-                                <label>Balanced Load (P<sub>f</sub>)</label>
+                                <label id="perpBalancedLabel">Balanced Load (P<sub>f</sub>)</label>
                                 <div class="input-group">
                                     <input type="number" id="perp-balanced-load" value="0" step="0.1" readonly>
                                     <span class="input-addon">psf</span>
@@ -705,7 +743,7 @@
                                 </select>
                             </div>
                             <div>
-                                <label>Max Drift Load (P<sub>d</sub>+P<sub>f</sub>)</label>
+                                <label id="parallelMaxLabel">Max Drift Load (P<sub>d</sub>+P<sub>f</sub>)</label>
                                 <div class="input-group">
                                     <input type="number" id="parallel-max-load" value="0" step="0.1" readonly>
                                     <span class="input-addon">psf</span>
@@ -743,7 +781,7 @@
                                 </div>
                             </div>
                             <div>
-                                <label>Roof Snow Load (P<sub>f</sub>)</label>
+                                <label id="parallelRoofLabel">Roof Snow Load (P<sub>f</sub>)</label>
                                 <div class="input-group">
                                     <input type="number" id="parallel-roof-snow" value="0" step="1" readonly>
                                     <span class="input-addon">psf</span>
@@ -823,13 +861,21 @@
             <div class="explanation-grid">
                 <div class="explanation-section">
                     <h4>Snow Drift Formulas:</h4>
-                    <ul class="explanation-list">
+                    <ul class="explanation-list ed16">
                         <li>• p<sub>f</sub> = Factor × C<sub>e</sub> × C<sub>t</sub> × I<sub>s</sub> × p<sub>g</sub></li>
                         <li>• γ = MIN((0.13 × p<sub>g</sub> + 14), 30)</li>
-                        <li>• h<sub>b</sub> = p<sub>f</sub> / γ</li>
+                        <li>• h<sub>b</sub> = p<sub>s</sub> / γ</li>
                         <li>• h<sub>c</sub> = MAX((h<sub>r</sub> - h<sub>b</sub>), 0)</li>
                         <li>• h<sub>d</sub> = √I<sub>s</sub> × (0.43 × l<sub>u</sub><sup>1/3</sup> × (p<sub>g</sub> + 10)<sup>1/4</sup> − 1.5) — ASCE 7-16 Fig. 7.6-1</li>
                         <li>• If l<sub>u</sub> &lt; 20 ft, use 20 ft in the equation; cap h<sub>d</sub> at √(I<sub>s</sub>·p<sub>g</sub>·l<sub>u</sub>/4γ) using the actual l<sub>u</sub>.</li>
+                    </ul>
+                    <ul class="explanation-list ed22">
+                        <li>• p<sub>f</sub> = 0.7 × C<sub>e</sub> × C<sub>t</sub> × p<sub>g</sub> (Eq. 7.3-1; strength level)</li>
+                        <li>• C<sub>t</sub> comes from Table 7.3-2 or interpolated Table 7.3-3.</li>
+                        <li>• γ = MIN(0.13 × p<sub>g</sub> + 14, 30); h<sub>b</sub> = p<sub>s</sub> / γ.</li>
+                        <li>• h<sub>d</sub> = 1.5 × √(p<sub>g</sub><sup>0.74</sup> × l<sub>u</sub><sup>0.70</sup> × W2<sup>1.7</sup> / γ) — ASCE 7-22 Eq. 7.6-1.</li>
+                        <li>• W2 from Fig. 7.6-1 or the ASCE Hazard Tool is required for drifts and unbalanced surcharge.</li>
+                        <li>• Fig. 7.4-1(a) (C<sub>t</sub> ≤ 1.1) has one All Surfaces curve; slippery surface reduces C<sub>s</sub> only in panels (b) and (c).</li>
                     </ul>
                 </div>
                 <div class="explanation-section">
@@ -882,105 +928,199 @@
             updateDropdowns();
         }
 
-        // Edition-specific snow provisions. Additional editions are added in later phases.
+        // Edition-specific snow provisions.
         const ED = {
             '7-16': {
-                label: 'ASCE 7-16',
+                label: 'ASCE 7-16', usesIs: true,
+                ref: { pf:'ASCE 7-16 Eq. 7.3-1', ce:'ASCE 7-16 Table 7.3-1', ct:'ASCE 7-16 Table 7.3-2', is:'ASCE 7-16 Table 1.5-2 / §7.3.3',
+                    gamma:'ASCE 7-16 Eq. 7.7-1', hb:'ASCE 7-16 §7.7.1', hd:'ASCE 7-16 Fig. 7.6-1', drift:'ASCE 7-16 §7.7.1', parapet:'ASCE 7-16 §7.8',
+                    pm:'ASCE 7-16 §7.3.4', ros:'ASCE 7-16 §7.10', cs:'ASCE 7-16 Fig. 7.4-1 / §7.4.1–7.4.2', unbal:'ASCE 7-16 §7.6.1 / Fig. 7.6-2', w2:null, level:null },
                 hd: (pg, lu, W2, gamma, Is) => {
                     const luE = Math.max(lu, 20);
                     let hd = Math.sqrt(Is) * (0.43 * Math.pow(luE, 1/3) * Math.pow(pg + 10, 1/4) - 1.5);
                     if (lu < 20) hd = Math.min(hd, Math.sqrt(Is * pg * lu / (4 * gamma))); // actual fetch
                     return Math.max(hd, 0);
-                }
+                },
+                windwardWidth: null,
+                pmMax: null,
+                ros: { pgLimit: () => 20, surcharge: 5 },
+                csPanel: (ct) => ct <= 1.0 ? 'a' : (ct < 1.2 ? 'b' : 'c'),
+                warmSlipperyNeedsR: true,
+                unbalLuMin: 20,
+                unbalSimpleLeeward: (pg, Is) => Is * pg
+            },
+            '7-22': {
+                label: 'ASCE 7-22', usesIs: false,
+                ref: { pf:'ASCE 7-22 Eq. 7.3-1', ce:'ASCE 7-22 Table 7.3-1', ct:'ASCE 7-22 Tables 7.3-2 / 7.3-3', is:null,
+                    gamma:'ASCE 7-22 Eq. 7.7-1', hb:'ASCE 7-22 §7.7.1', hd:'ASCE 7-22 Eq. 7.6-1', drift:'ASCE 7-22 §7.7.1', parapet:'ASCE 7-22 §7.8',
+                    pm:'ASCE 7-22 §7.3.3 / Table 7.3-4', ros:'ASCE 7-22 §7.10', cs:'ASCE 7-22 Fig. 7.4-1 / §7.4.4', unbal:'ASCE 7-22 §7.6.1 / Fig. 7.6-2',
+                    w2:'ASCE 7-22 Fig. 7.6-1', level:'ASCE 7-22 C7.2' },
+                hd: (pg, lu, W2, gamma) => 1.5 * Math.sqrt(Math.pow(pg, 0.74) * Math.pow(lu, 0.70) * Math.pow(W2, 1.7) / gamma),
+                windwardWidth: (h, hc) => h <= hc ? 8 * h : 8 * h * h / hc,
+                pmMax: { I: 25, II: 30, III: 35, IV: 40 },
+                ros: { pgLimit: (rc) => ({ I: 25, II: 30, III: 35, IV: 40 })[rc], surcharge: 8 },
+                csPanel: (ct) => ct <= 1.1 ? 'a' : (ct < 1.2 ? 'b' : 'c'),
+                warmSlipperyNeedsR: false,
+                unbalLuMin: 0,
+                unbalSimpleLeeward: (pg, Is) => pg
             }
         };
+        const CT_733 = {
+            pg: [10, 20, 30, 40, 50, 60, 70],
+            r: [20, 30, 40, 50],
+            ct: [[1.20, 1.11, 1.05, 1.01, 1.00, 1.00, 1.00],
+                 [1.20, 1.17, 1.14, 1.13, 1.12, 1.11, 1.10],
+                 [1.20, 1.19, 1.17, 1.16, 1.16, 1.15, 1.15],
+                 [1.20, 1.20, 1.19, 1.19, 1.19, 1.18, 1.18]]
+        };
+        function ctFromTable733(pg, R) {
+            if (R > 50) return 1.20;
+            const p = Math.max(10, Math.min(pg, 70));
+            const r = Math.max(20, Math.min(R, 50));
+            const alongPg = (row) => {
+                for (let i = 0; i < CT_733.pg.length - 1; i++) {
+                    if (p <= CT_733.pg[i + 1]) {
+                        const t = (p - CT_733.pg[i]) / (CT_733.pg[i + 1] - CT_733.pg[i]);
+                        return CT_733.ct[row][i] + t * (CT_733.ct[row][i + 1] - CT_733.ct[row][i]);
+                    }
+                }
+                return CT_733.ct[row][CT_733.pg.length - 1];
+            };
+            for (let j = 0; j < CT_733.r.length - 1; j++) {
+                if (r <= CT_733.r[j + 1]) {
+                    const t = (r - CT_733.r[j]) / (CT_733.r[j + 1] - CT_733.r[j]);
+                    return alongPg(j) + t * (alongPg(j + 1) - alongPg(j));
+                }
+            }
+            return alongPg(CT_733.r.length - 1);
+        }
+        function getEdition() {
+            return document.getElementById('edition').value === '7-22' ? '7-22' : '7-16';
+        }
+        function applyEditionVisibility() {
+            const ed = getEdition();
+            document.body.classList.toggle('ed-7-16', ed === '7-16');
+            document.body.classList.toggle('ed-7-22', ed === '7-22');
+            document.getElementById('rroofWrap').style.display = ed === '7-22' && document.getElementById('ct22').value === 'r' ? '' : 'none';
+            document.querySelector('.badge').textContent = ED[ed].label;
+            document.getElementById('pgLabel').innerHTML = ed === '7-22'
+                ? 'p<sub>g</sub> — ASCE Hazard Tool, Risk Category ' + document.getElementById('riskCat').value + ' (strength level)'
+                : 'Ground Snow Load (p<sub>g</sub>)';
+            updateDisplay();
+        }
 
         // Get input values
         function getInputs() {
+            const edition = getEdition();
             return {
+                edition,
                 pg: parseFloat(document.getElementById('pg').value) || 0,
                 factor: parseFloat(document.getElementById('factor').value) || 0,
                 ce: parseFloat(document.getElementById('ce').value) || 0,
                 ct: parseFloat(document.getElementById('ct').value) || 0,
-                is: parseFloat(document.getElementById('is').value) || 0
+                is: edition === '7-16' ? (parseFloat(document.getElementById('is').value) || 0) : 1,
+                riskCat: document.getElementById('riskCat').value,
+                ct22: document.getElementById('ct22').value,
+                rroof: parseFloat(document.getElementById('rroof').value) || 0,
+                w2: parseFloat(document.getElementById('w2').value),
+                slopeRise: parseFloat(document.getElementById('slopeRise').value) || 0,
+                roofSurface: document.getElementById('roofSurface').value,
+                slipperyR: document.getElementById('slipperyR').checked,
+                eaveRidgeW: parseFloat(document.getElementById('eaveRidgeW').value),
+                gableSimple: document.getElementById('gableSimple').checked
             };
         }
 
         // Calculate basic values
         function calculateBasics() {
             const inputs = getInputs();
-            
-            // pf = factor * Ce * Ct * Is * pg
-            const pf = inputs.factor * inputs.ce * inputs.ct * inputs.is * inputs.pg;
+            const ed = ED[inputs.edition];
+            const ct = inputs.edition === '7-16' ? inputs.ct
+                : (inputs.ct22 === 'r' ? ctFromTable733(inputs.pg, inputs.rroof) : parseFloat(inputs.ct22));
+            const ctSource = inputs.edition === '7-22' && inputs.ct22 === 'r' ? 'table733' : 'select';
+
+            // Keep the 7-16 operation order exactly as captured in the baseline.
+            const pf = inputs.edition === '7-16'
+                ? inputs.factor * inputs.ce * inputs.ct * inputs.is * inputs.pg
+                : inputs.factor * inputs.ce * ct * inputs.pg;
             
             // γ = MIN((0.13 * pg + 14), 30)
             const gamma = Math.min(0.13 * inputs.pg + 14, 30);
-            
-            // hb = pf / γ
-            const hb = pf / gamma;
-            
-            return { pf, gamma, hb };
+            const theta = Math.atan(inputs.slopeRise / 12) * 180 / Math.PI;
+            const panel = ed.csPanel(ct);
+            const slipperyOK = inputs.roofSurface === 'slippery'
+                && !(ed.warmSlipperyNeedsR && panel === 'a' && !inputs.slipperyR);
+            const slipperyKnee = inputs.edition === '7-22'
+                ? { a: 30, b: 10, c: 15 } : { a: 5, b: 10, c: 15 };
+            const knee = slipperyOK ? slipperyKnee[panel] : { a: 30, b: 37.5, c: 45 }[panel];
+            const cs = theta <= knee ? 1 : (theta >= 70 ? 0 : 1 - (theta - knee) / (70 - knee));
+            const ps = cs * pf;
+            const hb = ps / gamma;
+            const pmApplies = theta < 15;
+            const pm = inputs.edition === '7-16'
+                ? (inputs.pg <= 20 ? inputs.is * inputs.pg : 20 * inputs.is)
+                : Math.min(inputs.pg, ed.pmMax[inputs.riskCat]);
+            const W = inputs.eaveRidgeW;
+            const rosApplies = inputs.pg > 0 && inputs.pg <= ed.ros.pgLimit(inputs.riskCat) && W > 0 && theta < W / 50;
+            const ros = rosApplies ? ps + ed.ros.surcharge : null;
+            const w2Missing = inputs.edition === '7-22' && !(inputs.w2 > 0);
+            const unbalApplies = W > 0 && theta > 2.38 && theta <= 30.2;
+            let unbal = { applies: unbalApplies, windward: null, leeward: null, leewardPeak: null,
+                surcharge: null, extent: null, hd: null, note: unbalApplies ? '' : 'slope or W outside §7.6.1' };
+            if (unbalApplies) {
+                if (W <= 20 && inputs.gableSimple) {
+                    unbal = { applies: true, windward: 0, leeward: ed.unbalSimpleLeeward(inputs.pg, inputs.is),
+                        leewardPeak: ed.unbalSimpleLeeward(inputs.pg, inputs.is), surcharge: null, extent: null,
+                        hd: null, note: 'simple gable, W ≤ 20 ft' };
+                } else if (w2Missing) {
+                    unbal.note = 'W2 required';
+                } else {
+                    const luU = Math.max(W, ed.unbalLuMin);
+                    const hdU = ed.hd(inputs.pg, luU, inputs.w2, gamma, inputs.is);
+                    const S = 12 / inputs.slopeRise;
+                    const surcharge = hdU * gamma / Math.sqrt(S);
+                    unbal = { applies: true, windward: 0.3 * ps, leeward: ps + surcharge,
+                        leewardPeak: ps + surcharge, surcharge, extent: 8 * hdU * Math.sqrt(S) / 3,
+                        hd: hdU, note: '' };
+                }
+            }
+            return { pf, gamma, hb, edition: inputs.edition, ct, ctSource,
+                level: inputs.edition === '7-22' ? 'strength' : 'service',
+                w2: inputs.w2, w2Missing, theta, panel, cs, ps, pm, pmApplies, ros, rosApplies, unbal };
         }
 
         // Calculate drift parameters for a configuration
         function calculateDrift(config, basics) {
             const { hr, lu, type } = config;
-            const { pf, gamma, hb } = basics;
+            const { gamma, hb } = basics;
             const inputs = getInputs();
-            
+            const ed = ED[inputs.edition];
             // hc = MAX((hr - hb), 0)
             const hc = Math.max(hr - hb, 0);
-            
             // hc/hb ratio
             const hcHbRatio = hb > 0 ? hc / hb : 0;
-            
-            // Calculate drift height based on type
-            let driftHeight = 0;
+            let driftHeight = 0, W = 0, pd = 0, hd = 0, hDrift = 0, note = '';
+            if (basics.w2Missing) {
+                return { hc, hcHbRatio, driftHeight, W, pd, totalPressure: basics.ps, hd, hDrift, note: 'W2 required' };
+            }
             if (hcHbRatio >= 0.2) {
-                // ASCE 7-16 Fig. 7.6-1: Is, 20 ft minimum fetch, and actual-fetch small-fetch cap.
-                const hd = ED['7-16'].hd(inputs.pg, lu, null, gamma, inputs.is);
-                
-                if (type === 'parapet' || type === 'windward') {
-                    driftHeight = 0.75 * hd; // 0.75hd for parapet and windward
-                } else {
-                    driftHeight = hd; // hd for leeward
-                }
-                
-                driftHeight = Math.max(driftHeight, 0);
-            }
-            
-            // Calculate width W
-            let W = 0;
-            if (driftHeight > 0) {
-                if (driftHeight <= hc) {
-                    W = 4 * driftHeight;
-                } else {
-                    W = 4 * Math.pow(driftHeight, 2) / hc;
-                }
-                W = Math.min(W, 8 * hc);
-            }
-            
-            // Calculate drift pressure pd
-            let pd = 0;
-            if (driftHeight > 0) {
-                if (driftHeight < hc) {
-                    pd = gamma * driftHeight;
-                } else {
-                    pd = gamma * hc;
+                hd = ed.hd(inputs.pg, lu, inputs.w2, gamma, inputs.is);
+                hDrift = Math.max(type === 'leeward' ? hd : 0.75 * hd, 0);
+                if (hDrift > 0) {
+                    if (ed.windwardWidth && type !== 'leeward') {
+                        driftHeight = Math.min(hDrift, hc);
+                        W = ed.windwardWidth(hDrift, hc);
+                        pd = gamma * driftHeight;
+                    } else {
+                        // Preserve the 7-16 width/pressure path and its pre-cap returned height.
+                        W = hDrift <= hc ? 4 * hDrift : 4 * Math.pow(hDrift, 2) / hc;
+                        W = Math.min(W, 8 * hc);
+                        pd = hDrift < hc ? gamma * hDrift : gamma * hc;
+                        driftHeight = inputs.edition === '7-16' ? hDrift : Math.min(hDrift, hc);
+                    }
                 }
             }
-            
-            // Total pressure
-            const totalPressure = pd + pf;
-            
-            return {
-                hc: hc,
-                hcHbRatio: hcHbRatio,
-                driftHeight: driftHeight,
-                W: W,
-                pd: pd,
-                totalPressure: totalPressure
-            };
+            return { hc, hcHbRatio, driftHeight, W, pd, totalPressure: pd + basics.ps, hd, hDrift, note };
         }
 
         // Update display values
@@ -989,29 +1129,67 @@
             const host = document.getElementById('basicCalcsTable');
             if (!host) return;
             const inp = getInputs();
+            const ref = ED[inp.edition].ref;
             const f1 = v => (isFinite(v) ? v.toFixed(1) : '—');
             const f2 = v => (isFinite(v) ? v.toFixed(2) : '—');
+            const source = basics.ctSource === 'table733'
+                ? 'Table 7.3-3, Rroof ' + inp.rroof + ', pg ' + inp.pg : 'Table 7.3-2 select';
+            const pfDet = inp.edition === '7-16'
+                ? 'p<sub>f</sub> = Factor &times; C<sub>e</sub> &times; C<sub>t</sub> &times; I<sub>s</sub> &times; p<sub>g</sub> = '
+                    + inp.factor + ' &times; ' + inp.ce + ' &times; ' + inp.ct + ' &times; ' + inp.is + ' &times; ' + inp.pg
+                : 'p<sub>f</sub> = Factor &times; C<sub>e</sub> &times; C<sub>t</sub> &times; p<sub>g</sub> = '
+                    + inp.factor + ' &times; ' + inp.ce + ' &times; ' + basics.ct + ' &times; ' + inp.pg;
+            const W = inp.eaveRidgeW;
+            const rosReason = !(W > 0) ? 'enter W' : inp.pg <= 0 ? 'pg = 0'
+                : inp.pg > ED[inp.edition].ros.pgLimit(inp.riskCat) ? 'pg exceeds limit' : 'slope exceeds W/50';
+            const unbal = basics.unbal;
+            const unbalValue = !unbal.applies ? 'n/a — ' + (!(W > 0) ? 'enter W' : 'slope outside §7.6.1')
+                : unbal.note === 'W2 required' ? 'n/a — W2 required'
+                : unbal.surcharge === null ? 'Leeward ' + f2(unbal.leeward) + ' psf; windward 0'
+                : 'Leeward peak ' + f2(unbal.leewardPeak) + ' psf; windward ' + f2(unbal.windward) + ' psf';
             const rows = [
                 {
-                    name: 'Roof Snow Load (p<sub>f</sub>)', ref: 'ASCE 7-16 Eq. 7.3-1',
+                    name: 'Flat-Roof Snow Load (p<sub>f</sub>)', ref: ref.pf,
                     value: f1(basics.pf) + ' psf',
-                    det: 'p<sub>f</sub> = Factor &times; C<sub>e</sub> &times; C<sub>t</sub> &times; I<sub>s</sub> &times; p<sub>g</sub> = '
-                        + inp.factor + ' &times; ' + inp.ce + ' &times; ' + inp.ct + ' &times; ' + inp.is + ' &times; ' + inp.pg
-                        + ' = <span class="cval">' + f1(basics.pf) + ' psf</span>'
+                    det: pfDet + ' = <span class="cval">' + f1(basics.pf) + ' psf</span>'
                 },
+                { name: 'Exposure Factor (C<sub>e</sub>)', ref: ref.ce, value: f2(inp.ce),
+                    det: 'C<sub>e</sub> = ' + inp.ce + ' — ' + ref.ce },
+                { name: 'Thermal Factor (C<sub>t</sub>)', ref: ref.ct, value: f2(basics.ct),
+                    det: 'Ct = ' + basics.ct + ' — ' + source },
                 {
-                    name: 'Snow Density (&gamma;)', ref: 'ASCE 7-16 Eq. 7.7-1',
+                    name: 'Snow Density (&gamma;)', ref: ref.gamma,
                     value: f1(basics.gamma) + ' pcf',
                     det: '&gamma; = MIN(0.13&middot;p<sub>g</sub> + 14, 30) = MIN(0.13&middot;' + inp.pg + ' + 14, 30) = '
                         + 'MIN(' + (0.13 * inp.pg + 14).toFixed(2) + ', 30) = <span class="cval">' + f1(basics.gamma) + ' pcf</span>'
                 },
                 {
-                    name: 'Balanced Snow Height (h<sub>b</sub>)', ref: 'ASCE 7-16 &sect;7.7.1',
+                    name: 'Balanced Snow Height (h<sub>b</sub>)', ref: ref.hb,
                     value: f2(basics.hb) + ' ft',
-                    det: 'h<sub>b</sub> = p<sub>f</sub> / &gamma; = ' + f1(basics.pf) + ' / ' + f1(basics.gamma)
+                    det: 'h<sub>b</sub> = p<sub>s</sub> / &gamma; = ' + f1(basics.ps) + ' / ' + f1(basics.gamma)
                         + ' = <span class="cval">' + f2(basics.hb) + ' ft</span>'
-                }
+                },
+                { name: 'Drift Height Method', ref: ref.hd,
+                    value: basics.w2Missing ? 'W2 required' : 'per configuration',
+                    det: basics.w2Missing ? 'W2 required for ASCE 7-22 drift and unbalanced surcharge.' : ref.hd },
+                { name: 'Roof Slope Factor (C<sub>s</sub>)', ref: ref.cs, value: f2(basics.cs),
+                    det: 'θ = ' + f2(basics.theta) + '°; panel ' + basics.panel + '; C<sub>s</sub> = ' + f2(basics.cs) },
+                { name: 'Balanced Sloped-Roof Load (p<sub>s</sub>)', ref: ref.cs, value: f2(basics.ps) + ' psf',
+                    det: 'p<sub>s</sub> = C<sub>s</sub> × p<sub>f</sub> = ' + f2(basics.cs) + ' × ' + f2(basics.pf) },
+                { name: 'Minimum Low-Slope Load (p<sub>m</sub>)', ref: ref.pm,
+                    value: basics.pmApplies ? f2(basics.pm) + ' psf (separate case)' : 'n/a — slope ≥ 15°',
+                    det: 'Minimum load is a separate case; θ = ' + f2(basics.theta) + '°.' },
+                { name: 'Rain-on-Snow Load', ref: ref.ros,
+                    value: basics.rosApplies ? f2(basics.ros) + ' psf (separate balanced case)' : 'n/a — ' + rosReason,
+                    det: basics.rosApplies ? 'p<sub>s</sub> + ' + ED[inp.edition].ros.surcharge + ' psf = ' + f2(basics.ros) + ' psf' : 'n/a — ' + rosReason },
+                { name: 'Unbalanced Gable Load', ref: ref.unbal, value: unbalValue,
+                    det: unbal.surcharge === null ? unbalValue : 'Surcharge ' + f2(unbal.surcharge) + ' psf over ' + f2(unbal.extent) + ' ft from ridge; ' + unbalValue }
             ];
+            if (inp.edition === '7-22') rows.splice(2, 0, {
+                name: 'Winter Wind Parameter (W2)', ref: ref.w2,
+                value: basics.w2Missing ? 'W2 required' : String(inp.w2),
+                det: basics.w2Missing ? 'W2 required for drifts and unbalanced surcharge.' : 'ASCE 7-22 Fig. 7.6-1 / Hazard Tool: W2 = ' + inp.w2
+            });
             let h = '<table class="chk-table"><thead><tr><th style="width:46%">Quantity</th><th>Reference</th><th>Value</th><th style="width:80px">Detail</th></tr></thead><tbody>';
             rows.forEach((r, i) => {
                 const id = 'bc' + i;
@@ -1020,7 +1198,9 @@
                     + '<tr class="det-row"><td colspan="4"><div class="calc-det" id="det_' + id + '"><div class="cbox mrow">' + r.det + '</div></div></td></tr>';
             });
             // keep the hidden compatibility spans alive (existing textContent writers target them)
-            host.innerHTML = h + '</tbody></table>'
+            const caption = inp.edition === '7-22'
+                ? '<p class="subtitle" style="margin-bottom:12px">ASCE 7-22 snow loads are strength level: use 1.0S in LRFD combinations; ASD combinations apply 0.7S (C7.2).</p>' : '';
+            host.innerHTML = caption + h + '</tbody></table>'
                 + '<span id="pf-value" style="display:none"></span>'
                 + '<span id="gamma-value" style="display:none"></span>'
                 + '<span id="hb-value" style="display:none"></span>';
@@ -1028,6 +1208,10 @@
 
         function updateDisplay() {
             const basics = calculateBasics();
+            const balancedSymbol = basics.theta === 0 ? 'f' : 's';
+            document.getElementById('perpBalancedLabel').innerHTML = 'Balanced Load (P<sub>' + balancedSymbol + '</sub>)';
+            document.getElementById('parallelMaxLabel').innerHTML = 'Max Drift Load (P<sub>d</sub>+P<sub>' + balancedSymbol + '</sub>)';
+            document.getElementById('parallelRoofLabel').innerHTML = 'Roof Snow Load (P<sub>' + balancedSymbol + '</sub>)';
             
             // Update basic calculations display
             document.getElementById('pf-value').textContent = basics.pf.toFixed(1) + ' psf';
@@ -1042,12 +1226,18 @@
             // Update joist calculations
             updatePerpendicular();
             updateParallel();
+            const ed = getEdition();
+            window.__snowLast = { edition: ed, inputs: getInputs(), basics,
+                drifts: configurations.map((c) => ({ ...c, ...calculateDrift(c, basics) })), refs: ED[ed].ref };
         }
 
         // Update configurations table
         function updateConfigurationsTable(basics) {
             const tbody = document.getElementById('configurations-table');
             tbody.innerHTML = '';
+            document.getElementById('driftCaption').textContent = basics.edition === '7-16'
+                ? 'Drift height: ASCE 7-16 Fig. 7.6-1 (lu ≥ 20 ft; small-fetch cap √(Is·pg·lu/4γ))'
+                : 'Drift height: ASCE 7-22 Eq. 7.6-1, W2 = ' + (basics.w2Missing ? 'required' : basics.w2);
             
             configurations.forEach((config, index) => {
                 const results = calculateDrift(config, basics);
@@ -1086,6 +1276,11 @@
                 
                 tbody.appendChild(row);
             });
+            if (basics.w2Missing) {
+                const warning = document.createElement('tr');
+                warning.innerHTML = '<td colspan="11" class="text-red">W2 required: drift loads and unbalanced surcharge are not computed. Enter W2 from ASCE 7-22 Fig. 7.6-1 or the Hazard Tool.</td>';
+                tbody.appendChild(warning);
+            }
             
             updateDropdowns();
         }
@@ -1140,14 +1335,14 @@
             
             // Update load displays
             document.getElementById('perp-drift-load').value = results.pd.toFixed(1);
-            document.getElementById('perp-balanced-load').value = basics.pf.toFixed(1);
+            document.getElementById('perp-balanced-load').value = basics.ps.toFixed(1);
             document.getElementById('perp-drift-width').value = results.W.toFixed(1);
             
             // Convert spacing to feet
             const spacingFt = spacing / 12;
             
             // Calculate uniform load from balanced snow (Pf)
-            const uniformLoad = basics.pf * spacingFt;
+            const uniformLoad = basics.ps * spacingFt;
             
             // Calculate triangular load peak from drift (Pd)
             const triangularPeak = results.pd * spacingFt;
@@ -1239,8 +1434,8 @@
             const results = calculateDrift(config, basics);
             
             // Automatically pull values from drift analysis
-            const maxDriftLoad = results.pd + basics.pf; // Pd + Pf (total pressure)
-            const roofSnowLoad = basics.pf; // Pf from drift analysis
+            const maxDriftLoad = results.totalPressure;
+            const roofSnowLoad = basics.ps;
             
             // Update displays with automatically pulled values
             document.getElementById('parallel-max-load').value = maxDriftLoad.toFixed(1);
@@ -1368,11 +1563,14 @@
         // Event listeners for input changes
         document.addEventListener('DOMContentLoaded', function() {
             // Add event listeners to all input fields
-            ['pg', 'factor', 'ce', 'ct', 'is'].forEach(id => {
+            ['pg', 'factor', 'ce', 'ct', 'is', 'edition', 'riskCat', 'ct22', 'rroof', 'w2',
+             'slopeRise', 'roofSurface', 'slipperyR', 'eaveRidgeW', 'gableSimple'].forEach(id => {
                 const el = document.getElementById(id);
                 el.addEventListener('input', updateDisplay);
                 el.addEventListener('change', updateDisplay);
             });
+            ['edition', 'ct22', 'riskCat'].forEach(id =>
+                document.getElementById(id).addEventListener('change', applyEditionVisibility));
 
             // Restore drift configurations when ARE Load fires a change on configData
             document.getElementById('configData').addEventListener('change', function() {
@@ -1385,8 +1583,8 @@
                 } catch (e) { /* ignore */ }
             });
             
-            // Initial display update
-            updateDisplay();
+            // Initial edition state and display
+            applyEditionVisibility();
         });
     </script>
 <script src="/are-utils-v2.js"></script>
@@ -1519,7 +1717,8 @@ function drawDriftDiagram() {
   while (svg.firstChild) svg.removeChild(svg.firstChild);
 
   var basics = calculateBasics();
-  var pf = basics.pf, hb = basics.hb;
+  var pf = basics.ps, hb = basics.hb;
+  var balancedSymbol = basics.theta === 0 ? 'pf' : 'ps';
 
   // Pick the config with highest pd for the canonical diagram
   var bestCfg = null, bestDrift = null, bestPd = -1;
@@ -1674,7 +1873,7 @@ function drawDriftDiagram() {
     var labXtot = CW - 12;
     var labYtot = tipY - 10;
     drawCallout(svg, tipX, tipY, labXtot, labYtot,
-      'pd+pf = '+totalP.toFixed(1)+' psf', COL.force, 'end');
+      'pd+'+balancedSymbol+' = '+totalP.toFixed(1)+' psf', COL.force, 'end');
   }
 
   // ── Callout: pf (balanced snow) — leader from snow mid-span ──
@@ -1686,7 +1885,7 @@ function drawDriftDiagram() {
     var pfLabX = rX - 14;
     var pfLabY = snowTop - 18;
     drawCallout(svg, pfAppX, pfAppY, pfLabX, pfLabY,
-      'pf = '+pf.toFixed(1)+' psf', COL.snow, 'end');
+      balancedSymbol+' = '+pf.toFixed(1)+' psf', COL.snow, 'end');
   }
 
   // ── Dimension: hb (balanced snow depth) — left of roof ───────
@@ -1759,7 +1958,7 @@ function drawDriftDiagram() {
   var lgY = CH - 30;
   var sw1 = svgEl('rect',{x:rX,y:lgY-9,width:18,height:9,fill:COL.snow,opacity:0.65,stroke:COL.navy,'stroke-width':0.7});
   svg.appendChild(sw1);
-  svgText(svg, rX+22, lgY, 'Balanced Snow (pf)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  svgText(svg, rX+22, lgY, 'Balanced Snow ('+balancedSymbol+')', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
   if (hasDrift) {
     var sw2 = svgEl('rect',{x:rX+170,y:lgY-9,width:18,height:9,fill:COL.force,opacity:0.82,stroke:COL.force,'stroke-width':0.7});
     svg.appendChild(sw2);
@@ -1798,7 +1997,8 @@ function drawJoistDiagram() {
   var basics = calculateBasics();
   var cfg = configurations[sourceIndex];
   var dResult = calculateDrift(cfg, basics);
-  var pf = basics.pf;
+  var pf = basics.ps;
+  var balancedSymbol = basics.theta === 0 ? 'pf' : 'ps';
   var pd = dResult.pd;
   var W  = dResult.W;  // drift width ft
   var spacingFt = spacingIn / 12;
@@ -1959,7 +2159,7 @@ function drawJoistDiagram() {
   var lgY2 = CH - 14;
   var sw3=svgEl('rect',{x:bX0,y:lgY2-9,width:18,height:9,fill:COL.snow,opacity:0.6,stroke:COL.navy,'stroke-width':0.7});
   svg.appendChild(sw3);
-  svgText(svg, bX0+22, lgY2, 'Balanced Snow (pf)', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
+  svgText(svg, bX0+22, lgY2, 'Balanced Snow ('+balancedSymbol+')', {fill:COL.dim,'font-size':9.5,'font-family':COL.font});
   if (triPeakPlf > 0.01) {
     var sw4=svgEl('rect',{x:bX0+180,y:lgY2-9,width:18,height:9,fill:COL.force,opacity:0.82,stroke:COL.force,'stroke-width':0.7});
     svg.appendChild(sw4);
@@ -2011,15 +2211,33 @@ function drawJoistDiagram() {
       orig.apply(this,arguments);
       try{
         var b=calculateBasics();
+        var suffix=b.edition==='7-22'?' (ASCE 7-22, strength level)':' (ASCE 7-16)';
         if (typeof AREv2!=='undefined') AREv2.publish([
-          {symbol:'pf', label:'Flat Roof Snow pf', value:b.pf, unit:'psf', kind:'pressure'},
-          {symbol:'gamma', label:'Snow Density γ', value:b.gamma, unit:'pcf', kind:'other'},
-          {symbol:'hb', label:'Balanced Snow Depth hb', value:b.hb, unit:'ft', kind:'other'}
+          {symbol:'pf', label:'Flat Roof Snow pf'+suffix, value:b.pf, unit:'psf', kind:'pressure'},
+          {symbol:'gamma', label:'Snow Density γ'+suffix, value:b.gamma, unit:'pcf', kind:'other'},
+          {symbol:'hb', label:'Balanced Snow Depth hb'+suffix, value:b.hb, unit:'ft', kind:'other'}
         ]);
       }catch(e){}
     };
   }
   hook();
+})();
+</script>
+<script>
+(function installSnowShim(){
+  if (typeof AREv2 === 'undefined' || AREv2._snowShim) return;
+  var original = AREv2.loadFromState;
+  AREv2.loadFromState = function(state, opts){
+    if (!state || state.calcFile !== 'snow_load_calculator.html') return original.call(this, state, opts);
+    var defaults = { '#edition':'7-16', '#riskCat':'II', '#ct22':'r', '#rroof':'30', '#w2':'',
+      '#slopeRise':'0', '#roofSurface':'other', '#slipperyR':false, '#eaveRidgeW':'', '#gableSimple':false };
+    var fields = Object.assign({}, state.fields || {});
+    Object.keys(defaults).forEach(function(key){
+      if (!Object.prototype.hasOwnProperty.call(fields,key) && document.querySelector(key)) fields[key] = defaults[key];
+    });
+    return original.call(this, Object.assign({}, state, { fields: fields }), opts);
+  };
+  AREv2._snowShim = true;
 })();
 </script>
 </body>

@@ -16,7 +16,7 @@ Sources: `…/scratchpad/asce716/ch07.txt` + rendered pages `asce716/png/p0106�
 | D2 | **7-22 loads are presented at strength level only.** No ASD 0.7 conversion anywhere in the outputs or code; one caption tells the user 1.0S (LRFD) / 0.7S (ASD) apply in the combinations. |
 | D3 | **W2** is a required 7-22 input: blank → drifts and unbalanced surcharge are not computed (zeros + visible warning). No silent default. |
 | D4 | 7-22 windward / parapet drift when 0.75hd > hc: height = hc, width = 8·(0.75hd)²/hc (area-equivalent, consistent with the 7-16 4hd²/hc treatment), no 8hc cap. |
-| D5 | 7-22 "Table 7.4-1" (cited in §7.4.1) does not exist in the standard: a text search of the full ASCE 7-22 PDF finds the string only in the §7.4.1 sentence itself; pages p0116-p0131 (Ch. 7 complete) contain no such table. The Cs panel rule is 7-22 §7.4.4 (last paragraph); the 7-16 warm-roof R-value gate is not carried into 7-22. |
+| D5 | 7-22 "Table 7.4-1" (cited in §7.4.1) does not exist in the standard: a text search of the full ASCE 7-22 PDF finds the string only in the §7.4.1 sentence itself; pages p0116-p0131 (Ch. 7 complete) contain no such table. The Cs panel rule is 7-22 §7.4.4 (last paragraph); the 7-16 warm-roof R-value gate is not carried into 7-22. **Erratum corrected 2026-09-23 after figure check:** ASCE 7-22 Fig. 7.4-1(a), p0123, has one "All Surfaces" curve for Ct ≤ 1.1: knee 30°, zero at 70°. There is no 5° slippery curve in panel (a); slippery reductions occur only in panels (b) and (c). |
 | D6 | pg entry: the user types the single pg for the selected Risk Category as the ASCE Hazard Tool reports it. `#riskCat` drives pm,max and labels only. |
 | D7 | The existing 7-16 drift path is an ASCE 7-10 remnant (Fig. 7-9 form, lu floor 25 ft, no Is). It is **fixed in Phase 0** to ASCE 7-16 Fig. 7.6-1 exactly, with an explicit baseline ALLOW list and hand-checked new values (§7.2). |
 | D8 | `<title>` stays "Snow Load Calculator - ASCE 7-10" (it feeds `AREv2.snapshotName`, are-utils-v2.js :1213 — changing it renames every saved file). Only the badge text changes. |
@@ -202,7 +202,8 @@ Computations in `calculateBasics()` (additive keys; at slope 0 and W blank every
 theta = atan(rise/12)·180/π
 panel = ED[ed].csPanel(ct)
 slipperyOK = surface === 'slippery' && !(ED[ed].warmSlipperyNeedsR && panel === 'a' && !slipperyR)
-knee = slipperyOK ? {a:5, b:10, c:15}[panel] : {a:30, b:37.5, c:45}[panel]      // Fig. 7.4-1 (both editions, image-verified)
+slipperyKnee = ed === '7-22' ? {a:30, b:10, c:15} : {a:5, b:10, c:15}
+knee = slipperyOK ? slipperyKnee[panel] : {a:30, b:37.5, c:45}[panel]          // Erratum corrected 2026-09-23 after figure check: 7-22 panel (a) has one All Surfaces curve
 cs = theta <= knee ? 1 : (theta >= 70 ? 0 : 1 − (theta − knee)/(70 − knee))
 ps = cs·pf
 pmApplies = theta < 15                                                            // monoslope / hip / gable
@@ -237,7 +238,7 @@ Rendered as `chk-table` rows with edition refs; each non-applying case prints "n
 | 14 | hc/hb < 0.2 gate | not required | **Unchanged** | §7.7.1 | :925 |
 | 15 | Minimum low-slope pm | pg ≤ 20 → Is·pg; else 20·Is; slopes < 15° (curved < 10°) | **pm = pg if pg ≤ pm,max else pm,max**; Table 7.3-4 = 25/30/35/40 psf for RC I–IV; same slope gates; separate case | §7.3.3, Table 7.3-4 (p0123) | Phase B |
 | 16 | Rain-on-snow | pg ≤ 20 (≠ 0), θ < W/50 → **+5 psf** | **pg ≤ pm,max (Table 7.3-4)**, ≠ 0, θ < W/50 → **+8 psf**, balanced case only. C7.10: ¼:12, W 100, pg 32, RC IV → ps 24.6 + 8 = 32.6 governs over pm 32 | §7.10, C7.10 | Phase B |
-| 17 | Cs, Fig. 7.4-1 | 7-2a warm Ct ≤ 1.0 (dashed slippery line needs R ≥ 30 unvent. / R ≥ 20 vent.); 7-2b cold Ct = 1.1; 7-2c Ct ≥ 1.2 (p0114) | Same three graphs re-keyed **(a) Ct ≤ 1.1; (b) 1.1 < Ct < 1.2; (c) Ct ≥ 1.2** (§7.4.4, p0124). Knees: all other surfaces 30° / 37.5° / 45°; slippery 5° / 10° / 15°; zero at 70° (p0123). "Table 7.4-1" does not exist (D5) | §7.4, §7.4.4, Fig. 7.4-1 | Phase B `csPanel` |
+| 17 | Cs, Fig. 7.4-1 | 7-2a warm Ct ≤ 1.0 (dashed slippery line needs R ≥ 30 unvent. / R ≥ 20 vent.); 7-2b cold Ct = 1.1; 7-2c Ct ≥ 1.2 (p0114) | Same three graphs re-keyed **(a) Ct ≤ 1.1; (b) 1.1 < Ct < 1.2; (c) Ct ≥ 1.2** (§7.4.4, p0124). All Surfaces knees: 30° / 37.5° / 45°; slippery knees: **30° / 10° / 15°**; zero at 70° (Fig. 7.4-1, p0123). Panel (a) has one All Surfaces curve, so slippery selection gives no reduction there. "Table 7.4-1" does not exist (D5). **Erratum corrected 2026-09-23 after figure check.** | §7.4, §7.4.4, Fig. 7.4-1 | Phase B `csPanel` |
 | 18 | Unbalanced gable/hip | 2.38° < θ ≤ 30.2°; W ≤ 20 ft simple → leeward **Is·pg**; else 0.3ps / ps + hdγ/√S over 8hd√S/3, hd from Fig. 7.6-1 with lu = W, **W < 20 → lu = 20** | Same gates; W ≤ 20 case leeward = **pg** (text; Fig. 7.6-2 image still prints "I·pg" — text governs); hd from **Eq. 7.6-1 with lu = W, no floor**. Ex. 1: 6:12, W 30 → 31.1 psf over 9.3 ft | §7.6.1, Fig. 7.6-2, C7.14 Ex. 1 | Phase B |
 | 19 | Sliding | 0.4pf·W over 15 ft | **Unchanged** | §7.9 | non-goal |
 | 20 | Adjacent structures, intersecting drifts, open-frame, ponding | — | Unchanged | §7.7.2, 7.7.3, 7.13 | non-goal |
@@ -347,7 +348,7 @@ Ct(20,20) = 1.11; pf = **15.54**; γ **16.6**; hb **0.936**; hc **0.064**; ratio
 **C13 — W ≤ 20 ft simple gable, Is removal.** pg 25, RC I, Ce 1.0, `#ct22` 1.2, W2 0.35, slopeRise 4, W 16, gableSimple on.
 θ **18.43°**; unbalanced: leeward uniform = pg = **25**, windward **0**; pm n/a. Same inputs in 7-16 with Is 0.8: leeward = **20** ("Ipg").
 
-**C14 — 7-16 warm-roof slippery R gate (Phase B, 7-16).** pg 30, Ce 1.0, Ct 1.0, Is 1.0, slopeRise 12 (θ 45°), surface slippery: `#slipperyR` off → solid line, Cs = 1 − 15/40 = **0.625**; on → dashed, Cs = 1 − 40/65 = **0.3846**. Same inputs in 7-22 (r / Rroof 30 → Ct 1.05, panel a): slippery Cs **0.3846** regardless of the checkbox (D5).
+**C14 — 7-16 warm-roof slippery R gate (Phase B, 7-16).** pg 30, Ce 1.0, Ct 1.0, Is 1.0, slopeRise 12 (θ 45°), surface slippery: `#slipperyR` off → solid line, Cs = 1 − 15/40 = **0.625**; on → dashed, Cs = 1 − 40/65 = **0.3846**. In 7-22 at pg 30 and Rroof 30, Table 7.3-3 gives **Ct 1.14**, panel (b), so Cs = 1 − (45 − 10)/(70 − 10) = **0.4167**. At Rroof 20, Ct = **1.05**, panel (a), which has only the All Surfaces curve: slippery Cs = 1 − (45 − 30)/(70 − 30) = **0.625**, with or without the 7-16-only `#slipperyR` checkbox. **Erratum corrected 2026-09-23 after figure check** (Fig. 7.4-1 and Table 7.3-3, p0123).
 
 ## 8. Implementation steps (in order)
 
