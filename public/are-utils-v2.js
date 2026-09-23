@@ -43,14 +43,16 @@
     'W_beam_to_HSS_column_calculator.html',
     'through_plate_calculator.html',
     'directly_welded_HSS_connection_calculator.html',
-    'hss_connection_complete_calculator.html'
+    'hss_connection_complete_calculator.html',
+    'flange_plated_HSS_column_moment_connection_calculator.html'
   ];
   var CALC_SLUG_MAP = {
     'HSS_to_HSS_branch_connection_calculator.html':   'hss-to-hss-branch',
     'W_beam_to_HSS_column_calculator.html':           'w-to-hss-column',
     'through_plate_calculator.html':                  'through-plate',
     'directly_welded_HSS_connection_calculator.html': 'directly-welded-hss',
-    'hss_connection_complete_calculator.html':        'hss-connection-complete'
+    'hss_connection_complete_calculator.html':        'hss-connection-complete',
+    'flange_plated_HSS_column_moment_connection_calculator.html': 'flange-plated-hss-moment'
   };
 
   // ── Theme injection ────────────────────────────────────────────────────────
