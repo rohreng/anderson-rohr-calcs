@@ -35,7 +35,12 @@ const CASES = [
 // Paths that may legitimately differ from baseline for the sloped cases (see header).
 const ALLOW_SLOPED = [/^root\.last\.roofType$/, /^root\.last\.roofY(\.|$)/, /^root\.revit\.inputs\.roofType$/, /^root\.revit\.roof(\.|$)/, /^root\.revit\.revit(\.|$)/];
 const ALLOW_HL = [/^root\.last\.roofX(\.|$)/, /^root\.revit\.roof(\.|$)/, /^root\.revit\.revit(\.|$)/];   // L-02: only case 1 has h/L > 0.5 in a zone-table direction
-const ALLOW = { 'enclosed-sloped20-2story': ALLOW_SLOPED, 'partial-sloped35-3story': ALLOW_SLOPED, 'enclosed-flat-3story-parapet': ALLOW_HL };
+// 2026-09-25 (roof lateral plan): sloped walled roofs — walls stop at the eave (legacy
+// files derive eave = h − rise/2), roof horizontal / gable-end wall / §27.1.5 minimum
+// join the level forces. Every wall row, force and the Revit wall maxima of the two
+// sloped cases may move; typed expectations for them live in block 12.
+const ALLOW_ROOFLAT = [/^root\.last\.wx(\.|$)/, /^root\.last\.wy(\.|$)/, /^root\.revit\.walls(\.|$)/];
+const ALLOW = { 'enclosed-sloped20-2story': ALLOW_SLOPED.concat(ALLOW_ROOFLAT), 'partial-sloped35-3story': ALLOW_SLOPED.concat(ALLOW_ROOFLAT), 'enclosed-flat-3story-parapet': ALLOW_HL };
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -611,7 +616,8 @@ if (!CAPTURE) {
     check('7-22 C3: frame §28.3.7', !!a3.frame && near22(a3.frame.qh, q3, 1e-3) && a3.frame.Kdp === 0.85
       && near22(a3.frame.AE, 1680, 1) && near22(a3.frame.p, q3*0.85*(a3.frame.gcpfW-a3.frame.gcpfL)*a3.frame.KB*a3.frame.KS, 5e-3)
       && near22(a3.frame.F, 55624, 1), JSON.stringify(a3.frame));
-    check('7-22 C3: typed wall pressures',near22(a3.wx.rows[0].pWW_A,4.469,5e-3) && near22(a3.wx.rows[0].pWW_B,50.746,5e-3)
+    // 2026-09-25: walls stop at the derived eave 28 − 30·tan25°/2 = 21.005 ft → row 0 z_mid 16.005, Kz(D) 1.0401, qz 44.997.
+    check('7-22 C3: typed wall pressures',near22(a3.wx.rows[0].pWW_A,2.870,5e-3) && near22(a3.wx.rows[0].pWW_B,49.147,5e-3)
       && near22(a3.wx.rows[0].pLW_A,5.259,5e-3) && near22(a3.wx.rows[0].pSW,-25.032,5e-3),JSON.stringify(a3.wx.rows[0]));
     check('7-22 C3: typed roof pressure cases',
       [a3.roofX.p_WW_A_low,a3.roofX.p_WW_A_high,a3.roofX.p_LW_A].every((v,i)=>near22(v,[-33.389,-15.510,-44.594][i],5e-3))
@@ -664,14 +670,23 @@ if (!CAPTURE) {
     await page.fill('#V','110'); await page.fill('#B','80'); await page.fill('#D','50'); await page.fill('#h','60'); await page.fill('#hp','0');
     await page.selectOption('#roofType','monoslope'); await page.selectOption('#ridgeDir','B'); await page.fill('#theta','12'); await setStories([15,15,15,15]); await page.click('button.calc-btn');
     const a6=(await snapshot()).last, q6=q22(0.83,110);
-    check('7-22 C6: mid-rise B Kz, qz, wall pressure', near22(a6.qh,q6,1e-3) && rowsNear(a6.wx.rows,'Kz',[0.80,0.73,0.64,0.57],1e-9)
-      && rowsNear(a6.wx.rows,'qz',[0.80,0.73,0.64,0.57].map(k=>q22(k,110)),1e-3)
-      && near22(a6.wx.rows[0].p_net,q22(0.8,110)*0.85*0.85*0.8+q6*0.85*0.85*0.38,5e-3), JSON.stringify(a6.wx.rows));
+    // 2026-09-25: walls stop at the derived eave 60 − 50·tan12°/2 = 54.686 ft → mids 47.186 / 32.186 / 17.186 / 2.186.
+    const kz6=[0.74+0.05*0.71861,0.70+0.04*0.21861,0.57+0.05*0.43722,0.57];
+    check('7-22 C6: mid-rise B Kz, qz, wall pressure', near22(a6.qh,q6,1e-3) && rowsNear(a6.wx.rows,'Kz',kz6,1e-4)
+      && rowsNear(a6.wx.rows,'qz',kz6.map(k=>q22(k,110)),2e-3)
+      && near22(a6.wx.rows[0].p_net,q22(kz6[0],110)*0.85*0.85*0.8+q6*0.85*0.85*0.38,5e-3), JSON.stringify(a6.wx.rows));
     check('7-22 C6: normal monoslope and parallel zone pressures', a6.roofY.type==='sloped' && near22(a6.roofY.Cp_WW_low,-1.18,1e-9)
       && near22(a6.roofY.p_WW_A_low,q6*0.85*0.85*(-1.18)-q6*0.85*0.18,5e-3)
       && a6.roofX.type==='flat' && near22(a6.roofX.zones[0].pA,q6*0.85*0.85*(-1.1)-q6*0.85*0.18,5e-3), JSON.stringify(a6.roofY));
-    check('7-22 C6: Wind-Y pressure and base shears',near22(a6.wy.rows[0].p_net,q22(0.8,110)*0.85*0.85*0.8+q6*0.85*0.85*0.5,5e-3)
-      && near22(a6.wx.rows[3].V_cum,49951,2) && near22(a6.wy.rows[3].V_cum,89283,2));
+    // Base shears rebuilt independently: walls to the eave + monoslope roof-level loads, each level max(design, §27.1.5 min).
+    const rise6=50*Math.tan(12*Math.PI/180), qG6=q6*0.85*0.85, cp6=await page.evaluate(()=>slopedRoofCp(12,60/50));
+    const lv6=(Cp_LW,Bp,roofF,roofWallA)=>[7.5,15,15,15].reduce((acc,tr,i)=>{
+      const F=(q22(kz6[i],110)*0.85*0.85*0.8-qG6*Cp_LW)*tr*Bp+(i===0?roofF:0), Fm=16*(tr*Bp+(i===0?roofWallA:0));
+      return acc+Math.max(F,Fm); },0);
+    const vx6=lv6(-0.38,50,qG6*(0.8+0.38)*0.5*50*rise6,0.5*50*rise6);
+    const vy6=lv6(-0.5,80,qG6*Math.max(0.8-cp6[2],Math.max(cp6[0],cp6[1])+0.5)*rise6*80,rise6*80);
+    check('7-22 C6: Wind-Y pressure and base shears',near22(a6.wy.rows[0].p_net,q22(kz6[0],110)*0.85*0.85*0.8+q6*0.85*0.85*0.5,5e-3)
+      && near22(a6.wx.rows[3].V_cum,vx6,2) && near22(a6.wy.rows[3].V_cum,vy6,2), JSON.stringify({x:a6.wx.rows[3].V_cum,vx6,y:a6.wy.rows[3].V_cum,vy6}));
     const kz500=await page.evaluate(()=>({old:[getKz(500,'B',CODE['7-16']),getKz(600,'C',CODE['7-16'])],now:[getKz(500,'B',CODE['7-22']),getKz(600,'C',CODE['7-22'])]}));
     check('7-22 D3: both Kz tables extend and clamp at 500 ft',JSON.stringify(kz500)===JSON.stringify({old:[1.56,1.77],now:[1.46,1.74]}),JSON.stringify(kz500));
 
@@ -704,7 +719,7 @@ if (!CAPTURE) {
     check('7-16 labels: section and load case preserved', /ASCE 7-16/.test(labels16) && /§28\.3\.5/.test(labels16) && /Load Case B/.test(labels16) && !/§28\.3\.7|ASCE 7-22/.test(labels16),labels16.slice(0,250));
     await page.selectOption('#codeEd','7-22');
     const saved22=await page.evaluate(()=>collectInputsMWFRS()), toolbar22=await page.evaluate(()=>AREv2.captureState());
-    check('7-22 state: JSON v3 and toolbar capture edition', saved22._version===3 && saved22.codeEd==='7-22' && toolbar22.fields['#codeEd']==='7-22');
+    check('7-22 state: JSON v4 and toolbar capture edition', saved22._version===4 && saved22.codeEd==='7-22' && toolbar22.fields['#codeEd']==='7-22');
     await fresh(); await page.evaluate(d=>{applyInputsMWFRS(d);calculate();},saved22);
     check('7-22 state: JSON round trip restores edition', (await page.$eval('#codeEd',e=>e.value))==='7-22' && (await snapshot()).last.code==='7-22');
     await fresh(); const toolbarResult=await page.evaluate(s=>AREv2.loadFromState(s),toolbar22);
@@ -734,6 +749,129 @@ if (!CAPTURE) {
     check('7-22 source: edition-specific printed references live in CODE',!/ASCE 7-16|§28\.3\.5|Load Case B/.test(remainder));
   } catch (e) {
     check('ASCE 7-22 edition block',false,String(e.stack||e));
+  }
+  // ── 12. Roof lateral loads (plan 2026-09-25): eave input, roof horizontal,
+  // gable-end / hip-end, §27.1.5 minimum, handoff, drawing, save/load. Reference
+  // = 26-064-RLV geometry: 7-16, 110 mph, Exp B, enclosed, 130 × 31 ft, ridge E–W,
+  // 9:12, eave 12 ft, one 12 ft story. Expectations typed from first principles;
+  // Fig. 27.3-1 Cp comes from slopedRoofCp (cells QAQC'd in Gate 2).
+  try {
+    const nearR = (a, b, t = 0.5) => Math.abs(a - b) <= t;
+    const kzB16 = (z) => z <= 15 ? 0.57 : z <= 20 ? 0.57 + 0.05 * (z - 15) / 5 : 0.62 + 0.04 * (z - 20) / 5;
+    const q16 = (kz) => 0.00256 * kz * 0.85 * 110 * 110;       // 7-16: Kd inside q
+    const th = Math.atan(9 / 12) * 180 / Math.PI;
+    const rise = 15.5 * 0.75, hM = 12 + rise / 2, qh = q16(kzB16(hM)), qz6 = q16(0.57), qG = qh * 0.85;
+    async function nick(o = {}) {
+      await fresh();
+      await page.fill('#V', '110'); await page.selectOption('#exp', 'B'); await page.selectOption('#encl', 'enclosed');
+      await page.fill('#B', '130'); await page.fill('#D', '31'); await page.fill('#hp', '0');
+      await page.selectOption('#roofType', o.roof || 'gablehip'); await page.selectOption('#ridgeDir', 'B');
+      await page.selectOption('#roofAngleMode', 'pitch'); await page.fill('#pitchRise', String(o.pitch || 9));
+      if (o.ends) await page.selectOption('#roofEnds', o.ends);
+      if (o.mansardRise) await page.fill('#mansardRise', String(o.mansardRise));
+      if (o.legacyH) await page.fill('#h', String(o.legacyH)); else await page.fill('#hEave', String(o.eave || 12));
+      await setStories(o.stories || [12]);
+      await page.click('button.calc-btn');
+      return (await snapshot()).last;
+    }
+    const g = await nick();
+    check('12 geometry: eave 12 → rise 11.625, mean h 17.8125, ridge 23.625, #h derived + read-only',
+      nearR(g.eave, 12, 1e-9) && nearR(g.h, hM, 1e-9) && nearR(g.ridge, 23.625, 1e-9) && nearR(g.geom.rise, rise, 1e-9)
+      && (await page.$eval('#h', (e) => e.readOnly && e.value === '17.813')), JSON.stringify({ eave: g.eave, h: g.h, ridge: g.ridge }));
+    check('12 qh at mean height, wall row stops at the eave (z_mid 6)', nearR(g.qh, qh, 1e-6) && nearR(g.wy.rows[0].zMid, 6, 1e-9) && nearR(g.wy.rows[0].qz, qz6, 1e-6),
+      JSON.stringify({ qh: g.qh, qhExp: qh, zMid: g.wy.rows[0].zMid }));
+    const cpY = await page.evaluate((a) => slopedRoofCp(a[0], a[1]), [th, hM / 31]);
+    const FwY = 0.85 * (0.8 * qz6 + 0.5 * qh) * 6 * 130, FrY = qG * Math.max(cpY[1] - cpY[2], cpY[0] - cpY[2], 0) * rise * 130;
+    const FminY = 16 * 6 * 130 + 8 * rise * 130, FnY = Math.max(FwY + FrY, FminY);
+    const ry = g.wy.rows[0];
+    check('12 Wind-Y (normal to ridge): wall + roof horizontal qh·G·(Cp,WW − Cp,LW)·rise·B',
+      nearR(ry.F_wall, FwY) && nearR(ry.F_roof, FrY) && nearR(ry.F_gable, 0) && nearR(ry.F_net, FnY) && nearR(ry.V_cum, FnY) && !ry.minGoverns,
+      JSON.stringify({ F_wall: ry.F_wall, FwY, F_roof: ry.F_roof, FrY, F_net: ry.F_net, FnY, cpY }));
+    const FwX = 0.85 * (0.8 * qz6 + 0.2 * qh) * 6 * 31, Atri = 0.5 * 31 * rise, FgX = qG * (0.8 + 0.2) * Atri;
+    const FminX = 16 * (6 * 31 + Atri), rx = g.wx.rows[0];
+    check('12 Wind-X (parallel, gable ends): gable-end triangle as wall, roof 0, §27.1.5 minimum governs',
+      nearR(rx.F_wall, FwX) && nearR(rx.F_gable, FgX) && nearR(rx.F_roof, 0) && nearR(rx.F_min, FminX) && rx.minGoverns === true && nearR(rx.F_net, FminX),
+      JSON.stringify({ F_wall: rx.F_wall, FwX, F_gable: rx.F_gable, FgX, F_min: rx.F_min, FminX, F_net: rx.F_net }));
+    console.log(`      [26-064 case] Wind-X ${(rx.F_net / 1000).toFixed(2)} k (min), Wind-Y ${(ry.F_net / 1000).toFixed(2)} k (wall ${(FwY / 1000).toFixed(2)} + roof ${(FrY / 1000).toFixed(2)}), cp ${cpY.map((c) => c.toFixed(3)).join('/')}`);
+    const lat = await page.evaluate(() => buildLateralPayload());
+    const lv = lat && lat.levels[0];
+    check('12 lateral: F_wind = governing F_net; additive F_roof / F_gable / F_min; geometry eave/ridge/ends',
+      !!lv && lv.F_wind_x_strength_lb === Math.round(rx.F_net) && lv.F_wind_y_strength_lb === Math.round(ry.F_net)
+      && lv.F_roof_y_strength_lb === Math.round(FrY) && lv.F_gable_x_strength_lb === Math.round(FgX) && lv.F_min_x_strength_lb === Math.round(FminX)
+      && lat.geometry.eave_ft === 12 && nearR(lat.geometry.ridge_ft, 23.625, 1e-9) && lat.geometry.roofEnds === 'gable', JSON.stringify(lv) + JSON.stringify(lat && lat.geometry));
+    const txt12 = await page.$eval('#results', (e) => e.innerText);
+    check('12 report: roof horizontal table, min table, eave/ridge in summary', /Horizontal resultant above the eave/.test(txt12) && /Gable-end wall triangles/.test(txt12)
+      && /Minimum/.test(txt12) && /Eave he = 12\.0 ft/.test(txt12) && /Ridge = 23\.6 ft/.test(txt12) && !/NaN|undefined/.test(txt12), txt12.slice(0, 300));
+    const svg12 = await page.evaluate(() => ({ n: document.querySelectorAll('#mwfrsDiagWrap svg path[data-roof="gablehip"]').length,
+      t: Array.from(document.querySelectorAll('#mwfrsDiagWrap svg text')).map((e) => e.textContent).join(' | ') }));
+    check('12 drawing: both elevations drawn with the gable profile, eave/mean/ridge dims, Cp labels',
+      svg12.n === 2 && /Wind-X \(wind E–W\) Elevation/.test(svg12.t) && /Wind-Y \(wind N–S\) Elevation/.test(svg12.t)
+      && /23\.6 ft \(ridge\)/.test(svg12.t) && /12\.0 ft \(eave\)/.test(svg12.t) && /17\.8 ft \(h mean\)/.test(svg12.t) && /Cp,WW/.test(svg12.t) && /gable-end wall triangle/.test(svg12.t), svg12.t.slice(0, 400));
+
+    // hip ends: Wind-X loads the hip end planes as roof (L = 130 along the ridge), no gable wall; Wind-Y trapezoid.
+    const hp12 = await nick({ ends: 'hip' });
+    const cpX = await page.evaluate((a) => slopedRoofCp(a[0], a[1]), [th, hM / 130]);
+    const FrXh = qG * Math.max(cpX[1] - cpX[2], cpX[0] - cpX[2], 0) * Atri;
+    const FrYh = qG * Math.max(cpY[1] - cpY[2], cpY[0] - cpY[2], 0) * rise * (130 + 99) / 2;
+    check('12 hip: end planes as roof (Wind-X), trapezoid silhouette (Wind-Y), ridge length 99',
+      nearR(hp12.wx.rows[0].F_roof, FrXh) && nearR(hp12.wx.rows[0].F_gable, 0) && nearR(hp12.wy.rows[0].F_roof, FrYh) && nearR(hp12.geom.ridgeLen, 99, 1e-9),
+      JSON.stringify({ x: hp12.wx.rows[0].F_roof, FrXh, y: hp12.wy.rows[0].F_roof, FrYh }));
+
+    // legacy: blank eave, #h = mean → derived eave reproduces the entered-eave run
+    const lg12 = await nick({ legacyH: hM });
+    check('12 legacy (blank eave): eave derived h − rise/2, same forces, warning shown',
+      nearR(lg12.eave, 12, 1e-9) && nearR(lg12.wy.rows[0].F_net, ry.F_net, 1e-6) && nearR(lg12.wx.rows[0].F_net, rx.F_net, 1e-6)
+      && /Eave height not entered/.test(await page.$eval('#paramSummary', (e) => e.innerText)), JSON.stringify({ eave: lg12.eave }));
+
+    // story heights that do not reach the eave warn
+    await nick({ stories: [15] });
+    check('12 story-sum warning (15 ft story vs 12 ft eave)', /Story heights sum to 15\.00 ft/.test(await page.$eval('#paramSummary', (e) => e.innerText)));
+
+    // 10°–20° gable with h/L ≤ 0.25 can go net negative → floored at 0 (Note 7)
+    const low = await nick({ pitch: 2.2 });
+    const cpL = await page.evaluate((a) => slopedRoofCp(a[0], a[1]), [Math.atan(2.2 / 12) * 180 / Math.PI, (12 + 15.5 * 2.2 / 12 / 2) / 31]);
+    check('12 roof horizontal floored at 0 when both windward cases are net negative',
+      low.wy.rows[0].F_roof >= 0 && nearR(low.wy.rows[0].F_roof, Math.max(0, low.qh * 0.85 * Math.max(cpL[1] - cpL[2], cpL[0] - cpL[2]) * 15.5 * 2.2 / 12 * 130)),
+      JSON.stringify({ F_roof: low.wy.rows[0].F_roof, cpL }));
+
+    // monoslope: both senses in the table, larger governs; mansard: both directions carry roof load
+    const mono = await nick({ roof: 'monoslope' });
+    check('12 monoslope: two wind senses, larger governs, end-wall triangle Wind-X',
+      mono.wy.roofLat.cases.length === 2 && nearR(mono.wy.rows[0].F_roof, Math.max(0, ...mono.wy.roofLat.cases.map((c) => c.F)), 1e-6)
+      && nearR(mono.wx.rows[0].F_gable, mono.qh * 0.85 * (0.8 - mono.wx.Cp_LW) * 0.5 * 31 * 31 * 0.75), JSON.stringify(mono.wy.roofLat.cases));
+    const man = await nick({ roof: 'mansard', mansardRise: 6 });
+    check('12 mansard: rise input, roof horizontal in both directions', man.wx.rows[0].F_roof > 0 && man.wy.rows[0].F_roof > 0 && nearR(man.ridge, 18, 1e-9),
+      JSON.stringify({ x: man.wx.rows[0].F_roof, y: man.wy.rows[0].F_roof }));
+
+    // visibility
+    await fresh();
+    const vis12 = async (id) => page.$eval('#' + id, (e) => getComputedStyle(e).display !== 'none');
+    const visAll = async () => [await vis12('hEaveRow'), await vis12('roofEndsRow'), await vis12('mansardRiseRow')];
+    const flatVis = await visAll();
+    await page.selectOption('#roofType', 'gablehip'); const ghVis = await visAll();
+    await page.selectOption('#roofType', 'mansard'); const mVis = await visAll();
+    await page.selectOption('#encl', 'open'); const oVis = await visAll();
+    check('12 vis: eave/ends/mansard rows follow roof type, hidden for flat and open',
+      JSON.stringify([flatVis, ghVis, mVis, oVis]) === JSON.stringify([[false, false, false], [true, true, false], [true, false, true], [false, false, false]]), JSON.stringify([flatVis, ghVis, mVis, oVis]));
+
+    // save / load: JSON v4 and toolbar round trips carry the new inputs
+    await nick({ ends: 'hip' });
+    const saved12 = await page.evaluate(() => collectInputsMWFRS()), tb12 = await page.evaluate(() => AREv2.captureState());
+    await fresh(); await page.evaluate((d) => { applyInputsMWFRS(d); calculate(); }, saved12);
+    const rj = (await snapshot()).last;
+    check('12 JSON v4 round trip: hEave / roofEnds restored, forces identical', saved12._version === 4 && saved12.hEave === '12' && saved12.roofEnds === 'hip'
+      && nearR(rj.wx.rows[0].F_net, hp12.wx.rows[0].F_net, 1e-6) && nearR(rj.wy.rows[0].F_net, hp12.wy.rows[0].F_net, 1e-6), JSON.stringify({ hEave: saved12.hEave, ends: saved12.roofEnds }));
+    await fresh(); const tbRes12 = await page.evaluate((s) => AREv2.loadFromState(s), tb12);
+    await page.evaluate(() => calculate());   // same pattern as 5b: settle runs async
+    const rt12 = (await snapshot()).last;
+    check('12 toolbar round trip: no rollback, forces identical', tbRes12.ok === true && !tbRes12.rolledBack && tb12.fields['#hEave'] === '12'
+      && nearR(rt12.wy.rows[0].F_net, hp12.wy.rows[0].F_net, 1e-6), JSON.stringify({tbRes12, f: tb12.fields['#hEave'], ends: tb12.fields['#roofEnds'], got: rt12.wy.rows[0].F_net, exp: hp12.wy.rows[0].F_net, h: rt12.h, eave: rt12.eave}));
+    const legacyTb = JSON.parse(JSON.stringify(tb12)); delete legacyTb.fields['#hEave']; delete legacyTb.fields['#roofEnds']; delete legacyTb.fields['#mansardRise'];
+    await fresh(); const lgRes = await page.evaluate((s) => AREv2.loadFromState(s), legacyTb);
+    check('12 toolbar state without the new fields loads (shim defaults), no rollback', lgRes.ok === true && !lgRes.rolledBack && lgRes.mismatches.notInFile.length === 0,
+      JSON.stringify(lgRes));
+  } catch (e) {
+    check('12 roof lateral block', false, String(e.stack || e));
   }
   check('no page errors (all)', pageErrors.length === 0, pageErrors.join('\n      '));
 }

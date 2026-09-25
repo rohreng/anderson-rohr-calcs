@@ -147,9 +147,10 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
   <div class="blk-hd open" onclick="togBlk(this)"><span>Building Geometry</span><span class="tog">▶</span></div>
   <div class="blk-body">
     <div class="row">
-      <div class="ig"><label>Width B (ft) — E–W dimension</label><input type="number" id="B" value="60" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig"><label>Depth D (ft) — N–S dimension</label><input type="number" id="D" value="120" min="10" step="1" oninput="drawMWFRSDiagram()"/></div>
-      <div class="ig"><label>Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1" oninput="drawMWFRSDiagram()"/></div>
+      <div class="ig"><label>Width B (ft) — E–W dimension</label><input type="number" id="B" value="60" min="10" step="1" oninput="toggleRoofInputs()"/></div>
+      <div class="ig"><label>Depth D (ft) — N–S dimension</label><input type="number" id="D" value="120" min="10" step="1" oninput="toggleRoofInputs()"/></div>
+      <div class="ig hide" id="hEaveRow"><label>Eave Height h<sub>e</sub> (ft) — top of wall</label><input type="number" id="hEave" value="" min="1" step="0.5" placeholder="blank = from h" oninput="toggleRoofInputs()"/></div>
+      <div class="ig"><label id="hLabel">Mean Roof Height h (ft)</label><input type="number" id="h" value="40" min="5" step="1" oninput="toggleRoofInputs()"/></div>
       <div class="ig" id="closedRoofGroup">
         <label>Roof Type</label>
         <select id="roofType" onchange="toggleRoofInputs()">
@@ -178,7 +179,7 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
     <div class="row" id="ridgeAngleRow">
       <div class="ig" id="ridgeRow">
         <label>Ridge Runs Along</label>
-        <select id="ridgeDir">
+        <select id="ridgeDir" onchange="toggleRoofInputs()">
           <option value="D" selected>Depth D (N–S ridge) — Wind-X normal to ridge</option>
           <option value="B">Width B (E–W ridge) — Wind-Y normal to ridge</option>
         </select>
@@ -190,16 +191,25 @@ h3.sec{font-size:.88em;font-weight:700;color:#1e3c72;text-transform:uppercase;le
           <option value="pitch">Pitch (rise / 12)</option>
         </select>
       </div>
-      <div class="ig" id="thetaRow"><label>Roof Angle θ (deg)</label><input type="number" id="theta" value="18" min="0" max="80" step="0.5"/></div>
+      <div class="ig" id="thetaRow"><label>Roof Angle θ (deg)</label><input type="number" id="theta" value="18" min="0" max="80" step="0.5" oninput="toggleRoofInputs()"/></div>
       <div class="ig hide" id="pitchRow"><label>Rise per 12 <span id="pitchThetaOut" style="font-weight:400;color:#718096"></span></label><input type="number" id="pitchRise" value="4" min="0" max="24" step="0.5" oninput="toggleRoofInputs()"/></div>
+      <div class="ig hide" id="roofEndsRow">
+        <label>Roof Ends</label>
+        <select id="roofEnds" onchange="toggleRoofInputs()">
+          <option value="gable" selected>Gable ends (triangular end walls)</option>
+          <option value="hip">Hip ends (sloped end planes)</option>
+        </select>
+      </div>
+      <div class="ig hide" id="mansardRiseRow"><label>Mansard Slope Rise (ft) <span style="font-weight:400;color:#718096">(eave → top flat)</span></label><input type="number" id="mansardRise" value="" min="0" step="0.5" placeholder="required" oninput="toggleRoofInputs()"/></div>
     </div>
+    <div class="ref hide" id="geomOut"></div>
     <div class="row">
       <div class="ig" id="hpRow"><label>Max. parapet height above roof datum h (ft) — q<sub>p</sub> at its top <span style="font-weight:400;color:#718096">(0 = none)</span></label><input type="number" id="hp" value="3" min="0" step="0.5" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig" id="hpTypRow"><label>Typical parapet height (ft) <span style="font-weight:400;color:#718096">(blank = max)</span></label><input type="number" id="hpTyp" value="" min="0" step="0.5" placeholder="= max" oninput="drawMWFRSDiagram()"/></div>
       <div class="ig hide" id="frameRowN"><label>Transverse Frames n</label><input type="number" id="numFrames" value="4" min="3" step="1"/></div>
       <div class="ig hide" id="frameRowAs"><label>End-Wall Solid Area A<sub>S</sub> (ft²)</label><input type="number" id="AsArea" value="0" min="0" step="1"/></div>
     </div>
-    <div class="ref"><b>Wind-X:</b> wind E–W, normal to the E and W faces — resisted in-plane by the N and S shearwalls (EW walls); L = B, B<sub>⊥</sub> = D | <b>Wind-Y:</b> wind N–S, normal to the N and S faces — resisted in-plane by the E and W shearwalls (NS walls); L = D, B<sub>⊥</sub> = B | Parapet: q<sub>p</sub> at h + h<sub>p,max</sub> (§27.3.4); the typical height loads the full building width; on a sloped roof h + h<sub>p,max</sub> must be the highest parapet top elevation; stepped parapets are entered in the Diaphragm Designer (roof level, flat roofs only) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure</div>
+    <div class="ref"><b>Wind-X:</b> wind E–W, normal to the E and W faces — resisted in-plane by the N and S shearwalls (EW walls); L = B, B<sub>⊥</sub> = D | <b>Wind-Y:</b> wind N–S, normal to the N and S faces — resisted in-plane by the E and W shearwalls (NS walls); L = D, B<sub>⊥</sub> = B | Parapet: q<sub>p</sub> at h + h<sub>p,max</sub> (§27.3.4); the typical height loads the full building width; on a sloped roof h + h<sub>p,max</sub> must be the highest parapet top elevation; stepped parapets are entered in the Diaphragm Designer (roof level, flat roofs only) | h = mean roof height (§26.2); for walled buildings with θ ≤ 10° use the eave height; free roofs (Open) use the mean height in every figure | Sloped walled roofs: enter the eave height h<sub>e</sub> (top of wall); h = h<sub>e</sub> + rise/2 and the ridge height follow from the pitch, walls load to h<sub>e</sub> and the roof surfaces load their projected area (Fig. 27.3-1); story heights sum to h<sub>e</sub></div>
     <div id="mwfrsDiagWrap" style="margin-top:12px;text-align:center"></div>
   </div>
 </div>
@@ -575,6 +585,87 @@ function longFrameForce(o){
           gcpfW:gcpfW,gcpfL:gcpfL,KB:KB,KS:KS,n:n,AS:o.AS||0,phi:phi,phiRaw:phiRaw,qh:o.qh,Kdp:kdp,Kh:o.Kh,kzFloor:!!o.Kh28Applied,p:p,F:p*AE};
 }
 
+// ─── ROOF GEOMETRY (walled buildings, plan 2026-09-25) ───────────────────────
+// o = {roofType, roofEnds ('gable'|'hip'), theta, B, D, ridgeDir, h (the #h value),
+//      hEave (string, blank = legacy: derive from h), mansardRise (string)}
+// span = plan dimension normal to the ridge (along-wind L for the normal-to-ridge
+// direction); Lr = ridge-direction dimension. Rise: gable/hip (span/2)·tanθ,
+// monoslope span·tanθ, mansard = entered slope rise. §26.2: h = mean of eave and
+// highest point, = eave when θ ≤ 10°. Hip = equal-pitch hip, hip run span/2 at
+// each end, ridge length Lr − span. Mansard = slopes on all four sides.
+// Projected areas (vertical plane normal to the wind):
+//   normal to ridge: roof silhouette (gable/mono rise·Lr, hip/mansard trapezoid)
+//   parallel to ridge: gable/mono end-wall triangle ½·span·rise (WALL),
+//                      hip end plane ½·span·rise (ROOF), mansard trapezoid (ROOF).
+function roofGeometry(o){
+  var rt=o.roofType, normalX=(o.ridgeDir==='D');
+  var span=normalX?o.B:o.D, Lr=normalX?o.D:o.B;
+  var tn=Math.tan((o.theta||0)*Math.PI/180);
+  var g={roofType:rt, roofEnds:(rt==='gablehip'&&o.roofEnds==='hip')?'hip':(rt==='gablehip'?'gable':null),
+         span:span, Lr:Lr, normalX:normalX, theta:o.theta||0, rise:0, eave:o.h, hMean:o.h, ridge:o.h,
+         source:'flat', warn:[], ridgeLen:Lr, run:0, A_normal:0, A_parRoof:0, A_parWall:0};
+  if(rt==='flat') return g;
+  var mr=parseFloat(o.mansardRise);
+  if(rt==='gablehip') g.rise=(span/2)*tn;
+  else if(rt==='monoslope') g.rise=span*tn;
+  else if(rt==='mansard'){
+    if(isFinite(mr)&&mr>0) g.rise=mr;
+    else g.warn.push('Mansard slope rise not entered — roof horizontal load and eave derivation omitted; enter the rise.');
+  }
+  // §26.2: θ ≤ 10° → h = eave; a monoslope has two eaves, so it keeps their mean.
+  var low=g.theta<=10&&rt!=='monoslope';
+  var he=parseFloat(o.hEave);
+  if(String(o.hEave==null?'':o.hEave).trim()!==''&&isFinite(he)&&he>0){
+    g.source='input'; g.eave=he; g.hMean=low?he:he+g.rise/2;
+  } else {
+    g.source='derived'; g.hMean=o.h; g.eave=low?o.h:o.h-g.rise/2;
+    if(g.eave<=0){ g.warn.push('h = '+f1(o.h)+' ft is less than rise/2 = '+f1(g.rise/2)+' ft — the eave cannot be derived; walls taken to h. Enter the eave height.'); g.eave=o.h; }
+    else if(!low&&g.rise>0) g.warn.push('Eave height not entered — derived as h − rise/2 = '+f1(g.eave)+' ft. Verify, or enter h<sub>e</sub>.');
+  }
+  g.ridge=g.eave+g.rise;
+  if(rt==='gablehip'&&g.roofEnds==='hip'){
+    g.ridgeLen=Math.max(Lr-span,0);
+    if(Lr<span) g.warn.push('Hip roof with the ridge along the shorter plan dimension — check the Ridge Runs Along input.');
+  }
+  // projected areas
+  if(rt==='gablehip'){
+    g.A_normal = g.roofEnds==='hip' ? g.rise*(Lr+g.ridgeLen)/2 : g.rise*Lr;
+    if(g.roofEnds==='hip') g.A_parRoof=0.5*span*g.rise; else g.A_parWall=0.5*span*g.rise;
+  } else if(rt==='monoslope'){
+    g.A_normal=g.rise*Lr; g.A_parWall=0.5*span*g.rise;
+  } else if(rt==='mansard'){
+    g.run = tn>0 ? g.rise/tn : 0;
+    g.A_normal =g.rise*(Lr  +Math.max(Lr  -2*g.run,0))/2;
+    g.A_parRoof=g.rise*(span+Math.max(span-2*g.run,0))/2;
+  }
+  return g;
+}
+function readRoofGeom(){
+  var v=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+  return roofGeometry({roofType:getRoofType(), roofEnds:v('roofEnds'), theta:getTheta(),
+    B:parseFloat(v('B'))||60, D:parseFloat(v('D'))||120, ridgeDir:v('ridgeDir'),
+    h:parseFloat(v('h'))||40, hEave:v('hEave'), mansardRise:v('mansardRise')});
+}
+// Keeps #h in step with an entered eave height (h is then derived and read-only)
+// and prints the geometry line under the roof inputs.
+function syncRoofGeom(){
+  var out=document.getElementById('geomOut'), hIn=document.getElementById('h'), lbl=document.getElementById('hLabel');
+  if(!out||!hIn) return;
+  var walledSloped=!isOpenEncl()&&getRoofType()!=='flat';
+  var g=walledSloped?readRoofGeom():null;
+  var fromEave=!!g&&g.source==='input';
+  hIn.readOnly=fromEave;
+  hIn.style.background=fromEave?'#f7fafc':'';
+  if(fromEave) hIn.value=String(Math.round(g.hMean*1000)/1000);
+  if(lbl) lbl.innerHTML=fromEave?'Mean Roof Height h (ft) <span style="font-weight:400;color:#718096">(derived)</span>':'Mean Roof Height h (ft)';
+  out.classList.toggle('hide',!walledSloped);
+  if(!walledSloped){ out.innerHTML=''; return; }
+  out.innerHTML='Eave h<sub>e</sub> = <b>'+f2(g.eave)+' ft</b> · rise = <b>'+f2(g.rise)+' ft</b> · mean h = <b>'+f2(g.hMean)+' ft</b> · ridge = <b>'+f2(g.ridge)+' ft</b>'
+    +(g.roofEnds==='hip'?' · ridge length = <b>'+f1(g.ridgeLen)+' ft</b>':'')
+    +(g.theta<=10?' · θ ≤ 10°: h = eave (§26.2)':'')
+    +g.warn.map(function(w){ return '<br><span style="color:#b45309;font-weight:600">'+w+'</span>'; }).join('');
+}
+
 // ─── UI HELPERS ──────────────────────────────────────────────────────────────
 function togBlk(hd){
   hd.classList.toggle('open');
@@ -612,8 +703,11 @@ function toggleRoofInputs(){
   show('thetaRow',angled&&mode==='deg'); show('pitchRow',angled&&mode==='pitch');
   show('hpRow',!open); show('hpTypRow',!open);
   var fe=frameEligible(); show('frameRowN',fe); show('frameRowAs',fe);
+  show('hEaveRow',!open&&rt!=='flat'); show('roofEndsRow',!open&&rt==='gablehip'); show('mansardRiseRow',!open&&rt==='mansard');
   var rise=parseFloat(document.getElementById('pitchRise').value)||0;
   document.getElementById('pitchThetaOut').textContent='(θ = '+f2(Math.atan(rise/12)*180/Math.PI)+'°)';
+  syncRoofGeom();
+  drawMWFRSDiagram();
 }
 function addStory(){
   var rows=document.getElementById('storyRows');
@@ -670,6 +764,11 @@ function calculate(){
   var ridgeDir=document.getElementById('ridgeDir').value;           // 'D' → ridge runs NS → Wind-X normal to ridge
   var normalX=(ridgeDir==='D');
   var groundElev=parseFloat(document.getElementById('groundElev').value)||0;
+  // Walled buildings: eave / mean / ridge heights (plan 2026-09-25). hVal is the
+  // MEAN roof height from here on; walls stop at geom.eave.
+  var geom=isOpen?null:roofGeometry({roofType:roofType, roofEnds:document.getElementById('roofEnds').value, theta:theta,
+    B:B, D:Ddim, ridgeDir:ridgeDir, h:hVal, hEave:document.getElementById('hEave').value, mansardRise:document.getElementById('mansardRise').value});
+  if(geom){ hVal=geom.hMean; syncRoofGeom(); }
 
   // story heights (top→bottom)
   var storyRows=document.getElementById('storyRows').children;
@@ -695,7 +794,8 @@ function calculate(){
   // Geometry guard: eave height = h − rise/2 must be positive, else AE / GCpf weighting are meaningless
   var frameElig = frameEligible() && theta>0 && theta<=45;
   var riseChk=(Wperp/2)*Math.tan(theta*Math.PI/180);
-  var frameReason = (frameElig && hVal - riseChk/2 <= 0) ? 'geometry' : null;
+  var frameReason = (frameElig && !isOpen && roofType==='gablehip' && document.getElementById('roofEnds').value==='hip') ? 'hip'
+                  : (frameElig && hVal - riseChk/2 <= 0) ? 'geometry' : null;
   var frame = (frameElig && !frameReason)
     ? longFrameForce({Wperp:Wperp, Lridge:Lridge, h:hVal, theta:theta,
                       n:parseInt(document.getElementById('numFrames').value)||3,
@@ -751,8 +851,12 @@ function calculate(){
   // elevations: top of each story
   var stElevTop=[]; // top elevation of each story
   var stElevMid=[]; // mid-height of each story
-  stElevTop.push(hVal);
-  stElevMid.push(hVal - stories[0].h/2);
+  // Top story wall runs to the eave (= h for flat roofs); the roof above the eave
+  // is loaded as roof surface / gable-end wall below (roofLateral).
+  var wallTop=geom?geom.eave:hVal;
+  var storySum=stories.reduce(function(s,x){ return s+x.h; },0);
+  stElevTop.push(wallTop);
+  stElevMid.push(wallTop - stories[0].h/2);
   for(var i=1;i<stories.length;i++){
     var topEl=stElevTop[i-1]-stories[i-1].h;
     stElevTop.push(topEl);
@@ -793,6 +897,7 @@ function calculate(){
       var F_net = p_net * trib_h * Bperp;    // lbs — wall wind force tributary to this diaphragm
 
       rows.push({
+        F_wall: F_net,
         label: stories[i].label,
         h: stories[i].h,
         trib_h: trib_h,
@@ -853,16 +958,9 @@ function calculate(){
     };
     // Apply parapet force to the roof diaphragm level (top story, index 0)
     // Net parapet force = (pp,WW − pp,LW) × hp,typ × B⊥ — acts at roof level
+    // F_net / V_cum are rebuilt in finalizeDir once the roof loads are known.
     function applyParapet(dir){
-      var F_par = (parapetData.pp_WW - parapetData.pp_LW) * parapetData.hp_typ * dir.Bperp;
-      dir.rows[0].F_parapet = F_par;
-      dir.rows[0].F_net += F_par;
-      // Recalculate all cumulative shears after adding parapet
-      var vc = 0;
-      for(var j=0; j<dir.rows.length; j++){
-        vc += dir.rows[j].F_net;
-        dir.rows[j].V_cum = vc;
-      }
+      dir.rows[0].F_parapet = (parapetData.pp_WW - parapetData.pp_LW) * parapetData.hp_typ * dir.Bperp;
     }
     applyParapet(wx);
     applyParapet(wy);
@@ -905,18 +1003,106 @@ function calculate(){
   var roofX=getRoofPressures(B, Ddim, qh_val, 'Wind-X (L='+f1(B)+'ft)', normalX);
   var roofY=getRoofPressures(Ddim, B, qh_val, 'Wind-Y (L='+f1(Ddim)+'ft)', !normalX);
 
+  // ─── Roof horizontal load, gable-end walls, §27.1.5 minimum (plan 2026-09-25) ──
+  // External pressures only (GCpi cancels on a closed envelope). Roof surfaces:
+  // F = qh·G·(Cp_WW − Cp_LW)·A_proj with the windward Cp that gives the larger
+  // resultant, floored at 0 (Fig. 27.3-1 note: total horizontal shear
+  // not less than that neglecting the roof). θ < 10° roofs use the zone table
+  // (uplift only) → no roof horizontal. Gable/monoslope end-wall triangles above
+  // the eave are WALL: F = qh·G·(0.8 − Cp_LW)·½·span·rise (q at h, conservative
+  // over the triangle centroid). Monoslope, normal direction: both wind senses —
+  // roof leeward (tall wall windward over the rise band, 0.8 − Cp_LW,roof) and
+  // roof windward (Cp_WW,roof − Cp_LW,wall on the tall leeward wall) — larger governs.
+  // Everything above the eave goes 100% to the roof diaphragm (Nick 2026-09-25).
+  function roofLateral(dir, isNormal){
+    var qG=qh_val*KDP*G, out={F_roof:0, F_gable:0, A_roof:0, A_gable:0, cases:[], basis:''};
+    if(!geom||roofType==='flat') return out;
+    var sloped=theta>=10;
+    var cpFor=function(){ return slopedRoofCp(theta, hVal/dir.L); };
+    if(isNormal){
+      out.A_roof=geom.A_normal;
+      if(roofType==='monoslope'){
+        // rise band = tall wall + roof, full length Lr
+        out.A_roof=0; out.A_gable=0;
+        var A=geom.rise*geom.Lr;
+        if(sloped){
+          var c=cpFor();
+          var n1=0.8-c[2], n2=Math.max(c[0],c[1])-dir.Cp_LW;
+          out.cases=[{lbl:'Wind at high wall (roof leeward)', net:n1, F:qG*n1*A},{lbl:'Wind at low eave (roof windward)', net:n2, F:qG*n2*A}];
+          out.F_roof=Math.max(0, qG*n1*A, qG*n2*A);
+        } else {
+          // low slope: the rise band is ONE wall (windward or leeward); the roof uses
+          // the zone table (no horizontal) in either sense
+          out.cases=[{lbl:'Wind at high wall (band windward, θ < 10°)', net:0.8, F:qG*0.8*A},
+                     {lbl:'Wind at low eave (band leeward, θ < 10°)', net:-dir.Cp_LW, F:qG*(-dir.Cp_LW)*A}];
+          out.F_roof=Math.max(0, qG*0.8*A, qG*(-dir.Cp_LW)*A);
+        }
+        out.A_wallExtra=A; out.basis='monoslope';   // rise band = tall wall for the §27.1.5 minimum
+        return out;
+      }
+      if(sloped&&out.A_roof>0){
+        var c2=cpFor();
+        var nh=c2[1]-c2[2], nl=c2[0]-c2[2];
+        out.cases=[{lbl:'Cp,WW (high) '+f2(c2[1])+' − Cp,LW '+f2(c2[2]), net:nh, F:qG*nh*out.A_roof},
+                   {lbl:'Cp,WW (low) '+f2(c2[0])+' − Cp,LW '+f2(c2[2]), net:nl, F:qG*nl*out.A_roof}];
+        out.F_roof=Math.max(0, qG*nh*out.A_roof, qG*nl*out.A_roof);
+        out.basis='sloped';
+      } else out.basis=sloped?'none':'lowslope';
+    } else {
+      out.A_gable=geom.A_parWall;
+      if(out.A_gable>0){
+        var ng=0.8-dir.Cp_LW;
+        out.F_gable=qG*ng*out.A_gable; out.gableNet=ng;
+      }
+      out.A_roof=geom.A_parRoof;
+      if(out.A_roof>0){
+        if(sloped){
+          var c3=cpFor();
+          var ph=c3[1]-c3[2], pl=c3[0]-c3[2];
+          out.cases=[{lbl:'Cp,WW (high) '+f2(c3[1])+' − Cp,LW '+f2(c3[2]), net:ph, F:qG*ph*out.A_roof},
+                     {lbl:'Cp,WW (low) '+f2(c3[0])+' − Cp,LW '+f2(c3[2]), net:pl, F:qG*pl*out.A_roof}];
+          out.F_roof=Math.max(0, qG*ph*out.A_roof, qG*pl*out.A_roof);
+          out.basis=roofType==='mansard'?'mansard-par':'hip-ends';
+        } else out.basis='lowslope';
+      }
+    }
+    return out;
+  }
+  // Level forces: F_code = wall + parapet + roof + gable (roof level);
+  // F_min = 16 psf × wall area + 8 psf × projected roof area (§27.1.5) per level;
+  // F_net (sent downstream) = max(F_code, F_min).
+  function finalizeDir(dir, isNormal){
+    var rl=roofLateral(dir, isNormal);
+    dir.roofLat=rl;
+    var vc=0;
+    dir.rows.forEach(function(r,i){
+      r.F_parapet=r.F_parapet||0;
+      r.F_roof = i===0 ? rl.F_roof : 0;
+      r.F_gable= i===0 ? rl.F_gable : 0;
+      r.F_code = r.F_wall + r.F_parapet + r.F_roof + r.F_gable;
+      r.A_wall = r.trib_h*dir.Bperp + (i===0 ? rl.A_gable + (rl.A_wallExtra||0) + (parapetData?parapetData.hp_typ*dir.Bperp:0) : 0);
+      r.A_roofProj = i===0 ? rl.A_roof : 0;
+      r.F_min  = 16*r.A_wall + 8*r.A_roofProj;
+      r.minGoverns = r.F_min > r.F_code + 1e-9;
+      r.F_net  = r.minGoverns ? r.F_min : r.F_code;
+      vc += r.F_net; r.V_cum = vc;
+    });
+  }
+  finalizeDir(wx, normalX);
+  finalizeDir(wy, !normalX);
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
   document.getElementById('results').style.display='block';
   setBlk('wxBlk',true); setBlk('wyBlk',true); setBlk('roofBlk',true); setBlk('sendBlk',true);
   setBlk('parapetBlk',!!parapetData); setBlk('openBlk',false); setBlk('openTransBlk',false);
-  setBlk('frameBlk', !!frame || frameReason==='geometry'); setBlk('minBlk',true);
-  renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp,{ridgeDir:ridgeDir,groundElev:groundElev,hpTyp:hpTyp});
+  setBlk('frameBlk', !!frame || frameReason==='geometry' || frameReason==='hip'); setBlk('minBlk',true);
+  renderParams(V,exp,encl,Kzt,Ke,GCpi,qh_val,Kh,B,Ddim,hVal,roofType,theta,hp,{ridgeDir:ridgeDir,groundElev:groundElev,hpTyp:hpTyp,geom:geom,storySum:storySum,wallTop:wallTop});
   renderFrame(frame, document.getElementById('frameBody'), false, frameReason);
-  renderMinLoads(false, document.getElementById('minBody'));
+  renderMinLoads(false, document.getElementById('minBody'), [wx,wy]);
   renderDir(wx, document.getElementById('wxBody'));
   renderDir(wy, document.getElementById('wyBody'));
   if(parapetData) renderParapet(parapetData, document.getElementById('parapetBody'), wx, wy);
-  renderRoof([roofX,roofY], document.getElementById('roofBody'));
+  renderRoof([roofX,roofY], document.getElementById('roofBody'), [wx,wy], geom);
   renderSend(wx,wy, document.getElementById('sendBody'));
 
   // v3: results-bus publish (design pressures + base shears)
@@ -940,7 +1126,8 @@ function calculate(){
   drawMWFRSDiagram();
 
   // stash last results for Revit export
-  window.__mwfrsLast = {code:E.key, Kd:Kd, qIncludesKd:E.kdInQ, V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:roofType, theta:theta, hp:hp, hpTyp:(hp>0?hpTyp:0), GCpi:GCpi, qh:qh_val, wx:wx, wy:wy, roofX:roofX, roofY:roofY, parapet:parapetData, ridgeDir:ridgeDir, frame:frame, open:null};
+  window.__mwfrsLast = {code:E.key, Kd:Kd, qIncludesKd:E.kdInQ, V:V, exp:exp, encl:encl, Kzt:Kzt, Ke:Ke, B:B, D:Ddim, h:hVal, roofType:roofType, theta:theta, hp:hp, hpTyp:(hp>0?hpTyp:0), GCpi:GCpi, qh:qh_val, wx:wx, wy:wy, roofX:roofX, roofY:roofY, parapet:parapetData, ridgeDir:ridgeDir, frame:frame, open:null,
+                        geom:geom, eave:geom?geom.eave:hVal, ridge:geom?geom.ridge:hVal, roofEnds:geom?geom.roofEnds:null, storySum:storySum};
 
   // publish wind pressures to localStorage for the ARE Revit joist tools
   try{ var _rp=buildRevitWindPayload(); if(_rp) localStorage.setItem('ARE_mwfrs_wind', JSON.stringify(_rp)); }catch(e){}
@@ -969,12 +1156,21 @@ function renderParams(V,exp,encl,Kzt,Ke,GCpi,qh,Kh,B,Ddim,h,rType,theta,hp,x){
     +'<div class="kv-item">Kh = <span>'+f3(Kh)+'</span></div>'
     +'<div class="kv-item">qh = <span>'+f2(qh)+' psf</span></div>'
     +'<div class="kv-item">Building: <span>'+f1(B)+'×'+f1(Ddim)+'ft</span></div>'
-    +'<div class="kv-item">h = <span>'+f1(h)+' ft</span></div>'
-    +'<div class="kv-item">Roof = <span>'+roofTxt+'</span></div>';
+    +'<div class="kv-item">h = <span>'+f1(h)+' ft</span>'+(x.geom&&rType!=='flat'?' (mean)':'')+'</div>'
+    +'<div class="kv-item">Roof = <span>'+roofTxt+(x.geom&&x.geom.roofEnds?', '+x.geom.roofEnds+' ends':'')+'</span></div>';
+  if(x.geom&&rType!=='flat'){
+    html+='<div class="kv-item">Eave h<sub>e</sub> = <span>'+f1(x.geom.eave)+' ft</span>'+(x.geom.source==='derived'?' (derived)':'')+'</div>'
+      +'<div class="kv-item">Rise = <span>'+f2(x.geom.rise)+' ft</span></div>'
+      +'<div class="kv-item">Ridge = <span>'+f1(x.geom.ridge)+' ft</span></div>';
+    if(x.geom.roofEnds==='hip') html+='<div class="kv-item">Ridge length = <span>'+f1(x.geom.ridgeLen)+' ft</span></div>';
+  }
   if(x.ridgeDir && (x.open || rType!=='flat')) html+='<div class="kv-item">Ridge <span>'+(x.ridgeDir==='D'?'N–S (parallel to D) — Wind-X normal':'E–W (parallel to B) — Wind-Y normal')+'</span></div>';
   if(hp>0) html+='<div class="kv-item">Parapet h<sub>p,max</sub> = <span>'+f1(hp)+' ft</span></div>'
     +(x.hpTyp!==undefined&&x.hpTyp!==hp?'<div class="kv-item">Parapet h<sub>p,typ</sub> = <span>'+f1(x.hpTyp)+' ft</span></div>':'');
   html+='</div>';
+  if(x.geom) x.geom.warn.forEach(function(w){ html+='<div class="warn">'+w+'</div>'; });
+  if(x.geom&&rType!=='flat'&&x.wallTop!==undefined&&x.storySum!==undefined&&Math.abs(x.storySum-x.wallTop)>0.05)
+    html+='<div class="warn">Story heights sum to '+f2(x.storySum)+' ft but the top of wall ('+(rType==='flat'?'h':'eave h<sub>e</sub>')+') is '+f2(x.wallTop)+' ft — story elevations are measured down from the eave. Check the Story Heights.</div>';
   html+='<div class="ref" style="margin-top:4px">qh = 0.00256 × Kh × Kzt '+(E.kdInQ?'× Kd ':'')+'× Ke × V² = 0.00256 × '+f3(Kh)+' × '+f2(Kzt)+' × '+(E.kdInQ?f2(Kd)+' × ':'')+f3(Ke)+' × '+V+'² = '+f2(qh)+' psf</div>';
   document.getElementById('paramSummary').innerHTML=html;
 }
@@ -1025,26 +1221,34 @@ function renderDir(dir, container){
   html+='<div class="ref" style="margin-top:4px">Case A (+GCpi, pos. internal): WW = '+E.L.wallWW+' − '+E.L.wallInternal.replace('GCpi','(+GCpi)')+' → lower WW, governs LW/SW element design | Case B (−GCpi, neg. internal): WW = '+E.L.wallWW+' + '+E.L.wallInternal+' → higher WW, governs WW element design | LW shown is Case B (−GCpi) paired with WW Case B | Net P_lat = WW − '+E.L.wallNet+' (GCpi cancels) — for story shear only, not parapet design | Ref: Fig. 27.3-1, §26.13</div>';
 
   // Story shear table
+  var rl=dir.roofLat||{}, showRoof=(rl.A_roof>0||rl.A_gable>0||rl.A_wallExtra>0);
   html+='<h3 class="sec">Diaphragm Forces &amp; Story Shears</h3>';
   html+='<table class="res-tbl"><thead><tr>'
     +'<th>Story</th>'
     +'<th>h_trib (ft)<br><span style="font-weight:400;font-size:.85em">trib. to diaphragm</span></th>'
     +'<th>p_net (psf)</th>'
     +'<th>Wall Wind F (kips)<br><span style="font-weight:400;font-size:.85em">p_net × h_trib × B⊥</span></th>'
+    +(showRoof?'<th>Gable-End Wall F (kips)<br><span style="font-weight:400;font-size:.85em">triangle above eave</span></th>'
+      +'<th>Roof Horizontal F (kips)<br><span style="font-weight:400;font-size:.85em">roof surfaces, projected</span></th>':'')
     +'<th>Parapet F (kips)<br><span style="font-weight:400;font-size:.85em">roof level only</span></th>'
-    +'<th>Diaphragm F (kips)<br><span style="font-weight:400;font-size:.85em">wall + parapet → diaphragm design</span></th>'
+    +'<th>Design F (kips)<br><span style="font-weight:400;font-size:.85em">sum of the above</span></th>'
+    +'<th>§27.1.5 Min F (kips)<br><span style="font-weight:400;font-size:.85em">16 psf wall + 8 psf roof</span></th>'
+    +'<th>Diaphragm F (kips)<br><span style="font-weight:400;font-size:.85em">max(design, min) → diaphragm design</span></th>'
     +'<th>Cumul. Shear V (kips)<br><span style="font-weight:400;font-size:.85em">→ shearwall design below</span></th>'
     +'</tr></thead><tbody>';
 
   dir.rows.forEach(function(r){
-    var F_wall = r.F_net - (r.F_parapet||0);
     var F_par  = r.F_parapet || 0;
+    var dash=function(v){ return v ? f2(v/1000) : '—'; };
     html+='<tr>'
       +'<td>'+escHtml(r.label)+'</td>'
       +'<td>'+f1(r.trib_h)+'</td>'
       +'<td>'+f1(r.p_net)+'</td>'
-      +'<td>'+f2(F_wall/1000)+'</td>'
-      +'<td style="color:#7c3aed;font-weight:600">'+(F_par ? f2(F_par/1000) : '—')+'</td>'
+      +'<td>'+f2(r.F_wall/1000)+'</td>'
+      +(showRoof?'<td style="color:#0f766e;font-weight:600">'+dash(r.F_gable)+'</td><td style="color:#0f766e;font-weight:600">'+dash(r.F_roof)+'</td>':'')
+      +'<td style="color:#7c3aed;font-weight:600">'+dash(F_par)+'</td>'
+      +'<td>'+f2(r.F_code/1000)+'</td>'
+      +'<td'+(r.minGoverns?' style="color:#b45309;font-weight:700"':'')+'>'+f2(r.F_min/1000)+(r.minGoverns?' ◀':'')+'</td>'
       +'<td style="font-weight:700;color:#1e3c72">'+f2(r.F_net/1000)+'</td>'
       +'<td style="font-weight:700;color:#0369a1">'+f2(r.V_cum/1000)+'</td>'
       +'</tr>';
@@ -1052,11 +1256,13 @@ function renderDir(dir, container){
   html+='</tbody></table>';
   html+='<div class="ref" style="margin-top:4px">'
     +'h_trib: roof = h_story/2 (upper half of wall to roof diaphragm — lower half goes directly to foundation); '
-    +'intermediate floor = (h_story_above + h_story_below)/2. '
+    +'intermediate floor = (h_story_above + h_story_below)/2; the top story wall stops at the eave. '
+    +(showRoof?'Everything above the eave (gable-end triangle, roof surfaces) goes 100% to the roof diaphragm — see Roof Pressures for the projected areas and coefficients. ':'')
     +'Parapet F = (pp,WW − pp,LW) × h<sub>p,typ</sub> × B⊥ (§27.3.4; q<sub>p</sub> at h + h<sub>p,max</sub>), applied at roof level. '
-    +'Diaphragm F = total force to that diaphragm — use this for diaphragm design. '
+    +'§27.1.5 min: 16 psf × wall area (trib. wall'+(showRoof?' + gable-end triangle':'')+' + parapet) + 8 psf × roof area projected on a vertical plane, per level; ◀ = minimum governs. '
+    +'Diaphragm F = max(design, min) — use this for diaphragm design; this is the value sent to the Diaphragm Designer. '
     +'Cumul. V = sum of all diaphragm forces above — use for shearwall design below that level. '
-    +'B⊥ = '+f1(dir.Bperp)+' ft | Ref: Fig. 27.3-1, §26.13, §27.3.4'
+    +'B⊥ = '+f1(dir.Bperp)+' ft | Ref: Fig. 27.3-1, §26.13, §27.3.4, §27.1.5'
     +'</div>';
 
   container.innerHTML=html;
@@ -1097,10 +1303,10 @@ function renderParapet(pd, container, wx, wy){
 // 'Wind-X (L=..ft)') are baseline-tested data and stay as they are.
 function dirSense(lbl){ return String(lbl).indexOf('Wind-Y')===0 ? 'wind N–S, normal to the N and S faces' : 'wind E–W, normal to the E and W faces'; }
 function dirShort(lbl){ return String(lbl).indexOf('Wind-Y')===0 ? 'Wind-Y (wind N–S)' : 'Wind-X (wind E–W)'; }
-function renderRoof(roofs, container){
+function renderRoof(roofs, container, dirs, geom){
   var E=ed();
   var html='';
-  roofs.forEach(function(r){
+  roofs.forEach(function(r, ri){
     html+='<h3 class="sec">'+escHtml(r.dir)+' — '+dirSense(r.dir)+'</h3>';
     if(r.type==='flat'){
       var why = r.why==='parallel' ? 'Wind parallel to ridge — Fig. 27.3-1 zone table applies for all θ'
@@ -1142,8 +1348,40 @@ function renderRoof(roofs, container){
       html+='</tbody></table>';
     }
     html+='<div class="ref" style="margin-top:4px">Fig. 27.3-1 | Case A = max uplift (more negative), Case B = min uplift | See Design Parameters for GCpi value</div>';
+    var d=dirs&&dirs[ri];
+    if(d&&d.roofLat&&geom&&geom.roofType!=='flat') html+=roofLatHTML(d, geom, E);
   });
   container.innerHTML=html;
+}
+
+// Horizontal (lateral) resultant of the roof and gable-end wall for one direction.
+function roofLatHTML(d, g, E){
+  var rl=d.roofLat, qG=E.kdInQ?'qh·G':'qh·Kd·G';
+  var h='<h4 style="margin:10px 0 4px;color:#0f766e">Horizontal resultant above the eave → roof diaphragm</h4>';
+  var rows=[];
+  if(rl.A_gable>0) rows.push('<tr><td>Gable-end wall triangles (½·'+f1(g.span)+'·'+f2(g.rise)+')</td><td>'+f1(rl.A_gable)+'</td><td>+0.80 − ('+f2(d.Cp_LW)+') = '+f2(rl.gableNet)+'</td><td style="font-weight:700;color:#0f766e">'+fi(rl.F_gable)+'</td></tr>');
+  if(rl.basis==='monoslope'){
+    var A=rl.A_wallExtra;
+    rl.cases.forEach(function(c){ var gov=Math.abs(c.F-rl.F_roof)<1e-6&&rl.F_roof>0;
+      rows.push('<tr><td>Rise band '+f2(g.rise)+' × '+f1(g.Lr)+' ft — '+c.lbl+'</td><td>'+f1(A)+'</td><td>'+f2(c.net)+'</td><td'+(gov?' style="font-weight:700;color:#0f766e"':'')+'>'+fi(c.F)+(gov?' ◀':'')+'</td></tr>'); });
+  } else if(rl.A_roof>0){
+    var what = rl.basis==='hip-ends' ? 'Hip end planes (½·'+f1(g.span)+'·'+f2(g.rise)+' each end)'
+             : rl.basis==='mansard-par' ? 'Mansard slopes (projected trapezoid)'
+             : g.roofType==='mansard' ? 'Mansard slopes (projected trapezoid)'
+             : g.roofEnds==='hip' ? 'Main roof slopes (projected trapezoid, ridge '+f1(g.ridgeLen)+' ft)'
+             : 'Roof slopes ('+f2(g.rise)+' × '+f1(g.Lr)+' ft)';
+    if(rl.cases.length){
+      rl.cases.forEach(function(c){ var gov=Math.abs(c.F-rl.F_roof)<1e-6&&rl.F_roof>0;
+        rows.push('<tr><td>'+what+' — '+c.lbl+'</td><td>'+f1(rl.A_roof)+'</td><td>'+f2(c.net)+'</td><td'+(gov?' style="font-weight:700;color:#0f766e"':'')+'>'+fi(c.F)+(gov?' ◀':'')+'</td></tr>'); });
+      if(rl.F_roof===0) rows.push('<tr><td colspan="3">Both cases net negative → horizontal taken as 0 (not less than neglecting the roof)</td><td>0</td></tr>');
+    } else {
+      rows.push('<tr><td>'+what+' — θ &lt; 10°: zone table (uplift only), no horizontal component</td><td>'+f1(rl.A_roof)+'</td><td>—</td><td>0</td></tr>');
+    }
+  }
+  if(!rows.length) return h+'<div class="ref">No roof surface or end-wall area above the eave faces this direction (roof slopes run parallel to the wind).</div>';
+  h+='<table class="res-tbl"><thead><tr><th>Surface</th><th>A<sub>proj</sub> (ft²)</th><th>Net coefficient</th><th>F = '+qG+'·net·A (lb)</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>';
+  h+='<div class="ref" style="margin-top:4px">External pressures only — GCpi cancels on the closed envelope. qh = '+f2(d.qh)+' psf at mean h. Roof: F = '+qG+'·(Cp,WW − Cp,LW)·A<sub>proj</sub>, the windward Cp giving the larger resultant governs, floored at 0 (Fig. 27.3-1 note: total horizontal shear not less than that determined by neglecting wind forces on the roof). Gable-end triangle is wall: Cp = +0.8 windward, Cp,LW per L/B leeward, q at mean h (conservative over the triangle). Monoslope: both wind senses, the larger governs. Hip: equal-pitch hip; end planes use Fig. 27.3-1 with L along the ridge.</div>';
+  return h;
 }
 
 function renderOpen(o, bodyN, bodyT){
@@ -1185,7 +1423,9 @@ function renderOpen(o, bodyN, bodyT){
 function renderFrame(fr, body, isOpen, reason){
   var E=ed();
   if(!fr){
-    if(reason==='geometry'){
+    if(reason==='hip'){
+      body.innerHTML='<div class="warn">'+E.L.section+' not evaluated for hip ends: the end-wall area A<sub>E</sub> and the zone 5/6 end-strip weighting are defined for a gable end wall. Check the longitudinal frames by other means, or set Roof Ends = Gable if the end walls are gables.</div>';
+    } else if(reason==='geometry'){
       body.innerHTML='<div class="warn">'+E.L.section+' not evaluated: mean roof height h must exceed half the gable rise ((B/2)·tanθ / 2) so the eave height is positive.</div>';
     } else {
       body.innerHTML='<div class="ref">'+E.L.section+' not applicable: requires an open or partially enclosed building with transverse frames and a pitched (gable) roof, 0° &lt; θ ≤ 45°.</div>';
@@ -1212,13 +1452,21 @@ function renderFrame(fr, body, isOpen, reason){
   body.innerHTML=html;
 }
 
-function renderMinLoads(isOpen, body){
+function renderMinLoads(isOpen, body, dirs){
   var E=ed();
   var html = isOpen
     ? '<div class="kv"><div class="kv-item">Min. design force (open) = <span>16 psf × A<sub>f</sub></span></div></div>'
       +'<div class="ref">§27.1.5: the design wind force for open buildings shall be not less than 16 psf multiplied by A<sub>f</sub> (area of the roof projected on a vertical plane normal to the wind).</div>'
     : '<div class="kv"><div class="kv-item">Min. wall pressure = <span>16 psf</span></div><div class="kv-item">Min. roof pressure = <span>8 psf</span></div></div>'
       +'<div class="ref">§27.1.5: MWFRS load shall be not less than 16 psf × wall area plus 8 psf × roof area projected on a vertical plane normal to the wind, applied simultaneously.</div>';
+  if(!isOpen&&dirs){
+    html+='<table class="res-tbl" style="margin-top:8px"><thead><tr><th>Direction</th><th>Story</th><th>Wall area (ft²)</th><th>Roof proj. area (ft²)</th><th>F<sub>min</sub> (kips)</th><th>Design F (kips)</th><th>Governs</th></tr></thead><tbody>';
+    dirs.forEach(function(d){ d.rows.forEach(function(r){
+      html+='<tr><td>'+dirShort(d.label)+'</td><td>'+escHtml(r.label)+'</td><td>'+f1(r.A_wall)+'</td><td>'+f1(r.A_roofProj)+'</td><td>'+f2(r.F_min/1000)+'</td><td>'+f2(r.F_code/1000)+'</td>'
+        +'<td style="font-weight:700;color:'+(r.minGoverns?'#b45309':'#1e3c72')+'">'+(r.minGoverns?'Minimum':'Design')+'</td></tr>';
+    }); });
+    html+='</tbody></table><div class="ref" style="margin-top:4px">Applied per diaphragm level: wall area = trib. wall height × B⊥ (+ gable-end triangle / monoslope tall-wall band and parapet at the roof level); roof area = roof surfaces projected on the vertical plane at the roof level. The larger of design and minimum is the diaphragm force sent downstream.</div>';
+  }
   html+='<div class="ref" style="margin-top:8px"><b>Design load cases (Fig. 27.3-8)</b> — MWFRS of buildings of all heights: '
     +'<b>Case 1</b> full pressure on each principal axis separately; '
     +'<b>Case 2</b> 75% of Case 1 with torsional moment M<sub>T</sub> = 0.75(P<sub>WX</sub>+P<sub>LX</sub>)B<sub>X</sub>e<sub>X</sub> (e = ±0.15B); '
@@ -1234,7 +1482,7 @@ function renderSend(wx,wy,container){
   var wxBase=wx.rows[wx.rows.length-1].V_cum; // base shear Wind-X
   var wyBase=wy.rows[wy.rows.length-1].V_cum; // base shear Wind-Y
 
-  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568">The <b>Diaphragm Designer</b> receives the <b>diaphragm force F</b> at every level (tributary wall wind + parapet at that level — what each diaphragm must span). Story shears for the Stacked Shearwall come from the Diaphragm Designer once each level\'s walls are laid out.</p>';
+  var html='<p style="margin-bottom:10px;font-size:.85em;color:#4a5568">The <b>Diaphragm Designer</b> receives the <b>diaphragm force F</b> at every level (tributary wall wind + gable-end wall + roof horizontal + parapet at that level, not less than the §27.1.5 minimum — what each diaphragm must span). Story shears for the Stacked Shearwall come from the Diaphragm Designer once each level\'s walls are laid out.</p>';
 
   html+='<div class="kv" style="margin-bottom:14px">'
     +'<div class="kv-item">Wind-X Base Shear = <span>'+fi(wxBase)+' lbs ('+f2(wxBase/1000)+' kips)</span></div>'
@@ -1286,407 +1534,281 @@ function doSendDiaphragm(){
 // ─── MWFRS BUILDING ELEVATION DIAGRAM (AREDraw) ──────────────────────────────
 function drawMWFRSDiagram(){
   if(!window.AREDraw) return;
-
-  var B    = parseFloat(document.getElementById('B').value)||60;
-  var Ddim = parseFloat(document.getElementById('D').value)||120;
-  var hVal = parseFloat(document.getElementById('h').value)||40;
-  var hp   = isOpenEncl() ? 0 : (parseFloat(document.getElementById('hp').value)||0);
   var wrap = document.getElementById('mwfrsDiagWrap');
   if(!wrap) return;
-
-  // ── Re-use or create the <svg> element ───────────────────────────────────
   var svg = wrap.querySelector('svg');
   if(!svg){
     svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
     wrap.appendChild(svg);
   }
 
-  // ── Scale: fit building elevation in ~200 px height budget ───────────────
-  // World units = feet. sc = px/ft.
-  var hTot = hVal + hp;
-  var sc   = Math.min(200 / Math.max(hTot, 8), 5);
-  sc       = Math.max(sc, 1.4);
+  var B    = parseFloat(document.getElementById('B').value)||60;
+  var Ddim = parseFloat(document.getElementById('D').value)||120;
+  var hIn  = parseFloat(document.getElementById('h').value)||40;
+  var open = isOpenEncl();
+  var hp   = open ? 0 : (parseFloat(document.getElementById('hp').value)||0);
+  var theta= getTheta();
+  var rt   = open ? 'flat' : getRoofType();
+  // Walled: eave / mean / ridge from the roof geometry. Open (free roof) keeps the
+  // single-height box (G2-07 deferred).
+  var g = open ? null : readRoofGeom();
+  var eave  = g ? g.eave  : hIn;
+  var hMean = g ? g.hMean : hIn;
+  var ridge = g ? g.ridge : hIn;
+  var rise  = g ? g.rise  : 0;
 
-  // Wall cosmetic thickness (ft) — visible structural shell
-  var wt = Math.max(0.6, Math.min(1.5, B * 0.02));
-
-  // ── Pre-declare plan inset geometry so callouts can clear it ─────────────
-  var arLen   = 34;   // px — pressure arrow length (used throughout)
-  var planGap = 80;   // px — gap between elevation right edge and plan left edge
-  var psc     = Math.max(0.5, Math.min(2.0, 110 / Math.max(Math.max(B, Ddim), 8)));
-  // Elevation right edge pixel = elevOx + (B+wt)*sc
-  // elevOx = 110, so approx right edge = 110 + (B+wt)*sc
-  // Leeward arrow tips = right edge + arLen  (in px)
-  // Plan left edge = right edge + planGap
-  // LW callout goes between arrow tips and plan, well clear of plan
-
-  // ── Drawing ───────────────────────────────────────────────────────────────
   var dwg = new AREDraw.Drawing(svg, { margin: 20 });
   var st  = dwg.style;
+  var NS  = 'http://www.w3.org/2000/svg';
+  var arLen = 30;                                   // px — pressure arrow length
+  var hTot  = Math.max(ridge, eave + hp, 1);
+  var Lmax  = Math.max(B, Ddim, 8);
+  var sc = Math.min(170/Math.max(hTot, 8), 560/Lmax, 5);
+  sc = Math.max(sc, 0.35);
+  var wt = Math.max(0.6, Math.min(1.5, Lmax*0.012));   // wall cosmetic thickness (ft)
 
-  // ── ELEVATION VIEW (Wind-X, wind from left) ───────────────────────────────
-  // Origin at ground-left of windward wall; y flips so +y = up.
-  // Left gutter for incoming arrows + approach label (110 px).
-  var elevOx = 110;
-  var elevOy = 50 + hTot * sc;   // ground pixel y (SVG y increases downward)
-  var vE = new AREDraw.View(dwg, { scale: sc, ox: elevOx, oy: elevOy, flipY: true });
-
-  // ── Building shell (plates) ───────────────────────────────────────────────
-  // Ground slab
-  AREDraw.plate(vE, 0, -wt, B, wt, { fill: st.steel, hatch: false });
-  // Windward wall
-  AREDraw.plate(vE, 0, 0, wt, hVal, { fill: st.steelFill, hatch: false });
-  // Leeward wall
-  AREDraw.plate(vE, B-wt, 0, wt, hVal, { fill: st.steelFill, hatch: false });
-  // Roof (amber = primary surface of interest)
-  AREDraw.plate(vE, 0, hVal, B, wt, { fill: st.steelFillHi, hatch: false });
-  // Parapet
-  if(hp > 0.1){
-    AREDraw.plate(vE, 0,    hVal+wt, wt, hp-wt, { fill: st.steelFill, hatch: false });
-    AREDraw.plate(vE, B-wt, hVal+wt, wt, hp-wt, { fill: st.steelFill, hatch: false });
+  function poly(v, pts, attrs, layer){
+    var d=''; pts.forEach(function(p,i){ d+=(i?'L':'M')+v.px(p[0]).toFixed(1)+','+v.py(p[1]).toFixed(1)+' '; });
+    var e=document.createElementNS(NS,'path'); e.setAttribute('d', d+'Z');
+    Object.keys(attrs).forEach(function(k){ e.setAttribute(k, attrs[k]); });
+    v.add(e, layer||'steel');
+    pts.forEach(function(p){ dwg.extend(v.px(p[0]), v.py(p[1])); });
+    return e;
   }
-  // Roof centerline
-  AREDraw.centerline(vE, -1, hVal+wt/2, B+1, hVal+wt/2);
-
-  // ── Windward wall pressure arrows (→ into wall) ───────────────────────────
-  // 4 arrows spaced up the windward face; tails at x = -arLen/sc, heads at x = 0
-  // arLen pre-declared above (34 px)
-  var nW = 4;
-  for(var i=0; i<nW; i++){
-    var yw = hVal*(i+0.5)/nW;
-    AREDraw.forceArrow(vE, -arLen/sc, yw, 1, 0, arLen, '', { color: st.force });
+  function line(x1,y1,x2,y2,attrs){
+    var e=document.createElementNS(NS,'line');
+    e.setAttribute('x1',x1.toFixed(1)); e.setAttribute('y1',y1.toFixed(1)); e.setAttribute('x2',x2.toFixed(1)); e.setAttribute('y2',y2.toFixed(1));
+    Object.keys(attrs).forEach(function(k){ e.setAttribute(k, attrs[k]); });
+    dwg.gAnno.appendChild(e); return e;
   }
-  // Windward callout: pulled left, at ~25% wall height (below "Wind-X" label at 75%)
-  var wwCallPx = elevOx - arLen - 62;    // px target X for label
-  var wwCallPy = elevOy - hVal*sc*0.22;  // px target Y — near bottom of wall
-  AREDraw.calloutLabel(vE, -arLen/sc, hVal*0.22,
-    wwCallPx, wwCallPy, '+p, WW', { color: st.force, anchor: 'end' });
-
-  // ── Leeward wall suction arrows (→ away from wall = suction) ─────────────
-  for(var j=0; j<nW; j++){
-    var yl = hVal*(j+0.5)/nW;
-    AREDraw.forceArrow(vE, B+wt, yl, 1, 0, arLen, '', { color: st.force });
+  function text(x,y,str,attrs){
+    var t=document.createElementNS(NS,'text');
+    t.setAttribute('x',String(Math.round(x))); t.setAttribute('y',String(Math.round(y)));
+    t.setAttribute('font-family', st.font); t.setAttribute('font-size','9'); t.setAttribute('fill', st.dim);
+    Object.keys(attrs||{}).forEach(function(k){ t.setAttribute(k, attrs[k]); });
+    t.textContent=str; dwg.gAnno.appendChild(t);
+    var w=str.length*(parseFloat(t.getAttribute('font-size'))||9)*0.56, a=t.getAttribute('text-anchor')||'start';
+    var x0=a==='middle'?x-w/2:(a==='end'?x-w:x);
+    dwg.extend(x0, y-11); dwg.extend(x0+w, y+3);
+    return t;
   }
-  // Leeward callout: placed AFTER the plan inset (far right), connected back
-  // by a long dotted leader. This keeps it clear of the plan box entirely.
-  // planLeft computed below — approximate now: elevOx + (B+wt)*sc + planGap + psc*B
-  var lwArTipPx = elevOx + (B+wt)*sc + arLen;
-  // Put label to the right of the plan box (plan right ≈ lwArTipPx + planGap + psc*B)
-  var lwCallPx  = lwArTipPx + planGap + psc*B + 10;
-  var lwCallPy  = elevOy - hVal*sc*0.5;
-  AREDraw.calloutLabel(vE, B+wt, hVal*0.5,
-    lwCallPx, lwCallPy, '−p, LW', { color: st.force, anchor: 'start' });
+  function sgn(v){ return (v>=0?'+':'−')+f2(Math.abs(v)); }
 
-  // ── Roof uplift arrows (↑ suction pulling roof up) ───────────────────────
-  var nR = Math.max(3, Math.min(6, Math.round(B/12)));
-  var roofArBase = hVal + wt + 30/sc;  // tail in world-ft above roof top
-  for(var k=0; k<nR; k++){
-    var xr = wt + (B-2*wt)*(k+0.5)/nR;
-    AREDraw.forceArrow(vE, xr, roofArBase, 0, 1, 28, '', { color: st.force });
+  // Section profile (world ft, wind from the left) for one direction.
+  // Returns {pts, roofSegs:[{p1,p2,kind:'ww'|'lw'|'top'}], wwTop, lwTop, note}
+  function profile(L, isNormal){
+    var e=eave, R=ridge, P={pts:null, roofSegs:[], wwTop:e, lwTop:e, note:''};
+    if(!g || rt==='flat'){
+      P.pts=[[0,0],[0,e],[L,e],[L,0]]; P.roofSegs=[{p1:[0,e],p2:[L,e],kind:'top'}];
+      P.note = open ? 'Open building — see free-roof tables' : 'Flat / low-slope roof — Fig. 27.3-1 zone table (uplift)';
+      return P;
+    }
+    if(rt==='gablehip'){
+      if(isNormal){
+        P.pts=[[0,0],[0,e],[L/2,R],[L,e],[L,0]];
+        P.roofSegs=[{p1:[0,e],p2:[L/2,R],kind:'ww'},{p1:[L/2,R],p2:[L,e],kind:'lw'}];
+        P.note='Wind normal to ridge — '+(g.roofEnds==='hip'?'hip':'gable')+' roof slopes load Cp,WW / Cp,LW over the projected area';
+      } else if(g.roofEnds==='hip'){
+        var run=Math.min(g.span/2, L/2);
+        P.pts=[[0,0],[0,e],[run,R],[L-run,R],[L,e],[L,0]];
+        P.roofSegs=[{p1:[0,e],p2:[run,R],kind:'ww'},{p1:[run,R],p2:[L-run,R],kind:'top'},{p1:[L-run,R],p2:[L,e],kind:'lw'}];
+        P.note='Wind parallel to ridge — hip end planes load Cp,WW / Cp,LW; side slopes use the zone table';
+      } else {
+        // side view: walls to the eave, roof slope seen beyond; the gable-end walls at
+        // each end rise to the ridge and load as wall.
+        P.pts=[[0,0],[0,e],[L,e],[L,0]]; P.band=[[0,e],[0,R],[L,R],[L,e]]; P.wwTop=R; P.lwTop=R;
+        P.bandLbl='roof slope beyond · gable ends (½·'+f1(g.span)+'·'+f1(rise)+' ft) load as wall';
+        P.roofSegs=[{p1:[0,R],p2:[L,R],kind:'top'}];
+        P.note='Wind parallel to ridge — gable-end wall triangle (above eave) loads as wall; roof = zone table';
+      }
+    } else if(rt==='monoslope'){
+      if(isNormal){
+        P.pts=[[0,0],[0,e],[L,R],[L,0]]; P.lwTop=R;
+        P.roofSegs=[{p1:[0,e],p2:[L,R],kind:'ww'}];
+        P.note='Wind normal to slope (shown at the low eave) — both senses checked, larger governs';
+      } else {
+        P.pts=[[0,0],[0,e],[L,e],[L,0]]; P.band=[[0,e],[0,R],[L,R],[L,e]]; P.wwTop=R; P.lwTop=R;
+        P.bandLbl='tall wall / roof slope beyond · end-wall triangles load as wall';
+        P.roofSegs=[{p1:[0,R],p2:[L,R],kind:'top'}];
+        P.note='Wind parallel to slope — end-wall triangle loads as wall; roof = zone table';
+      }
+    } else { // mansard
+      var rm=Math.min(g.run||0, L/2);
+      P.pts=[[0,0],[0,e],[rm,R],[L-rm,R],[L,e],[L,0]];
+      P.roofSegs=[{p1:[0,e],p2:[rm,R],kind:'ww'},{p1:[rm,R],p2:[L-rm,R],kind:'top'},{p1:[L-rm,R],p2:[L,e],kind:'lw'}];
+      P.note='Mansard — windward slope Cp,WW; top + leeward slope Cp,LW (Fig. 27.3-1)';
+    }
+    return P;
   }
-  // Roof callout: centered above arrows
-  var roofCallPx = vE.px(B/2);
-  var roofCallPy = elevOy - (roofArBase*sc) - 28 - 14; // well above arrow tips
-  AREDraw.calloutLabel(vE, B/2, roofArBase,
-    roofCallPx, roofCallPy, '−p, Roof (uplift)', { color: st.force, anchor: 'middle' });
 
-  // ── "Wind-X →" approach arrow (above windward arrows, further left) ───────
-  AREDraw.forceArrow(vE, -(arLen+50)/sc, hVal*0.75, 1, 0, 44,
-    'Wind-X', { color: st.force, labelOff: 13 });
+  // Roof Cp for the diagram labels (same functions as calculate()).
+  function roofCp(L){ return (theta>=10) ? slopedRoofCp(theta, hMean/L) : null; }
 
-  // ── Dimensions ───────────────────────────────────────────────────────────
-  // Width B — below ground slab
-  AREDraw.dimLine(vE, 0, -wt, B, -wt, f1(B)+' ft (B, EW)', { off: -26 });
-  // Height h — right of leeward wall
-  AREDraw.dimLine(vE, B+wt, 0, B+wt, hVal, f1(hVal)+' ft (h)', { off: 26 });
-  // Parapet hp — right, stacked above h
-  if(hp > 0.1){
-    AREDraw.dimLine(vE, B+wt, hVal, B+wt, hVal+hp, f1(hp)+' ft (hp,max)', { off: 26 });
+  function elevation(ox, oy, L, isNormal, dirLbl, dimLbl, windLbl){
+    var v = new AREDraw.View(dwg, { scale: sc, ox: ox, oy: oy, flipY: true });
+    var P = profile(L, isNormal);
+    // ground slab + building section
+    AREDraw.plate(v, 0, -wt, L, wt, { fill: st.steel, hatch: false });
+    var shell = poly(v, P.pts, { fill: st.steelFill, stroke: st.steel, 'stroke-width': st.lwObject, 'stroke-linejoin':'round', 'data-roof': rt }, 'steel');
+    if(P.band){
+      poly(v, P.band, { fill: '#fdecc8', stroke: st.steel, 'stroke-width': st.lwObject, 'stroke-linejoin':'round' }, 'steel');
+      text(v.px(L/2), v.py(eave+0.78*(ridge-eave))+3, P.bandLbl, { 'text-anchor':'middle', 'font-size':'8.5' });
+    }
+    // roof surfaces highlighted
+    P.roofSegs.forEach(function(s){
+      var e=document.createElementNS(NS,'line');
+      e.setAttribute('x1',v.px(s.p1[0]).toFixed(1)); e.setAttribute('y1',v.py(s.p1[1]).toFixed(1));
+      e.setAttribute('x2',v.px(s.p2[0]).toFixed(1)); e.setAttribute('y2',v.py(s.p2[1]).toFixed(1));
+      e.setAttribute('stroke', st.steelFillHi==='transparent'?'#d97706':'#d97706'); e.setAttribute('stroke-width','3.5'); e.setAttribute('stroke-linecap','round');
+      v.add(e,'steel');
+    });
+    // eave line (dashed) where the section rises above the eave
+    if(rise>0.01 && g){
+      AREDraw.centerline(v, -0.5, eave, L+0.5, eave);
+      // mean-height line
+      var y=v.py(hMean);
+      line(v.px(0), y, v.px(L), y, { stroke: st.dim, 'stroke-width': '0.7', 'stroke-dasharray':'2 3' });
+    }
+    // parapets (flat roofs)
+    if(hp>0.1 && (!g || rt==='flat')){
+      AREDraw.plate(v, 0,    eave, wt, hp, { fill: st.steelFill, hatch: false });
+      AREDraw.plate(v, L-wt, eave, wt, hp, { fill: st.steelFill, hatch: false });
+    }
+    // windward wall arrows (into the wall) and leeward suction (away)
+    var nW=4, i;
+    for(i=0;i<nW;i++){
+      var yw=P.wwTop*(i+0.5)/nW;
+      AREDraw.forceArrow(v, -arLen/sc, yw, 1, 0, arLen, '', { color: st.force });
+    }
+    for(i=0;i<nW;i++){
+      var yl=P.lwTop*(i+0.5)/nW;
+      AREDraw.forceArrow(v, L, yl, 1, 0, arLen, '', { color: st.force, standoff: 2 });
+    }
+    text(v.px(0)-arLen-4, v.py(0)+13, '+p, WW (Cp +0.8)', { 'text-anchor':'end', fill: st.force, 'font-weight':'600' });
+    text(v.px(L)+6, v.py(0)+13, '−p, LW', { 'text-anchor':'start', fill: st.force, 'font-weight':'600' });
+    // roof arrows normal to each segment
+    var cp = roofCp(L);
+    P.roofSegs.forEach(function(s){
+      var dx=s.p2[0]-s.p1[0], dy=s.p2[1]-s.p1[1], len=Math.sqrt(dx*dx+dy*dy)||1;
+      var nx=-dy/len, ny=dx/len;                     // outward (up) normal for left-to-right segments
+      var cpv = s.kind==='ww' ? (cp ? cp[1] : null) : (s.kind==='lw' ? (cp ? cp[2] : null) : null);
+      var toward = cpv!==null && cpv>0;               // positive = pressure into the surface
+      var nA = Math.max(2, Math.min(5, Math.round(len*sc/70)));
+      for(var k=0;k<nA;k++){
+        var t=(k+0.5)/nA, px=s.p1[0]+dx*t, py=s.p1[1]+dy*t;
+        if(toward) AREDraw.forceArrow(v, px+nx*(arLen+3)/sc, py+ny*(arLen+3)/sc, -nx, -ny, arLen, '', { color: st.force });
+        else AREDraw.forceArrow(v, px, py, nx, ny, arLen, '', { color: st.force, standoff: 3 });
+      }
+      var mx=s.p1[0]+dx*0.5, my=s.p1[1]+dy*0.5;
+      var lblTxt = s.kind==='top' ? '−p, roof (uplift)' : ('Cp,'+(s.kind==='ww'?'WW':'LW')+' '+(cpv!==null?sgn(cpv):'n/a'));
+      var lx=v.px(mx)+nx*(arLen+16), ly=v.py(my)-ny*(arLen+16);
+      text(lx, ly, lblTxt, { 'text-anchor': s.kind==='ww'?'end':(s.kind==='lw'?'start':'middle'), fill: st.force, 'font-weight':'600' });
+    });
+    // approach arrow
+    AREDraw.forceArrow(v, -(arLen+48)/sc, Math.max(P.wwTop,eave)*0.7, 1, 0, 40, windLbl, { color: st.force, labelOff: 12 });
+    // dimensions: along-wind length below, heights to the right of the leeward arrows
+    AREDraw.dimLine(v, 0, -wt, L, -wt, f1(L)+' ft ('+dimLbl+')', { off: 22 });
+    // label text is centred on each dim line, so space the lines by the label width
+    var xr=L, o1=arLen+46, dO=78;
+    AREDraw.dimLine(v, xr, 0, xr, eave, f1(eave)+' ft ('+(g&&rt!=='flat'?'eave':'h')+')', { off: o1 });
+    if(g && rise>0.01){
+      AREDraw.dimLine(v, xr, 0, xr, hMean, f1(hMean)+' ft (h mean)', { off: o1+dO });
+      AREDraw.dimLine(v, xr, 0, xr, ridge, f1(ridge)+' ft (ridge)', { off: o1+2*dO });
+    }
+    if(hp>0.1 && (!g || rt==='flat')) AREDraw.dimLine(v, xr, eave, xr, eave+hp, f1(hp)+' ft (hp,max)', { off: o1 });
+    // title + caption
+    var tY = oy + wt*sc + 58;
+    AREDraw.viewTitle(v, v.px(L/2), tY, dirLbl+' Elevation — MWFRS ('+ed().name+' Ch. 27)');
+    text(v.px(L/2), tY+17, P.note+(hp>0.1 && g && rt!=='flat' ? ' · parapet h_p = '+f1(hp)+' ft applied (not drawn)' : ''), { 'text-anchor':'middle' });
+    return { bottom: tY+22, right: v.px(L) + o1 + (g && rise>0.01 ? 2*dO : 0) + 45 };
   }
 
-  // ── View title (below elevation) ─────────────────────────────────────────
-  var eTitleY = elevOy + 28;
-  AREDraw.viewTitle(vE, vE.px(B/2), eTitleY, 'Wind-X Elevation (wind E–W) — MWFRS ('+ed().name+' Ch. 27)');
+  // ── Two elevations, stacked: Wind-X (L = B) over Wind-Y (L = D) ────────────
+  var ox=150;
+  var normalX = g ? g.normalX : (document.getElementById('ridgeDir').value==='D');
+  var oyX = 60 + hTot*sc;
+  var eX = elevation(ox, oyX, B, normalX, 'Wind-X (wind E–W)', 'B, E–W', 'Wind-X');
+  var oyY = eX.bottom + 70 + hTot*sc;
+  var eY = elevation(ox, oyY, Ddim, !normalX, 'Wind-Y (wind N–S)', 'D, N–S', 'Wind-Y');
 
-  // Code caption
-  var capY = eTitleY + 18;
-  dwg.extend(vE.px(0), capY + 12);
-  dwg.extend(vE.px(B), capY + 12);
-  (function(){
-    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', String(Math.round(vE.px(B/2))));
-    t.setAttribute('y', String(capY));
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size','9');
-    t.setAttribute('fill', st.dim);
-    t.setAttribute('font-family', st.font);
-    t.textContent = 'Fig. 27.3-1  |  Cp,WW = +0.8 (qz)  |  Cp,LW per L/B  |  Roof uplift = suction';
-    dwg.gAnno.appendChild(t);
-  })();
-
-  // ── PLAN INSET (right of elevation) ──────────────────────────────────────
-  // psc and planGap pre-declared above.
-  // Plan sits between the leeward arrow tips and the LW callout label.
-  var planLeft = elevOx + (B+wt)*sc + planGap;
-  var planTop  = elevOy - hTot*sc*0.5 - Ddim*psc*0.5; // vertically centered
-  // Make a simple plan without a View (direct pixel coordinates)
+  // ── PLAN INSET (right of the elevations) ──────────────────────────────────
+  var psc = Math.max(0.5, Math.min(2.0, 130/Math.max(B, Ddim, 8)));
   var pW = B*psc, pH = Ddim*psc;
-
-  // Plan building rect
+  var planLeft = Math.max(eX.right, eY.right) + 40;
+  var planTop  = (oyX + oyY)/2 - hTot*sc*0.5 - pH/2;
+  var ink='#1a2b5f';
   (function(){
-    var r = document.createElementNS('http://www.w3.org/2000/svg','rect');
-    r.setAttribute('x',  String(Math.round(planLeft)));
-    r.setAttribute('y',  String(Math.round(planTop)));
-    r.setAttribute('width',  String(Math.round(pW)));
-    r.setAttribute('height', String(Math.round(pH)));
-    r.setAttribute('fill','#dbe2f0');
-    r.setAttribute('stroke','#1a2b5f');
-    r.setAttribute('stroke-width','1.5');
+    var r=document.createElementNS(NS,'rect');
+    r.setAttribute('x',planLeft.toFixed(1)); r.setAttribute('y',planTop.toFixed(1));
+    r.setAttribute('width',pW.toFixed(1)); r.setAttribute('height',pH.toFixed(1));
+    r.setAttribute('fill','#dbe2f0'); r.setAttribute('stroke',ink); r.setAttribute('stroke-width','1.5');
     dwg.gSteel.appendChild(r);
-    dwg.extend(planLeft, planTop);
-    dwg.extend(planLeft+pW, planTop+pH);
+    dwg.extend(planLeft, planTop); dwg.extend(planLeft+pW, planTop+pH);
   })();
-
-  // Wind-X approach arrow (→ into left face of plan)
-  var pWxY  = planTop + pH*0.32;
-  var pWxX1 = planLeft - 28;
-  var pWxX2 = planLeft - 2;
-  (function(){
-    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-    ln.setAttribute('x1', String(Math.round(pWxX1)));
-    ln.setAttribute('y1', String(Math.round(pWxY)));
-    ln.setAttribute('x2', String(Math.round(pWxX2)));
-    ln.setAttribute('y2', String(Math.round(pWxY)));
-    ln.setAttribute('stroke','#c42b2b'); ln.setAttribute('stroke-width','1.8');
-    ln.setAttribute('marker-end','url(#areArrForce)');
-    dwg.gAnno.appendChild(ln);
-    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', String(Math.round((pWxX1+pWxX2)/2)));
-    t.setAttribute('y', String(Math.round(pWxY-5)));
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size','8.5');
-    t.setAttribute('fill','#c42b2b');
-    t.setAttribute('font-family', st.font);
-    t.setAttribute('font-weight','700');
-    t.textContent = 'W-X';
-    dwg.gAnno.appendChild(t);
-    dwg.extend(pWxX1-2, pWxY-12);
-  })();
-
-  // Wind-Y approach arrow (↑ into bottom (S) face of plan — wind N–S)
-  // Place to the left of the B/D labels so they don't overlap
-  var pWyX  = planLeft + pW*0.18;
-  var pWyY1 = planTop + pH + 28;
-  var pWyY2 = planTop + pH + 2;
-  (function(){
-    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-    ln.setAttribute('x1', String(Math.round(pWyX)));
-    ln.setAttribute('y1', String(Math.round(pWyY1)));
-    ln.setAttribute('x2', String(Math.round(pWyX)));
-    ln.setAttribute('y2', String(Math.round(pWyY2)));
-    ln.setAttribute('stroke','#c42b2b'); ln.setAttribute('stroke-width','1.8');
-    ln.setAttribute('marker-end','url(#areArrForce)');
-    dwg.gAnno.appendChild(ln);
-    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', String(Math.round(pWyX+7)));
-    t.setAttribute('y', String(Math.round((pWyY1+pWyY2)/2)));
-    t.setAttribute('dominant-baseline','middle');
-    t.setAttribute('font-size','8.5');
-    t.setAttribute('fill','#c42b2b');
-    t.setAttribute('font-family', st.font);
-    t.setAttribute('font-weight','700');
-    t.textContent = 'W-Y';
-    dwg.gAnno.appendChild(t);
-    dwg.extend(pWyX+30, pWyY1+4);
-  })();
-
-  // ── B dimension: ABOVE plan box (horizontal extent = EW width) ──────────────
-  // Witness lines rise from planLeft and planLeft+pW up to dimY; dim line + tick + label
-  // sit in the space above the plan, well clear of the filled rectangle.
-  (function(){
-    var extOff  = 6;   // px gap between plan edge and start of witness line
-    var dimOff  = 24;  // px above plan edge where dim line sits
-    var tickLen = 5;   // px tick half-length on each side of dim line
-    var dimY    = planTop - dimOff;          // y of the horizontal dim line
-    var wL      = planLeft;                  // left corner x
-    var wR      = planLeft + pW;             // right corner x
-    var ns = 'http://www.w3.org/2000/svg';
-
-    // Left witness line (rises from top edge of plan up to dim line, with small overrun)
-    var wl = document.createElementNS(ns, 'line');
-    wl.setAttribute('x1', String(Math.round(wL))); wl.setAttribute('y1', String(Math.round(planTop - extOff)));
-    wl.setAttribute('x2', String(Math.round(wL))); wl.setAttribute('y2', String(Math.round(dimY - tickLen)));
-    wl.setAttribute('stroke','#1a2b5f'); wl.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(wl);
-
-    // Right witness line
-    var wr = document.createElementNS(ns, 'line');
-    wr.setAttribute('x1', String(Math.round(wR))); wr.setAttribute('y1', String(Math.round(planTop - extOff)));
-    wr.setAttribute('x2', String(Math.round(wR))); wr.setAttribute('y2', String(Math.round(dimY - tickLen)));
-    wr.setAttribute('stroke','#1a2b5f'); wr.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(wr);
-
-    // Horizontal dim line
-    var dl = document.createElementNS(ns, 'line');
-    dl.setAttribute('x1', String(Math.round(wL))); dl.setAttribute('y1', String(Math.round(dimY)));
-    dl.setAttribute('x2', String(Math.round(wR))); dl.setAttribute('y2', String(Math.round(dimY)));
-    dl.setAttribute('stroke','#1a2b5f'); dl.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(dl);
-
-    // Left tick
-    var tkL = document.createElementNS(ns, 'line');
-    tkL.setAttribute('x1', String(Math.round(wL - tickLen*0.7))); tkL.setAttribute('y1', String(Math.round(dimY + tickLen)));
-    tkL.setAttribute('x2', String(Math.round(wL + tickLen*0.7))); tkL.setAttribute('y2', String(Math.round(dimY - tickLen)));
-    tkL.setAttribute('stroke','#1a2b5f'); tkL.setAttribute('stroke-width','1.2');
-    dwg.gAnno.appendChild(tkL);
-
-    // Right tick
-    var tkR = document.createElementNS(ns, 'line');
-    tkR.setAttribute('x1', String(Math.round(wR - tickLen*0.7))); tkR.setAttribute('y1', String(Math.round(dimY + tickLen)));
-    tkR.setAttribute('x2', String(Math.round(wR + tickLen*0.7))); tkR.setAttribute('y2', String(Math.round(dimY - tickLen)));
-    tkR.setAttribute('stroke','#1a2b5f'); tkR.setAttribute('stroke-width','1.2');
-    dwg.gAnno.appendChild(tkR);
-
-    // Dimension label above dim line (centred on span)
-    var t = document.createElementNS(ns, 'text');
-    t.setAttribute('x', String(Math.round(wL + pW/2)));
-    t.setAttribute('y', String(Math.round(dimY - 4)));
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size','8.5');
-    t.setAttribute('fill','#1a2b5f');
-    t.setAttribute('font-family', st.font);
-    t.setAttribute('font-weight','700');
-    t.textContent = 'B='+f1(B)+' ft';
-    dwg.gAnno.appendChild(t);
-
-    dwg.extend(wL - 4, dimY - 14);
-    dwg.extend(wR + 4, dimY + 2);
-  })();
-
-  // ── D dimension: RIGHT of plan box (vertical extent = NS depth) ──────────────
-  // Witness lines extend right from planLeft+pW; dim line + tick + label sit outside.
-  (function(){
-    var extOff  = 6;   // px gap between plan edge and start of witness line
-    var dimOff  = 24;  // px right of plan right edge where dim line sits
-    var tickLen = 5;
-    var dimX    = planLeft + pW + dimOff;  // x of the vertical dim line
-    var wT      = planTop;                 // top corner y
-    var wB      = planTop + pH;            // bottom corner y
-    var ns = 'http://www.w3.org/2000/svg';
-
-    // Top witness line
-    var wt2 = document.createElementNS(ns, 'line');
-    wt2.setAttribute('x1', String(Math.round(planLeft + pW + extOff))); wt2.setAttribute('y1', String(Math.round(wT)));
-    wt2.setAttribute('x2', String(Math.round(dimX + tickLen)));         wt2.setAttribute('y2', String(Math.round(wT)));
-    wt2.setAttribute('stroke','#1a2b5f'); wt2.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(wt2);
-
-    // Bottom witness line
-    var wb2 = document.createElementNS(ns, 'line');
-    wb2.setAttribute('x1', String(Math.round(planLeft + pW + extOff))); wb2.setAttribute('y1', String(Math.round(wB)));
-    wb2.setAttribute('x2', String(Math.round(dimX + tickLen)));         wb2.setAttribute('y2', String(Math.round(wB)));
-    wb2.setAttribute('stroke','#1a2b5f'); wb2.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(wb2);
-
-    // Vertical dim line
-    var dl = document.createElementNS(ns, 'line');
-    dl.setAttribute('x1', String(Math.round(dimX))); dl.setAttribute('y1', String(Math.round(wT)));
-    dl.setAttribute('x2', String(Math.round(dimX))); dl.setAttribute('y2', String(Math.round(wB)));
-    dl.setAttribute('stroke','#1a2b5f'); dl.setAttribute('stroke-width','0.8');
-    dwg.gAnno.appendChild(dl);
-
-    // Top tick (45° slash)
-    var tkT = document.createElementNS(ns, 'line');
-    tkT.setAttribute('x1', String(Math.round(dimX - tickLen))); tkT.setAttribute('y1', String(Math.round(wT + tickLen*0.7)));
-    tkT.setAttribute('x2', String(Math.round(dimX + tickLen))); tkT.setAttribute('y2', String(Math.round(wT - tickLen*0.7)));
-    tkT.setAttribute('stroke','#1a2b5f'); tkT.setAttribute('stroke-width','1.2');
-    dwg.gAnno.appendChild(tkT);
-
-    // Bottom tick
-    var tkB = document.createElementNS(ns, 'line');
-    tkB.setAttribute('x1', String(Math.round(dimX - tickLen))); tkB.setAttribute('y1', String(Math.round(wB + tickLen*0.7)));
-    tkB.setAttribute('x2', String(Math.round(dimX + tickLen))); tkB.setAttribute('y2', String(Math.round(wB - tickLen*0.7)));
-    tkB.setAttribute('stroke','#1a2b5f'); tkB.setAttribute('stroke-width','1.2');
-    dwg.gAnno.appendChild(tkB);
-
-    // Rotated dimension label (centred vertically, to the right of dim line)
-    var t = document.createElementNS(ns, 'text');
-    t.setAttribute('x', String(Math.round(dimX + 4)));
-    t.setAttribute('y', String(Math.round(wT + pH/2)));
-    t.setAttribute('dominant-baseline','middle');
-    t.setAttribute('font-size','8.5');
-    t.setAttribute('fill','#1a2b5f');
-    t.setAttribute('font-family', st.font);
-    t.setAttribute('font-weight','700');
-    t.setAttribute('transform', 'rotate(90,'+String(Math.round(dimX + 4))+','+String(Math.round(wT + pH/2))+')');
-    t.textContent = 'D='+f1(Ddim)+' ft';
-    dwg.gAnno.appendChild(t);
-
-    dwg.extend(dimX - 2, wT - 4);
-    dwg.extend(dimX + 18, wB + 4);
-  })();
-
-  // North arrow (above plan, to the right)
-  var nAx  = planLeft + pW + 14;
-  var nAy2 = planTop - 4;
-  var nAy1 = nAy2 - 20;
-  (function(){
-    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-    ln.setAttribute('x1', String(nAx)); ln.setAttribute('y1', String(Math.round(nAy1+2)));
-    ln.setAttribute('x2', String(nAx)); ln.setAttribute('y2', String(Math.round(nAy2)));
-    ln.setAttribute('stroke','#1a2b5f'); ln.setAttribute('stroke-width','1.5');
-    ln.setAttribute('marker-end','url(#areArrForce)');
-    dwg.gAnno.appendChild(ln);
-    var t = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', String(nAx)); t.setAttribute('y', String(Math.round(nAy1-2)));
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size','9'); t.setAttribute('fill','#1a2b5f');
-    t.setAttribute('font-family', st.font); t.setAttribute('font-weight','900');
-    t.textContent = 'N';
-    dwg.gAnno.appendChild(t);
-    dwg.extend(nAx-6, nAy1-14); dwg.extend(nAx+6, nAy2+4);
-  })();
-
-  // Plan view title: below plan box + Wind-Y arrow (which extends ~30px below box)
-  var planTitleY = planTop + pH + 44;
-  (function(){
-    var str = 'Building Plan';
-    var tw  = str.length * 13 * 0.56 / 2;
-    var tx  = planLeft + pW/2;
-    var t   = document.createElementNS('http://www.w3.org/2000/svg','text');
-    t.setAttribute('x', String(Math.round(tx)));
-    t.setAttribute('y', String(Math.round(planTitleY)));
-    t.setAttribute('text-anchor','middle');
-    t.setAttribute('font-size','13');
-    t.setAttribute('fill','#1a2b5f');
-    t.setAttribute('font-family', st.font);
-    t.setAttribute('font-weight','700');
-    t.textContent = str;
-    dwg.gAnno.appendChild(t);
-    // Underline rule
-    var ln = document.createElementNS('http://www.w3.org/2000/svg','line');
-    ln.setAttribute('x1', String(Math.round(tx-tw)));
-    ln.setAttribute('y1', String(Math.round(planTitleY+4.5)));
-    ln.setAttribute('x2', String(Math.round(tx+tw)));
-    ln.setAttribute('y2', String(Math.round(planTitleY+4.5)));
-    ln.setAttribute('stroke','#1a2b5f'); ln.setAttribute('stroke-width','1.1');
-    dwg.gAnno.appendChild(ln);
-    dwg.extend(tx-tw-4, planTitleY-13);
-    dwg.extend(tx+tw+4, planTitleY+10);
-  })();
+  // roof lines in plan
+  if(g && rt!=='flat'){
+    var rl={ stroke: ink, 'stroke-width':'1', 'stroke-dasharray':'5 3' };
+    var cx=planLeft+pW/2, cy=planTop+pH/2;
+    if(rt==='gablehip'){
+      if(g.roofEnds==='hip'){
+        var hr=g.span/2*psc;
+        if(g.normalX){ // ridge N–S
+          var y1=planTop+Math.min(hr,pH/2), y2=planTop+pH-Math.min(hr,pH/2);
+          line(cx,y1,cx,y2,rl);
+          line(planLeft,planTop,cx,y1,rl); line(planLeft+pW,planTop,cx,y1,rl);
+          line(planLeft,planTop+pH,cx,y2,rl); line(planLeft+pW,planTop+pH,cx,y2,rl);
+        } else {
+          var x1=planLeft+Math.min(hr,pW/2), x2=planLeft+pW-Math.min(hr,pW/2);
+          line(x1,cy,x2,cy,rl);
+          line(planLeft,planTop,x1,cy,rl); line(planLeft,planTop+pH,x1,cy,rl);
+          line(planLeft+pW,planTop,x2,cy,rl); line(planLeft+pW,planTop+pH,x2,cy,rl);
+        }
+      } else if(g.normalX) line(cx,planTop,cx,planTop+pH,rl);
+      else line(planLeft,cy,planLeft+pW,cy,rl);
+    } else if(rt==='monoslope'){
+      if(g.normalX) line(planLeft+pW,planTop,planLeft+pW,planTop+pH,{ stroke: ink, 'stroke-width':'3' });
+      else line(planLeft,planTop,planLeft+pW,planTop,{ stroke: ink, 'stroke-width':'3' });
+      text(g.normalX?planLeft+pW-3:cx, g.normalX?cy:planTop+11, 'high', { 'text-anchor': g.normalX?'end':'middle', 'font-size':'8' });
+    } else if(rt==='mansard'){
+      var m=Math.min((g.run||0)*psc, pW/2, pH/2);
+      var r2=document.createElementNS(NS,'rect');
+      r2.setAttribute('x',(planLeft+m).toFixed(1)); r2.setAttribute('y',(planTop+m).toFixed(1));
+      r2.setAttribute('width',Math.max(pW-2*m,0).toFixed(1)); r2.setAttribute('height',Math.max(pH-2*m,0).toFixed(1));
+      r2.setAttribute('fill','none'); r2.setAttribute('stroke',ink); r2.setAttribute('stroke-width','1'); r2.setAttribute('stroke-dasharray','5 3');
+      dwg.gAnno.appendChild(r2);
+    }
+  }
+  // wind arrows into the plan
+  function planArrow(x1,y1,x2,y2,lbl,lx,ly,anchor){
+    line(x1,y1,x2,y2,{ stroke:'#c42b2b', 'stroke-width':'1.8', 'marker-end':'url(#areArrForce)' });
+    text(lx,ly,lbl,{ 'text-anchor':anchor, fill:'#c42b2b', 'font-weight':'700', 'font-size':'8.5' });
+    dwg.extend(Math.min(x1,x2)-2, Math.min(y1,y2)-2); dwg.extend(Math.max(x1,x2)+2, Math.max(y1,y2)+2);
+  }
+  planArrow(planLeft-30, planTop+pH*0.32, planLeft-2, planTop+pH*0.32, 'W-X', planLeft-16, planTop+pH*0.32-5, 'middle');
+  planArrow(planLeft+pW*0.18, planTop+pH+30, planLeft+pW*0.18, planTop+pH+2, 'W-Y', planLeft+pW*0.18+7, planTop+pH+19, 'start');
+  // B above, D right
+  AREDraw.dimLine(new AREDraw.View(dwg,{scale:1,ox:0,oy:0,flipY:false}), planLeft, planTop, planLeft+pW, planTop, 'B='+f1(B)+' ft', { off: -18 });
+  AREDraw.dimLine(new AREDraw.View(dwg,{scale:1,ox:0,oy:0,flipY:false}), planLeft+pW, planTop, planLeft+pW, planTop+pH, 'D='+f1(Ddim)+' ft', { off: -38 });
+  // north arrow
+  var nAx=planLeft+pW+42, nAy2=planTop+2, nAy1=nAy2-20;
+  line(nAx, nAy1+2, nAx, nAy2, { stroke: ink, 'stroke-width':'1.5', 'marker-end':'url(#areArrForce)' });
+  text(nAx, nAy1-2, 'N', { 'text-anchor':'middle', fill: ink, 'font-weight':'900' });
+  var ptY=planTop+pH+50;
+  AREDraw.viewTitle(new AREDraw.View(dwg,{scale:1,ox:0,oy:0,flipY:false}), planLeft+pW/2, ptY, 'Building Plan');
+  if(g && rt!=='flat') text(planLeft+pW/2, ptY+17, rt==='gablehip'?(g.roofEnds==='hip'?'Hip roof — ridge + hips dashed':'Gable roof — ridge dashed'):(rt==='monoslope'?'Monoslope — high side heavy line; elevations show wind at the low eave, both senses computed':'Mansard — top flat dashed'), { 'text-anchor':'middle' });
 
   dwg.commit();
 }
 
 // ─── SAVE / LOAD INPUTS ──────────────────────────────────────────────────────
-var MWFRS_INPUT_IDS=['codeEd','V','exp','encl','Kzt','groundElev','Ke','B','D','h','roofType','freeRoofShape','windFlow','ridgeDir','roofAngleMode','theta','pitchRise','hp','hpTyp','numFrames','AsArea'];
+var MWFRS_INPUT_IDS=['codeEd','V','exp','encl','Kzt','groundElev','Ke','B','D','h','roofType','freeRoofShape','windFlow','ridgeDir','roofAngleMode','theta','pitchRise','hp','hpTyp','numFrames','AsArea','hEave','roofEnds','mansardRise'];
 function collectInputsMWFRS(){
   var storyRows=document.getElementById('storyRows').children;
   var stories=[];
   for(var i=0;i<storyRows.length;i++){
     stories.push({ label: storyRows[i].querySelector('input[type=text]').value, h: storyRows[i].querySelector('.sh').value });
   }
-  var data={ _version:3, _calc:'mwfrs',
+  var data={ _version:4, _calc:'mwfrs',
     projName: document.getElementById('projName').value,
     projNum:  document.getElementById('projNum').value,
     projDate: document.getElementById('projDate').value,
@@ -1855,7 +1977,7 @@ function buildLateralPayload(){
     var parapet=lateralParapet(L);
     var rec=LH.fromMwfrs({
       B:L.B, D:L.D, h:L.h, hp:L.hp, hpTyp:(L.hp>0?L.hpTyp:0), stories:stories, wx:L.wx, wy:L.wy,
-      parapet:parapet, roofType:L.roofType, theta:L.theta,
+      parapet:parapet, roofType:L.roofType, theta:L.theta, eave:L.eave, ridge:L.ridge, roofEnds:L.roofEnds,
       project:(typeof AREv2!=='undefined'&&AREv2.getProject)?AREv2.getProject():'',
       // Project Information block rides along as titleblock metadata (LH.safeText inside fromMwfrs).
       titleblock:{ projectName:tv('projName'), jobNumber:tv('projNum'), engineer:tv('projEng'), date:tv('projDate') },
@@ -1929,7 +2051,8 @@ function copyRevitWind(){
   }
 }
 
-// Applies a saved input object (v1–v3). v1 files carry roofType 'sloped' → gablehip.
+// Applies a saved input object (v1–v4). v1 files carry roofType 'sloped' → gablehip.
+// v4 (2026-09-25) adds hEave / roofEnds / mansardRise; older files: blank eave (derived from h), gable ends.
 function applyInputsMWFRS(d){
   if(d._calc!=='mwfrs') throw new Error('This file is not an MWFRS calculator save file.');
   var set=function(id,v){var el=document.getElementById(id);if(el&&v!==undefined&&v!==null)el.value=v;};
@@ -1939,6 +2062,9 @@ function applyInputsMWFRS(d){
   applyEditionLabels();
   if(d.groundElev===undefined) set('groundElev', 0);   // v1: Ke was a direct input; keep it, do not overwrite from elevation
   if(d.hpTyp===undefined||d.hpTyp===null) set('hpTyp', '');   // pre-2026-09-23 files: typical parapet = max (blank)
+  if(d.hEave===undefined||d.hEave===null) set('hEave', '');   // pre-v4: eave derived from the saved mean h
+  if(d.roofEnds===undefined||d.roofEnds===null) set('roofEnds', 'gable');
+  if(d.mansardRise===undefined||d.mansardRise===null) set('mansardRise', '');
   toggleRoofInputs();
   if(d.stories&&d.stories.length){
     var container=document.getElementById('storyRows');
@@ -2062,7 +2188,7 @@ document.addEventListener('DOMContentLoaded',function(){
   AREv2.loadFromState = function (state, opts) {
     if (state && state.calcFile === 'asce716_mwfrs_calculator.html' && state.fields) {
       state = JSON.parse(JSON.stringify(state));
-      var DEFAULTS = { '#hpTyp': '', '#codeEd': '7-16' };
+      var DEFAULTS = { '#hpTyp': '', '#codeEd': '7-16', '#hEave': '', '#roofEnds': 'gable', '#mansardRise': '' };
       Object.keys(DEFAULTS).forEach(function (k) {
         if (!Object.prototype.hasOwnProperty.call(state.fields, k) && document.getElementById(k.slice(1))) state.fields[k] = DEFAULTS[k];
       });

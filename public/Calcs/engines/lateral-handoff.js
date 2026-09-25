@@ -119,7 +119,8 @@
   // o = { B, D, h, hp, hpTyp, roofType, theta, parapet, stories:[{label, sh}],
   //       wx:{rows}, wy:{rows}, project, titleblock, meta }
   // rows[i] (asce716_mwfrs_calculator.html calcDir): label, F_net (lb, strength,
-  // wall + parapet at rows[0]), F_parapet (lb, 0 when no parapet), V_cum (lb).
+  // max(wall + gable-end + roof horizontal + parapet at rows[0], §27.1.5 min)),
+  // F_parapet (lb, 0 when no parapet), V_cum (lb); F_roof / F_gable / F_min additive.
   // Parapet steps (plan 2026-09-23, additive): geometry.hp_typ_ft / roofType /
   // theta_deg and the top-level parapet block, null when absent.
   var PARAPET_KEYS = ['hp_max_ft', 'hp_typ_ft', 'z_p_ft', 'qp_psf', 'GCpn_ww', 'GCpn_lw', 'pp_ww_psf', 'pp_lw_psf', 'pp_net_psf', 'w_typ_plf', 'roofType', 'roof_theta_deg', 'roofFlat'];
@@ -155,8 +156,15 @@
         V_cum_y_strength_lb: isFinite(num(ry[i].V_cum)) ? Math.round(num(ry[i].V_cum)) : vcy,
         F_seis_x_strength_lb: 0, F_seis_y_strength_lb: 0
       });
+      // Additive (2026-09-25): roof-level parts of F_wind (roof horizontal, gable-end
+      // wall) and the §27.1.5 minimum; F_wind = max(wall + gable + roof + parapet, min).
+      [['x', rx[i]], ['y', ry[i]]].forEach(function (p) {
+        if (p[1].F_roof !== undefined) levels[i]['F_roof_' + p[0] + '_strength_lb'] = Math.round(num(p[1].F_roof, 0));
+        if (p[1].F_gable !== undefined) levels[i]['F_gable_' + p[0] + '_strength_lb'] = Math.round(num(p[1].F_gable, 0));
+        if (p[1].F_min !== undefined) levels[i]['F_min_' + p[0] + '_strength_lb'] = Math.round(num(p[1].F_min, 0));
+      });
     }
-    return {
+    var rec = {
       schema: SCHEMA, loadLevel: 'strength', project: str(o.project), titleblock: titleblock(o.titleblock),
       source: { mwfrs: o.meta || null, files: [] },
       geometry: {
@@ -165,6 +173,12 @@
       },
       axes: AXES, levels: levels, parapet: safeParapet(o.parapet)
     };
+    // Additive (2026-09-25), only when the MWFRS page supplies them: eave / ridge
+    // heights and the gable/hip end condition of a sloped roof.
+    if (o.eave !== undefined) {
+      rec.geometry.eave_ft = safeNum(o.eave); rec.geometry.ridge_ft = safeNum(o.ridge); rec.geometry.roofEnds = safeStr(o.roofEnds);
+    }
+    return rec;
   }
 
   // =========================================================================
