@@ -88,6 +88,8 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   .dem-card,.note-box,.review-box{break-inside:avoid}
 }
 .eq-note{font-size:.8em;color:#555;margin-top:6px}
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ref-cell{font-size:.86em;color:#475569;line-height:1.35}
 #selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.78em;background:#111827;color:#d1d5db;padding:12px;border-radius:8px;margin-top:16px}
 </style>
 </head>
@@ -104,13 +106,125 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
     </div>
   </div>
   <div class="toolbar"></div>
-  <div class="content">
+  <div class="content" id="uiRoot">
     <div class="schema-wrap">
       <svg id="schemSvg" viewBox="0 0 1000 420" width="100%" style="max-height:420px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
+    <div class="blk">
+      <h2>0. Code basis</h2>
+      <div class="g3" style="grid-template-columns:minmax(210px,440px)">
+        <div class="ig"><label>Resistance factors</label>
+          <select id="code">
+            <option value="360-22" selected>AISC 360-22 / DG24 2nd ed (default)</option>
+            <option value="dg24-1">DG24 1st ed / AISC 360-10 (legacy &phi; 0.95)</option>
+          </select></div>
+      </div>
+      <div class="subnote">Only &phi; differs between the two modes: flange local yielding 0.90 vs 0.95, punching 1.00 vs 0.95. The legacy mode reproduces DG24 1st ed Example 4.3 (&phi;M<sub>n</sub> = 87.9 kip-ft for W16X57 on HSS10X10X1/2).</div>
+    </div>
+    <div class="blk">
+      <h2>1. Beam <span class="badge">W-shape, AISC v16.0</span></h2>
+      <div class="g3">
+        <div class="ig"><label>Beam section</label>
+          <select id="wsec" class="member-select" onchange="onBeamChange()"></select></div>
+        <div class="ig"><label>d <span class="unit">(in)</span></label><input type="number" id="bd" value="16.4" step="0.01"></div>
+        <div class="ig"><label>b<sub>f</sub> <span class="unit">(in)</span></label><input type="number" id="bbf" value="7.12" step="0.01"></div>
+        <div class="ig"><label>t<sub>f</sub> <span class="unit">(in)</span></label><input type="number" id="btf" value="0.715" step="0.005"></div>
+        <div class="ig"><label>t<sub>w</sub> <span class="unit">(in)</span></label><input type="number" id="btw" value="0.43" step="0.005"></div>
+        <div class="ig"><label>Z<sub>x</sub> <span class="unit">(in&sup3;)</span></label><input type="number" id="bZx" value="105" step="0.1"></div>
+        <div class="ig"><label>F<sub>yb</sub> beam <span class="unit">(ksi)</span></label><input type="number" id="Fyb" value="50"></div>
+        <div class="ig"><label>F<sub>ub</sub> beam <span class="unit">(ksi)</span></label><input type="number" id="Fub" value="65"></div>
+      </div>
+      <div class="subnote">Select <b>Custom</b> to enter the geometry; a named section fills d, b<sub>f</sub>, t<sub>f</sub>, t<sub>w</sub>, Z<sub>x</sub> from the AISC v16.0 table and locks them. Z<sub>x</sub> is used only for the informational &phi;<sub>b</sub>M<sub>px</sub> comparison.</div>
+    </div>
+    <div class="blk">
+      <h2>2. HSS column <span class="badge">rectangular HSS, AISC v16.0</span></h2>
+      <div class="g3">
+        <div class="ig"><label>Column section</label>
+          <select id="hsec" class="member-select" onchange="onColChange()"></select></div>
+        <div class="ig"><label>H, depth in the beam direction <span class="unit">(in)</span></label><input type="number" id="cH" value="10" step="0.01"></div>
+        <div class="ig"><label>B, width of the connecting face <span class="unit">(in)</span></label><input type="number" id="cB" value="10" step="0.01"></div>
+        <div class="ig"><label>t<sub>des</sub> <span class="unit">(in)</span></label><input type="number" id="ct" value="0.465" step="0.001"></div>
+        <div class="ig"><label>A <span class="unit">(in&sup2;)</span></label><input type="number" id="cA" value="17.2" step="0.01"></div>
+        <div class="ig"><label>S, about the beam-moment axis <span class="unit">(in&sup3;)</span></label><input type="number" id="cS" value="51.2" step="0.01"></div>
+        <div class="ig"><label>Grade</label>
+          <select id="grade" onchange="onGradeChange()">
+            <option value="A500B" selected>A500 Gr. B (46 / 58)</option>
+            <option value="A500C">A500 Gr. C (50 / 62)</option>
+            <option value="A1085">A1085 (50 / 65)</option>
+            <option value="custom">Custom</option>
+          </select></div>
+        <div class="ig"><label>F<sub>y</sub> HSS <span class="unit">(ksi)</span></label><input type="number" id="Fy" value="46"></div>
+        <div class="ig"><label>F<sub>u</sub> HSS <span class="unit">(ksi)</span></label><input type="number" id="Fu" value="58"></div>
+        <div class="ig"><label>P<sub>u</sub> column axial at the joint <span class="unit">(kips, compression +)</span></label><input type="number" id="Pu" value="0" step="1"></div>
+        <div class="ig"><label>M<sub>u</sub> column moment at the joint <span class="unit">(kip-ft)</span></label><input type="number" id="McolU" value="0" step="1"></div>
+        <div class="ig"><label>Connection type</label>
+          <select id="connType">
+            <option value="T" selected>T &mdash; beam on one side</option>
+            <option value="X">Cross &mdash; beams both sides</option>
+          </select></div>
+        <div class="ig"><label>Distance to unreinforced column end, blank = adequate <span class="unit">(in)</span></label><input type="number" id="lend" placeholder="continuous" step="0.25"></div>
+      </div>
+      <div class="subnote">P<sub>u</sub> and M<sub>u</sub> are the column forces on the side of the joint with the higher compression stress (Eq. K1-6); they set Q<sub>f</sub> for face plastification and sidewall crippling / buckling. Leave at zero when the column is lightly loaded. Enter l<sub>end</sub> only when the beam frames near an open column end (&sect;K1.4 Eq. K1-7).</div>
+    </div>
+    <div class="blk">
+      <h2>3. Demands <span class="badge">LRFD</span></h2>
+      <div class="g3">
+        <div class="ig"><label>M<sub>u</sub> beam end moment <span class="unit">(kip-ft)</span></label><input type="number" id="Mu" value="60" step="1"></div>
+        <div class="ig"><label>V<sub>u</sub> beam end shear <span class="unit">(kips)</span></label><input type="number" id="Vu" value="20" step="0.5"></div>
+      </div>
+      <div class="subnote">V<sub>u</sub> is reported only: the web shear connection is a separate calculation.</div>
+    </div>
+    <div class="blk">
+      <h2>4. Flange-to-HSS weld <span class="badge">&sect;J2 &middot; &sect;K5</span></h2>
+      <div class="g3">
+        <div class="ig"><label>Weld type</label>
+          <select id="weldType">
+            <option value="cjp" selected>CJP groove</option>
+            <option value="fillet">Fillet</option>
+          </select></div>
+        <div class="ig"><label>Fillet leg w <span class="unit">(in)</span></label><input type="number" id="weldW" value="0.3125" step="0.0625"></div>
+        <div class="ig"><label>Faces welded</label>
+          <select id="weldFaces">
+            <option value="1" selected>Top face only</option>
+            <option value="2">Both faces</option>
+          </select></div>
+        <div class="ig"><label>Process (flare-bevel throat)</label>
+          <select id="weldProc">
+            <option value="smaw" selected>SMAW / FCAW-S / SAW (5/16 R)</option>
+            <option value="gmaw">GMAW / FCAW-G (5/8 R)</option>
+          </select></div>
+        <div class="ig"><label>F<sub>EXX</sub> <span class="unit">(ksi)</span></label><input type="number" id="Fexx" value="70"></div>
+        <div class="ig"><label>Directional increase k<sub>ds</sub> = 1.5</label>
+          <div class="chk-inline"><input type="checkbox" id="kds"> <span id="kdsLbl">both faces only</span></div></div>
+      </div>
+      <div class="subnote">CJP develops the flange; the weld rows then report N/A and flange local yielding governs the weld line. Fillet welds use the effective length B<sub>e</sub> per face (Eq. K5-4); the portion in the HSS corner is a flare-bevel groove weld (Table J2.2, R = 2t). k<sub>ds</sub> is not permitted for a single-sided fillet (DG24 2nd ed Ch. 3).</div>
+    </div>
+    <button class="calc-btn" onclick="run()">&#9654; Run All Checks</button>
+    <div id="errOut" class="err-box" style="display:none"></div>
+    <div id="results" class="results">
+      <div id="sumOut" class="summary"></div>
+      <div class="blk"><h2>Flange width vs. HSS face</h2><div id="geoOut"></div></div>
+      <div class="blk"><h2>Design demands</h2><div id="demOut" class="dem-grid"></div></div>
+      <div class="tbl-scroll">
+      <table class="chk-table">
+        <thead><tr><th>Check</th><th>Code reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th>Detail</th></tr></thead>
+        <tbody id="chkTb"></tbody>
+      </table>
+      </div>
+      <div id="reviewOut"></div>
+      <div class="note-box" id="noteOut">
+        <b>Basis and limits</b>
+        <ul>
+          <li>Basis: beam flanges treated as a pair of transverse plates on the HSS face (AISC 360-22 Comm. K2; DG24 1st ed &sect;4.4 / &sect;7.1 and Ex 4.3; DG24 2nd ed Ch. 6). P<sub>uf</sub> = 12M<sub>u</sub>/(d &minus; t<sub>f</sub>).</li>
+          <li>Edition map: DG24 1st ed Table 7-2 Eqs. K1-2 / K1-3 / K1-4 / K1-5 / K1-6 are 360-10 numbers. In 360-22 they are &sect;K1.2a Eq. K1-1 / K1-2 (effective widths), &sect;J4 (yielding, shear), &sect;J10.2 / J10.3 / J10.5 (sidewalls), Q<sub>f</sub> &sect;K1.3 Eq. K1-4 / K1-6, end distance &sect;K1.4 Eq. K1-7. There is no Eq. K1-7 yielding check and no Table K1.3A.</li>
+          <li>Applicability bands: punching 0.85B &le; b<sub>fc</sub> &le; B &minus; 2t; sidewalls &beta; &ge; 0.85 (Comm. K2); plastification &beta; &le; 0.85. Rows outside their band are shown as INFO and excluded from the governing D/C.</li>
+          <li>Flange wider than the flat or than B: see the classification row. Credited width is capped at B; corner welds are flare-bevel groove welds (Table J2.2, R = 2t; STI &ldquo;Welding in HSS Corners&rdquo;). DG24 2nd ed Ex 6.3 is cited per the 2026-09-23 handoff and has not been verified against a copy.</li>
+          <li>This connection is PR. FR stiffness, the web shear connection, fatigue (Appendix 3) and seismic (AISC 341 / 358) qualification are outside this calculator.</li>
+        </ul>
+      </div>
+    </div>
+    <pre id="selftest-result" style="display:none"></pre>
   </div>
-  <div class="content" id="uiRoot"></div>
-  <pre id="selftest-result" style="display:none"></pre>
 </div>
 
 <script>
@@ -682,7 +796,7 @@ window.DWHSS = (function(){
   function isNum(v){ return typeof v==='number' && isFinite(v); }
   function minFillet(t){ return t<=0.25?0.125 : t<=0.5?0.1875 : t<=0.75?0.25 : 0.3125; }   // Table J2.4
   function maxFillet(t){ return t<0.25 ? t : t-0.0625; }                                    // J2.2b(b)
-  function frac16(w){ var s=w*16; return (Math.abs(s-Math.round(s))<1e-6 ? Math.round(s) : f2(s))+'/16'; }
+  function frac16(w){ var s=w*16; if (Math.abs(s-Math.round(s))>1e-6) return f3(w); s=Math.round(s); var d=16; while (s%2===0 && d>1){ s/=2; d/=2; } return d===1 ? String(s) : s+'/'+d; }   // 0.3125 -> 5/16, 0.6525 -> 0.653
   function H(t){ return '<div class="cref-hdr">'+t+'</div><div class="cbox">'; }
   function R(h){ return '<div class="mrow">'+h+'</div>'; }
   function I(h){ return '<div class="mrow ind">'+h+'</div>'; }
@@ -958,6 +1072,232 @@ window.DWHSS = (function(){
     return {pass:pass, total:total, lines:lines};
   }
   return {compute:compute, validate:validate, effBe:effBe, effBep:effBep, chordQf:chordQf, minFillet:minFillet, maxFillet:maxFillet, PHI:PHI, BASE:merge(BASE,{}), FIXTURES:FIXTURES, merge:merge, runFixtures:runFixtures};
+})();
+</script>
+<script>
+/* ===================== UI ===================== */
+function $(id){ return document.getElementById(id); }
+function numv(id){ var v=parseFloat($(id).value); return isFinite(v)?v:NaN; }
+function optv(id){ var s=$(id).value; if (s===''||s===null) return null; var v=parseFloat(s); return isFinite(v)?v:NaN; }
+function toggleDet(i){var el=$('det_'+i);var b=$('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▶ Calc'}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function card(v,l){ return '<div class="dem-card"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
+// weld size as a reduced sixteenth fraction (0.3125 -> 5/16, 0.25 -> 1/4)
+function frac16(w){ var s=w*16; if (Math.abs(s-Math.round(s))>1e-6) return f3(w); s=Math.round(s); var d=16; while (s%2===0 && d>1){ s/=2; d/=2; } return d===1 ? String(s) : s+'/'+d; }
+
+var GRADES={A500B:[46,58], A500C:[50,62], A1085:[50,65]};
+var BEAM_FIELDS=['bd','bbf','btf','btw','bZx'], COL_FIELDS=['cH','cB','ct','cA','cS'];
+
+function fillSections(){
+  var ws=$('wsec'), wk=Object.keys(W_DB).sort(function(a,b){ var pa=a.match(/W(\d+)X(\d+)/), pb=b.match(/W(\d+)X(\d+)/); return (+pa[1]-+pb[1]) || (+pa[2]-+pb[2]); });
+  wk.forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; ws.appendChild(o); });
+  var oc=document.createElement('option'); oc.value='custom'; oc.textContent='Custom'; ws.appendChild(oc);
+  ws.value='W16X57';
+  function frac(s){ var m=s.match(/^(\d+)(?:-(\d+)\/(\d+))?$/); if (m) return +m[1]+(m[2]?+m[2]/+m[3]:0); m=s.match(/^(\d+)\/(\d+)$/); return m? +m[1]/+m[2] : parseFloat(s); }
+  var hs=$('hsec'), hk=Object.keys(HSS_DB).sort(function(a,b){ var pa=a.slice(3).split('X'), pb=b.slice(3).split('X');
+    return (frac(pa[0])-frac(pb[0])) || (frac(pa[1])-frac(pb[1])) || (frac(pb[2])-frac(pa[2])); });
+  hk.forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; hs.appendChild(o); });
+  var hc=document.createElement('option'); hc.value='custom'; hc.textContent='Custom'; hs.appendChild(hc);
+  hs.value='HSS10X10X1/2';
+}
+function setLocked(ids, locked){ ids.forEach(function(id){ var el=$(id); if (el){ el.readOnly=locked; } }); }
+// named section -> write the DB values and lock; custom -> unlock
+function applyBeamSection(){
+  var k=$('wsec').value, r=W_DB[k];
+  if (k==='custom' || !r){ setLocked(BEAM_FIELDS,false); return; }
+  $('bd').value=r[1]; $('bbf').value=r[2]; $('btf').value=r[3]; $('btw').value=r[4]; $('bZx').value=r[6];
+  setLocked(BEAM_FIELDS,true);
+}
+function applyColSection(){
+  var k=$('hsec').value, r=HSS_DB[k];
+  if (k==='custom' || !r){ setLocked(COL_FIELDS,false); return; }
+  $('cA').value=r[0]; $('cH').value=r[1]; $('cB').value=r[2]; $('ct').value=r[3]; $('cS').value=r[7];
+  setLocked(COL_FIELDS,true);
+}
+function onBeamChange(){ applyBeamSection(); onInputChanged(); }
+function onColChange(){ applyColSection(); onInputChanged(); }
+function onGradeChange(){
+  var g=GRADES[$('grade').value];
+  if (g){ $('Fy').value=g[0]; $('Fu').value=g[1]; }
+  onInputChanged();
+}
+// a hand-edited Fy/Fu (or a restored record) moves the grade select to the matching grade or Custom
+function syncGrade(){
+  var fy=numv('Fy'), fu=numv('Fu'), hit='custom';
+  Object.keys(GRADES).forEach(function(k){ if (hit==='custom' && GRADES[k][0]===fy && GRADES[k][1]===fu) hit=k; });
+  if ($('grade').value!==hit) $('grade').value=hit;
+}
+function applyWeldMode(){
+  var cjp=$('weldType').value==='cjp', one=$('weldFaces').value!=='2';
+  ['weldW','weldFaces','weldProc','Fexx'].forEach(function(id){ $(id).disabled=cjp; });
+  $('kds').disabled = cjp || one;
+  $('kdsLbl').textContent = cjp ? 'n/a for CJP' : one ? 'not permitted, one face' : 'Eq. J2-5, both faces';
+}
+var _rerunT=null;
+function onInputChanged(ev){
+  var id = ev && ev.target ? ev.target.id : '';
+  if (id==='Fy' || id==='Fu') syncGrade();
+  applyWeldMode(); draw();
+  if (_rerunT){ clearTimeout(_rerunT); _rerunT=null; }
+  var r=$('results'), e=$('errOut');
+  var live = (r && r.classList.contains('show')) || (e && e.style.display!=='none' && e.innerHTML.length>0);
+  if (live) _rerunT=setTimeout(function(){ _rerunT=null; run(); }, 250);
+}
+function readInputs(){
+  var lend=optv('lend');
+  return {
+    code:$('code').value,
+    beam:{label:$('wsec').value, d:numv('bd'), bf:numv('bbf'), tf:numv('btf'), tw:numv('btw'), Fy:numv('Fyb'), Fu:numv('Fub'), Zx:numv('bZx')},
+    Mu:numv('Mu'), Vu:numv('Vu'),
+    col:{label:$('hsec').value, H:numv('cH'), B:numv('cB'), t:numv('ct'), A:numv('cA'), S:numv('cS'), Fy:numv('Fy'), Fu:numv('Fu'), Pu:numv('Pu'), Mu:numv('McolU')},
+    connType:$('connType').value,
+    lend:lend,
+    weld:{type:$('weldType').value, w:numv('weldW'), faces:+$('weldFaces').value, proc:$('weldProc').value, Fexx:numv('Fexx'), kds:$('kds').checked}
+  };
+}
+function beamName(inp){ return inp.beam.label==='custom' ? 'custom W (d = '+f2(inp.beam.d)+', b<sub>f</sub> = '+f2(inp.beam.bf)+' in)' : esc(inp.beam.label); }
+function colName(inp){ return inp.col.label==='custom' ? 'custom HSS '+f2(inp.col.H)+'&times;'+f2(inp.col.B)+'&times;'+f3(inp.col.t) : esc(inp.col.label); }
+
+function draw(res){
+  var svg=$('schemSvg'); if (!svg || !window.AREDraw) return;
+  var inp=readInputs();
+  if (!res) res=window.DWHSS.compute(inp);
+  if (!res.ok) return;                                   // keep the last good drawing while inputs are invalid
+  var wKey = inp.beam.label==='custom' ? 'W-CUSTOM' : inp.beam.label;
+  var hKey = inp.col.label==='custom' ? 'HSS-CUSTOM' : inp.col.label;
+  var resolvedGeometry={};
+  resolvedGeometry[wKey]={d:inp.beam.d, bf:inp.beam.bf, tf:inp.beam.tf, tw:inp.beam.tw};
+  resolvedGeometry[hKey]={H:inp.col.H, B:inp.col.B, t:inp.col.t};
+  var state={ schema:'are.calc.v1', calcType:'w-to-hss-column',
+    member:{type:'beam', section:wKey||'W16X57', material:{Fy:inp.beam.Fy}},
+    demands:{Mu:inp.Mu},
+    connection:{ column:{section:hKey||'HSS10X10X1/2', Fy:inp.col.Fy}, beamFy:inp.beam.Fy,
+      weldSize: inp.weld.type==='cjp' ? 'CJP' : frac16(inp.weld.w)+'"',
+      caption: 'AISC 360-22 Ch. J/K · DG24 — directly welded flange couple, governing: '+String(res.governing).replace(/<[^>]+>/g,''),
+      geometry:{flat:res.vals.flat, overlap:res.vals.overlap, proj:res.vals.proj, cls:res.vals.cls} } };
+  try { AREDraw.renderConnection(svg, state, {resolvedGeometry:resolvedGeometry}); }
+  catch(e){ if (window.console) console.warn('[w-to-hss] schematic', e); }
+}
+
+// flange-width strip: HSS face with its corner zones, flange band above it, same scale
+function geoStrip(v, inp){
+  var B=inp.col.B, t=inp.col.t, bf=inp.beam.bf, span=Math.max(B,bf), W=560, pad=20, sc=(W-2*pad)/span, cx=W/2;
+  var x=function(u){ return cx+u*sc; }, s='';
+  s+='<svg viewBox="0 0 '+W+' 92" width="100%" style="max-width:'+W+'px;display:block;margin:4px 0 10px" xmlns="http://www.w3.org/2000/svg">';
+  s+='<rect x="'+x(-B/2)+'" y="46" width="'+(B*sc)+'" height="16" fill="#e2e8f0" stroke="#334155"/>';
+  s+='<rect x="'+x(-B/2)+'" y="46" width="'+(1.5*t*sc)+'" height="16" fill="#cbd5e1" stroke="none"/>';
+  s+='<rect x="'+x(B/2-1.5*t)+'" y="46" width="'+(1.5*t*sc)+'" height="16" fill="#cbd5e1" stroke="none"/>';
+  var fc = v.cls==='flat' ? '#93c5fd' : '#fcd34d';
+  s+='<rect x="'+x(-bf/2)+'" y="30" width="'+(bf*sc)+'" height="12" fill="'+fc+'" stroke="#1e3c72"/>';
+  if (v.proj>0){
+    s+='<rect x="'+x(-bf/2)+'" y="30" width="'+(v.proj*sc)+'" height="12" fill="#fff" stroke="#b45309" stroke-dasharray="3 2"/>';
+    s+='<rect x="'+x(B/2)+'" y="30" width="'+(v.proj*sc)+'" height="12" fill="#fff" stroke="#b45309" stroke-dasharray="3 2"/>';
+  }
+  s+='<line x1="'+x(-v.flat/2)+'" y1="68" x2="'+x(v.flat/2)+'" y2="68" stroke="#475569"/><line x1="'+x(-v.flat/2)+'" y1="64" x2="'+x(-v.flat/2)+'" y2="72" stroke="#475569"/><line x1="'+x(v.flat/2)+'" y1="64" x2="'+x(v.flat/2)+'" y2="72" stroke="#475569"/>';
+  s+='<text x="'+cx+'" y="84" font-size="11" text-anchor="middle" fill="#475569">flat B &#8722; 3t = '+f3(v.flat)+' in &#183; B = '+f2(B)+' in</text>';
+  s+='<text x="'+cx+'" y="22" font-size="11" text-anchor="middle" fill="#1e3c72">b<tspan font-size="8" dy="2">f</tspan><tspan dy="-2"> = '+f3(bf)+' in</tspan></text>';
+  return s+'</svg>';
+}
+function geoCallout(v, inp){
+  var bf=inp.beam.bf, B=inp.col.B, t=inp.col.t, h;
+  if (v.cls==='flat'){
+    h='<div class="subnote" style="margin-top:0"><b class="pass">On the flat.</b> b<sub>f</sub> = '+f3(bf)+' in &le; B &minus; 3t = '+f3(v.flat)+' in (margin '+f3(v.flat-bf)+' in). The welds sit on the flat face; &beta; = '+f3(v.beta)+'.</div>';
+  } else if (v.cls==='corner'){
+    h='<div class="subnote" style="margin-top:0"><b class="review">Corner overlap '+f3(v.overlap)+' in per side.</b> B &minus; 3t = '+f3(v.flat)+' in &lt; b<sub>f</sub> = '+f3(bf)+' in &le; B = '+f2(B)+' in: the flange reaches the corner radius. Welds there are flare-bevel groove welds (Table J2.2, R = 2t = '+f3(2*t)+' in); specify the joint preparation. &beta; = '+f3(v.beta)+'.</div>';
+  } else {
+    h='<div class="subnote" style="margin-top:0"><b class="review">Projection '+f3(v.proj)+' in per side beyond B.</b> b<sub>f</sub> = '+f3(bf)+' in &gt; B = '+f2(B)+' in: the projection is not credited; credited width b<sub>fc</sub> = B, &beta; = 1.0. Corner overlap '+f3(v.overlap)+' in per side. Weld and end detail by the engineer.</div>';
+  }
+  return geoStrip(v, inp)+h;
+}
+
+function run(){
+  var inp=readInputs(), res=window.DWHSS.compute(inp);
+  var errOut=$('errOut'), results=$('results');
+  if (!res.ok){
+    errOut.innerHTML='<h3>Input errors &mdash; fix before running</h3><ul>'+res.errors.map(function(e){return '<li>'+e+'</li>';}).join('')+'</ul>';
+    errOut.style.display='block';
+    results.classList.remove('show');
+    ['sumOut','geoOut','demOut','chkTb','reviewOut'].forEach(function(id){ var el=$(id); if (el) el.innerHTML=''; });
+    return;
+  }
+  errOut.innerHTML=''; errOut.style.display='none';
+  var v=res.vals, mark=(window.AREv2 && AREv2.getMarkHTML) ? AREv2.getMarkHTML() : '';
+  var head = res.banner==='PASS' ? '&#10004; PASS &mdash; flange-couple checks' : res.banner==='FAIL' ? '&#10008; FAIL &mdash; one or more checks exceed 1.0' : '&#9888; REVIEW &mdash; engineer items flagged';
+  var sumCls = res.banner==='PASS'?'sum-pass':res.banner==='FAIL'?'sum-fail':'sum-review';
+  $('sumOut').className='summary '+sumCls;
+  $('sumOut').innerHTML='<h3>'+(mark?mark+' &mdash; ':'')+head+'</h3>'
+    +'<p>Max D/C = <b>'+res.maxDC.toFixed(3)+'</b> ('+res.governing+') &middot; &phi;M<sub>n</sub> = <b>'+f1(v.phiMn)+' kip-ft</b> &middot; '+beamName(inp)+' on '+colName(inp)+', M<sub>u</sub> = '+inp.Mu.toFixed(1)+' kip-ft</p>'
+    +'<p style="font-size:.88em;margin-top:4px">Web shear connection and frame stiffness are designed separately.</p>';
+  $('geoOut').innerHTML=geoCallout(v, inp);
+  var cards='';
+  cards+=card(f1(v.Puf)+' k','P<sub>uf</sub> = 12M<sub>u</sub>/(d &minus; t<sub>f</sub>)')
+    +card(f3(v.beta),'&beta; = b<sub>fc</sub>/B')
+    +card(f3(v.flat)+' in','flat B &minus; 3t');
+  if (v.cls==='beyond') cards+=card(f3(v.proj)+' in','projection beyond B, per side');
+  else cards+=card(f3(v.overlap)+' in','corner overlap, per side');
+  cards+=card(f3(v.be.Be)+' in','B<sub>e</sub> (Eq. K1-1)')
+    +card(f3(v.bep.Bep)+' in','B<sub>ep</sub> (Eq. K1-2)')
+    +card(f3(v.qf.Qf),'Q<sub>f</sub> (U = '+f3(v.qf.U)+')')
+    +card(f1(v.phiMn)+' k-ft','connection &phi;M<sub>n</sub> = M<sub>u</sub>/max D/C');
+  $('demOut').innerHTML=cards;
+
+  var sections=[], idx=0, tbHtml='';
+  var sMap={PASS:'<span class="pass">PASS</span>',FAIL:'<span class="fail">FAIL</span>',REVIEW:'<span class="review">REVIEW</span>','N/A':'<span class="na">N/A</span>',INFO:'<span class="info">INFO</span>'};
+  res.checks.forEach(function(ch){ if (sections.indexOf(ch.section)===-1) sections.push(ch.section); });
+  sections.forEach(function(sec){
+    tbHtml+='<tr class="sect-row"><td colspan="7">'+sec+'</td></tr>';
+    res.checks.forEach(function(ch){
+      if (ch.section!==sec) return;
+      var dcCell, stxt=sMap[ch.status]||esc(ch.status);
+      if (ch.dc===null){ dcCell='<span class="na">&mdash;</span>'; }
+      else if (ch.informational){ dcCell='<span class="na" title="not in the governing D/C">'+f3(ch.dc)+'</span>'; }
+      else { var col=ch.dc<=0.8?'#16a34a':ch.dc<=1.0?'#d97706':'#dc2626'; var pct=Math.min(ch.dc*100,100);
+        dcCell='<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(ch.dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>'; }
+      tbHtml+='<tr><td><strong>'+ch.name+'</strong>'+(ch.note?'<div class="eq-note">'+ch.note+'</div>':'')+'</td><td class="ref-cell">'+ch.ref+'</td><td>'+ch.demand+'</td><td>'+ch.capacity+'</td><td>'+dcCell+'</td><td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+idx+'" onclick="toggleDet('+idx+')">▶ Calc</button></td></tr>'
+        +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+idx+'">'+ch.det+'</div></td></tr>';
+      idx++;
+    });
+  });
+  $('chkTb').innerHTML=tbHtml;
+  var rev=res.checks.filter(function(ch){return ch.status==='REVIEW';});
+  $('reviewOut').innerHTML = rev.length ? '<div class="review-box"><h3>Engineer items ('+rev.length+')</h3><ul>'+rev.map(function(ch){return '<li><b>'+ch.name+'</b>'+(ch.note?' &mdash; '+ch.note:'')+'</li>';}).join('')+'</ul></div>' : '';
+  results.classList.add('show');
+  draw(res);
+  if (window.AREv2 && AREv2.publish) AREv2.publish([
+    {symbol:'Mu', label:'Applied Moment Mu', value:inp.Mu, unit:'kip-ft', kind:'moment'},
+    {symbol:'phiMn', label:'φMn Connection Capacity', value:v.phiMn, unit:'kip-ft', kind:'capacity'},
+    {symbol:'Puf', label:'Flange Force Puf', value:v.Puf, unit:'kips', kind:'flangeforce'}
+  ]);
+}
+// are-utils-v2 Load / import / Save call runCalcs() so a restored record re-runs
+window.runCalcs = function(){ run(); };
+
+function runSelftest(){
+  var r=window.DWHSS.runFixtures(), ok=r.pass===r.total, title=(ok?'SELFTEST PASS ':'SELFTEST FAIL ')+r.pass+'/'+r.total;
+  document.title=title; var pre=$('selftest-result'); pre.style.display='block'; pre.textContent=title+'\n'+r.lines.join('\n'); console.log(title); console.log(r.lines.join('\n'));
+}
+function refreshModes(){ applyBeamSection(); applyColSection(); syncGrade(); applyWeldMode(); }
+(function init(){
+  fillSections(); applyBeamSection(); applyColSection(); applyWeldMode();
+  var root=$('uiRoot');
+  if (root){
+    Array.prototype.forEach.call(root.querySelectorAll('input[type=number][id], input[type=text][id]'), function(el){
+      if (el.closest && el.closest('#areBar, .are-bar, .are-hub')) return;
+      el.addEventListener('input', onInputChanged);
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('select[id], input[type=checkbox][id]'), function(el){
+      if (el.closest && el.closest('#areBar, .are-bar, .are-hub')) return;
+      if (el.id==='wsec' || el.id==='hsec' || el.id==='grade') return;   // inline onchange handlers re-run these
+      el.addEventListener('change', onInputChanged);
+    });
+  }
+  // are-draw.js and are-utils-v2.js load after this script
+  window.addEventListener('load', function(){
+    draw();
+    if (window.AREv2 && AREv2.onAfterRestore) AREv2.onAfterRestore(refreshModes);
+    if (window.AREv2 && AREv2.onMarkChange) AREv2.onMarkChange(function(){ draw(); });
+  });
+  try { if (new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
 })();
 </script>
 <script src="/are-draw.js"></script>
