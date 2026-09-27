@@ -1,595 +1,966 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>W-Beam Directly Welded to HSS Column — DG24 Ex 4.3</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>W-Beam Directly Welded to HSS Column</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);min-height:100vh;padding:20px}
-.container{max-width:1440px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.container{max-width:1480px;margin:0 auto;background:#fff;border-radius:15px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
 .header{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;padding:28px 32px;text-align:center}
 .header h1{font-size:1.9em;margin-bottom:7px}
 .header p{font-size:.97em;opacity:.9}
 .ref-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:12px}
 .tag{background:rgba(255,255,255,.18);padding:3px 10px;border-radius:12px;font-size:.78em}
+.toolbar{display:flex;gap:10px;justify-content:flex-end;padding:10px 28px;background:#f0f2f8;border-bottom:1px solid #dde}
 .content{padding:28px}
 .blk{background:#f8f9fa;padding:20px 22px;border-radius:10px;margin-bottom:20px;border-left:4px solid #2a5298}
 .blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.blk h3{color:#1e3c72;font-size:.98em;margin:14px 0 8px}
 .badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
+.badge-warn{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
 .ig{display:flex;flex-direction:column}
 .ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
-.ig input,.ig select{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s}
-.ig input:focus,.ig select:focus{border-color:#2a5298;outline:none}
+.ig input,.ig select,.ig textarea{padding:8px 11px;border:2px solid #ddd;border-radius:6px;font-size:.93em;transition:border-color .2s;font-family:inherit}
+.ig input:focus,.ig select:focus,.ig textarea:focus{border-color:#2a5298;outline:none}
+.ig input[readonly]{background:#eef1f7;color:#555}
 .unit{font-size:.78em;color:#777;font-weight:400;margin-left:3px}
+.chk-inline{display:flex;align-items:center;gap:8px;font-size:.9em;font-weight:600;color:#333;margin-top:4px}
+.subnote{font-size:.78em;color:#666;margin-top:8px;line-height:1.4}
 .calc-btn{background:linear-gradient(135deg,#1e3c72,#2a5298);color:#fff;border:none;padding:13px 44px;font-size:1.08em;border-radius:8px;cursor:pointer;display:block;margin:16px auto;transition:transform .1s,box-shadow .2s}
 .calc-btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(42,82,152,.4)}
 .results{display:none}.results.show{display:block}
 .summary{padding:16px 20px;border-radius:10px;margin-bottom:20px}
-.sum-pass{background:#dcfce7;border:2px solid #16a34a}.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.sum-pass{background:#dcfce7;border:2px solid #16a34a}
+.sum-fail{background:#fee2e2;border:2px solid #dc2626}
+.sum-review{background:#fef3c7;border:2px solid #d97706}
+.err-box{background:#fee2e2;border:2px solid #dc2626;border-radius:10px;padding:16px 20px;margin-bottom:20px}
+.err-box h3{color:#991b1b;margin-bottom:8px}
+.err-box ul{padding-left:20px;color:#7f1d1d}
 .summary h3{font-size:1.15em;margin-bottom:5px}
 .prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
 .prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
 .prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
 .prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
 .chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
-.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin-bottom:16px}
+.chk-table tr.sect-row td{background:#e0e7ff!important;font-weight:700;color:#1e3c72;padding:8px 10px!important}
+.dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
 .dem-card{background:#fff;border-radius:8px;padding:12px;border:1px solid #dde;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.07)}
-.dem-card .v{font-size:1.35em;font-weight:700;color:#1e3c72}
-.dem-card .l{font-size:.73em;color:#666;margin-top:3px;line-height:1.3}
-.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af}
+.dem-card .v{font-size:1.3em;font-weight:700;color:#1e3c72}
+.dem-card .l{font-size:.72em;color:#666;margin-top:3px;line-height:1.3}
+.pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af;font-weight:600}.review{color:#b45309;font-weight:700}
+.info{color:#2563eb;font-weight:600}
 .dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
 .dc-fill{height:100%;border-radius:7px}
 .dc-cell{display:flex;align-items:center;gap:7px}
 .note-box{background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:14px 16px;font-size:.83em;color:#78350f;margin-top:16px}
 .note-box ul{padding-left:16px}.note-box li{margin-bottom:4px}
+.review-box{background:#fffbeb;border:2px solid #d97706;border-radius:8px;padding:14px 16px;font-size:.85em;color:#78350f;margin-top:16px}
+.review-box h3{color:#92400e;margin-bottom:8px}
+.review-box ul{padding-left:18px}.review-box li{margin-bottom:6px}
 .schema-wrap{background:#fff;border:1px solid #dde;border-radius:8px;padding:14px;margin-bottom:16px}
-.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
-.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
-.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
-.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
-.mrow.ind{padding-left:24px}
 .calc-det{display:none;background:#f4f7ff;padding:13px 18px 10px;border-top:1px dashed #b0c0e8;font-size:.84em;color:#1a1a1a}
 .calc-det.open{display:block}
 .det-btn{background:none;border:1px solid #93c5fd;color:#1e40af;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:.76em;white-space:nowrap;transition:background .15s}
 .det-btn:hover{background:#dbeafe}
 .cref-hdr{font-weight:700;color:#1e3c72;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #c7d2e8;font-size:.92em}
-.ceq{color:#1e3c72;font-style:italic}
+.mrow{margin:3px 0;line-height:2.1;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px}
+.mrow.ind{padding-left:24px}
+.mfr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15;font-size:.93em}
+.mfr .mn{border-bottom:1.5px solid currentColor;padding:0 4px;text-align:center;min-width:1.4em}
+.mfr .md{padding:0 4px;text-align:center;min-width:1.4em}
 .cval{color:#15803d;font-weight:700}
 .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
 .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
+.footer-prov{margin-top:22px;padding:14px 18px;background:#111827;color:#d1d5db;border-radius:8px;font-size:.78em;line-height:1.6}
+.footer-prov b{color:#fff}
+.hide{display:none!important}
+@media print{
+  body{background:#fff!important;padding:0!important}
+  .container{box-shadow:none!important;border-radius:0!important}
+  .toolbar,.calc-btn,.det-btn{display:none!important}
+  .calc-det{display:block!important;background:#fff!important;border:1px solid #ccc!important}
+  .results{display:block!important}
+  .header,.sum-pass,.sum-fail,.sum-review{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .chk-table tr.det-row td{display:table-cell!important}
+  .dem-card,.note-box,.review-box{break-inside:avoid}
+}
+.eq-note{font-size:.8em;color:#555;margin-top:6px}
+#selftest-result{display:none;white-space:pre-wrap;font-family:Consolas,monospace;font-size:.78em;background:#111827;color:#d1d5db;padding:12px;border-radius:8px;margin-top:16px}
 </style>
-  <link rel="stylesheet" href="./are-calc.css">
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>W-Beam Directly Welded to HSS Column</h1>
-    <p>Moment-transfer connection — flange force / chord wall local yielding (DG24 Ex 4.3)</p>
+    <p>Flange-couple moment transfer &mdash; beam flange local yielding, HSS face plastification and punching, sidewall yielding/crippling/buckling, welds</p>
     <div class="ref-tags">
-      <span class="tag">AISC 360-22</span>
-      <span class="tag">§K1.3</span>
-      <span class="tag">Eq. K1-7</span>
-      <span class="tag">DG24 Ex 4.3</span>
+      <span class="tag">AISC 360-22 Ch. J &amp; K</span>
+      <span class="tag">DG24 1st ed Ex 4.3</span>
+      <span class="tag">DG24 2nd ed Ch. 6</span>
+      <span class="tag">STI 2025</span>
     </div>
   </div>
+  <div class="toolbar"></div>
   <div class="content">
-
     <div class="schema-wrap">
-      <svg id="areSchemSvg" width="100%" style="max-height:340px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="schemSvg" viewBox="0 0 1000 420" width="100%" style="max-height:420px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
-
-    <div class="blk" style="border-left-color:#16a34a">
-      <h2>AISC Shapes Database <span class="badge" id="dbBadge">Using fallback data</span></h2>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <button class="det-btn" style="padding:6px 14px;font-size:.88em" onclick="loadDbAuto()">🔄 Auto-Load (fetch local xlsx)</button>
-        <label class="det-btn" style="padding:6px 14px;font-size:.88em;cursor:pointer">
-          📂 Upload aisc-shapes-database-v16.0.xlsx
-          <input type="file" accept=".xlsx,.xls" onchange="loadDbFile(event)" style="display:none">
-        </label>
-        <span id="dbStatus" style="font-size:.82em;color:#555"></span>
-      </div>
-    </div>
-
-    <div class="blk">
-      <h2>1. Beam (W-Shape) <span class="badge">A992</span></h2>
-      <div class="g3">
-        <div class="ig">
-          <label>W-Section</label>
-          <select id="wsec" class="member-select" onchange="hint()">
-            <option value="">— Select —</option>
-          </select>
-        </div>
-        <div class="ig"><label>F<sub>yp</sub> beam <span class="unit">(ksi)</span></label><input type="number" id="Fyb" value="50"></div>
-      </div>
-      <div id="wHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
-    </div>
-
-    <div class="blk">
-      <h2>2. HSS Column <span class="badge">A500 Gr.B/C</span></h2>
-      <div class="g3">
-        <div class="ig">
-          <label>HSS Section</label>
-          <select id="hsec" class="member-select" onchange="hint()">
-            <option value="">— Select —</option>
-          </select>
-        </div>
-        <div class="ig"><label>F<sub>y</sub> HSS <span class="unit">(ksi)</span></label><input type="number" id="Fy" value="46"></div>
-      </div>
-      <div id="hHint" style="margin-top:10px;font-size:.82em;color:#2a5298"></div>
-    </div>
-
-    <div class="blk">
-      <h2>3. Applied Demands</h2>
-      <div class="g3">
-        <div class="ig"><label>M<sub>u</sub> applied moment <span class="unit">(kip-ft)</span></label><input type="number" id="Mu" value="60"></div>
-      </div>
-    </div>
-
-    <button class="calc-btn" onclick="runCalc()">▶ Run All Checks</button>
-
-    <div id="results" class="results">
-      <div id="sumBox" class="summary"></div>
-      <div class="blk"><h2>Section Properties</h2><div id="propOut"></div></div>
-      <div class="blk"><h2>Design Demands</h2><div id="demOut"></div></div>
-      <div class="blk">
-        <h2>Check Results <span style="font-size:.75em;font-weight:400;color:#555">— click "▸ Calc" to expand</span></h2>
-        <table class="chk-table">
-          <thead><tr><th style="width:30%">Check</th><th>Code Reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th style="width:70px">Detail</th></tr></thead>
-          <tbody id="chkTb"></tbody>
-        </table>
-      </div>
-      <div class="note-box">
-        <strong>Engineering Notes:</strong>
-        <ul>
-          <li>Calculator transfers M<sub>u</sub> to a flange-force couple P<sub>uf</sub> = M<sub>u</sub>/(d − t<sub>f</sub>) and checks the chord-wall local yielding limit state (AISC 360-22 Eq. K1-7), which governs DG24 Example 4.3.</li>
-          <li>Limits of applicability per §K1.3 (Table K1.3A) must be satisfied: 0.25 ≤ b<sub>p</sub>/B ≤ 1.0, B/t ≤ 35, F<sub>y</sub> ≤ 52 ksi.</li>
-          <li>Beam flange must fit on the flat of the HSS wall: b<sub>f</sub> ≤ B − 3t.</li>
-          <li>Web local yielding/crippling, weld design, beam shear connection, and HSS column compression checks are NOT included — perform separately.</li>
-          <li>Verified against DG24 Example 4.3: W16×57 on HSS10×10×1/2 → φM<sub>n</sub> ≈ 88 kip-ft.</li>
-        </ul>
-      </div>
-    </div>
-
   </div>
+  <div class="content" id="uiRoot"></div>
+  <pre id="selftest-result" style="display:none"></pre>
 </div>
 
 <script>
-let W_DB = {
-  "W8x18":[5.26,8.14,5.250,0.330,0.230],
-  "W8x24":[7.08,7.93,6.500,0.400,0.245],
-  "W8x31":[9.12,8.00,8.000,0.435,0.285],
-  "W10x22":[6.49,10.2,5.750,0.360,0.240],
-  "W10x33":[9.71,9.73,7.960,0.435,0.290],
-  "W10x45":[13.3,10.1,8.020,0.620,0.350],
-  "W12x16":[4.71,11.99,3.990,0.265,0.220],
-  "W12x26":[7.65,12.22,6.490,0.380,0.230],
-  "W12x35":[10.3,12.50,6.560,0.520,0.300],
-  "W12x50":[14.6,12.19,8.080,0.640,0.370],
-  "W14x22":[6.49,13.74,5.000,0.335,0.230],
-  "W14x38":[11.2,14.10,6.770,0.515,0.310],
-  "W14x48":[14.1,13.79,8.031,0.595,0.340],
-  "W16x26":[7.68,15.69,5.500,0.345,0.250],
-  "W16x40":[11.8,16.01,7.000,0.505,0.305],
-  "W16x57":[16.8,16.43,7.120,0.715,0.430],
-  "W18x35":[10.3,17.70,6.000,0.425,0.300],
-  "W18x50":[14.7,17.99,7.495,0.570,0.355],
-  "W21x44":[13.0,20.66,6.500,0.530,0.350]
-};
-let H_DB = {
-  "HSS6x6x1/4":  [5.24,6.00,6.00,0.233],
-  "HSS6x6x5/16":[6.43,6.00,6.00,0.291],
-  "HSS6x6x3/8": [7.58,6.00,6.00,0.349],
-  "HSS8x8x1/4": [7.10,8.00,8.00,0.233],
-  "HSS8x8x5/16":[8.76,8.00,8.00,0.291],
-  "HSS8x8x3/8": [10.4,8.00,8.00,0.349],
-  "HSS8x8x1/2": [13.5,8.00,8.00,0.465],
-  "HSS10x10x3/8":[13.0,10.0,10.0,0.349],
-  "HSS10x10x1/2":[16.9,10.0,10.0,0.465],
-  "HSS12x12x3/8":[15.6,12.0,12.0,0.349],
-  "HSS12x12x1/2":[20.4,12.0,12.0,0.465]
-};
-
-// ============ AISC DB LOADER ============
-function processWorkbook(data){
-  var wb = XLSX.read(data,{type:'array'});
-  var sheet = wb.Sheets["Database v16.0"] || wb.Sheets[wb.SheetNames[0]];
-  var rows = XLSX.utils.sheet_to_json(sheet,{header:1});
-  var headers = rows[0];
-  function col(name){return headers.indexOf(name)}
-  var iType=col('Type'), iLbl=col('AISC_Manual_Label'), iA=col('A'),
-      id=col('d'), ibf=col('bf'), itf=col('tf'), itw=col('tw'),
-      iHt=col('Ht'), iB=col('B'), itdes=col('tdes');
-  if(iLbl<0) iLbl=2;
-  if(iType<0) iType=0;
-  if(iA<0) iA=5;
-  if(id<0) id=6;
-  if(iHt<0) iHt=8;
-  if(ibf<0) ibf=11;
-  if(iB<0) iB=13;
-  if(itw<0) itw=16;
-  if(itf<0) itf=19;
-  if(itdes<0) itdes=23;
-  var W={}, H={};
-  for(var r=1;r<rows.length;r++){
-    var row=rows[r]; if(!row||!row[iLbl])continue;
-    var type=String(row[iType]||'').trim();
-    var lbl=String(row[iLbl]).trim();
-    if(type==='W'){
-      W[lbl]=[+row[iA],+row[id],+row[ibf],+row[itf],+row[itw]];
-    } else if(type==='HSS'){
-      var Bv=+row[iB]; if(!isFinite(Bv)||Bv<=0)continue;
-      H[lbl]=[+row[iA],+row[iHt],Bv,+row[itdes]];
-    }
-  }
-  return {W:W,H:H};
-}
-function applyDb(db){
-  if(Object.keys(db.W).length) W_DB=db.W;
-  if(Object.keys(db.H).length) H_DB=db.H;
-  rebuildDropdowns();
-  document.getElementById('dbBadge').textContent='AISC v16.0 loaded';
-  document.getElementById('dbBadge').style.background='#dcfce7';
-  document.getElementById('dbBadge').style.color='#166534';
-  document.getElementById('dbStatus').textContent='Loaded '+Object.keys(db.W).length+' W-shapes, '+Object.keys(db.H).length+' HSS shapes';
-}
-function rebuildDropdowns(){
-  var wSel=document.getElementById('wsec'), hSel=document.getElementById('hsec');
-  var wPrev=wSel.value, hPrev=hSel.value;
-  wSel.innerHTML='<option value="">— Select —</option>';
-  Object.keys(W_DB).sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;wSel.appendChild(o)});
-  hSel.innerHTML='<option value="">— Select —</option>';
-  Object.keys(H_DB).sort().forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;hSel.appendChild(o)});
-  wSel.value = W_DB[wPrev]?wPrev:(W_DB["W16X57"]?"W16X57":(W_DB["W16x57"]?"W16x57":Object.keys(W_DB)[0]));
-  hSel.value = H_DB[hPrev]?hPrev:(H_DB["HSS10X10X1/2"]?"HSS10X10X1/2":(H_DB["HSS10x10x1/2"]?"HSS10x10x1/2":Object.keys(H_DB)[0]));
-  if(window.AREv2&&AREv2.normalizeSelects){AREv2.normalizeSelects(wSel);AREv2.normalizeSelects(hSel);}
-  hint();
-}
-function loadDbAuto(){
-  document.getElementById('dbStatus').textContent='Fetching aisc-shapes-database-v16.0.xlsx ...';
-  fetch('aisc-shapes-database-v16.0.xlsx').then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    return r.arrayBuffer();
-  }).then(function(buf){
-    applyDb(processWorkbook(new Uint8Array(buf)));
-  }).catch(function(e){
-    document.getElementById('dbStatus').textContent='Auto-load failed ('+e.message+'). Use Upload button.';
-  });
-}
-function loadDbFile(ev){
-  var f=ev.target.files[0]; if(!f)return;
-  document.getElementById('dbStatus').textContent='Reading '+f.name+' ...';
-  var rd=new FileReader();
-  rd.onload=function(e){
-    try{applyDb(processWorkbook(new Uint8Array(e.target.result)))}
-    catch(err){document.getElementById('dbStatus').textContent='Parse failed: '+err.message}
-  };
-  rd.readAsArrayBuffer(f);
-}
-window.addEventListener('load',function(){setTimeout(loadDbAuto,200)});
-// ============ END LOADER ============
-
 function f1(v){return isFinite(v)?v.toFixed(1):'N/A'}
 function f2(v){return isFinite(v)?v.toFixed(2):'N/A'}
 function f3(v){return isFinite(v)?v.toFixed(3):'N/A'}
+function f4(v){return isFinite(v)?v.toFixed(4):'N/A'}
 function fr(n,d){return '<span class="mfr"><span class="mn">'+n+'</span><span class="md">'+d+'</span></span>'}
-function toggleDet(i){var el=document.getElementById('det_'+i);var b=document.getElementById('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▸ Calc'}
+function ov(x){return '&radic;<span style="text-decoration:overline;padding:0 3px">'+x+'</span>'}
 
-(function init(){
-  var w=document.getElementById('wsec');
-  Object.keys(W_DB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;w.appendChild(o)});
-  w.value="W16x57";
-  var h=document.getElementById('hsec');
-  Object.keys(H_DB).forEach(function(k){var o=document.createElement('option');o.value=k;o.textContent=k;h.appendChild(o)});
-  h.value="HSS10x10x1/2";
-  hint();
-})();
+/* AISC v16.0 W-shapes W8-W36: W_DB[label] = [A, d, bf, tf, tw, kdes, Zx, Sx] */
+var W_DB={
+"W36X925":[272,43.1,18.6,4.53,3.02,5.28,4130,3390],
+"W36X853":[251,43.1,18.2,4.53,2.52,5.28,3920,3250],
+"W36X802":[236,42.6,18,4.29,2.38,5.04,3660,3040],
+"W36X723":[213,41.8,17.8,3.9,2.17,4.65,3270,2740],
+"W36X652":[192,41.1,17.6,3.54,1.97,4.49,2910,2460],
+"W36X529":[156,39.8,17.2,2.91,1.61,3.86,2330,1990],
+"W36X487":[143,39.3,17.1,2.68,1.5,3.63,2130,1830],
+"W36X441":[130,38.9,17,2.44,1.36,3.39,1910,1650],
+"W36X395":[116,38.4,16.8,2.2,1.22,3.15,1710,1490],
+"W36X361":[106,38,16.7,2.01,1.12,2.96,1550,1350],
+"W36X330":[96.9,37.7,16.6,1.85,1.02,2.8,1410,1240],
+"W36X302":[89,37.3,16.7,1.68,0.945,2.63,1280,1130],
+"W36X282":[82.9,37.1,16.6,1.57,0.885,2.52,1190,1050],
+"W36X262":[77.2,36.9,16.6,1.44,0.84,2.39,1100,972],
+"W36X247":[72.5,36.7,16.5,1.35,0.8,2.3,1030,913],
+"W36X231":[68.2,36.5,16.5,1.26,0.76,2.21,963,854],
+"W36X387":[114,39.1,12.7,2.56,1.42,3.31,1610,1360],
+"W36X350":[103,38.6,12.6,2.32,1.3,3.07,1440,1220],
+"W36X318":[93.4,38.2,12.4,2.13,1.18,2.88,1300,1110],
+"W36X286":[83.9,37.8,12.3,1.93,1.06,2.68,1160,1000],
+"W36X256":[75.3,37.4,12.2,1.73,0.96,2.48,1040,895],
+"W36X232":[68,37.1,12.1,1.57,0.87,2.32,936,809],
+"W36X210":[61.9,36.7,12.2,1.36,0.83,2.11,833,719],
+"W36X194":[57,36.5,12.1,1.26,0.765,2.01,767,664],
+"W36X182":[53.6,36.3,12.1,1.18,0.725,1.93,718,623],
+"W36X170":[50,36.2,12,1.1,0.68,1.85,668,581],
+"W36X160":[47,36,12,1.02,0.65,1.77,624,542],
+"W36X150":[44.3,35.9,12,0.94,0.625,1.69,581,504],
+"W36X135":[39.9,35.6,12,0.79,0.6,1.54,509,439],
+"W33X387":[114,36,16.2,2.28,1.26,3.07,1560,1350],
+"W33X354":[104,35.6,16.1,2.09,1.16,2.88,1420,1240],
+"W33X318":[93.7,35.2,16,1.89,1.04,2.68,1270,1110],
+"W33X291":[85.6,34.8,15.9,1.73,0.96,2.52,1160,1020],
+"W33X263":[77.4,34.5,15.8,1.57,0.87,2.36,1040,919],
+"W33X241":[71.1,34.2,15.9,1.4,0.83,2.19,940,831],
+"W33X221":[65.3,33.9,15.8,1.28,0.775,2.06,857,759],
+"W33X201":[59.1,33.7,15.7,1.15,0.715,1.94,773,686],
+"W33X169":[49.5,33.8,11.5,1.22,0.67,1.92,629,549],
+"W33X152":[44.9,33.5,11.6,1.06,0.635,1.76,559,487],
+"W33X141":[41.5,33.3,11.5,0.96,0.605,1.66,514,448],
+"W33X130":[38.3,33.1,11.5,0.855,0.58,1.56,467,406],
+"W33X118":[34.7,32.9,11.5,0.74,0.55,1.44,415,359],
+"W30X391":[115,33.2,15.6,2.44,1.36,3.23,1450,1250],
+"W30X357":[105,32.8,15.5,2.24,1.24,3.03,1320,1140],
+"W30X326":[95.9,32.4,15.4,2.05,1.14,2.84,1190,1040],
+"W30X292":[86,32,15.3,1.85,1.02,2.64,1060,930],
+"W30X261":[77,31.6,15.2,1.65,0.93,2.44,943,829],
+"W30X235":[69.3,31.3,15.1,1.5,0.83,2.29,847,748],
+"W30X211":[62.3,30.9,15.1,1.32,0.775,2.1,751,665],
+"W30X191":[56.1,30.7,15,1.19,0.71,1.97,675,600],
+"W30X173":[50.9,30.4,15,1.07,0.655,1.85,607,541],
+"W30X148":[43.6,30.7,10.5,1.18,0.65,1.83,500,436],
+"W30X132":[38.8,30.3,10.5,1,0.615,1.65,437,380],
+"W30X124":[36.5,30.2,10.5,0.93,0.585,1.58,408,355],
+"W30X116":[34.2,30,10.5,0.85,0.565,1.5,378,329],
+"W30X108":[31.7,29.8,10.5,0.76,0.545,1.41,346,299],
+"W30X99":[29,29.7,10.5,0.67,0.52,1.32,312,269],
+"W30X90":[26.3,29.5,10.4,0.61,0.47,1.26,283,245],
+"W27X539":[159,32.5,15.3,3.54,1.97,4.33,1890,1570],
+"W27X368":[109,30.4,14.7,2.48,1.38,3.27,1240,1060],
+"W27X336":[99.2,30,14.6,2.28,1.26,3.07,1130,972],
+"W27X307":[90.2,29.6,14.4,2.09,1.16,2.88,1030,887],
+"W27X281":[83.1,29.3,14.4,1.93,1.06,2.72,936,814],
+"W27X258":[76.1,29,14.3,1.77,0.98,2.56,852,745],
+"W27X235":[69.4,28.7,14.2,1.61,0.91,2.4,772,677],
+"W27X217":[63.9,28.4,14.1,1.5,0.83,2.29,711,627],
+"W27X194":[57.1,28.1,14,1.34,0.75,2.13,631,559],
+"W27X178":[52.5,27.8,14.1,1.19,0.725,1.98,570,505],
+"W27X161":[47.6,27.6,14,1.08,0.66,1.87,515,458],
+"W27X146":[43.2,27.4,14,0.975,0.605,1.76,464,414],
+"W27X129":[37.8,27.6,10,1.1,0.61,1.7,395,345],
+"W27X114":[33.6,27.3,10.1,0.93,0.57,1.53,343,299],
+"W27X102":[30,27.1,10,0.83,0.515,1.43,305,267],
+"W27X94":[27.6,26.9,10,0.745,0.49,1.34,278,243],
+"W27X84":[24.7,26.7,10,0.64,0.46,1.24,244,213],
+"W24X370":[109,28,13.7,2.72,1.52,3.22,1130,957],
+"W24X335":[98.3,27.5,13.5,2.48,1.38,2.98,1020,864],
+"W24X306":[89.7,27.1,13.4,2.28,1.26,2.78,922,789],
+"W24X279":[81.9,26.7,13.3,2.09,1.16,2.59,835,718],
+"W24X250":[73.5,26.3,13.2,1.89,1.04,2.39,744,644],
+"W24X229":[67.2,26,13.1,1.73,0.96,2.23,675,588],
+"W24X207":[60.7,25.7,13,1.57,0.87,2.07,606,531],
+"W24X192":[56.5,25.5,13,1.46,0.81,1.96,559,491],
+"W24X176":[51.7,25.2,12.9,1.34,0.75,1.84,511,450],
+"W24X162":[47.8,25,13,1.22,0.705,1.72,468,414],
+"W24X146":[43,24.7,12.9,1.09,0.65,1.59,418,371],
+"W24X131":[38.6,24.5,12.9,0.96,0.605,1.46,370,329],
+"W24X117":[34.4,24.3,12.8,0.85,0.55,1.35,327,291],
+"W24X104":[30.7,24.1,12.8,0.75,0.5,1.25,289,258],
+"W24X103":[30.3,24.5,9,0.98,0.55,1.48,280,245],
+"W24X94":[27.7,24.3,9.07,0.875,0.515,1.38,254,222],
+"W24X84":[24.7,24.1,9.02,0.77,0.47,1.27,224,196],
+"W24X76":[22.4,23.9,8.99,0.68,0.44,1.18,200,176],
+"W24X68":[20.1,23.7,8.97,0.585,0.415,1.09,177,154],
+"W24X62":[18.2,23.7,7.04,0.59,0.43,1.09,153,131],
+"W24X55":[16.2,23.6,7.01,0.505,0.395,1.01,134,114],
+"W21X275":[81.8,24.1,12.9,2.19,1.22,3.37,749,638],
+"W21X248":[73.8,23.7,12.8,1.99,1.1,3.17,671,576],
+"W21X223":[66.5,23.4,12.7,1.79,1,2.9699999999999998,601,520],
+"W21X201":[59.3,23,12.6,1.63,0.91,2.13,530,461],
+"W21X182":[53.6,22.7,12.5,1.48,0.83,1.98,476,417],
+"W21X166":[48.8,22.5,12.4,1.36,0.75,1.86,432,380],
+"W21X147":[43.2,22.1,12.5,1.15,0.72,1.65,373,329],
+"W21X132":[38.8,21.8,12.4,1.04,0.65,1.54,333,295],
+"W21X122":[35.9,21.7,12.4,0.96,0.6,1.46,307,273],
+"W21X111":[32.6,21.5,12.3,0.875,0.55,1.38,279,249],
+"W21X101":[29.8,21.4,12.3,0.8,0.5,1.3,253,227],
+"W21X93":[27.3,21.6,8.42,0.93,0.58,1.43,221,192],
+"W21X83":[24.4,21.4,8.36,0.835,0.515,1.34,196,171],
+"W21X73":[21.5,21.2,8.3,0.74,0.455,1.24,172,151],
+"W21X68":[20,21.1,8.27,0.685,0.43,1.19,160,140],
+"W21X62":[18.3,21,8.24,0.615,0.4,1.12,144,127],
+"W21X55":[16.2,20.8,8.22,0.522,0.375,1.02,126,110],
+"W21X48":[14.1,20.6,8.14,0.43,0.35,0.93,107,93],
+"W21X57":[16.7,21.1,6.56,0.65,0.405,1.15,129,111],
+"W21X50":[14.7,20.8,6.53,0.535,0.38,1.04,110,94.5],
+"W21X44":[13,20.7,6.5,0.45,0.35,0.95,95.4,81.6],
+"W18X311":[91.6,22.3,12,2.74,1.52,3.24,754,624],
+"W18X283":[83.3,21.9,11.9,2.5,1.4,3,676,565],
+"W18X258":[76,21.5,11.8,2.3,1.28,2.7,611,514],
+"W18X234":[68.6,21.1,11.7,2.11,1.16,2.51,549,466],
+"W18X211":[62.3,20.7,11.6,1.91,1.06,2.31,490,419],
+"W18X192":[56.2,20.4,11.5,1.75,0.96,2.15,442,380],
+"W18X175":[51.4,20,11.4,1.59,0.89,1.99,398,344],
+"W18X158":[46.3,19.7,11.3,1.44,0.81,1.84,356,310],
+"W18X143":[42,19.5,11.2,1.32,0.73,1.72,322,282],
+"W18X130":[38.3,19.3,11.2,1.2,0.67,1.6,290,256],
+"W18X119":[35.1,19,11.3,1.06,0.655,1.46,262,231],
+"W18X106":[31.1,18.7,11.2,0.94,0.59,1.34,230,204],
+"W18X97":[28.5,18.6,11.1,0.87,0.535,1.27,211,188],
+"W18X86":[25.3,18.4,11.1,0.77,0.48,1.17,186,166],
+"W18X76":[22.3,18.2,11,0.68,0.425,1.08,163,146],
+"W18X71":[20.9,18.5,7.64,0.81,0.495,1.21,146,127],
+"W18X65":[19.1,18.4,7.59,0.75,0.45,1.15,133,117],
+"W18X60":[17.6,18.2,7.56,0.695,0.415,1.1,123,108],
+"W18X55":[16.2,18.1,7.53,0.63,0.39,1.03,112,98.3],
+"W18X50":[14.7,18,7.5,0.57,0.355,0.972,101,88.9],
+"W18X46":[13.5,18.1,6.06,0.605,0.36,1.01,90.7,78.8],
+"W18X40":[11.8,17.9,6.02,0.525,0.315,0.927,78.4,68.4],
+"W18X35":[10.3,17.7,6,0.425,0.3,0.827,66.5,57.6],
+"W16X100":[29.4,17,10.4,0.985,0.585,1.39,198,175],
+"W16X89":[26.2,16.8,10.4,0.875,0.525,1.28,175,155],
+"W16X77":[22.6,16.5,10.3,0.76,0.455,1.16,150,134],
+"W16X67":[19.6,16.3,10.2,0.665,0.395,1.07,130,117],
+"W16X57":[16.8,16.4,7.12,0.715,0.43,1.12,105,92.2],
+"W16X50":[14.7,16.3,7.07,0.63,0.38,1.03,92,81],
+"W16X45":[13.3,16.1,7.04,0.565,0.345,0.967,82.3,72.7],
+"W16X40":[11.8,16,7,0.505,0.305,0.907,73,64.7],
+"W16X36":[10.6,15.9,6.99,0.43,0.295,0.832,64,56.5],
+"W16X31":[9.13,15.9,5.53,0.44,0.275,0.842,54,47.2],
+"W16X26":[7.68,15.7,5.5,0.345,0.25,0.747,44.2,38.4],
+"W14X873":[257,23.6,18.8,5.51,3.94,6.1,2030,1530],
+"W14X808":[238,22.8,18.6,5.12,3.74,5.71,1830,1390],
+"W14X730":[215,22.4,17.9,4.91,3.07,5.51,1660,1280],
+"W14X665":[196,21.6,17.7,4.52,2.83,5.12,1480,1150],
+"W14X605":[178,20.9,17.4,4.16,2.6,4.76,1320,1040],
+"W14X550":[162,20.2,17.2,3.82,2.38,4.42,1180,931],
+"W14X500":[147,19.6,17,3.5,2.19,4.1,1050,838],
+"W14X455":[134,19,16.8,3.21,2.02,3.81,936,756],
+"W14X426":[125,18.7,16.7,3.04,1.88,3.63,869,706],
+"W14X398":[117,18.3,16.6,2.85,1.77,3.44,801,656],
+"W14X370":[109,17.9,16.5,2.66,1.66,3.26,736,607],
+"W14X342":[101,17.5,16.4,2.47,1.54,3.07,672,558],
+"W14X311":[91.4,17.1,16.2,2.26,1.41,2.86,603,506],
+"W14X283":[83.3,16.7,16.1,2.07,1.29,2.67,542,459],
+"W14X257":[75.6,16.4,16,1.89,1.18,2.49,487,415],
+"W14X233":[68.5,16,15.9,1.72,1.07,2.32,436,375],
+"W14X211":[62,15.7,15.8,1.56,0.98,2.16,390,338],
+"W14X193":[56.8,15.5,15.7,1.44,0.89,2.04,355,310],
+"W14X176":[51.8,15.2,15.7,1.31,0.83,1.91,320,281],
+"W14X159":[46.7,15,15.6,1.19,0.745,1.79,287,254],
+"W14X145":[42.7,14.8,15.5,1.09,0.68,1.69,260,232],
+"W14X132":[38.8,14.7,14.7,1.03,0.645,1.63,234,209],
+"W14X120":[35.3,14.5,14.7,0.94,0.59,1.54,212,190],
+"W14X109":[32,14.3,14.6,0.86,0.525,1.46,192,173],
+"W14X99":[29.1,14.2,14.6,0.78,0.485,1.38,173,157],
+"W14X90":[26.5,14,14.5,0.71,0.44,1.31,157,143],
+"W14X82":[24,14.3,10.1,0.855,0.51,1.45,139,123],
+"W14X74":[21.8,14.2,10.1,0.785,0.45,1.38,126,112],
+"W14X68":[20,14,10,0.72,0.415,1.31,115,103],
+"W14X61":[17.9,13.9,10,0.645,0.375,1.24,102,92.1],
+"W14X53":[15.6,13.9,8.06,0.66,0.37,1.25,87.1,77.8],
+"W14X48":[14.1,13.8,8.03,0.595,0.34,1.19,78.4,70.2],
+"W14X43":[12.6,13.7,8,0.53,0.305,1.12,69.6,62.6],
+"W14X38":[11.2,14.1,6.77,0.515,0.31,0.915,61.5,54.6],
+"W14X34":[10,14,6.75,0.455,0.285,0.855,54.6,48.6],
+"W14X30":[8.85,13.8,6.73,0.385,0.27,0.785,47.3,42],
+"W14X26":[7.69,13.9,5.03,0.42,0.255,0.82,40.2,35.3],
+"W14X22":[6.49,13.7,5,0.335,0.23,0.735,33.2,29],
+"W12X336":[98.9,16.8,13.4,2.96,1.78,3.55,603,483],
+"W12X305":[89.5,16.3,13.2,2.71,1.63,3.3,537,435],
+"W12X279":[81.9,15.9,13.1,2.47,1.53,3.07,481,393],
+"W12X252":[74.1,15.4,13,2.25,1.4,2.85,428,353],
+"W12X230":[67.7,15.1,12.9,2.07,1.29,2.67,386,321],
+"W12X210":[61.8,14.7,12.8,1.9,1.18,2.5,348,292],
+"W12X190":[56,14.4,12.7,1.74,1.06,2.33,311,263],
+"W12X170":[50,14,12.6,1.56,0.96,2.16,275,235],
+"W12X152":[44.7,13.7,12.5,1.4,0.87,2,243,209],
+"W12X136":[39.9,13.4,12.4,1.25,0.79,1.85,214,186],
+"W12X120":[35.2,13.1,12.3,1.11,0.71,1.7,186,163],
+"W12X106":[31.2,12.9,12.2,0.99,0.61,1.59,164,145],
+"W12X96":[28.2,12.7,12.2,0.9,0.55,1.5,147,131],
+"W12X87":[25.6,12.5,12.1,0.81,0.515,1.41,132,118],
+"W12X79":[23.2,12.4,12.1,0.735,0.47,1.33,119,107],
+"W12X72":[21.1,12.3,12,0.67,0.43,1.27,108,97.4],
+"W12X65":[19.1,12.1,12,0.605,0.39,1.2,96.8,87.9],
+"W12X58":[17,12.2,10,0.64,0.36,1.24,86.4,78],
+"W12X53":[15.6,12.1,10,0.575,0.345,1.18,77.9,70.6],
+"W12X50":[14.6,12.2,8.08,0.64,0.37,1.14,71.9,64.2],
+"W12X45":[13.1,12.1,8.05,0.575,0.335,1.08,64.2,57.7],
+"W12X40":[11.7,11.9,8.01,0.515,0.295,1.02,57,51.5],
+"W12X35":[10.3,12.5,6.56,0.52,0.3,0.82,51.2,45.6],
+"W12X30":[8.79,12.3,6.52,0.44,0.26,0.74,43.1,38.6],
+"W12X26":[7.65,12.2,6.49,0.38,0.23,0.68,37.2,33.4],
+"W12X22":[6.48,12.3,4.03,0.425,0.26,0.725,29.3,25.4],
+"W12X19":[5.57,12.2,4.01,0.35,0.235,0.65,24.7,21.3],
+"W12X16":[4.71,12,3.99,0.265,0.22,0.565,20.1,17.1],
+"W12X14":[4.16,11.9,3.97,0.225,0.2,0.525,17.4,14.9],
+"W10X112":[32.9,11.4,10.4,1.25,0.755,1.75,147,126],
+"W10X100":[29.3,11.1,10.3,1.12,0.68,1.62,130,112],
+"W10X88":[26,10.8,10.3,0.99,0.605,1.49,113,98.5],
+"W10X77":[22.7,10.6,10.2,0.87,0.53,1.37,97.6,85.9],
+"W10X68":[19.9,10.4,10.1,0.77,0.47,1.27,85.3,75.7],
+"W10X60":[17.7,10.2,10.1,0.68,0.42,1.18,74.6,66.7],
+"W10X54":[15.8,10.1,10,0.615,0.37,1.12,66.6,60],
+"W10X49":[14.4,10,10,0.56,0.34,1.06,60.4,54.6],
+"W10X45":[13.3,10.1,8.02,0.62,0.35,1.12,54.9,49.1],
+"W10X39":[11.5,9.92,7.99,0.53,0.315,1.03,46.8,42.1],
+"W10X33":[9.71,9.73,7.96,0.435,0.29,0.935,38.8,35],
+"W10X30":[8.84,10.5,5.81,0.51,0.3,0.81,36.6,32.4],
+"W10X26":[7.61,10.3,5.77,0.44,0.26,0.74,31.3,27.9],
+"W10X22":[6.49,10.2,5.75,0.36,0.24,0.66,26,23.2],
+"W10X19":[5.62,10.2,4.02,0.395,0.25,0.695,21.6,18.8],
+"W10X17":[4.99,10.1,4.01,0.33,0.24,0.63,18.7,16.2],
+"W10X15":[4.41,9.99,4,0.27,0.23,0.57,16,13.8],
+"W10X12":[3.54,9.87,3.96,0.21,0.19,0.51,12.6,10.9],
+"W8X67":[19.7,9,8.28,0.935,0.57,1.33,70.1,60.4],
+"W8X58":[17.1,8.75,8.22,0.81,0.51,1.2,59.8,52],
+"W8X48":[14.1,8.5,8.11,0.685,0.4,1.08,49,43.2],
+"W8X40":[11.7,8.25,8.07,0.56,0.36,0.954,39.8,35.5],
+"W8X35":[10.3,8.12,8.02,0.495,0.31,0.889,34.7,31.2],
+"W8X31":[9.13,8,8,0.435,0.285,0.829,30.4,27.5],
+"W8X28":[8.25,8.06,6.54,0.465,0.285,0.859,27.2,24.3],
+"W8X24":[7.08,7.93,6.5,0.4,0.245,0.794,23.1,20.9],
+"W8X21":[6.16,8.28,5.27,0.4,0.25,0.7,20.4,18.2],
+"W8X18":[5.26,8.14,5.25,0.33,0.23,0.63,17,15.2],
+"W8X15":[4.44,8.11,4.02,0.315,0.245,0.615,13.6,11.8],
+"W8X13":[3.84,7.99,4,0.255,0.23,0.555,11.4,9.91],
+"W8X10":[2.96,7.89,3.94,0.205,0.17,0.505,8.87,7.81]
+};
 
-function hint(){
-  var ws=document.getElementById('wsec').value;
-  if(ws){var W=W_DB[ws];document.getElementById('wHint').innerHTML='d='+W[1]+'", b<sub>f</sub>='+W[2]+'", t<sub>f</sub>='+W[3]+'"'}
-  var hs=document.getElementById('hsec').value;
-  if(hs){var H=H_DB[hs];document.getElementById('hHint').innerHTML='B='+H[2]+'", t<sub>des</sub>='+H[3]+'", flat = B−3t = '+(H[2]-3*H[3]).toFixed(2)+'"'}
-  if(typeof areDrawSchematic==='function') areDrawSchematic();
-}
+/* AISC v16.0 rectangular HSS, B and H 4-20 in: HSS_DB[label] = [A, H, B, t_des, t_nom, b/t_des, h/t_des, Sx, Ix] */
+var HSS_DB={
+"HSS20X16X3/4":[47.1,20,16,0.698,0.75,19.9,25.7,271,2710],
+"HSS20X16X5/8":[39.6,20,16,0.581,0.625,24.5,31.4,232,2320],
+"HSS20X16X1/2":[32.1,20,16,0.465,0.5,31.4,40,190,1900],
+"HSS20X16X3/8":[24.3,20,16,0.349,0.375,42.8,54.3,147,1470],
+"HSS20X16X5/16":[20.4,20,16,0.291,0.3125,52,65.7,124,1240],
+"HSS20X16X1/4":[16.4,20,16,0.233,0.25,65.7,82.8,100,1000],
+"HSS20X12X1":[53.8,20,12,0.93,1,9.9,18.5,274,2740],
+"HSS20X12X7/8":[47.7,20,12,0.814,0.875,11.7,21.6,248,2480],
+"HSS20X12X3/4":[41.5,20,12,0.698,0.75,14.2,25.6,219,2190],
+"HSS20X12X5/8":[35,20,12,0.581,0.625,17.7,31.4,188,1880],
+"HSS20X12X1/2":[28.3,20,12,0.465,0.5,22.8,40,155,1550],
+"HSS20X12X3/8":[21.5,20,12,0.349,0.375,31.4,54.3,120,1200],
+"HSS20X12X5/16":[18.1,20,12,0.291,0.3125,38.2,65.7,101,1010],
+"HSS20X8X1":[46.4,20,8,0.93,1,5.6,18.5,206,2060],
+"HSS20X8X7/8":[41.2,20,8,0.814,0.875,6.83,21.6,188,1880],
+"HSS20X8X3/4":[35.9,20,8,0.698,0.75,8.46,25.7,167,1670],
+"HSS20X8X5/8":[30.3,20,8,0.581,0.625,10.8,31.4,144,1440],
+"HSS20X8X1/2":[24.6,20,8,0.465,0.5,14.2,40,119,1190],
+"HSS20X8X3/8":[18.7,20,8,0.349,0.375,19.9,54.3,92.6,926],
+"HSS20X8X5/16":[15.7,20,8,0.291,0.3125,24.5,65.7,78.6,786],
+"HSS20X6X5/8":[28,20,6,0.581,0.625,7.33,31.4,122,1220],
+"HSS20X6X1/2":[22.8,20,6,0.465,0.5,9.9,40,102,1020],
+"HSS20X6X3/8":[17.3,20,6,0.349,0.375,14.2,54.3,79.2,792],
+"HSS20X6X5/16":[14.6,20,6,0.291,0.3125,17.6,65.7,67.3,673],
+"HSS20X6X1/4":[11.8,20,6,0.233,0.25,22.8,82.8,54.9,549],
+"HSS20X4X1/2":[20.9,20,4,0.465,0.5,5.6,40,83.8,838],
+"HSS20X4X3/8":[16,20,4,0.349,0.375,8.46,54.3,65.7,657],
+"HSS20X4X5/16":[13.4,20,4,0.291,0.3125,10.7,65.7,56,560],
+"HSS20X4X1/4":[10.8,20,4,0.233,0.25,14.2,82.8,45.8,458],
+"HSS18X10X5/8":[30.3,18,10,0.581,0.625,14.2,28,142,1280],
+"HSS18X10X1/2":[24.6,18,10,0.465,0.5,18.5,35.7,117,1060],
+"HSS18X10X3/8":[18.7,18,10,0.349,0.375,25.7,48.6,91.1,820],
+"HSS18X10X5/16":[15.7,18,10,0.291,0.3125,31.4,58.9,77.2,695],
+"HSS18X10X1/4":[12.7,18,10,0.233,0.25,39.9,74.3,62.9,566],
+"HSS18X8X5/8":[28,18,8,0.581,0.625,10.8,28,122,1100],
+"HSS18X8X1/2":[22.8,18,8,0.465,0.5,14.2,35.7,101,913],
+"HSS18X8X3/8":[17.3,18,8,0.349,0.375,19.9,48.6,79,711],
+"HSS18X8X5/16":[14.6,18,8,0.291,0.3125,24.5,58.9,67.1,604],
+"HSS18X8X1/4":[11.8,18,8,0.233,0.25,31.3,74.3,54.7,492],
+"HSS18X6X3/4":[30.3,18,6,0.698,0.75,5.6,22.8,118,1060],
+"HSS18X6X5/8":[25.7,18,6,0.581,0.625,7.33,28,103,923],
+"HSS18X6X1/2":[20.9,18,6,0.465,0.5,9.9,35.7,85.6,770],
+"HSS18X6X3/8":[16,18,6,0.349,0.375,14.2,48.6,66.9,602],
+"HSS18X6X5/16":[13.4,18,6,0.291,0.3125,17.6,58.9,57,513],
+"HSS18X6X1/4":[10.8,18,6,0.233,0.25,22.8,74.3,46.5,419],
+"HSS16X16X1":[53.8,16,16,0.93,1,14.2,14.2,249,1990],
+"HSS16X16X7/8":[47.7,16,16,0.814,0.875,16.7,16.7,225,1800],
+"HSS16X16X3/4":[41.5,16,16,0.698,0.75,19.9,19.9,199,1590],
+"HSS16X16X5/8":[35,16,16,0.581,0.625,24.5,24.5,171,1370],
+"HSS16X16X1/2":[28.3,16,16,0.465,0.5,31.4,31.4,141,1130],
+"HSS16X16X3/8":[21.5,16,16,0.349,0.375,42.8,42.8,109,873],
+"HSS16X16X5/16":[18.1,16,16,0.291,0.3125,52,52,92.3,739],
+"HSS16X16X1/4":[14.6,16,16,0.233,0.25,65.7,65.7,75,600],
+"HSS16X12X1":[46.4,16,12,0.93,1,9.9,14.2,196,1570],
+"HSS16X12X7/8":[41.2,16,12,0.814,0.875,11.7,16.7,178,1430],
+"HSS16X12X3/4":[35.9,16,12,0.698,0.75,14.2,19.9,159,1270],
+"HSS16X12X5/8":[30.3,16,12,0.581,0.625,17.7,24.5,136,1090],
+"HSS16X12X1/2":[24.6,16,12,0.465,0.5,22.8,31.4,113,904],
+"HSS16X12X3/8":[18.7,16,12,0.349,0.375,31.4,42.8,87.7,702],
+"HSS16X12X5/16":[15.7,16,12,0.291,0.3125,38.2,52,74.4,595],
+"HSS16X10X5/8":[28,16,10,0.581,0.625,14.2,24.5,119,953],
+"HSS16X10X1/2":[22.8,16,10,0.465,0.5,18.5,31.4,99,792],
+"HSS16X10X3/8":[17.3,16,10,0.349,0.375,25.7,42.8,77,616],
+"HSS16X10X5/16":[14.6,16,10,0.291,0.3125,31.4,52,65.4,523],
+"HSS16X10X1/4":[11.8,16,10,0.233,0.25,39.9,65.7,53.3,426],
+"HSS16X8X7/8":[34.7,16,8,0.814,0.875,6.83,16.7,131,1050],
+"HSS16X8X3/4":[30.3,16,8,0.698,0.75,8.46,19.9,117,939],
+"HSS16X8X5/8":[25.7,16,8,0.581,0.625,10.8,24.5,102,815],
+"HSS16X8X1/2":[20.9,16,8,0.465,0.5,14.2,31.4,84.9,679],
+"HSS16X8X3/8":[16,16,8,0.349,0.375,19.9,42.8,66.3,531],
+"HSS16X8X5/16":[13.4,16,8,0.291,0.3125,24.5,52,56.4,451],
+"HSS16X8X1/4":[10.8,16,8,0.233,0.25,31.3,65.7,46.1,368],
+"HSS16X6X5/8":[23.3,16,6,0.581,0.625,7.33,24.5,84.6,677],
+"HSS16X6X1/2":[19,16,6,0.465,0.5,9.9,31.4,70.9,567],
+"HSS16X6X3/8":[14.6,16,6,0.349,0.375,14.2,42.8,55.6,445],
+"HSS16X6X5/16":[12.2,16,6,0.291,0.3125,17.6,52,47.4,379],
+"HSS16X6X1/4":[9.9,16,6,0.233,0.25,22.8,65.7,38.8,311],
+"HSS16X6X3/16":[7.46,16,6,0.174,0.1875,31.5,89,29.6,237],
+"HSS16X4X5/8":[21,16,4,0.581,0.625,3.88,24.5,67.3,539],
+"HSS16X4X1/2":[17.2,16,4,0.465,0.5,5.6,31.4,56.9,455],
+"HSS16X4X3/8":[13.2,16,4,0.349,0.375,8.46,42.8,45,360],
+"HSS16X4X5/16":[11.1,16,4,0.291,0.3125,10.7,52,38.5,308],
+"HSS16X4X1/4":[8.96,16,4,0.233,0.25,14.2,65.7,31.6,253],
+"HSS16X4X3/16":[6.76,16,4,0.174,0.1875,20,89,24.2,193],
+"HSS14X14X1":[46.4,14,14,0.93,1,12.1,12.1,184,1290],
+"HSS14X14X7/8":[41.2,14,14,0.814,0.875,14.3,14.3,167,1170],
+"HSS14X14X3/4":[35.9,14,14,0.698,0.75,17,17,149,1040],
+"HSS14X14X5/8":[30.3,14,14,0.581,0.625,21.1,21.1,128,897],
+"HSS14X14X1/2":[24.6,14,14,0.465,0.5,27.1,27.1,106,743],
+"HSS14X14X3/8":[18.7,14,14,0.349,0.375,37.1,37.1,82.5,577],
+"HSS14X14X5/16":[15.7,14,14,0.291,0.3125,45.1,45.1,69.9,490],
+"HSS14X14X1/4":[12.7,14,14,0.233,0.25,57.1,57.1,57,399],
+"HSS14X12X5/8":[28,14,12,0.581,0.625,17.7,21.1,113,792],
+"HSS14X12X1/2":[22.8,14,12,0.465,0.5,22.8,27.1,94,658],
+"HSS14X12X3/8":[17.3,14,12,0.349,0.375,31.4,37.1,73.2,512],
+"HSS14X12X5/16":[14.6,14,12,0.291,0.3125,38.2,45.1,62.1,435],
+"HSS14X12X1/4":[11.8,14,12,0.233,0.25,48.5,57.1,50.6,354],
+"HSS14X10X7/8":[34.7,14,10,0.814,0.875,9.29,14.2,127,886],
+"HSS14X10X3/4":[30.3,14,10,0.698,0.75,11.3,17.1,113,792],
+"HSS14X10X5/8":[25.7,14,10,0.581,0.625,14.2,21.1,98.2,687],
+"HSS14X10X1/2":[20.9,14,10,0.465,0.5,18.5,27.1,81.8,573],
+"HSS14X10X3/8":[16,14,10,0.349,0.375,25.7,37.1,63.9,447],
+"HSS14X10X5/16":[13.4,14,10,0.291,0.3125,31.4,45.1,54.3,380],
+"HSS14X10X1/4":[10.8,14,10,0.233,0.25,39.9,57.1,44.3,310],
+"HSS14X8X5/8":[23.3,14,8,0.581,0.625,10.8,21.1,83.2,582],
+"HSS14X8X1/2":[19,14,8,0.465,0.5,14.2,27.1,69.6,487],
+"HSS14X8X3/8":[14.6,14,8,0.349,0.375,19.9,37.1,54.6,382],
+"HSS14X8X5/16":[12.2,14,8,0.291,0.3125,24.5,45.1,46.5,325],
+"HSS14X8X1/4":[9.9,14,8,0.233,0.25,31.3,57.1,38,266],
+"HSS14X8X3/16":[7.46,14,8,0.174,0.1875,43,77.5,29,203],
+"HSS14X6X5/8":[21,14,6,0.581,0.625,7.33,21.1,68.3,478],
+"HSS14X6X1/2":[17.2,14,6,0.465,0.5,9.9,27.1,57.4,402],
+"HSS14X6X3/8":[13.2,14,6,0.349,0.375,14.2,37.1,45.3,317],
+"HSS14X6X5/16":[11.1,14,6,0.291,0.3125,17.6,45.1,38.7,271],
+"HSS14X6X1/4":[8.96,14,6,0.233,0.25,22.8,57.1,31.7,222],
+"HSS14X6X3/16":[6.76,14,6,0.174,0.1875,31.5,77.5,24.3,170],
+"HSS14X4X5/8":[18.7,14,4,0.581,0.625,3.88,21.1,53.3,373],
+"HSS14X4X1/2":[15.3,14,4,0.465,0.5,5.6,27.1,45.3,317],
+"HSS14X4X3/8":[11.8,14,4,0.349,0.375,8.46,37.1,36,252],
+"HSS14X4X5/16":[9.92,14,4,0.291,0.3125,10.7,45.1,30.9,216],
+"HSS14X4X1/4":[8.03,14,4,0.233,0.25,14.2,57.1,25.4,178],
+"HSS14X4X3/16":[6.06,14,4,0.174,0.1875,20,77.5,19.5,137],
+"HSS12X12X1":[39,12,12,0.93,1,9.9,9.9,129,772],
+"HSS12X12X7/8":[34.7,12,12,0.814,0.875,11.7,11.7,118,706],
+"HSS12X12X3/4":[30.3,12,12,0.698,0.75,14.2,14.2,105,631],
+"HSS12X12X5/8":[25.7,12,12,0.581,0.625,17.7,17.7,91.4,548],
+"HSS12X12X1/2":[20.9,12,12,0.465,0.5,22.8,22.8,76.2,457],
+"HSS12X12X3/8":[16,12,12,0.349,0.375,31.4,31.4,59.5,357],
+"HSS12X12X5/16":[13.4,12,12,0.291,0.3125,38.2,38.2,50.7,304],
+"HSS12X12X1/4":[10.8,12,12,0.233,0.25,48.5,48.5,41.4,248],
+"HSS12X12X3/16":[8.15,12,12,0.174,0.1875,66,66,31.5,189],
+"HSS12X10X5/8":[23.3,12,10,0.581,0.625,14.2,17.7,78.7,472],
+"HSS12X10X1/2":[19,12,10,0.465,0.5,18.5,22.8,65.9,395],
+"HSS12X10X3/8":[14.6,12,10,0.349,0.375,25.7,31.4,51.6,310],
+"HSS12X10X5/16":[12.2,12,10,0.291,0.3125,31.4,38.2,44,264],
+"HSS12X10X1/4":[9.9,12,10,0.233,0.25,39.9,48.5,36,216],
+"HSS12X10X3/16":[7.46,12,10,0.174,0.1875,54.5,66,27.5,165],
+"HSS12X8X5/8":[21,12,8,0.581,0.625,10.8,17.7,66.1,397],
+"HSS12X8X1/2":[17.2,12,8,0.465,0.5,14.2,22.8,55.6,333],
+"HSS12X8X3/8":[13.2,12,8,0.349,0.375,19.9,31.4,43.7,262],
+"HSS12X8X5/16":[11.1,12,8,0.291,0.3125,24.5,38.2,37.4,224],
+"HSS12X8X1/4":[8.96,12,8,0.233,0.25,31.3,48.5,30.6,184],
+"HSS12X8X3/16":[6.76,12,8,0.174,0.1875,43,66,23.4,140],
+"HSS12X6X5/8":[18.7,12,6,0.581,0.625,7.33,17.7,53.4,321],
+"HSS12X6X1/2":[15.3,12,6,0.465,0.5,9.9,22.8,45.2,271],
+"HSS12X6X3/8":[11.8,12,6,0.349,0.375,14.2,31.4,35.9,215],
+"HSS12X6X5/16":[9.92,12,6,0.291,0.3125,17.6,38.2,30.7,184],
+"HSS12X6X1/4":[8.03,12,6,0.233,0.25,22.8,48.5,25.2,151],
+"HSS12X6X3/16":[6.06,12,6,0.174,0.1875,31.5,66,19.4,116],
+"HSS12X4X5/8":[16.4,12,4,0.581,0.625,3.88,17.7,40.8,245],
+"HSS12X4X1/2":[13.5,12,4,0.465,0.5,5.6,22.8,34.9,210],
+"HSS12X4X3/8":[10.4,12,4,0.349,0.375,8.46,31.4,28,168],
+"HSS12X4X5/16":[8.76,12,4,0.291,0.3125,10.7,38.2,24.1,144],
+"HSS12X4X1/4":[7.1,12,4,0.233,0.25,14.2,48.5,19.9,119],
+"HSS12X4X3/16":[5.37,12,4,0.174,0.1875,20,66,15.3,91.8],
+"HSS10X10X3/4":[24.7,10,10,0.698,0.75,11.3,11.3,69.4,347],
+"HSS10X10X5/8":[21,10,10,0.581,0.625,14.2,14.2,60.8,304],
+"HSS10X10X1/2":[17.2,10,10,0.465,0.5,18.5,18.5,51.2,256],
+"HSS10X10X3/8":[13.2,10,10,0.349,0.375,25.7,25.7,40.4,202],
+"HSS10X10X5/16":[11.1,10,10,0.291,0.3125,31.4,31.4,34.5,172],
+"HSS10X10X1/4":[8.96,10,10,0.233,0.25,39.9,39.9,28.3,141],
+"HSS10X10X3/16":[6.76,10,10,0.174,0.1875,54.5,54.5,21.6,108],
+"HSS10X8X5/8":[18.7,10,8,0.581,0.625,10.8,14.2,50.5,253],
+"HSS10X8X1/2":[15.3,10,8,0.465,0.5,14.2,18.5,42.7,214],
+"HSS10X8X3/8":[11.8,10,8,0.349,0.375,19.9,25.7,33.9,169],
+"HSS10X8X5/16":[9.92,10,8,0.291,0.3125,24.5,31.4,29,145],
+"HSS10X8X1/4":[8.03,10,8,0.233,0.25,31.3,39.9,23.8,119],
+"HSS10X8X3/16":[6.06,10,8,0.174,0.1875,43,54.5,18.3,91.4],
+"HSS10X6X5/8":[16.4,10,6,0.581,0.625,7.33,14.2,40.2,201],
+"HSS10X6X1/2":[13.5,10,6,0.465,0.5,9.9,18.5,34.3,171],
+"HSS10X6X3/8":[10.4,10,6,0.349,0.375,14.2,25.7,27.4,137],
+"HSS10X6X5/16":[8.76,10,6,0.291,0.3125,17.6,31.4,23.5,118],
+"HSS10X6X1/4":[7.1,10,6,0.233,0.25,22.8,39.9,19.4,96.9],
+"HSS10X6X3/16":[5.37,10,6,0.174,0.1875,31.5,54.5,14.9,74.6],
+"HSS10X5X3/8":[9.67,10,5,0.349,0.375,11.3,25.7,24.1,120],
+"HSS10X5X5/16":[8.17,10,5,0.291,0.3125,14.2,31.4,20.8,104],
+"HSS10X5X1/4":[6.63,10,5,0.233,0.25,18.5,39.9,17.2,85.8],
+"HSS10X4X5/8":[14,10,4,0.581,0.625,3.88,14.2,29.9,149],
+"HSS10X4X1/2":[11.6,10,4,0.465,0.5,5.6,18.5,25.8,129],
+"HSS10X4X3/8":[8.97,10,4,0.349,0.375,8.46,25.7,20.8,104],
+"HSS10X4X5/16":[7.59,10,4,0.291,0.3125,10.7,31.4,18,90.1],
+"HSS10X4X1/4":[6.17,10,4,0.233,0.25,14.2,39.9,14.9,74.7],
+"HSS10X4X3/16":[4.67,10,4,0.174,0.1875,20,54.5,11.6,57.8],
+"HSS10X4X1/8":[3.16,10,4,0.116,0.125,31.5,83.2,7.97,39.8],
+"HSS9X9X5/8":[18.7,9,9,0.581,0.625,12.5,12.5,47.9,216],
+"HSS9X9X1/2":[15.3,9,9,0.465,0.5,16.4,16.4,40.6,183],
+"HSS9X9X3/8":[11.8,9,9,0.349,0.375,22.8,22.8,32.2,145],
+"HSS9X9X5/16":[9.92,9,9,0.291,0.3125,27.9,27.9,27.6,124],
+"HSS9X9X1/4":[8.03,9,9,0.233,0.25,35.6,35.6,22.7,102],
+"HSS9X9X3/16":[6.06,9,9,0.174,0.1875,48.7,48.7,17.4,78.2],
+"HSS9X9X1/8":[4.09,9,9,0.116,0.125,74.6,74.6,11.9,53.5],
+"HSS9X7X5/8":[16.4,9,7,0.581,0.625,9.05,12.5,38.7,174],
+"HSS9X7X1/2":[13.5,9,7,0.465,0.5,12.1,16.4,33,149],
+"HSS9X7X3/8":[10.4,9,7,0.349,0.375,17.1,22.8,26.4,119],
+"HSS9X7X5/16":[8.76,9,7,0.291,0.3125,21.1,27.9,22.6,102],
+"HSS9X7X1/4":[7.1,9,7,0.233,0.25,27,35.6,18.7,84.1],
+"HSS9X7X3/16":[5.37,9,7,0.174,0.1875,37.2,48.7,14.4,64.7],
+"HSS9X5X5/8":[14,9,5,0.581,0.625,5.61,12.5,29.6,133],
+"HSS9X5X1/2":[11.6,9,5,0.465,0.5,7.75,16.4,25.5,115],
+"HSS9X5X3/8":[8.97,9,5,0.349,0.375,11.3,22.8,20.5,92.5],
+"HSS9X5X5/16":[7.59,9,5,0.291,0.3125,14.2,27.9,17.7,79.8],
+"HSS9X5X1/4":[6.17,9,5,0.233,0.25,18.5,35.6,14.7,66.1],
+"HSS9X5X3/16":[4.67,9,5,0.174,0.1875,25.7,48.7,11.4,51.1],
+"HSS8X8X5/8":[16.4,8,8,0.581,0.625,10.8,10.8,36.5,146],
+"HSS8X8X1/2":[13.5,8,8,0.465,0.5,14.2,14.2,31.2,125],
+"HSS8X8X3/8":[10.4,8,8,0.349,0.375,19.9,19.9,24.9,100],
+"HSS8X8X5/16":[8.76,8,8,0.291,0.3125,24.5,24.5,21.4,85.6],
+"HSS8X8X1/4":[7.1,8,8,0.233,0.25,31.3,31.3,17.7,70.7],
+"HSS8X8X3/16":[5.37,8,8,0.174,0.1875,43,43,13.6,54.4],
+"HSS8X8X1/8":[3.62,8,8,0.116,0.125,66,66,9.34,37.4],
+"HSS8X6X5/8":[14,8,6,0.581,0.625,7.33,10.8,28.5,114],
+"HSS8X6X1/2":[11.6,8,6,0.465,0.5,9.9,14.2,24.6,98.2],
+"HSS8X6X3/8":[8.97,8,6,0.349,0.375,14.2,19.9,19.8,79.1],
+"HSS8X6X5/16":[7.59,8,6,0.291,0.3125,17.6,24.5,17.1,68.3],
+"HSS8X6X1/4":[6.17,8,6,0.233,0.25,22.8,31.3,14.2,56.6],
+"HSS8X6X3/16":[4.67,8,6,0.174,0.1875,31.5,43,10.9,43.7],
+"HSS8X4X5/8":[11.7,8,4,0.581,0.625,3.88,10.8,20.5,82],
+"HSS8X4X1/2":[9.74,8,4,0.465,0.5,5.6,14.2,17.9,71.8],
+"HSS8X4X3/8":[7.58,8,4,0.349,0.375,8.46,19.9,14.7,58.7],
+"HSS8X4X5/16":[6.43,8,4,0.291,0.3125,10.7,24.5,12.8,51],
+"HSS8X4X1/4":[5.24,8,4,0.233,0.25,14.2,31.3,10.6,42.5],
+"HSS8X4X3/16":[3.98,8,4,0.174,0.1875,20,43,8.27,33.1],
+"HSS8X4X1/8":[2.7,8,4,0.116,0.125,31.5,66,5.73,22.9],
+"HSS7X7X5/8":[14,7,7,0.581,0.625,9.05,9.05,26.7,93.4],
+"HSS7X7X1/2":[11.6,7,7,0.465,0.5,12.1,12.1,23,80.5],
+"HSS7X7X3/8":[8.97,7,7,0.349,0.375,17.1,17.1,18.6,65],
+"HSS7X7X5/16":[7.59,7,7,0.291,0.3125,21.1,21.1,16,56.1],
+"HSS7X7X1/4":[6.17,7,7,0.233,0.25,27,27,13.3,46.5],
+"HSS7X7X3/16":[4.67,7,7,0.174,0.1875,37.2,37.2,10.3,36],
+"HSS7X7X1/8":[3.16,7,7,0.116,0.125,57.3,57.3,7.09,24.8],
+"HSS7X5X1/2":[9.74,7,5,0.465,0.5,7.75,12.1,17.3,60.6],
+"HSS7X5X3/8":[7.58,7,5,0.349,0.375,11.3,17.1,14.1,49.5],
+"HSS7X5X5/16":[6.43,7,5,0.291,0.3125,14.2,21.1,12.3,43],
+"HSS7X5X1/4":[5.24,7,5,0.233,0.25,18.5,27,10.2,35.9],
+"HSS7X5X3/16":[3.98,7,5,0.174,0.1875,25.7,37.2,7.96,27.9],
+"HSS7X5X1/8":[2.7,7,5,0.116,0.125,40.1,57.3,5.52,19.3],
+"HSS7X4X1/2":[8.81,7,4,0.465,0.5,5.6,12.1,14.5,50.7],
+"HSS7X4X3/8":[6.88,7,4,0.349,0.375,8.46,17.1,11.9,41.8],
+"HSS7X4X5/16":[5.85,7,4,0.291,0.3125,10.7,21.1,10.4,36.5],
+"HSS7X4X1/4":[4.77,7,4,0.233,0.25,14.2,27,8.72,30.5],
+"HSS7X4X3/16":[3.63,7,4,0.174,0.1875,20,37.2,6.81,23.8],
+"HSS7X4X1/8":[2.46,7,4,0.116,0.125,31.5,57.3,4.73,16.6],
+"HSS6X6X5/8":[11.7,6,6,0.581,0.625,7.33,7.33,18.4,55.2],
+"HSS6X6X1/2":[9.74,6,6,0.465,0.5,9.9,9.9,16.1,48.3],
+"HSS6X6X3/8":[7.58,6,6,0.349,0.375,14.2,14.2,13.2,39.5],
+"HSS6X6X5/16":[6.43,6,6,0.291,0.3125,17.6,17.6,11.4,34.3],
+"HSS6X6X1/4":[5.24,6,6,0.233,0.25,22.8,22.8,9.54,28.6],
+"HSS6X6X3/16":[3.98,6,6,0.174,0.1875,31.5,31.5,7.42,22.3],
+"HSS6X6X1/8":[2.7,6,6,0.116,0.125,48.7,48.7,5.15,15.5],
+"HSS6X5X1/2":[8.81,6,5,0.465,0.5,7.75,9.9,13.7,41.1],
+"HSS6X5X3/8":[6.88,6,5,0.349,0.375,11.3,14.2,11.3,33.9],
+"HSS6X5X5/16":[5.85,6,5,0.291,0.3125,14.2,17.6,9.85,29.6],
+"HSS6X5X1/4":[4.77,6,5,0.233,0.25,18.5,22.8,8.25,24.7],
+"HSS6X5X3/16":[3.63,6,5,0.174,0.1875,25.7,31.5,6.44,19.3],
+"HSS6X5X1/8":[2.46,6,5,0.116,0.125,40.1,48.7,4.48,13.4],
+"HSS6X4X1/2":[7.88,6,4,0.465,0.5,5.6,9.9,11.3,34],
+"HSS6X4X3/8":[6.18,6,4,0.349,0.375,8.46,14.2,9.43,28.3],
+"HSS6X4X5/16":[5.26,6,4,0.291,0.3125,10.7,17.6,8.27,24.8],
+"HSS6X4X1/4":[4.3,6,4,0.233,0.25,14.2,22.8,6.96,20.9],
+"HSS6X4X3/16":[3.28,6,4,0.174,0.1875,20,31.5,5.46,16.4],
+"HSS6X4X1/8":[2.23,6,4,0.116,0.125,31.5,48.7,3.81,11.4],
+"HSS5-1/2X5-1/2X3/8":[6.88,5.5,5.5,0.349,0.375,12.8,12.8,10.8,29.7],
+"HSS5-1/2X5-1/2X5/16":[5.85,5.5,5.5,0.291,0.3125,15.9,15.9,9.43,25.9],
+"HSS5-1/2X5-1/2X1/4":[4.77,5.5,5.5,0.233,0.25,20.6,20.6,7.9,21.7],
+"HSS5-1/2X5-1/2X3/16":[3.63,5.5,5.5,0.174,0.1875,28.6,28.6,6.17,17],
+"HSS5-1/2X5-1/2X1/8":[2.46,5.5,5.5,0.116,0.125,44.4,44.4,4.3,11.8],
+"HSS5X5X1/2":[7.88,5,5,0.465,0.5,7.75,7.75,10.4,26],
+"HSS5X5X3/8":[6.18,5,5,0.349,0.375,11.3,11.3,8.68,21.7],
+"HSS5X5X5/16":[5.26,5,5,0.291,0.3125,14.2,14.2,7.62,19],
+"HSS5X5X1/4":[4.3,5,5,0.233,0.25,18.5,18.5,6.41,16],
+"HSS5X5X3/16":[3.28,5,5,0.174,0.1875,25.7,25.7,5.03,12.6],
+"HSS5X5X1/8":[2.23,5,5,0.116,0.125,40.1,40.1,3.52,8.8],
+"HSS5X4X1/2":[6.95,5,4,0.465,0.5,5.6,7.75,8.49,21.2],
+"HSS5X4X3/8":[5.48,5,4,0.349,0.375,8.46,11.3,7.17,17.9],
+"HSS5X4X5/16":[4.68,5,4,0.291,0.3125,10.7,14.2,6.32,15.8],
+"HSS5X4X1/4":[3.84,5,4,0.233,0.25,14.2,18.5,5.35,13.4],
+"HSS5X4X3/16":[2.93,5,4,0.174,0.1875,20,25.7,4.22,10.6],
+"HSS5X4X1/8":[2,5,4,0.116,0.125,31.5,40.1,2.97,7.42],
+"HSS4-1/2X4-1/2X1/2":[6.95,4.5,4.5,0.465,0.5,6.68,6.68,8.03,18.1],
+"HSS4-1/2X4-1/2X3/8":[5.48,4.5,4.5,0.349,0.375,9.89,9.89,6.79,15.3],
+"HSS4-1/2X4-1/2X5/16":[4.68,4.5,4.5,0.291,0.3125,12.5,12.5,6,13.5],
+"HSS4-1/2X4-1/2X1/4":[3.84,4.5,4.5,0.233,0.25,16.3,16.3,5.08,11.4],
+"HSS4-1/2X4-1/2X3/16":[2.93,4.5,4.5,0.174,0.1875,22.9,22.9,4.01,9.02],
+"HSS4-1/2X4-1/2X1/8":[2,4.5,4.5,0.116,0.125,35.8,35.8,2.82,6.35],
+"HSS4X4X1/2":[6.02,4,4,0.465,0.5,5.6,5.6,5.97,11.9],
+"HSS4X4X3/8":[4.78,4,4,0.349,0.375,8.46,8.46,5.13,10.3],
+"HSS4X4X5/16":[4.1,4,4,0.291,0.3125,10.7,10.7,4.57,9.14],
+"HSS4X4X1/4":[3.37,4,4,0.233,0.25,14.2,14.2,3.9,7.8],
+"HSS4X4X3/16":[2.58,4,4,0.174,0.1875,20,20,3.1,6.21],
+"HSS4X4X1/8":[1.77,4,4,0.116,0.125,31.5,31.5,2.2,4.4]
+};
+</script>
+<script>
+/* ============================================================
+   DWHSS engine — DOM-free. window.DWHSS.compute(inp) -> result.
+   inp: { code:'360-22'|'dg24-1',
+          beam:{label,d,bf,tf,tw,Fy,Fu,Zx}, Mu, Vu,
+          col:{label,H,B,t,A,S,Fy,Fu,Pu,Mu}, connType:'T'|'X', lend:null|num,
+          weld:{type:'cjp'|'fillet', w, faces:1|2, proc:'smaw'|'gmaw', Fexx, kds:bool} }
+   ============================================================ */
+window.DWHSS = (function(){
+  'use strict';
+  var E = 29000;
+  function isNum(v){ return typeof v==='number' && isFinite(v); }
+  function minFillet(t){ return t<=0.25?0.125 : t<=0.5?0.1875 : t<=0.75?0.25 : 0.3125; }   // Table J2.4
+  function maxFillet(t){ return t<0.25 ? t : t-0.0625; }                                    // J2.2b(b)
+  function frac16(w){ var s=w*16; return (Math.abs(s-Math.round(s))<1e-6 ? Math.round(s) : f2(s))+'/16'; }
+  function H(t){ return '<div class="cref-hdr">'+t+'</div><div class="cbox">'; }
+  function R(h){ return '<div class="mrow">'+h+'</div>'; }
+  function I(h){ return '<div class="mrow ind">'+h+'</div>'; }
+  function V(x,u){ return '<span class="cval">'+x+(u?' '+u:'')+'</span>'; }
+  function SEP(){ return '<hr class="csep">'; }
+  function DC(dem,cap,dc){ return SEP()+R('D/C = '+fr(dem,cap)+' = '+V(f3(dc)))+'</div>'; }
+  function END(){ return '</div>'; }
 
-
-// ============ LIVE SCHEMATIC ============
-function areDrawSchematic(){
-  var svg=document.getElementById('areSchemSvg'); if(!svg) return;
-  if(!window.AREDraw) return; // library not yet loaded — will retry on next input change
-
-  var wsRaw=document.getElementById('wsec')?document.getElementById('wsec').value:'';
-  var hsRaw=document.getElementById('hsec')?document.getElementById('hsec').value:'';
-  var wKey=wsRaw.toUpperCase(); // → AISC_Manual_Label e.g. 'W16X57'
-  var hKey=hsRaw.toUpperCase(); // → AISC_Manual_Label e.g. 'HSS10X10X1/2'
-
-  // Resolve geometry from the calc's own DB (preferred over label-parser fallback)
-  var W=W_DB[wsRaw]||null;
-  var H=H_DB[hsRaw]||null;
-  var resolvedGeometry={};
-  if(W) resolvedGeometry[wKey]={d:W[1], bf:W[2], tf:W[3], tw:W[4]};
-  if(H) resolvedGeometry[hKey]={H:H[1], B:H[2], t:H[3]};
-
-  var Fyb=+document.getElementById('Fyb').value||50;
-  var Fy=+document.getElementById('Fy').value||46;
-  var Mu=+(document.getElementById('Mu').value)||0;
-
-  var state={
-    schema:'are.calc.v1',
-    calcType:'w-to-hss-column',
-    member:{ type:'beam', section:wKey||'W16X57', material:{ Fy:Fyb } },
-    demands:{ Mu:Mu },             // kip-ft per spec §4.1
-    connection:{ column:{ section:hKey||'HSS10X10X1/2', Fy:Fy }, beamFy:Fyb }
+  var PHI = {
+    '360-22': {LY:0.90, PL:1.00, PS:1.00, SY:1.00, SC:0.75, SB:0.90, W:0.75},
+    'dg24-1': {LY:0.95, PL:1.00, PS:0.95, SY:1.00, SC:0.75, SB:0.90, W:0.75}
   };
 
-  AREDraw.renderConnection(svg, state, { resolvedGeometry:resolvedGeometry });
-}
-(function(){
-  ['wsec','hsec','Mu','Fyb','Fy'].forEach(function(id){
-    var el=document.getElementById(id);
-    if(el){['input','change'].forEach(function(ev){el.addEventListener(ev,areDrawSchematic)});}
-  });
-  areDrawSchematic();
-})();
-// ============ END LIVE SCHEMATIC ============
-
-function runCalc(){
-  var ws=document.getElementById('wsec').value, hs=document.getElementById('hsec').value;
-  if(!ws||!hs){alert('Select beam and column.');return}
-  var W=W_DB[ws], H=H_DB[hs];
-  var d=W[1], bf=W[2], tf=W[3], tw=W[4];
-  var A=H[0], Bcol=H[2], t=H[3];
-  var Fyb=+document.getElementById('Fyb').value;
-  var Fy=+document.getElementById('Fy').value;
-  var Mu=+document.getElementById('Mu').value;
-  var phi=0.95;
-
-  // Demands
-  var lever = d - tf;
-  var Puf = (Mu*12) / lever; // kips, flange force couple
-
-  // Limits of applicability §K1.3
-  var Bt = Bcol/t;
-  var bpB = bf/Bcol;
-  var lim_Bt = Bt <= 35;
-  var lim_ratio = (bpB >= 0.25 && bpB <= 1.0);
-  var flat = Bcol - 3*t;
-  var lim_fit = bf <= flat;
-  var lim_Fy = Fy <= 52;
-
-  // Local yielding of HSS chord wall — Eq. K1-7
-  var Rn_K1 = (10/Bt) * Fy * t * bf;
-  var Rn_upper = Fyb * tf * bf;
-  var Rn = Math.min(Rn_K1, Rn_upper);
-  var phiRn = phi * Rn;
-  var phiMn = phiRn * lever / 12; // kip-ft
-
-  // Build checks
-  var chks = [];
-
-  // Check 1: Geometric fit
-  var d1 = '';
-  d1 += '<div class="cref-hdr">Geometric Fit on Flat of HSS Wall</div><div class="cbox">';
-  d1 += '<div class="mrow"><span class="ceq">flat width</span> = B − 3t = '+Bcol+' − 3('+t+') = <span class="cval">'+f2(flat)+' in</span></div>';
-  d1 += '<div class="mrow">b<sub>f</sub> = '+bf+' in '+(lim_fit?'≤':'>')+' '+f2(flat)+' in → '+(lim_fit?'OK':'NG')+'</div></div>';
-  chks.push({n:'Beam Flange Fit',r:'AISC DG24 §4.4',d:'b<sub>f</sub> = '+bf+'"',c:'B−3t = '+f2(flat)+'"',dc:bf/flat,det:d1});
-
-  // Check 2: Limits of applicability
-  var d2 = '';
-  d2 += '<div class="cref-hdr">AISC 360-22 §K1.3 / Table K1.3A — Limits of Applicability</div><div class="cbox">';
-  d2 += '<div class="mrow">B/t = '+f1(Bt)+' ≤ 35 → '+(lim_Bt?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
-  d2 += '<div class="mrow">b<sub>p</sub>/B = '+f3(bpB)+' (limit 0.25 to 1.0) → '+(lim_ratio?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
-  d2 += '<div class="mrow">F<sub>y</sub> = '+Fy+' ksi ≤ 52 ksi → '+(lim_Fy?'<span class="cval">OK</span>':'<span class="fail">NG</span>')+'</div>';
-  d2 += '</div>';
-  var allLim = lim_Bt && lim_ratio && lim_Fy;
-  // Requirement check — no numeric D/C; must not pollute Max D/C
-  chks.push({n:'Limits of Applicability',r:'AISC 360-22 §K1.3',d:'—',c:allLim?'All satisfied':'Violation',dc:null,ok:allLim,exclFromMax:true,det:d2});
-
-  // Check 3: Local yielding of HSS wall (K1-7)
-  var d3 = '';
-  d3 += '<div class="cref-hdr">AISC 360-22 §K1.3 — Eq. K1-7 — Local Yielding of HSS Connecting Wall</div><div class="cbox">';
-  d3 += '<div class="mrow"><span class="ceq">Eq. K1-7:</span> R<sub>n</sub> = '+fr('10','B/t')+' · F<sub>y</sub> · t · b<sub>p</sub> &nbsp;≤&nbsp; F<sub>yp</sub> · t<sub>p</sub> · b<sub>p</sub></div>';
-  d3 += '<div class="mrow ind">= '+fr('10',f1(Bt))+' · '+Fy+' · '+t+' · '+bf+'</div>';
-  d3 += '<div class="mrow ind">= <span class="cval">'+f2(Rn_K1)+' kips</span></div>';
-  d3 += '<div class="mrow">Upper bound: F<sub>yp</sub>·t<sub>p</sub>·b<sub>p</sub> = '+Fyb+' · '+tf+' · '+bf+' = <span class="cval">'+f2(Rn_upper)+' kips</span></div>';
-  d3 += '<div class="mrow">Governing R<sub>n</sub> = min = <span class="cval">'+f2(Rn)+' kips</span></div>';
-  d3 += '<hr class="csep">';
-  d3 += '<div class="mrow">φR<sub>n</sub> = 0.95 · '+f2(Rn)+' = <span class="cval">'+f2(phiRn)+' kips</span></div>';
-  d3 += '<div class="mrow">Lever arm: d − t<sub>f</sub> = '+d+' − '+tf+' = <span class="cval">'+f2(lever)+' in</span></div>';
-  d3 += '<div class="mrow">φM<sub>n</sub> = φR<sub>n</sub> · (d−t<sub>f</sub>) / 12 = <span class="cval">'+f2(phiMn)+' kip-ft</span></div>';
-  d3 += '<hr class="csep">';
-  d3 += '<div class="mrow">P<sub>uf</sub> = M<sub>u</sub>/(d−t<sub>f</sub>) = '+(Mu*12).toFixed(0)+'/'+f2(lever)+' = '+f2(Puf)+' kips</div>';
-  d3 += '<div class="mrow">D/C = '+fr(f2(Puf),f2(phiRn))+' = <span class="cval">'+f3(Puf/phiRn)+'</span></div>';
-  d3 += '</div>';
-  chks.push({n:'HSS Wall Local Yielding',r:'AISC 360-22 §K1.3 Eq. K1-7',d:'P<sub>uf</sub> = '+f2(Puf)+' k',c:'φR<sub>n</sub> = '+f2(phiRn)+' k',dc:Puf/phiRn,det:d3});
-
-  // Render
-  var maxDC = 0, reqFail = false;
-  chks.forEach(function(c){
-    if(!c.exclFromMax && isFinite(c.dc) && c.dc>maxDC) maxDC=c.dc;
-    if(c.exclFromMax && c.ok===false) reqFail=true;
-  });
-  var pass = maxDC <= 1.0 && !reqFail;
-  var sb = document.getElementById('sumBox');
-  sb.className = 'summary '+(pass?'sum-pass':'sum-fail');
-  sb.innerHTML = '<h3>'+(pass?'✔ All Checks Pass':'✘ One or More Checks Fail')+'</h3><p>Max D/C = <strong>'+f3(maxDC)+'</strong> &nbsp;|&nbsp; '+ws+' on '+hs+', M<sub>u</sub>='+Mu+' k-ft, φM<sub>n</sub>='+f2(phiMn)+' k-ft</p>';
-
-  document.getElementById('propOut').innerHTML =
-    '<table class="prop-table"><tr><th>Property</th><th>Beam '+ws+'</th><th>Column '+hs+'</th></tr>'
-    +'<tr><td>Area (in²)</td><td>'+W[0]+'</td><td>'+A+'</td></tr>'
-    +'<tr><td>Depth d / B (in)</td><td>'+d+'</td><td>'+Bcol+'</td></tr>'
-    +'<tr><td>b<sub>f</sub> / t<sub>des</sub> (in)</td><td>'+bf+'</td><td>'+t+'</td></tr>'
-    +'<tr><td>t<sub>f</sub> (in)</td><td>'+tf+'</td><td>—</td></tr>'
-    +'<tr><td>F<sub>y</sub> (ksi)</td><td>'+Fyb+'</td><td>'+Fy+'</td></tr></table>';
-
-  document.getElementById('demOut').innerHTML =
-    '<div class="dem-grid">'
-    +'<div class="dem-card"><div class="v">'+f2(Mu)+'</div><div class="l">M<sub>u</sub> (kip-ft)</div></div>'
-    +'<div class="dem-card"><div class="v">'+f2(Puf)+'</div><div class="l">P<sub>uf</sub> = M<sub>u</sub>/(d−t<sub>f</sub>) (kips)</div></div>'
-    +'<div class="dem-card"><div class="v">'+f1(Bt)+'</div><div class="l">B/t</div></div>'
-    +'<div class="dem-card"><div class="v">'+f3(bpB)+'</div><div class="l">b<sub>p</sub>/B</div></div>'
-    +'<div class="dem-card"><div class="v">'+f2(phiMn)+'</div><div class="l">φM<sub>n</sub> (kip-ft)</div></div>'
-    +'</div>';
-
-  var tb = document.getElementById('chkTb');
-  tb.innerHTML = '';
-  chks.forEach(function(c,i){
-    var dc=c.dc, dcCell, stxt;
-    if(dc===null || !isFinite(dc)){
-      dcCell = '<span class="na">—</span>';
-      stxt = c.ok!==false?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
-    } else {
-      var col = dc<=0.8?'#16a34a':dc<=1.0?'#d97706':'#dc2626';
-      var pct = Math.min(dc*100,150);
-      dcCell = '<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>';
-      stxt = dc<=1.0?'<span class="pass">PASS</span>':'<span class="fail">FAIL</span>';
-    }
-    tb.innerHTML += '<tr><td><strong>'+c.n+'</strong></td><td><code>'+c.r+'</code></td><td>'+c.d+'</td><td>'+c.c+'</td>'
-      +'<td>'+dcCell+'</td>'
-      +'<td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+i+'" onclick="toggleDet('+i+')">▸ Calc</button></td></tr>'
-      +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+i+'">'+c.det+'</div></td></tr>';
-  });
-
-  document.getElementById('results').className='results show';
-  document.getElementById('results').scrollIntoView({behavior:'smooth',block:'start'});
-
-  areDrawSchematic();
-
-  // v2 results bus
-  if (typeof AREv2 !== 'undefined') {
-    AREv2.publish([
-      {symbol:'Mu', label:'Applied Moment Mu', value:Mu, unit:'kip-ft', kind:'moment'},
-      {symbol:'phiMn', label:'φMn Connection Capacity', value:phiMn, unit:'kip-ft', kind:'capacity'},
-      {symbol:'Puf', label:'Flange Force Puf', value:Puf, unit:'kips', kind:'flangeforce'}
-    ]);
+  // status rules: opts.status forces; else PASS/FAIL from dc; informational rows never enter max D/C
+  function mk(section,id,name,ref,demand,capacity,dc,det,opts){
+    opts = opts||{};
+    var status, note = opts.note||'';
+    if (opts.status){ status = opts.status; if (status==='INFO' && dc!==null && isFinite(dc) && dc>1.0 && opts.warnOver) status = 'REVIEW'; }
+    else if (dc===null || !isFinite(dc)) status = 'N/A';
+    else { status = dc<0 ? 'REVIEW' : (dc<=1.0 ? 'PASS' : 'FAIL'); if (dc<0) note += ' (negative capacity — check inputs)'; }
+    return {section:section, id:id, name:name, ref:ref, demand:demand, capacity:capacity,
+            dc:(dc===null||!isFinite(dc))?null:dc, status:status, note:note, det:det, informational:!!opts.informational};
   }
-}
 
-// Alias so are-utils Load/import can auto-run (skip if nothing selected yet)
-function runCalcs(){ if(document.getElementById('wsec').value && document.getElementById('hsec').value) runCalc(); }
+  function validate(inp){
+    var err=[]; function req(v,l){ if(!isNum(v)||v<=0) err.push(l+' must be a positive number.'); }
+    function nonneg(v,l){ if(!isNum(v)||v<0) err.push(l+' must be a number >= 0.'); }
+    var b=inp.beam, c=inp.col, w=inp.weld;
+    if (!PHI[inp.code]) err.push('Unknown code basis.');
+    req(b.d,'Beam d'); req(b.bf,'Beam b_f'); req(b.tf,'Beam t_f'); req(b.tw,'Beam t_w'); req(b.Fy,'Beam F_y'); req(b.Fu,'Beam F_u'); nonneg(b.Zx,'Beam Z_x');
+    req(inp.Mu,'M_u'); nonneg(inp.Vu,'V_u');
+    req(c.H,'Column H'); req(c.B,'Column B'); req(c.t,'Column t_des'); req(c.A,'Column A'); req(c.S,'Column S'); req(c.Fy,'Column F_y'); req(c.Fu,'Column F_u');
+    nonneg(c.Pu,'Column P_u'); nonneg(c.Mu,'Column M_u');
+    if (isNum(c.B)&&isNum(c.t)&&c.B<=3*c.t) err.push('Column B must exceed 3t.');
+    if (isNum(c.H)&&isNum(c.t)&&c.H<=3*c.t) err.push('Column H must exceed 3t.');
+    if (isNum(b.d)&&isNum(b.tf)&&b.d<=b.tf) err.push('Beam d must exceed t_f.');
+    if (inp.lend!==null && (!isNum(inp.lend)||inp.lend<0)) err.push('End distance must be blank or a number >= 0.');
+    if (inp.connType!=='T' && inp.connType!=='X') err.push('Connection type must be T or X.');
+    if (w.type!=='cjp' && w.type!=='fillet') err.push('Weld type must be CJP or fillet.');
+    if (w.type==='fillet'){ req(w.w,'Fillet size'); req(w.Fexx,'F_EXX'); if (w.faces!==1&&w.faces!==2) err.push('Weld faces must be 1 or 2.'); }
+    return err;
+  }
+
+  function effBe(c, Fyb, tf, bfc){ var Bt=c.B/c.t, v=(10/Bt)*(c.Fy*c.t/(Fyb*tf))*bfc; return {Bt:Bt, raw:v, Be:Math.min(v,bfc), capped:v>bfc}; }
+  function effBep(c, bfc){ var Bt=c.B/c.t, v=(10/Bt)*bfc; return {Bt:Bt, raw:v, Bep:Math.min(v,bfc), capped:v>bfc}; }
+  function chordQf(c, beta){ var U=c.Pu/(c.Fy*c.A)+c.Mu*12/(c.Fy*c.S); if (U<=0) return {U:U, raw:1, Qf:1, tension:true};
+    var raw=1.3-0.4*U/beta; return {U:U, raw:raw, Qf:Math.max(0.4,Math.min(1.0,raw)), tension:false}; }
+
+  function compute(inp){
+    var errors = validate(inp);
+    if (errors.length) return {ok:false, errors:errors, checks:[], vals:{}, maxDC:null, governing:'', governingId:'', banner:'ERROR'};
+    var C=[], v={}, b=inp.beam, c=inp.col, w=inp.weld, phi=PHI[inp.code], legacy=inp.code==='dg24-1';
+    var edn = legacy ? 'DG24 1st ed Table 7-2 / AISC 360-10' : 'AISC 360-22';
+
+    // ---- geometry
+    var flat=c.B-3*c.t, bfc=Math.min(b.bf,c.B), beta=bfc/c.B;
+    var overlap=Math.max(0,Math.min(b.bf,c.B)-flat)/2, proj=Math.max(0,b.bf-c.B)/2;
+    var cls = b.bf<=flat+1e-9 ? 'flat' : (b.bf<=c.B+1e-9 ? 'corner' : 'beyond');
+    var lever=b.d-b.tf, Puf=inp.Mu*12/lever, Bt=c.B/c.t, Ht=c.H/c.t, k=1.5*c.t, eta=b.tf/c.B;
+    var be=effBe(c,b.Fy,b.tf,bfc), bep=effBep(c,bfc), qf=chordQf(c,beta);
+    var endReq = c.B*(1-beta), endApp = beta<=0.85+1e-9, endViol = inp.lend!==null && endApp && inp.lend<endReq-1e-9, endRed = endViol?0.5:1.0;
+    Object.assign(v,{flat:flat,bfc:bfc,beta:beta,overlap:overlap,proj:proj,cls:cls,lever:lever,Puf:Puf,Bt:Bt,Ht:Ht,k:k,eta:eta,be:be,bep:bep,qf:qf,endReq:endReq,endApp:endApp,endViol:endViol,endRed:endRed,legacy:legacy});
+
+    var SEC_G='Geometry &amp; applicability';
+    // GEO
+    var gdet = H('Flange width vs. HSS face (DG24 1st ed &sect;4.4 / Ex 4.3; 2nd ed Ch. 6)')
+      +R('Workable flat B &minus; 3t = '+f2(c.B)+' &minus; 3 &times; '+f3(c.t)+' = '+V(f3(flat),'in')+'; overall width B = '+f2(c.B)+' in; b<sub>f</sub> = '+f3(b.bf)+' in')
+      +R('Credited width b<sub>fc</sub> = min(b<sub>f</sub>, B) = '+V(f3(bfc),'in')+'; &beta; = b<sub>fc</sub>/B = '+V(f3(beta)));
+    if (cls==='flat') gdet += R('b<sub>f</sub> &le; B &minus; 3t: the flange sits on the flat; fillet welds are on the flat.');
+    if (cls==='corner') gdet += R('B &minus; 3t &lt; b<sub>f</sub> &le; B: the flange overlaps the corner radius by '+V(f3(overlap),'in')+' each side. Welds in the corner region are flare-bevel groove welds (Table J2.2); specify the joint preparation, root gap and inspection.');
+    if (cls==='beyond') gdet += R('b<sub>f</sub> &gt; B: the flange projects '+V(f3(proj),'in')+' past each sidewall. Width credited in the transverse-plate model is capped at B (&beta; = 1.0); the projection carries no connection strength. Corner overlap '+f3(overlap)+' in each side.');
+    gdet += END();
+    C.push(mk(SEC_G,'GEO','Flange width classification','DG24 Ex 4.3 &middot; AISC 360-22 &sect;K1.1 (&beta; &le; 1.0)',
+      'b<sub>f</sub> = '+f3(b.bf)+' in', cls==='flat'?'on the flat (B &minus; 3t = '+f2(flat)+' in)':cls==='corner'?'corner overlap '+f3(overlap)+' in/side':'projects '+f3(proj)+' in/side beyond B', null, gdet,
+      {status:cls==='flat'?'INFO':'REVIEW', note:cls==='flat'?'':cls==='corner'?'corner-region weld detail required':'flange wider than HSS: credited width capped at B, weld/end detail required', informational:true}));
+    // LIM
+    var lim=[['B/t = '+f1(Bt)+' &le; 35',Bt<=35],['H/t = '+f1(Ht)+' &le; 35',Ht<=35],['0.25 &le; &beta; = '+f3(beta)+' &le; 1.0',beta>=0.25-1e-9&&beta<=1+1e-9],
+      ['F<sub>y</sub> = '+f1(c.Fy)+' &le; 52 ksi',c.Fy<=52],['F<sub>y</sub>/F<sub>u</sub> = '+f3(c.Fy/c.Fu)+' &le; 0.8',c.Fy/c.Fu<=0.8+1e-9],
+      ['F<sub>yb</sub> = '+f1(b.Fy)+' &le; 52 ksi',b.Fy<=52],['F<sub>yb</sub>/F<sub>ub</sub> = '+f3(b.Fy/b.Fu)+' &le; 0.8',b.Fy/b.Fu<=0.8+1e-9]];
+    var limOK=lim.every(function(x){return x[1];}); v.limOK=limOK;
+    C.push(mk(SEC_G,'LIM','Limits of applicability','AISC 360-22 &sect;K1.3 &middot; DG24 Table 7-2A','&beta; = '+f3(beta)+', B/t = '+f1(Bt), limOK?'all limits met':'outside limits', null,
+      H('AISC 360-22 &sect;K1.3 limits of applicability (Chapter K parameters, Q<sub>f</sub>)')+lim.map(function(x){return R(x[0]+(x[1]?' &mdash; o.k.':' &mdash; <b>not met</b>'));}).join('')+R('Outside these limits the Chapter K parameters are not validated; design by rational analysis (&sect;K1).')+END(),
+      {status:limOK?'PASS':'REVIEW', note:limOK?'':lim.filter(function(x){return !x[1];}).map(function(x){return x[0].replace(/<[^>]+>/g,'');}).join('; '), informational:true}));
+    // END
+    var edet=H('AISC 360-22 &sect;K1.4 Eq. K1-7 &mdash; minimum end distance to an unreinforced column end')
+      +R('l<sub>end</sub> &ge; B(1 &minus; &beta;) = '+f2(c.B)+' &times; (1 &minus; '+f3(beta)+') = '+V(f3(endReq),'in')+(endApp?' (applies for &beta; &le; 0.85)':' &mdash; not required for &beta; &gt; 0.85'))
+      +R(inp.lend===null?'Column continuous through the connection or end distance adequate (input blank).':'Provided l<sub>end</sub> = '+f2(inp.lend)+' in'+(endViol?' &lt; required &rarr; <b>available strengths reduced 50 %</b>':' &mdash; o.k.'))+END();
+    C.push(mk(SEC_G,'END','End distance to column end','AISC 360-22 &sect;K1.4 Eq. K1-7', inp.lend===null?'continuous':'l<sub>end</sub> = '+f2(inp.lend)+' in', endApp?'&ge; '+f3(endReq)+' in':'not required', null, edet,
+      {status:endViol?'REVIEW':'INFO', note:endViol?'50 % reduction applied to HSS rows':'', informational:true}));
+    // QF
+    C.push(mk(SEC_G,'QF','Chord-stress interaction Q<sub>f</sub>','AISC 360-22 &sect;K1.3 Eq. K1-4, K1-6','U = '+f3(qf.U),'Q<sub>f</sub> = '+f3(qf.Qf), null,
+      H('AISC 360-22 &sect;K1.3(c)(1) &mdash; rectangular HSS, transverse plate')
+      +R('U = P<sub>u</sub>/(F<sub>y</sub>A) + M<sub>u</sub>&times;12/(F<sub>y</sub>S) = '+fr(f1(c.Pu),f1(c.Fy)+' &times; '+f2(c.A))+' + '+fr(f1(c.Mu)+' &times; 12',f1(c.Fy)+' &times; '+f2(c.S))+' = '+V(f3(qf.U)))
+      +R(qf.tension?'Connecting face in tension &rarr; Q<sub>f</sub> = 1.0':'Q<sub>f</sub> = 1.3 &minus; 0.4U/&beta; = 1.3 &minus; 0.4 &times; '+f3(qf.U)+'/'+f3(beta)+' = '+f3(qf.raw)+' &rarr; 0.4 &le; Q<sub>f</sub> &le; 1.0 &rarr; '+V(f3(qf.Qf)))
+      +R('Q<sub>f</sub> multiplies face plastification and sidewall crippling/buckling (DG24 Table 7-2).')+END(), {status:'INFO', informational:true}));
+
+    // ---- flange rows (tension and compression)
+    function flange(isTop){
+      var SEC = isTop?'Tension flange':'Compression flange', tag=isTop?'T':'C', out={};
+      var redNote = endViol ? ' &times; 0.5 (end distance)' : '';
+      // LY
+      var RnLY=b.Fy*b.tf*be.Be, phiLY=phi.LY*RnLY*endRed; out.RnLY=RnLY; out.phiLY=phiLY;
+      C.push(mk(SEC,tag+'LY','Beam flange local yielding (uneven load distribution)', legacy?'DG24 Table 7-2 (Spec. Eq. K1-2), &phi; = 0.95':'AISC 360-22 &sect;K1.2a Eq. K1-1, &sect;K2.3 &rarr; '+(isTop?'&sect;J4.1 Eq. J4-1':'&sect;J4.4 Eq. J4-6')+', &phi; = 0.90',
+        'P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiLY)+' kips', Puf/phiLY,
+        H('Local yielding of the beam flange treated as a transverse plate ('+edn+')')
+        +R('Eq. K1-1: B<sub>e</sub> = '+fr('10','B/t')+'&middot;'+fr('F<sub>y</sub>t','F<sub>yb</sub>t<sub>f</sub>')+'&middot;b<sub>fc</sub> = '+fr('10',f2(Bt))+' &times; '+fr(f1(c.Fy)+' &times; '+f3(c.t),f1(b.Fy)+' &times; '+f3(b.tf))+' &times; '+f3(bfc)+' = '+f3(be.raw)+(be.capped?' &gt; b<sub>fc</sub> &rarr; B<sub>e</sub> = ':' &rarr; B<sub>e</sub> = ')+V(f3(be.Be),'in'))
+        +R('R<sub>n</sub> = F<sub>yb</sub> t<sub>f</sub> B<sub>e</sub> = '+f1(b.Fy)+' &times; '+f3(b.tf)+' &times; '+f3(be.Be)+' = '+V(f1(RnLY),'kips')+' (upper bound F<sub>yb</sub>t<sub>f</sub>b<sub>fc</sub> = '+f1(b.Fy*b.tf*bfc)+' kips)')
+        +R('&phi;R<sub>n</sub> = '+f2(phi.LY)+' &times; '+f1(RnLY)+redNote+' = '+V(f1(phiLY),'kips'))+DC(f1(Puf),f1(phiLY),Puf/phiLY), {note:'B<sub>e</sub> = '+f3(be.Be)+' of '+f3(bfc)+' in effective'}));
+      // PL
+      var plApp = beta<=0.85+1e-9, RnPL = beta<1-1e-9 ? c.Fy*c.t*c.t*(2*eta/(1-beta)+4/Math.sqrt(1-beta))*qf.Qf : Infinity, phiPL=phi.PL*RnPL*endRed;
+      out.plApp=plApp; out.RnPL=RnPL; out.phiPL=phiPL;
+      var dpl=H('HSS connecting-face plastification &mdash; yield-line mechanism (AISC 360-22 &sect;J10.10, Comm. K1; 16th Ed Manual Part 9; form of 360-10 Eq. K2-7)')
+        +R('&beta; = '+f3(beta)+(plApp?' &le; 0.85 &rarr; <b>applicable</b>':' &gt; 0.85 &rarr; <b>not required</b> (load goes to the sidewalls; yield line is non-critical, Comm. K1)')+'; &eta; = t<sub>f</sub>/B = '+f3(eta));
+      if (isFinite(RnPL)) dpl += R('R<sub>n</sub> = F<sub>y</sub>t&sup2;[2&eta;/(1&minus;&beta;) + 4/&radic;(1&minus;&beta;)]Q<sub>f</sub> = '+f1(c.Fy)+' &times; '+f3(c.t)+'&sup2; &times; ['+f3(2*eta/(1-beta))+' + '+f3(4/Math.sqrt(1-beta))+'] &times; '+f3(qf.Qf)+' = '+V(f1(RnPL),'kips'))
+        +R('&phi;R<sub>n</sub> = 1.00 &times; '+f1(RnPL)+redNote+' = '+V(f1(phiPL),'kips'))+(legacy?R('Not tabulated in DG24 1st ed Table 7-2 (omitted as non-governing in practical cases); shown for completeness.'):'')+DC(f1(Puf),f1(phiPL),Puf/phiPL);
+      else dpl += R('&beta; = 1.0: the mechanism does not form; the sidewall rows govern.')+END();
+      C.push(mk(SEC,tag+'PL','HSS face plastification (yield line)','AISC 360-22 &sect;J10.10 / Comm. K1 &middot; Manual Pt. 9 &middot; STI 2025, &phi; = 1.00',
+        'P<sub>uf</sub> = '+f1(Puf)+' kips', isFinite(phiPL)?'&phi;R<sub>n</sub> = '+f1(phiPL)+' kips':'&mdash;', isFinite(phiPL)?Puf/phiPL:null, dpl,
+        plApp?{}:{status:isFinite(phiPL)?'INFO':'N/A', note:'not required: &beta; &gt; 0.85', informational:true}));
+      // PS
+      var pLo=0.85*c.B, pHi=c.B-2*c.t, psApp = bfc>=pLo-1e-9 && bfc<=pHi+1e-9;
+      var RnPS=0.6*c.Fy*c.t*(2*b.tf+2*bep.Bep), phiPS=phi.PS*RnPS*endRed; out.psApp=psApp; out.RnPS=RnPS; out.phiPS=phiPS;
+      C.push(mk(SEC,tag+'PS','HSS shear yielding (punching)', legacy?'DG24 Table 7-2 (Spec. Eq. K1-3), &phi; = 0.95':'AISC 360-22 &sect;K1.2a Eq. K1-2, &sect;J4.2(a) Eq. J4-3, Comm. Table C-K1.1, &phi; = 1.00',
+        'P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiPS)+' kips', Puf/phiPS,
+        H('Punching shear on the effective perimeter, applicable when 0.85B &le; b<sub>fc</sub> &le; B &minus; 2t')
+        +R('0.85B = '+f2(pLo)+' in; B &minus; 2t = '+f2(pHi)+' in; b<sub>fc</sub> = '+f3(bfc)+' in &rarr; '+(psApp?'<b>applicable</b>':'<b>not required</b>'+(bfc<pLo?' (b<sub>fc</sub> &lt; 0.85B: the face flexes; flange local yielding / plastification govern)':' (b<sub>fc</sub> &gt; B &minus; 2t: load delivered to the sidewalls)')))
+        +R('Eq. K1-2: B<sub>ep</sub> = '+fr('10','B/t')+'&middot;b<sub>fc</sub> = '+fr('10',f2(Bt))+' &times; '+f3(bfc)+' = '+f3(bep.raw)+(bep.capped?' &gt; b<sub>fc</sub> &rarr; ':' &rarr; ')+V(f3(bep.Bep),'in'))
+        +R('R<sub>n</sub> = 0.6F<sub>y</sub>t(2t<sub>f</sub> + 2B<sub>ep</sub>) = 0.6 &times; '+f1(c.Fy)+' &times; '+f3(c.t)+' &times; (2 &times; '+f3(b.tf)+' + 2 &times; '+f3(bep.Bep)+') = '+V(f1(RnPS),'kips'))
+        +R('&phi;R<sub>n</sub> = '+f2(phi.PS)+' &times; '+f1(RnPS)+redNote+' = '+V(f1(phiPS),'kips'))+DC(f1(Puf),f1(phiPS),Puf/phiPS),
+        psApp?{}:{status:'INFO', note:bfc<pLo?'not required: b<sub>fc</sub> &lt; 0.85B':'not required: b<sub>fc</sub> &gt; B &minus; 2t', informational:true}));
+      // SY
+      var swApp = beta>=0.85-1e-9, RnSY=2*c.Fy*c.t*(5*k+b.tf), phiSY=phi.SY*RnSY*endRed; out.swApp=swApp; out.RnSY=RnSY; out.phiSY=phiSY;
+      C.push(mk(SEC,tag+'SY','HSS sidewall local yielding','AISC 360-22 &sect;J10.2 Eq. J10-2 (two walls) &middot; DG24 Table 7-2 (Spec. Eq. K1-4), &phi; = 1.00',
+        'P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiSY)+' kips', Puf/phiSY,
+        H('Sidewall local yielding, applicable when &beta; &ge; 0.85 (Comm. K2: branch wider than 85 % of the chord loads the sidewalls; DG24 1st ed tabulates &beta; = 1.0)')
+        +R('&beta; = '+f3(beta)+(swApp?' &ge; 0.85 &rarr; <b>applicable</b>':' &lt; 0.85 &rarr; <b>not required</b> (face carries the load)'))
+        +R('k = 1.5t = '+f3(k)+' in; bearing length l<sub>b</sub> = t<sub>f</sub> = '+f3(b.tf)+' in')
+        +R('R<sub>n</sub> = 2F<sub>y</sub>t(5k + l<sub>b</sub>) = 2 &times; '+f1(c.Fy)+' &times; '+f3(c.t)+' &times; (5 &times; '+f3(k)+' + '+f3(b.tf)+') = '+V(f1(RnSY),'kips'))
+        +R('&phi;R<sub>n</sub> = 1.00 &times; '+f1(RnSY)+redNote+' = '+V(f1(phiSY),'kips'))+DC(f1(Puf),f1(phiSY),Puf/phiSY),
+        swApp?{}:{status:'INFO', note:'not required: &beta; &lt; 0.85', informational:true}));
+      // SC / SB (compression flange only)
+      if (!isTop){
+        var isX=inp.connType==='X', Hf=c.H-3*c.t, sq=Math.sqrt(E*c.Fy);
+        var RnSC = isX ? 48*Math.pow(c.t,3)/Hf*sq*qf.Qf : 1.6*c.t*c.t*(1+3*b.tf/Hf)*sq*qf.Qf;
+        var phF = isX?phi.SB:phi.SC, phiSC=phF*RnSC*endRed; out.isX=isX; out.RnSC=RnSC; out.phiSC=phiSC;
+        var dsc=H(isX?'Sidewall local buckling, cross-connection (AISC 360-22 &sect;J10.5 Eq. J10-8, two walls; DG24 Table 7-2 Spec. Eq. K1-6)':'Sidewall local crippling, T-connection (AISC 360-22 &sect;J10.3 Eq. J10-4 with t<sub>w</sub> = t<sub>f</sub> = t, two walls; DG24 Table 7-2 Spec. Eq. K1-5)')
+          +R('&beta; = '+f3(beta)+(swApp?' &ge; 0.85 &rarr; <b>applicable</b>':' &lt; 0.85 &rarr; <b>not required</b>')+'; H &minus; 3t = '+f2(Hf)+' in; '+ov('EF<sub>y</sub>')+' = '+f1(sq)+' ksi; Q<sub>f</sub> = '+f3(qf.Qf))
+          +(isX?R('R<sub>n</sub> = 48t&sup3;/(H &minus; 3t)&middot;'+ov('EF<sub>y</sub>')+'&middot;Q<sub>f</sub> = '+V(f1(RnSC),'kips')):R('R<sub>n</sub> = 1.6t&sup2;[1 + 3t<sub>f</sub>/(H &minus; 3t)]'+ov('EF<sub>y</sub>')+'Q<sub>f</sub> = 1.6 &times; '+f3(c.t)+'&sup2; &times; [1 + 3 &times; '+f3(b.tf)+'/'+f2(Hf)+'] &times; '+f1(sq)+' &times; '+f3(qf.Qf)+' = '+V(f1(RnSC),'kips')))
+          +R('&phi;R<sub>n</sub> = '+f2(phF)+' &times; '+f1(RnSC)+redNote+' = '+V(f1(phiSC),'kips'))+DC(f1(Puf),f1(phiSC),Puf/phiSC);
+        C.push(mk(SEC,'CSC', isX?'HSS sidewall local buckling (cross-connection)':'HSS sidewall local crippling (T-connection)', isX?'AISC 360-22 &sect;J10.5 Eq. J10-8 &middot; Eq. K1-4, &phi; = 0.90':'AISC 360-22 &sect;J10.3 Eq. J10-4 &middot; Eq. K1-4, &phi; = 0.75',
+          'P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiSC)+' kips', Puf/phiSC, dsc, swApp?{note:'Q<sub>f</sub> = '+f3(qf.Qf)}:{status:'INFO', note:'not required: &beta; &lt; 0.85', informational:true}));
+      }
+      return out;
+    }
+    v.top=flange(true); v.bot=flange(false);
+
+    // ---- welds
+    var SEC_W='Flange-to-HSS welds';
+    if (w.type==='cjp'){
+      C.push(mk(SEC_W,'W','Flange-to-HSS weld','AISC 360-22 &sect;J2.1a, Table J2.5 (CJP: base metal governs)','P<sub>uf</sub> = '+f1(Puf)+' kips','CJP groove weld', null,
+        H('Complete-joint-penetration groove weld, beam flange to HSS face')+R('A CJP weld develops the connected flange; the flange local-yielding row (B<sub>e</sub>) governs the weld line. Backing, access and the corner joint must be detailed per AWS D1.1.')
+        +(cls!=='flat'?R('<b>The flange reaches the HSS corner radius:</b> a CJP groove through the corner is not a prequalified detail; specify a flare-bevel groove weld (Table J2.2 throat, R = 2t = '+f3(2*c.t)+' in) or trim and stiffen. Engineer to detail.'):'')+END(),
+        {status:cls==='flat'?'INFO':'REVIEW', note:cls==='flat'?'develops the flange':'corner joint preparation to be specified', informational:true}));
+      v.weld={type:'cjp'};
+    } else {
+      var Rr=2*c.t, Ecor = Rr>=0.375-1e-9 ? (w.proc==='gmaw'?0.625:0.3125)*Rr : 0;
+      var Lflat=Math.min(bfc,flat), Lcor=bfc-Lflat, LcorE=Math.min(Lcor,be.Be), LflatE=be.Be-LcorE;
+      var kds = (w.kds && w.faces===2) ? 1.5 : 1.0, D=w.w*16;
+      var RnW = w.faces*0.6*w.Fexx*(0.707*w.w*LflatE+Ecor*LcorE)*kds, phiW=phi.W*RnW, le=w.faces*be.Be;
+      var cornerUncredited = Lcor>1e-9 && Ecor===0;
+      v.weld={type:'fillet',R:Rr,Ecor:Ecor,Lflat:Lflat,Lcor:Lcor,LcorE:LcorE,LflatE:LflatE,kds:kds,le:le,RnW:RnW,phiW:phiW,D:D};
+      var dw=H('AISC 360-22 &sect;J2.4 fillet welds &middot; &sect;K5 Table K5.1 Eq. K5-4 effective length (l<sub>e</sub> = 2B<sub>e</sub> for welds both faces)')
+        +R('Effective length per face = B<sub>e</sub> = '+f3(be.Be)+' in, allocated from the flange edges (stiff sidewall regions) inward: corner portion '+f3(LcorE)+' in, flat portion '+f3(LflatE)+' in; faces = '+w.faces+' &rarr; l<sub>e</sub> = '+V(f3(le),'in'))
+        +R('Flat: fillet throat 0.707w = 0.707 &times; '+f4(w.w)+' = '+f4(0.707*w.w)+' in. Corner: flare-bevel groove, R = 2t = '+f3(Rr)+' in &rarr; '+(Ecor>0?'throat (Table J2.2, '+(w.proc==='gmaw'?'5/8':'5/16')+'R) = '+f4(Ecor)+' in':'R &lt; 3/8 in: no flare-bevel throat credited (Table J2.2 note)'))
+        +R('k<sub>ds</sub> = '+f2(kds)+(w.kds&&w.faces!==2?' (directional increase not permitted for a single-sided fillet on the tension flange; DG24 2nd ed Ch. 3, &sect;J2.4(a)(3))':''))
+        +R('R<sub>n</sub> = faces &times; 0.60F<sub>EXX</sub>(0.707w&middot;l<sub>flat,e</sub> + E&middot;l<sub>corner,e</sub>)k<sub>ds</sub> = '+w.faces+' &times; 0.60 &times; '+f1(w.Fexx)+' &times; ('+f4(0.707*w.w)+' &times; '+f3(LflatE)+' + '+f4(Ecor)+' &times; '+f3(LcorE)+') &times; '+f2(kds)+' = '+V(f1(RnW),'kips'))
+        +R('&phi;R<sub>n</sub> = 0.75 &times; '+f1(RnW)+' = '+V(f1(phiW),'kips'))+DC(f1(Puf),f1(phiW),Puf/phiW);
+      C.push(mk(SEC_W,'W','Flange-to-HSS fillet welds','AISC 360-22 &sect;J2.4 &middot; &sect;K5 Eq. K5-4, &phi; = 0.75','P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiW)+' kips', Puf/phiW, dw,
+        {note:frac16(w.w)+' in fillet, '+(w.faces===2?'both faces':'top face only')+', l<sub>e</sub> = '+f3(le)+' in'+(cornerUncredited?'; corner not credited':'')}));
+      if (cornerUncredited) C.push(mk(SEC_W,'WCOR','Corner-region weld','AISC 360-22 Table J2.2','R = 2t = '+f3(Rr)+' in','&lt; 3/8 in', null,
+        H('Flare-bevel groove welds')+R('For R &lt; 3/8 in Table J2.2 permits only the reinforcing fillet on a filled-flush joint; the corner overlap of '+f3(overlap)+' in per side is not credited above. Engineer to detail or trim.')+END(), {status:'REVIEW', note:'corner region not credited', informational:true}));
+      var tminH=3.09*D/c.Fu, tminF=(w.faces===2?6.19:3.09)*D/b.Fu; v.weld.tminH=tminH; v.weld.tminF=tminF;
+      C.push(mk(SEC_W,'WBH','HSS wall base metal at the weld','AISC Manual Eq. 9-2','t<sub>min</sub> = '+f3(tminH)+' in','t = '+f3(c.t)+' in', tminH/c.t,
+        H('AISC Manual Eq. 9-2 &mdash; HSS wall under a single fillet line')+R('t<sub>min</sub> = 3.09D/F<sub>u</sub> = 3.09 &times; '+f2(D)+'/'+f1(c.Fu)+' = '+V(f3(tminH),'in')+' &le; t = '+f3(c.t)+' in')+DC(f3(tminH),f3(c.t),tminH/c.t)));
+      C.push(mk(SEC_W,'WBF','Beam flange base metal at the weld','AISC Manual Eq. '+(w.faces===2?'9-3':'9-2'),'t<sub>min</sub> = '+f3(tminF)+' in','t<sub>f</sub> = '+f3(b.tf)+' in', tminF/b.tf,
+        H('AISC Manual Eq. '+(w.faces===2?'9-3 &mdash; flange loaded by fillets on both faces':'9-2 &mdash; flange with a fillet on one face'))+R('t<sub>min</sub> = '+(w.faces===2?'6.19':'3.09')+'D/F<sub>u</sub> = '+(w.faces===2?'6.19':'3.09')+' &times; '+f2(D)+'/'+f1(b.Fu)+' = '+V(f3(tminF),'in')+' &le; t<sub>f</sub> = '+f3(b.tf)+' in')+DC(f3(tminF),f3(b.tf),tminF/b.tf)));
+      var tThin=Math.min(b.tf,c.t), wmin=minFillet(tThin), wmax=maxFillet(b.tf), okMin=w.w>=wmin-1e-9, okMax=w.w<=wmax+1e-9, okLen=be.Be>=4*w.w;
+      C.push(mk(SEC_W,'WLIM','Fillet size limits','AISC 360-22 Table J2.4 &middot; &sect;J2.2b','w = '+frac16(w.w)+' in','min '+frac16(wmin)+' &middot; max '+frac16(wmax)+' in', null,
+        H('AISC 360-22 &sect;J2.2b fillet weld limitations')+R('Thinner part t = '+f3(tThin)+' in &rarr; Table J2.4 minimum w = '+V(frac16(wmin),'in')+(okMin?' &mdash; o.k.':' &mdash; <b>not met</b>'))
+        +R('Weld along the flange end (t<sub>f</sub> = '+f3(b.tf)+' in) &rarr; &sect;J2.2b(b) maximum w = '+V(frac16(wmax),'in')+(okMax?' &mdash; o.k.':' &mdash; <b>exceeded</b>'))
+        +R('Minimum length 4w = '+f2(4*w.w)+' in &le; effective length '+f3(be.Be)+' in'+(okLen?' &mdash; o.k.':' &mdash; <b>not met</b>'))+END(),
+        {status:(okMin&&okMax&&okLen)?'PASS':'REVIEW', note:(okMin&&okMax&&okLen)?'':'outside &sect;J2.2b limits', informational:true}));
+    }
+
+    // ---- design status rows
+    var SEC_S='Design status';
+    C.push(mk(SEC_S,'STIFF','Rotational stiffness classification','DG24 1st ed &sect;7.1 &middot; 2nd ed Ch. 6 &middot; AISC 360-22 &sect;B3.4b','&mdash;','PR (partially restrained)', null,
+      H('Connection classification')+R('DG24 treats the directly welded W-beam-to-HSS connection as a pair of transverse plates and classifies it as semi-rigid / partially restrained. FR stiffness is <b>not verified</b> by this calculator; if the frame analysis assumes an FR joint, verify stiffness separately (&sect;B3.4b).')+END(), {status:'INFO', note:'FR stiffness not verified', informational:true}));
+    C.push(mk(SEC_S,'SHEAR','Beam web shear connection','AISC Manual Part 10 (single-plate to HSS wall)','V<sub>u</sub> = '+f1(inp.Vu)+' kips','designed separately', null,
+      H('Shear transfer')+R('The flange couple carries M<sub>u</sub> only. Design the web shear connection (single-plate shear tab welded to the HSS wall, Manual Part 10 / DG24 Ch. 5) for V<sub>u</sub> = '+f1(inp.Vu)+' kips in a separate calculation.')+END(), {status:'INFO', informational:true}));
+
+    // ---- summary
+    var maxDC=0, governing='', governingId='';
+    C.forEach(function(ch){ if(!ch.informational && ch.dc!==null && ch.dc>maxDC){ maxDC=ch.dc; governing=ch.name; governingId=ch.id; } });
+    var anyFail=C.some(function(ch){return ch.status==='FAIL';}), anyRev=C.some(function(ch){return ch.status==='REVIEW';});
+    var banner = anyFail?'FAIL':anyRev?'REVIEW':'PASS';
+    v.phiMn = maxDC>0 ? inp.Mu/maxDC : Infinity;
+    v.phiMpx = isNum(b.Zx)&&b.Zx>0 ? 0.90*b.Fy*b.Zx/12 : null;
+    C.push(mk(SEC_S,'CAP','Connection flexural strength vs. beam','DG24 Ex 4.3 closing note','&phi;M<sub>n,conn</sub> = '+f1(v.phiMn)+' kip-ft', v.phiMpx!==null?'&phi;<sub>b</sub>M<sub>px</sub> = '+f1(v.phiMpx)+' kip-ft':'&mdash;', null,
+      H('Flexural strength comparison')+R('&phi;M<sub>n,conn</sub> = M<sub>u</sub>/(max D/C) = '+f1(inp.Mu)+'/'+f3(maxDC)+' = '+V(f1(v.phiMn),'kip-ft')+' governed by '+governing)
+      +(v.phiMpx!==null?R('Beam &phi;<sub>b</sub>M<sub>px</sub> = 0.90 &times; '+f1(b.Fy)+' &times; '+f1(b.Zx)+'/12 = '+V(f1(v.phiMpx),'kip-ft')+' &rarr; connection develops '+f1(100*v.phiMn/v.phiMpx)+' % of the beam (DG24: the full flexural strength of the W-shape is seldom achievable).'):'')+END(), {status:'INFO', informational:true}));
+    return {ok:true, errors:[], checks:C, vals:v, maxDC:maxDC, governing:governing, governingId:governingId, banner:banner};
+  }
+
+  // ---- fixtures (spec §5)
+  function merge(a,b){ var o={}; Object.keys(a).forEach(function(k){ o[k]=(a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))?merge(a[k],{}):a[k]; });
+    Object.keys(b||{}).forEach(function(k){ o[k]=(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&o[k]&&typeof o[k]==='object')?merge(o[k],b[k]):b[k]; }); return o; }
+  var W16X57={label:'W16X57', d:16.4, bf:7.12, tf:0.715, tw:0.43, Fy:50, Fu:65, Zx:105};
+  var HSS10={label:'HSS10X10X1/2', H:10, B:10, t:0.465, A:17.2, S:51.2, Fy:46, Fu:58, Pu:0, Mu:0};
+  var HSS6={label:'custom', H:6, B:6, t:0.465, A:9.74, S:16.1, Fy:46, Fu:58, Pu:0, Mu:0};
+  var CJP={type:'cjp', w:0.3125, faces:1, proc:'smaw', Fexx:70, kds:false};
+  var FIL={type:'fillet', w:0.3125, faces:1, proc:'smaw', Fexx:70, kds:false};
+  var BASE={code:'dg24-1', beam:W16X57, Mu:60, Vu:20, col:HSS10, connType:'T', lend:null, weld:CJP};
+  function near(l,got,want,tol){ return [l, Math.abs(got-want)<=tol, f4(got)+' vs '+want+' (±'+tol+')']; }
+  function is(l,got,want){ return [l, got===want, String(got)+' vs '+String(want)]; }
+  function row(res,id){ for (var i=0;i<res.checks.length;i++) if (res.checks[i].id===id) return res.checks[i]; return null; }
+  var FIXTURES=[
+    {id:'F1', src:'DG24 1st ed Ex 4.3 pp. 46-48, legacy phi', inp:BASE, expect:function(r){ var v=r.vals; return [
+      near('flat B-3t', v.flat, 8.605, 0.001), is('class flat', v.cls, 'flat'), near('beta', v.beta, 0.712, 0.001), near('Puf (Mu 60)', v.Puf, 45.90, 0.01),
+      near('B_e', v.be.Be, 1.981, 0.002), near('R_n local yielding', v.top.RnLY, 70.8, 0.05), near('phiR_n local yielding (0.95)', v.top.phiLY, 67.28, 0.02),
+      is('punching not required', v.top.psApp, false), is('punching row INFO', row(r,'TPS').status, 'INFO'), is('sidewall not required', v.top.swApp, false), is('sidewall row INFO', row(r,'TSY').status, 'INFO'),
+      near('phiMn legacy 87.9', v.phiMn, 87.94, 0.05), is('governing LY', r.governingId, 'TLY'), is('banner PASS', r.banner, 'PASS'), is('limits met', row(r,'LIM').status, 'PASS')
+    ]; }},
+    {id:'F2', src:'Ex 4.3 in 360-22 mode, Pu = 600 kips, 5/16 fillet one face', inp:merge(BASE,{code:'360-22', col:{Pu:600}, weld:FIL}), expect:function(r){ var v=r.vals; return [
+      near('phiR_n local yielding (0.90)', v.top.phiLY, 63.74, 0.02), near('U', v.qf.U, 0.7583, 0.001), near('Q_f', v.qf.Qf, 0.874, 0.001),
+      is('plastification applicable', v.top.plApp, true), near('phiR_n plastification', v.top.phiPL, 69.11, 0.05), is('plastification not governing', r.governingId!=='TPL', true),
+      near('weld l_e = B_e', v.weld.le, 1.981, 0.002), near('phiR_n weld', v.weld.phiW, 13.79, 0.02), is('weld governs', r.governingId, 'W'), near('t_min HSS', v.weld.tminH, 0.2664, 0.001), is('banner FAIL', r.banner, 'FAIL')
+    ]; }},
+    {id:'F3', src:'handoff 6-in HSS, b_f 5.5 in', inp:merge(BASE,{code:'360-22', beam:{label:'custom', d:12, bf:5.5, tf:0.5, tw:0.3, Zx:40}, Mu:40, col:HSS6, weld:FIL}), expect:function(r){ var v=r.vals; return [
+      near('flat', v.flat, 4.605, 0.001), is('class corner', v.cls, 'corner'), near('overlap per side', v.overlap, 0.4475, 0.001), near('beta', v.beta, 0.9167, 0.001),
+      is('punching not required (bfc > B-2t)', v.top.psApp, false), is('plastification not required', v.top.plApp, false), is('sidewalls applicable', v.top.swApp, true),
+      near('flare-bevel throat', v.weld.Ecor, 0.2906, 0.001), near('corner length', v.weld.Lcor, 0.895, 0.001), near('phiR_n weld', v.weld.phiW, 27.35, 0.05),
+      is('GEO row REVIEW not FAIL', row(r,'GEO').status, 'REVIEW'), is('no FAIL from geometry rows', ['GEO','LIM','END'].every(function(id){return row(r,id).status!=='FAIL';}), true)
+    ]; }},
+    {id:'F4', src:'W16X57 on 6-in HSS: flange beyond B', inp:merge(BASE,{code:'360-22', Mu:40, col:HSS6, weld:FIL}), expect:function(r){ var v=r.vals; return [
+      is('class beyond', v.cls, 'beyond'), near('credited width', v.bfc, 6.0, 1e-9), near('beta capped', v.beta, 1.0, 1e-9), near('projection per side', v.proj, 0.56, 0.001),
+      near('B_e', v.be.Be, 2.782, 0.002), is('GEO REVIEW', row(r,'GEO').status, 'REVIEW'), is('plastification N/A at beta 1', row(r,'TPL').status, 'N/A')
+    ]; }},
+    {id:'F5', src:'STI July 2025 transverse flange plate example (HSS12x8x1/2, PL 3/8 x 6.5)', inp:merge(BASE,{code:'360-22', beam:{label:'custom', d:18, bf:6.5, tf:0.375, tw:0.3, Zx:100}, Mu:46.7*17.625/12,
+      col:{label:'custom', H:12, B:8, t:0.465, A:17.2, S:55.6, Fy:50, Fu:62, Pu:500, Mu:45}, connType:'X', weld:{type:'fillet', w:0.25, faces:2, proc:'smaw', Fexx:70, kds:false}}), expect:function(r){ var v=r.vals; return [
+      near('Puf', v.Puf, 46.7, 0.01), near('B_e', v.be.Be, 4.685, 0.005), near('phiR_n plate local yielding 79.1', v.top.phiLY, 79.06, 0.05),
+      near('U', v.qf.U, 0.7756, 0.001), near('Q_f 0.918', v.qf.Qf, 0.918, 0.001), near('phiR_n plastification 96.7', v.top.phiPL, 96.66, 0.05),
+      near('R_n punching 115.9', v.top.RnPS, 115.87, 0.05), near('R_n sidewall yielding 179.6', v.top.RnSY, 179.6, 0.05), is('sidewall INFO at beta 0.8125', row(r,'TSY').status, 'INFO'),
+      near('l_e = 2B_e 9.37', v.weld.le, 9.37, 0.005), near('phiR_n weld 52.2', v.weld.phiW, 52.17, 0.05), is('cross-connection buckling row', v.bot.isX, true)
+    ]; }},
+    {id:'F6', src:'SEU Jan 2014 (Olson) HSS8x8x3/8 A1085 + W16x36, Mu 66, legacy phi', inp:merge(BASE,{beam:{label:'W16X36', d:15.9, bf:6.99, tf:0.43, tw:0.295, Fy:50, Fu:65, Zx:64}, Mu:66,
+      col:{label:'custom', H:8, B:8, t:0.375, A:10.4, S:24.9, Fy:50, Fu:65}}), expect:function(r){ var v=r.vals; return [
+      near('Puf 51', v.Puf, 51.2, 0.05), near('phiR_n local yielding 58.4', v.top.phiLY, 58.36, 0.05), is('punching applicable', v.top.psApp, true), near('B_ep 3.28', v.bep.Bep, 3.277, 0.005), near('phiR_n punching 79.3', v.top.phiPS, 79.23, 0.1)
+    ]; }},
+    {id:'F7', src:'validation', inp:merge(BASE,{beam:{bf:0}, weld:{type:'fillet', w:0}, col:{B:1}}), expect:function(r){ return [ is('rejected', r.ok, false), is('three messages', r.errors.length>=3, true) ]; }},
+    {id:'F8', src:'end distance, 360-22 Eq. K1-7', inp:merge(BASE,{code:'360-22', lend:1.0}), expect:function(r){ var v=r.vals; return [
+      near('required end distance', v.endReq, 2.88, 0.001), is('violated', v.endViol, true), near('phiR_n LY halved', v.top.phiLY, 31.87, 0.02), is('END row REVIEW', row(r,'END').status, 'REVIEW')
+    ]; }}
+  ];
+  function runFixtures(){
+    var lines=[], pass=0, total=0;
+    FIXTURES.forEach(function(fx){
+      var res, items=[], threw=false;
+      try { res=compute(fx.inp); } catch(cerr){ threw=true; items=[['compute threw: '+String(cerr), false, String(cerr)]]; }
+      if (!threw){ try { items=fx.expect(res); } catch(err){ items=[['expect threw', false, String(err)]]; } }
+      items.forEach(function(it){ total++; if (it[1]) pass++; lines.push((it[1]?'PASS ':'FAIL ')+fx.id+' ['+fx.src+'] '+it[0]+'  ->  '+it[2]); });
+    });
+    return {pass:pass, total:total, lines:lines};
+  }
+  return {compute:compute, validate:validate, effBe:effBe, effBep:effBep, chordQf:chordQf, minFillet:minFillet, maxFillet:maxFillet, PHI:PHI, BASE:merge(BASE,{}), FIXTURES:FIXTURES, merge:merge, runFixtures:runFixtures};
+})();
 </script>
 <script src="/are-draw.js"></script>
-<script src="/are-state-loader.js"></script>
-<script>
-// The AISC workbook loads asynchronously (window 'load' + setTimeout -> fetch),
-// populating the shape selects. Nothing is exposed to await, so Save could
-// snapshot — and Load could restore a section value — while the dropdowns were
-// still empty, silently producing different results. Gate on the dropdowns
-// actually being populated. Fails open after the timeout.
-(function () {
-  window.AREv2 = window.AREv2 || {};
-  var promise = new Promise(function (resolve) {
-    var t0 = Date.now();
-    (function poll() {
-      // These calcs ship a SMALL HARDCODED FALLBACK shape table that populates
-      // the dropdowns immediately, so "options exist and a value is selected"
-      // is true long before the real workbook arrives. applyDb() then repopulates
-      // and resets the selection to its default, clobbering anything restored in
-      // between — silently changing the calculated result. The only trustworthy
-      // signal is applyDb's own status line; everything after it in applyDb is
-      // synchronous, so observing it on a later tick means population is done.
-      var st = document.getElementById('dbStatus');
-      if ((st && /^Loaded/.test(st.textContent || '')) || Date.now() - t0 > 20000) return resolve();
-      setTimeout(poll, 100);
-    })();
-  });
-  (AREv2._q = AREv2._q || []).push(promise);
-})();
-</script>
-<script src="/are-utils-v2.js"></script>
-<script>
-(function(){ function reg(){ if(window.AREv2){ AREv2.acceptImports({moment:{field:'Mu', unit:'kip-ft'}}); } else setTimeout(reg,150); } reg(); })();
-</script>
-<script>
-// ============ SAVED-STATE HYDRATION ============
-// Listens for the 'are:stateLoaded' event fired by are-state-loader.js when
-// the page is opened with ?id=<uuid>. Maps Calc State fields back to this
-// calc's inputs, then triggers a redraw + recalc.
-// All mapping is guarded in try/catch so a malformed state cannot break
-// a fresh page load.
-(function(){
-  // Helper: find a DB key case-insensitively given an UPPERCASE AISC label
-  function findDbKey(db, upperLabel){
-    // Try exact match first (in case DB ever gains uppercase keys)
-    if(db[upperLabel]) return upperLabel;
-    // DB keys use lowercase-x (e.g. 'W16x57', 'HSS10x10x1/2')
-    // Build lowercase version of the label and try that
-    var lower = upperLabel.toLowerCase().replace(/x/g,'x');
-    if(db[lower]) return lower;
-    // Brute-force case-insensitive scan as final fallback
-    var keys=Object.keys(db);
-    for(var i=0;i<keys.length;i++){
-      if(keys[i].toUpperCase()===upperLabel) return keys[i];
-    }
-    return null;
-  }
-
-  function setVal(id, val){
-    var el=document.getElementById(id);
-    if(el && val!==null && val!==undefined) el.value=val;
-  }
-
-  function hydrate(state){
-    try{
-      // --- member (W-beam) ---
-      var wSection=(state.member&&state.member.section)?state.member.section.toUpperCase():null;
-      if(wSection){
-        var wKey=findDbKey(W_DB, wSection);
-        if(wKey) setVal('wsec', wKey);
-      }
-
-      // --- beam Fy ---
-      if(state.member&&state.member.material&&state.member.material.Fy!=null){
-        setVal('Fyb', state.member.material.Fy);
-      }
-
-      // --- connection block ---
-      var conn=state.connection||{};
-
-      // HSS column section
-      var hSection=(conn.column&&conn.column.section)?conn.column.section.toUpperCase():null;
-      if(hSection){
-        var hKey=findDbKey(H_DB, hSection);
-        if(hKey) setVal('hsec', hKey);
-      }
-
-      // HSS column Fy
-      if(conn.column&&conn.column.Fy!=null){
-        setVal('Fy', conn.column.Fy);
-      }
-
-      // beamFy override (if present and no member.material.Fy)
-      if(conn.beamFy!=null){
-        setVal('Fyb', conn.beamFy);
-      }
-
-      // --- demands: Mu in kip-ft ---
-      if(state.demands&&state.demands.Mu!=null){
-        setVal('Mu', state.demands.Mu);
-      }
-
-      // Refresh section hints and redraw
-      if(typeof hint==='function') hint();
-      // Auto-run calc if both sections are now selected
-      if(typeof runCalcs==='function') runCalcs();
-
-    }catch(err){
-      if(window.console&&console.warn){
-        console.warn('[are-state-loader hydration]', err);
-      }
-    }
-  }
-
-  window.addEventListener('are:stateLoaded', function(e){
-    try{ hydrate(e.detail); }catch(err){
-      if(window.console&&console.warn) console.warn('[are:stateLoaded]', err);
-    }
-  });
-})();
-// ============ END SAVED-STATE HYDRATION ============
-</script>
+<script src="/are-utils-v2.js" data-no-theme></script>
 </body>
 </html>
