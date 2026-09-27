@@ -873,12 +873,17 @@ window.DWHSS = (function(){
       'b<sub>f</sub> = '+f3(b.bf)+' in', cls==='flat'?'on the flat (B &minus; 3t = '+f2(flat)+' in)':cls==='corner'?'corner overlap '+f3(overlap)+' in/side':'projects '+f3(proj)+' in/side beyond B', null, gdet,
       {status:cls==='flat'?'INFO':'REVIEW', note:cls==='flat'?'':cls==='corner'?'corner-region weld detail required':'flange wider than HSS: credited width capped at B, weld/end detail required', informational:true}));
     // LIM
+    // §K1.3 note: ASTM A500 Gr C (Fy 50 / Fu 62, ratio 0.806) is acceptable for the Fy/Fu <= 0.8 limit
+    function grC(fy,fu){ return Math.abs(fy-50)<1e-6 && Math.abs(fu-62)<1e-6; }
+    function ratioLine(lbl,fy,fu,src){ var r=fy/fu, ok=r<=0.8+1e-9;
+      if (!ok && grC(fy,fu)) return [lbl+' = '+f3(r)+' &gt; 0.8 &mdash; A500 Gr C, acceptable per &sect;K1.3 note'+src, true];
+      return [lbl+' = '+f3(r)+' &le; 0.8'+src, ok]; }
     var lim=[['B/t = '+f1(Bt)+' &le; 35',Bt<=35],['H/t = '+f1(Ht)+' &le; 35',Ht<=35],['0.25 &le; &beta; = '+f3(beta)+' &le; 1.0',beta>=0.25-1e-9&&beta<=1+1e-9],
-      ['F<sub>y</sub> = '+f1(c.Fy)+' &le; 52 ksi',c.Fy<=52],['F<sub>y</sub>/F<sub>u</sub> = '+f3(c.Fy/c.Fu)+' &le; 0.8',c.Fy/c.Fu<=0.8+1e-9],
-      ['F<sub>yb</sub> = '+f1(b.Fy)+' &le; 52 ksi',b.Fy<=52],['F<sub>yb</sub>/F<sub>ub</sub> = '+f3(b.Fy/b.Fu)+' &le; 0.8',b.Fy/b.Fu<=0.8+1e-9]];
+      ['F<sub>y</sub> = '+f1(c.Fy)+' &le; 52 ksi',c.Fy<=52],ratioLine('F<sub>y</sub>/F<sub>u</sub>',c.Fy,c.Fu,''),
+      ['F<sub>yb</sub> = '+f1(b.Fy)+' &le; 52 ksi (DG24 Table 7-2A)',b.Fy<=52],ratioLine('F<sub>yb</sub>/F<sub>ub</sub>',b.Fy,b.Fu,' (DG24 Table 7-2A)')];
     var limOK=lim.every(function(x){return x[1];}); v.limOK=limOK;
     C.push(mk(SEC_G,'LIM','Limits of applicability','AISC 360-22 &sect;K1.3 &middot; DG24 Table 7-2A','&beta; = '+f3(beta)+', B/t = '+f1(Bt), limOK?'all limits met':'outside limits', null,
-      H('AISC 360-22 &sect;K1.3 limits of applicability (Chapter K parameters, Q<sub>f</sub>)')+lim.map(function(x){return R(x[0]+(x[1]?' &mdash; o.k.':' &mdash; <b>not met</b>'));}).join('')+R('Outside these limits the Chapter K parameters are not validated; design by rational analysis (&sect;K1).')+END(),
+      H('AISC 360-22 &sect;K1.3 limits of applicability (Chapter K parameters, Q<sub>f</sub>) &middot; DG24 Table 7-2A transverse-plate material limits')+lim.map(function(x){return R(x[0]+(x[1]?' &mdash; o.k.':' &mdash; <b>not met</b>'));}).join('')+R('Outside these limits the Chapter K parameters are not validated; design by rational analysis (&sect;K1).')+END(),
       {status:limOK?'PASS':'REVIEW', note:limOK?'':lim.filter(function(x){return !x[1];}).map(function(x){return x[0].replace(/<[^>]+>/g,'');}).join('; '), informational:true}));
     // END
     var edet=H('AISC 360-22 &sect;K1.4 Eq. K1-7 &mdash; minimum end distance to an unreinforced column end')
@@ -887,11 +892,14 @@ window.DWHSS = (function(){
     C.push(mk(SEC_G,'END','End distance to column end','AISC 360-22 &sect;K1.4 Eq. K1-7', inp.lend===null?'continuous':'l<sub>end</sub> = '+f2(inp.lend)+' in', endApp?'&ge; '+f3(endReq)+' in':'not required', null, edet,
       {status:endViol?'REVIEW':'INFO', note:endViol?'50 % reduction applied to HSS rows':'', informational:true}));
     // QF
+    var uOver = qf.U>1.0+1e-9; v.uOver=uOver;
     C.push(mk(SEC_G,'QF','Chord-stress interaction Q<sub>f</sub>','AISC 360-22 &sect;K1.3 Eq. K1-4, K1-6','U = '+f3(qf.U),'Q<sub>f</sub> = '+f3(qf.Qf), null,
       H('AISC 360-22 &sect;K1.3(c)(1) &mdash; rectangular HSS, transverse plate')
       +R('U = P<sub>u</sub>/(F<sub>y</sub>A) + M<sub>u</sub>&times;12/(F<sub>y</sub>S) = '+fr(f1(c.Pu),f1(c.Fy)+' &times; '+f2(c.A))+' + '+fr(f1(c.Mu)+' &times; 12',f1(c.Fy)+' &times; '+f2(c.S))+' = '+V(f3(qf.U)))
-      +R(qf.tension?'Connecting face in tension &rarr; Q<sub>f</sub> = 1.0':'Q<sub>f</sub> = 1.3 &minus; 0.4U/&beta; = 1.3 &minus; 0.4 &times; '+f3(qf.U)+'/'+f3(beta)+' = '+f3(qf.raw)+' &rarr; 0.4 &le; Q<sub>f</sub> &le; 1.0 &rarr; '+V(f3(qf.Qf)))
-      +R('Q<sub>f</sub> multiplies face plastification and sidewall crippling/buckling (DG24 Table 7-2).')+END(), {status:'INFO', informational:true}));
+      +R(qf.tension?(qf.U===0?'No chord load &rarr; Q<sub>f</sub> = 1.0':'Connecting face in tension &rarr; Q<sub>f</sub> = 1.0'):'Q<sub>f</sub> = 1.3 &minus; 0.4U/&beta; = 1.3 &minus; 0.4 &times; '+f3(qf.U)+'/'+f3(beta)+' = '+f3(qf.raw)+' &rarr; 0.4 &le; Q<sub>f</sub> &le; 1.0 &rarr; '+V(f3(qf.Qf)))
+      +R('Q<sub>f</sub> multiplies face plastification and sidewall crippling/buckling (DG24 Table 7-2).')
+      +(uOver?R('<b>U = '+f3(qf.U)+' &gt; 1.0:</b> column utilization exceeds the Eq. K1-6 limit; check the column member.'):'')+END(),
+      {status:uOver?'REVIEW':'INFO', note:uOver?'U &gt; 1.0: column utilization exceeds Eq. K1-6 limit; check the column member':'', informational:true}));
 
     // ---- flange rows (tension and compression)
     function flange(isTop){
@@ -911,9 +919,9 @@ window.DWHSS = (function(){
       var dpl=H('HSS connecting-face plastification &mdash; yield-line mechanism (AISC 360-22 &sect;J10.10, Comm. K1; 16th Ed Manual Part 9; form of 360-10 Eq. K2-7)')
         +R('&beta; = '+f3(beta)+(plApp?' &le; 0.85 &rarr; <b>applicable</b>':' &gt; 0.85 &rarr; <b>not required</b> (load goes to the sidewalls; yield line is non-critical, Comm. K1)')+'; &eta; = t<sub>f</sub>/B = '+f3(eta));
       if (isFinite(RnPL)) dpl += R('R<sub>n</sub> = F<sub>y</sub>t&sup2;[2&eta;/(1&minus;&beta;) + 4/&radic;(1&minus;&beta;)]Q<sub>f</sub> = '+f1(c.Fy)+' &times; '+f3(c.t)+'&sup2; &times; ['+f3(2*eta/(1-beta))+' + '+f3(4/Math.sqrt(1-beta))+'] &times; '+f3(qf.Qf)+' = '+V(f1(RnPL),'kips'))
-        +R('&phi;R<sub>n</sub> = 1.00 &times; '+f1(RnPL)+redNote+' = '+V(f1(phiPL),'kips'))+(legacy?R('Not tabulated in DG24 1st ed Table 7-2 (omitted as non-governing in practical cases); shown for completeness.'):'')+DC(f1(Puf),f1(phiPL),Puf/phiPL);
+        +R('&phi;R<sub>n</sub> = '+f2(phi.PL)+' &times; '+f1(RnPL)+redNote+' = '+V(f1(phiPL),'kips'))+(legacy?R('Not tabulated in DG24 1st ed Table 7-2 (omitted as non-governing in practical cases); shown for completeness.'):'')+DC(f1(Puf),f1(phiPL),Puf/phiPL);
       else dpl += R('&beta; = 1.0: the mechanism does not form; the sidewall rows govern.')+END();
-      C.push(mk(SEC,tag+'PL','HSS face plastification (yield line)','AISC 360-22 &sect;J10.10 / Comm. K1 &middot; Manual Pt. 9 &middot; STI 2025, &phi; = 1.00',
+      C.push(mk(SEC,tag+'PL','HSS face plastification (yield line)','AISC 360-22 &sect;J10.10 / Comm. K1 &middot; Manual Pt. 9 &middot; STI 2025, &phi; = '+f2(phi.PL),
         'P<sub>uf</sub> = '+f1(Puf)+' kips', isFinite(phiPL)?'&phi;R<sub>n</sub> = '+f1(phiPL)+' kips':'&mdash;', isFinite(phiPL)?Puf/phiPL:null, dpl,
         plApp?{}:{status:isFinite(phiPL)?'INFO':'N/A', note:'not required: &beta; &gt; 0.85', informational:true}));
       // PS
@@ -965,24 +973,37 @@ window.DWHSS = (function(){
       var Rr=2*c.t, Ecor = Rr>=0.375-1e-9 ? (w.proc==='gmaw'?0.625:0.3125)*Rr : 0;
       var Lflat=Math.min(bfc,flat), Lcor=bfc-Lflat, LcorE=Math.min(Lcor,be.Be), LflatE=be.Be-LcorE;
       var kds = (w.kds && w.faces===2) ? 1.5 : 1.0, D=w.w*16;
-      var RnW = w.faces*0.6*w.Fexx*(0.707*w.w*LflatE+Ecor*LcorE)*kds, phiW=phi.W*RnW, le=w.faces*be.Be;
+      var RnW = w.faces*0.6*w.Fexx*(0.707*w.w*LflatE+Ecor*LcorE)*kds, phiWm=phi.W*RnW, le=w.faces*be.Be;
+      // Manual Pt. 9 base-metal shear rupture that Eq. 9-2/9-3 are derived from: each weld line loads its own
+      // HSS wall strip (scales with faces); one flange thickness carries both faces (does not scale with faces)
+      var phiBmH=0.75*0.6*c.Fu*c.t*le, phiBmF=0.75*0.6*b.Fu*b.tf*be.Be, phiW=Math.min(phiWm,phiBmH,phiBmF);
+      var wGov = phiW===phiWm ? 'weld metal' : phiW===phiBmH ? 'HSS wall base metal' : 'beam flange base metal';
       var cornerUncredited = Lcor>1e-9 && Ecor===0;
-      v.weld={type:'fillet',R:Rr,Ecor:Ecor,Lflat:Lflat,Lcor:Lcor,LcorE:LcorE,LflatE:LflatE,kds:kds,le:le,RnW:RnW,phiW:phiW,D:D};
+      v.weld={type:'fillet',R:Rr,Ecor:Ecor,Lflat:Lflat,Lcor:Lcor,LcorE:LcorE,LflatE:LflatE,kds:kds,le:le,RnW:RnW,phiWm:phiWm,phiBmH:phiBmH,phiBmF:phiBmF,phiW:phiW,gov:wGov,D:D};
       var dw=H('AISC 360-22 &sect;J2.4 fillet welds &middot; &sect;K5 Table K5.1 Eq. K5-4 effective length (l<sub>e</sub> = 2B<sub>e</sub> for welds both faces)')
         +R('Effective length per face = B<sub>e</sub> = '+f3(be.Be)+' in, allocated from the flange edges (stiff sidewall regions) inward: corner portion '+f3(LcorE)+' in, flat portion '+f3(LflatE)+' in; faces = '+w.faces+' &rarr; l<sub>e</sub> = '+V(f3(le),'in'))
         +R('Flat: fillet throat 0.707w = 0.707 &times; '+f4(w.w)+' = '+f4(0.707*w.w)+' in. Corner: flare-bevel groove, R = 2t = '+f3(Rr)+' in &rarr; '+(Ecor>0?'throat (Table J2.2, '+(w.proc==='gmaw'?'5/8':'5/16')+'R) = '+f4(Ecor)+' in':'R &lt; 3/8 in: no flare-bevel throat credited (Table J2.2 note)'))
         +R('k<sub>ds</sub> = '+f2(kds)+(w.kds&&w.faces!==2?' (directional increase not permitted for a single-sided fillet on the tension flange; DG24 2nd ed Ch. 3, &sect;J2.4(a)(3))':''))
         +R('R<sub>n</sub> = faces &times; 0.60F<sub>EXX</sub>(0.707w&middot;l<sub>flat,e</sub> + E&middot;l<sub>corner,e</sub>)k<sub>ds</sub> = '+w.faces+' &times; 0.60 &times; '+f1(w.Fexx)+' &times; ('+f4(0.707*w.w)+' &times; '+f3(LflatE)+' + '+f4(Ecor)+' &times; '+f3(LcorE)+') &times; '+f2(kds)+' = '+V(f1(RnW),'kips'))
-        +R('&phi;R<sub>n</sub> = 0.75 &times; '+f1(RnW)+' = '+V(f1(phiW),'kips'))+DC(f1(Puf),f1(phiW),Puf/phiW);
-      C.push(mk(SEC_W,'W','Flange-to-HSS fillet welds','AISC 360-22 &sect;J2.4 &middot; &sect;K5 Eq. K5-4, &phi; = 0.75','P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiW)+' kips', Puf/phiW, dw,
-        {note:frac16(w.w)+' in fillet, '+(w.faces===2?'both faces':'top face only')+', l<sub>e</sub> = '+f3(le)+' in'+(cornerUncredited?'; corner not credited':'')}));
+        +R('Weld metal &phi;R<sub>n</sub> = 0.75 &times; '+f1(RnW)+' = '+V(f1(phiWm),'kips'))
+        +R('HSS wall base metal (Manual Pt. 9, shear rupture): &phi;0.60F<sub>u</sub>t&middot;l<sub>e</sub> = 0.75 &times; 0.60 &times; '+f1(c.Fu)+' &times; '+f3(c.t)+' &times; '+f3(le)+' = '+V(f1(phiBmH),'kips'))
+        +R('Beam flange base metal (Manual Pt. 9, shear rupture; one t<sub>f</sub> carries both faces): &phi;0.60F<sub>ub</sub>t<sub>f</sub>B<sub>e</sub> = 0.75 &times; 0.60 &times; '+f1(b.Fu)+' &times; '+f3(b.tf)+' &times; '+f3(be.Be)+' = '+V(f1(phiBmF),'kips'))
+        +R('&phi;R<sub>n</sub> = min('+f1(phiWm)+', '+f1(phiBmH)+', '+f1(phiBmF)+') = '+V(f1(phiW),'kips')+' &rarr; <b>'+wGov+' governs</b>')+DC(f1(Puf),f1(phiW),Puf/phiW);
+      C.push(mk(SEC_W,'W','Flange-to-HSS fillet welds','AISC 360-22 &sect;J2.4 &middot; &sect;K5 Eq. K5-4, &phi; = 0.75 &middot; Manual Pt. 9 base metal','P<sub>uf</sub> = '+f1(Puf)+' kips','&phi;R<sub>n</sub> = '+f1(phiW)+' kips', Puf/phiW, dw,
+        {note:frac16(w.w)+' in fillet, '+(w.faces===2?'both faces':'top face only')+', l<sub>e</sub> = '+f3(le)+' in; '+wGov+' governs'+(cornerUncredited?'; corner not credited':'')}));
       if (cornerUncredited) C.push(mk(SEC_W,'WCOR','Corner-region weld','AISC 360-22 Table J2.2','R = 2t = '+f3(Rr)+' in','&lt; 3/8 in', null,
         H('Flare-bevel groove welds')+R('For R &lt; 3/8 in Table J2.2 permits only the reinforcing fillet on a filled-flush joint; the corner overlap of '+f3(overlap)+' in per side is not credited above. Engineer to detail or trim.')+END(), {status:'REVIEW', note:'corner region not credited', informational:true}));
       var tminH=3.09*D/c.Fu, tminF=(w.faces===2?6.19:3.09)*D/b.Fu; v.weld.tminH=tminH; v.weld.tminF=tminF;
+      // informational: t_min only says whether base metal or weld metal is weaker; the W row is already capped by both
+      var okH=tminH<=c.t+1e-9, okF=tminF<=b.tf+1e-9;
       C.push(mk(SEC_W,'WBH','HSS wall base metal at the weld','AISC Manual Eq. 9-2','t<sub>min</sub> = '+f3(tminH)+' in','t = '+f3(c.t)+' in', tminH/c.t,
-        H('AISC Manual Eq. 9-2 &mdash; HSS wall under a single fillet line')+R('t<sub>min</sub> = 3.09D/F<sub>u</sub> = 3.09 &times; '+f2(D)+'/'+f1(c.Fu)+' = '+V(f3(tminH),'in')+' &le; t = '+f3(c.t)+' in')+DC(f3(tminH),f3(c.t),tminH/c.t)));
+        H('AISC Manual Eq. 9-2 &mdash; HSS wall under a single fillet line')+R('t<sub>min</sub> = 3.09D/F<sub>u</sub> = 3.09 &times; '+f2(D)+'/'+f1(c.Fu)+' = '+V(f3(tminH),'in')+(okH?' &le; ':' &gt; ')+'t = '+f3(c.t)+' in')
+        +R('t<sub>min</sub> is the wall thickness that develops the weld metal. The weld row above is already capped by the HSS wall shear rupture strength ('+f1(phiBmH)+' kips), so this ratio does not enter &phi;M<sub>n</sub>.')+DC(f3(tminH),f3(c.t),tminH/c.t),
+        {status:okH?'PASS':'INFO', note:okH?'':'t &lt; t<sub>min</sub>: HSS wall governs the weld row (capped)', informational:true}));
       C.push(mk(SEC_W,'WBF','Beam flange base metal at the weld','AISC Manual Eq. '+(w.faces===2?'9-3':'9-2'),'t<sub>min</sub> = '+f3(tminF)+' in','t<sub>f</sub> = '+f3(b.tf)+' in', tminF/b.tf,
-        H('AISC Manual Eq. '+(w.faces===2?'9-3 &mdash; flange loaded by fillets on both faces':'9-2 &mdash; flange with a fillet on one face'))+R('t<sub>min</sub> = '+(w.faces===2?'6.19':'3.09')+'D/F<sub>u</sub> = '+(w.faces===2?'6.19':'3.09')+' &times; '+f2(D)+'/'+f1(b.Fu)+' = '+V(f3(tminF),'in')+' &le; t<sub>f</sub> = '+f3(b.tf)+' in')+DC(f3(tminF),f3(b.tf),tminF/b.tf)));
+        H('AISC Manual Eq. '+(w.faces===2?'9-3 &mdash; flange loaded by fillets on both faces':'9-2 &mdash; flange with a fillet on one face'))+R('t<sub>min</sub> = '+(w.faces===2?'6.19':'3.09')+'D/F<sub>u</sub> = '+(w.faces===2?'6.19':'3.09')+' &times; '+f2(D)+'/'+f1(b.Fu)+' = '+V(f3(tminF),'in')+(okF?' &le; ':' &gt; ')+'t<sub>f</sub> = '+f3(b.tf)+' in')
+        +R('t<sub>min</sub> is the flange thickness that develops the weld metal. The weld row above is already capped by the flange shear rupture strength ('+f1(phiBmF)+' kips), so this ratio does not enter &phi;M<sub>n</sub>.')+DC(f3(tminF),f3(b.tf),tminF/b.tf),
+        {status:okF?'PASS':'INFO', note:okF?'':'t<sub>f</sub> &lt; t<sub>min</sub>: flange governs the weld row (capped)', informational:true}));
       var tThin=Math.min(b.tf,c.t), wmin=minFillet(tThin), wmax=maxFillet(b.tf), okMin=w.w>=wmin-1e-9, okMax=w.w<=wmax+1e-9, okLen=be.Be>=4*w.w;
       C.push(mk(SEC_W,'WLIM','Fillet size limits','AISC 360-22 Table J2.4 &middot; &sect;J2.2b','w = '+frac16(w.w)+' in','min '+frac16(wmin)+' &middot; max '+frac16(wmax)+' in', null,
         H('AISC 360-22 &sect;J2.2b fillet weld limitations')+R('Thinner part t = '+f3(tThin)+' in &rarr; Table J2.4 minimum w = '+V(frac16(wmin),'in')+(okMin?' &mdash; o.k.':' &mdash; <b>not met</b>'))
@@ -1033,7 +1054,7 @@ window.DWHSS = (function(){
     {id:'F2', src:'Ex 4.3 in 360-22 mode, Pu = 600 kips, 5/16 fillet one face', inp:merge(BASE,{code:'360-22', col:{Pu:600}, weld:FIL}), expect:function(r){ var v=r.vals; return [
       near('phiR_n local yielding (0.90)', v.top.phiLY, 63.74, 0.02), near('U', v.qf.U, 0.7583, 0.001), near('Q_f', v.qf.Qf, 0.874, 0.001),
       is('plastification applicable', v.top.plApp, true), near('phiR_n plastification', v.top.phiPL, 69.11, 0.05), is('plastification not governing', r.governingId!=='TPL', true),
-      near('weld l_e = B_e', v.weld.le, 1.981, 0.002), near('phiR_n weld', v.weld.phiW, 13.79, 0.02), is('weld governs', r.governingId, 'W'), near('t_min HSS', v.weld.tminH, 0.2664, 0.001), is('banner FAIL', r.banner, 'FAIL')
+      near('weld l_e = B_e', v.weld.le, 1.981, 0.002), near('weld metal', v.weld.phiWm, 13.79, 0.02), near('phiW', v.weld.phiW, 13.79, 0.02), is('weld governs', r.governingId, 'W'), near('t_min HSS', v.weld.tminH, 0.2664, 0.001), is('banner FAIL', r.banner, 'FAIL')
     ]; }},
     {id:'F3', src:'handoff 6-in HSS, b_f 5.5 in', inp:merge(BASE,{code:'360-22', beam:{label:'custom', d:12, bf:5.5, tf:0.5, tw:0.3, Zx:40}, Mu:40, col:HSS6, weld:FIL}), expect:function(r){ var v=r.vals; return [
       near('flat', v.flat, 4.605, 0.001), is('class corner', v.cls, 'corner'), near('overlap per side', v.overlap, 0.4475, 0.001), near('beta', v.beta, 0.9167, 0.001),
@@ -1050,7 +1071,9 @@ window.DWHSS = (function(){
       near('Puf', v.Puf, 46.7, 0.01), near('B_e', v.be.Be, 4.685, 0.005), near('phiR_n plate local yielding 79.1', v.top.phiLY, 79.06, 0.05),
       near('U', v.qf.U, 0.7756, 0.001), near('Q_f 0.918', v.qf.Qf, 0.918, 0.001), near('phiR_n plastification 96.7', v.top.phiPL, 96.66, 0.05),
       near('R_n punching 115.9', v.top.RnPS, 115.87, 0.05), near('R_n sidewall yielding 179.6', v.top.RnSY, 179.6, 0.05), is('sidewall INFO at beta 0.8125', row(r,'TSY').status, 'INFO'),
-      near('l_e = 2B_e 9.37', v.weld.le, 9.37, 0.005), near('phiR_n weld 52.2', v.weld.phiW, 52.17, 0.05), is('cross-connection buckling row', v.bot.isX, true)
+      near('l_e = 2B_e 9.37', v.weld.le, 9.37, 0.005), near('phiR_n weld 52.2', v.weld.phiWm, 52.17, 0.05), is('cross-connection buckling row', v.bot.isX, true),
+      near('flange base metal 51.37', v.weld.phiBmF, 51.37, 0.05), near('phiW capped by flange base metal', v.weld.phiW, 51.37, 0.05), is('weld row governs', r.governingId, 'W'), near('max D/C 0.909', r.maxDC, 46.7/51.37, 0.002),
+      is('WBF informational', row(r,'WBF').informational, true), is('WBF INFO (t_f < t_min, weld row capped)', row(r,'WBF').status, 'INFO'), is('WBH PASS', row(r,'WBH').status, 'PASS'), is('limits met (Gr C exempt)', row(r,'LIM').status, 'PASS'), is('banner PASS (STI case passes)', r.banner, 'PASS')
     ]; }},
     {id:'F6', src:'SEU Jan 2014 (Olson) HSS8x8x3/8 A1085 + W16x36, Mu 66, legacy phi', inp:merge(BASE,{beam:{label:'W16X36', d:15.9, bf:6.99, tf:0.43, tw:0.295, Fy:50, Fu:65, Zx:64}, Mu:66,
       col:{label:'custom', H:8, B:8, t:0.375, A:10.4, S:24.9, Fy:50, Fu:65}}), expect:function(r){ var v=r.vals; return [
@@ -1059,6 +1082,9 @@ window.DWHSS = (function(){
     {id:'F7', src:'validation', inp:merge(BASE,{beam:{bf:0}, weld:{type:'fillet', w:0}, col:{B:1}}), expect:function(r){ return [ is('rejected', r.ok, false), is('three messages', r.errors.length>=3, true) ]; }},
     {id:'F8', src:'end distance, 360-22 Eq. K1-7', inp:merge(BASE,{code:'360-22', lend:1.0}), expect:function(r){ var v=r.vals; return [
       near('required end distance', v.endReq, 2.88, 0.001), is('violated', v.endViol, true), near('phiR_n LY halved', v.top.phiLY, 31.87, 0.02), is('END row REVIEW', row(r,'END').status, 'REVIEW')
+    ]; }},
+    {id:'F9', src:'360-22 Eq. K1-6 U > 1.0', inp:merge(BASE,{code:'360-22', col:{Pu:1000}}), expect:function(r){ var v=r.vals; return [
+      near('U', v.qf.U, 1000/(46*17.2), 1e-4), is('QF row REVIEW', row(r,'QF').status, 'REVIEW'), is('banner REVIEW', r.banner, 'REVIEW')
     ]; }}
   ];
   function runFixtures(){

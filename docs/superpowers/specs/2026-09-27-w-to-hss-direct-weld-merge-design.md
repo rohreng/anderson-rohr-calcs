@@ -71,6 +71,7 @@ U   = Pu/(Fy·A) + 12·Mu_col/(Fy·S)                     (Eq. K1-6, side with h
 Qf  = 1.0 if U ≤ 0 (face in tension) else clamp(1.3 − 0.4·U/β, 0.4, 1.0)   (Eq. K1-4)
 endRed = 0.5 if (lend given, β ≤ 0.85, lend < B(1−β)) else 1.0             (Eq. K1-7, §K1.4)
 ```
+U > 1.0 exceeds the Eq. K1-6 limit on column utilization: the QF row goes REVIEW with the note "U > 1.0: column utilization exceeds Eq. K1-6 limit; check the column member" (row stays informational). U = 0 is reported as "no chord load → Qf = 1.0".
 
 ### 4.3 Resistance factors by code mode
 | id | Limit state | 360-22 (default) | dg24-1 (legacy) | 360-22 citation |
@@ -92,16 +93,20 @@ R = 2t (Table J2.2 note for HSS);  Ecor = R ≥ 0.375 ? (proc==='gmaw' ? 5/8 : 5
 Lflat = min(bfc, flat);  Lcor = bfc − Lflat                (per face, both corners together)
 Lcor_e = min(Lcor, Be);  Lflat_e = Be − Lcor_e            (effective length allocated from the flange edges inward, K5-4: le = 2Be for two faces)
 kds = (kds checked && faces === 2) ? 1.5 : 1.0             (DG24 2nd ed Ch. 3: no kds for a single-sided fillet in tension; J2.4(a)(3))
-Rn = faces · 0.6·Fexx · (0.707·w·Lflat_e + Ecor·Lcor_e) · kds;   φ = 0.75
+Rn = faces · 0.6·Fexx · (0.707·w·Lflat_e + Ecor·Lcor_e) · kds;   φRn,wm = 0.75·Rn   (weld metal)
+φRn,bmH = 0.75·0.6·Fu·t·le         (HSS wall shear rupture; each weld line loads its own wall strip, le = faces·Be)
+φRn,bmF = 0.75·0.6·Fub·tf·Be       (flange shear rupture; one thickness carries both faces, does not scale with faces)
+φRn (W row) = min(φRn,wm, φRn,bmH, φRn,bmF)      (Manual Part 9 base metal cap)
 ```
-Rows: W (strength), WBM-HSS `tmin = 3.09·D/Fu ≤ t` (Manual Eq. 9-2, D = 16w), WBM-FL `tmin = (faces===2 ? 6.19 : 3.09)·D/Fub ≤ tf` (Eq. 9-3 / 9-2), WLIM fillet limits (Table J2.4 min by thinner part min(tf, t); §J2.2b(b) max along the flange-end edge = tf − 1/16 (tf ≥ 1/4) else tf; length ≥ 4w). If `Lcor > 0` and `Ecor === 0`: status REVIEW "corner region not credited; R < 3/8 in".
-Type CJP: W rows N/A with note "CJP groove weld develops the flange; flange local yielding through Be governs the weld line". If `cls !== 'flat'`: REVIEW note "CJP through the HSS corner radius is not a prequalified detail; specify the corner joint preparation".
+Base-metal cap: Manual Eq. 9-2/9-3 are derived from the base-metal shear rupture strengths above, so the W row carries the cap directly (`vals.weld.phiWm`, `phiBmH`, `phiBmF`, `phiW`; the detail names the governing one) and the tmin rows do not enter max D/C / φMn.
+Rows: W (strength, capped as above), WBH `tmin = 3.09·D/Fu ≤ t` (Manual Eq. 9-2, D = 16w), WBF `tmin = (faces===2 ? 6.19 : 3.09)·D/Fub ≤ tf` (Eq. 9-3 / 9-2) — WBH/WBF are informational (D/C shown; PASS when tmin ≤ t, else INFO "base metal governs the weld row (capped)"), WLIM fillet limits (Table J2.4 min by thinner part min(tf, t); §J2.2b(b) max along the flange-end edge = tf − 1/16 (tf ≥ 1/4) else tf; length ≥ 4w). If `Lcor > 0` and `Ecor === 0`: status REVIEW "corner region not credited; R < 3/8 in".
+Type CJP: W row INFO (flat) / REVIEW (corner or beyond) with note "CJP groove weld develops the flange; flange local yielding through Be governs the weld line". If `cls !== 'flat'`: REVIEW note "CJP through the HSS corner radius is not a prequalified detail; specify the corner joint preparation".
 
 ### 4.5 Informational rows (no D/C in the maximum)
 - GEO geometry classification with flat, overlap, projection, bfc, β. Status INFO (flat), REVIEW (corner: "corner-region weld detail required"), REVIEW (beyond: "flange projects past B; credited width capped at B, β = 1.0").
-- LIM limits of applicability (§K1.3): B/t ≤ 35, H/t ≤ 35, 0.25 ≤ β ≤ 1.0, Fy ≤ 52, Fy/Fu ≤ 0.8, Fyb ≤ 52, Fyb/Fub ≤ 0.8. PASS/REVIEW.
+- LIM limits of applicability (§K1.3 · DG24 Table 7-2A): B/t ≤ 35, H/t ≤ 35, 0.25 ≤ β ≤ 1.0, Fy ≤ 52, Fy/Fu ≤ 0.8 (§K1.3); Fyb ≤ 52, Fyb/Fub ≤ 0.8 (DG24 Table 7-2A transverse-plate material limits). A500 Gr C exemption (§K1.3 note): Fy 50 / Fu 62 (ratio 0.806) passes the Fy/Fu line with the text "A500 Gr C, acceptable per §K1.3 note" (same pattern for the beam ratio if Fyb 50 / Fub 62). PASS/REVIEW.
 - END end distance (§K1.4 Eq. K1-7): `lend ≥ B(1−β)` for β ≤ 0.85; INFO "column continuous/adequate" when null; REVIEW with "50 % reduction applied" when violated.
-- QF chord-stress interaction values U, Qf (INFO).
+- QF chord-stress interaction values U, Qf (INFO; REVIEW when U > 1.0, §4.2).
 - STIFF rotational stiffness: "Partially restrained (PR) — DG24 1st ed §7.1, 2nd ed Ch. 6; FR stiffness not verified by this calculator" (INFO).
 - SHEAR beam web shear connection: "Vu = … designed separately (single-plate shear tab to the HSS wall, Manual Part 10)" (INFO).
 - CAP connection φMn = Mu/maxDC vs beam φbMpx = 0.90·Fyb·Zx/12, ratio shown (INFO). Fatigue/seismic note in the notes box only.
@@ -113,13 +118,14 @@ Type CJP: W rows N/A with note "CJP groove weld develops the flange; flange loca
 | id | Source | Key expectations |
 |---|---|---|
 | F1 | DG24 1st ed Ex 4.3, legacy mode, W16X57 / HSS10X10X1/2 / Mu 60, CJP | flat 8.605, cls flat, Be 1.981, RnLY 70.82, φRnLY 67.28, PS N/A (bfc < 8.5), SY/SC INFO (β 0.712), φMn 87.94 (legacy ratio Mu/maxDC) |
-| F2 | same, 360-22 mode, Pu 600 (1.2·100 + 1.6·300 from the example's column loads), fillet 5/16 one face E70 | φRnLY 63.74; U 0.7583, Qf 0.874, φRnPL 69.11 (applicable, not governing); weld le = Be 1.981, φRnW 13.79 governs (D/C 4.44) — demonstrates the DG24 lesson; tminHSS 0.266 |
+| F2 | same, 360-22 mode, Pu 600 (1.2·100 + 1.6·300 from the example's column loads), fillet 5/16 one face E70 | φRnLY 63.74; U 0.7583, Qf 0.874, φRnPL 69.11 (applicable, not governing); weld le = Be 1.981, φRnW 13.79 governs (D/C 3.33) — demonstrates the DG24 lesson; tminHSS 0.266 |
 | F3 | Handoff 6-in case: custom HSS B=H=6, t 0.465, A 9.74, S 16.1, Fy 46; custom beam d 12, bf 5.5, tf 0.5, tw 0.3; Mu 40; fillet 5/16 one face | flat 4.605, cls corner, overlap 0.4475/side, β 0.9167, PS N/A (5.5 > B−2t 5.07), PL N/A (β > 0.85), SY/SC applicable, Ecor 0.2906 (R 0.93), Lcor 0.895, no FAIL from geometry, banner REVIEW |
 | F4 | W16X57 on the 6-in HSS, Mu 40, fillet | cls beyond, bfc 6, β 1.0, proj 0.56/side, Be 2.782, REVIEW |
-| F5 | STI July 2025 (HSS12x8x1/2 B 8 H 12 t 0.465 A 17.2 S 55.6 Fy 50 Fu 62; custom beam bf 6.5 tf 0.375 d 18 Fyb 50; Pu 500, Mu_col 45; X; Mu = 46.7·17.625/12; fillet ¼ both faces, no kds) | Be 4.685, φRnLY 79.06, U 0.7756, Qf 0.918, φRnPL 96.66, RnPS 115.87, RnSY 179.6 (INFO, β 0.8125), le 9.37, φRnW 52.17 |
+| F5 | STI July 2025 (HSS12x8x1/2 B 8 H 12 t 0.465 A 17.2 S 55.6 Fy 50 Fu 62; custom beam bf 6.5 tf 0.375 d 18 Fyb 50; Pu 500, Mu_col 45; X; Mu = 46.7·17.625/12; fillet ¼ both faces, no kds) | Be 4.685, φRnLY 79.06, U 0.7756, Qf 0.918, φRnPL 96.66, RnPS 115.87, RnSY 179.6 (INFO, β 0.8125), le 9.37, weld metal φRn 52.17, flange base metal φRn 51.37 → W row 51.37 governs (D/C 0.909), WBF INFO, LIM PASS (Gr C exempt), banner PASS |
 | F6 | SEU Jan 2014 (custom HSS 8×8, t 0.375, Fy 50 Fu 65; W16X36 d 15.9 bf 6.99 tf 0.43; Mu 66; legacy; CJP) | Puf 51.2, φRnLY 58.36, PS applicable, Bep 3.277, φRnPS 79.23 |
 | F7 | validation: beam bf 0, fillet w 0, B ≤ 3t | ok false with messages |
 | F8 | F1 in 360-22 with lend 1.0 | endRed 0.5, φRnLY 31.87, END row REVIEW |
+| F9 | F1 in 360-22 with Pu 1000 (CJP) | U = 1000/(46·17.2) = 1.264 > 1.0 → QF row REVIEW, banner REVIEW |
 
 ## 6. UI (FPHSS layout)
 Header tags: AISC 360-22 Ch. J & K · DG24 1st ed Ex 4.3 · DG24 2nd ed Ch. 6 · STI 2025.
