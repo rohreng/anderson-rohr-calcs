@@ -24,7 +24,7 @@ Companion files:
 - **Three flagship calc types** are in scope. Their slugs (from `app/lib/calcs.ts`) are the `calcType` discriminator:
   | `calcType` | Calc | HTML file | Spec |
   |---|---|---|---|
-  | `w-to-hss-column`  | W-Beam to HSS Column (DG24 Ex 4.3) | `W_beam_to_HSS_column_calculator.html` | AISC 360-22 §K1.3 Eq. K1-7 |
+  | `w-to-hss-column`  | W-Beam Directly Welded to HSS Column | `W_beam_to_HSS_column_calculator.html` | AISC 360-22 Ch. J/K, DG24 (flange couple) |
   | `base-plate`       | Column Base Plate (RISA table import / DG1) | `column_base_plate_v3.html` | AISC DG1 + ACI 318-19 Ch.17 |
   | `hss-to-hss-branch`| HSS-to-HSS Branch T/Y/X (+truss) | `HSS_to_HSS_branch_connection_calculator.html` | AISC 360-22 Ch.K / DG24 |
 - **v1 is store-only.** The API persists the Calc State and returns an `id` + `url`. The
@@ -138,8 +138,8 @@ The `connection` object is selected by `calcType` (JSON Schema enforces this via
 }
 ```
 - `member.section` is the W-beam; `connection.column.section` is the HSS.
-- The calc converts `Mu` to a flange-force couple `Puf = Mu·12 / (d − tf)` and checks HSS wall
-  local yielding (Eq. K1-7). **Only inputs are: W-section, HSS-section, beamFy, columnFy, Mu.**
+- The calc converts `Mu` to a flange-force couple `Puf = Mu·12 / (d − tf)` and checks the
+  flange-couple limit states on the HSS face (AISC 360-22 Ch. J/K, DG24). **Only inputs are: W-section, HSS-section, beamFy, columnFy, Mu.**
   There are no plate/bolt/weld inputs in this calc — the `connection.plate/bolts/weld` keys
   from the master-plan draft are **NOT used** for this calcType.
 

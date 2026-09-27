@@ -19,7 +19,7 @@
   // field = input id on the target page. Add entries as calcs adopt v2.
   var TARGETS = {
     moment: [
-      { file: 'W_beam_to_HSS_column_calculator.html', slug: 'w-to-hss-column', label: 'W-Beam to HSS Column', field: 'Mu', unit: 'kip-ft' },
+      { file: 'W_beam_to_HSS_column_calculator.html', slug: 'w-to-hss-column', label: 'W-Beam Directly Welded to HSS Column', field: 'Mu', unit: 'kip-ft' },
       { file: 'large_moment_base_plate.html', slug: 'large-moment-base-plate', label: 'Large Moment Base Plate', field: 'deadMoment', unit: 'kip-ft' },
       { file: 'through_plate_calculator.html', slug: 'through-plate', label: 'Through-Plate Connection', field: 'momentDeadRight', unit: 'kip-ft' }
     ],
@@ -42,16 +42,12 @@
     'HSS_to_HSS_branch_connection_calculator.html',
     'W_beam_to_HSS_column_calculator.html',
     'through_plate_calculator.html',
-    'directly_welded_HSS_connection_calculator.html',
-    'hss_connection_complete_calculator.html',
     'flange_plated_HSS_column_moment_connection_calculator.html'
   ];
   var CALC_SLUG_MAP = {
     'HSS_to_HSS_branch_connection_calculator.html':   'hss-to-hss-branch',
     'W_beam_to_HSS_column_calculator.html':           'w-to-hss-column',
     'through_plate_calculator.html':                  'through-plate',
-    'directly_welded_HSS_connection_calculator.html': 'directly-welded-hss',
-    'hss_connection_complete_calculator.html':        'hss-connection-complete',
     'flange_plated_HSS_column_moment_connection_calculator.html': 'flange-plated-hss-moment'
   };
 
@@ -697,13 +693,12 @@
       + '<div class="ahc-q">What are you designing?</div>'
       + '<div class="ahc-branch"><div class="ahc-label">Truss / bracing — branch loaded axially, no moment transfer (AISC Ch. K, DG24 Ch. 8–9)</div>'
       + '<a class="ahc-link" href="/calcs/hss-to-hss-branch" target="_top">HSS-to-HSS Branch (T/Y/X)</a></div>'
-      + '<div class="ahc-branch"><div class="ahc-label">W-beam moment connection, flanges welded directly to the HSS column face — want the COMPLETE limit-state suite (local yielding + punching + sidewall)</div>'
-      + '<a class="ahc-link" href="/calcs/hss-connection-complete" target="_top">HSS Connection — Complete Checks</a></div>'
-      + '<div class="ahc-branch"><div class="ahc-label">Same directly-welded connection — quick chord-wall local yielding check only (DG24 Ex 4.3, Eq. K1-7)</div>'
-      + '<a class="ahc-link" href="/calcs/w-to-hss-column" target="_top">W-Beam to HSS Column</a> &nbsp;·&nbsp; '
-      + '<a class="ahc-link" href="/calcs/directly-welded-hss" target="_top">Directly Welded W to HSS (React)</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">W-beam moment connection, flanges welded directly to the HSS column face — full limit-state suite (flange local yielding, face plastification/punching, sidewalls, welds; DG24 Ex 4.3 / 2nd ed Ch. 6)</div>'
+      + '<a class="ahc-link" href="/calcs/w-to-hss-column" target="_top">W-Beam Directly Welded to HSS Column</a></div>'
       + '<div class="ahc-branch"><div class="ahc-label">Bolted FR moment connection — plates pass THROUGH the HSS column (DG24 Ex 4.2)</div>'
       + '<a class="ahc-link" href="/calcs/through-plate" target="_top">Through-Plate Moment Connection</a></div>'
+      + '<div class="ahc-branch"><div class="ahc-label">Welded top/bottom flange plates on the HSS face (Ex. II.B-2 + DG24 Table 7-2)</div>'
+      + '<a class="ahc-link" href="/calcs/flange-plated-hss-moment" target="_top">Flange-Plated Moment Connection</a></div>'
       + '<div class="ahc-branch"><div class="ahc-label">HSS column base on concrete — not an HSS-to-HSS connection</div>'
       + '<a class="ahc-link" href="/calcs/base-plate-v1" target="_top">Single Base Plate</a> &nbsp;·&nbsp; '
       + '<a class="ahc-link" href="/calcs/large-moment-base-plate" target="_top">Large Moment Base Plate</a></div>'
