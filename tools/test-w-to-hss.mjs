@@ -118,6 +118,15 @@ await page.waitForSelector('#areBar');
 const title = await page.title();
 check('selftest title', /^SELFTEST PASS \d+\/\d+$/.test(title), title);
 
+// ── schematic reflects geometry ─────────────────────────────────────────────
+await page.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
+await page.waitForSelector('#areBar');
+await page.click('button.calc-btn');
+const svgTxt = await page.evaluate(() => document.getElementById('schemSvg').textContent);
+check('schematic caption no longer cites Eq. K1-7', !/K1-7/.test(svgTxt), svgTxt.slice(0, 200));
+check('schematic shows the flat width', /B\s*[−-]\s*3t/.test(svgTxt), svgTxt.slice(0, 300));
+check('schematic weld label follows input (CJP)', /CJP/.test(svgTxt), svgTxt.slice(0, 300));
+
 check('no page errors', pageErrors.length === 0, pageErrors.join('\n      '));
 await browser.close();
 if (failures.length) { console.log(`\n${failures.length} FAILED`); process.exit(1); }

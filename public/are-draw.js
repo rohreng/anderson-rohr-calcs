@@ -1357,6 +1357,7 @@
   function renderWToHss(svg, state, options) {
     var ctx = newDrawing(svg, options), dwg = ctx.dwg, st = ctx.style;
     var res = (options && options.resolvedGeometry) || {};
+    var conn = state.connection || {}, geo = conn.geometry || null, weldLbl = conn.weldSize || 'FW';
     var beam = resolveSection(state.member.section, res);
     var colSec = state.connection && state.connection.column ? state.connection.column.section : null;
     var col = resolveSection(colSec, res);
@@ -1390,8 +1391,12 @@
     centerline(vE, 0, colTopIn + 1, 0, colBotIn - 1);  // column centroidal axis
 
     // Weld at the beam-to-column interface (top + bottom flange).
-    weldFillet(vE, col.B / 2, beam.d / 2, col.B / 2, beam.d / 2 - beam.tf, { size: '5/16', side: 'left', tag: false });
-    weldFillet(vE, col.B / 2, -beam.d / 2 + beam.tf, col.B / 2, -beam.d / 2, { size: '5/16', side: 'left', tag: false });
+    weldFillet(vE, col.B / 2, beam.d / 2, col.B / 2, beam.d / 2 - beam.tf, { size: weldLbl, side: 'left', tag: false });
+    weldFillet(vE, col.B / 2, -beam.d / 2 + beam.tf, col.B / 2, -beam.d / 2, { size: weldLbl, side: 'left', tag: false });
+    // weldFillet draws no text with tag:false, so name the weld from state here.
+    if (conn.weldSize) {
+      leader(vE, col.B / 2, -beam.d / 2 + beam.tf / 2, 22, 30, 'flange welds: ' + conn.weldSize, { color: st.weld });
+    }
 
     // Flange-force couple at the connection face: top flange in compression
     // (force INTO the column), bottom flange in tension (force OUT). Both arrows
@@ -1423,15 +1428,33 @@
     var bandH = Math.max(col.B * 0.06, 0.25);
     plate(vS, -beam.bf / 2, col.H / 2, beam.bf, bandH, { highlight: true, hatch: false });
     dimLine(vS, -beam.bf / 2, col.H / 2 + bandH, beam.bf / 2, col.H / 2 + bandH, 'bp = bf = ' + fmtIn(beam.bf), { off: -15 });
-    // Overall width B (below) and wall thickness t (leader). The effective flat
-    // width B−3t is reported numerically in the calc body, not crowded in here.
+    // Effective flat width B − 3t (dimensioned below, under B, so its witness
+    // lines do not cut the bf label); corner overlap hatched, flange projection
+    // past the column face dashed (not credited).
+    var flat = geo && geo.flat != null ? geo.flat : (col.B - 3 * col.t);
+    dimLine(vS, -flat / 2, -col.H / 2, flat / 2, -col.H / 2, 'B − 3t = ' + fmtIn(flat), { off: 46 });
+    if (geo && geo.overlap > 0) {
+      var bw = Math.min(beam.bf, col.B) / 2;
+      plate(vS, -bw, col.H / 2, geo.overlap, bandH, { highlight: true, hatch: true });
+      plate(vS, bw - geo.overlap, col.H / 2, geo.overlap, bandH, { highlight: true, hatch: true });
+      leader(vS, bw - geo.overlap / 2, col.H / 2 + bandH, 30, -14, 'corner overlap ' + fmtIn(geo.overlap), { color: st.dim });
+    }
+    if (geo && geo.proj > 0) {
+      [col.B / 2, -col.B / 2 - geo.proj].forEach(function (x0) {
+        var pr = rectWorld(vS, x0, col.H / 2, geo.proj, bandH, { fill: 'none', stroke: st.dim, sw: st.lwObjectThin });
+        pr.setAttribute('stroke-dasharray', '4,3');
+        vS.add(pr, 'anno');
+      });
+      leader(vS, col.B / 2 + geo.proj / 2, col.H / 2 + bandH, 34, -30, 'projection ' + fmtIn(geo.proj) + ' (not credited)', { color: st.dim });
+    }
+    // Overall width B (below) and wall thickness t (leader).
     dimLine(vS, -col.B / 2, -col.H / 2, col.B / 2, -col.H / 2, 'B = ' + fmtIn(col.B), { off: 26 });
     leader(vS, col.B / 2 - col.t / 2, 0, 34, 0, 't = ' + fmtIn(col.t), { color: st.dim });
     // Section title BELOW the view, clear of the B dimension, underlined.
-    viewTitle(vS, vS.px(0), vS.py(-col.H / 2) + 58, 'HSS Section');
+    viewTitle(vS, vS.px(0), vS.py(-col.H / 2) + 78, 'HSS Section');
 
     // Caption with the governing limit state if present.
-    captionBox(dwg, st, state, 'AISC 360-22 §K1.3, Eq. K1-7 — HSS wall local yielding from flange couple');
+    captionBox(dwg, st, state, conn.caption || 'AISC 360-22 Ch. J/K · DG24 — directly welded flange couple');
     return dwg.commit();
   }
 

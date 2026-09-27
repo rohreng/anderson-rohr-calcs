@@ -75,6 +75,7 @@ include the rest for schema validity):
 ```js
 // w-to-hss-column
 connection: { column: { section: hssLabel, Fy: colFy }, beamFy: beamFy }
+// optional: weldSize ('CJP' | '5/16"'), caption (string), geometry { flat, overlap, proj, cls } (in)
 
 // base-plate
 connection: {
