@@ -16,7 +16,13 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 const pageErrors = [];
 page.on('pageerror', (e) => pageErrors.push(e.message));
-page.on('dialog', (d) => { pageErrors.push('DIALOG: ' + d.message()); d.dismiss(); });
+// Dialogs are failures except inside the legacy-record load test, which sets
+// acceptDialogs to collect and accept the mismatch confirm.
+let acceptDialogs = null;
+page.on('dialog', (d) => {
+  if (acceptDialogs) { acceptDialogs.push(d.message()); d.accept(); return; }
+  pageErrors.push('DIALOG: ' + d.message()); d.dismiss();
+});
 await page.route('**/*', (route) => {
   const p = new URL(route.request().url()).pathname.replace(/^\//, '');
   try {
@@ -59,6 +65,11 @@ check('banner never says All Checks Pass', !/All Checks Pass/i.test(ui.banner), 
 const same = await page.evaluate(() => { const res = window.DWHSS.compute(readInputs()); return { ok: res.ok, maxDC: res.maxDC, inText: document.getElementById('sumOut').textContent.includes(res.maxDC.toFixed(3)), phiMn: res.vals.phiMn }; });
 check('banner reports the engine max D/C', same.ok && same.inText, JSON.stringify(same));
 check('default phiMn is 83.3 kip-ft (360-22 phi 0.90)', Math.abs(same.phiMn - 83.27) < 0.05, String(same.phiMn));
+check('banner names the governing flange', ui.banner.includes('local yielding (uneven load distribution) \u2014 tension flange'), ui.banner);
+const capTxt = await page.evaluate(() => document.getElementById('chkTb').textContent);
+check('CAP row names the governing flange', /governed by Beam flange local yielding[^]*tension flange/.test(capTxt), capTxt.slice(-400));
+const fr = await page.evaluate(() => [0.3125, 0.25, 0.75, 1, 1.25, 1.5625, 0.66].map((w) => window.DWHSS.frac16(w)));
+check('DWHSS.frac16 formats sixteenths incl. >= 1 in', JSON.stringify(fr) === JSON.stringify(['5/16', '1/4', '3/4', '1', '1-1/4', '1-9/16', '0.660']), JSON.stringify(fr));
 // legacy mode reproduces the 26-003 record
 await page.selectOption('#code', 'dg24-1');
 await page.waitForTimeout(400);
@@ -80,6 +91,17 @@ check('kds disabled with one face', wf.kdsDisabled === true, JSON.stringify(wf))
 await page.selectOption('#weldFaces', '2');
 await page.waitForTimeout(300);
 check('kds enabled with two faces', await page.evaluate(() => !document.getElementById('kds').disabled), 'kds still disabled');
+await page.check('#kds');
+await page.selectOption('#weldFaces', '1');
+await page.waitForTimeout(300);
+const kd = await page.evaluate(() => ({ dis: document.getElementById('kds').disabled, chk: document.getElementById('kds').checked }));
+check('kds unchecked when it becomes disabled (one face)', kd.dis && !kd.chk, JSON.stringify(kd));
+await page.selectOption('#weldFaces', '2'); await page.check('#kds');
+await page.selectOption('#weldType', 'cjp');
+await page.waitForTimeout(300);
+const kc = await page.evaluate(() => document.getElementById('kds').checked);
+check('kds unchecked when CJP is selected', kc === false, 'kds still checked under CJP');
+await page.selectOption('#weldType', 'fillet'); await page.selectOption('#weldFaces', '1');
 await page.selectOption('#weldType', 'cjp');
 // custom sections
 await page.selectOption('#hsec', 'custom');
@@ -126,6 +148,31 @@ const svgTxt = await page.evaluate(() => document.getElementById('schemSvg').tex
 check('schematic caption no longer cites Eq. K1-7', !/K1-7/.test(svgTxt), svgTxt.slice(0, 200));
 check('schematic shows the flat width', /B\s*[−-]\s*3t/.test(svgTxt), svgTxt.slice(0, 300));
 check('schematic weld label follows input (CJP)', /CJP/.test(svgTxt), svgTxt.slice(0, 300));
+
+// ── legacy 26-003 record: the real toolbar Load path (file chooser + mismatch confirm) ──
+// showOpenFilePicker is removed so areLoad() takes its <input type=file>
+// fallback, which Playwright's filechooser event can feed; the confirm is
+// accepted (= "Load anyway"). Record copied verbatim from Technical Resources/Steel/Reference.
+const LEGACY = fileURLToPath(new URL('./fixtures/26-003-KAALO-w-to-hss-legacy-2026-09-23.html', import.meta.url));
+await page.goto('http://calcs.test/Calcs/' + FILE, { waitUntil: 'load' });
+await page.waitForSelector('#areBar');
+await page.evaluate(() => { try { delete window.showOpenFilePicker; } catch (e) {} if ('showOpenFilePicker' in window) window.showOpenFilePicker = undefined; });
+acceptDialogs = [];
+const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.click('#areLoadBtn')]);
+await chooser.setFiles(LEGACY);
+await page.waitForFunction(() => document.getElementById('results').classList.contains('show'), null, { timeout: 5000 }).catch(() => {});
+await page.waitForTimeout(300);
+const dlg = acceptDialogs; acceptDialogs = null;
+check('legacy load shows exactly one mismatch confirm', dlg.length === 1, JSON.stringify(dlg));
+check('mismatch confirm lists the new fields and carries the load hint', dlg.length === 1 && /not in the file/.test(dlg[0]) && /carry only the sections, Fy, Fyb and Mu/.test(dlg[0]), dlg[0] || '');
+const lg = await page.evaluate(() => ({ w: document.getElementById('wsec').value, h: document.getElementById('hsec').value, mu: document.getElementById('Mu').value, fy: document.getElementById('Fy').value, fyb: document.getElementById('Fyb').value,
+  bf: document.getElementById('bbf').value, t: document.getElementById('ct').value, code: document.getElementById('code').value, banner: document.getElementById('sumOut').textContent }));
+check('legacy record hydrates W16X57 / HSS10X10X1/2 / Mu 60 / Fy 46 / Fyb 50', lg.w === 'W16X57' && lg.h === 'HSS10X10X1/2' && +lg.mu === 60 && +lg.fy === 46 && +lg.fyb === 50 && lg.bf === '7.12' && lg.t === '0.465', JSON.stringify(lg));
+check('legacy record runs in 360-22 mode: banner 83.3 kip-ft', lg.code === '360-22' && /83\.3 kip-ft/.test(lg.banner), lg.banner);
+await page.selectOption('#code', 'dg24-1');
+await page.waitForTimeout(500);
+const lg2 = await page.evaluate(() => ({ phiMn: window.DWHSS.compute(readInputs()).vals.phiMn, banner: document.getElementById('sumOut').textContent }));
+check('legacy record in legacy code mode: phiMn 87.94, banner 87.9', Math.abs(lg2.phiMn - 87.94) < 0.005 && /87\.9 kip-ft/.test(lg2.banner), JSON.stringify(lg2));
 
 check('no page errors', pageErrors.length === 0, pageErrors.join('\n      '));
 await browser.close();

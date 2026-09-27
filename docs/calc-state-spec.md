@@ -139,9 +139,13 @@ The `connection` object is selected by `calcType` (JSON Schema enforces this via
 ```
 - `member.section` is the W-beam; `connection.column.section` is the HSS.
 - The calc converts `Mu` to a flange-force couple `Puf = Mu·12 / (d − tf)` and checks the
-  flange-couple limit states on the HSS face (AISC 360-22 Ch. J/K, DG24). **Only inputs are: W-section, HSS-section, beamFy, columnFy, Mu.**
-  There are no plate/bolt/weld inputs in this calc — the `connection.plate/bolts/weld` keys
-  from the master-plan draft are **NOT used** for this calcType.
+  flange-couple limit states on the HSS face (AISC 360-22 Ch. J/K, DG24). **W-section, HSS-section, beamFy, columnFy and Mu**
+  (`#wsec #hsec #Fyb #Fy #Mu`) are the only fields carried by pre-2026-09 saved records. The current page
+  (2026-09 rewrite) adds the code basis (`#code`), section overrides (`#bd #bbf #btf #btw #bZx`,
+  `#cH #cB #ct #cA #cS`), beam Fu (`#Fub`), HSS grade and Fu (`#grade #Fu`), column loads (`#Pu #McolU`),
+  connection type (`#connType`), end distance (`#lend`), `#Vu`, and weld inputs
+  (`#weldType #weldW #weldFaces #weldProc #Fexx #kds`). Those are page fields only — the
+  `connection.plate/bolts/weld` keys from the master-plan draft are **NOT used** for this calcType.
 
 ### 3.2 `base-plate`
 ```jsonc

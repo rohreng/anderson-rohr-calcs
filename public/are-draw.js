@@ -1394,8 +1394,11 @@
     weldFillet(vE, col.B / 2, beam.d / 2, col.B / 2, beam.d / 2 - beam.tf, { size: weldLbl, side: 'left', tag: false });
     weldFillet(vE, col.B / 2, -beam.d / 2 + beam.tf, col.B / 2, -beam.d / 2, { size: weldLbl, side: 'left', tag: false });
     // weldFillet draws no text with tag:false, so name the weld from state here.
+    // Leader from the TOP flange weld rising well above the Puf label (which sits
+    // just over the top flange, right of the column face); a leader off the
+    // bottom flange collided with the "(T)" label and the beam name.
     if (conn.weldSize) {
-      leader(vE, col.B / 2, -beam.d / 2 + beam.tf / 2, 22, 30, 'flange welds: ' + conn.weldSize, { color: st.weld });
+      leader(vE, col.B / 2, beam.d / 2 - beam.tf / 2, 30, -50, 'flange welds: ' + conn.weldSize, { color: st.weld });
     }
 
     // Flange-force couple at the connection face: top flange in compression

@@ -796,7 +796,8 @@ window.DWHSS = (function(){
   function isNum(v){ return typeof v==='number' && isFinite(v); }
   function minFillet(t){ return t<=0.25?0.125 : t<=0.5?0.1875 : t<=0.75?0.25 : 0.3125; }   // Table J2.4
   function maxFillet(t){ return t<0.25 ? t : t-0.0625; }                                    // J2.2b(b)
-  function frac16(w){ var s=w*16; if (Math.abs(s-Math.round(s))>1e-6) return f3(w); s=Math.round(s); var d=16; while (s%2===0 && d>1){ s/=2; d/=2; } return d===1 ? String(s) : s+'/'+d; }   // 0.3125 -> 5/16, 0.6525 -> 0.653
+  // 0.3125 -> 5/16, 1.25 -> 1-1/4, 1 -> 1, 0.66 -> 0.660 (not a sixteenth)
+  function frac16(w){ var s=w*16; if (!isNum(w) || Math.abs(s-Math.round(s))>1e-6) return f3(w); s=Math.round(s); var whole=Math.floor(s/16), n=s-16*whole, d=16; if (n===0) return String(whole); while (n%2===0){ n/=2; d/=2; } return (whole?whole+'-':'')+n+'/'+d; }
   function H(t){ return '<div class="cref-hdr">'+t+'</div><div class="cbox">'; }
   function R(h){ return '<div class="mrow">'+h+'</div>'; }
   function I(h){ return '<div class="mrow ind">'+h+'</div>'; }
@@ -847,7 +848,7 @@ window.DWHSS = (function(){
 
   function compute(inp){
     var errors = validate(inp);
-    if (errors.length) return {ok:false, errors:errors, checks:[], vals:{}, maxDC:null, governing:'', governingId:'', banner:'ERROR'};
+    if (errors.length) return {ok:false, errors:errors, checks:[], vals:{}, maxDC:null, governing:'', governingId:'', governingSection:'', banner:'ERROR'};
     var C=[], v={}, b=inp.beam, c=inp.col, w=inp.weld, phi=PHI[inp.code], legacy=inp.code==='dg24-1';
     var edn = legacy ? 'DG24 1st ed Table 7-2 / AISC 360-10' : 'AISC 360-22';
 
@@ -1020,8 +1021,10 @@ window.DWHSS = (function(){
       H('Shear transfer')+R('The flange couple carries M<sub>u</sub> only. Design the web shear connection (single-plate shear tab welded to the HSS wall, Manual Part 10 / DG24 Ch. 5) for V<sub>u</sub> = '+f1(inp.Vu)+' kips in a separate calculation.')+END(), {status:'INFO', informational:true}));
 
     // ---- summary
-    var maxDC=0, governing='', governingId='';
-    C.forEach(function(ch){ if(!ch.informational && ch.dc!==null && ch.dc>maxDC){ maxDC=ch.dc; governing=ch.name; governingId=ch.id; } });
+    var maxDC=0, governing='', governingId='', governingSection='';
+    C.forEach(function(ch){ if(!ch.informational && ch.dc!==null && ch.dc>maxDC){ maxDC=ch.dc; governing=ch.name; governingId=ch.id; governingSection=ch.section; } });
+    // tension and compression flanges carry the same row names; say which one governs
+    if (governingSection==='Tension flange' || governingSection==='Compression flange') governing += ' — '+governingSection.toLowerCase();   // plain char: the schematic caption strips tags but not entities
     var anyFail=C.some(function(ch){return ch.status==='FAIL';}), anyRev=C.some(function(ch){return ch.status==='REVIEW';});
     var banner = anyFail?'FAIL':anyRev?'REVIEW':'PASS';
     v.phiMn = maxDC>0 ? inp.Mu/maxDC : Infinity;
@@ -1029,7 +1032,7 @@ window.DWHSS = (function(){
     C.push(mk(SEC_S,'CAP','Connection flexural strength vs. beam','DG24 Ex 4.3 closing note','&phi;M<sub>n,conn</sub> = '+f1(v.phiMn)+' kip-ft', v.phiMpx!==null?'&phi;<sub>b</sub>M<sub>px</sub> = '+f1(v.phiMpx)+' kip-ft':'&mdash;', null,
       H('Flexural strength comparison')+R('&phi;M<sub>n,conn</sub> = M<sub>u</sub>/(max D/C) = '+f1(inp.Mu)+'/'+f3(maxDC)+' = '+V(f1(v.phiMn),'kip-ft')+' governed by '+governing)
       +(v.phiMpx!==null?R('Beam &phi;<sub>b</sub>M<sub>px</sub> = 0.90 &times; '+f1(b.Fy)+' &times; '+f1(b.Zx)+'/12 = '+V(f1(v.phiMpx),'kip-ft')+' &rarr; connection develops '+f1(100*v.phiMn/v.phiMpx)+' % of the beam (DG24: the full flexural strength of the W-shape is seldom achievable).'):'')+END(), {status:'INFO', informational:true}));
-    return {ok:true, errors:[], checks:C, vals:v, maxDC:maxDC, governing:governing, governingId:governingId, banner:banner};
+    return {ok:true, errors:[], checks:C, vals:v, maxDC:maxDC, governing:governing, governingId:governingId, governingSection:governingSection, banner:banner};
   }
 
   // ---- fixtures (spec §5)
@@ -1097,7 +1100,7 @@ window.DWHSS = (function(){
     });
     return {pass:pass, total:total, lines:lines};
   }
-  return {compute:compute, validate:validate, effBe:effBe, effBep:effBep, chordQf:chordQf, minFillet:minFillet, maxFillet:maxFillet, PHI:PHI, BASE:merge(BASE,{}), FIXTURES:FIXTURES, merge:merge, runFixtures:runFixtures};
+  return {compute:compute, validate:validate, effBe:effBe, effBep:effBep, chordQf:chordQf, minFillet:minFillet, maxFillet:maxFillet, PHI:PHI, BASE:merge(BASE,{}), FIXTURES:FIXTURES, merge:merge, runFixtures:runFixtures, frac16:frac16};
 })();
 </script>
 <script>
@@ -1108,8 +1111,6 @@ function optv(id){ var s=$(id).value; if (s===''||s===null) return null; var v=p
 function toggleDet(i){var el=$('det_'+i);var b=$('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▶ Calc'}
 function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function card(v,l){ return '<div class="dem-card"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
-// weld size as a reduced sixteenth fraction (0.3125 -> 5/16, 0.25 -> 1/4)
-function frac16(w){ var s=w*16; if (Math.abs(s-Math.round(s))>1e-6) return f3(w); s=Math.round(s); var d=16; while (s%2===0 && d>1){ s/=2; d/=2; } return d===1 ? String(s) : s+'/'+d; }
 
 var GRADES={A500B:[46,58], A500C:[50,62], A1085:[50,65]};
 var BEAM_FIELDS=['bd','bbf','btf','btw','bZx'], COL_FIELDS=['cH','cB','ct','cA','cS'];
@@ -1157,6 +1158,7 @@ function applyWeldMode(){
   var cjp=$('weldType').value==='cjp', one=$('weldFaces').value!=='2';
   ['weldW','weldFaces','weldProc','Fexx'].forEach(function(id){ $(id).disabled=cjp; });
   $('kds').disabled = cjp || one;
+  if ($('kds').disabled) $('kds').checked = false;   // a saved record never carries kds with CJP or one face
   $('kdsLbl').textContent = cjp ? 'n/a for CJP' : one ? 'not permitted, one face' : 'Eq. J2-5, both faces';
 }
 var _rerunT=null;
@@ -1195,10 +1197,10 @@ function draw(res){
   resolvedGeometry[wKey]={d:inp.beam.d, bf:inp.beam.bf, tf:inp.beam.tf, tw:inp.beam.tw};
   resolvedGeometry[hKey]={H:inp.col.H, B:inp.col.B, t:inp.col.t};
   var state={ schema:'are.calc.v1', calcType:'w-to-hss-column',
-    member:{type:'beam', section:wKey||'W16X57', material:{Fy:inp.beam.Fy}},
+    member:{type:'beam', section:wKey, material:{Fy:inp.beam.Fy}},
     demands:{Mu:inp.Mu},
-    connection:{ column:{section:hKey||'HSS10X10X1/2', Fy:inp.col.Fy}, beamFy:inp.beam.Fy,
-      weldSize: inp.weld.type==='cjp' ? 'CJP' : frac16(inp.weld.w)+'"',
+    connection:{ column:{section:hKey, Fy:inp.col.Fy}, beamFy:inp.beam.Fy,
+      weldSize: inp.weld.type==='cjp' ? 'CJP' : window.DWHSS.frac16(inp.weld.w)+'"',
       caption: 'AISC 360-22 Ch. J/K · DG24 — directly welded flange couple, governing: '+String(res.governing).replace(/<[^>]+>/g,''),
       geometry:{flat:res.vals.flat, overlap:res.vals.overlap, proj:res.vals.proj, cls:res.vals.cls} } };
   try { AREDraw.renderConnection(svg, state, {resolvedGeometry:resolvedGeometry}); }
@@ -1321,7 +1323,7 @@ function refreshModes(){ applyBeamSection(); applyColSection(); syncGrade(); app
   window.addEventListener('load', function(){
     draw();
     if (window.AREv2 && AREv2.onAfterRestore) AREv2.onAfterRestore(refreshModes);
-    if (window.AREv2 && AREv2.onMarkChange) AREv2.onMarkChange(function(){ draw(); });
+    if (window.AREv2 && AREv2.loadHint) AREv2.loadHint('Records saved before the 2026-09 rewrite carry only the sections, Fy, Fyb and Mu. Load anyway: every other input keeps its current value (on a fresh page, the defaults: AISC 360-22 basis, CJP welds).');
   });
   try { if (new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
 })();
