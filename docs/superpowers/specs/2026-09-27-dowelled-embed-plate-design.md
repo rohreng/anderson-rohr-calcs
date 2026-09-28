@@ -56,7 +56,18 @@ Units: lengths in, forces lb, stresses psi (MDG convention; matches the other ma
 
 ### 3.5 Plate (drawing and detailing only)
 - `Lp` plate length along the wall, in [10]; `Bp` plate width across the wall, in [7.625]; `tp` thickness, in [0.5].
-- Dowel group centered on the plate: end distance `e_p = (Lp − (n−1)·s)/2`. The MDG layout is 3½ + 3 + 3½ = 10 in. If `e_p < d_b` → validation error ("dowels do not fit on the plate"). No plate strength check (§8).
+- Dowel group centered on the plate: end distance `e_p = (Lp − (n−1)·s)/2`. The MDG layout is 3½ + 3 + 3½ = 10 in. If `e_p < d_b` → validation error ("dowels do not fit on the plate"). No plate flexure check (§8).
+- `Fup` plate tensile strength, psi [58000] (A36) — plate base-metal shear rupture at the weld.
+
+### 3.6 Bar-to-plate weld (AISC 360-22 §J2, added 2026-09-27 at Nick's request)
+- `weldCfg`: `fillet` | `flare` [`fillet`].
+  - `fillet`: bar perpendicular to the plate (through a hole or butted to the underside), fillet weld all around the bar. Weld length `L_w = π·d_b`.
+  - `flare`: bar laid against the plate face, flare-bevel-groove welds both sides of the bar over a length `Lw` each side (AISC Table J2.2).
+- `w` fillet leg size, in [0.25] — the all-around fillet for `fillet`; the reinforcing fillet for `flare` when Table J2.2 note [a] applies.
+- `Lw` flare weld length per side, in [4] — shown only for `flare`.
+- `proc`: `gmaw` (GMAW / FCAW-G) | `smaw` (SMAW / FCAW-S) | `saw` [`smaw`] — shown only for `flare`; selects the Table J2.2 throat factor.
+- `Fexx` filler metal classification strength, psi [70000].
+- Weld demand: `T/n` per bar. The bar material side is not checked separately: A706 Gr 60 has `F_u = 80 ksi` above the weld metal, so weld metal governs (stated in the notes).
 
 ## 4. Engine
 
@@ -76,6 +87,27 @@ ld_ep  = epoxy ? 1.5*ld_eq : ld_eq
 ld     = max(ld_ep, 12)                            // "shall not be less than 12 in."
 Tcap   = code === 'asd' ? n*As*Fs : 0.90*n*As*fy
 ep     = (Lp - (n-1)*s)/2
+
+// --- bar-to-plate weld, AISC 360-22 §J2.4, Table J2.5: Fnw = 0.60*Fexx; φ = 0.75, Ω = 2.00
+Tbar   = T / n
+R      = db/2                                       // Table J2.2 "radius of joint surface"
+if weldCfg === 'fillet':
+  Lwt  = π*db                                       // all-around
+  te   = 0.707*w                                    // §J2.2a effective throat
+  Awe  = te*Lwt
+  Rnw  = 0.60*Fexx*Awe                              // Eq. J2-4 with kds = 1.0 (conservative)
+if weldCfg === 'flare':
+  Lwt  = 2*Lw
+  fac  = proc === 'gmaw' ? 5/8 : 5/16               // Table J2.2 flare-bevel-groove; smaw and saw both 5/16
+  noteA = R < 0.375                                 // Table J2.2 note [a]: d_b < 3/4 in → #3–#5
+  te   = noteA ? 0.707*w : fac*R                    // note [a]: "use only reinforcing fillet weld on filled flush joint"
+  Awe  = te*Lwt
+  Rnw  = 0.60*Fexx*Awe                              // Eq. J2-3
+Rcap_w = code === 'asd' ? Rnw/2.00 : 0.75*Rnw
+RnBM   = 0.60*Fup*tp*Lwt                            // plate shear rupture, §J4.2 Eq. J4-4 (ABM = tp·Lwt)
+Rcap_bm= code === 'asd' ? RnBM/2.00 : 0.75*RnBM
+wmin   = Table J2.4 on thinner part min(tp, db): ≤0.25 → 0.125; ≤0.5 → 0.1875; ≤0.75 → 0.25; else 0.3125
+TbarCap= code === 'asd' ? As*Fs : 0.90*As*fy        // per-bar dowel capacity, for the "weld develops the dowel" row
 ```
 `K` uses the clear spacing between the dowels exactly as the MDG does (ASD and SD versions), even though the code phrase is "clear perpendicular spacing between adjacent reinforcement splices". The K detail panel carries one line: "MDG REK-09 applies the dowel clear spacing to K (conservative)."
 
@@ -89,17 +121,22 @@ ep     = (Lp - (n-1)*s)/2
 | `spc` | Placement | clear spacing ≥ max(d_b, 1 in) | `TMS 402-22 §6.1.4.1` | max(d_b, 1) | clear | max(d_b,1)/clear; N/A when n = 1 |
 | `grt` | Placement | d_b ≤ ⅓ least grout-space dimension | `TMS 402-22 §6.1.3.2.4` | d_b | (t − 2·t_fs)/3, `t_fs` face shell per the lap calc `tfsMap` (4 in: 0.75; 6 in: 1.0; 8/10/12/16 in: 1.25) | d_b / cap |
 | `fit` | Plate | dowels fit the plate, `e_p ≥ 1.5·d_b` | detailing | 1.5·d_b | e_p | REVIEW when e_p < 1.5·d_b (hard error below d_b); otherwise INFO |
-| `weld` | Weld and bar | Bar-to-plate weld per AWS D1.4/D1.4M; bars ASTM A706 or CE submittal; weld to develop the dowel | `TMS 402-22 §6.1.7.3.1 (by analogy), TMS 602-22 Art. 3.4 B.7` | per-bar force `T/n` and the §6.1.7.3.1 splice basis `1.25·A_s·f_y`, both shown | — | NOTE row, `informational: true`, status text "NOTE" — weld sizing left to the engineer/fabricator |
+| `wmet` | Bar-to-plate weld | Weld metal, per bar: fillet all-around `0.60·F_EXX·0.707·w·π·d_b` or flare-bevel `0.60·F_EXX·t_e·2·L_w` | `AISC 360-22 §J2.4 Eq. J2-4 / J2-3, Table J2.5` (flare: `Table J2.2`) | `T/n` | `R_nw/Ω` or `φR_nw` | Tbar / Rcap_w. Panel shows `L_w`, `t_e` (and the Table J2.2 factor, R, and the note [a] substitution when it applies), `A_we`, φ or Ω |
+| `wbm` | Bar-to-plate weld | Plate shear rupture at the weld `0.60·F_up·t_p·L_wt` | `AISC 360-22 §J4.2 Eq. J4-4` | `T/n` | `R_nBM/Ω` or `φR_nBM` | Tbar / Rcap_bm |
+| `wmin` | Bar-to-plate weld | Minimum fillet size `w ≥ w_min` (thinner part `min(t_p, d_b)`) | `AISC 360-22 Table J2.4` | w_min | w | w_min / w; N/A for `flare` when note [a] does not apply (no fillet) |
+| `wdev` | Bar-to-plate weld | Weld develops the dowel: `Rcap_w ≥ TbarCap` | `TMS 402-22 §6.1.7.3.1 (by analogy)` | TbarCap | Rcap_w | INFO row (`informational: true`), status "YES" / "NO" text in the note; never in the banner. Panel states that the weld should not govern over the dowel when full development is intended |
+| `wreq` | Bar-to-plate weld | Weldability: bars ASTM A706 or CE submittal; welding per AWS D1.4/D1.4M | `TMS 402-22 §6.1.7.3.1, TMS 602-22 Art. 3.4 B.7` | — | — | NOTE row, `informational: true`; text reflects the `weldable` select |
 | `tie` | Load path | Vertical reinforcement in the adjacent cell(s), lapped to the dowels, carries T to the foundation | `MDG REK-09 §5, REK-10` | — | — | INFO row; text links to `masonry_lap_length_calculator.html` for the dowel-to-vertical lap |
 
-`maxDC` over `tens`, `dev`, `spc`, `grt` only. Banner: FAIL if any of those > 1.0; else REVIEW if `fit` is REVIEW; else PASS. The `weld` and `tie` rows never affect the banner.
+`maxDC` over `tens`, `dev`, `spc`, `grt`, `wmet`, `wbm`, `wmin`. Banner: FAIL if any of those > 1.0; else REVIEW if `fit` is REVIEW; else PASS. The `wdev`, `wreq` and `tie` rows never affect the banner. When `T = 0` the three weld D/C rows read 0.000 and the `wdev` row still reports.
 
 ### 4.3 Validation (errors block compute)
-- `T ≥ 0`, `fm > 0`, `Le > 0`, `n ≥ 1` integer, `s > d_b` when `n ≥ 2`, `coverIn > 0` when custom, `Lp > 0`, `Bp > 0`, `tp > 0`, `e_p ≥ d_b`.
+- `T ≥ 0`, `fm > 0`, `Le > 0`, `n ≥ 1` integer, `s > d_b` when `n ≥ 2`, `coverIn > 0` when custom, `Lp > 0`, `Bp > 0`, `tp > 0`, `e_p ≥ d_b`, `w > 0`, `Fexx > 0`, `Fup > 0`, `Lw > 0` when `flare`.
+- Warning when `flare` and `2·Lw > Lp` ("flare weld length exceeds the plate").
 - Warning (not error) when custom `coverIn > t/2 − d_b/2` ("cover exceeds the centered value for this wall").
 
 ### 4.4 Results object
-`{ok, errors, warnings, checks, vals:{t, db, As, fy, Fs, gamma, cover, clear, nineDb, K, Kgov:'cover'|'clear'|'9db', ld_eq, ld, epoxyApplied, minGoverns, Tcap, ep}, maxDC, governing, governingId, banner}` — same shape as `DWHSS.compute`.
+`{ok, errors, warnings, checks, vals:{t, db, As, fy, Fs, gamma, cover, clear, nineDb, K, Kgov:'cover'|'clear'|'9db', ld_eq, ld, epoxyApplied, minGoverns, Tcap, ep, Tbar, TbarCap, Lwt, te, noteA, Awe, Rnw, Rcap_w, RnBM, Rcap_bm, wmin, weldDevelops}, maxDC, governing, governingId, banner}` — same shape as `DWHSS.compute`.
 
 ## 5. Fixtures (`MDEP.FIXTURES`, each with `src`)
 
@@ -115,15 +152,22 @@ ep     = (Lp - (n-1)*s)/2
 | `gr40` | `grade: 40` | `Tcap = 8000` (ASD), `ld ≈ 12.43` |
 | `short-embed` | `Le: 16` | `dev` D/C ≈ 1.165, banner FAIL, governing `dev` |
 | `nofit` | `Lp: 3` | `ok = false`, error names the plate |
-| `mdg-ex9.2-1` | `bar: 5, n: 1, fm: 2000, cmu: 8, Le: 24` | `ld ≈ 19.5` (MDG Ex 9.2-1; already the benchmark in `tools/masonry-audit/build-fixtures.mjs:35`) |
+| `mdg-ex9.2-1` | `bar: 5, n: 1, fm: 2000, cmu: 8, Le: 24` | `ld ≈ 19.47` (MDG Ex 9.2-1 publishes 19.5; already the benchmark in `tools/masonry-audit/build-fixtures.mjs:35`) |
+| `weld-fillet-asd` | defaults (`fillet`, w 0.25, SMAW, F_EXX 70000, F_up 58000, t_p 0.5) | `Lwt ≈ 1.5708`, `te = 0.17675`, `Awe ≈ 0.2776`, `Rnw ≈ 11661`, `Rcap_w ≈ 5830`, `wmet` D/C ≈ 0.447, `RnBM ≈ 27332`, `Rcap_bm ≈ 13666`, `wbm` D/C ≈ 0.191, `wmin = 0.1875` (PASS), `wdev` ratio `Rcap_w/TbarCap ≈ 0.911` → "NO" |
+| `weld-fillet-sd` | `code: 'sd', T: 9115` | `Rcap_w ≈ 8746`, `wmet` D/C ≈ 0.521, `Rcap_bm ≈ 20499`, `wdev` ratio ≈ 0.810 |
+| `weld-flare-noteA` | `weldCfg: 'flare', proc: 'smaw', Lw: 4` (#4 → R = 0.25 < 0.375) | `noteA = true`, `te = 0.17675` (fillet w), `Lwt = 8`, `Awe = 1.414`, `Rnw = 59388`, `Rcap_w = 29694`, `wmin` row present |
+| `weld-flare-gmaw` | `weldCfg: 'flare', proc: 'gmaw', bar: 6, n: 1, Le: 60, Lw: 4` | `noteA = false`, `te = 0.234375`, `Awe = 1.875`, `Rnw = 78750`, `Rcap_w = 39375`, `wmet` D/C ≈ 0.132, `wmin` N/A |
+| `weld-flare-smaw6` | as above with `proc: 'smaw'` | `te = 0.1171875`, `Rnw = 39375`, `Rcap_w = 19687.5` |
+| `weld-thin-plate` | `tp: 0.1875, w: 0.125` | `wmin = 0.125` (PASS at D/C 1.000), `Rcap_w ≈ 2915`, `wmet` D/C ≈ 0.895 |
+| `weld-undersize` | `tp: 0.5, w: 0.125` | `wmin = 0.1875`, `wmin` D/C = 1.5 → FAIL, banner FAIL, governing `wmin` |
 
-Hand values to record: √1750 = 41.833; 0.13·0.25·60000 = 1950; 1950/(2.5·41.833) = 18.646; 1950/(3.5625·41.833) = 13.084. The implementer computes the other expected values by hand in the hand-check doc before coding them; a fixture must never be tuned to the engine.
+Hand values to record: √1750 = 41.833; 0.13·0.25·60000 = 1950; 1950/(2.5·41.833) = 18.646; 1950/(3.5625·41.833) = 13.084; π·0.5 = 1.5708; 0.707·0.25 = 0.17675; 0.60·70000·0.17675·1.5708 = 11,661. The implementer computes every other expected value by hand in the hand-check doc before coding it; a fixture must never be tuned to the engine.
 
 ## 6. UI
 
-- Header "Dowelled Embed Plate — Tension Dowels in Grouted CMU"; ref tags `TMS 402-22 §6.1.6.3.1`, `§8.3.3.1`, `§9.1.4`, `§6.1.7.3.1`, `MDG 2022 REK-09`.
-- Blocks: 0 Code basis · 1 Demand · 2 Wall & masonry · 3 Dowels · 4 Plate · 5 Weldability. `coverIn` hidden unless `barPos = custom`; `s` disabled when `n = 1`.
-- Run button, `#errOut`, `#results` with summary banner (`AREv2.getMarkHTML()` prefix), demand cards (T, T_cap, l_d, L_e, K with governing term), sectioned check table with `▶ Calc` detail panels, notes list (MDG vertical-tie advice, A706 / AWS D1.4, no bearing/shear/plate checks here, no excess-reinforcement reduction, epoxy rule).
+- Header "Dowelled Embed Plate — Tension Dowels in Grouted CMU"; ref tags `TMS 402-22 §6.1.6.3.1`, `§8.3.3.1`, `§9.1.4`, `§6.1.7.3.1`, `AISC 360-22 §J2.4`, `MDG 2022 REK-09`.
+- Blocks: 0 Code basis · 1 Demand · 2 Wall & masonry · 3 Dowels · 4 Plate · 5 Bar-to-plate weld (weldCfg, w, Lw, proc, Fexx, weldable). `coverIn` hidden unless `barPos = custom`; `s` disabled when `n = 1`; `Lw` and `proc` shown only for `flare`. A one-line hint under `weldCfg` for `flare` with #3–#5: "Table J2.2 note [a]: R < 3/8 in, only the reinforcing fillet is credited."
+- Run button, `#errOut`, `#results` with summary banner (`AREv2.getMarkHTML()` prefix), demand cards (T, T_cap, l_d, L_e, K with governing term, weld capacity per bar), sectioned check table with `▶ Calc` detail panels, notes list (MDG vertical-tie advice, A706 / AWS D1.4, weld metal governs over A706 bar metal, kds taken as 1.0, no bearing/shear/plate-flexure checks here, no excess-reinforcement reduction, epoxy rule).
 - Live re-run on input change once results are shown (250 ms debounce), `window.runCalcs`, `?selftest=1` sets `document.title = 'SELFTEST PASS n/n'`.
 - `AREv2.publish` the dowel `ld` and `T`; no new `TARGETS` entry.
 
@@ -131,13 +175,13 @@ Hand values to record: √1750 = 41.833; 0.13·0.25·60000 = 1950; 1950/(2.5·41
 
 Two views side by side:
 - **Wall section** (across t): unit outline with face shells, grouted core, plate on top (`Bp × tp`), one dowel centered (or at custom cover), dims `t`, `cover`, `L_e`, and `l_d` as a bracket from the plate underside; Mark via `AREv2.getMark()` in the view title.
-- **Elevation along the plate** (`Lp`): plate, `n` dowels at `s`, dims `e_p`, `s`, `clear`, `L_e`; tension arrow T upward at the plate centroid.
+- **Elevation along the plate** (`Lp`): plate, `n` dowels at `s`, dims `e_p`, `s`, `clear`, `L_e`; tension arrow T upward at the plate centroid. Weld symbol at the plate: fillet all-around at each dowel for `fillet`; for `flare` the dowels are drawn lying along the plate face with the weld length `L_w` dimensioned.
 Redraw on every input change and after restore.
 
 ## 8. Out of scope (stated in the notes list)
 
 - Beam bearing on the plate, masonry bearing, anchor shear — `embed-plate-beam-bearing` / `masonry-bearing-uplift`.
-- Plate flexure and weld sizing: the weld row states the per-bar force; sizing per AWS D1.4 is the engineer's / fabricator's.
+- Plate flexure. Weld procedure and qualification per AWS D1.4/D1.4M are the fabricator's; the calc sizes the weld by AISC 360-22 §J2 strength only, with `kds = 1.0`.
 - Dowel-to-vertical-bar lap: `masonry-lap-length`.
 - Headed studs or anchor bolts (§6.3 / §8.1.4 / §9.1.4.1): `masonry-anchor-bolt`.
 
@@ -154,3 +198,8 @@ Redraw on every input change and after restore.
 | REK-09 ASD | MDG PDF p. 745 | T_all 12,800; K 2.5; l_d 18.6 |
 | REK-09 SD | MDG PDF p. 814 | T_u 9,115; φT_n 21,600 |
 | REK-10 | MDG PDF p. 746 | K 3.57; l_d 13.1 |
+| Fillet weld Eq. J2-4, `F_nw = 0.60·F_EXX`, φ = 0.75, Ω = 2.00 | AISC 360-22 §J2.4, Table J2.5 (`Steel/Reference/AISC 2022/…a360-22w.pdf`, printed 16.1-128 to 16.1-131) | |
+| Flare-bevel-groove effective throat 5/8 R (GMAW, FCAW-G), 5/16 R (SMAW, FCAW-S, SAW); note [a] R < 3/8 in → reinforcing fillet only | AISC 360-22 Table J2.2, printed 16.1-126 | |
+| Fillet effective throat = shortest distance root to face (0.707·w for equal legs) | AISC 360-22 §J2.2a | |
+| Minimum fillet size by thinner part | AISC 360-22 Table J2.4, printed 16.1-128 | 1/8, 3/16, 1/4, 5/16 |
+| Base metal shear rupture `0.60·F_u·A_nv` | AISC 360-22 §J4.2 Eq. J4-4 | |

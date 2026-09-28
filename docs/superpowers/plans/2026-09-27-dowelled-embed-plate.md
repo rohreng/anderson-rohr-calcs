@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development with **Opus** implementer and reviewer subagents (`model: "opus"`) to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add one ARE web calculator that reproduces the MDG 2022 "Dowelled Embed Plate Alternate" (Example REK-09 §5): dowel tension capacity (ASD or SD) and full tension development of weldable rebar dowels in grouted CMU per TMS 402-22 §6.1.6.3.1 Eq. 6-2.
+**Goal:** Add one ARE web calculator that reproduces the MDG 2022 "Dowelled Embed Plate Alternate" (Example REK-09 §5): dowel tension capacity (ASD or SD), full tension development of weldable rebar dowels in grouted CMU per TMS 402-22 §6.1.6.3.1 Eq. 6-2, and the bar-to-plate weld per AISC 360-22 §J2 (fillet all-around or flare-bevel-groove, Table J2.2 / J2.4 / J2.5, plate shear rupture §J4.2). Then deploy.
 
 **Architecture:** One vanilla-JS page `public/Calcs/masonry_dowelled_embed_plate_calculator.html` in the pattern of `W_beam_to_HSS_column_calculator.html`: DOM-free engine `window.MDEP` (compute + validate + fixtures) in its own script block, UI layer, `are-draw.js` primitives for the schematic, Playwright harness `tools/test-dowelled-embed-plate.mjs`. Registry entry in `app/lib/calcs.ts`.
 
@@ -21,7 +21,7 @@
 - After any scripted edit of the HTML, check the first bytes: `head -c 16 file | od -An -tx1` must start `3c 21 44` (`<!D`), one BOM at most.
 - Windows paths inside any repo file use forward slashes (Tailwind v4 scanner trap; commit 57988f1).
 - Local preview: `python tools/nocache_server.py 4188 public` then `http://localhost:4188/Calcs/masonry_dowelled_embed_plate_calculator.html`. Serve from `public/`, never `public/Calcs/`.
-- Reference PDFs: `Technical Resources - Documents/Masonry/TMS-402-602-22.pdf` (§6.1.6.3.1 PDF p. 96) and `Masonry-Designers-Guide-2022_2023-09-26.pdf` (REK-09 ASD §5 PDF p. 745). Text extracts: `RE CODING/Masonry/tms_full.txt` (~4580–4606, ~4840–4852) and `designers_guide.txt`.
+- Reference PDFs: `Technical Resources - Documents/Masonry/TMS-402-602-22.pdf` (§6.1.6.3.1 PDF p. 96) and `Masonry-Designers-Guide-2022_2023-09-26.pdf` (REK-09 ASD §5 PDF p. 745). Text extracts: `RE CODING/Masonry/tms_full.txt` (~4580–4606, ~4840–4852) and `designers_guide.txt`. AISC 360-22: `Technical Resources - Documents/Steel/Reference/AISC 2022/Specificaitons for Structural Steel Buildings (ANSI-AISC 360-22) a360-22w.pdf`; a pdftotext extract is at `C:/Users/nickh/AppData/Local/Temp/claude/C--Users-nickh-Claude/a60a9877-07cb-4483-b140-36458da8cefa/scratchpad/a360.txt` (Table J2.2 at line 11584, Table J2.4 at 11702, Eq. J2-3/J2-4 at 11832–11836).
 
 ---
 
@@ -44,9 +44,9 @@
 
 **Files:** create `docs/dowelled-embed-plate-hand-check-2026-09.md`
 
-- [ ] **Step 1:** Open the TMS 402-22 PDF at p. 96 and the MDG PDF at p. 745 / 814 / 746 (pdftotext or the existing `tms_full.txt` / `designers_guide.txt`). Confirm each row of spec §9 against the text. Quote Eq. 6-2, the K sentence, the γ tiers, the 12 in floor and the epoxy sentence verbatim in the doc with page numbers.
-- [ ] **Step 2:** Compute every fixture in spec §5 by hand (show √f'm, 0.13·d_b²·f_y·γ, K and the division) and tabulate hand value vs. MDG published value. Required results: 18.646 (REK-09), 13.084 (REK-10), 12.00 floor for #3 (K = 9d_b = 3.375 governs), 27.97 epoxy, 39.66 (#6), 52.65 (#8 in 12 in CMU), 12.43 (Gr 40), 19.47 (MDG Ex 9.2-1, published 19.5).
-- [ ] **Step 3:** Add sections "Items left to the engineer" (weld sizing per AWS D1.4, vertical tie lap, bearing/shear, plate flexure) and "How to run the tests" (`npm run test:mdep`, `?selftest=1`).
+- [ ] **Step 1:** Open the TMS 402-22 PDF at p. 96 and the MDG PDF at p. 745 / 814 / 746 (pdftotext or the existing `tms_full.txt` / `designers_guide.txt`), and the AISC 360-22 extract for §J2.2a, Table J2.2 (with note [a]), Table J2.4, Table J2.5 (fillet and PJP/flare shear on effective area, φ = 0.75, Ω = 2.00) and §J4.2 Eq. J4-4. Confirm each row of spec §9 against the text. Quote Eq. 6-2, the K sentence, the γ tiers, the 12 in floor, the epoxy sentence, Table J2.2 with note [a] and the Table J2.4 rows verbatim in the doc with page numbers.
+- [ ] **Step 2:** Compute every fixture in spec §5 by hand (show √f'm, 0.13·d_b²·f_y·γ, K and the division) and tabulate hand value vs. MDG published value. Required results: 18.646 (REK-09), 13.084 (REK-10), 12.00 floor for #3 (K = 9d_b = 3.375 governs), 27.97 epoxy, 39.66 (#6), 52.65 (#8 in 12 in CMU), 12.43 (Gr 40), 19.47 (MDG Ex 9.2-1, published 19.5). Weld fixtures (spec §5 `weld-*` rows): fillet all-around on #4 with w = 1/4: L_wt = 1.5708, t_e = 0.17675, A_we = 0.2776, R_nw = 11,661 lb, ASD 5,830 / SD 8,746 per bar, plate BM 27,332 lb nominal; flare #4 SMAW triggers note [a] (t_e from the 1/4 fillet, A_we = 1.414 in², R_nw = 59,388); flare #6 GMAW t_e = 5/8·0.375 = 0.234375, A_we = 1.875, R_nw = 78,750; #6 SMAW 39,375; thin plate 3/16 with w = 1/8 → w_min = 1/8; w = 1/8 on a 1/2 plate → w_min = 3/16 FAIL at D/C 1.5.
+- [ ] **Step 3:** Add sections "Items left to the engineer" (AWS D1.4 procedure/qualification, kds = 1.0 assumption, vertical tie lap, bearing/shear, plate flexure) and "How to run the tests" (`npm run test:mdep`, `?selftest=1`).
 - [ ] **Step 4:** Commit: `docs(mdep): hand-check record for the dowelled embed plate calc`.
 
 ### Task 2: Harness, engine and fixtures (no UI yet)
@@ -54,7 +54,7 @@
 **Files:** create `tools/test-dowelled-embed-plate.mjs`; create `public/Calcs/masonry_dowelled_embed_plate_calculator.html` (CSS + skeleton + engine script only; a placeholder `#uiRoot`); modify `package.json`.
 
 - [ ] **Step 1:** Copy `tools/test-w-to-hss.mjs` to `tools/test-dowelled-embed-plate.mjs`; set `FILE`, replace `window.DWHSS` with `window.MDEP`. Keep the fixture run, the `?selftest=1` title check, the "no page errors" check. Drop the legacy-record Load block (new calc has no legacy records). Add `"test:mdep": "node tools/test-dowelled-embed-plate.mjs"` and append `&& npm run test:mdep` to `qa`. Run it: it must fail (file missing).
-- [ ] **Step 2:** Create the HTML: copy lines 1–94 (CSS), 95–108 (header shell; retitle, ref tags per spec §6), the helpers 230–236, and the engine block structure 785–1105 from the W-to-HSS calc. Implement `MDEP` per spec §4: `BAR`, `T_MAP`, `TFS_MAP`, `gammaFor`, `validate`, `compute` returning the spec §4.4 shape, the eight check rows built with `mk()` in the spec §4.2 order, `maxDC`/banner rule per spec §4.2. Detail panels: symbolic equation line, substituted line, result in `V()`, D/C via `DC()`. The `dev` panel shows K selection (three candidates, governing one bold), γ, √f'm, Eq. 6-2 value, epoxy line only when applied, "12 in minimum governs" line only when it does.
+- [ ] **Step 2:** Create the HTML: copy lines 1–94 (CSS), 95–108 (header shell; retitle, ref tags per spec §6), the helpers 230–236, and the engine block structure 785–1105 from the W-to-HSS calc. Implement `MDEP` per spec §4 (including the weld block of §4.1): `BAR`, `T_MAP`, `TFS_MAP`, `gammaFor`, `wminFor`, `validate`, `compute` returning the spec §4.4 shape, the twelve check rows built with `mk()` in the spec §4.2 order (`tens, dev, kfac, spc, grt, fit, wmet, wbm, wmin, wdev, wreq, tie`), `maxDC`/banner rule per spec §4.2. The `wmet` panel shows the config, `L_wt`, `R` and the Table J2.2 factor (flare), the note [a] substitution line when `noteA`, `t_e`, `A_we`, `0.60·F_EXX`, the φ or Ω line, and D/C. Detail panels: symbolic equation line, substituted line, result in `V()`, D/C via `DC()`. The `dev` panel shows K selection (three candidates, governing one bold), γ, √f'm, Eq. 6-2 value, epoxy line only when applied, "12 in minimum governs" line only when it does.
 - [ ] **Step 3:** Encode the spec §5 fixtures in `MDEP.FIXTURES` using the hand values from Task 1 (`near(x, y, tol)` with tol 0.01 in on lengths, exact on capacities and K). Include `Kgov` and `minGoverns` assertions where listed and a `banner` assertion on every fixture.
 - [ ] **Step 4:** Run `node tools/test-dowelled-embed-plate.mjs`. Fixtures must pass; UI checks may still fail. Check the BOM bytes. Commit: `feat(mdep): MDEP engine and fixtures for the dowelled embed plate calc`.
 
@@ -62,9 +62,9 @@
 
 **Files:** modify `public/Calcs/masonry_dowelled_embed_plate_calculator.html`
 
-- [ ] **Step 1:** Build the six `.blk` input blocks per spec §3/§6 with the ids named in spec §3 (`code, T, cmu, fm, barPos, coverIn, epoxy, bar, grade, n, s, Le, weldable, Lp, Bp, tp`). Defaults = REK-09 ASD. `coverIn` row hidden unless `barPos = custom`; `s` disabled when `n = 1` (`refreshModes()` also registered with `AREv2.onAfterRestore`).
+- [ ] **Step 1:** Build the six `.blk` input blocks per spec §3/§6 with the ids named in spec §3 (`code, T, cmu, fm, barPos, coverIn, epoxy, bar, grade, n, s, Le, Lp, Bp, tp, Fup, weldCfg, w, Lw, proc, Fexx, weldable`). Defaults = REK-09 ASD with a 1/4 in fillet all-around, SMAW, E70, A36 plate. `coverIn` row hidden unless `barPos = custom`; `s` disabled when `n = 1`; `Lw` and `proc` rows hidden unless `weldCfg = flare`; note [a] hint under `weldCfg` when flare and bar ≤ #5 (`refreshModes()` also registered with `AREv2.onAfterRestore`).
 - [ ] **Step 2:** Port `readInputs / run / runCalcs / runSelftest / init / onInputChanged` from the W-to-HSS UI (1106–1330). Summary banner with `AREv2.getMarkHTML()` prefix; demand cards T, T_cap, l_d, L_e, K (with governing term); sectioned check table with `▶ Calc`; REVIEW list; notes list per spec §6 and §8; `AREv2.publish` of `ld` and `T`.
-- [ ] **Step 3:** Extend the harness: after Run, assert results shown, ≥ 7 check rows, `#sumOut` contains "PASS"; switch `#code` to `sd`, set `#T` = 9115, assert the tension row capacity text contains "21,600" or "21600"; set `#Le` = 16 and assert the banner is FAIL; set `#areMark` = "EP-1" and assert it appears in `#sumOut`; `?selftest=1` title check. Run the harness to green. Check BOM bytes. Commit: `feat(mdep): UI for the dowelled embed plate calc`.
+- [ ] **Step 3:** Extend the harness: after Run, assert results shown, ≥ 7 check rows, `#sumOut` contains "PASS"; switch `#code` to `sd`, set `#T` = 9115, assert the tension row capacity text contains "21,600" or "21600"; set `#Le` = 16 and assert the banner is FAIL; restore `#Le` = 24, set `#weldCfg` = `flare` and assert `#Lw` becomes visible and the note [a] hint shows for #4; set `#w` = 0.125 (fillet) and assert the banner is FAIL on the minimum-size row; set `#areMark` = "EP-1" and assert it appears in `#sumOut`; `?selftest=1` title check. Run the harness to green. Check BOM bytes. Commit: `feat(mdep): UI for the dowelled embed plate calc`.
 
 ### Task 4: Drawing
 
@@ -80,7 +80,11 @@
 
 - [ ] **Step 1:** Insert the registry entry from spec §2 directly after `embed-plate-beam-bearing` (≈ line 558) with keywords `["masonry", "CMU", "embed plate", "dowel", "dowelled", "weldable", "A706", "development length", "tension", "uplift", "TMS 402", "MDG", "REK-09", "ASD", "strength design", "AWS D1.4"]`.
 - [ ] **Step 2:** `node tools/derive-coverage.mjs --write`; `npm run lint && npm run build && npm run qa`. Fix anything the new calc trips (toolbar, roundtrip, adversarial, activation). Commit: `feat(mdep): register the dowelled embed plate calc; coverage + qa report`.
-- [ ] **Step 3:** Copy the HTML to `RE CODING/Masonry/masonry_dowelled_embed_plate_calculator.html` (not committed). Report the commit hashes and the qa result; leave the push to Nick (deploy via the are-calcs-deploy skill).
+- [ ] **Step 3:** Copy the HTML to `RE CODING/Masonry/masonry_dowelled_embed_plate_calculator.html` (not committed). Report the commit hashes and the qa result.
+
+### Task 6: Deploy (authorized by Nick 2026-09-27: "add the weld to the plate and deploy")
+
+- [ ] **Step 1:** Run the `anthropic-skills:are-calcs-deploy` skill from the orchestrator (not a subagent): stage nothing new, confirm the local commits are on `main`, push with the stored PAT, clear the token from the remote URL, confirm the Vercel deploy and load `https://calcs.andersonrohr.com/calcs/masonry-dowelled-embed-plate` in the browser; `?selftest=1` on the raw HTML must title `SELFTEST PASS`.
 
 ---
 
