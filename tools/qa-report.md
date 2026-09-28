@@ -1,8 +1,8 @@
 # ARE calc save/load QA report
 
-Run: 2026-09-27T22:18:37.518Z
+Run: 2026-09-28T02:51:17.383Z
 
-**56/58 passed.**
+**58/59 passed.**
 
 | Calc | Fields | KB | Model | Offline reqs | Result |
 |---|---|---|---|---|---|
@@ -13,9 +13,7 @@ Run: 2026-09-27T22:18:37.518Z
 | CFS_Wall_Opening_Header_Sill_Jamb_calculator.html | 30 | 133 | - | 0 | pass |
 | F11_plate_bending_calculator.html | 11 | 70 | - | 0 | pass |
 | HSS_column_brace_gusset_calculator.html | 36 | 82 | - | 0 | pass |
-| HSS_to_HSS_branch_connection_calculator.html | 36 | 220 | - | - | **FAIL** (diff) results text differs @7733
-    before: …S9X9X1/2HSS9X9X1/4HSS9X9X1/8HSS9X9X3/16HSS9X9X3/8HSS9X9X5/16HSS9X9X5/8 Branch sectionHSS1-1/2X1-1/2X1/4HSS1-1/2X1-1/2X1/8HSS1-1/2X1-1/2X3/16…
-    after : …S9X9X1/2HSS9X9X1/4HSS9X9X |
+| HSS_to_HSS_branch_connection_calculator.html | 36 | 250 | - | 0 | pass |
 | SW_HoldownFooting_Calculator.html | 17 | 81 | - | - | **FAIL** (diff) results text differs @193
     before: …bined continuous strip + spread pad footing — uplift & bearing checks IBC 2024 ASCE 7-22 ACI 318-19 ASD Load Combos Combined Footing — Secti…
     after : …bined continuous strip + s |
@@ -42,11 +40,12 @@ Run: 2026-09-27T22:18:37.518Z
 | headers_gradebeam_pier_calculator.html | 41 | 82 | yes | 0 | pass |
 | hss_column_bearing_on_beam_calculator.html | 51 | 50 | - | 0 | pass |
 | hss_hanger_tension_connection_calculator.html | 17 | 57 | - | 0 | pass |
-| large_moment_base_plate.html | 13 | 91 | - | 0 | pass |
+| large_moment_base_plate.html | 13 | 86 | - | 0 | pass |
 | masonry_anchor_bolt_calculator.html | 22 | 87 | - | 0 | pass |
 | masonry_anchor_calculator.html | 28 | 116 | - | 0 | pass |
 | masonry_asd_design_calculator.html | 13 | 60 | - | 0 | pass |
 | masonry_bearing_uplift_calculator.html | 15 | 84 | - | 0 | pass |
+| masonry_dowelled_embed_plate_calculator.html | 23 | 70 | - | 0 | pass |
 | masonry_lap_length_calculator.html | 10 | 73 | - | 0 | pass |
 | masonry_lintel_asd_calculator.html | 22 | 88 | - | 0 | pass |
 | masonry_lintel_jamb_calculator.html | 41 | 170 | - | 0 | pass |
@@ -71,11 +70,8 @@ Run: 2026-09-27T22:18:37.518Z
 
 ## Failures by stage
 
-### diff (2)
+### diff (1)
 
-- **HSS_to_HSS_branch_connection_calculator.html** — results text differs @7733
-    before: …S9X9X1/2HSS9X9X1/4HSS9X9X1/8HSS9X9X3/16HSS9X9X3/8HSS9X9X5/16HSS9X9X5/8 Branch sectionHSS1-1/2X1-1/2X1/4HSS1-1/2X1-1/2X1/8HSS1-1/2X1-1/2X3/16…
-    after : …S9X9X1/2HSS9X9X1/4HSS9X9X1/8HSS9X9X3/16HSS9X9X3/8HSS9X9X5/16HSS9X9X5/8HSS3-1/2X2X1/8 Branch sectionHSS1-1/2X1-1/2X1/4HSS1-1/2X1-1/2X1/8HSS1-…
 - **SW_HoldownFooting_Calculator.html** — results text differs @193
     before: …bined continuous strip + spread pad footing — uplift & bearing checks IBC 2024 ASCE 7-22 ACI 318-19 ASD Load Combos Combined Footing — Secti…
     after : …bined continuous strip + spread pad footing — uplift & bearing checks | Project: QA-TEST IBC 2024 ASCE 7-22 ACI 318-19 ASD Load Combos Combi…
