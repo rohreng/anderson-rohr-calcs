@@ -156,28 +156,39 @@ window.MDEP = (function(){
   function END(){ return '</div>'; }
   function B(h,on){ return on ? '<b>'+h+'</b>' : h; }
 
-  // status rules: opts.status forces; else PASS/FAIL from dc; informational rows never enter max D/C
+  // status rules: opts.status forces; else PASS/FAIL from dc; informational rows never enter max D/C.
+  // opts.plain = plain-text row name (no tags or entities) for captions and governingText.
   function mk(section,id,name,ref,demand,capacity,dc,det,opts){
     opts = opts||{};
     var status, note = opts.note||'';
     if (opts.status){ status = opts.status; }
     else if (dc===null || !isFinite(dc)) status = 'N/A';
     else { status = dc<0 ? 'REVIEW' : (dc<=1.0 ? 'PASS' : 'FAIL'); if (dc<0) note += ' (negative capacity — check inputs)'; }
-    return {section:section, id:id, name:name, ref:ref, demand:demand, capacity:capacity,
+    return {section:section, id:id, name:name, plain:opts.plain||'', ref:ref, demand:demand, capacity:capacity,
             dc:(dc===null||!isFinite(dc))?null:dc, status:status, note:note, det:det, informational:!!opts.informational};
+  }
+  function has(o,k){ return Object.prototype.hasOwnProperty.call(o,k); }
+  var NUM_FIELDS = ['T','cmu','fm','coverIn','bar','grade','n','s','Le','Lp','Bp','tp','Fyp','Fup','w','Lw','Fexx'];
+  // form values arrive as strings: coerce numerics with Number(), epoxy to a strict boolean
+  function normalise(inp){
+    var o={}; Object.keys(inp||{}).forEach(function(k){ o[k]=inp[k]; });
+    NUM_FIELDS.forEach(function(k){ o[k]=Number(o[k]); });
+    o.epoxy = (o.epoxy===true || o.epoxy==='true' || o.epoxy===1);
+    return o;
   }
 
   // spec §4.3 — errors block compute. Messages are plain text (only numbers are interpolated).
   function validate(inp){
+    inp = normalise(inp);
     var err=[];
     function req(v,l){ if (!isNum(v)||v<=0) err.push(l+' must be a positive number.'); }
     if (inp.code!=='asd' && inp.code!=='sd') err.push('Code basis must be ASD or strength design.');
     if (!isNum(inp.T) || inp.T<0) err.push('Applied tension T must be a number ≥ 0.');
-    if (!T_MAP[inp.cmu]) err.push('CMU nominal thickness must be 4, 6, 8, 10, 12 or 16 in.');
+    if (!has(T_MAP,inp.cmu) || !has(TFS_MAP,inp.cmu)) err.push('CMU nominal thickness must be 4, 6, 8, 10, 12 or 16 in.');
     req(inp.fm, 'Specified f′m');
     if (inp.barPos!=='center' && inp.barPos!=='custom') err.push('Bar position must be centered or custom.');
     if (inp.barPos==='custom') req(inp.coverIn, 'Masonry cover to the bar');
-    var b = BAR[inp.bar];
+    var b = has(BAR,inp.bar) ? BAR[inp.bar] : null;
     if (!b) err.push('Bar size must be #3 through #11.');
     if (inp.grade!==40 && inp.grade!==60) err.push('Bar grade must be 40 or 60.');
     var nOK = isNum(inp.n) && inp.n>=1 && Math.floor(inp.n)===inp.n;
@@ -186,8 +197,10 @@ window.MDEP = (function(){
     req(inp.Lp, 'Plate length L_p'); req(inp.Bp, 'Plate width B_p'); req(inp.tp, 'Plate thickness t_p');
     req(inp.Fyp, 'Plate F_y'); req(inp.Fup, 'Plate F_u');
     if (inp.weldCfg!=='fillet' && inp.weldCfg!=='flare') err.push('Weld configuration must be fillet or flare-bevel.');
-    req(inp.w, 'Fillet leg w'); req(inp.Fexx, 'F_EXX');
-    if (inp.weldCfg==='flare'){ req(inp.Lw, 'Flare weld length L_w'); if (!PROC[inp.proc]) err.push('Welding process must be GMAW, SMAW or SAW.'); }
+    // w is used by the all-around fillet and by the flare note [a] reinforcing fillet (R = d_b/2 < 3/8 in)
+    if (inp.weldCfg==='fillet' || (inp.weldCfg==='flare' && b && b[0]/2<0.375)) req(inp.w, 'Fillet leg w');
+    req(inp.Fexx, 'F_EXX');
+    if (inp.weldCfg==='flare'){ req(inp.Lw, 'Flare weld length L_w'); if (!has(PROC,inp.proc)) err.push('Welding process must be GMAW, SMAW or SAW.'); }
     if (inp.weldable!=='a706' && inp.weldable!=='ce') err.push('Bar weldability must be A706 or a carbon-equivalent submittal.');
     var sOK = true;
     if (b && nOK && inp.n>=2 && (!isNum(inp.s) || inp.s<=b[0])){ sOK=false; err.push('Dowel spacing s must exceed d_b = '+f3(b[0])+' in.'); }
@@ -205,8 +218,9 @@ window.MDEP = (function(){
   }
 
   function compute(inp){
+    inp = normalise(inp);
     var errors = validate(inp);
-    if (errors.length) return {ok:false, errors:errors, warnings:[], checks:[], vals:{}, maxDC:null, governing:'', governingId:'', banner:'ERROR'};
+    if (errors.length) return {ok:false, errors:errors, warnings:[], checks:[], vals:{}, maxDC:null, governing:'', governingText:'', governingId:'', banner:'ERROR'};
     var C=[], asd = inp.code==='asd';
     var barN=+inp.bar, cmuN=+inp.cmu, n=inp.n, T=inp.T;
     var t=T_MAP[cmuN], tfs=TFS_MAP[cmuN], db=BAR[barN][0], As=BAR[barN][1];
@@ -215,7 +229,7 @@ window.MDEP = (function(){
     var clear = n>=2 ? inp.s-db : null, nineDb = 9*db;
     // K = least of cover, clear spacing (n >= 2), 9 d_b; ties resolve in that order
     var cand = [['cover',cover],['clear',clear],['9db',nineDb]], K=Infinity, Kgov='';
-    cand.forEach(function(c){ if (c[1]!==null && c[1]<K-1e-12){ K=c[1]; Kgov=c[0]; } });
+    cand.forEach(function(c){ if (c[1]!==null && c[1]<K-EPS){ K=c[1]; Kgov=c[0]; } });
     var sfm = Math.sqrt(inp.fm), num = 0.13*db*db*fy*gamma, ld_eq = num/(K*sfm);
     var epoxyApplied = !!inp.epoxy, ld_ep = epoxyApplied ? 1.5*ld_eq : ld_eq, minGoverns = ld_ep<12, ld = Math.max(ld_ep,12);
     var Tcap = asd ? n*As*Fs : 0.90*n*As*fy;
@@ -246,7 +260,7 @@ window.MDEP = (function(){
     var SEC_T='Dowel tension';
     var dTens = T/Tcap;
     var tdet = asd
-      ? H('TMS 402-22 &sect;8.3.3.1 &mdash; allowable tensile stress in reinforcement, F<sub>s</sub> = 20,000 psi (Grade 40/50), 32,000 psi (Grade 60)')
+      ? H('TMS 402-22 &sect;8.3.3.1 &mdash; allowable tensile stress in reinforcement, F<sub>s</sub> = '+fc(Fs)+' psi ('+gradeTxt+')')
         +R('T<sub>all</sub> = n&middot;A<sub>s</sub>&middot;F<sub>s</sub>')
         +R('T<sub>all</sub> = '+n+' &times; '+f2(As)+' &times; '+fc(Fs)+' = '+V(fc(Tcap),'lb')+' ('+bl+', '+gradeTxt+')')
       : H('TMS 402-22 &sect;9.1.4, Table 9.1.4 &mdash; strength design, tension-controlled reinforcement, &phi; = 0.90')
@@ -256,7 +270,7 @@ window.MDEP = (function(){
     C.push(mk(SEC_T,'tens', asd?'Dowel tension, T &le; T<sub>all</sub> = n&middot;A<sub>s</sub>&middot;F<sub>s</sub>':'Dowel tension, T<sub>u</sub> &le; &phi;T<sub>n</sub> = 0.90&middot;n&middot;A<sub>s</sub>&middot;f<sub>y</sub>',
       asd?'TMS 402-22 &sect;8.3.3.1':'TMS 402-22 Table 9.1.4 (&phi; = 0.90)',
       Tsym+' = '+fc(T)+' lb', (asd?'T<sub>all</sub>':'&phi;T<sub>n</sub>')+' = '+fc(Tcap)+' lb', dTens, tdet,
-      {note: T===0 ? 'T = 0: development-only' : n+' '+bl+' '+gradeTxt}));
+      {plain: asd ? 'Dowel tension T <= Tall = n As Fs' : 'Dowel tension Tu <= phiTn = 0.90 n As fy', note: T===0 ? 'T = 0: development-only' : n+' '+bl+' '+gradeTxt}));
 
     // ---- dev
     var SEC_D='Development';
@@ -274,7 +288,7 @@ window.MDEP = (function(){
     var ddet = H('TMS 402-22 &sect;6.1.6.3.1 Eq. 6-2 &mdash; development length of deformed bars in grout')
       +Kblock+(n>=2?R(mdgLine):'')
       +R('&gamma; = 1.0 for #3&ndash;#5, 1.3 for #6&ndash;#7, 1.5 for #8 and larger &rarr; '+bl+': &gamma; = '+V(f1(gamma)))
-      +R(ov('f&prime;<sub>m</sub>')+' = '+ov(fc(inp.fm))+' = '+V(f3(sfm),'psi'))
+      +R(ov('f&prime;<sub>m</sub>')+' = '+ov(fc(inp.fm))+' = '+V(f3(sfm),'&radic;psi'))
       +R('Eq. 6-2: l<sub>d</sub> = '+fr('0.13 d<sub>b</sub>&sup2; f<sub>y</sub> &gamma;','K '+ov('f&prime;<sub>m</sub>')))
       +R('l<sub>d</sub> = '+fr('0.13 &times; '+f3(db)+'&sup2; &times; '+fc(fy)+' &times; '+f1(gamma), f4(K)+' &times; '+f3(sfm))+' = '+fr(f1(num), f2(K*sfm))+' = '+V(f3(ld_eq),'in'));
     if (epoxyApplied) ddet += R('Epoxy-coated bars: l<sub>d</sub> = 1.5 &times; '+f3(ld_eq)+' = '+V(f3(ld_ep),'in')+' (the 1.5 factor does not apply to the 12 in minimum, &sect;6.1.6.3.1 commentary)');
@@ -283,13 +297,13 @@ window.MDEP = (function(){
       +DC(f3(ld),f3(inp.Le),dDev);
     C.push(mk(SEC_D,'dev','Development length, l<sub>d</sub> &le; L<sub>e</sub>','TMS 402-22 &sect;6.1.6.3.1 Eq. 6-2',
       'l<sub>d</sub> = '+f3(ld)+' in','L<sub>e</sub> = '+f3(inp.Le)+' in', dDev, ddet,
-      {note:'K = '+f4(K)+' in ('+Klabel+'), &gamma; = '+f1(gamma)+(epoxyApplied?', epoxy &times;1.5':'')+(minGoverns?', 12 in minimum governs':'')}));
+      {plain:'Development length ld <= Le', note:'K = '+f4(K)+' in ('+Klabel+'), &gamma; = '+f1(gamma)+(epoxyApplied?', epoxy &times;1.5':'')+(minGoverns?', 12 in minimum governs':'')}));
 
     // ---- kfac
-    var kdet = H('TMS 402-22 &sect;6.1.6.3.1 &mdash; K, the governing cover / spacing term')+Kblock+R(mdgLine)
-      +(n>=2?'':R('n = 1: the clear-spacing term does not apply; K is the lesser of cover and 9d<sub>b</sub>.'))+END();
+    var kdet = H('TMS 402-22 &sect;6.1.6.3.1 &mdash; K, the governing cover / spacing term')+Kblock
+      +(n>=2?R(mdgLine):R('n = 1: the clear-spacing term does not apply; K is the lesser of cover and 9d<sub>b</sub>.'))+END();
     C.push(mk(SEC_D,'kfac','K governing term','TMS 402-22 &sect;6.1.6.3.1','&mdash;','&mdash;', null, kdet,
-      {status:'INFO', informational:true, note:'cover '+f4(cover)+' &middot; clear '+(n>=2?f4(clear):'n/a')+' &middot; 9d<sub>b</sub> '+f4(nineDb)+' in &rarr; '+Klabel+' governs, K = '+f4(K)+' in'}));
+      {plain:'K governing term', status:'INFO', informational:true, note:'cover '+f4(cover)+' &middot; clear '+(n>=2?f4(clear):'n/a')+' &middot; 9d<sub>b</sub> '+f4(nineDb)+' in &rarr; '+Klabel+' governs, K = '+f4(K)+' in'}));
 
     // ---- spc
     var SEC_P='Placement';
@@ -300,7 +314,7 @@ window.MDEP = (function(){
         : R('n = 1: single dowel, no spacing requirement.')+END());
     C.push(mk(SEC_P,'spc','Clear spacing between dowels &ge; max(d<sub>b</sub>, 1 in)','TMS 402-22 &sect;6.1.4.1',
       n>=2?'max(d<sub>b</sub>, 1) = '+f3(spcReq)+' in':'&mdash;', n>=2?'clear = '+f3(clear)+' in':'&mdash;', dSpc, sdet,
-      n>=2?{}:{note:'n = 1: single dowel'}));
+      {plain:'Clear spacing between dowels >= max(db, 1 in)', note: n>=2 ? '' : 'n = 1: single dowel'}));
 
     // ---- grt
     var dGrt = db/grtCap;
@@ -309,7 +323,8 @@ window.MDEP = (function(){
       +R('Limit = (t &minus; 2t<sub>fs</sub>)/3 = '+f3(t-2*tfs)+'/3 = '+V(f3(grtCap),'in'))
       +R('d<sub>b</sub> = '+f3(db)+' in ('+bl+')')+DC(f3(db),f3(grtCap),dGrt);
     C.push(mk(SEC_P,'grt','Bar size &le; &frac13; least grout-space dimension','TMS 402-22 &sect;6.1.3.2.4',
-      'd<sub>b</sub> = '+f3(db)+' in','(t &minus; 2t<sub>fs</sub>)/3 = '+f3(grtCap)+' in', dGrt, gdet));
+      'd<sub>b</sub> = '+f3(db)+' in','(t &minus; 2t<sub>fs</sub>)/3 = '+f3(grtCap)+' in', dGrt, gdet,
+      {plain:'Bar size <= 1/3 least grout-space dimension'}));
 
     // ---- fit
     var SEC_PL='Plate';
@@ -320,7 +335,7 @@ window.MDEP = (function(){
       +R('Plate '+f3(inp.Lp)+' &times; '+f3(inp.Bp)+' &times; '+f3(inp.tp)+' in. Plate flexure is not checked here.')+END();
     C.push(mk(SEC_PL,'fit','Dowels fit the plate, e<sub>p</sub> &ge; 1.5d<sub>b</sub>','Detailing &middot; MDG 2022 REK-09 &sect;5 layout',
       '1.5d<sub>b</sub> = '+f3(fitReq)+' in','e<sub>p</sub> = '+f3(ep)+' in', dFit, fdet,
-      {status:fitRev?'REVIEW':'INFO', informational:true, note:fitRev?'end distance under 1.5d<sub>b</sub>':''}));
+      {plain:'Dowels fit the plate, ep >= 1.5db', status:fitRev?'REVIEW':'INFO', informational:true, note:fitRev?'end distance under 1.5d<sub>b</sub>':''}));
 
     // ---- wmet
     var SEC_W='Bar-to-plate weld';
@@ -346,7 +361,7 @@ window.MDEP = (function(){
     C.push(mk(SEC_W,'wmet', isFillet ? 'Weld metal, per bar: fillet all around, 0.60F<sub>EXX</sub>&middot;0.707w&middot;&pi;d<sub>b</sub>' : 'Weld metal, per bar: flare-bevel groove, 0.60F<sub>EXX</sub>&middot;t<sub>e</sub>&middot;2L<sub>w</sub>',
       isFillet ? 'AISC 360-22 &sect;J2.4 Eq. J2-4, Table J2.5' : 'AISC 360-22 &sect;J2.4 Eq. J2-3, Table J2.5, Table J2.2',
       Tbsym+' = '+fc(Tbar)+' lb', capSymW+' = '+fc(Rcap_w)+' lb', dWmet, wdet,
-      {note: isFillet ? frac16(inp.w)+' in fillet all around '+bl : 'flare-bevel, 2 &times; '+f3(inp.Lw)+' in'+(noteA?', note [a]: reinforcing fillet only':'')}));
+      {plain: isFillet ? 'Weld metal per bar, fillet all around' : 'Weld metal per bar, flare-bevel groove', note: isFillet ? frac16(inp.w)+' in fillet all around '+bl : 'flare-bevel, 2 &times; '+f3(inp.Lw)+' in'+(noteA?', note [a]: reinforcing fillet only':'')}));
 
     // ---- wbm
     var dWbm = Tbar/Rcap_bm, Abm = inp.tp*Lwt, yGov = bmGov==='yield';
@@ -360,7 +375,7 @@ window.MDEP = (function(){
       +DC(fc(Tbar),fc(Rcap_bm),dWbm);
     C.push(mk(SEC_W,'wbm','Plate base metal at the weld, lesser of shear yielding and shear rupture','AISC 360-22 &sect;J4.2 Eqs. J4-3, J4-4',
       Tbsym+' = '+fc(Tbar)+' lb', (asd?'R<sub>n</sub>/&Omega;':'&phi;R<sub>n</sub>')+' = '+fc(Rcap_bm)+' lb', dWbm, bdet,
-      {note:'shear '+(yGov?'yielding':'rupture')+' governs, t<sub>p</sub> = '+f3(inp.tp)+' in'}));
+      {plain:'Plate base metal at the weld (shear yielding / rupture)', note:'shear '+(yGov?'yielding':'rupture')+' governs, t<sub>p</sub> = '+f3(inp.tp)+' in'}));
 
     // ---- wmin
     var mdet = H('AISC 360-22 Table J2.4 &mdash; minimum fillet weld size by the thinner part joined')
@@ -369,13 +384,13 @@ window.MDEP = (function(){
       var dWmin = wmin/inp.w;
       mdet += R('Provided w = '+frac16(inp.w)+' in')+DC(frac16(wmin),frac16(inp.w),dWmin);
       C.push(mk(SEC_W,'wmin','Minimum fillet size, w &ge; w<sub>min</sub>','AISC 360-22 Table J2.4',
-        'w<sub>min</sub> = '+frac16(wmin)+' in','w = '+frac16(inp.w)+' in', dWmin, mdet, {note:'thinner part '+f3(tThin)+' in'}));
+        'w<sub>min</sub> = '+frac16(wmin)+' in','w = '+frac16(inp.w)+' in', dWmin, mdet, {plain:'Minimum fillet size w >= wmin', note:'thinner part '+f3(tThin)+' in'}));
     } else {
       var wminNote = noteA ? '&sect;J2.2b(a): minimum size does not apply to fillet reinforcement of groove welds' : 'no fillet in this configuration';
       mdet += R(noteA ? 'The note [a] fillet is reinforcement of a flare-bevel groove weld. AISC 360-22 &sect;J2.2b(a): the Table J2.4 minimum sizes do not apply to fillet weld reinforcements of groove welds.'
                       : 'Flare-bevel-groove welds only (R &ge; 3/8 in): there is no fillet weld, so Table J2.4 does not apply.')+END();
       C.push(mk(SEC_W,'wmin','Minimum fillet size, w &ge; w<sub>min</sub>','AISC 360-22 Table J2.4, &sect;J2.2b(a)',
-        '&mdash;','&mdash;', null, mdet, {status:'INFO', informational:true, note:wminNote}));
+        '&mdash;','&mdash;', null, mdet, {plain:'Minimum fillet size w >= wmin', status:'INFO', informational:true, note:wminNote}));
     }
 
     // ---- wdev
@@ -386,7 +401,7 @@ window.MDEP = (function(){
       +R('Informational: not in the governing D/C or the banner.')+END();
     C.push(mk(SEC_W,'wdev','Weld develops the dowel, '+capSymW+' &ge; per-bar dowel capacity','TMS 402-22 &sect;6.1.7.3.1 (by analogy)',
       (asd?'A<sub>s</sub>F<sub>s</sub>':'0.90A<sub>s</sub>f<sub>y</sub>')+' = '+fc(TbarCap)+' lb', capSymW+' = '+fc(Rcap_w)+' lb', null, ddet2,
-      {status:'INFO', informational:true, note:(weldDevelops?'YES':'NO')+' &mdash; weld/dowel = '+f3(wdevRatio)}));
+      {plain:'Weld develops the dowel', status:'INFO', informational:true, note:(weldDevelops?'YES':'NO')+' &mdash; weld/dowel = '+f3(wdevRatio)}));
 
     // ---- wreq
     var wrTxt = inp.weldable==='a706' ? 'ASTM A706 bars specified; welding per AWS D1.4/D1.4M' : 'Non-A706 bars: chemical analysis and carbon-equivalent submittal required; welding per AWS D1.4/D1.4M';
@@ -395,7 +410,7 @@ window.MDEP = (function(){
       +R('Selected: '+(inp.weldable==='a706'?'<b>ASTM A706</b> weldable bars.':'<b>chemical analysis / carbon-equivalent submittal</b> for the bars furnished.'))
       +R('Weld procedure, qualification, preheat and inspection per AWS D1.4/D1.4M are the fabricator&rsquo;s. Weld metal governs over A706 bar metal (F<sub>u</sub> = 80 ksi, above the weld metal), so the bar side is not checked separately.')+END();
     C.push(mk(SEC_W,'wreq','Weldability: ASTM A706 or CE submittal; AWS D1.4/D1.4M','TMS 402-22 &sect;6.1.7.3.1, TMS 602-22 Art. 3.4 B.7',
-      '&mdash;','&mdash;', null, rdet, {status:'NOTE', informational:true, note:wrTxt}));
+      '&mdash;','&mdash;', null, rdet, {plain:'Weldability: ASTM A706 or CE submittal; AWS D1.4/D1.4M', status:'NOTE', informational:true, note:wrTxt}));
 
     // ---- tie
     var SEC_L='Load path';
@@ -403,14 +418,14 @@ window.MDEP = (function(){
       +R('Vertical reinforcement in the adjacent cell(s), lapped to the dowels, carries '+Tsym+' = '+fc(T)+' lb to the foundation.')
       +R('Size the dowel-to-vertical-bar lap with the <a href="masonry_lap_length_calculator.html" target="_blank" rel="noopener">masonry lap length calculator</a>.')+END();
     C.push(mk(SEC_L,'tie','Vertical reinforcement lapped to the dowels carries T to the foundation','MDG 2022 REK-09 &sect;5, REK-10',
-      '&mdash;','&mdash;', null, tidet, {status:'INFO', informational:true, note:'lap per the masonry lap length calc'}));
+      '&mdash;','&mdash;', null, tidet, {plain:'Vertical reinforcement lapped to the dowels carries T to the foundation', status:'INFO', informational:true, note:'lap per the masonry lap length calc'}));
 
     // ---- summary (spec §4.2): max D/C over tens, dev, spc, grt, wmet, wbm and wmin (fillet only)
-    var maxDC=0, governing='', governingId='';
-    C.forEach(function(ch){ if (!ch.informational && ch.dc!==null && ch.dc>maxDC){ maxDC=ch.dc; governing=ch.name; governingId=ch.id; } });
+    var maxDC=0, governing='', governingText='', governingId='';
+    C.forEach(function(ch){ if (!ch.informational && ch.dc!==null && ch.dc>maxDC){ maxDC=ch.dc; governing=ch.name; governingText=ch.plain; governingId=ch.id; } });
     var anyFail = C.some(function(ch){ return !ch.informational && ch.status==='FAIL'; });
     var banner = anyFail ? 'FAIL' : fitRev ? 'REVIEW' : 'PASS';
-    return {ok:true, errors:[], warnings:warningsFor(inp,t,db), checks:C, vals:v, maxDC:maxDC, governing:governing, governingId:governingId, banner:banner};
+    return {ok:true, errors:[], warnings:warningsFor(inp,t,db), checks:C, vals:v, maxDC:maxDC, governing:governing, governingText:governingText, governingId:governingId, banner:banner};
   }
 
   // ---- fixtures (spec §5; hand values from docs/dowelled-embed-plate-hand-check-2026-09.md §3)
@@ -511,17 +526,46 @@ window.MDEP = (function(){
     {id:'weld-undersize', src:'AISC 360-22 Table J2.4, t_p = 1/2, w = 1/8', inp:merge(BASE,{tp:0.5, w:0.125}), expect:function(r){ var v=r.vals; return [
       is('w_min 3/16', v.wmin, 0.1875), dc(r,'wmin',1.500), st(r,'wmin','FAIL'), dc(r,'wmet',0.895), dc(r,'wbm',0.231),
       near('max D/C 1.500', r.maxDC, 1.500, DCT), is('governing wmin', r.governingId, 'wmin'), is('banner FAIL', r.banner, 'FAIL')
+    ]; }},
+    // ---- coverage fixtures (review of 10ab324): hand values
+    {id:'fit-review', src:'L_p = 4.4 in: e_p = (4.4 − 3)/2 = 0.70 in, d_b 0.50 ≤ e_p < 1.5d_b 0.75', inp:merge(BASE,{Lp:4.4}), expect:function(r){ var v=r.vals; return [
+      is('accepted (e_p ≥ d_b)', r.ok, true), near('e_p 0.70', v.ep, 0.70, LEN), st(r,'fit','REVIEW'), is('fit informational', row(r,'fit').informational, true),
+      is('governing dev', r.governingId, 'dev'), is('governingText plain', r.governingText, 'Development length ld <= Le'),
+      is('every row has a plain name without tags or entities', r.checks.every(function(c){ return c.plain.length>0 && !/<\/?[a-z]|&[a-z#0-9]+;/i.test(c.plain); }), true),
+      is('banner REVIEW', r.banner, 'REVIEW')
+    ]; }},
+    {id:'cover-tie', src:'custom cover 2.5 in = clear 2.5 in: tie resolves to cover', inp:merge(BASE,{barPos:'custom', coverIn:2.5}), expect:function(r){ var v=r.vals; return [
+      is('K 2.5', v.K, 2.5), is('Kgov cover', v.Kgov, 'cover'), near('l_d 18.646', v.ld, 18.646, LEN), is('no warnings', r.warnings.length, 0), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'cover-over', src:'custom cover 5 in > centered 3.5625 in: K = min(5, 2.5, 4.5) = 2.5', inp:merge(BASE,{barPos:'custom', coverIn:5}), expect:function(r){ var v=r.vals; return [
+      is('exactly one warning', r.warnings.length, 1), is('warning names the cover', /cover exceeds the centered value/i.test(r.warnings[0]||''), true),
+      is('K 2.5', v.K, 2.5), is('Kgov clear', v.Kgov, 'clear'), near('l_d 18.646', v.ld, 18.646, LEN), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-long', src:'flare #4, L_w = 6 in: 2L_w = 12 > L_p = 10, note [a]', inp:merge(BASE,{weldCfg:'flare', Lw:6}), expect:function(r){ var v=r.vals; return [
+      is('one warning: flare weld exceeds the plate', r.warnings.length===1 && /flare weld length exceeds the plate/i.test(r.warnings[0]), true),
+      near('L_wt 12', v.Lwt, 12, EXACT), is('noteA', v.noteA, true), near('t_e 0.17675', v.te, 0.17675, EXACT), near('A_we 2.121', v.Awe, 2.121, EXACT), near('R_nw 89,082', v.Rnw, 89082, EXACT),
+      is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-saw6', src:'AISC 360-22 Table J2.2, #6 flare SAW 5/16 R', inp:merge(BASE,{weldCfg:'flare', proc:'saw', bar:6, n:1, Le:60}), expect:function(r){ var v=r.vals; return [
+      is('noteA false', v.noteA, false), near('t_e 0.1171875', v.te, 0.1171875, EXACT), near('R_nw 39,375 (as SMAW)', v.Rnw, 39375, EXACT), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-no-w', src:'flare #6 (R = 3/8, no fillet): w not required', inp:merge(BASE,{weldCfg:'flare', proc:'gmaw', bar:6, n:1, Le:60, w:''}), expect:function(r){ return [
+      is('accepted without w', r.ok, true), near('R_nw 78,750', r.vals.Rnw, 78750, EXACT), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'string-inputs', src:'form strings normalised: bar "4", cmu "8", grade "60", n "2", T "5216", epoxy "true"', inp:merge(BASE,{bar:'4', cmu:'8', grade:'60', n:'2', T:'5216', epoxy:'true'}), expect:function(r){ var v=r.vals; return [
+      is('accepted', r.ok, true), near('T_all 12,800', v.Tcap, 12800, EXACT), is('epoxy applied', v.epoxyApplied, true), near('l_d 27.968', v.ld, 27.968, LEN), is('banner FAIL', r.banner, 'FAIL')
     ]; }}
   ];
   function runFixtures(){
-    var lines=[], pass=0, total=0;
+    var lines=[], pass=0, total=0, counts={};
     FIXTURES.forEach(function(fx){
       var res, items=[], threw=false;
       try { res=compute(fx.inp); } catch(cerr){ threw=true; items=[['compute threw: '+String(cerr), false, String(cerr)]]; }
       if (!threw){ try { items=fx.expect(res); } catch(err){ items=[['expect threw', false, String(err)]]; } }
+      counts[fx.id]=items.length;
       items.forEach(function(it){ total++; if (it[1]) pass++; lines.push((it[1]?'PASS ':'FAIL ')+fx.id+' ['+fx.src+'] '+it[0]+'  ->  '+it[2]); });
     });
-    return {pass:pass, total:total, lines:lines};
+    return {pass:pass, total:total, lines:lines, counts:counts};
   }
   return {compute:compute, validate:validate, runFixtures:runFixtures, FIXTURES:FIXTURES, BASE:merge(BASE,{}), merge:merge,
           BAR:BAR, T_MAP:T_MAP, TFS_MAP:TFS_MAP, gammaFor:gammaFor, wminFor:wminFor, frac16:frac16};
