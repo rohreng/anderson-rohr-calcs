@@ -117,6 +117,8 @@ F_nw = 0.60 × 70,000 = 42,000 psi. ASD R_n/2.00; SD 0.75R_n. Table J2.4 thinner
 | `flare-leg-interior` | flare, SMAW, #4, n 3, s 2.5, L_p 12, L_w 3 | 2 × 3 = **6** | **0.17675** | **1.0605** | **44,541** | **22,270.5** | 5,216/3 = 1,738.7 | 1,738.7/22,270.5 = **0.078** | INFO (§J2.2b(a)) | 3.480 → YES | PASS |
 | `flare-single-long` | flare, SMAW, #4, n 1, L_w 6 | 2 × 6 = **12** | **0.17675** | 0.17675 × 12 = **2.121** | 42,000 × 2.121 = **89,082** | /2.00 = **44,541** | 5,216 | 5,216/44,541 = **0.117** | INFO (§J2.2b(a)) | 44,541/6,400 = 6.960 → YES | PASS |
 
+Splice benchmark for reference (`wdev` panel second block, `vals.spliceRatio`, TMS 402-22 §6.1.7.3.1 welded splice at 125 % f_y, nominal vs nominal), `weld-fillet-asd`: 1.25 × A_s × f_y = 1.25 × 0.20 × 60,000 = **15,000 lb**; R_nw = 11,661 lb → 11,661/15,000 = **0.777** (informational; the YES/NO benchmark stays the per-bar design capacity, 5,830/6,400 = 0.911).
+
 ### 3.3 Plate base metal at the weld (spec `wbm`, lesser of Eq. J4-3 and Eq. J4-4)
 
 A = t_p × L_wt. Yielding R_nBMy = 0.60 × 36,000 × A (ASD /1.50, SD ×1.00). Rupture R_nBMr = 0.60 × 58,000 × A (ASD /2.00, SD ×0.75). Yielding governs every fixture (`bmGov = 'yield'`).

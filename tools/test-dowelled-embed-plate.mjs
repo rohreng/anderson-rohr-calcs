@@ -54,7 +54,7 @@ const empty = ids.filter((id) => !(fx.counts && fx.counts[id] >= 1));
 check('every fixture returned at least one assertion', empty.length === 0, 'no assertions: ' + empty.join(', '));
 const SPEC_IDS = ['rek09-asd', 'rek09-sd', 'rek10-single', 'min12', 'epoxy', 'gamma13', 'gamma15', 'gr40', 'short-embed', 'nofit', 'mdg-ex9.2-1',
   'weld-fillet-asd', 'weld-fillet-sd', 'weld-flare-noteA', 'weld-flare-gmaw', 'weld-flare-smaw6', 'weld-thin-plate', 'weld-undersize',
-  'flare-default', 'flare-leg-overhang', 'flare-leg-interior', 'flare-single-long'];
+  'flare-default', 'flare-leg-overhang', 'flare-leg-interior', 'flare-single-long', 'flare-long'];
 check('every spec §5 fixture id present', SPEC_IDS.every((id) => ids.includes(id)), 'missing: ' + SPEC_IDS.filter((id) => !ids.includes(id)).join(', '));
 const order = await page.evaluate(() => window.MDEP.compute(window.MDEP.BASE).checks.map((c) => c.id).join(','));
 check('check rows in spec §4.2 order', order === 'tens,dev,kfac,spc,grt,fit,wmet,wbm,wmin,wdev,wreq,tie', order);

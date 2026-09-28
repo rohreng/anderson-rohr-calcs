@@ -389,12 +389,13 @@ window.MDEP = (function(){
     // reinforcing fillet, which §J2.2b(a) exempts. Row is INFO for flare either way.
     var wminApplies = isFillet;
     var TbarCap = asd ? As*Fs : 0.90*As*fy, wdevRatio = Rcap_w/TbarCap, weldDevelops = Rcap_w>=TbarCap-EPS;
+    var spliceReq = 1.25*As*fy, spliceRatio = Rnw/spliceReq;                                // §6.1.7.3.1 welded splice 125 % f_y, nominal, reference only
     var grtCap = (t-2*tfs)/3, spcReq = Math.max(db,1.0);
     var v = {t:t, tfs:tfs, db:db, As:As, fy:fy, Fs:Fs, gamma:gamma, cover:cover, coverC:coverC, clear:clear, nineDb:nineDb, K:K, Kgov:Kgov,
       sfm:sfm, ld_eq:ld_eq, ld_ep:ld_ep, ld:ld, epoxyApplied:epoxyApplied, minGoverns:minGoverns, Tcap:Tcap, ep:ep,
       Tbar:Tbar, TbarCap:TbarCap, R:Rj, fac:fac, Lwt:Lwt, te:te, noteA:noteA, Awe:Awe, Fnw:Fnw, Rnw:Rnw, Rcap_w:Rcap_w,
       RnBMy:RnBMy, RnBMr:RnBMr, capY:capY, capR:capR, Rcap_bm:Rcap_bm, bmGov:bmGov, tThin:tThin, wmin:wmin, wminApplies:wminApplies,
-      weldDevelops:weldDevelops, wdevRatio:wdevRatio, grtCap:grtCap, spcReq:spcReq};
+      weldDevelops:weldDevelops, wdevRatio:wdevRatio, spliceReq:spliceReq, spliceRatio:spliceRatio, grtCap:grtCap, spcReq:spcReq};
     var bl = '#'+barN, Tsym = asd ? 'T' : 'T<sub>u</sub>', Tbsym = asd ? 'T/n' : 'T<sub>u</sub>/n';
     var gradeTxt = 'Grade '+inp.grade;
 
@@ -493,9 +494,9 @@ window.MDEP = (function(){
     } else {
       wdet += R('Configuration: bar laid on the plate face, flare-bevel-groove welds both sides, L<sub>w</sub> = '+f3(inp.Lw)+' in each side, '+PROC[inp.proc])
         +R('L<sub>wt</sub> = 2L<sub>w</sub> = 2 &times; '+f3(inp.Lw)+' = '+V(f3(Lwt),'in'))
-        +R('R = d<sub>b</sub>/2 = '+f3(db)+'/2 = '+f4(Rj)+' in; Table J2.2 flare-bevel-groove, '+PROC[inp.proc]+': t<sub>e</sub> = '+fTxt+' R = '+f4(fac*Rj)+' in');
+        +R('R = d<sub>b</sub>/2 = '+f3(db)+'/2 = '+f4(Rj)+' in; Table J2.2 flare-bevel-groove, '+PROC[inp.proc]);
       if (noteA) wdet += R('<b>Table J2.2 note [a]:</b> R = '+f4(Rj)+' in &lt; 3/8 in &rarr; use only the reinforcing fillet weld on a filled flush joint: t<sub>e</sub> = 0.707w = 0.707 &times; '+f4(inp.w)+' = '+V(f5(te),'in')+' ('+fTxt+' R = '+f3(fac*Rj)+' in not used)');
-      else wdet += R('t<sub>e</sub> = '+fTxt+' &times; '+f4(Rj)+' = '+V(f5(te),'in'));
+      else wdet += R('t<sub>e</sub> = '+fTxt+' &times; R = '+fTxt+' &times; '+f4(Rj)+' = '+V(f4(te),'in'));
     }
     wdet += R('A<sub>we</sub> = t<sub>e</sub>&middot;L<sub>wt</sub> = '+f5(te)+' &times; '+f4(Lwt)+' = '+V(f4(Awe),'in&sup2;'))
       +R('R<sub>nw</sub> = 0.60F<sub>EXX</sub>&middot;A<sub>we</sub> = 0.60 &times; '+fc(inp.Fexx)+' &times; '+f4(Awe)+' = '+V(fc(Rnw),'lb')+(isFillet?' (Eq. J2-4, k<sub>ds</sub> = 1.0, conservative)':' (Eq. J2-3)'))
@@ -537,12 +538,14 @@ window.MDEP = (function(){
     }
 
     // ---- wdev
-    var ddet2 = H('Weld develops the dowel &mdash; TMS 402-22 &sect;6.1.7.3.1 (by analogy)')
+    var ddet2 = H('Weld develops the dowel &mdash; design basis')
+      +R('Benchmark: the dowel&rsquo;s design tension capacity per bar, so the weld does not govern over a fully developed dowel')
       +R('Per-bar dowel capacity: '+(asd?'A<sub>s</sub>&middot;F<sub>s</sub> = '+f2(As)+' &times; '+fc(Fs):'0.90&middot;A<sub>s</sub>&middot;f<sub>y</sub> = 0.90 &times; '+f2(As)+' &times; '+fc(fy))+' = '+V(fc(TbarCap),'lb'))
       +R('Weld capacity per bar '+capSymW+' = '+V(fc(Rcap_w),'lb')+'; ratio = '+fr(fc(Rcap_w),fc(TbarCap))+' = '+V(f3(wdevRatio)))
       +R(weldDevelops ? '<b>YES</b> &mdash; the weld develops the dowel.' : '<b>NO</b> &mdash; the weld is weaker than the dowel. When full development is intended, the weld should not govern over the dowel: increase w, or use the flare detail on a larger bar.')
+      +SEP()+R('TMS 402-22 &sect;6.1.7.3.1 welded splices require 125 % f<sub>y</sub>: 1.25&middot;A<sub>s</sub>&middot;f<sub>y</sub> = 1.25 &times; '+f2(As)+' &times; '+fc(fy)+' = '+fc(spliceReq)+' lb nominal vs R<sub>nw</sub> = '+fc(Rnw)+' lb &rarr; ratio '+V(f3(spliceRatio))+' (informational)')
       +R('Informational: not in the governing D/C or the banner.')+END();
-    C.push(mk(SEC_W,'wdev','Weld develops the dowel, '+capSymW+' &ge; per-bar dowel capacity','TMS 402-22 &sect;6.1.7.3.1 (by analogy)',
+    C.push(mk(SEC_W,'wdev','Weld develops the dowel, '+capSymW+' &ge; per-bar dowel capacity','Design basis; TMS 402-22 &sect;6.1.7.3.1 (125 % f<sub>y</sub> splice rule shown for reference)',
       (asd?'A<sub>s</sub>F<sub>s</sub>':'0.90A<sub>s</sub>f<sub>y</sub>')+' = '+fc(TbarCap)+' lb', capSymW+' = '+fc(Rcap_w)+' lb', null, ddet2,
       {plain:'Weld develops the dowel', status:'INFO', informational:true, note:(weldDevelops?'YES':'NO')+' &mdash; weld/dowel = '+f3(wdevRatio)}));
 
@@ -640,6 +643,7 @@ window.MDEP = (function(){
       near('R_nw/Omega 5,830', v.Rcap_w, 5830, LB), dc(r,'wmet',0.447), near('R_nBMy 16,965', v.RnBMy, 16965, LB), near('R_nBMr 27,332', v.RnBMr, 27332, LB),
       near('Rcap_bm 11,310', v.Rcap_bm, 11310, LB), is('bmGov yield', v.bmGov, 'yield'), dc(r,'wbm',0.231), is('w_min 3/16', v.wmin, 0.1875), is('wminApplies', v.wminApplies, true),
       st(r,'wmin','PASS'), dc(r,'wmin',0.750), near('T_bar,cap 6,400', v.TbarCap, 6400, EXACT), near('wdev ratio 0.911', v.wdevRatio, 0.911, DCT), is('weld develops NO', v.weldDevelops, false),
+      near('1.25 A_s f_y 15,000', v.spliceReq, 15000, EXACT), near('splice ratio 0.777 (11,661/15,000)', v.spliceRatio, 0.777, DCT),
       is('wdev note NO', /^NO/.test(row(r,'wdev').note), true), is('wdev informational', row(r,'wdev').informational, true), is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'weld-fillet-sd', src:'AISC 360-22 §J2.4, §J4.2; SD, T_u = 9,115 lb', inp:merge(BASE,{code:'sd', T:9115}), expect:function(r){ var v=r.vals; return [
@@ -1008,7 +1012,7 @@ function run(){
   var sumCls = res.banner==='PASS'?'sum-pass':res.banner==='FAIL'?'sum-fail':'sum-review';
   $('sumOut').className='summary '+sumCls;
   $('sumOut').innerHTML='<h3>'+(mark?mark+' &mdash; ':'')+head+'</h3>'
-    +'<p>Max D/C = <b>'+res.maxDC.toFixed(3)+'</b> ('+res.governing+') &middot; '+n+' '+bl+' Gr '+inp.grade+' dowels'+(inp.epoxy?' (epoxy)':'')
+    +'<p>Max D/C = <b>'+res.maxDC.toFixed(3)+'</b> ('+res.governing+') &middot; '+n+' &ndash; '+bl+' Gr '+inp.grade+(n>1?' dowels':' dowel')+(inp.epoxy?' (epoxy)':'')
     +', l<sub>d</sub> = <b>'+f3(v.ld)+' in</b> vs L<sub>e</sub> = '+f3(Number(inp.Le))+' in &middot; '+Tsym+' = '+fc(T)+' lb vs '+capSym+' = '+fc(v.Tcap)+' lb &middot; '+(asd?'ASD':'SD')+'</p>'
     +'<p style="font-size:.88em;margin-top:4px">Weld develops the dowel: <b>'+(v.weldDevelops?'YES':'NO')+'</b> (weld/dowel = '+f3(v.wdevRatio)+', informational). Bearing, anchor shear and plate flexure are designed separately.</p>';
   $('demOut').innerHTML =
