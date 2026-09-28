@@ -52,6 +52,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .dem-card .l{font-size:.72em;color:#666;margin-top:3px;line-height:1.3}
 .pass{color:#16a34a;font-weight:700}.fail{color:#dc2626;font-weight:700}.na{color:#9ca3af;font-weight:600}.review{color:#b45309;font-weight:700}
 .info{color:#2563eb;font-weight:600}
+.st-note{color:#475569;font-weight:600}
 .dc-bar{height:14px;border-radius:7px;background:#e5e7eb;min-width:70px}
 .dc-fill{height:100%;border-radius:7px}
 .dc-cell{display:flex;align-items:center;gap:7px}
@@ -109,7 +110,141 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   </div>
   <div class="toolbar"></div>
   <div class="content">
-    <div id="uiRoot"></div>
+    <div id="uiRoot">
+    <div class="schema-wrap">
+      <svg id="schemSvg" viewBox="0 0 1000 420" width="100%" style="max-height:420px" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="blk">
+      <h2>0. Code basis</h2>
+      <div class="g3" style="grid-template-columns:minmax(210px,440px)">
+        <div class="ig"><label for="code">Design method</label>
+          <select id="code">
+            <option value="asd" selected>ASD (TMS 402-22 Ch. 8)</option>
+            <option value="sd">Strength Design (TMS 402-22 Ch. 9)</option>
+          </select></div>
+      </div>
+      <div class="subnote">Changes only the dowel tension check (ASD F<sub>s</sub>, &sect;8.3.3.1; SD &phi; = 0.90, Table 9.1.4) and the weld &phi; / &Omega;. Development length l<sub>d</sub> (Eq. 6-2) is the same in both.</div>
+    </div>
+    <div class="blk">
+      <h2>1. Demand</h2>
+      <div class="g3">
+        <div class="ig"><label for="T">Applied tension on the plate, <span id="TsymLbl">T</span> <span class="unit">(lb)</span></label><input type="number" id="T" value="5216" step="1" min="0"></div>
+      </div>
+      <div class="subnote">From the connection analysis: the ASD combination (T) or the factored tension (T<sub>u</sub>). Zero is allowed for a development-only check.</div>
+    </div>
+    <div class="blk">
+      <h2>2. Wall &amp; masonry <span class="badge">grouted CMU</span></h2>
+      <div class="g3">
+        <div class="ig"><label for="cmu">CMU nominal thickness <span class="unit">(in)</span></label>
+          <select id="cmu">
+            <option value="4">4 in (t = 3.625)</option>
+            <option value="6">6 in (t = 5.625)</option>
+            <option value="8" selected>8 in (t = 7.625)</option>
+            <option value="10">10 in (t = 9.625)</option>
+            <option value="12">12 in (t = 11.625)</option>
+            <option value="16">16 in (t = 15.625)</option>
+          </select></div>
+        <div class="ig"><label for="fm">Specified f&prime;<sub>m</sub> <span class="unit">(psi)</span></label><input type="number" id="fm" value="1750" step="50"></div>
+        <div class="ig"><label for="barPos">Dowel position in the cell</label>
+          <select id="barPos">
+            <option value="center" selected>Centered in the wall (cover = t/2 &minus; d_b/2)</option>
+            <option value="custom">Offset &mdash; enter the cover</option>
+          </select></div>
+        <div class="ig hide" id="coverInRow"><label for="coverIn">Masonry cover to the bar surface <span class="unit">(in)</span></label><input type="number" id="coverIn" value="3.5625" step="0.0625"></div>
+        <div class="ig"><label for="epoxy">Epoxy-coated dowels</label>
+          <div class="chk-inline"><input type="checkbox" id="epoxy"> <span>&times;1.5 on Eq. 6-2 (not on the 12 in minimum)</span></div></div>
+      </div>
+      <div class="subnote">Cover is measured from the bar surface to the nearest masonry face. It enters K (&sect;6.1.6.3.1) with the clear spacing between dowels and 9d<sub>b</sub>.</div>
+    </div>
+    <div class="blk">
+      <h2>3. Dowels <span class="badge">weldable deformed bars</span></h2>
+      <div class="g3">
+        <div class="ig"><label for="bar">Bar size</label>
+          <select id="bar">
+            <option value="3">#3</option>
+            <option value="4" selected>#4</option>
+            <option value="5">#5</option>
+            <option value="6">#6</option>
+            <option value="7">#7</option>
+            <option value="8">#8</option>
+            <option value="9">#9</option>
+            <option value="10">#10</option>
+            <option value="11">#11</option>
+          </select></div>
+        <div class="ig"><label for="grade">Bar grade</label>
+          <select id="grade">
+            <option value="40">Grade 40 (f_y 40,000 psi; F_s 20,000 psi)</option>
+            <option value="60" selected>Grade 60 (f_y 60,000 psi; F_s 32,000 psi)</option>
+          </select></div>
+        <div class="ig"><label for="n">Number of dowels, n</label><input type="number" id="n" value="2" step="1" min="1"></div>
+        <div class="ig"><label for="s">Dowel spacing s, o.c. along the plate <span class="unit">(in)</span></label><input type="number" id="s" value="3" step="0.25"></div>
+        <div class="ig"><label for="Le">Embedment below the plate, L<sub>e</sub> <span class="unit">(in)</span></label><input type="number" id="Le" value="24" step="1"></div>
+      </div>
+      <div class="subnote">Spacing is used only when n &ge; 2 (clear spacing = s &minus; d<sub>b</sub>). L<sub>e</sub> is the bar length in grout below the plate; it must reach the full l<sub>d</sub>.</div>
+    </div>
+    <div class="blk">
+      <h2>4. Plate <span class="badge">layout &amp; base metal</span></h2>
+      <div class="g3">
+        <div class="ig"><label for="Lp">Plate length along the wall, L<sub>p</sub> <span class="unit">(in)</span></label><input type="number" id="Lp" value="10" step="0.25"></div>
+        <div class="ig"><label for="Bp">Plate width across the wall, B<sub>p</sub> <span class="unit">(in)</span></label><input type="number" id="Bp" value="7.625" step="0.125"></div>
+        <div class="ig"><label for="tp">Plate thickness, t<sub>p</sub> <span class="unit">(in)</span></label><input type="number" id="tp" value="0.5" step="0.0625"></div>
+        <div class="ig"><label for="Fyp">Plate yield strength, F<sub>y</sub> <span class="unit">(psi)</span></label><input type="number" id="Fyp" value="36000" step="1000"></div>
+        <div class="ig"><label for="Fup">Plate tensile strength, F<sub>u</sub> <span class="unit">(psi)</span></label><input type="number" id="Fup" value="58000" step="1000"></div>
+      </div>
+      <div class="subnote">Dowel group centered on the plate: e<sub>p</sub> = (L<sub>p</sub> &minus; (n &minus; 1)s)/2 (MDG REK-09: 3&frac12; + 3 + 3&frac12; = 10 in). F<sub>y</sub> and F<sub>u</sub> feed plate shear yielding / rupture at the weld (&sect;J4.2). Plate flexure is not checked.</div>
+    </div>
+    <div class="blk">
+      <h2>5. Bar-to-plate weld <span class="badge">AISC 360-22 &sect;J2</span></h2>
+      <div class="g3">
+        <div class="ig"><label for="weldCfg">Weld configuration</label>
+          <select id="weldCfg">
+            <option value="fillet" selected>Fillet all around (bar perpendicular to the plate)</option>
+            <option value="flare">Flare-bevel groove, both sides (bar on the plate face)</option>
+          </select>
+          <div class="subnote hide" id="noteAHint" style="margin-top:5px">Table J2.2 note [a]: R &lt; 3/8 in, only the reinforcing fillet is credited.</div></div>
+        <div class="ig"><label for="w">Fillet leg size, w <span class="unit">(in)</span></label><input type="number" id="w" value="0.25" step="0.0625"></div>
+        <div class="ig hide" id="LwRow"><label for="Lw">Flare weld length per side, L<sub>w</sub> <span class="unit">(in)</span></label><input type="number" id="Lw" value="4" step="0.25"></div>
+        <div class="ig hide" id="procRow"><label for="proc">Welding process (Table J2.2 throat)</label>
+          <select id="proc">
+            <option value="gmaw">GMAW / FCAW-G (5/8 R)</option>
+            <option value="smaw" selected>SMAW / FCAW-S (5/16 R)</option>
+            <option value="saw">SAW (5/16 R)</option>
+          </select></div>
+        <div class="ig"><label for="Fexx">Filler metal, F<sub>EXX</sub> <span class="unit">(psi)</span></label><input type="number" id="Fexx" value="70000" step="10000"></div>
+        <div class="ig"><label for="weldable">Bar weldability</label>
+          <select id="weldable">
+            <option value="a706" selected>ASTM A706 (weldable)</option>
+            <option value="ce">Chemical analysis / carbon-equivalent submittal</option>
+          </select></div>
+      </div>
+      <div class="subnote">Fillet: L<sub>wt</sub> = &pi;d<sub>b</sub>, t<sub>e</sub> = 0.707w, k<sub>ds</sub> = 1.0 (Eq. J2-4). Flare: L<sub>wt</sub> = 2L<sub>w</sub>, t<sub>e</sub> from Table J2.2 with R = d<sub>b</sub>/2; for #3&ndash;#5 (R &lt; 3/8 in) only the reinforcing fillet w is credited. Demand per bar = T/n.</div>
+    </div>
+    <button class="calc-btn" onclick="run()">&#9654; Run All Checks</button>
+    <div id="errOut" class="err-box" style="display:none"></div>
+    <div id="results" class="results">
+      <div id="sumOut" class="summary"></div>
+      <div class="blk"><h2>Design values</h2><div id="demOut" class="dem-grid"></div></div>
+      <div class="tbl-scroll">
+      <table class="chk-table">
+        <thead><tr><th>Check</th><th>Code reference</th><th>Demand</th><th>Capacity</th><th>D/C</th><th>Status</th><th>Detail</th></tr></thead>
+        <tbody id="chkTb"></tbody>
+      </table>
+      </div>
+      <div id="reviewOut"></div>
+      <div class="note-box" id="noteOut">
+        <b>Basis and limits</b>
+        <ul>
+          <li>Basis: MDG 2022 Example REK-09 &sect;5 (Dowelled Embed Plate Alternate, ASD and SD). Dowel tension per TMS 402-22 &sect;8.3.3.1 (ASD, T<sub>all</sub> = n&middot;A<sub>s</sub>&middot;F<sub>s</sub>) or Table 9.1.4 (SD, &phi;T<sub>n</sub> = 0.90&middot;n&middot;A<sub>s</sub>&middot;f<sub>y</sub>).</li>
+          <li>Development: l<sub>d</sub> per &sect;6.1.6.3.1 Eq. 6-2, not less than 12 in. The dowels are developed in full: TMS 402-22 has no reduction of l<sub>d</sub> for excess reinforcement. K uses the clear spacing between the dowels, as MDG REK-09 does (conservative).</li>
+          <li>Epoxy-coated bars: the Eq. 6-2 result is multiplied by 1.5; the factor does not apply to the 12 in minimum (&sect;6.1.6.3.1 and commentary).</li>
+          <li>Load path (MDG REK-09 &sect;5, REK-10): provide vertical reinforcement in the adjacent cell(s), lapped to the dowels, to carry T to the foundation. Size the lap with the <a href="masonry_lap_length_calculator.html" target="_blank" rel="noopener">masonry lap length calculator</a>.</li>
+          <li>Weldability: bars ASTM A706, or a chemical analysis and carbon-equivalent submittal for the bars furnished (TMS 402-22 &sect;6.1.7.3.1; TMS 602-22 Art. 3.4 B.7). Welding per AWS D1.4/D1.4M; procedure, qualification, preheat and inspection are the fabricator&rsquo;s.</li>
+          <li>The weld is sized by AISC 360-22 &sect;J2 strength only, F<sub>nw</sub> = 0.60F<sub>EXX</sub> (Table J2.5), with k<sub>ds</sub> = 1.0 on the all-around fillet (conservative). Weld metal governs over the A706 bar metal (F<sub>u</sub> = 80 ksi), so the bar side of the weld is not checked separately.</li>
+          <li>Not checked here: beam bearing on the plate and masonry bearing (<a href="embed_plate_beam_bearing_calculator.html" target="_blank" rel="noopener">embed plate &mdash; beam bearing</a>, <a href="masonry_bearing_uplift_calculator.html" target="_blank" rel="noopener">masonry bearing / uplift</a>); anchor shear; plate flexure; headed studs or anchor bolts (<a href="masonry_anchor_bolt_calculator.html" target="_blank" rel="noopener">masonry anchor bolt</a>).</li>
+        </ul>
+      </div>
+    </div>
+    </div>
     <pre id="selftest-result" style="display:none"></pre>
   </div>
 </div>
@@ -579,13 +714,130 @@ window.MDEP = (function(){
 })();
 </script>
 <script>
-/* ===================== UI stub (Task 2): input blocks, Run and results land in Task 3 ===================== */
-window.runCalcs = function(){};
+/* ===================== UI ===================== */
+function $(id){ return document.getElementById(id); }
+function numv(id){ var v=parseFloat($(id).value); return isFinite(v)?v:NaN; }
+function toggleDet(i){var el=$('det_'+i);var b=$('dbtn_'+i);var o=el.classList.toggle('open');b.textContent=o?'▾ Calc':'▶ Calc'}
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function card(v,l){ return '<div class="dem-card"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
+function showRow(id, on){ var el=$(id); if (el) el.classList.toggle('hide', !on); }
+
+// visibility / enable state that follows the selects (re-applied after a restore)
+function refreshModes(){
+  var flare=$('weldCfg').value==='flare', n=numv('n'), bar=+$('bar').value;
+  showRow('coverInRow', $('barPos').value==='custom');
+  showRow('LwRow', flare);
+  showRow('procRow', flare);
+  showRow('noteAHint', flare && bar<=5);              // Table J2.2 note [a]: R = d_b/2 < 3/8 in for #3-#5
+  $('s').disabled = isFinite(n) && n<=1;
+  $('TsymLbl').innerHTML = $('code').value==='sd' ? 'T<sub>u</sub>' : 'T';
+}
+var _rerunT=null;
+function onInputChanged(){
+  refreshModes(); draw();
+  if (_rerunT){ clearTimeout(_rerunT); _rerunT=null; }
+  var r=$('results'), e=$('errOut');
+  var live = (r && r.classList.contains('show')) || (e && e.style.display!=='none' && e.innerHTML.length>0);
+  if (live) _rerunT=setTimeout(function(){ _rerunT=null; run(); }, 250);
+}
+// numeric fields go to the engine as raw strings: MDEP normalises them, and a blank stays blank so validate() rejects it
+function readInputs(){
+  var o={};
+  ['T','fm','coverIn','n','s','Le','Lp','Bp','tp','Fyp','Fup','w','Lw','Fexx'].forEach(function(k){ o[k]=$(k).value; });
+  ['code','cmu','barPos','bar','grade','weldCfg','proc','weldable'].forEach(function(k){ o[k]=$(k).value; });
+  o.epoxy=$('epoxy').checked;
+  return o;
+}
+
+// schematic (#schemSvg): Task 4 fills the body. Called on every run, input change and restore.
+function draw(res){
+  var svg=$('schemSvg'); if (!svg) return;
+}
+
+function run(){
+  var inp=readInputs(), res=window.MDEP.compute(inp);
+  var errOut=$('errOut'), results=$('results');
+  if (!res.ok){
+    errOut.innerHTML='<h3>Input errors &mdash; fix before running</h3><ul>'+res.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>';
+    errOut.style.display='block';
+    results.classList.remove('show');
+    ['sumOut','demOut','chkTb','reviewOut'].forEach(function(id){ var el=$(id); if (el) el.innerHTML=''; });
+    return;
+  }
+  errOut.innerHTML=''; errOut.style.display='none';
+  var v=res.vals, asd=inp.code==='asd', T=Number(inp.T), n=Number(inp.n), bl='#'+inp.bar;
+  var Tsym=asd?'T':'T<sub>u</sub>', capSym=asd?'T<sub>all</sub>':'&phi;T<sub>n</sub>', wSym=asd?'R<sub>nw</sub>/&Omega;':'&phi;R<sub>nw</sub>';
+  var Klabel = v.Kgov==='cover' ? 'masonry cover' : v.Kgov==='clear' ? 'clear spacing' : '9d<sub>b</sub>';
+  var mark=(window.AREv2 && AREv2.getMarkHTML) ? AREv2.getMarkHTML() : '';
+  var head = res.banner==='PASS' ? '&#10004; PASS &mdash; dowels carry T and are fully developed' : res.banner==='FAIL' ? '&#10008; FAIL &mdash; one or more checks exceed 1.0' : '&#9888; REVIEW &mdash; engineer items flagged';
+  var sumCls = res.banner==='PASS'?'sum-pass':res.banner==='FAIL'?'sum-fail':'sum-review';
+  $('sumOut').className='summary '+sumCls;
+  $('sumOut').innerHTML='<h3>'+(mark?mark+' &mdash; ':'')+head+'</h3>'
+    +'<p>Max D/C = <b>'+res.maxDC.toFixed(3)+'</b> ('+res.governing+') &middot; '+n+' '+bl+' Gr '+inp.grade+' dowels'+(inp.epoxy?' (epoxy)':'')
+    +', l<sub>d</sub> = <b>'+f3(v.ld)+' in</b> vs L<sub>e</sub> = '+f3(Number(inp.Le))+' in &middot; '+Tsym+' = '+fc(T)+' lb vs '+capSym+' = '+fc(v.Tcap)+' lb &middot; '+(asd?'ASD':'SD')+'</p>'
+    +'<p style="font-size:.88em;margin-top:4px">Weld develops the dowel: <b>'+(v.weldDevelops?'YES':'NO')+'</b> (weld/dowel = '+f3(v.wdevRatio)+', informational). Bearing, anchor shear and plate flexure are designed separately.</p>';
+  $('demOut').innerHTML =
+      card(fc(T)+' lb', Tsym+' applied tension'+(T===0?' (development only)':''))
+    + card(fc(v.Tcap)+' lb', capSym+(asd?' = n&middot;A<sub>s</sub>&middot;F<sub>s</sub>':' = 0.90&middot;n&middot;A<sub>s</sub>&middot;f<sub>y</sub>'))
+    + card(f3(v.ld)+' in', 'l<sub>d</sub> (Eq. 6-2'+(v.epoxyApplied?', epoxy &times;1.5':'')+(v.minGoverns?', 12 in min.':'')+')')
+    + card(f3(Number(inp.Le))+' in', 'L<sub>e</sub> embedment provided')
+    + card(f4(v.K)+' in', 'K &mdash; '+Klabel+' governs')
+    + card(fc(v.Rcap_w)+' lb', 'weld '+wSym+' per bar ('+(inp.weldCfg==='flare'?'flare-bevel':'fillet all around')+')');
+
+  var sections=[], idx=0, tbHtml='';
+  var sMap={PASS:'<span class="pass">PASS</span>',FAIL:'<span class="fail">FAIL</span>',REVIEW:'<span class="review">REVIEW</span>','N/A':'<span class="na">N/A</span>',INFO:'<span class="info">INFO</span>',NOTE:'<span class="st-note">NOTE</span>'};
+  res.checks.forEach(function(ch){ if (sections.indexOf(ch.section)===-1) sections.push(ch.section); });
+  sections.forEach(function(sec){
+    tbHtml+='<tr class="sect-row"><td colspan="7">'+sec+'</td></tr>';
+    res.checks.forEach(function(ch){
+      if (ch.section!==sec) return;
+      var dcCell, stxt=sMap[ch.status]||esc(ch.status);
+      if (ch.dc===null){ dcCell='<span class="na">&mdash;</span>'; }
+      else if (ch.informational){ dcCell='<span class="na" title="not in the governing D/C">'+f3(ch.dc)+'</span>'; }
+      else { var col=ch.dc<=0.8?'#16a34a':ch.dc<=1.0?'#d97706':'#dc2626'; var pct=Math.min(ch.dc*100,100);
+        dcCell='<div class="dc-cell"><span style="color:'+col+';font-weight:700">'+f3(ch.dc)+'</span><div class="dc-bar"><div class="dc-fill" style="width:'+pct+'%;background:'+col+'"></div></div></div>'; }
+      tbHtml+='<tr data-id="'+ch.id+'"><td><strong>'+ch.name+'</strong>'+(ch.note?'<div class="eq-note">'+ch.note+'</div>':'')+'</td><td class="ref-cell">'+ch.ref+'</td><td>'+ch.demand+'</td><td>'+ch.capacity+'</td><td>'+dcCell+'</td><td>'+stxt+'</td><td><button class="det-btn" id="dbtn_'+idx+'" onclick="toggleDet('+idx+')">▶ Calc</button></td></tr>'
+        +'<tr class="det-row"><td colspan="7"><div class="calc-det" id="det_'+idx+'">'+ch.det+'</div></td></tr>';
+      idx++;
+    });
+  });
+  $('chkTb').innerHTML=tbHtml;
+  var rev=res.checks.filter(function(ch){return ch.status==='REVIEW';});
+  var items=rev.map(function(ch){return '<li><b>'+ch.name+'</b>'+(ch.note?' &mdash; '+ch.note:'')+'</li>';})
+    .concat(res.warnings.map(function(w){ return '<li><b>Warning</b> &mdash; '+esc(w)+'</li>'; }));
+  $('reviewOut').innerHTML = items.length ? '<div class="review-box"><h3>Engineer items ('+items.length+')</h3><ul>'+items.join('')+'</ul></div>' : '';
+  results.classList.add('show');
+  draw(res);
+  if (window.AREv2 && AREv2.publish) AREv2.publish([
+    {symbol:'ld', label:'Dowel development length ld ('+bl+', Eq. 6-2)', value:v.ld, unit:'in', kind:'other'},
+    {symbol:'T', label:asd?'Applied tension T (ASD)':'Applied tension Tu (SD)', value:T, unit:'lb', kind:'other'}
+  ]);
+}
+// are-utils-v2 Load / import / Save and mark edits call runCalcs() so a restored record re-runs
+window.runCalcs = function(){ run(); };
+
 function runSelftest(){
   var r=window.MDEP.runFixtures(), ok=r.pass===r.total, title=(ok?'SELFTEST PASS ':'SELFTEST FAIL ')+r.pass+'/'+r.total;
-  document.title=title; var pre=document.getElementById('selftest-result'); pre.style.display='block'; pre.textContent=title+'\n'+r.lines.join('\n'); console.log(title);
+  document.title=title; var pre=$('selftest-result'); pre.style.display='block'; pre.textContent=title+'\n'+r.lines.join('\n'); console.log(title); console.log(r.lines.join('\n'));
 }
 (function init(){
+  refreshModes();
+  var root=$('uiRoot');
+  if (root){
+    Array.prototype.forEach.call(root.querySelectorAll('input[type=number][id], input[type=text][id]'), function(el){
+      if (el.closest && el.closest('#areBar, .are-bar, .are-hub')) return;
+      el.addEventListener('input', onInputChanged);
+    });
+    Array.prototype.forEach.call(root.querySelectorAll('select[id], input[type=checkbox][id]'), function(el){
+      if (el.closest && el.closest('#areBar, .are-bar, .are-hub')) return;
+      el.addEventListener('change', onInputChanged);
+    });
+  }
+  // are-draw.js and are-utils-v2.js load after this script
+  window.addEventListener('load', function(){
+    draw();
+    if (window.AREv2 && AREv2.onAfterRestore) AREv2.onAfterRestore(function(){ refreshModes(); draw(); });
+  });
   try { if (new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
 })();
 </script>

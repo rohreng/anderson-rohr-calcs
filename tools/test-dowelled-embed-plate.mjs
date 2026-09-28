@@ -58,10 +58,77 @@ check('every spec §5 fixture id present', SPEC_IDS.every((id) => ids.includes(i
 const order = await page.evaluate(() => window.MDEP.compute(window.MDEP.BASE).checks.map((c) => c.id).join(','));
 check('check rows in spec §4.2 order', order === 'tens,dev,kfac,spc,grt,fit,wmet,wbm,wmin,wdev,wreq,tie', order);
 
-// ── UI wiring [pending Task 3: input blocks, Run, results table] ─────────────
-// Task 3 replaces this block with the plan's Task 3 Step 3 checks.
-const hasRun = await page.$('button.calc-btn');
-check('UI wiring [pending Task 3]: Run button present', !!hasRun, 'no button.calc-btn yet (UI stub)');
+// ── UI wiring ────────────────────────────────────────────────────────────────
+const SPEC3_IDS = ['code', 'T', 'cmu', 'fm', 'barPos', 'coverIn', 'epoxy', 'bar', 'grade', 'n', 's', 'Le', 'Lp', 'Bp', 'tp', 'Fyp', 'Fup',
+  'weldCfg', 'w', 'Lw', 'proc', 'Fexx', 'weldable'];
+const missingIds = await page.evaluate((ids) => ids.filter((id) => !document.getElementById(id)), SPEC3_IDS);
+check('every spec §3 input id present', missingIds.length === 0, 'missing: ' + missingIds.join(', '));
+const dupIds = await page.evaluate(() => { const seen = {}, d = []; document.querySelectorAll('#uiRoot input[id], #uiRoot select[id]').forEach((el) => { if (seen[el.id]) d.push(el.id); seen[el.id] = 1; }); return d; });
+check('input ids unique', dupIds.length === 0, 'duplicates: ' + dupIds.join(', '));
+const defDiff = await page.evaluate(() => { const i = readInputs(), b = window.MDEP.BASE; return Object.keys(b).filter((k) => String(i[k]) !== String(b[k])).map((k) => k + ': ' + i[k] + ' vs ' + b[k]); });
+check('defaults = MDEP.BASE (REK-09 ASD)', defDiff.length === 0, defDiff.join('; '));
+check('coverIn hidden while barPos = center', !(await page.isVisible('#coverIn')), 'visible');
+check('Lw hidden while weldCfg = fillet', !(await page.isVisible('#Lw')), 'visible');
+check('proc hidden while weldCfg = fillet', !(await page.isVisible('#proc')), 'visible');
+
+const sumText = () => page.$eval('#sumOut', (el) => el.textContent);
+const rowText = (id, col) => page.$eval(`#chkTb tr[data-id="${id}"] td:nth-child(${col})`, (el) => el.textContent);
+const waitSum = (re) => page.waitForFunction((src) => new RegExp(src).test(document.getElementById('sumOut').textContent), re.source, { timeout: 3000 }).then(() => true, () => false);
+
+await page.click('button.calc-btn');
+check('results shown after Run', await page.$eval('#results', (el) => el.classList.contains('show')), 'no .show on #results');
+const nRows = await page.$$eval('#chkTb .det-btn', (b) => b.length);
+check('>= 7 check rows with ▶ Calc', nRows >= 7, 'rows=' + nRows);
+check('banner PASS at defaults', /PASS/.test(await sumText()), await sumText());
+const detOk = await page.evaluate(() => { const b = document.querySelector('#chkTb .det-btn'); b.click(); return document.getElementById('det_0').classList.contains('open'); });
+check('▶ Calc opens the detail panel', detOk, 'det_0 not open');
+check('NOTE status styled (wreq)', await page.$eval('#chkTb tr[data-id="wreq"]', (tr) => !!tr.querySelector('.st-note')), 'no .st-note span');
+check('tension row ref visible', /§8\.3\.3\.1/.test(await rowText('tens', 2)), await rowText('tens', 2));
+
+await page.selectOption('#code', 'sd');
+await page.fill('#T', '9115');
+const sdOk = await page.waitForFunction(() => { const td = document.querySelector('#chkTb tr[data-id="tens"] td:nth-child(4)'); return td && /21,?600/.test(td.textContent); }, null, { timeout: 3000 }).then(() => true, () => false);
+check('SD live re-run: tension capacity 21,600', sdOk, sdOk ? '' : await rowText('tens', 4));
+
+await page.fill('#Le', '16');
+check('L_e = 16 -> banner FAIL', await waitSum(/FAIL/), await sumText());
+await page.fill('#Le', '24');
+check('L_e = 24 -> banner PASS again', await waitSum(/PASS/), await sumText());
+
+await page.selectOption('#weldCfg', 'flare');
+check('flare shows Lw', await page.isVisible('#Lw'), 'Lw hidden');
+check('flare shows proc', await page.isVisible('#proc'), 'proc hidden');
+check('flare #4 shows note [a] hint', await page.isVisible('#noteAHint'), 'hint hidden');
+await page.selectOption('#bar', '6');
+check('flare #6 hides note [a] hint', !(await page.isVisible('#noteAHint')), 'hint visible');
+await page.selectOption('#bar', '4');
+await page.selectOption('#weldCfg', 'fillet');
+check('fillet hides Lw again', !(await page.isVisible('#Lw')), 'Lw visible');
+
+await page.fill('#w', '0.125');
+const wFail = await waitSum(/FAIL/);
+check('w = 1/8 in -> banner FAIL', wFail, await sumText());
+check('governing row is the minimum fillet size', /Minimum fillet size/.test(await sumText()), await sumText());
+check('wmin row FAIL', /FAIL/.test(await rowText('wmin', 6)), await rowText('wmin', 6));
+await page.fill('#w', '0.25');
+await waitSum(/PASS/);
+
+await page.selectOption('#barPos', 'custom');
+check('barPos = custom shows coverIn', await page.isVisible('#coverIn'), 'coverIn hidden');
+await page.selectOption('#barPos', 'center');
+await page.fill('#n', '1');
+check('n = 1 disables s', await page.$eval('#s', (el) => el.disabled), 's enabled');
+await page.fill('#n', '2');
+check('n = 2 enables s', !(await page.$eval('#s', (el) => el.disabled)), 's disabled');
+
+await page.fill('#T', '');
+const errShown = await page.waitForFunction(() => { const e = document.getElementById('errOut'); return e.style.display !== 'none' && /tension T/.test(e.textContent); }, null, { timeout: 3000 }).then(() => true, () => false);
+check('blank T -> input error shown', errShown, await page.$eval('#errOut', (el) => el.textContent));
+await page.fill('#T', '9115');
+check('T restored -> results back', await waitSum(/PASS/), await sumText());
+
+await page.fill('#areMark', 'EP-1');
+check('mark EP-1 in the summary', await waitSum(/EP-1/), await sumText());
 
 // ── selftest URL ─────────────────────────────────────────────────────────────
 await page.goto('http://calcs.test/Calcs/' + FILE + '?selftest=1', { waitUntil: 'load' });
