@@ -48,7 +48,7 @@ await page.waitForSelector('#areBar');
 const fx = await page.evaluate(() => window.MDEP.runFixtures());
 fx.lines.forEach((l) => console.log('  ' + l));
 check(`engine fixtures ${fx.pass}/${fx.total}`, fx.pass === fx.total, fx.lines.filter((l) => l.startsWith('FAIL')).join('\n      '));
-check('fixture assertion count >= 198', fx.total >= 198, 'total=' + fx.total);
+check('fixture assertion count >= 242', fx.total >= 242, 'total=' + fx.total);
 const ids = await page.evaluate(() => window.MDEP.FIXTURES.map((f) => f.id));
 const empty = ids.filter((id) => !(fx.counts && fx.counts[id] >= 1));
 check('every fixture returned at least one assertion', empty.length === 0, 'no assertions: ' + empty.join(', '));

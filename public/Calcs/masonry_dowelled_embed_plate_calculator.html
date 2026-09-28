@@ -172,7 +172,8 @@ window.MDEP = (function(){
   // form values arrive as strings: coerce numerics with Number(), epoxy to a strict boolean
   function normalise(inp){
     var o={}; Object.keys(inp||{}).forEach(function(k){ o[k]=inp[k]; });
-    NUM_FIELDS.forEach(function(k){ o[k]=Number(o[k]); });
+    // blank / whitespace / null / undefined -> NaN so validation rejects it (Number('') would be 0)
+    NUM_FIELDS.forEach(function(k){ var x=o[k]; o[k]=(x==null || (typeof x==='string' && x.trim()==='')) ? NaN : Number(x); });
     o.epoxy = (o.epoxy===true || o.epoxy==='true' || o.epoxy===1);
     return o;
   }
@@ -554,6 +555,12 @@ window.MDEP = (function(){
     ]; }},
     {id:'string-inputs', src:'form strings normalised: bar "4", cmu "8", grade "60", n "2", T "5216", epoxy "true"', inp:merge(BASE,{bar:'4', cmu:'8', grade:'60', n:'2', T:'5216', epoxy:'true'}), expect:function(r){ var v=r.vals; return [
       is('accepted', r.ok, true), near('T_all 12,800', v.Tcap, 12800, EXACT), is('epoxy applied', v.epoxyApplied, true), near('l_d 27.968', v.ld, 27.968, LEN), is('banner FAIL', r.banner, 'FAIL')
+    ]; }},
+    {id:'blank-T', src:'validation: blank T rejects (not coerced to 0)', inp:merge(BASE,{T:''}), expect:function(r){ return [
+      is('rejected', r.ok, false), is('error names T', r.errors.some(function(e){ return /tension T/.test(e); }), true), is('banner ERROR', r.banner, 'ERROR')
+    ]; }},
+    {id:'blank-T-ws', src:'validation: whitespace T rejects (not coerced to 0)', inp:merge(BASE,{T:'  '}), expect:function(r){ return [
+      is('rejected', r.ok, false), is('error names T', r.errors.some(function(e){ return /tension T/.test(e); }), true), is('banner ERROR', r.banner, 'ERROR')
     ]; }}
   ];
   function runFixtures(){
