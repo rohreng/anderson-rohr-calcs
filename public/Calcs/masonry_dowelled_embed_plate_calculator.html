@@ -346,6 +346,9 @@ window.MDEP = (function(){
   function warningsFor(inp, t, db){
     var w=[];
     if (inp.weldCfg==='flare' && 2*inp.Lw>inp.Lp+EPS) w.push('Flare weld length exceeds the plate: 2L_w = '+f3(2*inp.Lw)+' in, L_p = '+f3(inp.Lp)+' in.');
+    // flare legs lie along L_p toward the nearer plate end, so each leg needs L_w <= e_p to stay on the plate
+    var ep = (inp.Lp-(inp.n-1)*(inp.n>=2?inp.s:0))/2;
+    if (inp.weldCfg==='flare' && inp.Lw>ep+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the plate end distance e_p = '+f3(ep)+' in; the leg runs past the plate end.');
     if (inp.barPos==='custom' && inp.coverIn>t/2-db/2+EPS) w.push('Cover exceeds the centered value for this wall: '+f4(inp.coverIn)+' in entered, a centered bar gives '+f4(t/2-db/2)+' in.');
     return w;
   }
@@ -676,8 +679,16 @@ window.MDEP = (function(){
       is('K 2.5', v.K, 2.5), is('Kgov clear', v.Kgov, 'clear'), near('l_d 18.646', v.ld, 18.646, LEN), is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'flare-long', src:'flare #4, L_w = 6 in: 2L_w = 12 > L_p = 10, note [a]', inp:merge(BASE,{weldCfg:'flare', Lw:6}), expect:function(r){ var v=r.vals; return [
-      is('one warning: flare weld exceeds the plate', r.warnings.length===1 && /flare weld length exceeds the plate/i.test(r.warnings[0]), true),
+      is('two warnings', r.warnings.length, 2),
+      is('warning: 2L_w exceeds the plate', r.warnings.some(function(x){ return /flare weld length exceeds the plate: 2L_w = 12\.000 in, L_p = 10\.000 in/i.test(x); }), true),
+      is('warning: leg overhangs e_p', r.warnings.some(function(x){ return /L_w = 6\.000 in exceeds the plate end distance e_p = 3\.500 in/.test(x); }), true),
       near('L_wt 12', v.Lwt, 12, EXACT), is('noteA', v.noteA, true), near('t_e 0.17675', v.te, 0.17675, EXACT), near('A_we 2.121', v.Awe, 2.121, EXACT), near('R_nw 89,082', v.Rnw, 89082, EXACT),
+      is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-leg-overhang', src:'flare, L_w = 4 in > e_p = 3.5 in: leg runs past the plate end; 2L_w = 8 < L_p = 10', inp:merge(BASE,{weldCfg:'flare', Lw:4}), expect:function(r){ return [
+      is('exactly one warning', r.warnings.length, 1),
+      is('warning text', r.warnings[0], 'Flare weld length L_w = 4.000 in exceeds the plate end distance e_p = 3.500 in; the leg runs past the plate end.'),
+      is('no 2L_w > L_p warning', r.warnings.some(function(x){ return /2L_w/.test(x); }), false),
       is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'flare-saw6', src:'AISC 360-22 Table J2.2, #6 flare SAW 5/16 R', inp:merge(BASE,{weldCfg:'flare', proc:'saw', bar:6, n:1, Le:60}), expect:function(r){ var v=r.vals; return [
