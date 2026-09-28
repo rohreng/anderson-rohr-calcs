@@ -204,5 +204,5 @@ Redraw on every input change and after restore.
 | Flare-bevel-groove effective throat 5/8 R (GMAW, FCAW-G), 5/16 R (SMAW, FCAW-S, SAW); note [a] R < 3/8 in → reinforcing fillet only | AISC 360-22 Table J2.2, printed 16.1-126 | |
 | Fillet effective throat = shortest distance root to face (0.707·w for equal legs) | AISC 360-22 §J2.2a | |
 | Minimum fillet size by thinner part | AISC 360-22 Table J2.4, printed 16.1-128 | 1/8, 3/16, 1/4, 5/16 |
-| Base metal shear yielding `0.60·F_y·A_gv` (φ 1.00, Ω 1.50) and shear rupture `0.60·F_u·A_nv` (φ 0.75, Ω 2.00) | AISC 360-22 §J4.2 Eqs. J4-3, J4-4, printed 16.1-146 | |
+| Base metal shear yielding `0.60·F_y·A_gv` (φ 1.00, Ω 1.50) and shear rupture `0.60·F_u·A_nv` (φ 0.75, Ω 2.00) | AISC 360-22 §J4.2 Eq. J4-3 (foot of printed 16.1-145), Eq. J4-4 (16.1-146) | |
 | Table J2.4 minimums do not apply to fillet reinforcement of groove welds | AISC 360-22 §J2.2b(a) | |
