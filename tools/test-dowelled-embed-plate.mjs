@@ -132,6 +132,8 @@ check('flare shows Lw', await page.isVisible('#Lw'), 'Lw hidden');
 sv = await svgInfo();
 check('schematic: flare dimensions L_w', /Lw = 3/.test(sv.text), sv.text);
 check('schematic: flare keeps 2 dowels', sv.dowels === 2, 'dowels=' + sv.dowels);
+const legs = await page.evaluate(() => ({ sec: document.querySelectorAll('#schemSvg circle[data-role="dowel-leg"]').length, elev: document.querySelectorAll('#schemSvg rect[data-role="dowel-leg"]').length }));
+check('schematic: flare legs in the section (end-on) and the elevation', legs.sec === 1 && legs.elev === 2, JSON.stringify(legs));
 check('flare shows proc', await page.isVisible('#proc'), 'proc hidden');
 check('flare #4 shows note [a] hint', await page.isVisible('#noteAHint'), 'hint hidden');
 await page.selectOption('#bar', '6');
@@ -148,6 +150,18 @@ check('wmin row FAIL', /FAIL/.test(await rowText('wmin', 6)), await rowText('wmi
 await page.fill('#w', '0.25');
 check('w = 1/4 in -> banner PASS again', await waitSum(/PASS/), await sumText());
 
+await page.selectOption('#bar', '8');
+await page.fill('#Le', '12');
+const longLd = await page.evaluate(() => { const s = document.getElementById('schemSvg');
+  const red = [...s.querySelectorAll('text')].some((t) => /ℓd = /.test(t.textContent) && /continues/.test(t.textContent) && t.getAttribute('fill') === '#c42b2b');
+  return { red, cont: s.querySelectorAll('[data-role="ld-continues"]').length, h: s.viewBox.baseVal.height }; });
+check('schematic: #8 with L_e 12 -> red l_d (continues), viewBox height <= 500', longLd.red && longLd.cont === 1 && longLd.h <= 500, JSON.stringify(longLd));
+await page.selectOption('#bar', '4');
+await page.fill('#Le', '24');
+await page.fill('#n', '6');
+sv = await svgInfo();
+check('schematic: n = 6 on L_p 10 (e_p < 0) is not drawn', sv.dowels === 0 && /do not fit/.test(sv.text), 'dowels=' + sv.dowels + ' ' + sv.text);
+await page.fill('#n', '2');
 await page.selectOption('#barPos', 'custom');
 check('barPos = custom shows coverIn', await page.isVisible('#coverIn'), 'coverIn hidden');
 await page.fill('#coverIn', '20');

@@ -163,15 +163,16 @@ A = t_p × L_wt. Yielding R_nBMy = 0.60 × 36,000 × A (ASD /1.50, SD ×1.00). R
 
 ### 3.5 Flare-leg warnings (spec §4.3; the leg lies along L_p toward the nearer plate end)
 
-e_p = (L_p − (n − 1)·s)/2. The overhang check (L_w > e_p) runs for n ≥ 2 only; the interior check (L_w > s) for n ≥ 3 only.
+e_p = (L_p − (n − 1)·s)/2. The 2L_w > L_p check runs for n = 1 only; the overhang check (L_w > e_p) for n ≥ 2; the interior check (L_w > s − d_b/2, the leg reaching the neighbouring bar surface) for n ≥ 3.
 
-| Fixture | e_p (in) | 2L_w vs L_p | L_w vs e_p | L_w vs s | Warnings |
-|---|---|---|---|---|---|
-| `flare-default` | (10 − 3)/2 = 3.5 | 6 < 10 | 3 ≤ 3.5 | n = 2, not checked | **0** |
-| `flare-leg-overhang` | 3.5 | 8 < 10 | **4 > 3.5**, overhang | n = 2, not checked | **1** |
-| `flare-long` | 3.5 | **12 > 10** | **6 > 3.5**, overhang | n = 2, not checked | **2** |
-| `flare-single-long` | (10 − 0)/2 = 5 | **12 > 10** | 6 > 5, suppressed (n = 1) | n = 1, not checked | **1** |
-| `flare-leg-interior` | (12 − 2 × 2.5)/2 = 3.5 | 6 < 12 | 3 ≤ 3.5 | **3 > 2.5**, interior | **1** |
+| Fixture | n | e_p (in) | 2L_w vs L_p (n = 1) | L_w vs e_p (n ≥ 2) | L_w vs s − d_b/2 (n ≥ 3) | Warnings |
+|---|---|---|---|---|---|---|
+| `flare-default` | 2 | (10 − 3)/2 = 3.5 | not checked | 3 ≤ 3.5 | not checked | **0** |
+| `weld-flare-noteA` | 2 | 3.5 | not checked | **4 > 3.5**, overhang | not checked | **1** |
+| `flare-leg-overhang` | 2 | 3.5 | not checked | **4 > 3.5**, overhang | not checked | **1** |
+| `flare-long` | 2 | 3.5 | not checked (12 > 10) | **6 > 3.5**, overhang | not checked | **1** |
+| `flare-single-long` | 1 | (10 − 0)/2 = 5 | **12 > 10** | not checked | not checked | **1** |
+| `flare-leg-interior` | 3 | (12 − 2 × 2.5)/2 = 3.5 | not checked | 3 ≤ 3.5 | **3 > 2.5 − 0.5/2 = 2.25**, interior | **1** |
 
 ## 4. Other observations (not discrepancies)
 

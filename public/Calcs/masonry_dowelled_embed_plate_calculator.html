@@ -83,7 +83,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   .results{display:block!important}
   .header,.sum-pass,.sum-fail,.sum-review{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .chk-table tr.det-row td{display:table-cell!important}
-  .dem-card,.note-box,.review-box{break-inside:avoid}
+  .dem-card,.note-box,.review-box,.schema-wrap{break-inside:avoid}
 }
 .eq-note{font-size:.8em;color:#555;margin-top:6px}
 .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -300,6 +300,10 @@ window.MDEP = (function(){
             dc:(dc===null||!isFinite(dc))?null:dc, status:status, note:note, det:det, informational:!!opts.informational};
   }
   function has(o,k){ return Object.prototype.hasOwnProperty.call(o,k); }
+  // dowel group centered on the plate: end distance e_p = (L_p - (n - 1)s)/2 (s unused for n = 1)
+  function endDist(Lp, n, s){ return (Lp-(n-1)*(n>=2?s:0))/2; }
+  // flare leg direction along L_p for dowel i of n (0-based): toward the nearer plate end, the center dowel to the left (-1)
+  function legDir(i, n){ return 2*i<=n-1 ? -1 : 1; }
   var NUM_FIELDS = ['T','cmu','fm','coverIn','bar','grade','n','s','Le','Lp','Bp','tp','Fyp','Fup','w','Lw','Fexx'];
   // form values arrive as strings: coerce numerics with Number(), epoxy to a strict boolean
   function normalise(inp){
@@ -338,19 +342,19 @@ window.MDEP = (function(){
     var sOK = true;
     if (b && nOK && inp.n>=2 && (!isNum(inp.s) || inp.s<=b[0])){ sOK=false; err.push('Dowel spacing s must exceed d_b = '+f3(b[0])+' in.'); }
     if (b && nOK && sOK && isNum(inp.Lp) && inp.Lp>0){
-      var ep = (inp.Lp-(inp.n-1)*(inp.n>=2?inp.s:0))/2;
+      var ep = endDist(inp.Lp, inp.n, inp.s);
       if (ep<b[0]-EPS) err.push('Dowels do not fit on the plate: end distance e_p = (L_p − (n − 1)s)/2 = '+f3(ep)+' in is less than d_b = '+f3(b[0])+' in. Lengthen the plate or reduce n or s.');
     }
     return err;
   }
   function warningsFor(inp, t, db){
     var w=[];
-    if (inp.weldCfg==='flare' && 2*inp.Lw>inp.Lp+EPS) w.push('Flare weld length exceeds the plate: 2L_w = '+f3(2*inp.Lw)+' in, L_p = '+f3(inp.Lp)+' in.');
-    // flare legs lie along L_p toward the nearer plate end, so each leg needs L_w <= e_p to stay on the plate
-    // (n = 1: e_p = L_p/2, so the 2L_w > L_p warning above already says it); with n >= 3 an interior leg needs L_w <= s
-    var ep = (inp.Lp-(inp.n-1)*(inp.n>=2?inp.s:0))/2;
-    if (inp.weldCfg==='flare' && inp.n>=2 && inp.Lw>ep+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the plate end distance e_p = '+f3(ep)+' in; the leg runs past the plate end.');
-    if (inp.weldCfg==='flare' && inp.n>=3 && inp.Lw>inp.s+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the dowel spacing s = '+f3(inp.s)+' in; an interior leg reaches the next dowel.');
+    // flare legs lie along L_p toward the nearer plate end (legDir). n = 1: the leg stays on the plate when 2L_w <= L_p.
+    // n >= 2: each outer leg needs L_w <= e_p; n >= 3: an interior leg points at its neighbour and needs L_w <= s - d_b/2
+    var ep = endDist(inp.Lp, inp.n, inp.s), flare = inp.weldCfg==='flare';
+    if (flare && inp.n===1 && 2*inp.Lw>inp.Lp+EPS) w.push('Flare weld length exceeds the plate: 2L_w = '+f3(2*inp.Lw)+' in, L_p = '+f3(inp.Lp)+' in.');
+    if (flare && inp.n>=2 && inp.Lw>ep+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the plate end distance e_p = '+f3(ep)+' in; the leg runs past the plate end.');
+    if (flare && inp.n>=3 && inp.Lw>inp.s-db/2+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds s − d_b/2 = '+f3(inp.s-db/2)+' in; an interior leg reaches the next dowel.');
     if (inp.barPos==='custom' && inp.coverIn>t/2-db/2+EPS) w.push('Cover exceeds the centered value for this wall: '+f4(inp.coverIn)+' in entered, a centered bar gives '+f4(t/2-db/2)+' in.');
     return w;
   }
@@ -371,7 +375,7 @@ window.MDEP = (function(){
     var sfm = Math.sqrt(inp.fm), num = 0.13*db*db*fy*gamma, ld_eq = num/(K*sfm);
     var epoxyApplied = !!inp.epoxy, ld_ep = epoxyApplied ? 1.5*ld_eq : ld_eq, minGoverns = ld_ep<12, ld = Math.max(ld_ep,12);
     var Tcap = asd ? n*As*Fs : 0.90*n*As*fy;
-    var sEff = n>=2 ? inp.s : 0, ep = (inp.Lp-(n-1)*sEff)/2;
+    var ep = endDist(inp.Lp, n, inp.s);
     // ---- bar-to-plate weld, AISC 360-22 §J2.4, Table J2.5: F_nw = 0.60 F_EXX, phi 0.75 / Omega 2.00
     var isFillet = inp.weldCfg==='fillet', Tbar = T/n, Rj = db/2, fac = null, noteA = false, Lwt, te;
     if (isFillet){ Lwt = Math.PI*db; te = 0.707*inp.w; }
@@ -469,7 +473,7 @@ window.MDEP = (function(){
     var SEC_PL='Plate';
     var fitReq = 1.5*db, fitRev = ep<fitReq-EPS, dFit = fitReq/ep;
     var fdet = H('Dowel layout on the plate &mdash; group centered, e<sub>p</sub> + (n &minus; 1)s + e<sub>p</sub> = L<sub>p</sub> (MDG 2022 REK-09 &sect;5: 3&frac12; + 3 + 3&frac12; = 10 in)')
-      +R('e<sub>p</sub> = (L<sub>p</sub> &minus; (n &minus; 1)s)/2 = ('+f3(inp.Lp)+' &minus; '+(n-1)+' &times; '+f3(sEff)+')/2 = '+V(f3(ep),'in'))
+      +R('e<sub>p</sub> = (L<sub>p</sub> &minus; (n &minus; 1)s)/2 = ('+f3(inp.Lp)+' &minus; '+(n-1)+' &times; '+f3(n>=2 ? inp.s : 0)+')/2 = '+V(f3(ep),'in'))
       +R('Detailing target e<sub>p</sub> &ge; 1.5d<sub>b</sub> = '+f3(fitReq)+' in'+(fitRev?' &mdash; <b>not met: engineer to review the plate edge detail</b>':' &mdash; o.k.')+'; below d<sub>b</sub> the input is rejected.')
       +R('Plate '+f3(inp.Lp)+' &times; '+f3(inp.Bp)+' &times; '+f3(inp.tp)+' in. Plate flexure is not checked here.')+END();
     C.push(mk(SEC_PL,'fit','Dowels fit the plate, e<sub>p</sub> &ge; 1.5d<sub>b</sub>','Detailing &middot; MDG 2022 REK-09 &sect;5 layout',
@@ -643,6 +647,7 @@ window.MDEP = (function(){
       near('T_bar,cap 10,800', v.TbarCap, 10800, EXACT), near('wdev ratio 0.810', v.wdevRatio, 0.810, DCT), is('weld develops NO', v.weldDevelops, false), is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'weld-flare-noteA', src:'AISC 360-22 Table J2.2 note [a], #4 flare SMAW, L_w = 4 in', inp:merge(BASE,{weldCfg:'flare', proc:'smaw', Lw:4}), expect:function(r){ var v=r.vals; return [
+      is('one warning: L_w 4 > e_p 3.5 overhang', r.warnings.length===1 && /exceeds the plate end distance e_p = 3\.500 in/.test(r.warnings[0]), true),
       is('noteA', v.noteA, true), near('t_e 0.17675 (fillet w)', v.te, 0.17675, EXACT), near('L_wt 8', v.Lwt, 8, EXACT), near('A_we 1.414', v.Awe, 1.414, EXACT), near('R_nw 59,388', v.Rnw, 59388, EXACT),
       near('R_nw/Omega 29,694', v.Rcap_w, 29694, EXACT), dc(r,'wmet',0.088), near('Rcap_bm 57,600', v.Rcap_bm, 57600, EXACT), dc(r,'wbm',0.045),
       st(r,'wmin','INFO'), is('wmin informational', row(r,'wmin').informational, true), is('wmin no D/C', row(r,'wmin').dc, null), is('wminApplies false', v.wminApplies, false),
@@ -681,9 +686,8 @@ window.MDEP = (function(){
       is('K 2.5', v.K, 2.5), is('Kgov clear', v.Kgov, 'clear'), near('l_d 18.646', v.ld, 18.646, LEN), is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'flare-long', src:'flare #4, L_w = 6 in: 2L_w = 12 > L_p = 10, note [a]', inp:merge(BASE,{weldCfg:'flare', Lw:6}), expect:function(r){ var v=r.vals; return [
-      is('two warnings', r.warnings.length, 2),
-      is('warning: 2L_w exceeds the plate', r.warnings.some(function(x){ return /flare weld length exceeds the plate: 2L_w = 12\.000 in, L_p = 10\.000 in/i.test(x); }), true),
-      is('warning: leg overhangs e_p', r.warnings.some(function(x){ return /L_w = 6\.000 in exceeds the plate end distance e_p = 3\.500 in/.test(x); }), true),
+      is('exactly one warning', r.warnings.length, 1),
+      is('it is the overhang (the 2L_w > L_p warning is n = 1 only)', /L_w = 6\.000 in exceeds the plate end distance e_p = 3\.500 in/.test(r.warnings[0]||''), true),
       near('L_wt 12', v.Lwt, 12, EXACT), is('noteA', v.noteA, true), near('t_e 0.17675', v.te, 0.17675, EXACT), near('A_we 2.121', v.Awe, 2.121, EXACT), near('R_nw 89,082', v.Rnw, 89082, EXACT),
       is('banner PASS', r.banner, 'PASS')
     ]; }},
@@ -704,7 +708,7 @@ window.MDEP = (function(){
     ]; }},
     {id:'flare-leg-interior', src:'flare, n = 3, s = 2.5, L_p = 12, L_w = 3: e_p = 3.5, interior leg 3 > s 2.5', inp:merge(BASE,{weldCfg:'flare', n:3, s:2.5, Lp:12, Lw:3}), expect:function(r){ var v=r.vals; return [
       is('exactly one warning', r.warnings.length, 1),
-      is('warning text', r.warnings[0], 'Flare weld length L_w = 3.000 in exceeds the dowel spacing s = 2.500 in; an interior leg reaches the next dowel.'),
+      is('warning text', r.warnings[0], 'Flare weld length L_w = 3.000 in exceeds s − d_b/2 = 2.250 in; an interior leg reaches the next dowel.'),
       near('e_p 3.5', v.ep, 3.5, LEN), near('L_wt 6', v.Lwt, 6, EXACT), near('R_nw 44,541', v.Rnw, 44541, EXACT),
       near('K 2.0 (clear)', v.K, 2.0, LEN), is('Kgov clear', v.Kgov, 'clear'), near('l_d 23.307', v.ld, 23.307, LEN), near('T_all 19,200', v.Tcap, 19200, EXACT),
       dc(r,'tens',0.272), dc(r,'dev',0.971), dc(r,'spc',0.500), dc(r,'wmet',0.078), dc(r,'wbm',0.040), is('governing dev', r.governingId, 'dev'), is('banner PASS', r.banner, 'PASS')
@@ -737,7 +741,7 @@ window.MDEP = (function(){
     return {pass:pass, total:total, lines:lines, counts:counts};
   }
   return {compute:compute, validate:validate, runFixtures:runFixtures, FIXTURES:FIXTURES, BASE:merge(BASE,{}), merge:merge,
-          BAR:BAR, T_MAP:T_MAP, TFS_MAP:TFS_MAP, gammaFor:gammaFor, wminFor:wminFor, frac16:frac16};
+          BAR:BAR, T_MAP:T_MAP, TFS_MAP:TFS_MAP, gammaFor:gammaFor, wminFor:wminFor, frac16:frac16, endDist:endDist, legDir:legDir};
 })();
 </script>
 <script>
@@ -820,23 +824,24 @@ function draw(res){
   }
   // dimension with a rich label; mode moves the label: 'R' / 'L' beside a vertical dim, 'oL' / 'oR' outboard of a short one
   function dim(v, x1, y1, x2, y2, r, off, mode, color){
-    var g=D.dimLine(v, x1, y1, x2, y2, plain(r), {off:off, color:color}), tx=g.querySelector('text'), ln=g.querySelectorAll('line')[2];
-    if (mode && tx && ln){
-      var lx1=+ln.getAttribute('x1'), ly1=+ln.getAttribute('y1'), lx2=+ln.getAttribute('x2'), ly2=+ln.getAttribute('y2');
-      var fs=parseFloat(tx.getAttribute('font-size'))||10.5, wpx=plain(r).length*fs*0.56, x, y, anc;
-      if (mode==='R' || mode==='L'){ anc=mode==='R'?'start':'end'; x=lx1+(mode==='R'?5:-5); y=(ly1+ly2)/2+3; tx.setAttribute('dominant-baseline', 'auto'); }
-      else { anc=mode==='oR'?'start':'end'; x=mode==='oR' ? Math.max(lx1,lx2)+6 : Math.min(lx1,lx2)-6; y=+tx.getAttribute('y'); }
-      tx.setAttribute('x', x.toFixed(1)); tx.setAttribute('y', y.toFixed(1)); tx.setAttribute('text-anchor', anc);
-      dwg.extend(anc==='start'?x+wpx:x-wpx, y-fs); dwg.extend(x, y+4);
-    }
-    if (tx){                                                            // white backing masks hatch and earlier witness lines
-      rich(tx, r);
-      var bb=null; try { bb=tx.getBBox(); } catch(e){}                  // no box while the page is hidden: skip the backing
-      if (bb && bb.width>0){
-        var bk=document.createElementNS(NS, 'rect');
-        [['x',bb.x-2],['y',bb.y+1],['width',bb.width+4],['height',Math.max(bb.height-2,1)]].forEach(function(a){ bk.setAttribute(a[0], a[1].toFixed(1)); });
-        bk.setAttribute('fill', '#fff'); g.insertBefore(bk, tx);
-      }
+    var g=D.dimLine(v, x1, y1, x2, y2, plain(r), {off:off, color:color}), tx=g.querySelector('text');
+    if (!tx) return g;
+    // dimension-line ends in px, the same offset dimLine applies: witness point + off along the left normal (-dy, dx)/len
+    var ax1=v.px(x1), ay1=v.py(y1), ax2=v.px(x2), ay2=v.py(y2), len=Math.sqrt((ax2-ax1)*(ax2-ax1)+(ay2-ay1)*(ay2-ay1))||1;
+    var ox=-(ay2-ay1)/len*off, oy=(ax2-ax1)/len*off, lx1=ax1+ox, ly1=ay1+oy, lx2=ax2+ox, ly2=ay2+oy;
+    var fs=parseFloat(tx.getAttribute('font-size'))||10.5, x, y, anc;
+    if (mode==='R' || mode==='L'){ anc=mode==='R'?'start':'end'; x=lx1+(mode==='R'?5:-5); y=(ly1+ly2)/2+3; tx.setAttribute('dominant-baseline', 'auto'); }
+    else if (mode){ anc=mode==='oR'?'start':'end'; x=mode==='oR' ? Math.max(lx1,lx2)+6 : Math.min(lx1,lx2)-6; y=+tx.getAttribute('y'); }
+    if (mode){ tx.setAttribute('x', x.toFixed(1)); tx.setAttribute('y', y.toFixed(1)); tx.setAttribute('text-anchor', anc); }
+    rich(tx, r);
+    var bb=null; try { bb=tx.getBBox(); } catch(e){}                    // no box while the page is hidden
+    if (bb && bb.width>0){                                               // white backing masks hatch and earlier witness lines
+      var bk=document.createElementNS(NS, 'rect');
+      [['x',bb.x-2],['y',bb.y+1],['width',bb.width+4],['height',Math.max(bb.height-2,1)]].forEach(function(a){ bk.setAttribute(a[0], a[1].toFixed(1)); });
+      bk.setAttribute('fill', '#fff'); g.insertBefore(bk, tx);
+      dwg.extend(bb.x-2, bb.y); dwg.extend(bb.x+bb.width+2, bb.y+bb.height);
+    } else if (mode){                                                    // fallback estimate for a moved label
+      var wpx=plain(r).length*fs*0.56; dwg.extend(anc==='start'?x+wpx:x-wpx, y-fs); dwg.extend(x, y+4);
     }
     return g;
   }
@@ -852,26 +857,31 @@ function draw(res){
       fill:'none', stroke:st.steel, 'stroke-width':'1'}, 'anno');
   }
 
-  var geomOK = isFinite(t) && isFinite(db) && Le>0 && Lp>0 && Bp>0 && tp>0 && n>=1 && n<=40 && Math.floor(n)===n && (n===1 || s>0);
-  if (!geomOK){
+  var geomOK = isFinite(t) && isFinite(db) && Le>0 && Lp>0 && Bp>0 && tp>0 && n>=1 && Math.floor(n)===n && (n===1 || s>0);
+  var ep = geomOK ? M.endDist(Lp, n, s) : NaN;
+  var why = !geomOK ? 'Schematic: enter a valid L_e, L_p, B_p, t_p, n and s to draw.'
+          : n>40 ? 'Schematic not drawn for n > 40.'
+          : ep<0 ? 'Schematic not drawn: the dowels do not fit on the plate (e_p < 0).' : '';
+  if (why){
     var msg=node('text', {x:'0', y:'0', fill:st.dim, 'font-size':'12', 'font-family':st.font, 'text-anchor':'middle'}, 'anno');
-    msg.textContent='Schematic: enter a valid L_e, L_p, B_p, t_p, n and s to draw.';
-    dwg.extend(-190, -14); dwg.extend(190, 6); dwg.commit(); return;
+    msg.textContent=why;
+    dwg.extend(-200, -14); dwg.extend(200, 6); dwg.commit(); return;
   }
 
   // ---- layout: one scale for both views --------------------------------------------------------
   var cover=inp.barPos==='custom' ? num('coverIn') : t/2-db/2, coverLab=fr(cover);
   if (!(cover>0)){ cover=t/2-db/2; coverLab='?'; }                      // blank or non-positive entry: draw the bar centered
   else if (cover>t-db){ coverLab+=' (not to scale)'; cover=t-db; }     // past the far face: clamp the bar to it, keep the entered value
-  var R=db/2, barX=cover+R, depth=Math.max(Le, isFinite(ld)?ld:0)+3, yb=-depth;
-  var sEff=n>=2 ? s : 0, ep=(Lp-(n-1)*sEff)/2, xs=[];
-  for (var i=0;i<n;i++) xs.push(ep+i*sEff);
+  // wall depth drawn: L_e, or l_d when it runs past L_e, capped at L_e + max(12, L_e/2) so a long l_d stays readable
+  var R=db/2, barX=cover+R, ldCap=Le+Math.max(12, 0.5*Le), ldCut=isFinite(ld) && ld>ldCap;
+  var depth=Math.max(Le, isFinite(ld) ? Math.min(ld, ldCap) : 0)+3, yb=-depth;
+  var xs=[]; for (var i=0;i<n;i++) xs.push(ep+i*(n>=2 ? s : 0));
   var legOK=flare && Lw>0;
-  function legDir(i){ return (xs[i]<=Lp/2+1e-9) ? -1 : 1; }           // flare legs point to the nearer plate end (center bar: left)
+  function legDir(i){ return M.legDir(i, n); }                           // flare legs point to the nearer plate end (center bar: left)
   var m=Math.max(2.5, 0.2*Lp), mL=m, mR=m;
   if (legOK){ mL=Math.max(m, Lw-xs[0]+1.5); mR=Math.max(m, xs[n-1]+Lw-Lp+1.5); }
-  var sc=D.fitScale(depth+tp, 250, {min:2, max:16});
-  sc=Math.min(sc, 380/(Lp+mL+mR), 150/Math.max(t, Bp));
+  // one scale for both views: the tightest of the height, elevation-width and section-width budgets, then 2..16 px/in
+  var sc=Math.max(2, Math.min(16, 250/(depth+tp), 380/(Lp+mL+mR), 150/Math.max(t, Bp)));
   var wd=Math.max(w>0 ? w : 0.25, 3/sc);                                // weld leg as drawn (>= 3 px)
   var mark=(window.AREv2 && AREv2.getMark) ? AREv2.getMark() : '';     // written as textContent, so the raw mark is safe
   var Tlab=(sd?'T_{u}':'T')+(T>=0 ? ' = '+fc(T)+' lb' : '');
@@ -902,7 +912,14 @@ function draw(res){
   }
   D.centerline(vS, barX, -Le-1, barX, tp+0.8);
   // dimensions: l_d bracket left from the plate underside (red when it runs past L_e), L_e right, cover and t below
-  if (isFinite(ld)) vdim(vS, 0, 0, -ld, 'ℓ_{d} = '+ld.toFixed(2)+'"', -16, ld>Le+1e-9 ? st.force : null);
+  if (isFinite(ld)){
+    var ldCol=ld>Le+1e-9 ? st.force : null;
+    vdim(vS, 0, 0, ldCut ? yb : -ld, 'ℓ_{d} = '+ld.toFixed(2)+'"'+(ldCut ? ' (continues)' : ''), -16, ldCol);
+    if (ldCut){                                                         // arrowhead at the break line: l_d runs on below
+      var qx=vS.px(0)-16, qy=vS.py(yb);
+      node('path', {d:'M'+(qx-4).toFixed(1)+','+(qy-7).toFixed(1)+' L'+(qx+4).toFixed(1)+','+(qy-7).toFixed(1)+' L'+qx.toFixed(1)+','+(qy+1).toFixed(1)+' z', fill:ldCol||st.dim, 'data-role':'ld-continues'}, 'anno');
+    }
+  }
   vdim(vS, barX+R, 0, -Le, 'L_{e} = '+fr(Le), vS.s(t-barX-R)+16);
   hdim(vS, 0, barX-R, -Le, 'cover = '+coverLab, vS.s(depth-Le)+16, 'oL');
   hdim(vS, 0, t, yb, 't = '+fr(t), 42);
@@ -950,7 +967,7 @@ function draw(res){
   var fa=D.forceArrow(vE, Lp/2, tp, 0, 1, 42, plain(Tlab), {standoff:3}), faT=fa && fa.querySelector('text');
   if (faT) rich(faT, Tlab);
   // dimensions: L_e right; below the wall L_p (last row), clear (row 2) and the e_p / s chain (row 1), drawn in that
-  // order so each label's halo sits over the longer witness lines; L_w above the plate on dowel 1's leg, outboard of T
+  // order so each label's white backing sits over the longer witness lines; L_w above the plate on dowel 1's leg, outboard of T
   var xn=xs[n-1];
   vdim(vE, xn+R, 0, -Le, 'L_{e} = '+fr(Le), vE.s(Lp+mR-xn-R)+16);
   function ext(x, y){ node('line', {x1:vE.px(x).toFixed(1), y1:vE.py(y).toFixed(1), x2:vE.px(x).toFixed(1), y2:vE.py(yb).toFixed(1), stroke:st.dim, 'stroke-width':'0.7'}, 'anno'); }
