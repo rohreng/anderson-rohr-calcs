@@ -62,9 +62,9 @@ Units: lengths in, forces lb, stresses psi (MDG convention; matches the other ma
 ### 3.6 Bar-to-plate weld (AISC 360-22 §J2, added 2026-09-27 at Nick's request)
 - `weldCfg`: `fillet` | `flare` [`fillet`].
   - `fillet`: bar perpendicular to the plate (through a hole or butted to the underside), fillet weld all around the bar. Weld length `L_w = π·d_b`.
-  - `flare`: bar laid against the plate face, flare-bevel-groove welds both sides of the bar over a length `Lw` each side (AISC Table J2.2).
+  - `flare`: bar laid against the plate face, flare-bevel-groove welds both sides of the bar over a length `Lw` each side (AISC Table J2.2). The leg lies along `Lp`, toward the nearer plate end.
 - `w` fillet leg size, in [0.25] — the all-around fillet for `fillet`; the reinforcing fillet for `flare` when Table J2.2 note [a] applies.
-- `Lw` flare weld length per side, in [4] — shown only for `flare`.
+- `Lw` flare weld length per side, in [3] — shown only for `flare`. At the defaults `Lw = 3 ≤ e_p = 3.5`, so the flare defaults raise no warning.
 - `proc`: `gmaw` (GMAW / FCAW-G) | `smaw` (SMAW / FCAW-S) | `saw` [`smaw`] — shown only for `flare`; selects the Table J2.2 throat factor.
 - `Fexx` filler metal classification strength, psi [70000].
 - Weld demand: `T/n` per bar. The bar material side is not checked separately: A706 Gr 60 has `F_u = 80 ksi` above the weld metal, so weld metal governs (stated in the notes).
@@ -135,6 +135,8 @@ TbarCap= code === 'asd' ? As*Fs : 0.90*As*fy        // per-bar dowel capacity, f
 ### 4.3 Validation (errors block compute)
 - `T ≥ 0`, `fm > 0`, `Le > 0`, `n ≥ 1` integer, `s > d_b` when `n ≥ 2`, `coverIn > 0` when custom, `Lp > 0`, `Bp > 0`, `tp > 0`, `e_p ≥ d_b`, `w > 0`, `Fexx > 0`, `Fyp > 0`, `Fup > 0`, `Lw > 0` when `flare`.
 - Warning when `flare` and `2·Lw > Lp` ("flare weld length exceeds the plate").
+- Warning when `flare`, `n ≥ 2` and `Lw > e_p`: "Flare weld length L_w = X in exceeds the plate end distance e_p = Y in; the leg runs past the plate end." Suppressed for `n = 1`, where `e_p = Lp/2` and the `2·Lw > Lp` warning already covers it.
+- Warning when `flare`, `n ≥ 3` and `Lw > s`: "Flare weld length L_w = X in exceeds the dowel spacing s = Y in; an interior leg reaches the next dowel."
 - Warning (not error) when custom `coverIn > t/2 − d_b/2` ("cover exceeds the centered value for this wall").
 
 ### 4.4 Results object
@@ -162,6 +164,10 @@ TbarCap= code === 'asd' ? As*Fs : 0.90*As*fy        // per-bar dowel capacity, f
 | `weld-flare-smaw6` | as above with `proc: 'smaw'` | `te = 0.1171875`, `Rnw = 39375`, `Rcap_w = 19687.5` |
 | `weld-thin-plate` | `tp: 0.1875, w: 0.125` | `wmin = 0.125` (PASS at D/C 1.000), `Rcap_w ≈ 2915`, `wmet` D/C ≈ 0.895 |
 | `weld-undersize` | `tp: 0.5, w: 0.125` | `wmin = 0.1875`, `wmin` D/C = 1.5 → FAIL, banner FAIL, governing `wmin` |
+| `flare-default` | `weldCfg: 'flare'` (Lw 3) | no warnings, `Lwt = 6`, note [a] `te = 0.17675`, `Awe = 1.0605`, `Rnw = 44541`, `Rcap_w = 22270.5`, `wmet` D/C ≈ 0.117, `wbm` D/C ≈ 0.060, PASS |
+| `flare-leg-overhang` | `weldCfg: 'flare', Lw: 4` | exactly one warning, the `Lw > e_p` overhang (4 > 3.5); no `2·Lw > Lp` warning (8 < 10), PASS |
+| `flare-single-long` | `weldCfg: 'flare', n: 1, Lw: 6` | exactly one warning, `2·Lw = 12 > Lp = 10`; the overhang warning is suppressed for `n = 1`; `e_p = 5`, `Rnw = 89082`, PASS |
+| `flare-leg-interior` | `weldCfg: 'flare', n: 3, s: 2.5, Lp: 12, Lw: 3` | `e_p = 3.5` (no overhang), exactly one warning, interior `Lw 3 > s 2.5`; `Lwt = 6`, `Rnw = 44541`, `K = 2.0` (clear), `ld ≈ 23.307`, `Tcap = 19200`, `dev` D/C ≈ 0.971 governs, PASS |
 
 Hand values to record: √1750 = 41.833; 0.13·0.25·60000 = 1950; 1950/(2.5·41.833) = 18.646; 1950/(3.5625·41.833) = 13.084; π·0.5 = 1.5708; 0.707·0.25 = 0.17675; 0.60·70000·0.17675·1.5708 = 11,661. The implementer computes every other expected value by hand in the hand-check doc before coding it; a fixture must never be tuned to the engine.
 

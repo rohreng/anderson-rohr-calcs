@@ -53,7 +53,8 @@ const ids = await page.evaluate(() => window.MDEP.FIXTURES.map((f) => f.id));
 const empty = ids.filter((id) => !(fx.counts && fx.counts[id] >= 1));
 check('every fixture returned at least one assertion', empty.length === 0, 'no assertions: ' + empty.join(', '));
 const SPEC_IDS = ['rek09-asd', 'rek09-sd', 'rek10-single', 'min12', 'epoxy', 'gamma13', 'gamma15', 'gr40', 'short-embed', 'nofit', 'mdg-ex9.2-1',
-  'weld-fillet-asd', 'weld-fillet-sd', 'weld-flare-noteA', 'weld-flare-gmaw', 'weld-flare-smaw6', 'weld-thin-plate', 'weld-undersize'];
+  'weld-fillet-asd', 'weld-fillet-sd', 'weld-flare-noteA', 'weld-flare-gmaw', 'weld-flare-smaw6', 'weld-thin-plate', 'weld-undersize',
+  'flare-default', 'flare-leg-overhang', 'flare-leg-interior', 'flare-single-long'];
 check('every spec §5 fixture id present', SPEC_IDS.every((id) => ids.includes(id)), 'missing: ' + SPEC_IDS.filter((id) => !ids.includes(id)).join(', '));
 const order = await page.evaluate(() => window.MDEP.compute(window.MDEP.BASE).checks.map((c) => c.id).join(','));
 check('check rows in spec §4.2 order', order === 'tens,dev,kfac,spc,grt,fit,wmet,wbm,wmin,wdev,wreq,tie', order);
@@ -129,7 +130,7 @@ check('L_e = 24 -> banner PASS again', await waitSum(/PASS/), await sumText());
 await page.selectOption('#weldCfg', 'flare');
 check('flare shows Lw', await page.isVisible('#Lw'), 'Lw hidden');
 sv = await svgInfo();
-check('schematic: flare dimensions L_w', /Lw = 4/.test(sv.text), sv.text);
+check('schematic: flare dimensions L_w', /Lw = 3/.test(sv.text), sv.text);
 check('schematic: flare keeps 2 dowels', sv.dowels === 2, 'dowels=' + sv.dowels);
 check('flare shows proc', await page.isVisible('#proc'), 'proc hidden');
 check('flare #4 shows note [a] hint', await page.isVisible('#noteAHint'), 'hint hidden');
@@ -149,6 +150,10 @@ check('w = 1/4 in -> banner PASS again', await waitSum(/PASS/), await sumText())
 
 await page.selectOption('#barPos', 'custom');
 check('barPos = custom shows coverIn', await page.isVisible('#coverIn'), 'coverIn hidden');
+await page.fill('#coverIn', '20');
+sv = await svgInfo();
+check('schematic: cover 20 in on 8 in CMU labelled not to scale', sv.text.includes('cover = 20" (not to scale)') && sv.dowels === 2, sv.text);
+await page.fill('#coverIn', '3.5625');
 await page.selectOption('#barPos', 'center');
 await page.fill('#n', '1');
 check('n = 1 disables s', await page.$eval('#s', (el) => el.disabled), 's enabled');

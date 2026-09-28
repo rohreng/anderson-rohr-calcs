@@ -200,7 +200,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           </select>
           <div class="subnote hide" id="noteAHint" style="margin-top:5px">Table J2.2 note [a]: R &lt; 3/8 in, only the reinforcing fillet is credited.</div></div>
         <div class="ig"><label for="w">Fillet leg size, w <span class="unit">(in)</span></label><input type="number" id="w" value="0.25" step="0.0625"></div>
-        <div class="ig hide" id="LwRow"><label for="Lw">Flare weld length per side, L<sub>w</sub> <span class="unit">(in)</span></label><input type="number" id="Lw" value="4" step="0.25"></div>
+        <div class="ig hide" id="LwRow"><label for="Lw">Flare weld length per side, L<sub>w</sub> <span class="unit">(in)</span></label><input type="number" id="Lw" value="3" step="0.25"></div>
         <div class="ig hide" id="procRow"><label for="proc">Welding process (Table J2.2 throat)</label>
           <select id="proc">
             <option value="gmaw">GMAW / FCAW-G (5/8 R)</option>
@@ -347,8 +347,10 @@ window.MDEP = (function(){
     var w=[];
     if (inp.weldCfg==='flare' && 2*inp.Lw>inp.Lp+EPS) w.push('Flare weld length exceeds the plate: 2L_w = '+f3(2*inp.Lw)+' in, L_p = '+f3(inp.Lp)+' in.');
     // flare legs lie along L_p toward the nearer plate end, so each leg needs L_w <= e_p to stay on the plate
+    // (n = 1: e_p = L_p/2, so the 2L_w > L_p warning above already says it); with n >= 3 an interior leg needs L_w <= s
     var ep = (inp.Lp-(inp.n-1)*(inp.n>=2?inp.s:0))/2;
-    if (inp.weldCfg==='flare' && inp.Lw>ep+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the plate end distance e_p = '+f3(ep)+' in; the leg runs past the plate end.');
+    if (inp.weldCfg==='flare' && inp.n>=2 && inp.Lw>ep+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the plate end distance e_p = '+f3(ep)+' in; the leg runs past the plate end.');
+    if (inp.weldCfg==='flare' && inp.n>=3 && inp.Lw>inp.s+EPS) w.push('Flare weld length L_w = '+f3(inp.Lw)+' in exceeds the dowel spacing s = '+f3(inp.s)+' in; an interior leg reaches the next dowel.');
     if (inp.barPos==='custom' && inp.coverIn>t/2-db/2+EPS) w.push('Cover exceeds the centered value for this wall: '+f4(inp.coverIn)+' in entered, a centered bar gives '+f4(t/2-db/2)+' in.');
     return w;
   }
@@ -570,7 +572,7 @@ window.MDEP = (function(){
     Object.keys(b||{}).forEach(function(k){ o[k]=(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&o[k]&&typeof o[k]==='object')?merge(o[k],b[k]):b[k]; }); return o; }
   // spec §3 defaults = MDG 2022 REK-09 ASD
   var BASE={code:'asd', T:5216, cmu:8, fm:1750, barPos:'center', coverIn:3.5625, epoxy:false, bar:4, grade:60, n:2, s:3, Le:24,
-    Lp:10, Bp:7.625, tp:0.5, Fyp:36000, Fup:58000, weldCfg:'fillet', w:0.25, Lw:4, proc:'smaw', Fexx:70000, weldable:'a706'};
+    Lp:10, Bp:7.625, tp:0.5, Fyp:36000, Fup:58000, weldCfg:'fillet', w:0.25, Lw:3, proc:'smaw', Fexx:70000, weldable:'a706'};
   function near(l,got,want,tol){ return [l, isNum(got) && Math.abs(got-want)<=tol, (isNum(got)?(Math.abs(got)>=100?got.toFixed(3):got.toFixed(5)):String(got))+' vs '+want+' (±'+tol+')']; }
   function is(l,got,want){ return [l, got===want, String(got)+' vs '+String(want)]; }
   function row(res,id){ for (var i=0;i<res.checks.length;i++) if (res.checks[i].id===id) return res.checks[i]; return null; }
@@ -691,10 +693,26 @@ window.MDEP = (function(){
       is('no 2L_w > L_p warning', r.warnings.some(function(x){ return /2L_w/.test(x); }), false),
       is('banner PASS', r.banner, 'PASS')
     ]; }},
-    {id:'flare-saw6', src:'AISC 360-22 Table J2.2, #6 flare SAW 5/16 R', inp:merge(BASE,{weldCfg:'flare', proc:'saw', bar:6, n:1, Le:60}), expect:function(r){ var v=r.vals; return [
+    {id:'flare-default', src:'flare at the defaults, #4 SMAW note [a], L_w = 3 in <= e_p = 3.5 in', inp:merge(BASE,{weldCfg:'flare'}), expect:function(r){ var v=r.vals; return [
+      is('no warnings', r.warnings.length, 0), near('L_wt 6', v.Lwt, 6, EXACT), is('noteA', v.noteA, true), near('t_e 0.17675', v.te, 0.17675, EXACT),
+      near('A_we 1.0605', v.Awe, 1.0605, EXACT), near('R_nw 44,541', v.Rnw, 44541, EXACT), near('R_nw/Omega 22,270.5', v.Rcap_w, 22270.5, EXACT),
+      dc(r,'wmet',0.117), dc(r,'wbm',0.060), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-single-long', src:'flare, n = 1, L_w = 6 in: 2L_w = 12 > L_p = 10; L_w > e_p = 5 not repeated', inp:merge(BASE,{weldCfg:'flare', n:1, Lw:6}), expect:function(r){ var v=r.vals; return [
+      is('exactly one warning', r.warnings.length, 1), is('it is the 2L_w > L_p warning', /flare weld length exceeds the plate: 2L_w = 12\.000 in/i.test(r.warnings[0]||''), true),
+      near('e_p 5', v.ep, 5, LEN), near('R_nw 89,082', v.Rnw, 89082, EXACT), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-leg-interior', src:'flare, n = 3, s = 2.5, L_p = 12, L_w = 3: e_p = 3.5, interior leg 3 > s 2.5', inp:merge(BASE,{weldCfg:'flare', n:3, s:2.5, Lp:12, Lw:3}), expect:function(r){ var v=r.vals; return [
+      is('exactly one warning', r.warnings.length, 1),
+      is('warning text', r.warnings[0], 'Flare weld length L_w = 3.000 in exceeds the dowel spacing s = 2.500 in; an interior leg reaches the next dowel.'),
+      near('e_p 3.5', v.ep, 3.5, LEN), near('L_wt 6', v.Lwt, 6, EXACT), near('R_nw 44,541', v.Rnw, 44541, EXACT),
+      near('K 2.0 (clear)', v.K, 2.0, LEN), is('Kgov clear', v.Kgov, 'clear'), near('l_d 23.307', v.ld, 23.307, LEN), near('T_all 19,200', v.Tcap, 19200, EXACT),
+      dc(r,'tens',0.272), dc(r,'dev',0.971), dc(r,'spc',0.500), dc(r,'wmet',0.078), dc(r,'wbm',0.040), is('governing dev', r.governingId, 'dev'), is('banner PASS', r.banner, 'PASS')
+    ]; }},
+    {id:'flare-saw6', src:'AISC 360-22 Table J2.2, #6 flare SAW 5/16 R', inp:merge(BASE,{weldCfg:'flare', proc:'saw', bar:6, n:1, Le:60, Lw:4}), expect:function(r){ var v=r.vals; return [
       is('noteA false', v.noteA, false), near('t_e 0.1171875', v.te, 0.1171875, EXACT), near('R_nw 39,375 (as SMAW)', v.Rnw, 39375, EXACT), is('banner PASS', r.banner, 'PASS')
     ]; }},
-    {id:'flare-no-w', src:'flare #6 (R = 3/8, no fillet): w not required', inp:merge(BASE,{weldCfg:'flare', proc:'gmaw', bar:6, n:1, Le:60, w:''}), expect:function(r){ return [
+    {id:'flare-no-w', src:'flare #6 (R = 3/8, no fillet): w not required', inp:merge(BASE,{weldCfg:'flare', proc:'gmaw', bar:6, n:1, Le:60, Lw:4, w:''}), expect:function(r){ return [
       is('accepted without w', r.ok, true), near('R_nw 78,750', r.vals.Rnw, 78750, EXACT), is('banner PASS', r.banner, 'PASS')
     ]; }},
     {id:'string-inputs', src:'form strings normalised: bar "4", cmu "8", grade "60", n "2", T "5216", epoxy "true"', inp:merge(BASE,{bar:'4', cmu:'8', grade:'60', n:'2', T:'5216', epoxy:'true'}), expect:function(r){ var v=r.vals; return [
@@ -842,8 +860,9 @@ function draw(res){
   }
 
   // ---- layout: one scale for both views --------------------------------------------------------
-  var cover=inp.barPos==='custom' ? num('coverIn') : t/2-db/2;
-  if (!(cover>0) || cover>t-db) cover=t/2-db/2;                         // unusable entry: draw the bar centered
+  var cover=inp.barPos==='custom' ? num('coverIn') : t/2-db/2, coverLab=fr(cover);
+  if (!(cover>0)){ cover=t/2-db/2; coverLab='?'; }                      // blank or non-positive entry: draw the bar centered
+  else if (cover>t-db){ coverLab+=' (not to scale)'; cover=t-db; }     // past the far face: clamp the bar to it, keep the entered value
   var R=db/2, barX=cover+R, depth=Math.max(Le, isFinite(ld)?ld:0)+3, yb=-depth;
   var sEff=n>=2 ? s : 0, ep=(Lp-(n-1)*sEff)/2, xs=[];
   for (var i=0;i<n;i++) xs.push(ep+i*sEff);
@@ -863,7 +882,8 @@ function draw(res){
   D.plate(vS, t-tfs, yb, tfs, depth, {fill:SHELL});
   wrect(vS, tfs, yb, t-tfs, 0, {fill:GROUT, stroke:GROUT_LN, 'stroke-width':'1'});
   wrect(vS, tfs, yb, t-tfs, 0, {fill:'url(#'+groutHatch+')', stroke:'none'});
-  for (var yj=-8; yj>yb+0.5; yj-=8){                                    // bed joints in the face shells, 8 in courses
+  var joints=depth/8<=60;                                               // bed joints at 8 in courses; skipped past 60 courses
+  for (var yj=-8; joints && yj>yb+0.5; yj-=8){
     [[0,tfs],[t-tfs,t]].forEach(function(p){ node('line', {x1:vS.px(p[0]).toFixed(1), y1:vS.py(yj).toFixed(1), x2:vS.px(p[1]).toFixed(1), y2:vS.py(yj).toFixed(1), stroke:'#9aa6c2', 'stroke-width':'0.8'}); });
   }
   breakLine(vS.px(0), vS.px(t), vS.py(yb));
@@ -884,7 +904,7 @@ function draw(res){
   // dimensions: l_d bracket left from the plate underside (red when it runs past L_e), L_e right, cover and t below
   if (isFinite(ld)) vdim(vS, 0, 0, -ld, 'ℓ_{d} = '+ld.toFixed(2)+'"', -16, ld>Le+1e-9 ? st.force : null);
   vdim(vS, barX+R, 0, -Le, 'L_{e} = '+fr(Le), vS.s(t-barX-R)+16);
-  hdim(vS, 0, barX-R, -Le, 'cover = '+fr(cover), vS.s(depth-Le)+16, 'oL');
+  hdim(vS, 0, barX-R, -Le, 'cover = '+coverLab, vS.s(depth-Le)+16, 'oL');
   hdim(vS, 0, t, yb, 't = '+fr(t), 42);
   D.leader(vS, t/2, yb+1.4, -(vS.s(t/2)+30), 0, 'Grout', {color:GROUT_LN});
 
@@ -894,7 +914,7 @@ function draw(res){
   var vE=new D.View(dwg, {scale:sc, ox:dwg.maxX+34+leftPx, oy:0, flipY:true});
   wrect(vE, -mL, yb, Lp+mR, 0, {fill:GROUT, stroke:st.steel, 'stroke-width':'1.2'});
   wrect(vE, -mL, yb, Lp+mR, 0, {fill:'url(#'+groutHatch+')', stroke:'none'});
-  for (var yk=-8; yk>yb+0.5; yk-=8) node('line', {x1:vE.px(-mL).toFixed(1), y1:vE.py(yk).toFixed(1), x2:vE.px(Lp+mR).toFixed(1), y2:vE.py(yk).toFixed(1), stroke:'#9aa6c2', 'stroke-width':'0.6', 'stroke-dasharray':'5 3'});
+  for (var yk=-8; joints && yk>yb+0.5; yk-=8) node('line', {x1:vE.px(-mL).toFixed(1), y1:vE.py(yk).toFixed(1), x2:vE.px(Lp+mR).toFixed(1), y2:vE.py(yk).toFixed(1), stroke:'#9aa6c2', 'stroke-width':'0.6', 'stroke-dasharray':'5 3'});
   breakLine(vE.px(-mL), vE.px(Lp+mR), vE.py(yb));
   D.plate(vE, 0, 0, Lp, tp, {fill:st.steelFillHi});
   xs.forEach(function(x, i){

@@ -113,6 +113,9 @@ F_nw = 0.60 × 70,000 = 42,000 psi. ASD R_n/2.00; SD 0.75R_n. Table J2.4 thinner
 | `weld-flare-smaw6` | flare, SMAW, #6, n 1, L_w 4 | 8 | 5/16 × 0.375 = **0.1171875** | 0.9375 | 42,000 × 0.9375 = **39,375** | /2.00 = **19,687.5** | 5,216 | 0.265 | INFO, no D/C: "no fillet in this configuration" | 19,687.5/14,080 = 1.398 → YES | pending Task 2 |
 | `weld-thin-plate` | fillet, t_p 3/16, w 1/8 | 1.5708 | 0.707 × 0.125 = 0.088375 | 0.13882 | 5,830 | /2.00 = **2,915** | 2,608 | **0.895** | min(0.1875, 0.5) = 0.1875 ≤ 1/4 → **1/8**, 0.125/0.125 = **1.000 PASS** | 2,915/6,400 = 0.456 → NO | pending Task 2 |
 | `weld-undersize` | fillet, t_p 1/2, w 1/8 | 1.5708 | 0.088375 | 0.13882 | 5,830 | 2,915 | 2,608 | 0.895 | 0.5 → **3/16**, 0.1875/0.125 = **1.500 FAIL**, governs | 0.456 → NO | pending Task 2 |
+| `flare-default` | flare, SMAW, #4, L_w 3 (the default) | 2 × 3 = **6** | note [a]: 0.707 × 0.25 = **0.17675** | 0.17675 × 6 = **1.0605** | 0.60 × 70,000 × 0.17675 × 6 = **44,541** | /2.00 = **22,270.5** | 2,608 | 2,608/22,270.5 = **0.117** | INFO (§J2.2b(a)) | 22,270.5/6,400 = 3.480 → YES | PASS |
+| `flare-leg-interior` | flare, SMAW, #4, n 3, s 2.5, L_p 12, L_w 3 | 2 × 3 = **6** | **0.17675** | **1.0605** | **44,541** | **22,270.5** | 5,216/3 = 1,738.7 | 1,738.7/22,270.5 = **0.078** | INFO (§J2.2b(a)) | 3.480 → YES | PASS |
+| `flare-single-long` | flare, SMAW, #4, n 1, L_w 6 | 2 × 6 = **12** | **0.17675** | 0.17675 × 12 = **2.121** | 42,000 × 2.121 = **89,082** | /2.00 = **44,541** | 5,216 | 5,216/44,541 = **0.117** | INFO (§J2.2b(a)) | 44,541/6,400 = 6.960 → YES | PASS |
 
 ### 3.3 Plate base metal at the weld (spec `wbm`, lesser of Eq. J4-3 and Eq. J4-4)
 
@@ -126,6 +129,9 @@ A = t_p × L_wt. Yielding R_nBMy = 0.60 × 36,000 × A (ASD /1.50, SD ×1.00). R
 | `weld-flare-gmaw` / `weld-flare-smaw6` (ASD) | 4.0 | 86,400 | 57,600 | 139,200 | 69,600 | **57,600** yield | 5,216 | 0.091 | pending Task 2 |
 | `weld-thin-plate` (ASD) | 0.1875 × 1.5708 = 0.2945 | 6,362 | 4,241 | 10,249 | 5,125 | **4,241** yield | 2,608 | 0.615 | pending Task 2 |
 | `weld-undersize` (ASD) | 0.7854 | 16,965 | 11,310 | 27,332 | 13,666 | **11,310** yield | 2,608 | 0.231 | pending Task 2 |
+| `flare-default` (ASD) | 0.5 × 6 = 3.0 | 21,600 × 3.0 = **64,800** | /1.50 = **43,200** | 34,800 × 3.0 = 104,400 | /2.00 = 52,200 | **43,200** yield | 2,608 | **0.060** | PASS |
+| `flare-leg-interior` (ASD) | 3.0 | 64,800 | 43,200 | 104,400 | 52,200 | **43,200** yield | 1,738.7 | **0.040** | PASS |
+| `flare-single-long` (ASD) | 0.5 × 12 = 6.0 | 129,600 | 86,400 | 208,800 | 104,400 | **86,400** yield | 5,216 | **0.060** | PASS |
 
 ### 3.4 Placement rows and banner for every fixture (for the Task 2 harness)
 
@@ -151,6 +157,21 @@ A = t_p × L_wt. Yielding R_nBMy = 0.60 × 36,000 × A (ASD /1.50, SD ×1.00). R
 | `weld-flare-smaw6` | 0.370 | 0.661 | N/A | 0.439 | 0.265 | 0.091 | INFO (no fillet) | 0.661 `dev` | PASS |
 | `weld-thin-plate` | 0.408 | 0.777 | 0.400 | 0.293 | 0.895 | 0.615 | 1.000 | 1.000 `wmin` | PASS |
 | `weld-undersize` | 0.408 | 0.777 | 0.400 | 0.293 | 0.895 | 0.231 | **1.500** | 1.500 `wmin` | FAIL |
+| `flare-default` | 0.408 | 0.777 | 0.400 | 0.293 | 0.117 | 0.060 | INFO (§J2.2b(a)) | 0.777 `dev` | PASS |
+| `flare-leg-interior` | 5,216/(3 × 0.2 × 32,000 = 19,200) = **0.272** | clear = 2.5 − 0.5 = 2.0; K = min(3.5625, 2.0, 4.5) = **2.0 clear**; l_d = 1,950/(2.0 × 41.833) = **23.307**; 23.307/24 = **0.971** | 1/2.0 = **0.500** | 0.293 | 0.078 | 0.040 | INFO (§J2.2b(a)) | 0.971 `dev` | PASS |
+| `flare-single-long` | 0.815 | 13.085/24 = 0.545 | N/A | 0.293 | 0.117 | 0.060 | INFO (§J2.2b(a)) | 0.815 `tens` | PASS |
+
+### 3.5 Flare-leg warnings (spec §4.3; the leg lies along L_p toward the nearer plate end)
+
+e_p = (L_p − (n − 1)·s)/2. The overhang check (L_w > e_p) runs for n ≥ 2 only; the interior check (L_w > s) for n ≥ 3 only.
+
+| Fixture | e_p (in) | 2L_w vs L_p | L_w vs e_p | L_w vs s | Warnings |
+|---|---|---|---|---|---|
+| `flare-default` | (10 − 3)/2 = 3.5 | 6 < 10 | 3 ≤ 3.5 | n = 2, not checked | **0** |
+| `flare-leg-overhang` | 3.5 | 8 < 10 | **4 > 3.5**, overhang | n = 2, not checked | **1** |
+| `flare-long` | 3.5 | **12 > 10** | **6 > 3.5**, overhang | n = 2, not checked | **2** |
+| `flare-single-long` | (10 − 0)/2 = 5 | **12 > 10** | 6 > 5, suppressed (n = 1) | n = 1, not checked | **1** |
+| `flare-leg-interior` | (12 − 2 × 2.5)/2 = 3.5 | 6 < 12 | 3 ≤ 3.5 | **3 > 2.5**, interior | **1** |
 
 ## 4. Other observations (not discrepancies)
 
