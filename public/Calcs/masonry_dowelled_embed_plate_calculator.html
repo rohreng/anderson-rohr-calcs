@@ -109,7 +109,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
   <div class="content">
     <div id="uiRoot">
     <div class="schema-wrap">
-      <svg id="schemSvg" viewBox="0 0 1000 420" width="100%" style="max-height:420px" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="schemSvg" width="100%" style="max-height:420px" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="blk">
       <h2>0. Code basis</h2>
@@ -747,9 +747,198 @@ function readInputs(){
   return o;
 }
 
-// schematic (#schemSvg): Task 4 fills the body. Called on every run, input change and restore.
+// schematic (#schemSvg): wall section across t + elevation along L_p, drawn with AREDraw.
+// Geometry comes straight from the form so it redraws on every edit; l_d needs a valid MDEP.compute
+// and is left off while the inputs have errors. Invalid geometry clears the drawing to a message.
 function draw(res){
-  var svg=$('schemSvg'); if (!svg) return;
+  var svg=$('schemSvg'); if (!svg || !window.AREDraw || !window.MDEP) return;
+  var D=window.AREDraw, M=window.MDEP, NS='http://www.w3.org/2000/svg';
+  var inp=readInputs();
+  if (!res || !res.ok){ try { res=M.compute(inp); } catch(e){ res=null; } }
+  var ok=!!(res && res.ok), ld=ok ? res.vals.ld : NaN;
+  function num(k){ var x=parseFloat(inp[k]); return isFinite(x) ? x : NaN; }
+  function fr(x){ return M.frac16(x)+'"'; }                             // 3.5625 -> 3-9/16"
+  var cmu=+inp.cmu, bar=+inp.bar, t=M.T_MAP[cmu], tfs=M.TFS_MAP[cmu], db=M.BAR[bar] ? M.BAR[bar][0] : NaN;
+  var n=num('n'), s=num('s'), Le=num('Le'), Lp=num('Lp'), Bp=num('Bp'), tp=num('tp'), w=num('w'), Lw=num('Lw'), T=num('T');
+  var flare=inp.weldCfg==='flare', sd=inp.code==='sd';
+  var dwg=new D.Drawing(svg, {margin:14}), st=dwg.style;
+  var GROUT='#efe6d5', GROUT_LN='#9c8358', SHELL='#e4e1da', BAR_FILL='#1a2b5f', groutHatch=dwg.hatchPattern(GROUT_LN, 4);
+
+  // ---- helpers ----------------------------------------------------------------------------------
+  function node(tag, attrs, layer){ var e=document.createElementNS(NS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); dwg.add(e, layer||'steel'); return e; }
+  function wrect(v, x0, y0, x1, y1, attrs, layer){                      // rect between two world corners
+    var a=v.px(x0), b=v.py(y0), c=v.px(x1), d=v.py(y1), o={x:Math.min(a,c).toFixed(1), y:Math.min(b,d).toFixed(1),
+      width:Math.abs(c-a).toFixed(1), height:Math.abs(d-b).toFixed(1)};
+    for (var k in attrs) o[k]=attrs[k];
+    dwg.extend(a,b); dwg.extend(c,d); return node('rect', o, layer);
+  }
+  function poly(v, pts, attrs, layer){                                  // closed polygon from world points
+    var o={points:pts.map(function(q){ return v.px(q[0]).toFixed(1)+','+v.py(q[1]).toFixed(1); }).join(' ')};
+    for (var k in attrs) o[k]=attrs[k];
+    return node('polygon', o, layer);
+  }
+  function plain(r){ return r.replace(/_\{([^}]*)\}/g, '$1'); }
+  function rich(tx, r){                                                 // 'L_{e} = 24"' -> L with a subscript e
+    var fs=parseFloat(tx.getAttribute('font-size'))||10.5, low=false;
+    while (tx.firstChild) tx.removeChild(tx.firstChild);
+    r.split(/(_\{[^}]*\})/).forEach(function(p){
+      if (!p) return;
+      var m=/^_\{([^}]*)\}$/.exec(p), ts=document.createElementNS(NS, 'tspan');
+      if (m){ ts.setAttribute('font-size', (fs*0.78).toFixed(1)); if (!low){ ts.setAttribute('dy', '3'); low=true; } ts.textContent=m[1]; }
+      else { if (low){ ts.setAttribute('dy', '-3'); low=false; } ts.textContent=p; }
+      tx.appendChild(ts);
+    });
+  }
+  // dimension with a rich label; mode moves the label: 'R' / 'L' beside a vertical dim, 'oL' / 'oR' outboard of a short one
+  function dim(v, x1, y1, x2, y2, r, off, mode, color){
+    var g=D.dimLine(v, x1, y1, x2, y2, plain(r), {off:off, color:color}), tx=g.querySelector('text'), ln=g.querySelectorAll('line')[2];
+    if (mode && tx && ln){
+      var lx1=+ln.getAttribute('x1'), ly1=+ln.getAttribute('y1'), lx2=+ln.getAttribute('x2'), ly2=+ln.getAttribute('y2');
+      var fs=parseFloat(tx.getAttribute('font-size'))||10.5, wpx=plain(r).length*fs*0.56, x, y, anc;
+      if (mode==='R' || mode==='L'){ anc=mode==='R'?'start':'end'; x=lx1+(mode==='R'?5:-5); y=(ly1+ly2)/2+3; tx.setAttribute('dominant-baseline', 'auto'); }
+      else { anc=mode==='oR'?'start':'end'; x=mode==='oR' ? Math.max(lx1,lx2)+6 : Math.min(lx1,lx2)-6; y=+tx.getAttribute('y'); }
+      tx.setAttribute('x', x.toFixed(1)); tx.setAttribute('y', y.toFixed(1)); tx.setAttribute('text-anchor', anc);
+      dwg.extend(anc==='start'?x+wpx:x-wpx, y-fs); dwg.extend(x, y+4);
+    }
+    if (tx){                                                            // white backing masks hatch and earlier witness lines
+      rich(tx, r);
+      var bb=null; try { bb=tx.getBBox(); } catch(e){}                  // no box while the page is hidden: skip the backing
+      if (bb && bb.width>0){
+        var bk=document.createElementNS(NS, 'rect');
+        [['x',bb.x-2],['y',bb.y+1],['width',bb.width+4],['height',Math.max(bb.height-2,1)]].forEach(function(a){ bk.setAttribute(a[0], a[1].toFixed(1)); });
+        bk.setAttribute('fill', '#fff'); g.insertBefore(bk, tx);
+      }
+    }
+    return g;
+  }
+  function vdim(v, x, yTop, yBot, r, off, color){ return dim(v, x, yBot, x, yTop, r, off, off>0?'R':'L', color); }   // off > 0: right
+  function hdim(v, xL, xR, y, r, off, mode, color){ return dim(v, xL, y, xR, y, r, off, mode, color); }               // off > 0: below
+  function caption(xpx, ypx, str){
+    var e=node('text', {x:xpx.toFixed(1), y:ypx.toFixed(1), fill:st.dim, 'font-size':'10', 'font-family':st.font, 'text-anchor':'middle'}, 'anno');
+    e.textContent=str; var hw=str.length*2.9; dwg.extend(xpx-hw, ypx-9); dwg.extend(xpx+hw, ypx+3); return e;
+  }
+  function breakLine(x0px, x1px, ypx){                                 // drafting break across a cut edge
+    var xm=(x0px+x1px)/2;
+    node('polyline', {points:[x0px-4,ypx, xm-7,ypx, xm-3,ypx-6, xm+3,ypx+6, xm+7,ypx, x1px+4,ypx].map(function(q){ return q.toFixed(1); }).join(' '),
+      fill:'none', stroke:st.steel, 'stroke-width':'1'}, 'anno');
+  }
+
+  var geomOK = isFinite(t) && isFinite(db) && Le>0 && Lp>0 && Bp>0 && tp>0 && n>=1 && n<=40 && Math.floor(n)===n && (n===1 || s>0);
+  if (!geomOK){
+    var msg=node('text', {x:'0', y:'0', fill:st.dim, 'font-size':'12', 'font-family':st.font, 'text-anchor':'middle'}, 'anno');
+    msg.textContent='Schematic: enter a valid L_e, L_p, B_p, t_p, n and s to draw.';
+    dwg.extend(-190, -14); dwg.extend(190, 6); dwg.commit(); return;
+  }
+
+  // ---- layout: one scale for both views --------------------------------------------------------
+  var cover=inp.barPos==='custom' ? num('coverIn') : t/2-db/2;
+  if (!(cover>0) || cover>t-db) cover=t/2-db/2;                         // unusable entry: draw the bar centered
+  var R=db/2, barX=cover+R, depth=Math.max(Le, isFinite(ld)?ld:0)+3, yb=-depth;
+  var sEff=n>=2 ? s : 0, ep=(Lp-(n-1)*sEff)/2, xs=[];
+  for (var i=0;i<n;i++) xs.push(ep+i*sEff);
+  var legOK=flare && Lw>0;
+  function legDir(i){ return (xs[i]<=Lp/2+1e-9) ? -1 : 1; }           // flare legs point to the nearer plate end (center bar: left)
+  var m=Math.max(2.5, 0.2*Lp), mL=m, mR=m;
+  if (legOK){ mL=Math.max(m, Lw-xs[0]+1.5); mR=Math.max(m, xs[n-1]+Lw-Lp+1.5); }
+  var sc=D.fitScale(depth+tp, 250, {min:2, max:16});
+  sc=Math.min(sc, 380/(Lp+mL+mR), 150/Math.max(t, Bp));
+  var wd=Math.max(w>0 ? w : 0.25, 3/sc);                                // weld leg as drawn (>= 3 px)
+  var mark=(window.AREv2 && AREv2.getMark) ? AREv2.getMark() : '';     // written as textContent, so the raw mark is safe
+  var Tlab=(sd?'T_{u}':'T')+(T>=0 ? ' = '+fc(T)+' lb' : '');
+
+  // ================= VIEW 1: wall section across t ==================
+  var vS=new D.View(dwg, {scale:sc, ox:0, oy:0, flipY:true});
+  D.plate(vS, 0, yb, tfs, depth, {fill:SHELL});
+  D.plate(vS, t-tfs, yb, tfs, depth, {fill:SHELL});
+  wrect(vS, tfs, yb, t-tfs, 0, {fill:GROUT, stroke:GROUT_LN, 'stroke-width':'1'});
+  wrect(vS, tfs, yb, t-tfs, 0, {fill:'url(#'+groutHatch+')', stroke:'none'});
+  for (var yj=-8; yj>yb+0.5; yj-=8){                                    // bed joints in the face shells, 8 in courses
+    [[0,tfs],[t-tfs,t]].forEach(function(p){ node('line', {x1:vS.px(p[0]).toFixed(1), y1:vS.py(yj).toFixed(1), x2:vS.px(p[1]).toFixed(1), y2:vS.py(yj).toFixed(1), stroke:'#9aa6c2', 'stroke-width':'0.8'}); });
+  }
+  breakLine(vS.px(0), vS.px(t), vS.py(yb));
+  D.plate(vS, (t-Bp)/2, 0, Bp, tp, {fill:st.steelFillHi});
+  // the dowel, cut across: a flare leg runs along L_p, so here it is seen end-on under the plate
+  wrect(vS, barX-R, -Le, barX+R, flare ? -R : 0, {fill:BAR_FILL, stroke:st.steel, 'stroke-width':'1', 'data-role':'dowel-section'});
+  if (flare){
+    node('circle', {cx:vS.px(barX).toFixed(1), cy:vS.py(-R).toFixed(1), r:Math.max(vS.s(R),2).toFixed(1), fill:BAR_FILL, stroke:st.steel, 'stroke-width':'1', 'data-role':'dowel-leg'});
+    [-1,1].forEach(function(sg){                                        // flare-bevel grooves, both sides of the bar
+      var pts=[[barX+sg*R*1.05, 0]];
+      for (var a=0;a<=8;a++){ var th=Math.PI/2*a/8; pts.push([barX+sg*R*Math.sin(th), -R+R*Math.cos(th)]); }
+      poly(vS, pts, {fill:st.weld, stroke:st.weld, 'stroke-width':'0.6'}, 'weld');
+    });
+  } else {
+    [-1,1].forEach(function(sg){ var xe=barX+sg*R; poly(vS, [[xe,0],[xe+sg*wd,0],[xe,-wd]], {fill:st.weld, stroke:st.weld, 'stroke-width':'0.6'}, 'weld'); });
+  }
+  D.centerline(vS, barX, -Le-1, barX, tp+0.8);
+  // dimensions: l_d bracket left from the plate underside (red when it runs past L_e), L_e right, cover and t below
+  if (isFinite(ld)) vdim(vS, 0, 0, -ld, 'ℓ_{d} = '+ld.toFixed(2)+'"', -16, ld>Le+1e-9 ? st.force : null);
+  vdim(vS, barX+R, 0, -Le, 'L_{e} = '+fr(Le), vS.s(t-barX-R)+16);
+  hdim(vS, 0, barX-R, -Le, 'cover = '+fr(cover), vS.s(depth-Le)+16, 'oL');
+  hdim(vS, 0, t, yb, 't = '+fr(t), 42);
+  D.leader(vS, t/2, yb+1.4, -(vS.s(t/2)+30), 0, 'Grout', {color:GROUT_LN});
+
+  // ================= VIEW 2: elevation along the plate ==================
+  var ancX=legOK ? xs[0]-Lw*0.6 : xs[0]-R-wd/2;                          // weld-symbol leader target (dowel 1)
+  var leftPx=Math.max(vS.s(mL), -vS.s(ancX)+96);
+  var vE=new D.View(dwg, {scale:sc, ox:dwg.maxX+34+leftPx, oy:0, flipY:true});
+  wrect(vE, -mL, yb, Lp+mR, 0, {fill:GROUT, stroke:st.steel, 'stroke-width':'1.2'});
+  wrect(vE, -mL, yb, Lp+mR, 0, {fill:'url(#'+groutHatch+')', stroke:'none'});
+  for (var yk=-8; yk>yb+0.5; yk-=8) node('line', {x1:vE.px(-mL).toFixed(1), y1:vE.py(yk).toFixed(1), x2:vE.px(Lp+mR).toFixed(1), y2:vE.py(yk).toFixed(1), stroke:'#9aa6c2', 'stroke-width':'0.6', 'stroke-dasharray':'5 3'});
+  breakLine(vE.px(-mL), vE.px(Lp+mR), vE.py(yb));
+  D.plate(vE, 0, 0, Lp, tp, {fill:st.steelFillHi});
+  xs.forEach(function(x, i){
+    wrect(vE, x-R, -Le, x+R, 0, {fill:BAR_FILL, stroke:st.steel, 'stroke-width':'1', 'data-role':'dowel'});
+    if (legOK){
+      var xe=x+legDir(i)*Lw;
+      wrect(vE, Math.min(x,xe), -db, Math.max(x,xe), 0, {fill:BAR_FILL, stroke:st.steel, 'stroke-width':'1', 'data-role':'dowel-leg'});
+      wrect(vE, Math.min(x,xe), -R*0.55, Math.max(x,xe), 0, {fill:st.weld, 'fill-opacity':'0.55', stroke:st.weld, 'stroke-width':'0.6'}, 'weld');
+    } else if (!flare){
+      [-1,1].forEach(function(sg){ var xw=x+sg*R; poly(vE, [[xw,0],[xw+sg*wd,0],[xw,-wd]], {fill:st.weld, stroke:st.weld, 'stroke-width':'0.6'}, 'weld'); });
+    }
+    D.centerline(vE, x, yb, x, tp+0.6);
+  });
+  // weld symbol on dowel 1: leader down-left to a reference line
+  (function(){
+    var ax=vE.px(ancX), ay=vE.py(legOK ? -R*0.3 : -wd/2), jx=Math.min(ax-24, vE.px(-mL)-12), jy=ay+30, x0=jx-64, xs0=jx-34;
+    node('polyline', {points:ax.toFixed(1)+','+ay.toFixed(1)+' '+jx.toFixed(1)+','+jy.toFixed(1)+' '+x0.toFixed(1)+','+jy.toFixed(1), fill:'none', stroke:st.weld, 'stroke-width':'0.9'}, 'weld');
+    node('circle', {cx:ax.toFixed(1), cy:ay.toFixed(1), r:'1.6', fill:st.weld}, 'weld');
+    var tx=node('text', {x:'0', y:(jy+11).toFixed(1), fill:st.weld, 'font-size':st.fsDim, 'font-family':st.font, 'text-anchor':'end'}, 'weld');
+    if (flare){                                                         // flare-bevel both sides, length after the symbol
+      [-1,1].forEach(function(sg){
+        node('line', {x1:xs0.toFixed(1), y1:jy.toFixed(1), x2:xs0.toFixed(1), y2:(jy+sg*9).toFixed(1), stroke:st.weld, 'stroke-width':'1'}, 'weld');
+        node('path', {d:'M'+(xs0+9).toFixed(1)+','+jy.toFixed(1)+' Q'+(xs0+3).toFixed(1)+','+(jy+sg*1.5).toFixed(1)+' '+(xs0+3).toFixed(1)+','+(jy+sg*9).toFixed(1), fill:'none', stroke:st.weld, 'stroke-width':'1'}, 'weld');
+      });
+      tx.setAttribute('x', (xs0+12).toFixed(1)); tx.setAttribute('text-anchor', 'start'); tx.textContent=Lw>0 ? M.frac16(Lw) : '';
+    } else {                                                            // fillet, arrow side, weld all around
+      node('path', {d:'M'+xs0.toFixed(1)+','+jy.toFixed(1)+' L'+xs0.toFixed(1)+','+(jy+9).toFixed(1)+' L'+(xs0+9).toFixed(1)+','+jy.toFixed(1)+' z', fill:st.weld}, 'weld');
+      node('circle', {cx:jx.toFixed(1), cy:jy.toFixed(1), r:'4', fill:'none', stroke:st.weld, 'stroke-width':'1'}, 'weld');
+      tx.setAttribute('x', (xs0-3).toFixed(1)); tx.textContent=w>0 ? M.frac16(w) : '';
+    }
+    dwg.extend(x0-4, jy-12); dwg.extend(ax, jy+14);
+  })();
+  var fa=D.forceArrow(vE, Lp/2, tp, 0, 1, 42, plain(Tlab), {standoff:3}), faT=fa && fa.querySelector('text');
+  if (faT) rich(faT, Tlab);
+  // dimensions: L_e right; below the wall L_p (last row), clear (row 2) and the e_p / s chain (row 1), drawn in that
+  // order so each label's halo sits over the longer witness lines; L_w above the plate on dowel 1's leg, outboard of T
+  var xn=xs[n-1];
+  vdim(vE, xn+R, 0, -Le, 'L_{e} = '+fr(Le), vE.s(Lp+mR-xn-R)+16);
+  function ext(x, y){ node('line', {x1:vE.px(x).toFixed(1), y1:vE.py(y).toFixed(1), x2:vE.px(x).toFixed(1), y2:vE.py(yb).toFixed(1), stroke:st.dim, 'stroke-width':'0.7'}, 'anno'); }
+  ext(0, 0); ext(Lp, 0);
+  hdim(vE, 0, Lp, yb, 'L_{p} = '+fr(Lp), n>=2 ? 64 : 40);
+  if (n>=2){ ext(xs[0]+R, -Le); ext(xs[1]-R, -Le); hdim(vE, xs[0]+R, xs[1]-R, yb, 'clear = '+fr(s-db), 40, vE.s(s-db)<70 ? 'oR' : null); }
+  hdim(vE, 0, xs[0], yb, 'e_{p} = '+fr(ep), 16, 'oL');
+  if (n>=2) hdim(vE, xs[0], xn, yb, 's = '+fr(s)+(n>2 ? ' ×'+(n-1) : ''), 16);
+  hdim(vE, xn, Lp, yb, 'e_{p} = '+fr(ep), 16, 'oR');
+  if (legOK){ var la=xs[0]+Math.min(0, legDir(0)*Lw), lb=xs[0]+Math.max(0, legDir(0)*Lw); hdim(vE, la, lb, -db, 'L_{w} = '+fr(Lw), -(vE.s(db+tp)+14), 'oL'); }
+
+  // ---- titles and captions under both views ----
+  var yT=dwg.maxY+24, cS=vS.px(t/2), cE=vE.px(Lp/2);
+  D.viewTitle(vS, cS, yT, (mark ? mark+' — ' : '')+'Wall Section');
+  D.viewTitle(vE, cE, yT, 'Elevation Along Plate');
+  caption(cS, yT+20, 'PL '+M.frac16(tp)+' × '+M.frac16(Bp)+' × '+M.frac16(Lp)+' · '+n+' – #'+bar+' Gr '+inp.grade+(inp.epoxy?' epoxy':'')+(n>1?' dowels':' dowel'));
+  caption(cE, yT+20, flare ? 'Flare-bevel groove both sides, '+(Lw>0?fr(Lw):'?')+' per side'+(ok && res.vals.noteA ? ' (fillet w = '+fr(w)+' credited)' : '')
+                           : 'Fillet all around each dowel, w = '+(w>0?fr(w):'?'));
+  dwg.commit();
 }
 
 function run(){
@@ -845,6 +1034,7 @@ function runSelftest(){
   window.addEventListener('load', function(){
     draw();
     if (window.AREv2 && AREv2.onAfterRestore) AREv2.onAfterRestore(function(){ refreshModes(); draw(); });
+    if (window.AREv2 && AREv2.onMarkChange) AREv2.onMarkChange(function(){ draw(); });   // mark in the view title, even while inputs are invalid
   });
   try { if (new URLSearchParams(window.location.search).get('selftest')==='1') runSelftest(); } catch(e){}
 })();

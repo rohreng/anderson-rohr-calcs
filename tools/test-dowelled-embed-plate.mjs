@@ -79,6 +79,22 @@ await page.click('button.calc-btn');
 check('results shown after Run', await page.$eval('#results', (el) => el.classList.contains('show')), 'no .show on #results');
 const nRows = await page.$$eval('#chkTb .det-btn', (b) => b.length);
 check('>= 7 check rows with ▶ Calc', nRows >= 7, 'rows=' + nRows);
+
+// ── schematic (#schemSvg) ────────────────────────────────────────────────────
+const svgInfo = () => page.evaluate(() => { const s = document.getElementById('schemSvg');
+  return { els: s.querySelectorAll('*').length, dowels: s.querySelectorAll('[data-role="dowel"]').length, text: s.textContent }; });
+let sv = await svgInfo();
+check('schematic drawn after Run (> 5 elements)', sv.els > 5, 'elements=' + sv.els);
+check('schematic: 2 dowels at defaults', sv.dowels === 2, 'dowels=' + sv.dowels);
+check('schematic: both view titles', /Wall Section/.test(sv.text) && /Elevation Along Plate/.test(sv.text), sv.text.slice(0, 200));
+const DIMS = ['t = 7-5/8', 'cover = 3-9/16', 'Le = 24', 'ℓd = 18.6', 'ep = 3-1/2', 's = 3', 'clear = 2-1/2', 'Lp = 10', 'T = 5,216 lb'];
+check('schematic: dims t, cover, Le, ℓd, ep, s, clear, Lp and T', DIMS.every((d) => sv.text.includes(d)), 'missing: ' + DIMS.filter((d) => !sv.text.includes(d)).join(' | '));
+check('schematic: no Lw dimension for the fillet weld', !/Lw = /.test(sv.text), sv.text);
+await page.fill('#n', '3');
+sv = await svgInfo();
+check('schematic: n = 3 draws 3 dowels', sv.dowels === 3, 'dowels=' + sv.dowels);
+await page.fill('#n', '2');
+check('schematic: n = 2 back to 2 dowels', (await svgInfo()).dowels === 2, 'dowels changed');
 check('banner PASS at defaults', /PASS/.test(await sumText()), await sumText());
 const detOk = await page.evaluate(() => { const b = document.querySelector('#chkTb .det-btn'); b.click(); return document.getElementById('det_0').classList.contains('open'); });
 check('▶ Calc opens the detail panel', detOk, 'det_0 not open');
@@ -93,10 +109,12 @@ check('K card names the governing term', /clear spacing governs/.test(await page
 const devOpen = () => page.$eval('#chkTb tr[data-id="dev"]', (tr) => tr.nextElementSibling.querySelector('.calc-det').classList.contains('open') && /▾/.test(tr.querySelector('.det-btn').textContent));
 await page.$eval('#chkTb tr[data-id="dev"] .det-btn', (b) => b.click());
 await page.fill('#Le', '30');
-await page.waitForFunction(() => /30\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).catch(() => {});
+const le30 = await page.waitForFunction(() => /30\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).then(() => true, () => false);
+check('L_e = 30 live re-run updates the dev row', le30, await rowText('dev', 4));
 check('open ▶ Calc panel survives a live re-run', await devOpen(), 'dev panel closed after re-run');
 await page.fill('#Le', '24');
-await page.waitForFunction(() => /24\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).catch(() => {});
+const le24 = await page.waitForFunction(() => /24\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).then(() => true, () => false);
+check('L_e = 24 live re-run updates the dev row', le24, await rowText('dev', 4));
 const runs = await page.evaluate(async () => { let k = 0; const orig = window.run; window.run = function () { k++; return orig.apply(this, arguments); };
   document.getElementById('T').value = '9116'; document.getElementById('T').dispatchEvent(new Event('input', { bubbles: true }));
   document.querySelector('button.calc-btn').click(); await new Promise((r) => setTimeout(r, 600)); window.run = orig; return k; });
@@ -110,6 +128,9 @@ check('L_e = 24 -> banner PASS again', await waitSum(/PASS/), await sumText());
 
 await page.selectOption('#weldCfg', 'flare');
 check('flare shows Lw', await page.isVisible('#Lw'), 'Lw hidden');
+sv = await svgInfo();
+check('schematic: flare dimensions L_w', /Lw = 4/.test(sv.text), sv.text);
+check('schematic: flare keeps 2 dowels', sv.dowels === 2, 'dowels=' + sv.dowels);
 check('flare shows proc', await page.isVisible('#proc'), 'proc hidden');
 check('flare #4 shows note [a] hint', await page.isVisible('#noteAHint'), 'hint hidden');
 await page.selectOption('#bar', '6');
@@ -137,11 +158,21 @@ check('n = 2 enables s', !(await page.$eval('#s', (el) => el.disabled)), 's disa
 await page.fill('#T', '');
 const errShown = await page.waitForFunction(() => { const e = document.getElementById('errOut'); return e.style.display !== 'none' && /tension T/.test(e.textContent); }, null, { timeout: 3000 }).then(() => true, () => false);
 check('blank T -> input error shown', errShown, await page.$eval('#errOut', (el) => el.textContent));
+await page.fill('#fm', '');
+sv = await svgInfo();
+check('schematic: blank T and fm still draw 2 dowels, no l_d', sv.dowels === 2 && !/ℓd = /.test(sv.text), 'dowels=' + sv.dowels + ' text=' + sv.text);
+await page.fill('#Le', '');
+sv = await svgInfo();
+check('schematic: blank L_e clears to a message', sv.dowels === 0 && /Schematic/.test(sv.text), 'dowels=' + sv.dowels + ' text=' + sv.text);
+await page.fill('#Le', '24');
+await page.fill('#fm', '1750');
 await page.fill('#T', '9115');
 check('T restored -> results back', await waitSum(/PASS/), await sumText());
 
 await page.fill('#areMark', 'EP-1');
 check('mark EP-1 in the summary', await waitSum(/EP-1/), await sumText());
+const markSvg = await page.waitForFunction(() => /EP-1/.test(document.getElementById('schemSvg').textContent), null, { timeout: 3000 }).then(() => true, () => false);
+check('mark EP-1 in the schematic view title', markSvg, (await svgInfo()).text.slice(0, 200));
 
 // ── save / load round trip (are-utils-v2 captureState / loadFromState) ─────
 await page.selectOption('#weldCfg', 'flare');
