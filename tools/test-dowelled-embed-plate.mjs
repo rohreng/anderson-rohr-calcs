@@ -63,8 +63,8 @@ const SPEC3_IDS = ['code', 'T', 'cmu', 'fm', 'barPos', 'coverIn', 'epoxy', 'bar'
   'weldCfg', 'w', 'Lw', 'proc', 'Fexx', 'weldable'];
 const missingIds = await page.evaluate((ids) => ids.filter((id) => !document.getElementById(id)), SPEC3_IDS);
 check('every spec §3 input id present', missingIds.length === 0, 'missing: ' + missingIds.join(', '));
-const dupIds = await page.evaluate(() => { const seen = {}, d = []; document.querySelectorAll('#uiRoot input[id], #uiRoot select[id]').forEach((el) => { if (seen[el.id]) d.push(el.id); seen[el.id] = 1; }); return d; });
-check('input ids unique', dupIds.length === 0, 'duplicates: ' + dupIds.join(', '));
+const dupIds = await page.evaluate(() => { const seen = {}, d = []; document.querySelectorAll('[id]').forEach((el) => { if (seen[el.id]) d.push(el.id); seen[el.id] = 1; }); return d; });
+check('element ids unique in the document', dupIds.length === 0, 'duplicates: ' + dupIds.join(', '));
 const defDiff = await page.evaluate(() => { const i = readInputs(), b = window.MDEP.BASE; return Object.keys(b).filter((k) => String(i[k]) !== String(b[k])).map((k) => k + ': ' + i[k] + ' vs ' + b[k]); });
 check('defaults = MDEP.BASE (REK-09 ASD)', defDiff.length === 0, defDiff.join('; '));
 check('coverIn hidden while barPos = center', !(await page.isVisible('#coverIn')), 'visible');
@@ -89,6 +89,19 @@ await page.selectOption('#code', 'sd');
 await page.fill('#T', '9115');
 const sdOk = await page.waitForFunction(() => { const td = document.querySelector('#chkTb tr[data-id="tens"] td:nth-child(4)'); return td && /21,?600/.test(td.textContent); }, null, { timeout: 3000 }).then(() => true, () => false);
 check('SD live re-run: tension capacity 21,600', sdOk, sdOk ? '' : await rowText('tens', 4));
+check('K card names the governing term', /clear spacing governs/.test(await page.$eval('#demOut', (el) => el.textContent)), await page.$eval('#demOut', (el) => el.textContent));
+const devOpen = () => page.$eval('#chkTb tr[data-id="dev"]', (tr) => tr.nextElementSibling.querySelector('.calc-det').classList.contains('open') && /▾/.test(tr.querySelector('.det-btn').textContent));
+await page.$eval('#chkTb tr[data-id="dev"] .det-btn', (b) => b.click());
+await page.fill('#Le', '30');
+await page.waitForFunction(() => /30\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).catch(() => {});
+check('open ▶ Calc panel survives a live re-run', await devOpen(), 'dev panel closed after re-run');
+await page.fill('#Le', '24');
+await page.waitForFunction(() => /24\.000 in/.test(document.querySelector('#chkTb tr[data-id="dev"] td:nth-child(4)').textContent), null, { timeout: 3000 }).catch(() => {});
+const runs = await page.evaluate(async () => { let k = 0; const orig = window.run; window.run = function () { k++; return orig.apply(this, arguments); };
+  document.getElementById('T').value = '9116'; document.getElementById('T').dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector('button.calc-btn').click(); await new Promise((r) => setTimeout(r, 600)); window.run = orig; return k; });
+check('edit then Run click runs once', runs === 1, 'runs=' + runs);
+await page.fill('#T', '9115');
 
 await page.fill('#Le', '16');
 check('L_e = 16 -> banner FAIL', await waitSum(/FAIL/), await sumText());
@@ -111,7 +124,7 @@ check('w = 1/8 in -> banner FAIL', wFail, await sumText());
 check('governing row is the minimum fillet size', /Minimum fillet size/.test(await sumText()), await sumText());
 check('wmin row FAIL', /FAIL/.test(await rowText('wmin', 6)), await rowText('wmin', 6));
 await page.fill('#w', '0.25');
-await waitSum(/PASS/);
+check('w = 1/4 in -> banner PASS again', await waitSum(/PASS/), await sumText());
 
 await page.selectOption('#barPos', 'custom');
 check('barPos = custom shows coverIn', await page.isVisible('#coverIn'), 'coverIn hidden');
@@ -129,6 +142,29 @@ check('T restored -> results back', await waitSum(/PASS/), await sumText());
 
 await page.fill('#areMark', 'EP-1');
 check('mark EP-1 in the summary', await waitSum(/EP-1/), await sumText());
+
+// ── save / load round trip (are-utils-v2 captureState / loadFromState) ─────
+await page.selectOption('#weldCfg', 'flare');
+await page.selectOption('#barPos', 'custom');
+await page.fill('#coverIn', '2.5');
+await page.fill('#n', '1');
+await page.selectOption('#code', 'sd');
+await page.check('#epoxy');
+await page.waitForTimeout(500);
+const saved = await page.evaluate(() => window.AREv2.captureState());
+const nKeys = Object.keys(saved.fields || {}).length;
+check('captureState: 23 field keys', nKeys === 23, 'keys=' + nKeys + ': ' + Object.keys(saved.fields || {}).join(', '));
+check('captureState: no problems', (saved._problems || []).length === 0, (saved._problems || []).join('; '));
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('#areBar');
+const loadRes = await page.evaluate(async (st) => { const r = window.AREv2.loadFromState(st); await window.AREv2.runAndSettle(); return { ok: r.ok, applied: r.applied, mm: r.mismatches }; }, saved);
+check('loadFromState ok, 23 applied', loadRes.ok && loadRes.applied === 23, JSON.stringify(loadRes));
+const after = await page.evaluate(() => { const g = (id) => document.getElementById(id); return { weldCfg: g('weldCfg').value, barPos: g('barPos').value, coverIn: g('coverIn').value, n: g('n').value, code: g('code').value, epoxy: g('epoxy').checked }; });
+check('restored values', after.weldCfg === 'flare' && after.barPos === 'custom' && after.coverIn === '2.5' && after.n === '1' && after.code === 'sd' && after.epoxy === true, JSON.stringify(after));
+for (const id of ['Lw', 'proc', 'coverIn', 'noteAHint']) check('restored: #' + id + ' visible', await page.isVisible('#' + id), id + ' hidden');
+check('restored: s disabled (n = 1)', await page.$eval('#s', (el) => el.disabled), 's enabled');
+check('restored: T_u label', /T<sub>u<\/sub>/.test(await page.$eval('#TsymLbl', (el) => el.innerHTML)), await page.$eval('#TsymLbl', (el) => el.innerHTML));
+check('restored: results shown', await page.$eval('#results', (el) => el.classList.contains('show')), 'no .show on #results');
 
 // ── selftest URL ─────────────────────────────────────────────────────────────
 await page.goto('http://calcs.test/Calcs/' + FILE + '?selftest=1', { waitUntil: 'load' });

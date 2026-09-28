@@ -19,7 +19,6 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .blk h2{color:#1e3c72;margin-bottom:16px;font-size:1.15em;border-bottom:2px solid #dde;padding-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .blk h3{color:#1e3c72;font-size:.98em;margin:14px 0 8px}
 .badge{font-size:.7em;background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-weight:600}
-.badge-warn{font-size:.7em;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-weight:600}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
 .ig{display:flex;flex-direction:column}
 .ig label{font-weight:600;margin-bottom:5px;color:#333;font-size:.87em}
@@ -40,10 +39,10 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .err-box h3{color:#991b1b;margin-bottom:8px}
 .err-box ul{padding-left:20px;color:#7f1d1d}
 .summary h3{font-size:1.15em;margin-bottom:5px}
-.prop-table,.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
-.prop-table th,.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
-.prop-table td,.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
-.prop-table tr:nth-child(even) td,.chk-table tr:nth-child(even) td{background:#f5f7ff}
+.chk-table{width:100%;border-collapse:collapse;font-size:.86em}
+.chk-table th{background:#1e3c72;color:#fff;padding:8px 10px;text-align:left}
+.chk-table td{padding:7px 10px;border-bottom:1px solid #eee}
+.chk-table tr:nth-child(even) td{background:#f5f7ff}
 .chk-table tr.det-row td{padding:0!important;background:#fff!important;border:none!important}
 .chk-table tr.sect-row td{background:#e0e7ff!important;font-weight:700;color:#1e3c72;padding:8px 10px!important}
 .dem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
@@ -75,8 +74,6 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
 .cval{color:#15803d;font-weight:700}
 .csep{border:none;border-top:1px dashed #c7d2e8;margin:7px 0}
 .cbox{background:#fff;border:1px solid #c7d2e8;border-radius:5px;padding:8px 12px;margin-top:6px;font-size:.97em}
-.footer-prov{margin-top:22px;padding:14px 18px;background:#111827;color:#d1d5db;border-radius:8px;font-size:.78em;line-height:1.6}
-.footer-prov b{color:#fff}
 .hide{display:none!important}
 @media print{
   body{background:#fff!important;padding:0!important}
@@ -152,7 +149,7 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-g
           </select></div>
         <div class="ig hide" id="coverInRow"><label for="coverIn">Masonry cover to the bar surface <span class="unit">(in)</span></label><input type="number" id="coverIn" value="3.5625" step="0.0625"></div>
         <div class="ig"><label for="epoxy">Epoxy-coated dowels</label>
-          <div class="chk-inline"><input type="checkbox" id="epoxy"> <span>&times;1.5 on Eq. 6-2 (not on the 12 in minimum)</span></div></div>
+          <div class="chk-inline"><input type="checkbox" id="epoxy"> <label for="epoxy" style="margin:0">&times;1.5 on Eq. 6-2 (not on the 12 in minimum)</label></div></div>
       </div>
       <div class="subnote">Cover is measured from the bar surface to the nearest masonry face. It enters K (&sect;6.1.6.3.1) with the clear spacing between dowels and 9d<sub>b</sub>.</div>
     </div>
@@ -416,6 +413,7 @@ window.MDEP = (function(){
     var clearLine = n>=2 ? 'clear spacing = s &minus; d<sub>b</sub> = '+f3(inp.s)+' &minus; '+f3(db)+' = '+f4(clear)+' in' : 'clear spacing: n = 1, no adjacent dowel &mdash; term does not apply';
     var nineLine = '9d<sub>b</sub> = 9 &times; '+f3(db)+' = '+f4(nineDb)+' in';
     var Klabel = Kgov==='cover' ? 'masonry cover' : Kgov==='clear' ? 'clear spacing' : '9d<sub>b</sub>';
+    v.Klabel = Klabel;                                  // governing-term text (HTML), shown by the UI K card
     var Kblock = R('K shall not exceed the least of the masonry cover, the clear spacing between adjacent dowels and 9d<sub>b</sub>:')
       +I(B(coverLine, Kgov==='cover'))+I(B(clearLine, Kgov==='clear'))+I(B(nineLine, Kgov==='9db'))
       +R('K = '+V(f4(K),'in')+' ('+Klabel+' governs)');
@@ -755,6 +753,7 @@ function draw(res){
 }
 
 function run(){
+  if (_rerunT){ clearTimeout(_rerunT); _rerunT=null; }
   var inp=readInputs(), res=window.MDEP.compute(inp);
   var errOut=$('errOut'), results=$('results');
   if (!res.ok){
@@ -767,7 +766,6 @@ function run(){
   errOut.innerHTML=''; errOut.style.display='none';
   var v=res.vals, asd=inp.code==='asd', T=Number(inp.T), n=Number(inp.n), bl='#'+inp.bar;
   var Tsym=asd?'T':'T<sub>u</sub>', capSym=asd?'T<sub>all</sub>':'&phi;T<sub>n</sub>', wSym=asd?'R<sub>nw</sub>/&Omega;':'&phi;R<sub>nw</sub>';
-  var Klabel = v.Kgov==='cover' ? 'masonry cover' : v.Kgov==='clear' ? 'clear spacing' : '9d<sub>b</sub>';
   var mark=(window.AREv2 && AREv2.getMarkHTML) ? AREv2.getMarkHTML() : '';
   var head = res.banner==='PASS' ? '&#10004; PASS &mdash; dowels carry T and are fully developed' : res.banner==='FAIL' ? '&#10008; FAIL &mdash; one or more checks exceed 1.0' : '&#9888; REVIEW &mdash; engineer items flagged';
   var sumCls = res.banner==='PASS'?'sum-pass':res.banner==='FAIL'?'sum-fail':'sum-review';
@@ -781,9 +779,14 @@ function run(){
     + card(fc(v.Tcap)+' lb', capSym+(asd?' = n&middot;A<sub>s</sub>&middot;F<sub>s</sub>':' = 0.90&middot;n&middot;A<sub>s</sub>&middot;f<sub>y</sub>'))
     + card(f3(v.ld)+' in', 'l<sub>d</sub> (Eq. 6-2'+(v.epoxyApplied?', epoxy &times;1.5':'')+(v.minGoverns?', 12 in min.':'')+')')
     + card(f3(Number(inp.Le))+' in', 'L<sub>e</sub> embedment provided')
-    + card(f4(v.K)+' in', 'K &mdash; '+Klabel+' governs')
+    + card(f4(v.K)+' in', 'K &mdash; '+v.Klabel+' governs')
     + card(fc(v.Rcap_w)+' lb', 'weld '+wSym+' per bar ('+(inp.weldCfg==='flare'?'flare-bevel':'fillet all around')+')');
 
+  var openIds={};                                       // ▶ Calc panels open before the rebuild stay open
+  Array.prototype.forEach.call(document.querySelectorAll('#chkTb tr[data-id]'), function(tr){
+    var det=tr.nextElementSibling && tr.nextElementSibling.querySelector('.calc-det');
+    if (det && det.classList.contains('open')) openIds[tr.getAttribute('data-id')]=true;
+  });
   var sections=[], idx=0, tbHtml='';
   var sMap={PASS:'<span class="pass">PASS</span>',FAIL:'<span class="fail">FAIL</span>',REVIEW:'<span class="review">REVIEW</span>','N/A':'<span class="na">N/A</span>',INFO:'<span class="info">INFO</span>',NOTE:'<span class="st-note">NOTE</span>'};
   res.checks.forEach(function(ch){ if (sections.indexOf(ch.section)===-1) sections.push(ch.section); });
@@ -802,6 +805,11 @@ function run(){
     });
   });
   $('chkTb').innerHTML=tbHtml;
+  Object.keys(openIds).forEach(function(id){
+    var tr=document.querySelector('#chkTb tr[data-id="'+id+'"]'); if (!tr) return;
+    var btn=tr.querySelector('.det-btn'), det=tr.nextElementSibling && tr.nextElementSibling.querySelector('.calc-det');
+    if (det){ det.classList.add('open'); if (btn) btn.textContent='▾ Calc'; }
+  });
   var rev=res.checks.filter(function(ch){return ch.status==='REVIEW';});
   var items=rev.map(function(ch){return '<li><b>'+ch.name+'</b>'+(ch.note?' &mdash; '+ch.note:'')+'</li>';})
     .concat(res.warnings.map(function(w){ return '<li><b>Warning</b> &mdash; '+esc(w)+'</li>'; }));
