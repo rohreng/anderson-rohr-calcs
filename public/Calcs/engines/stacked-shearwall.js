@@ -54,7 +54,7 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   // version = the state shape (the adapter gate); rev = the engine build, for the saved file and prints.
-  var ENGINE = { name: 'stacked-shearwall', version: 2, rev: '2026-09-16 v3-D', codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
+  var ENGINE = { name: 'stacked-shearwall', version: 2, rev: '2026-09-30 views', codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
 
   // ── load factors, ASCE 7-16 §2.4.1 (0.6W) / §2.4.5 (0.7E) / 0.6D ──────────
   var LOAD = {
@@ -882,6 +882,12 @@
           if (!(ow > 0)) errors.push(tag + ': opening width must be greater than zero.');
           if (oh > h + 1e-9) errors.push(tag + ': clear opening height ' + f2(oh) + ' ft exceeds the wall height ' + f2(h) + ' ft.');
         });
+        // Opening positions (plan 2026-09-30 §5a): drawing only, warnings
+        // only, and only when some opening carries x_ft — an unpositioned
+        // wall (every file before the views) adds nothing here.
+        if ((w.openings || []).some(function (o) { return isFinite(openingX(o)); })) {
+          layoutWall(w, h).warnings.forEach(function (lw) { warnings.push(tag + ': ' + lw.text + LAYOUT_NOTE); });
+        }
         if (segSum + opW > L + 1e-6) errors.push(tag + ': Σ segments (' + f2(segSum) + ' ft) + Σ opening widths (' + f2(opW) + ' ft) = ' + f2(segSum + opW) + ' ft exceeds L = ' + f2(L) + ' ft.');
         // A negative unsheathed area would reduce A_o and raise C_o — refuse it
         // rather than let openingArea() add it straight into the total. The
@@ -943,7 +949,10 @@
     var res = {
       ok: v.ok, errors: v.errors.slice(), warnings: v.warnings.slice(), notes: [],
       engine: ENGINE, sfrs: SFRS[state && state.sfrs] || null, sdc: state && state.sdc,
-      species: SPECIES[state && state.species] || null, floors: []
+      species: SPECIES[state && state.species] || null, floors: [],
+      // Views data (plan 2026-09-30 §1), filled once the model validates:
+      // level elevations, and each wall id's stack down the levels.
+      levels: [], stacks: {}, stackIds: []
     };
     if (!v.ok) return res;
 
@@ -990,6 +999,9 @@
       }
       res.floors.push(fr);
     }
+    res.levels = levelElevations(floors);
+    var stk = wallStacks(floors);
+    res.stacks = stk.byId; res.stackIds = stk.ids;
     res.ok = res.errors.length === 0;
     return res;
   }
@@ -1001,6 +1013,334 @@
     var list = floors[j].walls || [];
     for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
     return null;
+  }
+
+  // =========================================================================
+  // Views data — wall layout, level elevations, stacks, plan (plan 2026-09-30)
+  // =========================================================================
+  // Nothing here feeds a computed number. A_o, C_o, Σb_i and the segmented
+  // shares depend on widths only (SDPWS Eq. 4.3-6, §4.3.5.6, §4.3.5.5.1), so
+  // where a segment or an opening sits along the wall drives the drawings and
+  // the validate() warnings, never the design.
+  var LAYOUT_TOL = 1e-6;
+  var LAYOUT_NOTE = ' (Drawing only — A_o, C_o and Σb_i do not depend on opening positions.)';
+  // An opening's position: x_ft = distance from End 1 to its near edge, ft;
+  // absent / null / blank / not a number = not positioned.
+  function openingX(o) {
+    if (!o || o.x_ft === null || o.x_ft === undefined || o.x_ft === '') return NaN;
+    return num(o.x_ft, NaN);
+  }
+  // Pieces along the wall from End 1, x in ft:
+  //   { kind: 'seg',  x0, x1, w, i, b, short, overflow? }   segment i (listed width b; short = b does not
+  //                                              fit its piece; overflow = no piece left, drawn past End 2)
+  //   { kind: 'open', x0, x1, w, j, hc, hEff, floored, positioned, overflow }
+  //   { kind: 'unsh', x0, x1, w, why: 'remainder' | 'leftover' | 'extra' }
+  // mode 'exact'   every opening has x_ft: openings placed as given; the solid
+  //                pieces between them are matched to segments_ft in order from
+  //                End 1; a piece wider than its b_i is drawn b_i + unsheathed
+  //                leftover (segment against the wall end where the piece
+  //                touches End 2 only, else against the piece's End 1 side).
+  //      'partial' some have x_ft: those placed; segments and the unpositioned
+  //                openings fill the gaps in the assumed order.
+  //      'assumed' none has x_ft: seg 1, open 1, seg 2, open 2, …, remainder
+  //                unsheathed at End 2.
+  // A wall with no openings and at most one segment has nothing to order and
+  // reports 'exact'. `assumed` = mode !== 'exact'. warnings[] = { code, text }
+  // (codes outside / overlap / narrow / count / nofit); validate() prints them.
+  function layoutWall(w, h) {
+    w = w || {};
+    var L = num(w.L_ft, 0) || 0, hh = num(h, NaN);
+    var segs = (w.segments_ft || []).map(function (b) { return num(b, 0) || 0; });
+    var ops = (w.openings || []).map(function (o, j) {
+      var ow = num(o && o.w_ft, 0) || 0, hc = num(o && o.hc_ft, 0) || 0, x = openingX(o);
+      var hEff = hh > 0 ? Math.max(hc, hh / 3) : hc;
+      return { j: j, w: ow, hc: hc, hEff: hEff, floored: hEff > hc + 1e-9, x: x, positioned: isFinite(x) };
+    });
+    var nPos = ops.filter(function (o) { return o.positioned; }).length;
+    var mode = ops.length && nPos === ops.length ? 'exact' : (nPos > 0 ? 'partial' : 'assumed');
+    if (!ops.length && segs.length <= 1) mode = 'exact';
+    var pieces = [], warnings = [], unplaced = [];
+    function put(kind, x0, x1, extra) {
+      var p = { kind: kind, x0: x0, x1: x1, w: x1 - x0 };
+      if (extra) Object.keys(extra).forEach(function (k) { p[k] = extra[k]; });
+      pieces.push(p);
+      return p;
+    }
+    function putOpen(o, x0, overflow) {
+      return put('open', x0, x0 + o.w, { j: o.j, hc: o.hc, hEff: o.hEff, floored: o.floored, positioned: o.positioned, overflow: !!overflow });
+    }
+    function putSeg(i, x0, x1, short) { return put('seg', x0, x1, { i: i, b: segs[i], short: !!short }); }
+
+    if (mode === 'assumed' || (mode === 'exact' && !ops.length)) {
+      var x = 0, n = Math.max(segs.length, ops.length);
+      for (var q = 0; q < n; q++) {
+        if (q < segs.length) { putSeg(q, x, x + segs[q], false); x += segs[q]; }
+        if (q < ops.length) { putOpen(ops[q], x, false); x += ops[q].w; }
+      }
+      if (L > x + LAYOUT_TOL) put('unsh', x, L, { why: 'remainder' });
+      return { L: L, h: hh, mode: mode, assumed: mode !== 'exact', pieces: pieces, warnings: warnings, unplaced: unplaced };
+    }
+
+    // Positioned openings, in x order: out-of-wall and overlap warnings, and
+    // the solid gaps between them.
+    var pos = ops.filter(function (o) { return o.positioned; }).sort(function (a, b) { return a.x - b.x || a.j - b.j; });
+    var gaps = [], cur = 0, prev = null;
+    pos.forEach(function (o) {
+      if (o.x < -LAYOUT_TOL) warnings.push({ code: 'outside', j: o.j, text: 'opening ' + (o.j + 1) + ' (' + f2(o.w) + ' ft at x = ' + f2(o.x) + ' ft) starts before End 1.' });
+      else if (o.x + o.w > L + LAYOUT_TOL) warnings.push({ code: 'outside', j: o.j, text: 'opening ' + (o.j + 1) + ' (' + f2(o.w) + ' ft at x = ' + f2(o.x) + ' ft, to ' + f2(o.x + o.w) + ' ft) runs past the wall length L = ' + f2(L) + ' ft.' });
+      if (prev && o.x < prev.x + prev.w - LAYOUT_TOL) {
+        warnings.push({ code: 'overlap', j: o.j, text: 'opening ' + (prev.j + 1) + ' (' + f2(prev.x) + '–' + f2(prev.x + prev.w) + ' ft) and opening ' + (o.j + 1) + ' (' + f2(o.x) + '–' + f2(o.x + o.w) + ' ft) overlap.' });
+      }
+      var g1 = Math.min(o.x, L);
+      if (g1 > cur + LAYOUT_TOL) gaps.push({ x0: cur, x1: g1 });
+      cur = Math.max(cur, o.x + o.w);
+      putOpen(o, o.x, false);
+      if (!prev || o.x + o.w > prev.x + prev.w) prev = o;
+    });
+    if (L > cur + LAYOUT_TOL) gaps.push({ x0: cur, x1: L });
+
+    if (mode === 'exact') {
+      gaps.forEach(function (g, p) {
+        var gw = g.x1 - g.x0;
+        if (p >= segs.length) { put('unsh', g.x0, g.x1, { why: 'extra' }); return; }
+        var b = segs[p];
+        if (gw + LAYOUT_TOL < b) {
+          warnings.push({ code: 'narrow', i: p, text: 'solid piece ' + (p + 1) + ' from End 1 (' + f2(g.x0) + '–' + f2(g.x1) + ' ft) is ' + f2(gw) + ' ft, narrower than its listed b_' + (p + 1) + ' = ' + f2(b) + ' ft — b_i does not fit.' });
+          putSeg(p, g.x0, g.x1, true);
+          return;
+        }
+        var atEnd2 = g.x1 >= L - LAYOUT_TOL && g.x0 > LAYOUT_TOL;
+        if (gw > b + LAYOUT_TOL) {
+          if (atEnd2) { put('unsh', g.x0, g.x1 - b, { why: 'leftover' }); putSeg(p, g.x1 - b, g.x1, false); }
+          else { putSeg(p, g.x0, g.x0 + b, false); put('unsh', g.x0 + b, g.x1, { why: 'leftover' }); }
+        } else putSeg(p, g.x0, g.x1, false);
+      });
+      // Segments left without a solid piece are still segments of the
+      // calculation (their own hold-down pairs): drawn past End 2, flagged.
+      var xu = Math.max(L, cur);
+      for (var u = gaps.length; u < segs.length; u++) {
+        unplaced.push(u);
+        var pu = putSeg(u, xu, xu + segs[u], false); pu.overflow = true; xu += segs[u];
+      }
+      if (gaps.length !== segs.length) {
+        warnings.push({ code: 'count', text: 'the opening positions leave ' + gaps.length + ' solid piece' + (gaps.length === 1 ? '' : 's') + ' but ' + segs.length + ' segment' + (segs.length === 1 ? ' is' : 's are') + ' listed (' + fmtSegs(segs) + ' ft) — segments are matched to the solid pieces in order from End 1'
+          + (unplaced.length ? '; segment' + (unplaced.length === 1 ? ' ' : 's ') + unplaced.map(function (x) { return x + 1; }).join(', ') + ' drawn past End 2.' : '.') });
+      }
+    } else {
+      // Partial: segments and the unpositioned openings, in the assumed
+      // order, fill the gaps from End 1; an item that does not fit the rest of
+      // a gap moves to the next one (the rest is drawn unsheathed).
+      var rest = ops.filter(function (o) { return !o.positioned; }), seq = [];
+      for (var s = 0; s < Math.max(segs.length, rest.length); s++) {
+        if (s < segs.length) seq.push({ seg: s, w: segs[s] });
+        if (s < rest.length) seq.push({ op: rest[s], w: rest[s].w });
+      }
+      var gi = 0, xx = gaps.length ? gaps[0].x0 : L, over = [];
+      seq.forEach(function (it) {
+        while (gi < gaps.length && xx + it.w > gaps[gi].x1 + LAYOUT_TOL) {
+          if (gaps[gi].x1 > xx + LAYOUT_TOL) put('unsh', xx, gaps[gi].x1, { why: 'remainder' });
+          gi++;
+          if (gi < gaps.length) xx = gaps[gi].x0;
+        }
+        if (gi >= gaps.length) { over.push(it); return; }
+        if (it.op) putOpen(it.op, xx, false); else putSeg(it.seg, xx, xx + it.w, false);
+        xx += it.w;
+      });
+      if (gi < gaps.length) {
+        if (gaps[gi].x1 > xx + LAYOUT_TOL) put('unsh', xx, gaps[gi].x1, { why: 'remainder' });
+        for (var r = gi + 1; r < gaps.length; r++) put('unsh', gaps[r].x0, gaps[r].x1, { why: 'remainder' });
+      }
+      if (over.length) {
+        var xo = Math.max(L, cur);
+        over.forEach(function (it) {
+          if (it.op) putOpen(it.op, xo, true); else { var ps = putSeg(it.seg, xo, xo + it.w, false); ps.overflow = true; unplaced.push(it.seg); }
+          xo += it.w;
+        });
+        warnings.push({ code: 'nofit', text: over.length + (over.length === 1 ? ' segment or unpositioned opening does' : ' segments / unpositioned openings do') + ' not fit in the space the positioned openings leave; drawn past End 2.' });
+      }
+    }
+    pieces.sort(function (a, b) { return a.x0 - b.x0; });
+    return { L: L, h: hh, mode: mode, assumed: mode !== 'exact', pieces: pieces, warnings: warnings, unplaced: unplaced };
+  }
+
+  // Level elevations from the top of the foundation (base level bottom = 0).
+  function levelElevations(floors) {
+    var out = [], z = 0;
+    for (var k = floors.length - 1; k >= 0; k--) {
+      var h = num(floors[k].h_ft, 0) || 0;
+      out[k] = { k: k, id: floors[k].id, name: floors[k].name, h_ft: h, elevBot_ft: z, elevTop_ft: z + h, base: k === floors.length - 1 };
+      z += h;
+    }
+    return out;
+  }
+  function wallDir(w) {
+    var d = w && typeof w.dir === 'string' ? w.dir.replace(/^\s+|\s+$/g, '').toUpperCase() : '';
+    return d === 'X' || d === 'Y' ? d : null;
+  }
+  function optNum(v) { return v === null || v === undefined || v === '' ? null : (isFinite(num(v, NaN)) ? num(v) : null); }
+  // Each wall id down the levels: top / bottom level index, the levels it is
+  // present on (wi = its index there), gaps between top and bottom, its line
+  // key (at the top), plan keys dir / loc_ft / start_ft (first level that
+  // carries each, else null), endsAbove (bottom above the base) and lineBelow
+  // (its line goes on below — shear collected, overturning stops, validate()).
+  function wallStacks(floors) {
+    var ids = [], by = {};
+    floors.forEach(function (fl, k) {
+      (fl.walls || []).forEach(function (w, wi) {
+        var id = w.id, s = Object.prototype.hasOwnProperty.call(by, id) ? by[id] : null;
+        if (!s) {
+          s = by[id] = { id: id, label: w.label || String(id), top: k, bottom: k, levels: [], wi: [], gaps: [], line: lineKey(w),
+                         dir: null, loc_ft: null, start_ft: null, endsAbove: false, lineBelow: false };
+          ids.push(id);
+        }
+        if (s.levels.indexOf(k) >= 0) return;
+        s.levels.push(k); s.wi.push(wi); s.bottom = k;
+        if (s.dir === null) s.dir = wallDir(w);
+        if (s.loc_ft === null) s.loc_ft = optNum(w.loc_ft);
+        if (s.start_ft === null) s.start_ft = optNum(w.start_ft);
+      });
+    });
+    ids.forEach(function (id) {
+      var s = by[id];
+      for (var k = s.top; k <= s.bottom; k++) if (s.levels.indexOf(k) < 0) s.gaps.push(k);
+      s.endsAbove = s.bottom < floors.length - 1;
+      var key = lineKey(wallAt(floors, s.bottom, id));
+      for (var f = s.bottom + 1; f < floors.length && !s.lineBelow; f++) s.lineBelow = linePresent(floors, f, key);
+    });
+    return { ids: ids, byId: by };
+  }
+  // A wall's sign in the level Σ (the page's lineSign): stepped-parapet
+  // imports carry sign_wind / sign_seis, older imports one `sign`.
+  function lineSign(w, caseKey) {
+    var s = caseKey === 'seismic' ? w.sign_seis : w.sign_wind;
+    if (s === -1 || s === 1) return s;
+    return w.sign === -1 ? -1 : 1;
+  }
+  // Plan model: every wall at its plan coordinates, per level, with the
+  // quantities the plan view labels — all copied from `res`, never recomputed.
+  // Coordinates: x east from the west face, y north from the south face (B =
+  // E–W width, D = N–S depth, the Diaphragm Designer's convention). X walls run
+  // E–W at y = loc_ft (from S), Y walls N–S at x = loc_ft (from W); start_ft is
+  // End 1 along the line (from W for X, from S for Y). start_ft absent ->
+  // centred on the building (or on the walls' span), placed 'centred'; no dir
+  // or loc_ft -> placed 'strip' (listed, not drawn in plan) and in unlocated[].
+  // Per level: walls[], lines[] ({key, walls, V, P} ASD, V = Σ wall V of the
+  // line = factor × V_line), sum[case] = {sumV (signed, walls whose line
+  // carries an entered force at this level only), sumVabs, Vlevel = factor ×
+  // Σ level forces down to here, nInherit (walls left out: they inherit the
+  // level force), nWalls, check (some wall entered), sumVall (every wall)};
+  // walls[i].inherits[case] flags the left-out walls. Null for a failed compute.
+  function planModel(state, res) {
+    if (!state || !Array.isArray(state.floors) || !res || !Array.isArray(res.floors) || res.floors.length !== state.floors.length) return null;
+    var floors = state.floors, n = floors.length;
+    var pl = state.plan && typeof state.plan === 'object' ? state.plan : {};
+    var B = num(pl.B_ft, NaN), D = num(pl.D_ft, NaN), hasBD = B > 0 && D > 0;
+    var stk = res.stackIds && res.stackIds.length ? { ids: res.stackIds, byId: res.stacks } : wallStacks(floors);
+    var modelDir = state.lateral && wallDir(state.lateral);
+    // Along-line span for centring when the building is not given: the
+    // longest start + L (or L) of the walls of that direction.
+    var span = { X: hasBD ? B : 0, Y: hasBD ? D : 0 };
+    function posOf(w, id) {
+      var s = stk.byId[id] || {};
+      var dir = wallDir(w) || s.dir || null, loc = optNum(w.loc_ft), start = optNum(w.start_ft);
+      if (loc === null && s.loc_ft !== undefined) loc = s.loc_ft;
+      if (start === null && s.start_ft !== undefined) start = s.start_ft;
+      return { dir: dir, loc: loc, start: start };
+    }
+    if (!hasBD) {
+      floors.forEach(function (fl) {
+        (fl.walls || []).forEach(function (w) {
+          var p = posOf(w, w.id), L = num(w.L_ft, 0) || 0;
+          if (!p.dir || p.loc === null) return;
+          span[p.dir] = Math.max(span[p.dir], (p.start !== null ? p.start : 0) + L);
+        });
+      });
+    }
+    var unlocated = [], unSeen = {}, box = null;
+    function grow(x, y) {
+      if (!box) box = { x0: x, y0: y, x1: x, y1: y };
+      else { box.x0 = Math.min(box.x0, x); box.y0 = Math.min(box.y0, y); box.x1 = Math.max(box.x1, x); box.y1 = Math.max(box.y1, y); }
+    }
+    if (hasBD) { grow(0, 0); grow(B, D); }
+    function ends(c) { return (c.ends || []).map(function (e) { return { end: e.end, T: e.T, C: e.C }; }); }
+    function caseOf(c, segmented) {
+      return {
+        V: c.V, vmax: c.vmax, M: c.M, Cot: c.Cot,
+        ends: segmented ? null : ends(c),
+        segments: segmented ? (c.segments || []).map(function (sg) { return { i: sg.i, b: sg.b, V: sg.V, M: sg.M, ends: ends(sg) }; }) : null
+      };
+    }
+    var levels = floors.map(function (fl, k) {
+      var rfl = res.floors[k], walls = [], lines = [], lineIx = {};
+      (fl.walls || []).forEach(function (w, wi) {
+        var rw = rfl.walls[wi];
+        if (!rw) return;
+        var p = posOf(w, w.id), L = rw.L_ft, placed = 'strip', x0 = null, y0 = null, x1 = null, y1 = null;
+        if (p.dir && p.loc !== null) {
+          var a0;
+          if (p.start !== null) { a0 = p.start; placed = 'exact'; }
+          else { a0 = (span[p.dir] > 0 ? span[p.dir] / 2 : L / 2) - L / 2; placed = 'centred'; }
+          if (p.dir === 'X') { x0 = a0; x1 = a0 + L; y0 = y1 = p.loc; }
+          else { y0 = a0; y1 = a0 + L; x0 = x1 = p.loc; }
+          grow(x0, y0); grow(x1, y1);
+        } else if (!unSeen[w.id]) { unSeen[w.id] = true; unlocated.push(w.id); }
+        var segmented = rw.method === 'segmented';
+        var pw = {
+          id: rw.id, label: rw.label, fi: k, wi: wi, line: rw.line.key, method: rw.method, L_ft: L,
+          dir: p.dir, loc_ft: p.loc, start_ft: p.start, placed: placed, x0: x0, y0: y0, x1: x1, y1: y1,
+          share: rw.line.share, lineWalls: rw.line.walls, allPass: rw.allPass, holdown: rw.holdown ? rw.holdown.label : '',
+          sign: { wind: lineSign(w, 'wind'), seismic: lineSign(w, 'seismic') },
+          gov: { vmaxCase: rw.gov.vmaxCase, vmax: rw.gov.vmax },
+          cases: { wind: caseOf(rw.cases.wind, segmented), seismic: caseOf(rw.cases.seismic, segmented) }
+        };
+        walls.push(pw);
+        var ln = lineIx[pw.line];
+        if (!ln) {
+          ln = lineIx[pw.line] = { key: pw.line, walls: [], V: { wind: 0, seismic: 0 }, P: { wind: 0, seismic: 0 }, Vline: { wind: 0, seismic: 0 } };
+          ['wind', 'seismic'].forEach(function (ck) {
+            var c = rw.cases[ck], row = null;
+            for (var i = 0; i < c.rows.length; i++) if (c.rows[i].j === k) row = c.rows[i];
+            ln.P[ck] = row ? LOAD[ck].factor * row.Pline : 0;
+            ln.Vline[ck] = row ? LOAD[ck].factor * row.Vline : 0;
+          });
+          lines.push(ln);
+        }
+        ln.walls.push(pw.id);
+        ln.V.wind += rw.cases.wind.V; ln.V.seismic += rw.cases.seismic.V;
+      });
+      var sum = {};
+      ['wind', 'seismic'].forEach(function (ck) {
+        var fld = ck === 'wind' ? 'P_wind_lb' : 'P_seis_lb', Plev = 0;
+        for (var j = 0; j <= k; j++) Plev += num(floors[j][fld], 0) || 0;
+        // Only walls whose LINE carries an entered force at this level take
+        // part (the page's Σ wall lines rule): a wall that inherits the level
+        // force would count the level force once per line. `check` is false
+        // when no wall on the level has an entered force (nothing to compare).
+        var sV = 0, sA = 0, sAll = 0, nIn = 0;
+        walls.forEach(function (pw) {
+          var V = pw.cases[ck].V, inh = !isFinite(lineForce(floors, k, pw.line, fld));
+          pw.inherits = pw.inherits || {};
+          pw.inherits[ck] = inh;
+          sAll += pw.sign[ck] * V;
+          if (inh) { nIn++; return; }
+          sV += pw.sign[ck] * V; sA += Math.abs(V);
+        });
+        sum[ck] = { sumV: sV, sumVabs: sA, Vlevel: LOAD[ck].factor * Plev, nInherit: nIn, nWalls: walls.length, check: walls.length > nIn, sumVall: sAll };
+      });
+      return { k: k, name: fl.name, h_ft: rfl.h_ft, base: k === n - 1, stepped: !!(fl.lh && typeof fl.lh === 'object'), walls: walls, lines: lines, sum: sum };
+    });
+    // Extents: the building (walls poking out widen it), else the walls'
+    // bounding box + 10 % of its larger side on every edge.
+    var ext = null;
+    if (box) {
+      var pad = hasBD ? 0 : 0.1 * Math.max(box.x1 - box.x0, box.y1 - box.y0, 1);
+      ext = { x0: box.x0 - pad, y0: box.y0 - pad, x1: box.x1 + pad, y1: box.y1 + pad, source: hasBD ? 'plan' : 'walls' };
+    }
+    return {
+      dir: modelDir || null, B_ft: hasBD ? B : null, D_ft: hasBD ? D : null,
+      building: hasBD ? { x0: 0, y0: 0, x1: B, y1: D } : null,
+      extents: ext, unlocated: unlocated, levels: levels
+    };
   }
 
   // =========================================================================
@@ -1549,7 +1889,7 @@
       floors: o.stories.map(function (s, i) {
         var wall = defaultWall({
           L_ft: s.L, h_ft: s.h, segments_ft: s.segments,
-          openings: (s.openings || []).map(function (x) { return { w_ft: x[0], hc_ft: x[1] }; }),
+          openings: (s.openings || []).map(function (x) { var o = { w_ft: x[0], hc_ft: x[1] }; if (x.length > 2) o.x_ft = x[2]; return o; }),
           sill: s.sill || (i === o.stories.length - 1 ? 'ab58' : 'sds14'),
           spacing: s.spacing || (i === o.stories.length - 1 ? 20 : 12)
         });
@@ -2321,8 +2661,179 @@
         var msg = 'Wall A is on line "L" at Roof but line "A" at Base — the line key should match on every level (the copy-down button copies it).';
         var hit = function (r) { return r.warnings.filter(function (x) { return x.indexOf('line key should match') >= 0; }); };
         return [['mixed keys: model ok, exactly one warning with the exact text', o.mixed.ok === true && hit(o.mixed).length === 1 && hit(o.mixed)[0] === msg, hit(o.mixed).join(' | ') || '(none)'],
-                ['same keys on every level: no line-key warning', o.same.ok === true && hit(o.same).length === 0, hit(o.same).join(' | ') || '(none)']]; } }
+                ['same keys on every level: no line-key warning', o.same.ok === true && hit(o.same).length === 0, hit(o.same).join(' | ') || '(none)']]; } },
+
+    // ── Views data (plan 2026-09-30 §1, §5, §5a): layout, levels, stacks,
+    //    plan model, statics identities, opening positions. None of it may
+    //    move a computed number — SW73–SW75 compare every result field of a
+    //    positioned wall with the same wall unpositioned. ────────────────────
+    { id: 'SW68', src: 'views: layoutWall of the CASE1 base wall — assumed order', run: function () {
+        var st = mkState(CASE1);
+        return { base: layoutWall(st.floors[3].walls[0], 10.5), top: layoutWall(st.floors[0].walls[0], 8.0) }; },
+      expect: function (o) {
+        return [['pieces S1 0–172, O1 172–302 (L consumed, no unsheathed strip)', layTxt(o.base) === 'S1 0.0-172.0 | O1 172.0-302.0', layTxt(o.base)],
+                ['mode assumed, assumed = true, no warnings', o.base.mode === 'assumed' && o.base.assumed === true && o.base.warnings.length === 0, o.base.mode + ' ' + o.base.warnings.length],
+                ['opening hc 7.50 = h_eff (above h/3 = 3.50), listed b 172 on S1', near(o.base.pieces[1].hc, 7.5, 1e-9) && near(o.base.pieces[1].hEff, 7.5, 1e-9) && o.base.pieces[1].floored === false && o.base.pieces[0].b === 172, JSON.stringify(o.base.pieces[1])],
+                ['4th floor (h 8): hc 6.67 above h/3 = 2.67, same order', layTxt(o.top) === 'S1 0.0-172.0 | O1 172.0-302.0' && o.top.pieces[1].floored === false, layTxt(o.top)]]; } },
+    { id: 'SW69', src: 'views: layoutWall interleave, trailing unsheathed strip, h/3 floor, nothing to order', run: function () {
+        var mk = function (L, segs, ops) { return defaultWall({ L_ft: L, h_ft: 10, segments_ft: segs, openings: ops.map(function (x) { return { w_ft: x[0], hc_ft: x[1] }; }) }); };
+        return { a: layoutWall(mk(27, [8, 8, 4], [[3, 7], [2, 7]]), 10), b: layoutWall(mk(20, [10], [[3, 7], [2, 2]]), 10), c: layoutWall(mk(20, [20], []), 10) }; },
+      expect: function (o) {
+        return [['[8, 8, 4] with 3 × 7, 2 × 7 in L 27: S1 O1 S2 O2 S3, 2 ft unsheathed at End 2', layTxt(o.a) === 'S1 0.0-8.0 | O1 8.0-11.0 | S2 11.0-19.0 | O2 19.0-21.0 | S3 21.0-25.0 | U 25.0-27.0' && o.a.pieces[5].why === 'remainder', layTxt(o.a)],
+                ['more openings than segments: S1 O1 O2 then the remainder', layTxt(o.b) === 'S1 0.0-10.0 | O1 10.0-13.0 | O2 13.0-15.0 | U 15.0-20.0', layTxt(o.b)],
+                ['2 ft opening at h 10: drawn at h/3 = 3.33 ft (floored), hc kept', o.b.pieces[2].floored === true && near(o.b.pieces[2].hEff, 10 / 3, 1e-9) && near(o.b.pieces[2].hc, 2, 1e-9), JSON.stringify(o.b.pieces[2])],
+                ['one segment, no openings: mode exact, not assumed', o.c.mode === 'exact' && o.c.assumed === false && layTxt(o.c) === 'S1 0.0-20.0', o.c.mode + ' ' + layTxt(o.c)]]; } },
+    { id: 'SW70', src: 'views: level elevations; stacks with a wall ending above the base and a transfer gap', run: function () {
+        var st = mkState({ stories: [
+          { name: 'Roof', h: 9, P: 1000, L: 20, segments: [20], openings: [], sill: 'sds14', spacing: 12 },
+          { name: 'Mid', h: 10, P: 1000, L: 20, segments: [20], openings: [], sill: 'sds14', spacing: 12 },
+          { name: 'Base', h: 11, P: 1000, L: 20, segments: [20], openings: [], sill: 'ab58', spacing: 20 }] });
+        st.floors.forEach(function (fl) { var w = fl.walls[0]; w.id = 'A'; w.label = 'A'; w.line = 'A1'; });
+        var b = clone(st.floors[0].walls[0]); b.id = 'B'; b.label = 'B';
+        var c0 = clone(st.floors[0].walls[0]); c0.id = 'C'; c0.label = 'C'; c0.line = 'C';
+        var c2 = clone(st.floors[2].walls[0]); c2.id = 'C'; c2.label = 'C'; c2.line = 'C'; c2.transfer = true;
+        st.floors[0].walls.push(b, c0); st.floors[2].walls.push(c2);
+        return compute(st); },
+      expect: function (r) { var lv = r.levels, s = r.stacks;
+        var lt = lv.map(function (x) { return x.name + ' ' + f1(x.elevBot_ft) + '-' + f1(x.elevTop_ft); }).join(' | ');
+        return [['model ok (B ends above the base on line A1; C transfer gap declared)', r.ok === true, r.errors.join(' | ') || 'ok'],
+                ['levels Roof 21–30, Mid 11–21, Base 0–11 ft; base flagged', lt === 'Roof 21.0-30.0 | Mid 11.0-21.0 | Base 0.0-11.0' && lv[2].base === true && lv[0].base === false, lt],
+                ['stackIds A, B, C in first-appearance order', r.stackIds.join(',') === 'A,B,C', r.stackIds.join(',')],
+                ['A: top 0, bottom 2, levels 0,1,2, no gaps, reaches the base', s.A.top === 0 && s.A.bottom === 2 && s.A.levels.join(',') === '0,1,2' && s.A.gaps.length === 0 && s.A.endsAbove === false, JSON.stringify(s.A)],
+                ['B: roof only, endsAbove, lineBelow (line A1 goes on — shear collected, overturning stops)', s.B.top === 0 && s.B.bottom === 0 && s.B.endsAbove === true && s.B.lineBelow === true && s.B.line === 'A1', JSON.stringify(s.B)],
+                ['C: levels 0 and 2 (wi 2, 1), gap at level 1', s.C.levels.join(',') === '0,2' && s.C.wi.join(',') === '2,1' && s.C.gaps.join(',') === '1' && s.C.endsAbove === false && s.C.lineBelow === false, JSON.stringify(s.C)],
+                ['no plan keys: dir / loc_ft / start_ft null', s.A.dir === null && s.A.loc_ft === null && s.A.start_ft === null, [s.A.dir, s.A.loc_ft, s.A.start_ft].join(',')]]; } },
+    // Plan model, worked by hand: line A1 = A (L 20, End 1 at 5 ft) + B (L 30,
+    // no start -> centred) at loc 10 ft, P 10,000 lb ASD on the line; C (L 10,
+    // no dir) inherits the level force 3,000 lb ASD. Σ wall V = 4,000 + 6,000
+    // + 3,000 = 13,000 lb vs the level 3,000 lb (a line force replaces the
+    // level force for its line — that is the check the plan header shows).
+    { id: 'SW71', src: 'views: planModel — located / centred / unlocated walls, Σ wall V = line V', run: function () {
+        var st = mkLine([{ id: 'A', L: 20, P: 10000 }, { id: 'B', L: 30, P: 10000 }]);
+        var c = clone(st.floors[0].walls[0]); c.id = 'C'; c.label = 'C'; c.line = ''; c.L_ft = 10; c.segments_ft = [10]; c.P_wind_lb = null;
+        st.floors[0].walls.push(c); st.floors[0].P_wind_lb = 3000 / 0.6;
+        var a = st.floors[0].walls[0], b = st.floors[0].walls[1];
+        a.dir = 'X'; a.loc_ft = 10; a.start_ft = 5; b.dir = 'X'; b.loc_ft = 10;
+        var withBD = clone(st); withBD.plan = { B_ft: 100, D_ft: 50 };
+        var r = compute(withBD);
+        // Review input: one level P_W 5,000 lb, two X walls (loc 0 / 10), blank line forces -> both inherit, nothing to compare.
+        var inh = mkLine([{ id: 'A', L: 20, P: null }, { id: 'B', L: 30, P: null }]);
+        inh.floors[0].P_wind_lb = 5000; inh.floors[0].walls.forEach(function (w, i) { w.line = ''; w.dir = 'X'; w.loc_ft = i * 10; });
+        return { r: r, p: planModel(withBD, r), q: planModel(st, compute(st)), i: planModel(inh, compute(inh)) }; },
+      expect: function (o) { var L0 = o.p.levels[0], wa = L0.walls[0], wb = L0.walls[1], wc = L0.walls[2], la = L0.lines[0];
+        var rA = W(o.r, 0), rowA = rA.cases.wind.rows[0];
+        return [['model ok; plan has 1 level, 3 walls', o.r.ok === true && o.p.levels.length === 1 && L0.walls.length === 3, o.r.errors.join(' | ') || 'ok'],
+                ['A exact: x 5–25 ft at y = 10 ft', wa.placed === 'exact' && wa.x0 === 5 && wa.x1 === 25 && wa.y0 === 10 && wa.y1 === 10, JSON.stringify([wa.x0, wa.x1, wa.y0])],
+                ['B centred on B = 100 ft: x 35–65 ft at y = 10 ft', wb.placed === 'centred' && near(wb.x0, 35, 1e-9) && near(wb.x1, 65, 1e-9) && wb.y0 === 10, JSON.stringify([wb.x0, wb.x1, wb.y0])],
+                ['C has no dir: strip, unlocated = [C]', wc.placed === 'strip' && wc.x0 === null && o.p.unlocated.join(',') === 'C', wc.placed + ' ' + o.p.unlocated.join(',')],
+                ['line A1: walls A, B; V = V_A + V_B = 10,000 lb = 0.6 × V_line; P = 10,000 lb', la.key === 'A1' && la.walls.join(',') === 'A,B' && near(la.V.wind, 10000, 1e-6) && near(la.V.wind, 0.6 * rowA.Vline, 1e-6) && near(la.Vline.wind, la.V.wind, 1e-6) && near(la.P.wind, 10000, 1e-6), JSON.stringify(la)],
+                ['V, v_max, share copied from res (A: 4,000 lb, 200 plf, 0.4)', wa.cases.wind.V === rA.cases.wind.V && wa.cases.wind.vmax === rA.cases.wind.vmax && wa.share === rA.line.share && wa.cases.wind.ends[0].T === rA.cases.wind.ends[0].T && wa.cases.wind.ends[1].C === rA.cases.wind.ends[1].C, f1(wa.cases.wind.V) + ' ' + f2(wa.cases.wind.vmax) + ' ' + f3(wa.share)],
+                ['Σ wall V = 10,000 lb (line A1 only; C inherits the level force and is left out, as the page Σ wall lines rule) vs level 3,000 lb; all walls 13,000 lb', near(L0.sum.wind.sumV, 10000, 1e-6) && near(L0.sum.wind.sumVabs, 10000, 1e-6) && near(L0.sum.wind.Vlevel, 3000, 1e-6) && L0.sum.wind.nInherit === 1 && L0.sum.wind.check === true && near(L0.sum.wind.sumVall, 13000, 1e-6) && wc.inherits.wind === true && wa.inherits.wind === false, f1(L0.sum.wind.sumV) + ' vs ' + f1(L0.sum.wind.Vlevel) + ', inherit ' + L0.sum.wind.nInherit],
+                ['two walls both inheriting P_W 5,000: nInherit 2, check false (no false Σ 6,000 vs 3,000 mismatch)', o.i.levels[0].sum.wind.nInherit === 2 && o.i.levels[0].sum.wind.check === false && o.i.levels[0].sum.wind.sumV === 0 && near(o.i.levels[0].sum.wind.sumVall, 6000, 1e-6) && near(o.i.levels[0].sum.wind.Vlevel, 3000, 1e-6), JSON.stringify(o.i.levels[0].sum.wind)],
+                ['extents = the building 0–100 × 0–50 ft', o.p.extents.source === 'plan' && o.p.extents.x0 === 0 && o.p.extents.x1 === 100 && o.p.extents.y0 === 0 && o.p.extents.y1 === 50, JSON.stringify(o.p.extents)],
+                ['no B × D: B centred on the walls\' span 0–30; extents = bbox + 10 % (−3–33 × 7–13)', o.q.levels[0].walls[1].x0 === 0 && o.q.levels[0].walls[1].x1 === 30 && o.q.extents.source === 'walls' && near(o.q.extents.x0, -3, 1e-9) && near(o.q.extents.x1, 33, 1e-9) && near(o.q.extents.y0, 7, 1e-9) && near(o.q.extents.y1, 13, 1e-9), JSON.stringify(o.q.extents)]]; } },
+    // Statics identities on every wall of every fixture model above:
+    // Σ Pfac = V, Σ m = M; perforated T·lever + 0.6·M_R = M where T > 0,
+    // C_ot·lever = M, C = C_ot + gravity; segmented Σ V_i = V and, per
+    // segment end with T > 0, T·b_i + 0.6·M_R,i = M_i.
+    { id: 'SW72', src: 'views: statics identities on every fixture wall', run: function () {
+        var out = [];
+        FIXTURES.forEach(function (fx) {
+          if (fx.id === 'SW72') return;
+          var r;
+          try { r = fx.run(); } catch (e) { out.push({ id: fx.id, s: { walls: 0, cases: 0, bad: ['run threw: ' + String(e)] } }); return; }
+          var list = r && r.floors && r.engine ? [r] : [];
+          if (!list.length && r && typeof r === 'object') Object.keys(r).forEach(function (k) { var x = r[k]; if (x && x.floors && x.engine) list.push(x); });
+          list.forEach(function (res) { out.push({ id: fx.id, s: staticsOf(res) }); });
+        });
+        return out; },
+      expect: function (list) {
+        var walls = 0, cases = 0, bad = [];
+        list.forEach(function (x) { walls += x.s.walls; cases += x.s.cases; x.s.bad.forEach(function (b) { bad.push(x.id + ' ' + b); }); });
+        return [['identities hold on ' + walls + ' walls / ' + cases + ' wall-cases', bad.length === 0 && walls > 100, bad.slice(0, 6).join(' | ') || walls + ' walls']]; } },
+    // Opening positions (plan §5a). Worked by hand: L 30, openings 3 ft at
+    // x 10 and x 21 leave solid pieces 0–10, 13–21, 24–30 = 10, 8, 6 ft.
+    { id: 'SW73', src: 'views §5a: positioned openings — exact pieces matched to segments; numbers unchanged', run: function () {
+        var story = function (segs, ops) { return mkState({ stories: [{ name: 'Base', h: 10, P: 3000, L: 30, segments: segs, openings: ops, sill: 'ab58', spacing: 20 }] }); };
+        var ex = story([10, 8, 6], [[3, 7, 10], [3, 7, 21]]), plain = story([10, 8, 6], [[3, 7], [3, 7]]);
+        var lo = story([8, 8, 5], [[3, 7, 21], [3, 7, 10]]);
+        var seg = story([10, 8, 6], [[3, 7, 10], [3, 7, 21]]), segPlain = story([10, 8, 6], [[3, 7], [3, 7]]);
+        seg.floors[0].walls[0].method = 'segmented'; segPlain.floors[0].walls[0].method = 'segmented';
+        return { lay: layoutWall(ex.floors[0].walls[0], 10), lo: layoutWall(lo.floors[0].walls[0], 10), r: compute(ex), p: compute(plain), s: compute(seg), sp: compute(segPlain) }; },
+      expect: function (o) {
+        return [['pieces S1 0–10, O1 10–13, S2 13–21, O2 21–24, S3 24–30', layTxt(o.lay) === 'S1 0.0-10.0 | O1 10.0-13.0 | S2 13.0-21.0 | O2 21.0-24.0 | S3 24.0-30.0', layTxt(o.lay)],
+                ['mode exact, assumed = false, no warnings, openings positioned', o.lay.mode === 'exact' && o.lay.assumed === false && o.lay.warnings.length === 0 && o.lay.pieces[1].positioned === true, o.lay.mode],
+                ['[8, 8, 5], openings listed out of order: sorted by x, 2 ft leftover after S1, S3 against End 2', layTxt(o.lo) === 'S1 0.0-8.0 | U 8.0-10.0 | O2 10.0-13.0 | S2 13.0-21.0 | O1 21.0-24.0 | U 24.0-25.0 | S3 25.0-30.0' && o.lo.pieces[1].why === 'leftover' && o.lo.warnings.length === 0, layTxt(o.lo)],
+                ['model ok, no position warning', o.r.ok === true && !o.r.warnings.some(function (x) { return x.indexOf('Drawing only') >= 0; }), o.r.warnings.join(' | ') || 'ok'],
+                ['perforated: every result field identical to the unpositioned wall (A_o, C_o, V, T …)', JSON.stringify(o.r.floors) === JSON.stringify(o.p.floors) && near(W(o.r, 0).geom.Ao, W(o.p, 0).geom.Ao, 0), f2(W(o.r, 0).geom.Ao) + ' ' + f4(W(o.r, 0).geom.Co)],
+                ['segmented: every result field identical (shares by width only)', o.s.ok === true && JSON.stringify(o.s.floors) === JSON.stringify(o.sp.floors), o.s.errors.join(' | ') || 'ok']]; } },
+    { id: 'SW74', src: 'views §5a: position warnings — b_i does not fit, overlap, past L, count; warnings not errors', run: function () {
+        var story = function (segs, ops) { return mkState({ stories: [{ name: 'Base', h: 10, P: 3000, L: 30, segments: segs, openings: ops, sill: 'ab58', spacing: 20 }] }); };
+        var strip = function (st) { st = clone(st); st.floors[0].walls[0].openings.forEach(function (x) { delete x.x_ft; }); return st; };
+        var a = story([10, 16], [[4, 7, 12]]), b = story([10, 12], [[3, 7, 10], [3, 7, 12]]), c = story([10, 12], [[3, 7, 10], [3, 7, 28]]), d = story([10, 8, 6], [[3, 7, 10]]);
+        return { a: validate(a), b: validate(b), c: validate(c), d: validate(d), la: layoutWall(a.floors[0].walls[0], 10), lb: layoutWall(b.floors[0].walls[0], 10), ld: layoutWall(d.floors[0].walls[0], 10),
+                 ra: compute(a), pa: compute(strip(a)), va: validate(strip(a)), vb: validate(strip(b)), vc: validate(strip(c)), vd: validate(strip(d)) }; },
+      expect: function (o) {
+        var pw = function (v) { return v.warnings.filter(function (x) { return x.indexOf('Drawing only') >= 0; }); };
+        return [['b_i does not fit: piece 2 (16–30) 14 ft < b_2 16 ft — warned; S2 drawn short', o.a.ok === true && pw(o.a).length === 1 && pw(o.a)[0].indexOf('Base / Wall Line A: solid piece 2 from End 1 (16.00–30.00 ft) is 14.00 ft, narrower than its listed b_2 = 16.00 ft — b_i does not fit.') === 0 && layTxt(o.la) === 'S1 0.0-10.0 | U 10.0-12.0 | O1 12.0-16.0 | S2 16.0-30.0' && o.la.pieces[3].short === true, pw(o.a).join(' | ') + ' / ' + layTxt(o.la)],
+                ['overlap: openings 10–13 and 12–15 — warned; S2 against End 2', o.b.ok === true && pw(o.b).length === 1 && pw(o.b)[0].indexOf('opening 1 (10.00–13.00 ft) and opening 2 (12.00–15.00 ft) overlap.') >= 0 && layTxt(o.lb) === 'S1 0.0-10.0 | O1 10.0-13.0 | O2 12.0-15.0 | U 15.0-18.0 | S2 18.0-30.0', pw(o.b).join(' | ') + ' / ' + layTxt(o.lb)],
+                ['past L: opening 2 at 28 ft runs to 31 ft > L 30 — warned', o.c.ok === true && pw(o.c).length === 1 && pw(o.c)[0].indexOf('opening 2 (3.00 ft at x = 28.00 ft, to 31.00 ft) runs past the wall length L = 30.00 ft.') >= 0, pw(o.c).join(' | ')],
+                ['count: 2 solid pieces for 3 segments — warned; segment 3 unplaced, still drawn (overflow, past End 2)', o.d.ok === true && pw(o.d).length === 1 && pw(o.d)[0].indexOf('leave 2 solid pieces but 3 segments are listed') >= 0 && pw(o.d)[0].indexOf('segment 3 drawn past End 2.') >= 0 && o.ld.unplaced.join(',') === '2' && layTxt(o.ld) === 'S1 0.0-10.0 | O1 10.0-13.0 | U 13.0-22.0 | S2 22.0-30.0 | S3 30.0-36.0' && o.ld.pieces[4].overflow === true, layTxt(o.ld) + ' / ' + pw(o.d).join(' | ')],
+                ['the same walls without x_ft: no position warning', [o.va, o.vb, o.vc, o.vd].every(function (v) { return v.ok === true && pw(v).length === 0; }), [o.va, o.vb, o.vc, o.vd].map(function (v) { return pw(v).length; }).join(',')],
+                ['numbers unchanged by the positions (b_i does not fit case)', JSON.stringify(o.ra.floors) === JSON.stringify(o.pa.floors), f4(W(o.ra, 0).geom.Co)]]; } },
+    { id: 'SW75', src: 'views §5a: partial positions — the rest in the assumed order; nofit warning', run: function () {
+        var st = mkState({ stories: [{ name: 'Base', h: 10, P: 3000, L: 27, segments: [10, 10], openings: [[4, 7, 10], [3, 7]], sill: 'ab58', spacing: 20 }] });
+        var plain = mkState({ stories: [{ name: 'Base', h: 10, P: 3000, L: 27, segments: [10, 10], openings: [[4, 7], [3, 7]], sill: 'ab58', spacing: 20 }] });
+        var nf = mkState({ stories: [{ name: 'Base', h: 10, P: 3000, L: 22, segments: [10, 6], openings: [[4, 7, 5], [2, 7]], sill: 'ab58', spacing: 20 }] });
+        return { lay: layoutWall(st.floors[0].walls[0], 10), r: compute(st), p: compute(plain), nl: layoutWall(nf.floors[0].walls[0], 10), nv: validate(nf) }; },
+      expect: function (o) {
+        return [['pieces S1 0–10, O1 10–14 (positioned), O2 14–17 (assumed), S2 17–27', layTxt(o.lay) === 'S1 0.0-10.0 | O1 10.0-14.0 | O2 14.0-17.0 | S2 17.0-27.0' && o.lay.pieces[1].positioned === true && o.lay.pieces[2].positioned === false, layTxt(o.lay)],
+                ['mode partial, assumed = true, no warnings', o.lay.mode === 'partial' && o.lay.assumed === true && o.lay.warnings.length === 0, o.lay.mode],
+                ['model ok; every result field identical to the unpositioned wall', o.r.ok === true && JSON.stringify(o.r.floors) === JSON.stringify(o.p.floors), o.r.errors.join(' | ') || 'ok'],
+                ['nofit: S2 does not fit the space left — drawn past End 2, warned (model still ok)', layTxt(o.nl) === 'U 0.0-5.0 | O1 5.0-9.0 | S1 9.0-19.0 | O2 19.0-21.0 | U 21.0-22.0 | S2 22.0-28.0' && o.nl.unplaced.join(',') === '1' && o.nv.ok === true && o.nv.warnings.some(function (x) { return x.indexOf('1 segment or unpositioned opening does not fit in the space the positioned openings leave') >= 0; }), layTxt(o.nl) + ' / ' + o.nv.warnings.join(' | ')]]; } }
   ];
+  // "S1 0.0-172.0 | O1 172.0-302.0" — a layout's pieces for the fixtures.
+  function layTxt(lay) {
+    return lay.pieces.map(function (p) {
+      return (p.kind === 'seg' ? 'S' + (p.i + 1) : (p.kind === 'open' ? 'O' + (p.j + 1) : 'U')) + ' ' + f1(p.x0) + '-' + f1(p.x1);
+    }).join(' | ');
+  }
+  // Statics identities of one compute() result (SW72).
+  function staticsOf(res) {
+    var out = { walls: 0, cases: 0, bad: [] };
+    function chk(ok, what) { if (!ok) out.bad.push(what); }
+    function eq(a, b) { return isFinite(a) && isFinite(b) && Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a), Math.abs(b)); }
+    (res.floors || []).forEach(function (fl) {
+      (fl.walls || []).forEach(function (w) {
+        if (!w.cases) return;
+        out.walls++;
+        ['wind', 'seismic'].forEach(function (ck) {
+          var c = w.cases[ck], tag = fl.name + '/' + w.id + '/' + ck, lever = w.geom.lever;
+          out.cases++;
+          var sP = 0, sm = 0;
+          c.rows.forEach(function (r) { sP += r.Pfac; sm += r.m; });
+          chk(eq(sP, c.V), tag + ' ΣPfac ' + sP + ' ≠ V ' + c.V);
+          chk(eq(sm, c.M), tag + ' Σm ' + sm + ' ≠ M ' + c.M);
+          if (w.method !== 'segmented') {
+            if (!(lever > 0)) return;
+            chk(eq(c.Cot * lever, c.M), tag + ' Cot·lever ≠ M');
+            c.ends.forEach(function (e) {
+              if (e.T > 0) chk(eq(e.T * lever + DEAD_FACTOR * e.MR, c.M), tag + ' End ' + e.end + ' T·lever + 0.6 M_R ≠ M');
+              chk(eq(e.C, c.Cot + e.grav), tag + ' End ' + e.end + ' C ≠ Cot + grav');
+            });
+          } else {
+            var sV = 0;
+            c.segments.forEach(function (s) {
+              sV += s.V;
+              s.ends.forEach(function (e) { if (e.T > 0) chk(eq(e.T * s.b + DEAD_FACTOR * e.MR, s.M), tag + ' seg ' + (s.i + 1) + ' End ' + e.end + ' T·b + 0.6 M_R ≠ M_i'); });
+            });
+            if (w.geom.sumBi > 0) chk(eq(sV, c.V), tag + ' ΣV_i ' + sV + ' ≠ V ' + c.V);
+          }
+        });
+      });
+    });
+    return out;
+  }
   function byId(w, id) { return w.checks.filter(function (c) { return c.id === id; })[0]; }
 
   // Fixture input models.
@@ -2429,6 +2940,8 @@
     holdownCapacity: holdownCapacity, holdownSpeciesCovered: holdownSpeciesCovered, endPostCheck: endPostCheck,
     findSheathing: findSheathing, findSill: findSill, sheathingLabel: sheathingLabel,
     resolveDead: resolveDead, defaultState: defaultState, defaultWall: defaultWall,
+    wallAt: wallAt, wallPresence: wallPresence, layoutWall: layoutWall, planModel: planModel,
+    levelElevations: levelElevations, wallStacks: wallStacks, openingX: openingX,
     clone: clone
   };
   root.SW = SW;

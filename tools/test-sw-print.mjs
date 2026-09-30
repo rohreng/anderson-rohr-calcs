@@ -100,6 +100,10 @@ for (const vw of [2048, 2031]) {
   check('"10.5" fully visible in the level h box', fit.h.txt === '10.5' && fit.h.fits, JSON.stringify(fit.h));
   check('"(2)" fully visible in the end-post ply select', fit.ply.txt === '(2)' && fit.ply.fits, JSON.stringify(fit.ply));
   await page.screenshot({ path: OUT_DIR + 'sw-screen-2048.png', clip: { x: 0, y: 0, width: 2048, height: 1100 } });
+  // The views block (2026-09-30) sits above the wall tables: bring level 1 to
+  // the top of the viewport (instant — the theme scrolls smoothly) so the
+  // clip and the grip drag below address visible pixels.
+  await page.evaluate(() => { const t = document.querySelector('#floor-con .floor-blk').getBoundingClientRect().top + scrollY - 10; window.scrollTo({ top: t, behavior: 'instant' }); });
   const hdrBox = await page.locator('#floor-con .floor-blk').first().boundingBox();
   await page.screenshot({ path: OUT_DIR + 'sw-screen-2048-level1.png', clip: { x: hdrBox.x, y: hdrBox.y, width: hdrBox.width, height: Math.min(hdrBox.height, 260) } });
 
@@ -207,6 +211,23 @@ for (const vw of [2048, 2031]) {
   check(`print: wall tables fit the ${PRINT_W} px printable width (no clipping, no scroller)`, pm.docScroll <= PRINT_W && pm.widths.every((r) => r <= PRINT_W) && pm.scrolls.every((d) => d <= 0), JSON.stringify(pm));
   check('print: Actions column hidden, controls replaced by their values', pm.actHidden && pm.ctlHidden && pm.pvShown && pm.pv.length >= 15 && pm.pv.some((t) => /WSP|OSB|Plywood|sheath/i.test(t)), JSON.stringify(pm.pv));
   check('print: results static, check tables and calc details shown', pm.pane === 'static' && pm.chk === 'table' && pm.det === 'block', JSON.stringify(pm));
+  // Views (2026-09-30 views plan): every level's plan + the selected elevation
+  // print; the view controls, the position editor and the live plan do not.
+  const vp = await page.evaluate(() => {
+    const vis = (el) => !!el && getComputedStyle(el).display !== 'none';
+    const svgs = [...document.querySelectorAll('#swViews svg.sw-view')].filter((s) => s.getBoundingClientRect().height > 0);
+    const r = document.getElementById('swViews').getBoundingClientRect();
+    return { views: vis(document.getElementById('swViews')), elev: vis(document.getElementById('swvElev')) && !!document.querySelector('#swvElev svg.sw-elev'),
+      plans: document.querySelectorAll('#swvPrintPlans svg.sw-plan').length, plansShown: vis(document.getElementById('swvPrintPlans')), levels: window.state.floors.length,
+      bar: vis(document.getElementById('swvBar')), pos: vis(document.getElementById('swvPos')), live: vis(document.getElementById('swvPlan')),
+      btns: [...document.querySelectorAll('#swViews button, #swViews select, #swViews input')].filter((e) => e.getBoundingClientRect().height > 0).length,
+      maxH: Math.round(Math.max(...svgs.map((s) => s.getBoundingClientRect().height))), right: Math.round(r.right),
+      avoid: getComputedStyle(document.querySelector('#swvPrintPlans .swv-print-item')).breakInside };
+  });
+  console.log('  print views: ' + JSON.stringify(vp));
+  check('print: views block shows the selected elevation + one plan per level', vp.views && vp.elev && vp.plansShown && vp.plans === vp.levels, JSON.stringify(vp));
+  check('print: view controls, position editor and the interactive plan hidden (no visible control in #swViews)', !vp.bar && !vp.pos && !vp.live && vp.btns === 0, JSON.stringify(vp));
+  check(`print: every drawing ≤ 9.2 in tall, inside the ${PRINT_W} px printable width, kept whole (break-inside avoid)`, vp.maxH <= Math.ceil(9.2 * 96) && vp.right <= PRINT_W && vp.avoid === 'avoid', JSON.stringify(vp));
   await page.screenshot({ path: OUT_DIR + 'sw-print-media.png', fullPage: false });
   // page.pdf() renders with whatever media is emulated — reset to the default
   // (print) rather than 'screen', or the PDF would be a screen capture.
@@ -217,7 +238,7 @@ for (const vw of [2048, 2031]) {
   const txt = pdf.toString('latin1');
   const boxes = [...txt.matchAll(/\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/g)].map((m) => m.slice(1).map(Number));
   const pages = (txt.match(/\/Type\s*\/Page(?!s)/g) || []).length;
-  console.log(`  PDF: ${pages} page(s), MediaBox ${JSON.stringify(boxes[0])} -> tools/_out/sw-print.pdf`);
+  console.log(`  PDF: ${pages} page(s) (default model, views included), MediaBox ${JSON.stringify(boxes[0])} -> tools/_out/sw-print.pdf`);
   check('PDF MediaBox [0 0 1224 792] (17 × 11 in) on every page', boxes.length > 0 && boxes.every((b) => b[0] === 0 && b[1] === 0 && Math.round(b[2]) === 1224 && Math.round(b[3]) === 792), JSON.stringify(boxes.slice(0, 3)));
   check('PDF has pages', pages >= 1, 'pages=' + pages);
   check('no page errors (print)', page.errors.length === 0, page.errors.join('\n      '));

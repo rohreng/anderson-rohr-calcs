@@ -653,9 +653,13 @@
       }
       return fl;
     });
+    // Building B × D for the page's plan view (views plan §3, Phase 4): the
+    // record's geometry, or null when it does not carry both.
+    var gB = record.geometry ? num(record.geometry.B_ft, NaN) : NaN, gD = record.geometry ? num(record.geometry.D_ft, NaN) : NaN;
     return {
       version: 2, sfrs: o.sfrs || 'A.15', sdc: o.sdc || 'D', species: o.species || 'DFL',
       floors: floors,
+      plan: gB > 0 && gD > 0 ? { B_ft: gB, D_ft: gD } : null,
       lateral: {
         schema: SCHEMA, project: str(record.project), dir: dir,
         // Metadata only (no field ids); re-sanitized because the record may come from storage.

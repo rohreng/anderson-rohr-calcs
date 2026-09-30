@@ -1258,6 +1258,133 @@ await rx.close();
   await sp.close();
 }
 
+// ── Views (docs/plans/2026-09-30-shearwall-views-plan.md Phase 3) ──────────
+// #swViews sits between #modelMsgs and #floor-con, draws from the result the
+// panes use, re-renders on a model edit, follows a plan click; openings take
+// an optional @x that round-trips through the Openings box and save/load.
+await page.evaluate(() => { try { localStorage.removeItem('areCalcs_sw_views'); } catch (e) {} window.state = window.SW.defaultState(); window.render(); });
+const vw = await page.evaluate(() => {
+  const host = document.getElementById('swViews'), mm = document.getElementById('modelMsgs'), fc = document.getElementById('floor-con');
+  const res = window._vres, base = res.floors[3].walls[0].cases.wind;
+  const g = [...document.querySelectorAll('#swvElevSvg g.sw-level')].find((x) => x.getAttribute('data-fi') === '3');
+  const q = (name) => { const t = g && g.querySelector('[data-q="' + name + '"]'); return t ? Number(t.getAttribute('data-v')) : null; };
+  const ctl = [...host.querySelectorAll('input, select')];
+  return {
+    order: !!(mm.compareDocumentPosition(host) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(host.compareDocumentPosition(fc) & Node.DOCUMENT_POSITION_FOLLOWING) && !fc.contains(host),
+    elev: document.querySelectorAll('#swvElevSvg svg.sw-elev').length, plan: document.querySelectorAll('#swvPlanSvg svg.sw-plan').length,
+    printPlans: document.querySelectorAll('#swvPrintPlans svg.sw-plan').length, levels: g ? document.querySelectorAll('#swvElevSvg g.sw-level').length : 0,
+    ignored: ctl.length > 0 && ctl.every((el) => el.hasAttribute('data-are-ignore')), nCtl: ctl.length,
+    sameRes: res === window._vres && typeof res.stackIds === 'object',
+    V: q('V'), vmax: q('vmax'), T: q('T'), C: q('C'), eV: base.V, eVmax: base.vmax, eT: base.ends[0].T, eC: base.ends[1].C,
+    cols: document.querySelector('#floor-con .wall-table thead').querySelectorAll('th').length,
+    modelKeys: Object.keys(window.__SW_ADAPTER.getModel()).join(',')
+  };
+});
+check('views: #swViews between #modelMsgs and #floor-con (outside it), elevation + plan + one print plan per level',
+  vw.order && vw.elev === 1 && vw.plan === 1 && vw.printPlans === 4 && vw.levels === 4, JSON.stringify(vw));
+check('views: every control is data-are-ignore (view state is not model; AREv2 Tier-A key set unchanged)', vw.ignored, 'controls=' + vw.nCtl);
+check('views: base-level elevation labels = engine — V, v_max 70.29 plf, T (End 1) 1,806.8 lb, C (End 2)',
+  Math.abs(vw.V - vw.eV) <= 0.05 && Math.abs(vw.vmax - vw.eVmax) <= 0.05 && vw.vmax.toFixed(2) === '70.29' && Math.abs(vw.T - vw.eT) <= 0.05 && vw.T.toFixed(1) === '1806.8' && Math.abs(vw.C - vw.eC) <= 0.05, JSON.stringify(vw));
+check('views: wall table still 23 columns; adapter model keys version, floors, wCnt, lateral, plan', vw.cols === 23 && vw.modelKeys === 'version,floors,wCnt,lateral,plan', JSON.stringify(vw));
+
+// Editing L in the base wall's table cell re-renders the elevation.
+const lInput = page.locator('#floor-con .floor-blk').nth(3).locator('.wall-table tbody tr').first().locator('td').nth(2).locator('input');
+await lInput.fill('320');
+await lInput.dispatchEvent('change');
+const vwL = await page.evaluate(() => {
+  const g = [...document.querySelectorAll('#swvElevSvg g.sw-level')].find((x) => x.getAttribute('data-fi') === '3');
+  const t = g.querySelector('[data-q="L"]');
+  return { L: Number(t.getAttribute('data-v')), state: window.state.floors[3].walls[0].L_ft, vmax: Number(g.querySelector('[data-q="vmax"]').getAttribute('data-v')), eng: window.SW.compute(window.state).floors[3].walls[0].cases.wind.vmax };
+});
+check('views: editing L (302 -> 320) in the table re-renders the elevation from the new result', vwL.state === 320 && vwL.L === 320 && Math.abs(vwL.vmax - vwL.eng) <= 0.05, JSON.stringify(vwL));
+
+// Selectors redraw from the cached result: case, ⇄ direction.
+const vwSel = await page.evaluate(() => {
+  const sel = document.getElementById('swvCase'); sel.value = 'seismic'; sel.dispatchEvent(new Event('change', { bubbles: true }));
+  const c1 = document.querySelector('#swvElevSvg svg').getAttribute('data-case');
+  document.querySelector('#swViews [data-act="dir"]').click();
+  const d1 = document.querySelector('#swvElevSvg svg').getAttribute('data-dir');
+  const g = [...document.querySelectorAll('#swvElevSvg g.sw-level')].find((x) => x.getAttribute('data-fi') === '3');
+  const T = Number(g.querySelector('[data-q="T"]').getAttribute('data-v')), eT = window._vres.floors[3].walls[0].cases.seismic.ends[1].T;
+  document.querySelector('#swViews [data-act="dir"]').click();
+  const s2 = document.getElementById('swvCase'); s2.value = 'gov'; s2.dispatchEvent(new Event('change', { bubbles: true }));
+  return { c1, d1, T, eT, back: document.querySelector('#swvElevSvg svg').getAttribute('data-case') + '/' + document.querySelector('#swvElevSvg svg').getAttribute('data-dir') };
+});
+check('views: case = Seismic and ⇄ redraw (T moves to End 2 = seismic ends[1].T), then back to governing wind →',
+  vwSel.c1 === 'seismic' && vwSel.d1 === '-1' && Math.abs(vwSel.T - vwSel.eT) <= 0.05 && vwSel.back === 'wind/1', JSON.stringify(vwSel));
+
+// Plan click (a real mouse click on the not-located strip): a second wall on
+// the base line, clicked -> selected, elevation follows, results row scrolled.
+const vwSplit = await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); window.splitWall(3, 0); window.scrollTo({ top: 0, behavior: 'instant' });
+  return { err: window.SW.compute(window.state).errors, strips: document.querySelectorAll('#swvPlanSvg g.sw-strip').length, msg: document.getElementById('swvMsg').textContent, view: JSON.stringify(window.VIEW), n: window.state.floors.length, base: window.state.floors[3].walls.map((w) => w.id + ':' + w.dir + ':' + w.loc_ft), title: document.querySelector('#swvPlanSvg svg').getAttribute('aria-label') }; });
+check('views: after "+ wall" on the base, the plan lists both base walls (not located)', vwSplit.strips === 2, JSON.stringify(vwSplit));
+const stripItem = page.locator('#swvPlanSvg g.sw-strip').nth(1);
+const stripId = await stripItem.getAttribute('data-wall');
+await stripItem.locator('text').click();
+await page.waitForFunction(() => { const r = document.getElementById('wres_3_1').getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; }, null, { timeout: 8000 }).catch(() => {});
+const vwClk = await page.evaluate(() => {
+  const r = document.getElementById('wres_3_1').getBoundingClientRect();
+  return { wall: document.getElementById('swvWall').value, title: document.querySelector('#swvElevSvg svg').getAttribute('aria-label'), sel: [...document.querySelectorAll('#swvPlanSvg .swv-sel')].map((g) => g.getAttribute('data-wall')),
+    inView: r.top < innerHeight && r.bottom > 0, scrollY: Math.round(scrollY), stored: localStorage.getItem('areCalcs_sw_views') };
+});
+check('views: plan click on ' + stripId + ' selects it, the elevation follows, its results row #wres_3_1 scrolls into view, the choice is remembered',
+  vwClk.wall === stripId && vwClk.title.indexOf(stripId) >= 0 && vwClk.sel.join() === stripId && vwClk.inView && vwClk.scrollY > 0 && (vwClk.stored || '').indexOf(stripId) >= 0, JSON.stringify(vwClk));
+
+// Position editor: dir / loc / start on every level of the selected wall; B × D -> state.plan; adapter round trip.
+await page.evaluate(() => { window.state = window.SW.defaultState(); window.render(); window.scrollTo({ top: 0, behavior: 'instant' }); });
+for (const [sel, val] of [['select[data-pos="dir"]', 'X'], ['input[data-pos="loc_ft"]', '10'], ['input[data-pos="start_ft"]', '5'], ['input[data-plan="B_ft"]', '400'], ['input[data-plan="D_ft"]', '60']]) {
+  const loc = page.locator('#swvPos ' + sel);
+  if (sel.startsWith('select')) await loc.selectOption(val); else { await loc.fill(val); await loc.dispatchEvent('change'); }
+}
+const vwPos = await page.evaluate(() => {
+  const s = window.state, a = window.__SW_ADAPTER;
+  const walls = s.floors.map((f) => [f.walls[0].dir, f.walls[0].loc_ft, f.walls[0].start_ft].join('/'));
+  const line = document.querySelector('#swvPlanSvg g.sw-pw .sw-wline'), b = document.querySelector('#swvPlanSvg .sw-bldg');
+  const bx = +b.getAttribute('x'), bw = +b.getAttribute('width');
+  const m = JSON.parse(JSON.stringify(a.getModel()));
+  a.setModel(JSON.parse(JSON.stringify(m)));
+  const back = a.getModel();
+  const old = JSON.parse(JSON.stringify(m)); delete old.plan; a.setModel(old);
+  const cleared = a.getModel().plan;
+  const bad = JSON.parse(JSON.stringify(m)); bad.plan = { B_ft: 'x', D_ft: -3 }; a.setModel(bad);
+  const junk = a.getModel().plan;
+  return { walls, plan: m.plan, bar: [(+line.getAttribute('x1') - bx) / bw * 400, (+line.getAttribute('x2') - bx) / bw * 400], back: back.plan, backWall: [back.floors[3].walls[0].dir, back.floors[3].walls[0].loc_ft, back.floors[3].walls[0].start_ft].join('/'), cleared, junk,
+    lineFields: ['dir', 'loc_ft', 'start_ft'].some((k) => k in window.LINE_FIELDS) };
+});
+check('views: position editor writes dir X / loc 10 / start 5 on every level of the wall (per wall, not in LINE_FIELDS) and B × D 400 × 60 to state.plan',
+  vwPos.walls.every((w) => w === 'X/10/5') && JSON.stringify(vwPos.plan) === '{"B_ft":400,"D_ft":60}' && vwPos.lineFields === false, JSON.stringify(vwPos));
+check('views: the plan draws the wall at x 5 to 5 + L on the 400 ft building', Math.abs(vwPos.bar[0] - 5) < 0.05 && Math.abs(vwPos.bar[1] - 307) < 0.05, JSON.stringify(vwPos.bar));
+check('adapter: plan round-trips through getModel/setModel; absent -> null; junk -> null',
+  JSON.stringify(vwPos.back) === '{"B_ft":400,"D_ft":60}' && vwPos.backWall === 'X/10/5' && vwPos.cleared === null && vwPos.junk === null, JSON.stringify(vwPos));
+
+// Openings @x (views plan §5a): parse / format, the table box, JSON + adapter save/load.
+const opx = await page.evaluate(() => {
+  window.state = window.SW.defaultState(); window.render();
+  const out = {};
+  out.parse = JSON.stringify(window.parseOpenings('8x7@6, 6×4 ; 3X2 @ 30.5, 5x4@, bad, 2x2@1@2'));
+  out.fmt = window.fmtOpenings(window.parseOpenings('8x7@6, 6×4'));
+  out.old = window.fmtOpenings([{ w_ft: 8, hc_ft: 7 }, { w_ft: 4, hc_ft: 4, x_ft: null }]);
+  const box = document.querySelectorAll('#floor-con .floor-blk')[3].querySelector('.wall-table tbody tr').children[7].querySelector('input');
+  box.value = '8 x 7 @ 150, 4x4'; box.dispatchEvent(new Event('change'));
+  out.state = JSON.stringify(window.state.floors[3].walls[0].openings);
+  out.box = document.querySelectorAll('#floor-con .floor-blk')[3].querySelector('.wall-table tbody tr').children[7].querySelector('input').value;
+  const a = window.__SW_ADAPTER, m = JSON.parse(JSON.stringify(a.getModel()));
+  window.state = window.SW.defaultState(); window.render();
+  a.setModel(m);
+  out.adapter = JSON.stringify(window.state.floors[3].walls[0].openings);
+  const file = JSON.parse(JSON.stringify({ version: 2, state: window.state }));
+  out.json = JSON.stringify(file.state.floors[3].walls[0].openings);
+  out.boxBack = document.querySelectorAll('#floor-con .floor-blk')[3].querySelector('.wall-table tbody tr').children[7].querySelector('input').value;
+  out.errors = window._vres ? 0 : 1;
+  out.stamp = document.querySelector('#swvElevSvg svg .sw-stamp') ? document.querySelector('#swvElevSvg svg .sw-stamp').textContent : '';
+  window.state = window.SW.defaultState(); window.render();
+  return out;
+});
+check('openings: "w×hc@x" parsed (x or ×, spaces, @ optional; "5x4@" keeps no x; "2x2@1@2" dropped); old shape formats unchanged',
+  opx.parse === '[{"w_ft":8,"hc_ft":7,"x_ft":6},{"w_ft":6,"hc_ft":4},{"w_ft":3,"hc_ft":2,"x_ft":30.5},{"w_ft":5,"hc_ft":4}]' && opx.fmt === '8×7@6, 6×4' && opx.old === '8×7, 4×4', JSON.stringify(opx));
+check('openings: table box -> state x_ft -> box "8×7@150, 4×4"; survives the adapter save/load and JSON; elevation stamped "some positions assumed"',
+  opx.state === '[{"w_ft":8,"hc_ft":7,"x_ft":150},{"w_ft":4,"hc_ft":4}]' && opx.box === '8×7@150, 4×4' && opx.adapter === opx.state && opx.json === opx.state && opx.boxBack === opx.box && opx.errors === 0 && /SOME OPENING POSITIONS ASSUMED/.test(opx.stamp), JSON.stringify(opx));
+
 // ── selftest query string ───────────────────────────────────────────────────
 const st = await browser.newPage();
 const stErrors = [];

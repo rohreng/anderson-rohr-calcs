@@ -155,6 +155,12 @@ check('toShearwallState X: wall P_wind_lb = line reaction (Roof A2 5,471; 2ND A1
 check('toShearwallState X: base sill ab58 @ 20, others sds14 @ 12', swX.floors[2].walls.every((w) => w.sill.conn === 'ab58' && w.sill.spacing_in === 20) && swX.floors.slice(0, 2).every((f) => f.walls.every((w) => w.sill.conn === 'sds14' && w.sill.spacing_in === 12)),
   JSON.stringify([swX.floors[0].walls[0].sill, swX.floors[2].walls[0].sill]));
 check('toShearwallState X: no typ / no merge — 25 distinct ids per floor', swX.floors.every((f) => new Set(f.walls.map((w) => w.id)).size === 25 && f.walls.every((w) => !('typ' in w))), '');
+check('toShearwallState X: plan {B_ft, D_ft} = record.geometry 120 × 360 (views plan Phase 4)', swX.plan && swX.plan.B_ft === 120 && swX.plan.D_ft === 360 && Object.keys(swX.plan).join(',') === 'B_ft,D_ft', JSON.stringify(swX.plan));
+{
+  const noGeo = JSON.parse(JSON.stringify(rec)); delete noGeo.geometry;
+  const half = JSON.parse(JSON.stringify(rec)); half.geometry.D_ft = null;
+  check('toShearwallState: plan null when the record carries no B × D (or only one of them)', LH.toShearwallState(noGeo, { dir: 'X' }).plan === null && LH.toShearwallState(half, { dir: 'Y' }).plan === null, '');
+}
 check('toShearwallState X: lateral provenance', swX.lateral && swX.lateral.schema === 'are.lateral.v1' && swX.lateral.dir === 'X' && Array.isArray(swX.lateral.files) && swX.lateral.files.length === 3 && typeof swX.lateral.importedAt === 'string' && swX.sfrs === 'A.15' && swX.sdc === 'D' && swX.species === 'DFL',
   JSON.stringify(swX.lateral));
 check('toShearwallState X: file names are basenames <= 120 chars without < >', swX.lateral.files.every((f) => f.length <= 120 && !/[<>\\/]/.test(f)), JSON.stringify(swX.lateral.files));
