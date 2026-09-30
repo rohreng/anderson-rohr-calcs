@@ -340,6 +340,7 @@ const refs = await page.evaluate(() => ({
   strap: document.querySelectorAll('#strapTbl tbody tr').length,
   sh: document.querySelectorAll('#shTbl tbody tr').length,
   shText: document.querySelector('#shTbl tbody').innerText,
+  shLen: window.SW.SHEATHING.filter((s) => s.type === 'wsp').length + window.SW.GYP_ROWS.length,
   sill: document.querySelectorAll('#sillTbl tbody tr').length,
   sillText: document.querySelector('#sillTbl tbody').innerText
 }));
@@ -349,8 +350,8 @@ check('HDUE schedule rendered from SW.HOLDOWNS with the full C-C-2026 p. 61 grid
     .every((v) => refs.hdText.indexOf(v) >= 0),
   refs.hdText.slice(0, 400));
 check('strap schedule rendered from SW.STRAPS', refs.strap === 3, 'rows=' + refs.strap);
-check('sheathing table rendered from SW.SHEATHING with both ASD columns',
-  refs.sh === 8 && refs.shText.indexOf('239.3') >= 0, 'rows=' + refs.sh);
+check('sheathing table rendered from SW.SHEATHING (WSP) + SW.GYP_ROWS (the 22 Table 4.3C rows) with both ASD columns (incl. two-ply 500, sheathing board 400, unblocked WSP × C_ub)',
+  refs.sh === refs.shLen && refs.shLen === 28 && ['239.3', '53.6', '500', '400', '× Cub', 'two-ply', 'gypsum sheathing board', '8/12" o.c.'].every((v) => refs.shText.indexOf(v) >= 0), 'rows=' + refs.sh + '/' + refs.shLen + ' ' + refs.shText.slice(0, 300));
 check('sill table rendered from SW.SILL_CONN with DF-L / SP / SPF columns (10 rows: LTP4, six nail sizes, SDS, two bolts)',
   refs.sill === 10 && ['715', '615', '226', '246', '192', '189', '155', '165', '149', '115'].every((v) => refs.sillText.indexOf(v) >= 0), 'rows=' + refs.sill);
 
@@ -754,6 +755,100 @@ check('HD inside: face 1 -> 10d common re-enables the box with the kept tick; fn
   !hd.on.na && !hd.on.dis && hd.on.chk && hd.onFn10 === 0.92 && hd.onRow.indexOf('× 0.92 (HD inside, Table 4.3A fn. 10)') >= 0, JSON.stringify([hd.on, hd.onFn10, hd.onRow]));
 check('HD inside: unticking removes the factor note', !hd.off.chk && hd.offState === false && hd.offRow.indexOf('0.92') < 0, JSON.stringify([hd.off, hd.offRow]));
 check('HD inside: n/a follows the faces — 8d face 1 only -> n/a; 10d on face 2 -> applicable', hd.f1Only8 === true && hd.face2 === false, JSON.stringify([hd.f1Only8, hd.face2]));
+
+// ── Gypsum / wall Blocked box + stud spacing (plan 2026-09-30 gypsum) ──────
+// One base level, segmented-ready wall [8, 8] h 8. Column 10 = Face 1: its
+// first select is the construction, then the wall's Blocked checkbox and stud
+// spacing (both faces), then the unblocked-WSP field nailing when unblocked
+// and a face is WSP. Face 2 (column 11) follows the same box and studs.
+const gy = await page.evaluate(() => {
+  const SW = window.SW;
+  const w = SW.defaultWall({ L_ft: 16, h_ft: 8, segments_ft: [8, 8], openings: [], sill: 'ab58', spacing: 20 });
+  window.state = { version: 2, sfrs: 'A.15', sdc: 'D', species: 'DFL', floors: [{ id: 1, name: 'Base', h_ft: 8, P_wind_lb: 1000 / 0.6, P_seis_lb: 1000 / 0.7, walls: [w] }] };
+  document.getElementById('sfrs').value = 'A.15'; document.getElementById('sdc').value = 'D';
+  window.render();
+  const set = (el, v) => { el.value = v; el.dispatchEvent(new Event('change')); };
+  const tick = (el, v) => { el.checked = v; el.dispatchEvent(new Event('change')); };
+  const row0 = () => [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.wall-table tbody tr')].filter((tr) => tr.querySelector('.line-chip'))[0];
+  const f1cell = () => row0().querySelector('td:nth-child(10)');
+  const f1sel = () => f1cell().querySelectorAll('select')[0];
+  const blk = () => f1cell().querySelector('input.blk-chk');
+  const studs = () => f1cell().querySelector('select.ti-studs');
+  const fieldSel = () => f1cell().querySelector('select.ti-field');
+  const groups = (sel) => [...sel.querySelectorAll('optgroup')].map((g) => g.label + ':' + g.querySelectorAll('option').length);
+  const optText = (sel, id) => { const o = [...sel.options].find((x) => x.value === id); return o ? o.text : ''; };
+  const msgs = () => document.getElementById('modelMsgs').innerText;
+  const glob = (id, v) => set(document.getElementById(id), v);
+  const wall = () => window.state.floors[0].walls[0];
+  const cap = () => { const r = SW.compute(window.state); return r.ok ? r.floors[0].walls[0].cap : { wind: { vn: 'errors: ' + r.errors.join(' | ') }, face1: { label: '' }, face2: null }; };
+  const nWsp = SW.SHEATHING.filter((s) => s.type === 'wsp').length, nGyp = SW.SHEATHING.filter((s) => s.type === 'gyp').length;
+  const o = { nWsp, nGyp };
+  o.cols = document.querySelector('#floor-con .wall-table thead').querySelectorAll('th').length;
+  o.rowCells = row0().querySelectorAll(':scope > td').length;
+  o.a15 = groups(f1sel()); o.blk0 = blk() && blk().checked; o.studs0 = studs() && studs().value; o.field0 = !!fieldSel();
+  o.f2 = groups(row0().querySelector('td:nth-child(11) select'));
+  glob('sfrs', 'B.24');
+  o.b24 = groups(f1sel()); o.b24warn = msgs();
+  set(f1sel(), 'gyp12_5d_7');
+  o.perfMsg = msgs(); o.face = JSON.stringify(wall().sheathing.face1);
+  set(row0().querySelector('td:nth-child(4) select'), 'segmented');
+  o.segOk = SW.compute(window.state).ok; o.v16b = cap().wind.vn; o.lbl16b = cap().face1.label;
+  tick(blk(), false);
+  o.blocked = wall().sheathing.blocked; o.v16u = cap().wind.vn; o.opt16u = optText(f1sel(), 'gyp12_5d_7'); o.noField = !fieldSel();
+  set(studs(), '24');
+  o.studsState = wall().sheathing.studs_in; o.v24u = cap().wind.vn; o.opt24u = optText(f1sel(), 'gyp12_5d_7');
+  tick(blk(), true);
+  o.noRowMsg = msgs(); o.optNoRow = optText(f1sel(), 'gyp12_5d_7');
+  set(studs(), '16'); tick(blk(), false);
+  set(row0().querySelector('td:nth-child(7) input'), '5, 5');
+  o.aspectMsg = msgs();
+  set(row0().querySelector('td:nth-child(7) input'), '8, 8');
+  glob('sfrs', 'A.15');
+  o.sfrsMsg = msgs(); o.curSel = groups(f1sel());
+  glob('sfrs', 'B.24'); glob('sdc', 'E');
+  o.sdcMsg = msgs();
+  glob('sdc', 'D');
+  set(f1sel(), 'wsp716_8d_6');
+  o.wspFace = wall().sheathing.face1.id; o.fieldShown = !!fieldSel(); o.ubVn = cap().wind.vn; o.ubLbl = cap().face1.label;
+  set(studs(), '24');
+  o.ubVn24 = cap().wind.vn;
+  set(fieldSel(), '6');
+  o.ubVn24f6 = cap().wind.vn; o.fieldState = wall().sheathing.field_in;
+  set(studs(), '16'); set(fieldSel(), '12');
+  window.state.floors[0].h_ft = 17; window.render();
+  o.hMsg = msgs();
+  window.state.floors[0].h_ft = 8; window.render();
+  set(f1sel(), 'wsp716_8d_4');
+  o.edgeMsg = msgs(); o.optEdge = optText(f1sel(), 'wsp716_8d_4');
+  set(f1sel(), 'wsp716_8d_6');
+  set(row0().querySelector('td:nth-child(11) select'), 'gyp58_6d_7');
+  o.f2Vn = cap().face2 && cap().face2.vn;
+  o.colsEnd = document.querySelector('#floor-con .wall-table thead').querySelectorAll('th').length;
+  o.hdr = document.querySelector('#floor-con .wall-table thead th:nth-child(10)').innerText.trim();
+  document.getElementById('sfrs').value = 'A.15'; document.getElementById('sdc').value = 'D';
+  window.state = SW.defaultState(); window.render();
+  return o;
+});
+check('gypsum UI: wall table keeps 23 columns (header and row) and the "Face 1" header', gy.cols === 23 && gy.colsEnd === 23 && gy.rowCells === 23 && gy.hdr.toLowerCase() === 'face 1', JSON.stringify([gy.cols, gy.colsEnd, gy.rowCells, gy.hdr]));
+check('gypsum UI: Face 1 cell holds the construction select, the Blocked box (checked) and studs 16; no field select while blocked',
+  gy.blk0 === true && gy.studs0 === '16' && gy.field0 === false, JSON.stringify([gy.blk0, gy.studs0, gy.field0]));
+check('gypsum UI: A.15 Face 1 lists the WSP constructions only; Face 2 lists WSP and gypsum constructions (no blocking groups)',
+  gy.a15.length === 1 && gy.a15[0] === 'Table 4.3A wood structural panel:' + gy.nWsp && gy.f2.length === 2 && gy.f2[1] === 'Table 4.3C gypsum:' + gy.nGyp, JSON.stringify([gy.a15, gy.f2]));
+check('gypsum UI: B.24 lists the Table 4.3C constructions on Face 1; all-WSP warning in #modelMsgs', gy.b24.length === 2 && gy.b24[1] === 'Table 4.3C gypsum:' + gy.nGyp && /every wall has wood structural panels on face 1/.test(gy.b24warn), JSON.stringify(gy.b24) + ' ' + gy.b24warn.slice(0, 200));
+check('gypsum UI: perforated gypsum face 1 -> #modelMsgs error §4.3.2.3; the saved face is the construction id', /cannot be checked/.test(gy.perfMsg) && /§4\.3\.2\.3/.test(gy.perfMsg) && /"id":"gyp12_5d_7"/.test(gy.face) && !/blocked|studs/.test(gy.face), gy.perfMsg.slice(0, 300) + ' ' + gy.face);
+check('gypsum UI: segmented 1/2" 5d @ 7, blocked, studs 16 -> 250; the result label names the Table 4.3C row', gy.segOk === true && gy.v16b === 250 && /blocked, studs ≤ 16" o\.c\. \(250 plf\)/.test(gy.lbl16b), JSON.stringify([gy.segOk, gy.v16b, gy.lbl16b]));
+check('gypsum UI: untick Blocked -> 200 (16" unblocked row), option text follows; still no field select (no WSP face)', gy.blocked === false && gy.v16u === 200 && /\(200 plf nom\.\)/.test(gy.opt16u) && gy.noField, JSON.stringify([gy.blocked, gy.v16u, gy.opt16u, gy.noField]));
+check('gypsum UI: studs 24 -> 150 (24" unblocked row); option text follows', gy.studsState === 24 && gy.v24u === 150 && /\(150 plf nom\.\)/.test(gy.opt24u), JSON.stringify([gy.studsState, gy.v24u, gy.opt24u]));
+check('gypsum UI: blocked at studs 24 -> #modelMsgs error lists the Table 4.3C rows on offer; option reads "no Table 4.3C row"',
+  /has no SDPWS 2021 Table 4\.3C row for blocked construction with studs at 24"/.test(gy.noRowMsg) && /unblocked, studs ≤ 24" o\.c\. \(150 plf\)/.test(gy.noRowMsg) && /no Table 4\.3C row/.test(gy.optNoRow), gy.noRowMsg.slice(0, 400) + ' / ' + gy.optNoRow);
+check('gypsum UI: unblocked gypsum h/b 1.6 -> #modelMsgs error (Table 4.3.3 note 1)', /note 1/.test(gy.aspectMsg) && /1\.60 > 1\.5:1/.test(gy.aspectMsg), gy.aspectMsg.slice(0, 300));
+check('gypsum UI: gypsum face 1 under A.15 -> #modelMsgs error names A.17 / B.24; the construction stays listed', /select SFRS A\.17 or B\.24/.test(gy.sfrsMsg) && gy.curSel.some((g) => g === 'Table 4.3C gypsum (SFRS A.17 / B.24 only):1'), gy.sfrsMsg.slice(0, 300) + ' ' + JSON.stringify(gy.curSel));
+check('gypsum UI: SDC E -> #modelMsgs error §4.3.7.5', /§4\.3\.7\.5/.test(gy.sdcMsg) && /SDC E/.test(gy.sdcMsg), gy.sdcMsg.slice(0, 300));
+check('gypsum UI: unblocked WSP 8d @ 6: field-nailing select appears; 670 × 0.6 = 402; studs 24 -> × 0.4 = 268; field 6 -> × 0.5 = 335',
+  gy.wspFace === 'wsp716_8d_6' && gy.fieldShown && Math.abs(gy.ubVn - 402) < 1e-9 && /unblocked \(C_ub 0\.60/.test(gy.ubLbl) && Math.abs(gy.ubVn24 - 268) < 1e-9 && Math.abs(gy.ubVn24f6 - 335) < 1e-9 && gy.fieldState === 6, JSON.stringify([gy.wspFace, gy.fieldShown, gy.ubVn, gy.ubVn24, gy.ubVn24f6, gy.fieldState]));
+check('gypsum UI: unblocked WSP at h 17 ft -> #modelMsgs error §4.3.5.3 16 ft', /exceeds 16 ft/.test(gy.hMsg), gy.hMsg.slice(0, 300));
+check('gypsum UI: unblocked WSP 8d @ 4 -> #modelMsgs names the 6" edge-nailing rule (Table 4.3.5.3); option reads "unblocked needs 6" edge"', /Table 4\.3\.5\.3/.test(gy.edgeMsg) && /unblocked needs 6" edge/.test(gy.optEdge), gy.edgeMsg.slice(0, 300) + ' / ' + gy.optEdge);
+check('gypsum UI: face 2 5/8" 6d @ 7 follows the wall box and studs (unblocked, 16" -> 230)', gy.f2Vn === 230, String(gy.f2Vn));
 
 // ── WP-3 S4: wCnt refresh after a model swap (stale counter -> duplicate id ->
 // two walls silently merged into one line) ─────────────────────────────────

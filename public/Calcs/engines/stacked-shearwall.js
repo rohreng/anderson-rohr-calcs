@@ -29,7 +29,13 @@
      Table 4.3A fn.3  specific gravity adjustment = [1 - (0.5 - G)] <= 1
      Table 4.3A fn.6  both faces, spacing < 6 in -> offset joints or 3x + stagger
      Table 4.3A fn.10 10d common + hold-down on the inside face of the end post -> 0.92
+     Table 4.3.3 n.1  h/b over 1.5:1 shall be blocked (unblocked gypsum 1.5:1)
      Table 4.3.3 n.2  gypsum h/b may be 3.5:1 for wind design (2:1 otherwise)
+     SDPWS 2021 §4.3.5.3 / Table 4.3.5.3  unblocked WSP: v_n(ub) = v_n(b)·C_ub, 6" edge
+                           nailing, h <= 16 ft, h/b <= 2:1 (2015 §4.3.3.2)
+     SDPWS 2021 §4.3.7.5 / Table 4.3C  gypsum board shear walls, SDC A-D; one nominal v_n
+                           per row, ASD = v_n/2.8 seismic, v_n/2.0 wind (§4.1.4)
+     SDPWS 2021 C4.3.5.4.2 WSP + gypsum seismic under A.15 / B.22: WSP face only (lesser R)
      ASCE 7-16 §2.4.1 / §2.4.5   0.6W, 0.7E, 0.6D
      NDS 2018 §3.7.1  column stability, Table 12E (bolts to concrete), Table 12N (nails)
      NDS 2018 §12.2.3.1 / Table 12.2C  nail withdrawal W (lb/in); §12.1.6.4 p_min = 6D
@@ -54,7 +60,7 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   // version = the state shape (the adapter gate); rev = the engine build, for the saved file and prints.
-  var ENGINE = { name: 'stacked-shearwall', version: 2, rev: '2026-09-30 views', codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
+  var ENGINE = { name: 'stacked-shearwall', version: 2, rev: '2026-09-30 gypsum', codes: ['SDPWS 2021', 'NDS 2018', 'ASCE 7-16'] };
 
   // ── load factors, ASCE 7-16 §2.4.1 (0.6W) / §2.4.5 (0.7E) / 0.6D ──────────
   var LOAD = {
@@ -92,9 +98,29 @@
   };
 
   // ── sheathing, NOMINAL unit shear capacity (plf) ───────────────────────────
-  // SDPWS 2021 Table 4.3A, "Sheathing" grade wood structural panel, blocked,
-  // 2" nominal framing, nails at the stated panel-edge spacing.
-  // SDPWS 2021 Table 4.3C, 5/8" gypsum wallboard, blocked, 16" stud spacing.
+  // The face selects list CONSTRUCTIONS (SHEATHING); the wall's one Blocked
+  // checkbox (`sheathing.blocked`, both faces, default true) and its stud
+  // spacing (`sheathing.studs_in`, 12/16/20/24, default 16) resolve the value.
+  // SDPWS 2021 Table 4.3A (PDF p. 48), "Sheathing" grade wood structural panel,
+  // blocked, 2" nominal framing, nails at the stated panel-edge spacing. The
+  // WSP rows are unchanged (no new keys) so a blocked WSP wall's compute()
+  // result is byte-identical to the one before gypsum face 1 was added.
+  // Unblocked WSP (SDPWS 2021 §4.3.5.3, PDF p. 40): v_n(ub) = v_n(b)·C_ub
+  // (Eq. 4.3-2), v_n(b) = the Table 4.3A value at 6" edge nailing (the only
+  // edge spacing Table 4.3.5.3 covers, so the selected row must be an @6 row);
+  // C_ub by the wall's stud spacing and intermediate framing nailing
+  // (`sheathing.field_in`, 6 / 12, default 12).
+  // SDPWS 2021 Table 4.3C (PDF p. 50), gypsum board: one nominal v_n per row
+  // (ASD = v_n/2.8 seismic, v_n/2.0 wind, §4.1.4), values identical to 2015.
+  // A construction is material / thickness / fastener / edge (and field,
+  // fn. 3) spacing; GYP_ROWS holds the tabulated rows of each, with their
+  // maximum stud spacing and blocking. `material`: 'wallboard' (gypsum
+  // wallboard, veneer-plaster base, water-resistant backing board — one or two
+  // plies) or 'sheathing' (gypsum sheathing board): §4.3.5.4.2's wind
+  // exception and Table 4.3.3 note 2 name gypsum WALLBOARD only.
+  // The 5/8" 6d cooler constructions keep the old ids gyp58_6d_7 / gyp58_6d_4,
+  // so an old saved face {type, thickness, nail, spacing} (no blocked / studs:
+  // blocked, 16") resolves to the same 290 / 350.
   var SHEATHING = [
     { id: 'wsp716_8d_6',    type: 'wsp', thickness: '7/16', nail: '8d common',  spacing: 6, vn: 670,  table: 'Table 4.3A' },
     { id: 'wsp716_8d_4',    type: 'wsp', thickness: '7/16', nail: '8d common',  spacing: 4, vn: 980,  table: 'Table 4.3A' },
@@ -102,17 +128,104 @@
     { id: 'wsp1532_10d_6',  type: 'wsp', thickness: '15/32', nail: '10d common', spacing: 6, vn: 870,  table: 'Table 4.3A' },
     { id: 'wsp1532_10d_4',  type: 'wsp', thickness: '15/32', nail: '10d common', spacing: 4, vn: 1290, table: 'Table 4.3A' },
     { id: 'wsp1532_10d_3',  type: 'wsp', thickness: '15/32', nail: '10d common', spacing: 3, vn: 1680, table: 'Table 4.3A' },
-    { id: 'gyp58_6d_7',     type: 'gyp', thickness: '5/8',  nail: '6d cooler',  spacing: 7, vn: 290,  table: 'Table 4.3C' },
-    { id: 'gyp58_6d_4',     type: 'gyp', thickness: '5/8',  nail: '6d cooler',  spacing: 4, vn: 350,  table: 'Table 4.3C' }
+    // Table 4.3C constructions. 5/8": 6d cooler (0.092" x 1-7/8") or wallboard nail, or 0.120" x 1-3/4" nail
+    { id: 'gyp58_6d_7',     type: 'gyp', material: 'wallboard', thickness: '5/8', nail: '6d cooler', spacing: 7, field: null, table: 'Table 4.3C' },
+    { id: 'gyp58_6d_4',     type: 'gyp', material: 'wallboard', thickness: '5/8', nail: '6d cooler', spacing: 4, field: null, table: 'Table 4.3C' },
+    // 1/2": 5d cooler (0.086" x 1-5/8") or wallboard nail, or 0.120" x 1-1/2" nail
+    { id: 'gyp12_5d_7',     type: 'gyp', material: 'wallboard', thickness: '1/2', nail: '5d cooler', spacing: 7, field: null, table: 'Table 4.3C' },
+    { id: 'gyp12_5d_4',     type: 'gyp', material: 'wallboard', thickness: '1/2', nail: '5d cooler', spacing: 4, field: null, table: 'Table 4.3C' },
+    // No. 6 Type S or W drywall screws 1-1/4" long (edge / field, fn. 3)
+    { id: 'gyp12_s6_8-12',  type: 'gyp', material: 'wallboard', thickness: '1/2', nail: 'No. 6 screw', spacing: 8, field: 12, table: 'Table 4.3C' },
+    { id: 'gyp12_s6_4-16',  type: 'gyp', material: 'wallboard', thickness: '1/2', nail: 'No. 6 screw', spacing: 4, field: 16, table: 'Table 4.3C' },
+    { id: 'gyp12_s6_4-12',  type: 'gyp', material: 'wallboard', thickness: '1/2', nail: 'No. 6 screw', spacing: 4, field: 12, table: 'Table 4.3C' },
+    { id: 'gyp12_s6_6-12',  type: 'gyp', material: 'wallboard', thickness: '1/2', nail: 'No. 6 screw', spacing: 6, field: 12, table: 'Table 4.3C' },
+    { id: 'gyp58_s6_8-12',  type: 'gyp', material: 'wallboard', thickness: '5/8', nail: 'No. 6 screw', spacing: 8, field: 12, table: 'Table 4.3C' },
+    // 5/8" two-ply: base ply 6d cooler @ 9", face ply 8d cooler (0.113" x 2-3/8") @ 7"
+    { id: 'gyp58x2_6d8d',   type: 'gyp', material: 'wallboard', plies: 2, thickness: '5/8', nail: '6d cooler base ply @ 9" / 8d cooler face ply', spacing: 7, basePly: 9, field: null, table: 'Table 4.3C' },
+    // Gypsum sheathing board: 0.120" x 1-3/4" galvanized diamond-point nail (1/2"); 6d galvanized cooler (5/8")
+    { id: 'gsb12_2x8_4',    type: 'gyp', material: 'sheathing', size: "2' x 8'", thickness: '1/2', nail: '0.120" galv. nail', spacing: 4, field: null, table: 'Table 4.3C' },
+    { id: 'gsb12_4_4',      type: 'gyp', material: 'sheathing', size: "4' wide", thickness: '1/2', nail: '0.120" galv. nail', spacing: 4, field: null, table: 'Table 4.3C' },
+    { id: 'gsb12_4_7',      type: 'gyp', material: 'sheathing', size: "4' wide", thickness: '1/2', nail: '0.120" galv. nail', spacing: 7, field: null, table: 'Table 4.3C' },
+    { id: 'gsb58_4_47',     type: 'gyp', material: 'sheathing', size: "4' wide", thickness: '5/8', nail: '6d galv. cooler', spacing: 4, field: 7, table: 'Table 4.3C' }
   ];
-  function sheathingLabel(o) { return o.thickness + '" ' + (o.type === 'gyp' ? 'gypsum wallboard' : 'WSP sheathing') + ', ' + o.nail + ' @ ' + o.spacing + '" o.c.'; }
+  // SDPWS 2021 Table 4.3C rows (PDF p. 50), in table order: construction,
+  // maximum stud spacing (in), blocked, nominal v_n (plf).
+  var GYP_ROWS = [
+    { id: 'gyp12_5d_7_24u',    con: 'gyp12_5d_7',    studs: 24, blocked: false, vn: 150 },
+    { id: 'gyp12_5d_4_24u',    con: 'gyp12_5d_4',    studs: 24, blocked: false, vn: 220 },
+    { id: 'gyp12_5d_7_16u',    con: 'gyp12_5d_7',    studs: 16, blocked: false, vn: 200 },
+    { id: 'gyp12_5d_4_16u',    con: 'gyp12_5d_4',    studs: 16, blocked: false, vn: 250 },
+    { id: 'gyp12_5d_7_16b',    con: 'gyp12_5d_7',    studs: 16, blocked: true,  vn: 250 },
+    { id: 'gyp12_5d_4_16b',    con: 'gyp12_5d_4',    studs: 16, blocked: true,  vn: 300 },
+    { id: 'gyp12_s6_8-12_16u', con: 'gyp12_s6_8-12', studs: 16, blocked: false, vn: 120 },
+    { id: 'gyp12_s6_4-16_16b', con: 'gyp12_s6_4-16', studs: 16, blocked: true,  vn: 320 },
+    { id: 'gyp12_s6_4-12_24b', con: 'gyp12_s6_4-12', studs: 24, blocked: true,  vn: 310 },
+    { id: 'gyp12_s6_8-12_16b', con: 'gyp12_s6_8-12', studs: 16, blocked: true,  vn: 140 },
+    { id: 'gyp12_s6_6-12_16b', con: 'gyp12_s6_6-12', studs: 16, blocked: true,  vn: 180 },
+    { id: 'gyp58_6d_7_24u',    con: 'gyp58_6d_7',    studs: 24, blocked: false, vn: 230 },
+    { id: 'gyp58_6d_4_24u',    con: 'gyp58_6d_4',    studs: 24, blocked: false, vn: 290 },
+    { id: 'gyp58_6d_7_16b',    con: 'gyp58_6d_7',    studs: 16, blocked: true,  vn: 290 },
+    { id: 'gyp58_6d_4_16b',    con: 'gyp58_6d_4',    studs: 16, blocked: true,  vn: 350 },
+    { id: 'gyp58_s6_8-12_16u', con: 'gyp58_s6_8-12', studs: 16, blocked: false, vn: 140 },
+    { id: 'gyp58_s6_8-12_16b', con: 'gyp58_s6_8-12', studs: 16, blocked: true,  vn: 180 },
+    { id: 'gyp58x2_6d8d_16b',  con: 'gyp58x2_6d8d',  studs: 16, blocked: true,  vn: 500 },
+    { id: 'gsb12_2x8_4_16u',   con: 'gsb12_2x8_4',   studs: 16, blocked: false, vn: 150 },
+    { id: 'gsb12_4_4_24b',     con: 'gsb12_4_4',     studs: 24, blocked: true,  vn: 350 },
+    { id: 'gsb12_4_7_16u',     con: 'gsb12_4_7',     studs: 16, blocked: false, vn: 200 },
+    { id: 'gsb58_4_47_16b',    con: 'gsb58_4_47',    studs: 16, blocked: true,  vn: 400 }
+  ];
+  // SDPWS 2021 Table 4.3.5.3 (PDF p. 40): C_ub by intermediate framing nailing
+  // (supported edges 6") and stud spacing.
+  var C_UB = { 6: { 12: 1.0, 16: 0.8, 20: 0.6, 24: 0.5 }, 12: { 12: 0.8, 16: 0.6, 20: 0.5, 24: 0.4 } };
+  var STUDS = [12, 16, 20, 24];
+  var UB_DEFAULT = { studs: 16, field: 12 };
+  var UB_MAX_H = 16;   // §4.3.5.3: unblocked shear wall height shall not exceed 16 ft
+  // Wall construction inputs, defaulted: { blocked, studs, field }.
+  function wallSheathOpts(sh) {
+    sh = sh || {};
+    return { blocked: sh.blocked !== false, studs: num(sh.studs_in, UB_DEFAULT.studs), field: num(sh.field_in, UB_DEFAULT.field) };
+  }
+  // Table 4.3.3 (PDF p. 39) maximum h/b of the face-1 system at the wall's blocking.
+  function faceAspectLimit(s, blocked) {
+    if (!s) return 3.5;
+    if (s.type === 'gyp') return blocked ? 2.0 : 1.5;   // gypsum 2:1; note 1: over 1.5:1 shall be blocked
+    return blocked ? 3.5 : 2.0;                          // WSP blocked 3.5:1, unblocked 2:1
+  }
+  // Construction label (the select); a resolved gypsum face adds its Table 4.3C row.
+  function sheathingLabel(o) {
+    if (o.type !== 'gyp') return o.thickness + '" WSP sheathing, ' + o.nail + ' @ ' + o.spacing + '" o.c.';
+    var mat = o.material === 'sheathing' ? 'gypsum sheathing board' + (o.size ? ' ' + o.size : '') : 'gypsum wallboard' + (o.plies === 2 ? ', two-ply' : '');
+    return o.thickness + '" ' + mat + ', ' + o.nail + ' @ ' + o.spacing + (o.field ? '/' + o.field : '') + '" o.c.';
+  }
+  function gypRowText(r) { return (r.blocked ? 'blocked' : 'unblocked') + ', studs ≤ ' + r.studs + '" o.c. (' + r.vn + ' plf)'; }
+  // Table 4.3C row of construction `con` for the wall: matching blocking and
+  // the smallest maximum stud spacing that still covers the wall's.
+  function resolveGypRow(con, blocked, studs) {
+    var pick = null;
+    GYP_ROWS.forEach(function (r) {
+      if (r.con !== con.id || r.blocked !== blocked || r.studs + 1e-9 < studs) return;
+      if (!pick || r.studs < pick.studs) pick = r;
+    });
+    return pick;
+  }
+  function gypRowsOf(con) { return GYP_ROWS.filter(function (r) { return r.con === con.id; }); }
+  // id first (a construction id, or a Table 4.3C row id, which maps to its
+  // construction). Without an id (an older file, or a hand-edited face): the
+  // same type / thickness / nail / edge spacing, and field / size where given.
   function findSheathing(face) {
     if (!face) return null;
-    for (var i = 0; i < SHEATHING.length; i++) {
-      var s = SHEATHING[i];
-      if (face.id && face.id === s.id) return s;
-      if (!face.id && s.type === face.type && s.thickness === String(face.thickness) &&
-          s.nail === face.nail && num(face.spacing) === s.spacing) return s;
+    var i, s;
+    if (face.id) {
+      for (i = 0; i < SHEATHING.length; i++) if (SHEATHING[i].id === face.id) return SHEATHING[i];
+      for (i = 0; i < GYP_ROWS.length; i++) if (GYP_ROWS[i].id === face.id) return findSheathing({ id: GYP_ROWS[i].con });
+      return null;
+    }
+    for (i = 0; i < SHEATHING.length; i++) {
+      s = SHEATHING[i];
+      if (s.type !== face.type || s.thickness !== String(face.thickness) || s.nail !== face.nail || num(face.spacing) !== s.spacing) continue;
+      if (face.field !== undefined && (face.field === null ? null : num(face.field)) !== (s.field == null ? null : s.field)) continue;
+      if (face.size !== undefined && face.size !== s.size) continue;
+      return s;
     }
     return null;
   }
@@ -301,11 +414,14 @@
   //   uplift.penetration_in  absent -> null = not entered; upliftCapacity() and
   //                     computeWall() then use penetrationDefault() and say so
   //   uplift.washer_in  absent -> 3 (SDPWS §4.3.6.4.3 minimum plate washer)
+  //   sheathing.blocked absent -> true (face 1 blocked; every file before the
+  //                     gypsum / unblocked rows was blocked construction)
   // A wall that already carries every key comes back byte-identical (same key
   // order), so adapter round trips of a current model are unchanged.
   function normalizeWall(w) {
     var o = clone(w || {});
     if (o.method !== 'segmented') o.method = 'perforated';
+    if (o.sheathing && typeof o.sheathing === 'object' && o.sheathing.blocked === undefined) o.sheathing.blocked = true;
     var u = o.uplift && typeof o.uplift === 'object' ? o.uplift : {};
     var cap = num(u.capacity_plf, NaN);
     var src = u.source === 'manual' || u.source === 'sill' ? u.source : (isFinite(cap) ? 'manual' : 'sill');
@@ -640,19 +756,43 @@
   // =========================================================================
   // Sheathing capacity — nominal per face, then combined, then ASD
   // =========================================================================
-  // face: {type, thickness, nail, spacing} (or {id}).  Returns nominal plf.
+  // face: a construction {id} (or {type, thickness, nail, spacing}). opts:
+  // { G, insideFaceHoldown, blocked (default true), studs (default 16),
+  // field (default 12) } — blocked / studs / field are the wall's, shared by
+  // both faces. Returns nominal plf; { ok: false, error } where the wall's
+  // blocking / stud spacing has no tabulated value (validate() reports it).
   function sheathingCapacity(face, opts) {
     opts = opts || {};
     var s = findSheathing(face);
     if (!s) return { ok: false, error: 'Unknown sheathing option: ' + JSON.stringify(face) };
-    var factors = [], vn = s.vn;
+    var blocked = opts.blocked !== false, studs = num(opts.studs, UB_DEFAULT.studs), fld = num(opts.field, UB_DEFAULT.field);
+    if (s.type === 'gyp') {
+      // SDPWS 2021 Table 4.3C: the row of this construction with the wall's
+      // blocking and the smallest maximum stud spacing covering the wall's.
+      var row = resolveGypRow(s, blocked, studs);
+      if (!row) {
+        return { ok: false, opt: s, error: sheathingLabel(s) + ' has no SDPWS 2021 Table 4.3C row for ' + (blocked ? 'blocked' : 'unblocked') + ' construction with studs at ' + studs + '" o.c. — the table gives it for: '
+          + gypRowsOf(s).map(gypRowText).join('; ') + '. Change the Blocked box or the stud spacing, or choose another gypsum construction.' };
+      }
+      var o = clone(s); o.studs = row.studs; o.blocked = row.blocked; o.vn = row.vn; o.row = row.id;
+      return { ok: true, opt: o, label: sheathingLabel(s) + ' — Table 4.3C row: ' + gypRowText(row), vnTable: row.vn, sg: 1, fn10: 1, vn: row.vn, factors: [] };
+    }
+    var factors = [], vn = s.vn, cub = 1;
+    // SDPWS 2021 §4.3.5.3 Eq. 4.3-2 — unblocked WSP: v_n(ub) = v_n(b)·C_ub,
+    // v_n(b) the Table 4.3A value at 6" edge nailing (Table 4.3.5.3 has no other).
+    if (!blocked) {
+      if (s.spacing !== 6) {
+        return { ok: false, opt: s, error: sheathingLabel(s) + ': unblocked wood structural panel shear walls require 6" panel-edge nailing — SDPWS 2021 §4.3.7.1(1) Exception (c), and Table 4.3.5.3 gives C_ub for 6" supported edges only (§4.3.5.3; 2015 §4.3.3.2). Use 6" edge nailing or check Blocked.' };
+      }
+      cub = C_UB[fld] && C_UB[fld][studs] !== undefined ? C_UB[fld][studs] : NaN;
+      factors.push({ f: cub, why: 'Unblocked: C_ub = ' + f2(cub) + ' for 6" edge / ' + fld + '" intermediate framing nailing, studs ' + studs + '" o.c. (SDPWS 2021 §4.3.5.3 Eq. 4.3-2, Table 4.3.5.3; v_n(b) = ' + s.vn + ' plf, Table 4.3A blocked at 6" edge nailing)' });
+    }
+    vn *= cub;
     // Table 4.3A fn. 3 — specific gravity adjustment, wood structural panels only.
     var sg = 1;
-    if (s.type === 'wsp') {
-      var G = opts.G;
-      if (isFinite(G)) sg = Math.min(1, 1 - (0.5 - G));
-      if (sg !== 1) factors.push({ f: sg, why: 'Specific gravity adjustment [1 − (0.5 − G)] = ' + f2(sg) + ' for G = ' + f2(G) + ' (Table 4.3A fn. 3)' });
-    }
+    var G = opts.G;
+    if (isFinite(G)) sg = Math.min(1, 1 - (0.5 - G));
+    if (sg !== 1) factors.push({ f: sg, why: 'Specific gravity adjustment [1 − (0.5 − G)] = ' + f2(sg) + ' for G = ' + f2(G) + ' (Table 4.3A fn. 3)' });
     vn *= sg;
     // Table 4.3A fn. 10 — 10d common nails with the hold-down on the inside face.
     var fn10 = 1;
@@ -661,15 +801,22 @@
       factors.push({ f: 0.92, why: '10d common nails with the hold-down attached to the inside face of the end post — × 0.92 (Table 4.3A fn. 10)' });
     }
     vn *= fn10;
-    return { ok: true, opt: s, label: sheathingLabel(s), vnTable: s.vn, sg: sg, fn10: fn10, vn: vn, factors: factors };
+    var out = { ok: true, opt: s, label: sheathingLabel(s), vnTable: s.vn, sg: sg, fn10: fn10, vn: vn, factors: factors };
+    if (!blocked) { out.ub = true; out.cub = cub; out.label += ', unblocked (C_ub ' + f2(cub) + ', studs ' + studs + '", intermediate ' + fld + '")'; }
+    return out;
   }
 
   // Combine the two faces for one design case.  Returns {vn, rule, ref}.
+  // Same construction both faces (the wall's one blocking and stud spacing
+  // resolve both alike) -> 2x (§4.3.5.4.1); anything else -> §4.3.5.4.2. The wind exception names wood structural
+  // panels with gypsum WALLBOARD opposite, so gypsum sheathing board takes
+  // the §4.3.5.4.2 rule for wind as well.
   function combineFaces(f1cap, f2cap, caseKey) {
     if (!f2cap) return { vn: f1cap.vn, rule: 'single-sided', ref: 'SDPWS §4.3.5.2' };
     var same = f1cap.opt.id === f2cap.opt.id;
     if (same) return { vn: 2 * f1cap.vn, rule: 'similar sheathing both faces — 2 × one face', ref: 'SDPWS §4.3.5.4.1' };
-    var mixWspGyp = (f1cap.opt.type === 'wsp' && f2cap.opt.type === 'gyp') || (f1cap.opt.type === 'gyp' && f2cap.opt.type === 'wsp');
+    function wallboard(o) { return o.type === 'gyp' && o.material !== 'sheathing'; }
+    var mixWspGyp = (f1cap.opt.type === 'wsp' && wallboard(f2cap.opt)) || (wallboard(f1cap.opt) && f2cap.opt.type === 'wsp');
     if (mixWspGyp && caseKey === 'wind') {
       return { vn: f1cap.vn + f2cap.vn, rule: 'wind: WSP + gypsum — sum of both faces', ref: 'SDPWS §4.3.5.4.2 Exception' };
     }
@@ -832,6 +979,11 @@
       (fl.walls || []).forEach(function (w0) { var key = lineKey(w0); (byLine[key] = byLine[key] || []).push(w0); });
       Object.keys(byLine).forEach(function (key) {
         if (byLine[key].length < 2) return;
+        // §4.3.5.5: the shear-wall-line distribution is limited to walls with
+        // the same sheathing materials — one face-1 material per line.
+        var types = {};
+        byLine[key].forEach(function (w0) { var s0 = findSheathing(w0.sheathing && w0.sheathing.face1); if (s0) types[s0.type] = true; });
+        if (Object.keys(types).length > 1) errors.push(where + ': line "' + key + '" mixes wood structural panel and gypsum face-1 walls — the walls of one shear wall line must have the same sheathing materials (SDPWS 2021 §4.3.5.5; 2015 §4.3.3.4).');
         [['P_wind_lb', 'P_W'], ['P_seis_lb', 'P_E']].forEach(function (fk) {
           var first = null;
           byLine[key].forEach(function (w0) {
@@ -896,14 +1048,53 @@
         if (!seg && isFinite(unsh) && unsh < 0) errors.push(tag + ': unsheathed area ' + f2(unsh) + ' ft² cannot be negative (SDPWS §4.3.2.3(9) Exception adds to A_o).');
         if (!w.sheathing || !w.sheathing.face1) errors.push(tag + ': face 1 sheathing is required.');
         else {
-          var s1 = findSheathing(w.sheathing.face1);
-          if (!s1) errors.push(tag + ': unknown face 1 sheathing option.');
-          else if (s1.type !== 'wsp') errors.push(tag + (seg
-            ? ': a segmented wall under SFRS A.15 / B.22 and the §4.3.5.5.1 Exc. 1 distribution must be sheathed with wood structural panel sheathing. Gypsum is permitted only as the opposite face.'
-            : ': a perforated shear wall must be sheathed with wood structural panel sheathing (SDPWS §4.3.2.3). Gypsum is permitted only as the opposite face.'));
+          // One Blocked box and one stud spacing per wall, for both faces.
+          var so = wallSheathOpts(w.sheathing), wallBlk = so.blocked;
+          var ubS = w.sheathing.studs_in, ubF = w.sheathing.field_in;
+          // Stud spacing only matters for gypsum rows and unblocked WSP; field
+          // nailing only for unblocked WSP — a blocked WSP wall ignores both.
+          var fA = findSheathing(w.sheathing.face1), fB = w.sheathing.face2 ? findSheathing(w.sheathing.face2) : null;
+          var anyGyp = (fA && fA.type === 'gyp') || (fB && fB.type === 'gyp');
+          var ubWsp = !wallBlk && ((fA && fA.type === 'wsp') || (fB && fB.type === 'wsp'));
+          if (!(anyGyp || ubWsp)) ubS = null;
+          if (!ubWsp) ubF = null;
+          if (ubS !== undefined && ubS !== null && STUDS.indexOf(num(ubS)) < 0) errors.push(tag + ': stud spacing must be 12, 16, 20 or 24 in (SDPWS 2021 Table 4.3.5.3; Table 4.3C maximum stud spacings).');
+          if (ubF !== undefined && ubF !== null && !C_UB[num(ubF)]) errors.push(tag + ': unblocked WSP intermediate framing nailing must be 6 or 12 in (SDPWS 2021 Table 4.3.5.3).');
+          var s1 = findSheathing(w.sheathing.face1), s2 = null;
           if (w.sheathing.face2) {
-            var s2 = findSheathing(w.sheathing.face2);
+            s2 = findSheathing(w.sheathing.face2);
             if (!s2) errors.push(tag + ': unknown face 2 sheathing option.');
+          }
+          // The tabulated value at the wall's blocking / stud spacing (Table 4.3C
+          // row, or Table 4.3.5.3 for unblocked WSP) — sheathingCapacity() words it.
+          [[s1, w.sheathing.face1, 'face 1'], [s2, w.sheathing.face2, 'face 2']].forEach(function (x) {
+            if (!x[0]) return;
+            var cx = sheathingCapacity(x[1], so);
+            if (!cx.ok) errors.push(tag + ': ' + x[2] + ' — ' + cx.error);
+          });
+          if (!s1) errors.push(tag + ': unknown face 1 sheathing option.');
+          else {
+            var lim1 = faceAspectLimit(s1, wallBlk);
+            if (s1.type === 'gyp') {
+              // Gypsum board on face 1 (SDPWS 2021 §4.3.7.5, Table 4.3C).
+              if (!seg) errors.push(tag + ': a perforated shear wall must be sheathed with wood structural panels on one or both sides (SDPWS 2021 §4.3.2.3); gypsum is permitted only as the opposite face. Design a gypsum face-1 wall by the segmented method (§4.3.2.1).');
+              if (SFRS[state.sfrs] && SFRS[state.sfrs].wsp) errors.push(tag + ': gypsum board on face 1 is a light-frame wall with shear panels of all other materials — select SFRS A.17 or B.24 (ASCE 7-16 Table 12.2-1; SDPWS 2021 C4.3.5.4.2). A.15 / B.22 are the wood structural panel systems.');
+              var sdcV = String(state.sdc || 'D').toUpperCase();
+              if (sdcV === 'E' || sdcV === 'F') errors.push(tag + ': gypsum board shear walls resist seismic forces in SDC A through D only (SDPWS 2021 §4.3.7.5; ASCE 7-16 Table 12.2-1) — SDC ' + sdcV + ' is selected.');
+              if (s2 && s2.type === 'wsp') errors.push(tag + ': wood structural panels on face 2 with gypsum on face 1 — put the wood structural panels on face 1 and the gypsum on face 2.');
+            }
+            // Face-1 aspect ratio stricter than the 3.5:1 blocked-WSP limit
+            // (Table 4.3.3: unblocked WSP 2:1; gypsum 2:1, note 1 unblocked 1.5:1).
+            // Perforated segments carry the same limit (§4.3.3.4).
+            if (lim1 < 3.5) {
+              sb.segments.forEach(function (s, si) {
+                if (s.b > 0 && s.hOverB > lim1 + 1e-9) errors.push(tag + ': segment ' + (si + 1) + ' (b = ' + f2(s.b) + ' ft) has h/b = ' + f2(s.hOverB) + ' > ' + f1(lim1) + ':1, the limit for ' + (s1.type === 'gyp' ? (wallBlk ? 'blocked gypsum board' : 'unblocked gypsum board (Table 4.3.3 note 1: walls over 1.5:1 shall be blocked)') : 'unblocked wood structural panels') + ' (SDPWS 2021 Table 4.3.3' + (seg ? '' : ', §4.3.3.4') + '). Widen it, or leave it out of the segment list (it then counts as an opening).');
+              });
+            }
+          }
+          // Unblocked wood structural panels on either face (SDPWS 2021 §4.3.5.3): h <= 16 ft.
+          if (!wallBlk && ((s1 && s1.type === 'wsp') || (s2 && s2.type === 'wsp')) && h > UB_MAX_H + 1e-9) {
+            errors.push(tag + ': unblocked wood structural panel shear wall height h = ' + f1(h) + ' ft exceeds ' + UB_MAX_H + ' ft (SDPWS 2021 §4.3.5.3).');
           }
         }
         var sc = findSill(w.sill && w.sill.conn);
@@ -977,9 +1168,27 @@
     var methods = { perforated: false, segmented: false };
     floors.forEach(function (fl) { (fl.walls || []).forEach(function (w) { methods[normalizeWall(w).method] = true; }); });
     if (methods.perforated) res.notes.push('Perforated shear wall method (per-wall Method = perforated): a perforated shear wall segment is present at each end of every wall line (§4.3.2.3(2)); top-of-wall and bottom-of-wall elevations are uniform (§4.3.2.3(7)); collectors run the full length of the wall (§4.3.2.3(6)); sheathed areas that are not the tabulated assembly are counted in A_o (§4.3.2.3(9) Exception).');
-    if (methods.segmented) res.notes.push('Segmented method (per-wall Method = segmented): each b_i is an individual full-height shear wall (§4.3.2.1; 2015 §4.3.5.1) with its own hold-down pair; story shear is distributed in proportion to design capacity with 2b/h on segments of h/b > 2:1 (§4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1), so the sheathing check is v_eff = V/Σb_eff ≤ v_ASD; openings are gaps between segments and the unsheathed-area entry is ignored; no §4.3.6.4.2.1 uniform uplift (segment ends are anchored per §4.3.6.4.2); segment i stacks on segment i (§4.3.6.4.4).');
+    if (methods.segmented) res.notes.push('Segmented method (per-wall Method = segmented): each b_i is an individual full-height shear wall (§4.3.2.1; 2015 §4.3.5.1) with its own hold-down pair; story shear is distributed in proportion to design capacity with 2b/h on segments of h/b > 2:1 (§4.3.5.5.1 Exc. 1; 2015 §4.3.3.4.1 Exc. 1 — wood structural panel walls; gypsum segments are limited to h/b ≤ 2 so f = 1 and the split is the §4.3.5.5.1 equal-unit-shear distribution for like construction and height), so the sheathing check is v_eff = V/Σb_eff ≤ v_ASD; openings are gaps between segments and the unsheathed-area entry is ignored; no §4.3.6.4.2.1 uniform uplift (segment ends are anchored per §4.3.6.4.2); segment i stacks on segment i (§4.3.6.4.4).');
     if (sfrs && !sfrs.wsp) res.warnings.push('SFRS ' + sfrs.id + ' is "shear panels of all other materials" — ASCE 7-16 Table 12.2-1 limits it to 35 ft in SDC D and does not permit it in SDC E or F. The wood structural panel systems are A.15 / B.22.');
     if (sfrs && !sfrs.wsp && (sdc === 'E' || sdc === 'F')) res.errors.push('SFRS ' + sfrs.id + ' is not permitted in SDC ' + sdc + ' (ASCE 7-16 Table 12.2-1). Select A.15 or B.22.');
+    // Sheathing in use, for the notes and the SFRS cross-check below.
+    var use = { gyp: false, gsb: false, ub: false, allWsp1: true, walls: 0 };
+    floors.forEach(function (fl) {
+      (fl.walls || []).forEach(function (w0) {
+        var sh = w0.sheathing || {}, a = findSheathing(sh.face1), b = findSheathing(sh.face2);
+        use.walls++;
+        if (!a || a.type !== 'wsp') use.allWsp1 = false;
+        [a, b].forEach(function (s) {
+          if (!s) return;
+          if (s.type === 'gyp') { use.gyp = true; if (s.material === 'sheathing') use.gsb = true; }
+          if (s.type === 'wsp' && sh.blocked === false) use.ub = true;
+        });
+      });
+    });
+    if (sfrs && !sfrs.wsp && use.walls && use.allWsp1) res.warnings.push('SFRS ' + sfrs.id + ' is selected but every wall has wood structural panels on face 1 — R = ' + sfrs.R + ' is conservative for these walls; A.15 / B.22 apply unless a gypsum face is credited for seismic (SDPWS 2021 C4.3.5.4.2).');
+    if (use.gyp) res.notes.push('Gypsum board shear walls (SDPWS 2021 §4.3.7.5, Table 4.3C): wind, and seismic in SDC A–D only; end joints of adjacent courses staggered; fasteners at least 3/8" from the edges and ends of the panels; nailed face of framing and blocking 2" nominal or greater; fastener size and spacing at boundaries, panel edges and intermediate supports per Table 4.3C (edge / field where two spacings are given, fn. 3). Blocked rows need blocking at all panel edges; walls over h/b 1.5:1 shall be blocked (Table 4.3.3 note 1).');
+    if (use.gsb) res.notes.push('Gypsum sheathing board (SDPWS 2021 §4.3.7.5.2): four-foot-wide pieces applied parallel or perpendicular to the studs; two-foot-wide pieces applied perpendicular to the studs; ASTM C1396, installed per ASTM C1280.');
+    if (use.ub) res.notes.push('Unblocked wood structural panels (SDPWS 2021 §4.3.5.3; 2015 §4.3.3.2): v_n(ub) = v_n(b)·C_ub (Eq. 4.3-2), v_n(b) the Table 4.3A blocked value at 6" edge nailing, C_ub from Table 4.3.5.3 by stud spacing and intermediate framing nailing; 6" edge nailing, wall height ≤ 16 ft, h/b ≤ 2:1 (Table 4.3.3).');
 
     // Story forces are built per wall line inside computeWall(), because a wall
     // may start part way down the stack and only the levels where it exists
@@ -992,7 +1201,7 @@
         P_wind_lb: num(fl.P_wind_lb, 0) || 0, P_seis_lb: num(fl.P_seis_lb, 0) || 0, walls: []
       };
       for (var wi = 0; wi < (fl.walls || []).length; wi++) {
-        var wres = computeWall(state, floors, k, wi, { sp: sp, sdc: sdc, gypBlockedBySDC: gypBlockedBySDC, res: res, lines: lines });
+        var wres = computeWall(state, floors, k, wi, { sp: sp, sdc: sdc, sfrs: sfrs, gypBlockedBySDC: gypBlockedBySDC, res: res, lines: lines });
         // Wall-level code violations are model errors, not advisory notes.
         wres.errors.forEach(function (e) { res.errors.push(fr.name + ' / ' + wres.label + ': ' + e); });
         fr.walls.push(wres);
@@ -1531,31 +1740,52 @@
     cg.messages.forEach(function (m) { out.messages.push(m); });
 
     // ── sheathing capacity ──────────────────────────────────────────────────
-    var opts = { G: ctx.sp.G, insideFaceHoldown: !!(w.sheathing && w.sheathing.insideFaceHoldown) };
+    var so = wallSheathOpts(w.sheathing);
+    var opts = { G: ctx.sp.G, insideFaceHoldown: !!(w.sheathing && w.sheathing.insideFaceHoldown), blocked: so.blocked, studs: so.studs, field: so.field };
     var c1 = sheathingCapacity(w.sheathing.face1, opts);
     var c2 = w.sheathing.face2 ? sheathingCapacity(w.sheathing.face2, opts) : null;
     var cap = { face1: c1, face2: c2, faceNotes: [], prereqs: [] };
 
-    // Gypsum face gating.
+    // Face-2 gating (gypsum, unblocked WSP) — face 2 is dropped, not refused.
     var gypDropped = null;
     function gypLimit(caseKey) {
-      // Table 4.3.3 note 2: 2:1, or 3.5:1 for wind design of a blocked WSP wall
-      // with gypsum wallboard on the opposite side.
-      return caseKey === 'wind' ? 3.5 : 2.0;
+      // Table 4.3.3: gypsum 2:1; note 1: over 1.5:1 shall be blocked, so an
+      // unblocked gypsum face stops at 1.5:1 in both cases; note 2: 3.5:1 for
+      // wind design of a blocked WSP wall with gypsum wallboard opposite.
+      var g = c2.opt, f = c1.ok ? c1.opt : null;
+      if (!so.blocked) return 1.5;
+      if (caseKey === 'wind' && f && f.type === 'wsp' && g.material !== 'sheathing') return 3.5;
+      return 2.0;
     }
+    var leastRNote = null;
     ['wind', 'seismic'].forEach(function (caseKey) {
       var use2 = c2;
       var drop = null;
       if (c2 && c2.ok && c2.opt.type === 'gyp') {
+        var lim = gypLimit(caseKey);
         if (ctx.gypBlockedBySDC) drop = 'Gypsum wallboard is not counted as a contributing face in SDC ' + ctx.sdc + ' — ASCE 7-16 Table 12.2-1 does not permit "shear panels of all other materials" (A.17/B.24) in SDC E or F.';
-        else if (out.geom.maxHoverB > gypLimit(caseKey) + 1e-9) drop = 'Gypsum face not counted for ' + caseKey + ': the governing segment aspect ratio h/b = ' + f2(out.geom.maxHoverB) + ':1 exceeds the ' + f1(gypLimit(caseKey)) + ':1 limit of SDPWS Table 4.3.3' + (caseKey === 'wind' ? ' note 2' : '') + '.';
+        else if (out.geom.maxHoverB > lim + 1e-9) drop = 'Gypsum face not counted for ' + caseKey + ': the governing segment aspect ratio h/b = ' + f2(out.geom.maxHoverB) + ':1 exceeds the ' + f1(lim) + ':1 limit of SDPWS Table 4.3.3' + (lim === 3.5 ? ' note 2' : (lim === 1.5 ? ' note 1 (unblocked)' : '')) + '.';
         if (drop) { use2 = null; if (!gypDropped || gypDropped !== drop) gypDropped = drop; }
+      } else if (c2 && c2.ok && c2.ub && out.geom.maxHoverB > 2.0 + 1e-9) {
+        drop = 'Unblocked WSP face 2 not counted: the governing segment aspect ratio h/b = ' + f2(out.geom.maxHoverB) + ':1 exceeds the 2.0:1 limit for unblocked wood structural panels (SDPWS 2021 Table 4.3.3).';
+        use2 = null; gypDropped = drop;
       }
       if (!c1.ok) { cap[caseKey] = { vn: NaN, asd: NaN, rule: 'invalid', ref: '' }; return; }
+      // D6 / SDPWS 2021 C4.3.5.4.2: under a wood-structural-panel SFRS (A.15 /
+      // B.22) the seismic capacity of a WSP + gypsum wall is the WSP face
+      // alone — crediting the gypsum would require the lesser R of the gypsum
+      // system. Wind still takes the §4.3.5.4.2 exception.
+      if (caseKey === 'seismic' && ctx.sfrs && ctx.sfrs.wsp && c1.opt.type === 'wsp' && use2 && use2.ok && use2.opt.type === 'gyp') {
+        use2 = null;
+        leastRNote = 'Seismic: the gypsum face is not credited under SFRS ' + ctx.sfrs.id + ' — a two-sided capacity that counts gypsum requires the lesser R of the gypsum system (A.17 / B.24), so the wood structural panel face alone is used (SDPWS 2021 C4.3.5.4.2; 2015 C4.3.3.3.2).';
+        cap[caseKey] = { vn: c1.vn, rule: 'wood structural panel face only — gypsum not credited for seismic under SFRS ' + ctx.sfrs.id + ' (lesser R)', ref: 'SDPWS §4.3.5.4.2; C4.3.5.4.2', asd: c1.vn / LOAD[caseKey].asdDiv, asdDiv: LOAD[caseKey].asdDiv, face2Used: false, dropped: null };
+        return;
+      }
       var comb = combineFaces(c1, use2 && use2.ok ? use2 : null, caseKey);
       cap[caseKey] = { vn: comb.vn, rule: comb.rule, ref: comb.ref, asd: comb.vn / LOAD[caseKey].asdDiv, asdDiv: LOAD[caseKey].asdDiv, face2Used: !!(use2 && use2.ok), dropped: drop };
     });
     if (gypDropped) cap.faceNotes.push(gypDropped);
+    if (leastRNote) cap.faceNotes.push(leastRNote);
 
     // §4.3.2.3(4) — combined nominal unit shear capacity <= 2,435 plf (perforated only).
     var vnMax = Math.max(cap.wind.vn || 0, cap.seismic.vn || 0);
@@ -1564,8 +1794,11 @@
       out.errors.push('Combined nominal unit shear capacity ' + f1(vnMax) + ' plf exceeds the 2,435 plf limit for perforated shear walls (SDPWS §4.3.2.3(4)). Choose a lighter sheathing schedule or design the wall by another method.');
     }
 
-    // §4.3.7.1(5) and Table 4.3A fn. 6 — 3x framing / staggered nailing triggers.
-    var faces = [c1].concat(c2 ? [c2] : []).filter(function (f) { return f && f.ok; });
+    // §4.3.7.1(5) and Table 4.3A fn. 6 — 3x framing / staggered nailing
+    // triggers. Both are wood structural panel provisions: a gypsum face
+    // (§4.3.7.5, 2" nominal framing) never triggers them, and fn. 6 "panels on
+    // both faces" reads two WSP faces.
+    var faces = [c1].concat(c2 ? [c2] : []).filter(function (f) { return f && f.ok && f.opt.type === 'wsp'; });
     var trig = [];
     faces.forEach(function (f) {
       if (f.opt.spacing <= 2) trig.push('nail spacing of 2" o.c. at adjoining panel edges (§4.3.7.1(5)(a))');
@@ -1896,6 +2129,9 @@
         wall.dead = { w_plf: s.w || 0, P_end_lb: s.Pend || 0, source: 'manual' };
         if (s.face1) wall.sheathing.face1 = s.face1;
         if (s.face2) wall.sheathing.face2 = s.face2;
+        if (s.blocked === false) wall.sheathing.blocked = false;
+        if (s.studs) wall.sheathing.studs_in = s.studs;
+        if (s.fieldNail) wall.sheathing.field_in = s.fieldNail;
         if (s.insideFaceHoldown) wall.sheathing.insideFaceHoldown = true;
         if (s.endPost) wall.endPost = s.endPost;
         if (s.holdown) wall.holdown = s.holdown;
@@ -2790,7 +3026,159 @@
         return [['pieces S1 0–10, O1 10–14 (positioned), O2 14–17 (assumed), S2 17–27', layTxt(o.lay) === 'S1 0.0-10.0 | O1 10.0-14.0 | O2 14.0-17.0 | S2 17.0-27.0' && o.lay.pieces[1].positioned === true && o.lay.pieces[2].positioned === false, layTxt(o.lay)],
                 ['mode partial, assumed = true, no warnings', o.lay.mode === 'partial' && o.lay.assumed === true && o.lay.warnings.length === 0, o.lay.mode],
                 ['model ok; every result field identical to the unpositioned wall', o.r.ok === true && JSON.stringify(o.r.floors) === JSON.stringify(o.p.floors), o.r.errors.join(' | ') || 'ok'],
-                ['nofit: S2 does not fit the space left — drawn past End 2, warned (model still ok)', layTxt(o.nl) === 'U 0.0-5.0 | O1 5.0-9.0 | S1 9.0-19.0 | O2 19.0-21.0 | U 21.0-22.0 | S2 22.0-28.0' && o.nl.unplaced.join(',') === '1' && o.nv.ok === true && o.nv.warnings.some(function (x) { return x.indexOf('1 segment or unpositioned opening does not fit in the space the positioned openings leave') >= 0; }), layTxt(o.nl) + ' / ' + o.nv.warnings.join(' | ')]]; } }
+                ['nofit: S2 does not fit the space left — drawn past End 2, warned (model still ok)', layTxt(o.nl) === 'U 0.0-5.0 | O1 5.0-9.0 | S1 9.0-19.0 | O2 19.0-21.0 | U 21.0-22.0 | S2 22.0-28.0' && o.nl.unplaced.join(',') === '1' && o.nv.ok === true && o.nv.warnings.some(function (x) { return x.indexOf('1 segment or unpositioned opening does not fit in the space the positioned openings leave') >= 0; }), layTxt(o.nl) + ' / ' + o.nv.warnings.join(' | ')]]; } },
+
+    // ── Gypsum board, wall Blocked box + stud spacing (plan 2026-09-30 gypsum) ──
+    // SDPWS 2021 Table 4.3C (PDF p. 50): one nominal v_n per row, ASD = v_n/2.0
+    // wind, v_n/2.8 seismic (§4.1.4). The face is a construction; the wall's
+    // Blocked box and stud spacing pick the row (smallest max-stud covering
+    // the wall's). CASE_GYP: one base story, V_ASD = P.
+    { id: 'G1', src: 'SDPWS 2021 Table 4.3C 1/2" 5d @ 7, unblocked, studs 24 -> row "24 unblocked" = 150 plf; segmented [8, 8], h 8, P 1,000 lb ASD, B.24: v = 1000/16 = 62.5 plf; wind 150/2.0 = 75.0 (D/C 0.833); seismic 150/2.8 = 53.57 (D/C 1.167); T_i = (500 × 8)/8 = 500 lb',
+      run: function () { return compute(mkState(CASE_GYP({ f1: 'gyp12_5d_7', blocked: false, studs: 24, P: 1000 }))); },
+      expect: function (r) { var a = W(r, 0), cw = a.cases.wind, cs = a.cases.seismic;
+        return [['model ok (gypsum face 1, segmented, B.24)', r.ok === true, r.errors.join(' | ') || 'ok'],
+                ['v_n = 150 plf single-sided, row gyp12_5d_7_24u', near(a.cap.wind.vn, 150, 1e-9) && a.cap.wind.rule === 'single-sided' && a.cap.face1.opt.row === 'gyp12_5d_7_24u', f1(a.cap.wind.vn) + ' ' + a.cap.face1.opt.row],
+                ['label names the resolved row', a.cap.face1.label.indexOf('unblocked, studs ≤ 24" o.c. (150 plf)') >= 0, a.cap.face1.label],
+                ['v_eff = 62.5 plf', near(cw.vmax, 62.5, 1e-6), f3(cw.vmax)],
+                ['wind ASD 75.0, D/C 0.833', near(a.cap.wind.asd, 75.0, 1e-9) && near(cw.dcSheathing, 0.8333, 1e-4), f2(a.cap.wind.asd) + ' / ' + f4(cw.dcSheathing)],
+                ['seismic ASD 53.57, D/C 1.167 (fails)', near(a.cap.seismic.asd, 53.571, 1e-3) && near(cs.dcSheathing, 1.1667, 1e-4), f3(a.cap.seismic.asd) + ' / ' + f4(cs.dcSheathing)],
+                ['T_i = 500 lb each segment', near(a.segments[0].T, 500, 1e-6) && near(a.segments[1].T, 500, 1e-6), f1(a.segments[0].T) + ' / ' + f1(a.segments[1].T)],
+                ['§4.3.7.5 construction note printed', r.notes.some(function (x) { return x.indexOf('§4.3.7.5') >= 0; }), r.notes.length + ' notes'],
+                ['no "every face 1 is WSP" SFRS warning', !r.warnings.some(function (x) { return x.indexOf('every wall has wood structural panels') >= 0; }), r.warnings.join(' | ')]]; } },
+    { id: 'G2', src: 'SDPWS 2021 Table 4.3.3: gypsum 2:1; note 1 — over 1.5:1 blocked. 1/2" 5d @ 7 blocked [4] @ h 9 = 2.25 refused; unblocked [5] @ h 8 = 1.6 refused; blocked [4] @ h 8 = 2.0 accepted',
+      run: function () { return { a: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', segments: [4], h: 9 }))),
+                                  b: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', blocked: false, segments: [5], h: 8 }))),
+                                  c: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', segments: [4], h: 8 }))) }; },
+      expect: function (o) {
+        return [['blocked gypsum h/b 2.25 > 2.0 refused', o.a.ok === false && errHas(o.a, '> 2.0:1, the limit for blocked gypsum board'), o.a.errors.join(' | ')],
+                ['unblocked gypsum h/b 1.6 > 1.5 refused (note 1)', o.b.ok === false && errHas(o.b, '> 1.5:1') && errHas(o.b, 'note 1'), o.b.errors.join(' | ')],
+                ['blocked gypsum h/b 2.0 accepted', o.c.ok === true, o.c.errors.join(' | ') || 'ok']]; } },
+    { id: 'G3', src: 'SDPWS 2021 §4.3.2.3 — perforated walls are WSP on one or both sides; gypsum face 1 perforated refused',
+      run: function () { return validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', method: 'perforated', segments: [8, 8], L: 20 }))); },
+      expect: function (v) { return [['refused, cites §4.3.2.3 and the segmented method', v.ok === false && errHas(v, '§4.3.2.3') && errHas(v, 'segmented method'), v.errors.join(' | ')]]; } },
+    { id: 'G4', src: 'ASCE 7-16 Table 12.2-1 / SDPWS 2021 C4.3.5.4.2 — gypsum face 1 needs A.17 / B.24; B.24 with every face 1 WSP is warned (conservative R)',
+      run: function () { return { a: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', sfrs: 'A.15' }))),
+                                  b: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', sfrs: 'B.22' }))),
+                                  c: compute(mkState(CASE_GYP({ f1: 'wsp716_8d_6', sfrs: 'B.24', P: 1000 }))),
+                                  d: compute(mkState(CASE_GYP({ f1: 'gyp12_5d_7', sfrs: 'A.17', P: 1000 }))) }; },
+      expect: function (o) {
+        return [['A.15 refused', o.a.ok === false && errHas(o.a, 'select SFRS A.17 or B.24'), o.a.errors.join(' | ')],
+                ['B.22 refused', o.b.ok === false && errHas(o.b, 'select SFRS A.17 or B.24'), o.b.errors.join(' | ')],
+                ['B.24 + WSP face 1: warning names R = 2.5 conservative', o.c.ok === true && o.c.warnings.some(function (x) { return x.indexOf('every wall has wood structural panels on face 1') >= 0 && x.indexOf('R = 2.5') >= 0; }), o.c.warnings.join(' | ')],
+                ['A.17 + gypsum face 1: ok, no such warning', o.d.ok === true && !o.d.warnings.some(function (x) { return x.indexOf('every wall has wood structural panels') >= 0; }), o.d.errors.concat(o.d.warnings).join(' | ')]]; } },
+    { id: 'G5', src: 'SDPWS 2021 §4.3.7.5 — gypsum board shear walls seismic in SDC A–D only',
+      run: function () { return compute(mkState(CASE_GYP({ f1: 'gyp12_5d_7', sdc: 'E', P: 1000 }))); },
+      expect: function (r) { return [['SDC E refused with §4.3.7.5', r.ok === false && errHas(r, '§4.3.7.5') && errHas(r, 'SDC E'), r.errors.join(' | ')]]; } },
+    { id: 'G6', src: 'Gypsum face 1 with WSP face 2 refused; §4.3.5.5 one sheathing material per line; stud spacing outside 12/16/20/24 refused',
+      run: function () {
+        var ln = mkState(CASE_GYP({ f1: 'gyp12_5d_7', segments: [8], L: 8 }));
+        var w2 = clone(ln.floors[0].walls[0]); w2.id = 'w2'; w2.sheathing.face1 = { id: 'wsp716_8d_6' };
+        ln.floors[0].walls[0].line = 'A1'; w2.line = 'A1'; ln.floors[0].walls.push(w2);
+        return { b: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', f2: 'wsp716_8d_6' }))), c: validate(ln),
+                 d: validate(mkState(CASE_GYP({ f1: 'gyp12_5d_7', studs: 18 }))) }; },
+      expect: function (o) {
+        return [['gypsum face 1 + WSP face 2 refused', o.b.ok === false && errHas(o.b, 'put the wood structural panels on face 1'), o.b.errors.join(' | ')],
+                ['WSP and gypsum face-1 walls on one line refused (§4.3.5.5)', o.c.ok === false && errHas(o.c, '§4.3.5.5'), o.c.errors.join(' | ')],
+                ['studs 18 refused', o.d.ok === false && errHas(o.d, 'stud spacing must be 12, 16, 20 or 24'), o.d.errors.join(' | ')]]; } },
+    { id: 'G7', src: 'Old-file faces {type, thickness, nail, spacing}, no blocked / studs in the file (blocked, 16"): 5/8" 6d @ 7 -> Table 4.3C 16" blocked = 290, @ 4 = 350; SW17 numbers kept',
+      run: function () {
+        var old = mkState(CASE_GYP({ f1: 'wsp716_8d_6', sfrs: 'A.15', P: 1000 }));
+        delete old.floors[0].walls[0].sheathing.blocked;
+        old.floors[0].walls[0].sheathing.face2 = { type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 4 };
+        return { r7: findSheathing({ type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 7 }), r4: findSheathing({ type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 4 }),
+                 c7: sheathingCapacity({ type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 7 }), c4: sheathingCapacity({ type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 4 }),
+                 rowId: findSheathing({ id: 'gyp12_5d_7_16u' }), old: compute(old),
+                 s17: compute(mkState(CASE_SHEATH({ face2: { type: 'gyp', thickness: '5/8', nail: '6d cooler', spacing: 7 } }))) }; },
+      expect: function (o) { var a = W(o.s17, 0), b = W(o.old, 0);
+        return [['@ 7 -> construction gyp58_6d_7 -> 290 plf (16" blocked row)', o.r7 && o.r7.id === 'gyp58_6d_7' && o.c7.ok && o.c7.vn === 290 && o.c7.opt.row === 'gyp58_6d_7_16b', (o.r7 && o.r7.id) + ' ' + o.c7.vn],
+                ['@ 4 -> construction gyp58_6d_4 -> 350 plf', o.r4 && o.r4.id === 'gyp58_6d_4' && o.c4.ok && o.c4.vn === 350, (o.r4 && o.r4.id) + ' ' + o.c4.vn],
+                ['a Table 4.3C row id maps to its construction', o.rowId && o.rowId.id === 'gyp12_5d_7', o.rowId && o.rowId.id],
+                ['wall with no blocked key: face 2 gypsum @ 4 = 350, wind 670 + 350 = 1,020', o.old.ok && near(b.cap.face2.vn, 350, 1e-9) && near(b.cap.wind.vn, 1020, 1e-9), f1(b.cap.wind.vn) + ' ' + o.old.errors.join(' | ')],
+                ['SW17 wall: wind 960 / seismic 670 unchanged', near(a.cap.wind.vn, 960, 1e-9) && near(a.cap.seismic.vn, 670, 1e-9), f1(a.cap.wind.vn) + ' / ' + f1(a.cap.seismic.vn)]]; } },
+    { id: 'G8', src: 'Two gypsum faces, B.24, blocked, studs 16: 1/2" 5d @ 4 both faces = 2 × 300 = 600 (§4.3.5.4.1); 5d @ 4 (300) + 5d @ 7 (250) = max(2 × 250, 300) = 500 (§4.3.5.4.2, no wind exception)',
+      run: function () { return { a: compute(mkState(CASE_GYP({ f1: 'gyp12_5d_4', f2: 'gyp12_5d_4', P: 1000 }))),
+                                  b: compute(mkState(CASE_GYP({ f1: 'gyp12_5d_4', f2: 'gyp12_5d_7', P: 1000 }))) }; },
+      expect: function (o) { var a = W(o.a, 0), b = W(o.b, 0);
+        return [['same construction: 600 wind and seismic', o.a.ok && near(a.cap.wind.vn, 600, 1e-9) && near(a.cap.seismic.vn, 600, 1e-9), f1(a.cap.wind.vn) + ' / ' + f1(a.cap.seismic.vn)],
+                ['300 + 250: 500 wind and seismic', o.b.ok && near(b.cap.wind.vn, 500, 1e-9) && near(b.cap.seismic.vn, 500, 1e-9), f1(b.cap.wind.vn) + ' / ' + f1(b.cap.seismic.vn)]]; } },
+    { id: 'G9', src: 'WSP 7/16 8d @ 6 (670) + 5/8" gypsum 6d @ 4 blocked (350): wind 670 + 350 = 1,020 (§4.3.5.4.2 Exc.); seismic A.15 / B.22 = 670 WSP only (C4.3.5.4.2, D6); B.24 = max(2 × 350, 670) = 700',
+      run: function () { var f2 = { id: 'gyp58_6d_4' };
+        return { a15: compute(mkState(CASE_SHEATH({ sfrs: 'A.15', face2: f2 }))), b22: compute(mkState(CASE_SHEATH({ sfrs: 'B.22', face2: f2 }))), b24: compute(mkState(CASE_SHEATH({ sfrs: 'B.24', face2: f2 }))) }; },
+      expect: function (o) { var a = W(o.a15, 0), b = W(o.b22, 0), c = W(o.b24, 0);
+        return [['A.15 wind 1,020', near(a.cap.wind.vn, 1020, 1e-9), f1(a.cap.wind.vn)],
+                ['A.15 seismic 670, face 2 not used, C4.3.5.4.2 note', near(a.cap.seismic.vn, 670, 1e-9) && a.cap.seismic.face2Used === false && a.cap.faceNotes.some(function (x) { return x.indexOf('C4.3.5.4.2') >= 0; }), f1(a.cap.seismic.vn) + ' ' + a.cap.seismic.rule],
+                ['B.22 seismic 670', near(b.cap.seismic.vn, 670, 1e-9), f1(b.cap.seismic.vn)],
+                ['B.24 seismic 700, wind 1,020', near(c.cap.seismic.vn, 700, 1e-9) && near(c.cap.wind.vn, 1020, 1e-9), f1(c.cap.seismic.vn) + ' / ' + f1(c.cap.wind.vn)]]; } },
+    { id: 'G10', src: 'Unblocked wall, A.15, segmented, studs 16, intermediate 12: WSP 7/16 8d @ 6 = 670 × 0.6 = 402; 5/8" gypsum 6d @ 7 face 2 -> "24 unblocked" row 230. [5] @ h 8 (h/b 1.6 > 1.5, note 1): gypsum dropped -> 402 / 402. [8] @ h 8 (1.0): wind 402 + 230 = 632, seismic 402 (C4.3.5.4.2). Blocked, [5] @ h 8: 670 + 290 = 960 / 670',
+      run: function () { var o = { f1: 'wsp716_8d_6', f2: 'gyp58_6d_7', sfrs: 'A.15', P: 1000 };
+        function mk(x) { var c = {}; Object.keys(o).forEach(function (k) { c[k] = o[k]; }); Object.keys(x).forEach(function (k) { c[k] = x[k]; }); return compute(mkState(CASE_GYP(c))); }
+        return { u5: mk({ blocked: false, segments: [5] }), u8: mk({ blocked: false, segments: [8] }), b5: mk({ segments: [5] }) }; },
+      expect: function (o) { var u5 = W(o.u5, 0), u8 = W(o.u8, 0), b5 = W(o.b5, 0);
+        return [['unblocked h/b 1.6: 402 / 402, reason names note 1', o.u5.ok && near(u5.cap.wind.vn, 402, 1e-9) && near(u5.cap.seismic.vn, 402, 1e-9) && u5.cap.faceNotes.some(function (x) { return x.indexOf('note 1') >= 0; }), f1(u5.cap.wind.vn) + ' / ' + f1(u5.cap.seismic.vn) + ' ' + u5.cap.faceNotes.join(' | ')],
+                ['unblocked h/b 1.0: wind 632 (sum), seismic 402; gypsum row 230', o.u8.ok && near(u8.cap.wind.vn, 632, 1e-9) && near(u8.cap.seismic.vn, 402, 1e-9) && u8.cap.face2.vn === 230, f1(u8.cap.wind.vn) + ' / ' + f1(u8.cap.seismic.vn)],
+                ['blocked h/b 1.6: 960 / 670', o.b5.ok && near(b5.cap.wind.vn, 960, 1e-9) && near(b5.cap.seismic.vn, 670, 1e-9), f1(b5.cap.wind.vn) + ' / ' + f1(b5.cap.seismic.vn)]]; } },
+    { id: 'G11', src: 'Table 4.3A fn. 6 "panels on both faces, spacing < 6" reads two WSP faces only: WSP @ 4 + gypsum @ 4 no trigger; WSP @ 4 + WSP @ 6 triggers',
+      run: function () { return { g: compute(mkState(CASE_SHEATH({ face1: { id: 'wsp716_8d_4' }, face2: { id: 'gyp58_6d_4' } }))), w: compute(mkState(CASE_SHEATH({ face1: { id: 'wsp716_8d_4' }, face2: { id: 'wsp716_8d_6' } }))) }; },
+      expect: function (o) { var g = W(o.g, 0), w = W(o.w, 0);
+        return [['WSP + gypsum: no fn. 6 prerequisite', !g.cap.prereqs.some(function (p) { return p.indexOf('fn. 6') >= 0; }), g.cap.prereqs.join(' | ') || '(none)'],
+                ['WSP + WSP: fn. 6 prerequisite', w.cap.prereqs.some(function (p) { return p.indexOf('fn. 6') >= 0; }), w.cap.prereqs.join(' | ') || '(none)']]; } },
+    { id: 'G12', src: 'SDPWS 2021 Table 4.3C has no blocked row for 5/8" 6d @ 7 at studs 24 (blocked rows: 16" only) — validate() error lists "unblocked, studs ≤ 24" (230)" and "blocked, studs ≤ 16" (290)". 5/8" 6d @ 7 unblocked, studs 16 -> the 24" unblocked row covers 16": 230',
+      run: function () { return { e: compute(mkState(CASE_GYP({ f1: 'gyp58_6d_7', studs: 24, P: 1000 }))), u: compute(mkState(CASE_GYP({ f1: 'gyp58_6d_7', blocked: false, studs: 16, P: 1000 }))) }; },
+      expect: function (o) {
+        return [['blocked, studs 24: refused, names the construction and the rows on offer', o.e.ok === false && errHas(o.e, '5/8" gypsum wallboard, 6d cooler @ 7" o.c. has no SDPWS 2021 Table 4.3C row for blocked construction with studs at 24"') && errHas(o.e, 'unblocked, studs ≤ 24" o.c. (230 plf); blocked, studs ≤ 16" o.c. (290 plf)'), o.e.errors.join(' | ')],
+                ['unblocked, studs 16: 230 plf', o.u.ok === true && near(W(o.u, 0).cap.wind.vn, 230, 1e-9), o.u.ok ? f1(W(o.u, 0).cap.wind.vn) : o.u.errors.join(' | ')]]; } },
+    { id: 'G13', src: 'Stud spacing picks the Table 4.3C row: 1/2" 5d @ 7 unblocked — studs 12 or 16 -> "16 unblocked" 200; studs 20 or 24 -> "24 unblocked" 150; blocked studs 16 -> 250',
+      run: function () { var out = {};
+        [12, 16, 20, 24].forEach(function (s) { out['u' + s] = compute(mkState(CASE_GYP({ f1: 'gyp12_5d_7', blocked: false, studs: s, P: 1000 }))); });
+        out.b16 = compute(mkState(CASE_GYP({ f1: 'gyp12_5d_7', studs: 16, P: 1000 }))); return out; },
+      expect: function (o) { var v = function (k) { return o[k].ok ? W(o[k], 0).cap.wind.vn : NaN; };
+        return [['studs 16: 200 plf; studs 24: 150 plf', v('u16') === 200 && v('u24') === 150, v('u16') + ' / ' + v('u24')],
+                ['studs 12: 200 (16" row covers it); studs 20: 150 (24" row)', v('u12') === 200 && v('u20') === 150, v('u12') + ' / ' + v('u20')],
+                ['blocked, studs 16: 250', v('b16') === 250, String(v('b16'))]]; } },
+
+    // ── Unblocked WSP, SDPWS 2021 §4.3.5.3 (PDF p. 40) — wall Blocked box off ─
+    { id: 'U1', src: 'SDPWS 2021 Eq. 4.3-2: 7/16" 8d @ 6, unblocked, studs 16, intermediate 12 -> C_ub 0.6; v_n(b) = Table 4.3A 7/16" Sheathing 8d @ 6 = 670 (engine row wsp716_8d_6); v_n = 670 × 0.6 = 402; wind 201.0, seismic 143.57; segmented [8, 8] h 8 P 2,000: v = 125 plf. 15/32" 10d @ 6, studs 24, intermediate 6: 870 × 0.5 = 435',
+      run: function () { return { r: compute(mkState(CASE_GYP({ f1: 'wsp716_8d_6', blocked: false, studs: 16, fieldNail: 12, sfrs: 'A.15', P: 2000 }))),
+                                  d: compute(mkState(CASE_GYP({ f1: 'wsp716_8d_6', blocked: false, sfrs: 'A.15', P: 2000 }))),
+                                  t: compute(mkState(CASE_GYP({ f1: 'wsp1532_10d_6', blocked: false, studs: 24, fieldNail: 6, sfrs: 'A.15', P: 2000 }))),
+                                  b: compute(mkState(CASE_GYP({ f1: 'wsp716_8d_6', studs: 24, sfrs: 'A.15', P: 2000 }))) }; },
+      expect: function (o) { var a = W(o.r, 0), d = W(o.d, 0), t = W(o.t, 0), b = W(o.b, 0);
+        return [['v_n(b) = the engine Table 4.3A @ 6 rows (670, 870)', findSheathing({ id: 'wsp716_8d_6' }).vn === 670 && findSheathing({ id: 'wsp1532_10d_6' }).vn === 870 && near(a.cap.face1.vnTable, 670, 1e-9) && near(t.cap.face1.vnTable, 870, 1e-9), a.cap.face1.vnTable + ' / ' + t.cap.face1.vnTable],
+                ['model ok', o.r.ok === true, o.r.errors.join(' | ') || 'ok'],
+                ['v_n = 402 plf', near(a.cap.wind.vn, 402, 1e-9), f2(a.cap.wind.vn)],
+                ['wind ASD 201.0, seismic ASD 143.57', near(a.cap.wind.asd, 201, 1e-9) && near(a.cap.seismic.asd, 143.571, 1e-3), f2(a.cap.wind.asd) + ' / ' + f3(a.cap.seismic.asd)],
+                ['v = 125 plf', near(a.cases.wind.vmax, 125, 1e-9), f2(a.cases.wind.vmax)],
+                ['C_ub named in the factors and the label', a.cap.face1.factors.some(function (x) { return x.why.indexOf('Table 4.3.5.3') >= 0 && near(x.f, 0.6, 1e-12); }) && a.cap.face1.label.indexOf('unblocked (C_ub 0.60') >= 0, a.cap.face1.label],
+                ['blank studs / intermediate -> 16 / 12 -> 402', near(d.cap.wind.vn, 402, 1e-9), f2(d.cap.wind.vn)],
+                ['15/32" 10d, 24 / 6 -> 870 × 0.5 = 435', near(t.cap.wind.vn, 435, 1e-9), f2(t.cap.wind.vn)],
+                ['blocked WSP ignores the stud spacing: 670', near(b.cap.wind.vn, 670, 1e-9), f2(b.cap.wind.vn)],
+                ['§4.3.5.3 note printed', o.r.notes.some(function (x) { return x.indexOf('§4.3.5.3') >= 0; }), o.r.notes.length + ' notes']]; } },
+    { id: 'U2', src: 'SDPWS 2021 §4.3.5.3: unblocked shear wall height ≤ 16 ft — h 17 refused',
+      run: function () { return validate(mkState(CASE_GYP({ f1: 'wsp716_8d_6', blocked: false, sfrs: 'A.15', h: 17, segments: [10, 10] }))); },
+      expect: function (v) { return [['h 17 ft refused', v.ok === false && errHas(v, 'exceeds 16 ft'), v.errors.join(' | ')]]; } },
+    { id: 'U3', src: 'SDPWS 2021 Table 4.3.5.3: C_ub for 6" supported edges only — 8d @ 4 on an unblocked wall refused (face 1 and face 2)',
+      run: function () { return { a: validate(mkState(CASE_GYP({ f1: 'wsp716_8d_4', blocked: false, sfrs: 'A.15' }))),
+                                  b: validate(mkState(CASE_GYP({ f1: 'wsp716_8d_6', f2: 'wsp716_8d_4', blocked: false, sfrs: 'A.15' }))) }; },
+      expect: function (o) {
+        return [['face 1 @ 4 unblocked: 6" edge nailing required', o.a.ok === false && errHas(o.a, 'face 1 — ') && errHas(o.a, 'Table 4.3.5.3'), o.a.errors.join(' | ')],
+                ['face 2 @ 4 unblocked: same refusal', o.b.ok === false && errHas(o.b, 'face 2 — ') && errHas(o.b, 'Table 4.3.5.3'), o.b.errors.join(' | ')]]; } },
+    { id: 'U4', src: 'SDPWS 2021 Table 4.3.3: unblocked WSP 2:1 — segmented [4] @ h 10 (h/b 2.5) refused',
+      run: function () { return validate(mkState(CASE_GYP({ f1: 'wsp716_8d_6', blocked: false, sfrs: 'A.15', h: 10, segments: [4] }))); },
+      expect: function (v) { return [['h/b 2.5 > 2.0 refused', v.ok === false && errHas(v, '> 2.0:1, the limit for unblocked wood structural panels'), v.errors.join(' | ')]]; } },
+    { id: 'T1', src: 'SDPWS 2021 Table 4.3C 5/8" two-ply (base 6d @ 9, face 8d @ 7, studs 16, blocked) = 500 plf; segmented [8, 8] h 8 P 3,000: v = 187.5; wind 250.0 (D/C 0.750); seismic 178.57 (D/C 1.050)',
+      run: function () { return compute(mkState(CASE_GYP({ f1: 'gyp58x2_6d8d', P: 3000 }))); },
+      expect: function (r) { var a = W(r, 0);
+        return [['model ok, two-ply row resolves', r.ok === true && a.cap.face1.opt.row === 'gyp58x2_6d8d_16b' && a.cap.face1.label.indexOf('two-ply') >= 0, r.errors.join(' | ') || a.cap.face1.label],
+                ['v_n = 500', near(a.cap.wind.vn, 500, 1e-9), f1(a.cap.wind.vn)],
+                ['wind 250.0, D/C 0.750', near(a.cap.wind.asd, 250, 1e-9) && near(a.cases.wind.dcSheathing, 0.75, 1e-9), f2(a.cap.wind.asd) + ' / ' + f4(a.cases.wind.dcSheathing)],
+                ['seismic 178.57, D/C 1.050', near(a.cap.seismic.asd, 178.571, 1e-3) && near(a.cases.seismic.dcSheathing, 1.05, 1e-9), f3(a.cap.seismic.asd) + ' / ' + f4(a.cases.seismic.dcSheathing)]]; } },
+    { id: 'S1', src: 'SDPWS 2021 Table 4.3C 5/8" x 4\' gypsum sheathing board, 6d galv. cooler 4/7, studs 16, blocked = 400; [8, 8] h 8 P 2,000: v = 125, wind 200 (D/C 0.625), seismic 142.86 (D/C 0.875); §4.3.7.5.2 note. WSP 670 + board 400, B.24: the §4.3.5.4.2 wind exception names gypsum wallboard -> max(800, 670) = 800 wind and seismic',
+      run: function () { return { r: compute(mkState(CASE_GYP({ f1: 'gsb58_4_47', P: 2000 }))), m: compute(mkState(CASE_SHEATH({ sfrs: 'B.24', face2: { id: 'gsb58_4_47' } }))) }; },
+      expect: function (o) { var a = W(o.r, 0), m = W(o.m, 0);
+        return [['model ok, v_n = 400', o.r.ok === true && near(a.cap.wind.vn, 400, 1e-9), f1(a.cap.wind.vn) + ' ' + (o.r.errors.join(' | ') || 'ok')],
+                ['wind 200.0 D/C 0.625; seismic 142.86 D/C 0.875', near(a.cap.wind.asd, 200, 1e-9) && near(a.cases.wind.dcSheathing, 0.625, 1e-9) && near(a.cap.seismic.asd, 142.857, 1e-3) && near(a.cases.seismic.dcSheathing, 0.875, 1e-9), f2(a.cap.wind.asd) + ' / ' + f3(a.cap.seismic.asd)],
+                ['§4.3.7.5.2 sheathing-board note printed', o.r.notes.some(function (x) { return x.indexOf('§4.3.7.5.2') >= 0; }), o.r.notes.length + ' notes'],
+                ['WSP + sheathing board: 800 wind, 800 seismic (no sum)', near(m.cap.wind.vn, 800, 1e-9) && near(m.cap.seismic.vn, 800, 1e-9), f1(m.cap.wind.vn) + ' / ' + f1(m.cap.seismic.vn)]]; } }
   ];
   // "S1 0.0-172.0 | O1 172.0-302.0" — a layout's pieces for the fixtures.
   function layTxt(lay) {
@@ -2913,8 +3301,18 @@
     if (o.face1) s.face1 = o.face1;
     if (o.face2) s.face2 = o.face2;
     if (o.insideFaceHoldown) s.insideFaceHoldown = true;
-    return { stories: [s, BASE_STORY], species: o.species || 'DFL', sdc: o.sdc || 'D' };
+    return { stories: [s, BASE_STORY], species: o.species || 'DFL', sdc: o.sdc || 'D', sfrs: o.sfrs };
   }
+  // Gypsum / unblocked probes (G, U, T, S fixtures): one base story, an
+  // opening-free wall, strength P = P_ASD/0.6 (wind) and P_ASD/0.7 (seismic),
+  // so V_ASD = P in both cases. Face ids from SHEATHING.
+  function CASE_GYP(o) {
+    var s = { name: 'Base', h: o.h || 8, P: o.P || 0, L: o.L || (o.segments || [8, 8]).reduce(function (a, b) { return a + b; }, 0),
+              segments: o.segments || [8, 8], openings: [], sill: 'ab58', spacing: 20, method: o.method || 'segmented',
+              face1: { id: o.f1 }, face2: o.f2 ? { id: o.f2 } : null, blocked: o.blocked, studs: o.studs, fieldNail: o.fieldNail };
+    return { stories: [s], sfrs: o.sfrs || 'B.24', sdc: o.sdc || 'D', species: 'DFL' };
+  }
+  function errHas(r, txt) { return r.errors.some(function (e) { return e.indexOf(txt) >= 0; }); }
 
   function runFixtures() {
     var lines = [], pass = 0, total = 0;
@@ -2939,6 +3337,8 @@
     sheathingCapacity: sheathingCapacity, combineFaces: combineFaces,
     holdownCapacity: holdownCapacity, holdownSpeciesCovered: holdownSpeciesCovered, endPostCheck: endPostCheck,
     findSheathing: findSheathing, findSill: findSill, sheathingLabel: sheathingLabel,
+    GYP_ROWS: GYP_ROWS, C_UB: C_UB, STUDS: STUDS, UB_DEFAULT: UB_DEFAULT, UB_MAX_H: UB_MAX_H, faceAspectLimit: faceAspectLimit,
+    resolveGypRow: resolveGypRow, gypRowsOf: gypRowsOf, gypRowText: gypRowText, wallSheathOpts: wallSheathOpts,
     resolveDead: resolveDead, defaultState: defaultState, defaultWall: defaultWall,
     wallAt: wallAt, wallPresence: wallPresence, layoutWall: layoutWall, planModel: planModel,
     levelElevations: levelElevations, wallStacks: wallStacks, openingX: openingX,

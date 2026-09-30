@@ -91,3 +91,8 @@ All type 'gyp' for the system rules (§4.3.7.5 covers wallboard and sheathing bo
 - G11: Table 4.3A fn. 6 "both faces < 6" fires only for two WSP faces.
 - Close out docs/stacked-wood-qaqc-2026-09/F-edition-deltas.md l. 52/66 and D-shearwall-recompute.md l. 288-291 with the 2021 Table 4.3C citation (PDF p. 50): single v_n, ÷2.8 seismic exact.
 - 2021 page refs: §4.1.4 p. 24; §4.3.2.3 p. 38; Table 4.3.3 p. 39; §4.3.5.3/Table 4.3.5.3 p. 40; §4.3.5.4 pp. 40-41; §4.3.5.5 p. 41; §4.3.7.1 p. 44-45; §4.3.7.5 p. 46; Table 4.3A p. 48; Table 4.3C p. 50; C4.3.5.3 / C4.3.5.4.2 p. 113.
+
+## Nick override (2026-09-30, later) — supersedes blocking UI/semantics above
+- One Blocked checkbox per wall (line field `sheathing.blocked`, default true), applies to both faces; per-wall stud spacing 12/16/20/24 (default 16) and unblocked-WSP field nailing 6/12 (default 12) live in the Face 1 cell (23 columns kept).
+- Selects list constructions independent of blocking. WSP: blocked → Table 4.3A; unblocked → @6 value × C_ub (edge ≠ 6, h > 16 ft, h/b > 2 refused). Gypsum: row resolved from (construction, blocked, stud spacing) — smallest max-stud ≥ wall spacing with matching blocked flag; no row → error listing the combinations Table 4.3C provides.
+- Per-face blocking and face-2 blocked optgroups dropped.

@@ -447,7 +447,7 @@ select.ti{cursor:pointer;padding:2px 1px}
         <div class="ig">
           <label>Seismic force-resisting system</label>
           <select id="sfrs" onchange="updGlobal()"></select>
-          <div class="hint">ASCE 7-16 Table 12.2-1</div>
+          <div class="hint">ASCE 7-16 Table 12.2-1; A.17 / B.24 list gypsum on face 1</div>
         </div>
         <div class="ig">
           <label>Seismic Design Category</label>
@@ -455,7 +455,7 @@ select.ti{cursor:pointer;padding:2px 1px}
             <option>A</option><option>B</option><option>C</option>
             <option selected>D</option><option>E</option><option>F</option>
           </select>
-          <div class="hint">Gates the gypsum contribution and the 3x framing trigger</div>
+          <div class="hint">Gates gypsum (SDC A–D, §4.3.7.5) and the 3x framing trigger</div>
         </div>
         <div class="ig">
           <label>Framing species</label>
@@ -489,7 +489,8 @@ select.ti{cursor:pointer;padding:2px 1px}
           <strong>Line force vs level total:</strong> each wall's <em>Line force P<sub>W</sub> / P<sub>E</sub></em> cell is its own diaphragm reaction. Walls on different lines each take their own reaction (flexible distribution &mdash; no rigidity split between lines); only walls sharing a <strong>Line</strong> key split one line's force, by capacity. The level box in the floor header is the level total: it applies only to walls whose line force is blank, and when every wall carries its own it is shown read-only as <em>not applied</em> with &Sigma; of the line forces checked against it. One file per direction holds all the walls of that direction.</li>
         <li><strong>Each wall:</strong> full length <em>L</em>, a <strong>Method</strong>, full-height segment widths <em>b<sub>i</sub></em>, openings (width &times; clear height, optionally <code>@x</code> = distance from End 1 to the opening, e.g. <code>8x7@6, 4x4</code> &mdash; position only places it in the elevation view; A<sub>o</sub>, C<sub>o</sub> and the shares do not depend on it).
           <strong>Perforated</strong> (&sect;4.3.2.3): C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends, &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
-          <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own shear wall with its own hold-down pair; v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> against v<sub>ASD</sub>, 2b/h on h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), h/b &gt; 3.5 refused; openings are gaps (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), unsheathed area ignored, no uniform uplift row; same segment count on every level.</li>
+          <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own shear wall with its own hold-down pair; v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> against v<sub>ASD</sub>, 2b/h on h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), h/b &gt; 3.5 refused; openings are gaps (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), unsheathed area ignored, no uniform uplift row; same segment count on every level.
+          <strong>Sheathing, blocking and studs.</strong> The Face 1 and Face 2 selects list constructions (panel or board, fastener, spacing). Under the Face 1 select, the wall's <strong>Blocked</strong> box and <strong>stud spacing</strong> apply to both faces and set the value: blocked wood structural panels take Table 4.3A; unblocked ones take v<sub>n(b)</sub>&middot;C<sub>ub</sub> (SDPWS 2021 &sect;4.3.5.3, Table 4.3.5.3 &mdash; the intermediate field-nailing select appears; 6" edge nailing, h &le; 16 ft, h/b &le; 2:1). A gypsum construction takes the Table 4.3C row with the same blocking and the smallest maximum stud spacing that covers the wall's; where the table has none the model is refused with the combinations it does give. <strong>Gypsum board on face 1</strong> (wallboard, two-ply, sheathing board): set SFRS to A.17 or B.24 &mdash; the gypsum constructions are listed only then &mdash; and Method to segmented; SDC A&ndash;D, h/b &le; 2:1 blocked or 1.5:1 unblocked (&sect;4.3.7.5, Table 4.3.3). A gypsum face 2 on a WSP wall adds to wind (&sect;4.3.5.4.2 Exception) but under A.15 / B.22 is not credited for seismic (C4.3.5.4.2).</li>
         <li><strong>Several walls on one line.</strong> The Diaphragm Designer delivers <em>one</em> force per wall line; the split happens here. <em>+ wall</em> on a row adds a wall to that line (enter its <em>L</em> and segments). Walls with the same <strong>Line</strong> key share the line's story shear at each level by C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> or &Sigma;b<sub>eff</sub> (equal-length opening-free walls: by length), so all carry the same unit shear (&sect;4.3.5.5.1 Exc. 1); a wall absent below leaves the story shear to the walls present there. Construction (sheathing, end post, hold-down, sill, uplift, method) and the line force are per line &mdash; an edit fans out; L, segments, openings, unsheathed area, dead load and label stay per wall. Clear the Line key to make a wall its own line.
           <strong>&#8681; Copy walls to levels below</strong> copies a level's walls (geometry, method, line, label, construction) onto the same wall ids below, creating them where missing; lower levels keep h, level forces, dead loads and transfers; the base keeps its anchor-bolt sill and HDUE. One-step Undo.</li>
       </ul>
@@ -539,9 +540,11 @@ select.ti{cursor:pointer;padding:2px 1px}
 </div>
 
 <div class="blk">
-  <h2>&#128206; Sheathing Capacity Reference <span class="badge">SDPWS 2021 Tables 4.3A / 4.3C</span></h2>
-  <div class="callout">Nominal unit shear capacities for blocked walls with the tabulated sheathing and fasteners on DF-L / Southern Pine framing, "Sheathing" grade wood structural panel (not Structural I).
-  ASD allowable = nominal &divide; 2.0 for wind (&sect;4.1.4.2) and nominal &divide; 2.8 for seismic (&sect;4.1.4.1). Values below are before the specific gravity and footnote-10 adjustments.</div>
+  <h2>&#128206; Sheathing Capacity Reference <span class="badge">SDPWS 2021 Tables 4.3A / 4.3C / 4.3.5.3</span></h2>
+  <div class="callout">Nominal unit shear capacities with the tabulated sheathing and fasteners on DF-L / Southern Pine framing: "Sheathing" grade wood structural panel (not Structural I), blocked (Table 4.3A, PDF p. 48), and gypsum board (Table 4.3C, PDF p. 50 &mdash; 2021 prints one nominal v<sub>n</sub> per row, the same values as 2015).
+  ASD allowable = nominal &divide; 2.0 for wind (&sect;4.1.4.2) and nominal &divide; 2.8 for seismic (&sect;4.1.4.1). Values below are before the specific gravity and footnote-10 adjustments (wood structural panels only).
+  Unblocked wood structural panels (&sect;4.3.5.3, Eq. 4.3-2): v<sub>n(ub)</sub> = v<sub>n(b)</sub> &times; C<sub>ub</sub>, v<sub>n(b)</sub> = the Table 4.3A blocked value at 6" edge nailing; C<sub>ub</sub> (Table 4.3.5.3, supported edges 6") = 1.0 / 0.8 / 0.6 / 0.5 for studs 12 / 16 / 20 / 24" with 6" intermediate nailing, 0.8 / 0.6 / 0.5 / 0.4 with 12"; wall height &le; 16 ft.
+  Edge spacing a/b = edge / field (Table 4.3C fn. 3); the two-ply row is base ply @ 9", face ply @ 7". A gypsum face uses the row of its construction with the wall's blocking and the smallest maximum stud spacing that covers the wall's stud spacing.</div>
   <table class="ref-tbl" id="shTbl"><thead><tr>
       <th class="thl">Sheathing</th><th>Fastener</th><th>Edge spacing</th><th>v<sub>n</sub> nominal (plf)</th><th>Wind ASD (plf)</th><th>Seismic ASD (plf)</th><th>Table</th>
   </tr></thead><tbody></tbody></table>
@@ -574,7 +577,7 @@ select.ti{cursor:pointer;padding:2px 1px}
       <li><strong>Hardware basis:</strong> all values are "160" allowables &mdash; the load-duration factor is already included and no further increase is applied. <strong>Species-dependent:</strong> HDUE hold-downs read the DF/SP or SPF/HF column of Simpson C-C-2026 p. 61 by the framing species (the DF/SP column equals ICC-ES ESR-2330 Table 2B); LTP4 reads the DF/SP (715 lb) or SPF/HF (615 lb) row of C-C-2026 p. 310 by the sill species; nails (8d / 10d / 16d common and box, Table L4) read NDS 2018 Table 12N at t<sub>s</sub> = 1&frac12;&quot; and the <em>lower</em> specific gravity of the sill and framing species (16d common 141 / 154 / 120 lb &times; 1.6 for DF-L / SP / SPF &mdash; the table is for both members of identical G, and the detail names which governed; &times; p/10D where the penetration is under 10D, fn. 3); SDS &frac14;&times;4&frac12; screws and anchor bolts (NDS Table 12E, 1&frac12;" sill on concrete with 6" embedment) carry a DF/SP and an SPF value by the sill species. <strong>Not species-dependent:</strong> coil straps (ESR-2105 Table 4) are DF/SP only and are refused for SPF framing.</li>
       <li><strong>Bottom-plate uplift (&sect;4.3.6.4.2.1):</strong> t = v<sub>max</sub> is resisted by the sill fasteners themselves. Nails &mdash; NDS Table 12.2C withdrawal at the receiving member's G (framing species) &times; penetration &times; C<sub>D</sub> 1.6, penetration &ge; 6D (&sect;12.1.6.4 nails, &sect;12.1.5.6 wood screws); nail sizes 8d / 10d / 16d common and box (Table L4). <strong>Penetration default:</strong> fastener length &minus; 1&frac12;" plate &minus; &frac34;" subfloor on every floor above the base (length &minus; 1&frac12;" at the base); the row prints "default &hellip; verify" until a value is entered. The same penetration sets the nail shear value where it is under 10D (Table 12N fn. 3), and a blank field is that default, not "specify". <strong>Disclosure:</strong> a nail driven through the bottom plate and the subfloor into the rim or plate below is not the two-member connection of Table 12N (side member 1&frac12;" on the main member); the tabulated value is used as-is. The SDS shear value assumes full thread penetration into the main member (C-C-2026 p. 377 note 2) and is used as-is when the default leaves &frac12;" of thread in the plate. SDS &frac14;&times;4&frac12; &mdash; NDS Table 12.2B as a No. 14 wood screw (ESR-2236 &sect;4.1.3; C-C-2026 p. 377 note 4 uses the same 172 / 121 lb/in) over the 2&frac34;" thread, capped by head pull-through through the wood bottom plate (C-C-2026 p. 377 note 5). Anchor bolts &mdash; the wood-side check is plate-washer bearing on the sill (F<sub>c&perp;</sub>, NDS Supplement Table 4A / 4B, no C<sub>D</sub> per Table 4.3.1, over the net washer area); the required tension per bolt T<sub>req</sub> = t &times; s/12 is printed for the anchor rod / concrete check, which stays outside this calculation. Toe-nailed plates (C<sub>tn</sub> 0.67) are not modelled &mdash; use the Manual source. <strong>Combined shear + uplift (NDS &sect;12.4):</strong> the fastener at full-height sheathing carries v<sub>max</sub> and t = v<sub>max</sub> at once, so Z'<sub>&alpha;</sub> at &alpha; = 45&deg; (Eq. 12.4-2 nails, Eq. 12.4-1 SDS) is checked against the resultant per fastener as its own row; it usually governs over the shear-only and uplift-only rows.</li>
       <li><strong>Sources:</strong> Simpson Strong-Tie <em>Wood Construction Connectors</em> C-C-2026 &mdash; p. 61 HDUE allowable tension (DF/SP and SPF/HF), p. 310 LTP4 allowable loads and sheathing footnote 3, p. 377 SDS withdrawal (notes 3, 4, 5); NDS 2018 &mdash; Table 12N (PDF p. 125, fn. 3 / fn. 4), Table 12E, Table 12.2C nail withdrawal (PDF p. 93), Table 12.2B wood-screw withdrawal (PDF p. 92), &sect;12.4 combined loads (PDF p. 103), &sect;12.1.6.4 (PDF p. 89), Table 2.3.2 and Table 11.3.1 (C<sub>D</sub>), Table 4.3.1 (no C<sub>D</sub> on F<sub>c&perp;</sub>), Table L3 / L4 (fastener dimensions), Table 12.3.3A (specific gravity); NDS 2018 Supplement &mdash; Table 4A (PDF pp. 42, 45) and Table 4B (PDF p. 48) F<sub>c&perp;</sub>; ICC-ES ESR-2330 (HDUE footnotes 6, 7, 10, 11), ESR-2105 (coil straps) and ESR-2236 (SDS &sect;4.1.3), not on disk.</li>
-      <li><strong>Sheathing:</strong> "Sheathing" grade wood structural panel, blocked construction assumed throughout. Gypsum wallboard is offered only as the opposite face of a wood structural panel wall (&sect;4.3.2.3), is combined per &sect;4.3.5.4.2, is limited to h/b of 2:1 (3.5:1 for wind design per Table 4.3.3 note 2) and is not counted in SDC E or F.</li>
+      <li><strong>Sheathing:</strong> the face selects are constructions; one <em>Blocked</em> box and one stud spacing per wall (both faces, a line field; files without them read blocked, 16") resolve the value. "Sheathing" grade wood structural panel (Table 4.3A) when blocked. <strong>Unblocked wood structural panels</strong> (SDPWS 2021 &sect;4.3.5.3; 2015 &sect;4.3.3.2): v<sub>n(ub)</sub> = v<sub>n(b)</sub>&middot;C<sub>ub</sub> (Eq. 4.3-2; v<sub>n(b)</sub> the Table 4.3A value at 6" edge nailing; C<sub>ub</sub> from Table 4.3.5.3 by the wall's stud spacing and intermediate framing nailing), 6" edge nailing only, wall height &le; 16 ft, h/b &le; 2:1 (Table 4.3.3) &mdash; a narrower segment is refused. <strong>Gypsum board</strong> (Table 4.3C: wallboard, two-ply wallboard, gypsum sheathing board; &sect;4.3.7.5) takes the Table 4.3C row of its construction with the wall's blocking and the smallest maximum stud spacing that covers the wall's (e.g. &frac12;" 5d @ 7" unblocked: studs 16" &rarr; 200 plf, 24" &rarr; 150 plf; blocked 16" &rarr; 250 plf, blocked 24" &rarr; no row, refused); <em>as face 1</em> only under SFRS A.17 / B.24, by the segmented method (perforated walls are wood structural panels, &sect;4.3.2.3), in SDC A&ndash;D, h/b &le; 2:1 blocked or 1.5:1 unblocked (Table 4.3.3 and note 1), with any second face also gypsum; the walls of one line keep one face-1 material (&sect;4.3.5.5). <em>As face 2</em> of a wood structural panel wall it is combined per &sect;4.3.5.4.2 (same row both faces 2&times;, &sect;4.3.5.4.1; wind: WSP + gypsum wallboard = sum, the Exception &mdash; gypsum sheathing board takes the 2&times; smaller / larger rule, the Exception names wallboard), is not counted past h/b 2:1 (3.5:1 for wind with a blocked WSP face 1 and gypsum wallboard, note 2; 1.5:1 unblocked, note 1) or in SDC E / F, and under A.15 / B.22 is <strong>not credited for seismic</strong> &mdash; a two-sided capacity that counts gypsum needs the lesser R of the gypsum system (C4.3.5.4.2), so the seismic capacity is the WSP face alone; under A.17 / B.24 the two faces combine for seismic too. The 3x framing / staggered nailing triggers (&sect;4.3.7.1(5), Table 4.3A fn. 6) read wood structural panel faces only.</li>
       <li><strong>Chord lever arm</strong> is taken as C<sub>o</sub>&middot;&Sigma;b<sub>i</sub> per &sect;4.3.6.1.3 for a perforated wall and as the segment width b<sub>i</sub> per &sect;4.3.6.1.2 for each segment of a segmented wall; the chords are assumed to sit at the extreme ends of the wall or segment. Compression is reported without dead-load relief, plus the accumulated point dead load carried on that end post.</li>
       <li><strong>Discontinuous wall lines:</strong> wall lines are correlated across levels by their id. A line that starts part way down the stack is accepted. A line that is missing at an intermediate level is a validation error unless <code>transfer: true</code> is set on that wall at the <em>first level below the gap</em> &mdash; the wall that receives the discontinuous load path. The transfer element itself (beam, truss or frame) is outside the scope of this calculation.</li>
       <li><strong>ASCE 7-16 Table 12.2-1 height limits are not evaluated.</strong> The selected system's limits are carried for reference, but this calculation has no building-height input, so the 35 ft limit on A.17 / B.24 in SDC D is not checked. Those systems are refused outright in SDC E and F, where Table 12.2-1 does not permit them.</li>
@@ -656,10 +659,20 @@ function parseOpenings(s){
 function hasX(o){ return o&&o.x_ft!==null&&o.x_ft!==undefined&&o.x_ft!==''&&isFinite(+o.x_ft); }
 function fmtOpenings(a){ return (a||[]).map(function(o){return o.w_ft+'×'+o.hc_ft+(hasX(o)?'@'+(+o.x_ft):'');}).join(', '); }
 function faceKey(f){ var s=f?SW.findSheathing(f):null; return s?s.id:''; }
+// The saved face is a CONSTRUCTION: its id plus the descriptive keys, so a
+// hand-read file still says what the face is. Blocking and stud spacing are
+// the wall's (sheathing.blocked / studs_in), not the face's.
 function faceFromId(id){
   if(!id)return null;
   var s=SW.findSheathing({id:id});
-  return s?{type:s.type,thickness:s.thickness,nail:s.nail,spacing:s.spacing}:null;
+  if(!s)return null;
+  var f={id:s.id,type:s.type,thickness:s.thickness,nail:s.nail,spacing:s.spacing};
+  if(s.field!=null)f.field=s.field;
+  return f;
+}
+function gypAllowed(){ var sf=SW.SFRS[state.sfrs]; return !sf||!sf.wsp; }
+function wspFace(w){
+  return [w.sheathing.face1,w.sheathing.face2].some(function(f){ var s=f?SW.findSheathing(f):null; return !!(s&&s.type==='wsp'); });
 }
 
 // ─── Level / wall management ─────────────────────────────────────────────────
@@ -732,7 +745,7 @@ function splitWall(fi,wi){
 // one wall fans out to every wall with the same line key on that level.
 // Geometry (L, segments, openings, unsheathed), dead load, transfer and the
 // label stay per wall.
-var LINE_FIELDS={face1:1,face2:1,insideFaceHoldown:1,postN:1,postSize:1,holdown:1,sillConn:1,sillSpacing:1,sillSheathing:1,sillSpecies:1,
+var LINE_FIELDS={face1:1,face2:1,blocked:1,studs:1,ubField:1,insideFaceHoldown:1,postN:1,postSize:1,holdown:1,sillConn:1,sillSpacing:1,sillSheathing:1,sillSpecies:1,
                  upliftSource:1,upliftPen:1,upliftWasher:1,upliftCap:1,method:1,P_wind_lb:1,P_seis_lb:1};
 function sameLine(fi,w){
   var key=SW.lineKey(w);
@@ -769,6 +782,11 @@ function applyWallField(w,fld,val){
     case 'unsheathed_ft2': w.unsheathed_ft2=parseFloat(val)||0; break;
     case 'face1': w.sheathing.face1=faceFromId(val); break;
     case 'face2': w.sheathing.face2=faceFromId(val); break;
+    // The wall's Blocked box and stud spacing, both faces (Table 4.3C row,
+    // §4.3.5.3 C_ub); intermediate nailing for unblocked WSP.
+    case 'blocked': w.sheathing.blocked=!(val===false||val==='0'||val==='false'); break;
+    case 'studs': w.sheathing.studs_in=parseInt(val,10)||16; break;
+    case 'ubField': w.sheathing.field_in=parseInt(val,10)||12; break;
     case 'insideFaceHoldown': w.sheathing.insideFaceHoldown=!!val; break;
     case 'postN': w.endPost.n=parseInt(val,10)||1; break;
     case 'postSize': w.endPost.size=val; break;
@@ -1036,8 +1054,8 @@ function render(){
     out+=thc('bi_ft',75,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated, listed from End 1. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each; segment 1 carries P_D,end');
     out+=thc('openings_w_hc',90,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated; optional @x = distance from End 1 to the near edge of the opening, ft (8x7@6, 4x4) — the position only places the opening in the elevation view, A_o and C_o do not depend on it. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
     out+=thc('unsh_sf',50,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception) — perforated walls only');
-    out+=thc('face_1_wsp',116,'Face 1 (WSP)','th-chk');
-    out+=thc('face_2',122,'Face 2','th-chk');
+    out+=thc('face_1_wsp',116,'Face 1','th-chk','Face 1 construction, then the wall Blocked box and stud spacing (both faces). Wood structural panels: Table 4.3A blocked; unblocked = v_n(b)·C_ub (SDPWS 2021 §4.3.5.3 — 6 in edge nailing, h ≤ 16 ft; intermediate nailing select when unblocked). Gypsum board, under SFRS A.17 / B.24 only: the Table 4.3C row with the same blocking and the smallest max stud spacing covering the wall (segmented method, SDC A–D, §4.3.7.5)');
+    out+=thc('face_2',122,'Face 2','th-chk','Opposite face, same Blocked box and stud spacing as face 1; combined per SDPWS 2021 §4.3.5.4 (same construction both faces 2×; otherwise the greater of 2× smaller and larger; wind: WSP + gypsum wallboard = sum). Under A.15 / B.22 a gypsum face 2 is not credited for seismic (C4.3.5.4.2, lesser R).');
     out+=thc('hd_inside',44,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
     out+=thc('end_post',100,'End Post','');
     out+=thc('hold_down',70,'Hold-down','');
@@ -1080,8 +1098,24 @@ function render(){
       out+='<td style="background:var(--are-input)"><input class="ti" type="text" value="'+xe(fmtNums(w.segments_ft))+'" onchange="updWall('+fi+','+wi+',\'segments_ft\',this.value)"></td>';
       out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: openings are optional gaps between the segments — only Σ segments + Σ opening widths ≤ L is checked; no A_o')+'><input class="ti" type="text" value="'+xe(fmtOpenings(w.openings))+'" onchange="updWall('+fi+','+wi+',\'openings\',this.value)"></td>';
       out+='<td'+(isSeg?segTd:' style="background:var(--are-input)"')+segTitle('Segmented wall: ignored — the unsheathed area enters A_o, which the segmented method does not use')+'><input class="ti" type="number" value="'+(w.unsheathed_ft2||0)+'" step="1" min="0" onchange="updWall('+fi+','+wi+',\'unsheathed_ft2\',this.value)"></td>';
-      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'wsp',false)+'</select></td>';
-      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'any',true)+'</select></td>';
+      // Face 1 cell: the sheathing select first (the tests address it as the
+      // cell's first select), then the wall's Blocked box and stud spacing
+      // (both faces), then the unblocked-WSP intermediate nailing
+      // (Table 4.3.5.3) when the wall is unblocked and a face is WSP.
+      var blk1=w.sheathing.blocked!==false, stud1=+(w.sheathing.studs_in||16);
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face1\',this.value)">'+shOpts(faceKey(w.sheathing.face1),'face1',false,w)+'</select>'
+         +'<div class="blk-row" style="display:flex;gap:3px;align-items:center;margin-top:2px">'
+         +'<label class="blk-lbl" style="display:flex;align-items:center;gap:2px;font-size:.70em;white-space:nowrap;cursor:pointer" title="Blocked: all panel edges on framing or blocking, both faces. Unblocked: wood structural panels by SDPWS 2021 §4.3.5.3 (v_n(b) × C_ub; 6 in edge nailing, h ≤ 16 ft, h/b ≤ 2:1); gypsum board by the Table 4.3C unblocked rows (h/b ≤ 1.5:1, Table 4.3.3 note 1)">'
+         +'<input type="checkbox" class="blk-chk"'+(blk1?' checked':'')+' onchange="updWall('+fi+','+wi+',\'blocked\',this.checked)">Blocked</label>'
+         +'<select class="ti ti-studs" style="font-size:.68em;flex:1;min-width:0" title="Stud spacing (in o.c.), both faces: picks the SDPWS 2021 Table 4.3C gypsum row (smallest maximum stud spacing that covers it) and C_ub for unblocked wood structural panels (Table 4.3.5.3)" onchange="updWall('+fi+','+wi+',\'studs\',this.value)">'
+         +SW.STUDS.map(function(v){ return '<option value="'+v+'"'+(v===stud1?' selected':'')+'>'+v+'&quot;</option>'; }).join('')+'</select></div>';
+      if(!blk1&&wspFace(w)){
+        var ubF=+(w.sheathing.field_in||12);
+        out+='<select class="ti ti-field" style="font-size:.68em;margin-top:2px" title="Unblocked WSP: nail spacing along intermediate framing (SDPWS 2021 Table 4.3.5.3; supported edges 6 in)" onchange="updWall('+fi+','+wi+',\'ubField\',this.value)">'
+           +[6,12].map(function(v){ return '<option value="'+v+'"'+(v===ubF?' selected':'')+'>field nailing '+v+'&quot;</option>'; }).join('')+'</select>';
+      }
+      out+='</td>';
+      out+='<td style="background:var(--are-input)"><select class="ti" style="font-size:.72em" onchange="updWall('+fi+','+wi+',\'face2\',this.value)">'+shOpts(faceKey(w.sheathing.face2),'face2',true,w)+'</select></td>';
       // HD inside only acts on 10d common faces (Table 4.3A fn. 10, × 0.92): disabled
       // with an "n/a" caption otherwise. The state value is kept, so the box comes
       // back as it was when a face changes to 10d.
@@ -1146,11 +1180,26 @@ function render(){
   renderResults();
 }
 
-function shOpts(sel, filter, allowNone){
+// Sheathing options: CONSTRUCTIONS, in optgroups (Table 4.3A wood
+// structural panel / Table 4.3C gypsum). Face 1 lists gypsum only under SFRS
+// A.17 / B.24; the selected construction is always listed. Each option shows
+// the nominal value at this wall's Blocked box and stud spacing (Table 4.3C
+// row, or v_n(b) × C_ub), or why there is none.
+function shOpts(sel, which, allowNone, w){
   var out = allowNone ? '<option value=""'+(sel?'':' selected')+'>(none — one side)</option>' : '';
-  SW.SHEATHING.forEach(function(s){
-    if(filter==='wsp' && s.type!=='wsp')return;
-    out+='<option value="'+s.id+'"'+(s.id===sel?' selected':'')+'>'+xe(SW.sheathingLabel(s))+' ('+s.vn+' plf nom.)</option>';
+  var sh = (w&&w.sheathing)||{}, so = {blocked: sh.blocked!==false, studs: sh.studs_in, field: sh.field_in};
+  var gOk = which!=='face1'||gypAllowed();
+  var groups = [['Table 4.3A wood structural panel', function(x){ return x.type==='wsp'; }],
+                ['Table 4.3C gypsum'+(gOk?'':' (SFRS A.17 / B.24 only)'), function(x){ return x.type==='gyp'&&(gOk||x.id===sel); }]];
+  groups.forEach(function(g){
+    var o='';
+    SW.SHEATHING.forEach(function(x){
+      if(!g[1](x))return;
+      var c=SW.sheathingCapacity({id:x.id},so);
+      var val=c.ok?' ('+Math.round(c.vn)+' plf nom.)':(x.type==='gyp'?' (no Table 4.3C row: '+(so.blocked?'blocked':'unblocked')+', studs '+(so.studs||16)+'")':' (unblocked needs 6" edge)');
+      o+='<option value="'+x.id+'"'+(x.id===sel?' selected':'')+'>'+xe(SW.sheathingLabel(x))+xe(val)+'</option>';
+    });
+    if(o) out+='<optgroup label="'+xe(g[0])+'">'+o+'</optgroup>';
   });
   return out;
 }
@@ -1781,7 +1830,7 @@ function wallHtml(res,fl,w,fi,wi){
       + '</div>';
   html+='<div class="conn-row"><span class="conn-lbl">SHEATHING:</span><span class="conn-val">'+xe(w.cap.face1.label)+'</span>'
       + (w.cap.face2&&w.cap.face2.ok?' &nbsp;+ face 2: '+xe(w.cap.face2.label):' (one side)')
-      + ' &mdash; v<sub>n</sub> = '+f1(w.cap[gov.vmaxCase].vn)+' plf, '+xe(w.cap[gov.vmaxCase].rule)
+      + ' &mdash; v<sub>n</sub> = '+f1(w.cap[gov.vmaxCase].vn)+' plf, '+xe(w.cap[gov.vmaxCase].rule)+' ('+xe(w.cap[gov.vmaxCase].ref)+'; Table '+(w.cap.face1.opt&&w.cap.face1.opt.type==='gyp'?'4.3C':'4.3A')+(w.cap.face1.ub?' + §4.3.5.3 C<sub>ub</sub>':'')+')'
       + (((w.cap.face1&&w.cap.face1.fn10<1)||(w.cap.face2&&w.cap.face2.ok&&w.cap.face2.fn10<1))?' &times; 0.92 (HD inside, Table 4.3A fn. 10)':'')
       + '</div>';
   html+='<div class="conn-row"><span class="conn-lbl">END POST:</span><span class="conn-val">'+xe(w.endPost.label)+'</span>'
@@ -1872,7 +1921,7 @@ function detailHtml(id,w,fl){
     // Segmented: Σb_eff and the capacity-proportional distribution, then the
     // same nominal / ASD capacity block as the perforated branch.
     h+='<div class="cref-hdr">SDPWS 2021 &sect;4.3.2.1 / &sect;4.3.5.5.1 Exception 1 (2015 &sect;4.3.5.1 / &sect;4.3.3.4.1 Exc. 1) &mdash; Individual full-height segments, capacity-proportional distribution</div>';
-    h+='<div class="mrow">Each b<sub>i</sub> is an individual full-height shear wall (Table 4.3.3: h/b &le; 3.5 blocked WSP). Nominal capacities of segments with h/b &gt; 2:1 are multiplied by f<sub>i</sub> = 2b<sub>i</sub>/h and "need not be further reduced by the adjustment in 4.3.3.2"; shear is then distributed in proportion to the design capacities v<sub>ASD</sub>&middot;b<sub>i</sub>&middot;f<sub>i</sub>.</div>';
+    h+='<div class="mrow">Each b<sub>i</sub> is an individual full-height shear wall (Table 4.3.3: h/b &le; 3.5 blocked WSP; 2:1 unblocked WSP and blocked gypsum; 1.5:1 unblocked gypsum). Nominal capacities of segments with h/b &gt; 2:1 are multiplied by f<sub>i</sub> = 2b<sub>i</sub>/h and "need not be further reduced by the adjustment in 4.3.3.2"; shear is then distributed in proportion to the design capacities v<sub>ASD</sub>&middot;b<sub>i</sub>&middot;f<sub>i</sub>.</div>';
     h+='<table class="ref-tbl" style="margin-top:2px"><thead><tr><th>Segment</th><th>b<sub>i</sub> (ft)</th><th>h/b</th><th>f<sub>i</sub></th><th>b<sub>i</sub>&middot;f<sub>i</sub> (ft)</th><th>share</th></tr></thead><tbody>';
     g.segments.forEach(function(s){
       h+='<tr><td>'+(s.i+1)+'</td><td>'+f2(s.b)+'</td><td>'+f2(s.hOverB)+'</td><td>'+f3(s.f)+(s.f<1-1e-9?' = 2×'+f2(s.b)+'/'+f2(w.h_ft):'')+'</td><td>'+f2(s.bEff)+'</td><td>'+f3(s.share)+'</td></tr>';
@@ -2086,8 +2135,15 @@ function renderRefTables(){
 
   tb=document.querySelector('#shTbl tbody'); out='';
   SW.SHEATHING.forEach(function(s){
-    out+='<tr><td class="tdl">'+xe(s.thickness)+'" '+(s.type==='gyp'?'gypsum wallboard':'WSP sheathing')+'</td><td>'+xe(s.nail)+'</td><td>'+s.spacing+'" o.c.</td>'
+    if(s.type!=='wsp')return;   // gypsum: the Table 4.3C rows below
+    out+='<tr><td class="tdl">'+xe(s.thickness)+'" WSP sheathing; blocked (unblocked: &times; C<sub>ub</sub>, 6" edge only)</td><td>'+xe(s.nail)+'</td><td>'+s.spacing+'" o.c.</td>'
       +'<td>'+f0(s.vn)+'</td><td>'+f1(s.vn/2.0)+'</td><td>'+f1(s.vn/2.8)+'</td><td>'+xe(s.table)+'</td></tr>';
+  });
+  SW.GYP_ROWS.forEach(function(r){
+    var c=SW.findSheathing({id:r.con});
+    var mat=c.material==='sheathing'?'gypsum sheathing board '+(c.size||''):'gypsum wallboard'+(c.plies===2?', two-ply':'');
+    out+='<tr><td class="tdl">'+xe(c.thickness+'" '+mat+'; studs ≤ '+r.studs+'" o.c.; '+(r.blocked?'blocked':'unblocked'))+'</td><td>'+xe(c.nail)+'</td><td>'+c.spacing+(c.field?'/'+c.field:'')+'" o.c.</td>'
+      +'<td>'+f0(r.vn)+'</td><td>'+f1(r.vn/2.0)+'</td><td>'+f1(r.vn/2.8)+'</td><td>Table 4.3C</td></tr>';
   });
   tb.innerHTML=out;
 

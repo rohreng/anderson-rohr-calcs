@@ -290,6 +290,12 @@ with v_w ≈ 1.4·v_s, and the ASD reduction factor is **2.0 for both**. Confirm
 Table 4.3A and dividing by the ASD reduction factor of 2.0."* — **the brief's "ASD seismic = nominal/2.8" is
 not SDPWS**; 2.8 is not used anywhere in SDPWS 2021 §4.3.
 
+> **Resolved 2026-09-30 — the paragraph above is superseded.** The v_s / v_w two-column format and the
+> 2.0-for-both reading are the SDPWS 2008 / 2015 form. SDPWS 2021 prints a single nominal v_n per row in
+> Table 4.3A (PDF p. 48) and Table 4.3C (PDF p. 50, gypsum values unchanged from 2015), and §4.1.4.1 /
+> §4.1.4.2 (PDF p. 24) take ASD = v_n/2.8 for seismic and v_n/2.0 for wind. The engine's ÷2.8 / ÷2.0 on the
+> tabulated v_n is exact to 2021.
+
 ### Story mechanics used in the recompute
 
 ```
