@@ -48,6 +48,18 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--ar
 .warn-box ul{padding-left:18px}
 .lf-sum{font-size:.74em;opacity:.85;margin-left:6px}
 .lf-sum.lf-bad{opacity:1;color:var(--are-fail);background:var(--are-gray-3);border:1px solid var(--are-fail);padding:1px 7px;border-radius:8px;font-weight:700}
+/* Level forces: own line of the floor header, one row per case. A read-only
+   box (every wall carries its own line force) is dimmed with a dashed border
+   so it does not read as a force being applied. */
+.lvl-forces{flex-basis:100%;display:flex;flex-direction:column;gap:4px;padding-top:6px;border-top:1px solid rgba(255,255,255,.2)}
+.lvl-f{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lvl-lbl{font-size:.86em;min-width:74px}
+.lvl-unit{font-size:.8em;opacity:.85}
+.lvl-note{font-size:.8em;font-style:italic}
+.lvl-f .lf-sum{margin-left:4px}
+#floor-con .floor-hdr input.ti{width:96px;background:rgba(255,255,255,.15);color:#fff}
+#floor-con .floor-hdr input.ti.lvl-ro{border-style:dashed !important;opacity:.85}
+.lvl-f-ro .lvl-lbl{opacity:.75}
 .lh-prov{font-size:.76em;color:var(--are-gray-1);margin:0 0 8px 2px}
 .lh-panel{background:#fff;border:1px solid var(--are-gray-2);border-left:3px solid var(--are-blue-3);border-radius:8px;padding:12px 15px;margin-bottom:14px;font-size:.84em}
 .lh-panel table{border-collapse:collapse;margin:8px 0}
@@ -248,7 +260,9 @@ select.ti{cursor:pointer;padding:2px 1px}
 #swViews .swv-btn:hover,#swViews .swv-tab:hover{background:var(--are-gray-3)}
 #swViews .swv-tab[aria-pressed="true"]:hover{background:var(--are-blue-2)}
 #swViews .swv-panels{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
-#swViews.swv-both .swv-panels{grid-template-columns:repeat(auto-fit,minmax(min(100%,560px),1fr))}
+/* Both: side by side only when each drawing still gets 900 px (a 2048 px wide
+   window); narrower, they stack full width so the drawings stay large. */
+#swViews.swv-both .swv-panels{grid-template-columns:repeat(auto-fit,minmax(min(100%,900px),1fr))}
 #swViews.swv-elev #swvPlan,#swViews.swv-plan #swvElev{display:none}
 #swViews .swv-panel{border:1px solid var(--are-gray-2);border-radius:8px;padding:8px;min-width:0;background:#fff}
 #swViews .swv-svg{min-width:0;overflow-x:auto}
@@ -296,6 +310,36 @@ select.ti{cursor:pointer;padding:2px 1px}
 /* The wall picked in the Wall selector, outlined in the plan */
 #swViews .sw-view .swv-sel .sw-wline{stroke-width:8}
 #swViews .sw-view .swv-sel .sw-wt{font-weight:700}
+/* ── Screen type size (2026-09-30): the wall table, level headers and result
+   panes nested em on em down to ~10 px. On screen only they are set in px
+   (table cells / inputs 13–14 px); print keeps its own pt sizes in
+   <style id="sw-print">. The #floor-con prefix beats are-theme-v2's
+   !important input sizing (see the S5/S8 note above). */
+@media screen {
+  .wall-table{font-size:14px}
+  .wall-table th{font-size:11px;line-height:1.25;letter-spacing:0;padding:5px 3px}
+  #floor-con .wall-table input.ti,#floor-con .wall-table select.ti{font-size:13px !important;padding:3px 4px !important}
+  #floor-con .wall-table select.ti{padding:3px 1px !important}
+  #floor-con .wall-table > tbody > tr:not(.wres-row) > td{font-size:13px !important}
+  #floor-con .wall-table td span[style*="font-size"]{font-size:11px !important}
+  .line-chip{font-size:11.5px}
+  .line-cue,.hd-na-cap{font-size:11px}
+  .btn-chk{font-size:12.5px}
+  .det-btn{font-size:12px}
+  #floor-con .floor-hdr input.ti{font-size:14px !important;padding:3px 6px !important}
+  .lvl-lbl{font-size:14px}
+  .lvl-unit,.lvl-note,.lf-sum{font-size:13px}
+  .inline-res{font-size:14px}
+  .sum-pass,.sum-fail,.sum-req{font-size:14px}
+  .dem-grid{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+  .dem-card .v{font-size:17px}
+  .dem-card .l{font-size:12px}
+  .chk-tbl{font-size:13.5px}
+  .chk-tbl th{font-size:12px}
+  .conn-row{font-size:13.5px}
+  .msg-list{font-size:13px}
+  .calc-det{font-size:13.5px}
+}
 
 
 </style>
@@ -441,7 +485,8 @@ select.ti{cursor:pointer;padding:2px 1px}
     <div class="callout how-to" style="margin-bottom:14px">
       <strong>How to use</strong>
       <ul>
-        <li><strong>Levels and forces.</strong> Levels stack top to bottom; the last panel is the base at the foundation. <em>P<sub>W</sub></em>, <em>P<sub>E</sub></em> = the <strong>strength-level, incremental</strong> force delivered to the wall line at that level. The engine applies 0.6W, 0.7E and 0.6D, runs both cases in full and reports the controlling one per check.</li>
+        <li><strong>Levels and forces.</strong> Levels stack top to bottom; the last panel is the base at the foundation. <em>P<sub>W</sub></em>, <em>P<sub>E</sub></em> = the <strong>strength-level, incremental</strong> force delivered to the wall line at that level. The engine applies 0.6W, 0.7E and 0.6D, runs both cases in full and reports the controlling one per check.
+          <strong>Line force vs level total:</strong> each wall's <em>Line force P<sub>W</sub> / P<sub>E</sub></em> cell is its own diaphragm reaction. Walls on different lines each take their own reaction (flexible distribution &mdash; no rigidity split between lines); only walls sharing a <strong>Line</strong> key split one line's force, by capacity. The level box in the floor header is the level total: it applies only to walls whose line force is blank, and when every wall carries its own it is shown read-only as <em>not applied</em> with &Sigma; of the line forces checked against it. One file per direction holds all the walls of that direction.</li>
         <li><strong>Each wall:</strong> full length <em>L</em>, a <strong>Method</strong>, full-height segment widths <em>b<sub>i</sub></em>, openings (width &times; clear height, optionally <code>@x</code> = distance from End 1 to the opening, e.g. <code>8x7@6, 4x4</code> &mdash; position only places it in the elevation view; A<sub>o</sub>, C<sub>o</sub> and the shares do not depend on it).
           <strong>Perforated</strong> (&sect;4.3.2.3): C<sub>o</sub> from the opening areas, v<sub>max</sub> = V/(C<sub>o</sub>&middot;&Sigma;b<sub>i</sub>), one hold-down pair at the wall ends, &sect;4.3.6.4.2.1 uniform uplift at the bottom plate.
           <strong>Segmented</strong> (&sect;4.3.2.1): each b<sub>i</sub> is its own shear wall with its own hold-down pair; v<sub>eff</sub> = V/&Sigma;b<sub>eff</sub> against v<sub>ASD</sub>, 2b/h on h/b &gt; 2:1 (&sect;4.3.5.5.1 Exc. 1), h/b &gt; 3.5 refused; openings are gaps (only &Sigma;b<sub>i</sub> + &Sigma;w &le; L is checked), unsheathed area ignored, no uniform uplift row; same segment count on every level.</li>
@@ -860,6 +905,10 @@ function undoCopyDown(){
 // every render(), exactly as in stacked_headers_studs_calculator.html.
 // v2 (2026-09-22): defaults resized to fit a 2048 px viewport and Detail + ✕
 // merged into one Actions column — widths stored under the old key are dropped once.
+// 2026-09-30: screen type went to 13 px; the defaults were re-balanced (wider
+// L, Method, Line force, Hold-down, Sill connector, species; narrower Line, b_i,
+// openings, Faces, Over sheathing, DL cells, Actions) and still sum to 1,895 px, inside the
+// 1,899 px wide-mode scroller at a 2031 px window (tools/test-sw-print.mjs).
 var COLW_KEY='areCalcs_sw_colWidths_v2';
 try{ localStorage.removeItem('areCalcs_sw_colWidths'); }catch(e){}
 var COLW={};
@@ -968,42 +1017,39 @@ function render(){
     out+='<span style="font-size:.8em;opacity:.85"> ft</span>';
     out+='</div>';
     out+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental wind force delivered at this level — level total, used by wall lines with no line force">P<sub>W</sub> =</span>';
-    out+='<input class="ti" type="number" value="'+(Math.round(fl.P_wind_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_wind_lb\',this.value)">';
-    out+='<span style="font-size:.78em;opacity:.85" title="Strength-level incremental seismic force delivered at this level — level total, used by wall lines with no line force">P<sub>E</sub> =</span>';
-    out+='<input class="ti" type="number" value="'+(Math.round(fl.P_seis_lb*100)/100)+'" step="1" min="0" style="width:82px;background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onchange="updFloor('+fi+',\'P_seis_lb\',this.value)">';
-    out+='<span style="font-size:.78em;opacity:.85"> lb (strength)</span>';
-    out+=lineSumHTML(fl,'P_wind_lb','W')+lineSumHTML(fl,'P_seis_lb','E');
     if(!isBase) out+='<button class="btn-del-fl btn-copy-dn" onclick="copyWallsDown('+fi+')" title="Copy every wall on this level (geometry, method, line, label, sheathing, posts, hold-down, sill, uplift) onto the wall with the same id on every level below, creating it where missing. Level heights, level forces, dead loads and transfers below stay; the base keeps its anchor-bolt sill and computes uplift at its own penetration default. One-step Undo.">&#8681; Copy walls to levels below</button>';
     out+='<button class="btn-del-fl" onclick="delFloor('+fi+')">✕ Level</button>';
     out+='</div>';
+    // Level forces on their own line, one row per case: the level total, what
+    // it is used for, and the Σ of the wall-line forces (levelForceHTML).
+    out+='<div class="lvl-forces">'+levelForceHTML(fi,'P_wind_lb','W')+levelForceHTML(fi,'P_seis_lb','E')+'</div>';
     out+='</div>'; // floor-hdr
 
     out+='<div class="floor-body"><div class="tbl-scroll">';
     out+='<table class="wall-table"><thead><tr>';
     out+=thc('wall_label',85,'Wall Label','thl');
-    out+=thc('line',90,'Line','thl','Wall-line key. Walls with the same key on this level are one wall line and share its force in proportion to design capacity (C_o·Σb_i or Σb_eff — by length for equal opening-free walls); construction and the line force are per line, geometry per wall. Blank = its own line. "+ wall" on a row adds a wall to that line; rows of one line are bracketed on the left.');
-    out+=thc('l_ft',50,'L (ft)','');
-    out+=thc('method',78,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
-    out+=thc('pw_lb',66,'P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level; blank = use the level force');
-    out+=thc('pe_lb',66,'P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level; blank = use the level force');
-    out+=thc('bi_ft',85,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated, listed from End 1. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each; segment 1 carries P_D,end');
-    out+=thc('openings_w_hc',95,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated; optional @x = distance from End 1 to the near edge of the opening, ft (8x7@6, 4x4) — the position only places the opening in the elevation view, A_o and C_o do not depend on it. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
+    out+=thc('line',80,'Line','thl','Wall-line key. Walls with the same key on this level are one wall line and share its force in proportion to design capacity (C_o·Σb_i or Σb_eff — by length for equal opening-free walls); construction and the line force are per line, geometry per wall. Blank = its own line. "+ wall" on a row adds a wall to that line; rows of one line are bracketed on the left.');
+    out+=thc('l_ft',56,'L (ft)','');
+    out+=thc('method',88,'Method','th-sw','Perforated (§4.3.2.3): one wall with openings, C_o, uniform uplift at the bottom plate. Segmented (§4.3.2.1): each b_i is its own full-height shear wall with its own hold-downs; shear shared by design capacity with 2b/h on h/b > 2:1 (§4.3.5.5.1 Exc. 1); openings are gaps, unsheathed area and the uplift row do not apply; h/b > 3.5 refused. Same segment count on every level.');
+    out+=thc('pw_lb',78,'Line force P<sub>W</sub> (lb)','th-sw','Strength-level wind force delivered to THIS wall line at this level (its diaphragm reaction); blank = use the level total');
+    out+=thc('pe_lb',78,'Line force P<sub>E</sub> (lb)','th-sw','Strength-level seismic force delivered to THIS wall line at this level (its diaphragm reaction); blank = use the level total');
+    out+=thc('bi_ft',75,'b<sub>i</sub> (ft)','th-sw','Full-height segment widths, comma separated, listed from End 1. Perforated: the perforated shear wall segments (Σb_i). Segmented: the individual full-height shear walls, one hold-down pair each; segment 1 carries P_D,end');
+    out+=thc('openings_w_hc',90,'Openings w×h<sub>c</sub>','th-sw','width × clear height, comma separated; optional @x = distance from End 1 to the near edge of the opening, ft (8x7@6, 4x4) — the position only places the opening in the elevation view, A_o and C_o do not depend on it. Segmented walls: optional gaps — only Σ segments + Σ widths ≤ L is checked');
     out+=thc('unsh_sf',50,'Unsh. (sf)','th-sw','Sheathed areas not built as the tabulated assembly (§4.3.2.3(9) Exception) — perforated walls only');
-    out+=thc('face_1_wsp',125,'Face 1 (WSP)','th-chk');
-    out+=thc('face_2',125,'Face 2','th-chk');
+    out+=thc('face_1_wsp',116,'Face 1 (WSP)','th-chk');
+    out+=thc('face_2',122,'Face 2','th-chk');
     out+=thc('hd_inside',44,'HD inside','th-chk','Hold-down attached to the inside face of the end post (Table 4.3A fn. 10)');
     out+=thc('end_post',100,'End Post','');
-    out+=thc('hold_down',64,'Hold-down','');
-    out+=thc('sill_connector',112,'Sill connector','th-sh');
+    out+=thc('hold_down',70,'Hold-down','');
+    out+=thc('sill_connector',130,'Sill connector','th-sh');
     out+=thc('spacing',58,'Spacing','th-sh');
-    out+=thc('over_sheathing',78,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
-    out+=thc('sill_species',66,'Sill species','th-sh');
+    out+=thc('over_sheathing',70,'Over sheathing','th-sh','LTP4 only — reduction for fastening through sheathing');
+    out+=thc('sill_species',78,'Sill species','th-sh');
     out+=thc('uplift',165,'Uplift','th-sh','Bottom-plate uplift, t = v_max (§4.3.6.4.2.1, perforated walls only; a segmented wall anchors its segment ends, §4.3.6.4.2). Auto: capacity from the sill connection — nail / SDS withdrawal over the fastener penetration (default = length − 1½" plate − ¾" subfloor above the base; blank = default), or plate-washer bearing at anchor bolts (washer side). Manual: typed plf. The penetration also sets the nail shear value (Table 12N fn. 3).');
-    out+=thc('gravity_dl_source',86,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
-    out+=thc('wd_plf',56,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
-    out+=thc('pd_end_lb',62,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
-    out+=thc('actions',84,'Actions','th-chk col-act','▶ Check opens every calc detail of the wall; ✕ removes the wall; + wall adds another wall on its line');
+    out+=thc('gravity_dl_source',76,'Gravity DL source','th-dl','Link dead load from a gravity wall — cascades to all levels below');
+    out+=thc('wd_plf',52,'w<sub>D</sub> (plf)','th-dl','Uniform dead load along the wall');
+    out+=thc('pd_end_lb',58,'P<sub>D,end</sub> (lb)','th-dl','Point dead load at End 1');
+    out+=thc('actions',76,'Actions','th-chk col-act','▶ Check opens every calc detail of the wall; ✕ removes the wall; + wall adds another wall on its line');
     out+='</tr></thead><tbody>';
 
     // Rows sharing a line key: the first carries .line-grp, the rest .line-cont
@@ -1146,14 +1192,14 @@ function upliftCellHTML(fi,wi,w,isBase){
   var u=SW.normalizeWall(w).uplift, sc=SW.findSill(w.sill&&w.sill.conn);
   var manual=u.source==='manual';
   var h='<div style="display:flex;gap:2px;align-items:center;flex-wrap:wrap">';
-  h+='<select class="ti" style="font-size:.70em;width:60px;flex:none" title="Uplift capacity source: Auto = from the sill connection; Manual = typed plf" onchange="updWall('+fi+','+wi+',\'upliftSource\',this.value)">'
+  h+='<select class="ti" style="font-size:.70em;width:66px;flex:none" title="Uplift capacity source: Auto = from the sill connection; Manual = typed plf" onchange="updWall('+fi+','+wi+',\'upliftSource\',this.value)">'
     +'<option value="sill"'+(manual?'':' selected')+'>Auto</option><option value="manual"'+(manual?' selected':'')+'>Manual</option></select>';
   if(sc&&(sc.nail||sc.screw)){
     var pd=SW.penetrationDefault(sc,isBase);
-    h+='<input class="ti" type="number" style="width:52px;flex:none" value="'+(u.penetration_in!=null?u.penetration_in:'')+'" step="0.25" min="0" placeholder="'+pd+' dflt" title="Fastener penetration into the receiving member, in — blank = '+xe(SW.penetrationDefaultText(sc,isBase))+'. Subtract the actual subfloor thickness where it differs. Also sets the nail shear value where p is under 10D (Table 12N fn. 3)." onchange="updWall('+fi+','+wi+',\'upliftPen\',this.value)">'
+    h+='<input class="ti" type="number" style="width:64px;flex:none" value="'+(u.penetration_in!=null?u.penetration_in:'')+'" step="0.25" min="0" placeholder="'+pd+' dflt" title="Fastener penetration into the receiving member, in — blank = '+xe(SW.penetrationDefaultText(sc,isBase))+'. Subtract the actual subfloor thickness where it differs. Also sets the nail shear value where p is under 10D (Table 12N fn. 3)." onchange="updWall('+fi+','+wi+',\'upliftPen\',this.value)">'
       +'<span style="font-size:.66em;color:var(--are-gray-1);flex:none">p in</span>';
   } else if(sc&&sc.base&&!manual){
-    h+='<input class="ti" type="number" style="width:52px;flex:none" value="'+(u.washer_in!=null?u.washer_in:'')+'" step="0.5" min="0" placeholder="3" title="Square plate washer side, in — 0.229&quot; × 3&quot; × 3&quot; minimum under each anchor bolt nut (SDPWS §4.3.6.4.3); bearing on the sill at F_c⊥ over the net area" onchange="updWall('+fi+','+wi+',\'upliftWasher\',this.value)">'
+    h+='<input class="ti" type="number" style="width:64px;flex:none" value="'+(u.washer_in!=null?u.washer_in:'')+'" step="0.5" min="0" placeholder="3" title="Square plate washer side, in — 0.229&quot; × 3&quot; × 3&quot; minimum under each anchor bolt nut (SDPWS §4.3.6.4.3); bearing on the sill at F_c⊥ over the net area" onchange="updWall('+fi+','+wi+',\'upliftWasher\',this.value)">'
       +'<span style="font-size:.66em;color:var(--are-gray-1);flex:none">washer in</span>';
   } else if(!manual){
     h+='<span style="font-size:.68em;color:var(--are-gray-1)" title="LTP4 is not rated for uplift — choose Manual or a nail / SDS sill connection">not rated</span>';
@@ -1188,19 +1234,63 @@ function lineSign(w, key){
   if(s===-1||s===1) return s;
   return w.sign===-1?-1:1;
 }
-function lineSumHTML(fl, key, tag){
+// A wall's own line force (P_wind_lb / P_seis_lb) as the engine reads it:
+// a finite number, else NaN (blank / null = inherit).
+function ownForce(w, key){
+  var v=w?w[key]:null;
+  return (v===null||v===undefined||v==='')?NaN:+v;
+}
+// Who uses the level total at this level: the walls whose LINE carries no
+// finite force (SW.lineForce takes the first finite value on the line, so a
+// blank row on a line with a force uses the line force, not the level's).
+// ro: every wall has a line force -> the level total is applied to nothing.
+function levelForceUse(fl, key){
+  var walls=fl.walls||[], has={};
+  walls.forEach(function(w){ if(isFinite(ownForce(w,key))) has[SW.lineKey(w)]=true; });
+  var nInherit=walls.filter(function(w){ return !has[SW.lineKey(w)]; }).length;
+  return {n:walls.length, nInherit:nInherit, ro:walls.length>0 && nInherit===0};
+}
+// One level-force row (wind or seismic) in the floor header. When every wall
+// on the level carries its own line force the box is read-only: the value
+// stays in the model (saved, loaded, compared by the stepped-parapet check)
+// but no wall uses it, and the label says so. Otherwise it stays editable
+// and names how many walls take it.
+function levelForceHTML(fi, key, tag){
+  var fl=state.floors[fi], u=levelForceUse(fl,key), sym='P<sub>'+tag+'</sub>';
+  var val=Math.round((+fl[key]||0)*100)/100;
+  var dia=!!(state.lateral && state.lateral.schema===LH_SCHEMA);
+  var h='<div class="lvl-f'+(u.ro?' lvl-f-ro':'')+'" data-key="'+key+'">';
+  h+='<span class="lvl-lbl" title="Strength-level incremental '+(tag==='W'?'wind':'seismic')+' force delivered at this level (level total). Used only by walls whose line has no line force of its own.">Level '+sym+' =</span>';
+  // Not applied when every line carries its own force, but still editable: it
+  // is the check value for the Σ of the line forces.
+  h+='<input class="ti'+(u.ro?' lvl-ro':'')+'" type="number" value="'+val+'" step="1" min="0" onchange="updFloor('+fi+',\''+key+'\',this.value)"'
+    +(u.ro?' title="Check only, not applied: every wall on this level carries its own line force (Line force '+sym.replace(/<\/?sub>/g,'')+' column). It checks the sum of the line forces. Clear a wall\'s line force to have that wall use this level total."':'')+'>';
+  h+='<span class="lvl-unit">lb (strength)</span>';
+  var note;
+  if(u.ro) note='Level total'+(dia?' (from diaphragm)':'')+' &mdash; check only, not applied; each wall uses its own line force';
+  else if(!u.n) note='Level total &mdash; no walls on this level';
+  else note='Level total &mdash; applies to '+(u.nInherit===u.n&&u.n>1?'all ':'')+u.nInherit+' wall'+(u.nInherit===1?'':'s')+' with blank '+sym;
+  h+='<span class="lvl-note">'+note+'</span>';
+  h+=lineSumHTML(fl,key,tag,u);
+  return h+'</div>';
+}
+function lineSumHTML(fl, key, tag, u){
   if(key==='P_wind_lb' && lhStepped(fl)) return steppedSumHTML(fl);
   var any=false, sum=0, seen={};
   (fl.walls||[]).forEach(function(w){
-    var lk=SW.lineKey(w);
-    if(seen[lk] || w[key]==null || !isFinite(w[key])) return;
-    seen[lk]=true; any=true; sum+=lineSign(w,key)*(+w[key]);
+    var lk=SW.lineKey(w), P=ownForce(w,key);
+    if(seen[lk] || !isFinite(P)) return;
+    seen[lk]=true; any=true; sum+=lineSign(w,key)*P;
   });
   var lvl=+fl[key]||0;
   if(!any || (key==='P_seis_lb' && !(lvl>0))) return '';
-  var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl);
-  return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level, once per wall line (walls left blank inherit the level force and are not counted)">'
-       + '&Sigma; wall lines'+(tag==='E'?' (E)':'')+' = '+f0(sum)+' lb (level '+f0(lvl)+' lb)</span>';
+  u=u||levelForceUse(fl,key);
+  var bad = Math.abs(sum-lvl) > 0.01*Math.abs(lvl), E=(tag==='E'?' (E)':'');
+  var t = u.ro ? '&Sigma; wall line forces'+E+' = '+f0(sum)+' lb &middot; level total '+f0(lvl)+' lb'
+               : '&Sigma; entered wall line forces'+E+' = '+f0(sum)+' lb (blank walls not counted) &middot; level total '+f0(lvl)+' lb';
+  if(!bad) t+=' &#10003;';
+  else t+=' &#10007; &mdash; differ by '+f0(Math.abs(sum-lvl))+' lb'+(u.ro?'; the walls are designed for their own line forces &mdash; correct the level total or the line forces':'');
+  return '<span class="lf-sum'+(bad?' lf-bad':'')+'" title="Sum of the P_'+tag+' line forces entered on the wall rows of this level, once per wall line (walls of one line share one force; walls left blank inherit the level total and are not counted). Checked against the level total within 1 %.">'+t+'</span>';
 }
 // ─── Stepped-parapet levels (plan 2026-09-23 R13 / R17) ─────────────────────
 // A level imported with parapet steps in this direction carries fl.lh =
@@ -1485,7 +1575,7 @@ function viewWall(){
   return ids[0];
 }
 function viewOpt(v,t,sel){ return '<option value="'+xe(v)+'"'+(sel?' selected':'')+'>'+xe(t)+'</option>'; }
-function viewPx(el){ var w=el?Math.floor(el.clientWidth):0; return Math.max(560, Math.min(w>0?w:760, 1400)); }
+function viewPx(el){ var w=el?Math.floor(el.clientWidth):0; return Math.max(560, Math.min(w>0?w:760, 1600)); }
 function drawViews(){
   var host=document.getElementById('swViews'); if(!host) return;
   host.className='blk swv-'+VIEW.mode;
@@ -1527,7 +1617,8 @@ function drawViews(){
   eMsg.innerHTML=ev.warnings.length?'<strong>Layout:</strong> '+ev.warnings.map(xe).join(' &middot; '):'';
   // Plan (interactive, one level) + every level for print
   if(_vplan){
-    var pv=SWV.planSVG(_vplan, VIEW.level, {caseKey:VIEW.caseKey, showEnds:VIEW.ends, pxW:viewPx(pSvg)});
+    // Deep buildings are capped at most of the window height (the default is 1.2 × the width).
+    var pv=SWV.planSVG(_vplan, VIEW.level, {caseKey:VIEW.caseKey, showEnds:VIEW.ends, pxW:viewPx(pSvg), maxH:Math.max(560, Math.round((window.innerHeight||900)*0.85))});
     pSvg.innerHTML=pv.svg;
     var sel=pSvg.querySelectorAll('[data-wall]');
     for(var i=0;i<sel.length;i++) if(sel[i].getAttribute('data-wall')===String(wid)) sel[i].classList.add('swv-sel');

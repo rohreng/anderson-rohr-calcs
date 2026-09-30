@@ -184,14 +184,14 @@ function oneStory(o) {
     && segRows.every((l, i) => l.k === `floors.0.walls.0.cases.wind.segments.${i}.ends.0.T`) && ec.svg.includes('not placed — drawn past End 2') && ec.warnings.some((w) => /segment 3 drawn past End 2/.test(w)), JSON.stringify(ec.warnings));
   // Per-segment labels: one row each, never on one line (no overlap on narrow segments).
   const ys = [...ec.svg.matchAll(/<text class="sw-t sw-reactt[^"]*" x="[-0-9.]+" y="([-0-9.]+)"/g)].map((m) => Number(m[1]));
-  check('per-segment T / C labels on 3 distinct rows, 11 px apart', ys.length === 3 && new Set(ys).size === 3 && Math.abs(ys[1] - ys[0] - 11) < 0.2 && Math.abs(ys[2] - ys[1] - 11) < 0.2, JSON.stringify(ys));
+  check('per-segment T / C labels on 3 distinct rows, 14 px apart', ys.length === 3 && new Set(ys).size === 3 && Math.abs(ys[1] - ys[0] - 14) < 0.2 && Math.abs(ys[2] - ys[1] - 14) < 0.2, JSON.stringify(ys));
   // Pieces outside 0..L widen the drawn extent: nothing is drawn outside the viewBox.
   const neg = oneStory({ L: 30, segs: [10, 12], ops: [{ w_ft: 3, hc_ft: 7, x_ft: -2 }, { w_ft: 3, hc_ft: 7, x_ft: 28 }], P: 3000 });
   const rn2 = SW.compute(neg), en2 = SWV.elevationSVG(rn2, neg, {});
   const vb = en2.svg.match(/viewBox="0 0 ([0-9.]+) /), W = vb ? Number(vb[1]) : 0;
   const xs = [...en2.svg.matchAll(/<rect class="[^"]*" x="([-0-9.]+)" y="[-0-9.]+" width="([-0-9.]+)"/g)].map((m) => [Number(m[1]), Number(m[1]) + Number(m[2])]);
   sound('opening at x = −2 and one past L', en2.svg, rn2, null);
-  check('opening at x = −2 ft and one running past L: every rect inside the drawing band (left margin 92 px … viewBox ' + W + ' − right margin 118 px)', rn2.ok === true && xs.length > 0 && xs.every((x) => x[0] >= 91.9 && x[1] <= W - 117.9) && en2.warnings.some((w) => /starts before End 1/.test(w)), JSON.stringify(xs));
+  check('opening at x = −2 ft and one running past L: every rect inside the drawing band (left margin 124 px … viewBox ' + W + ' − right margin 136 px)', rn2.ok === true && xs.length > 0 && xs.every((x) => x[0] >= 123.9 && x[1] <= W - 135.9) && en2.warnings.some((w) => /starts before End 1/.test(w)), JSON.stringify(xs));
   check('b does not fit: segment drawn sw-bad with a tag, warning returned', /class="sw-seg sw-bad"/.test(en.svg) && en.svg.includes('b does not fit') && en.warnings.some((w) => /b_i does not fit/.test(w)), JSON.stringify(en.warnings));
 }
 
@@ -233,17 +233,18 @@ function oneStory(o) {
   check('plan: T/C markers off by default', !labels(p0.svg).some((l) => l.q === 'T' || l.q === 'C'), '');
   check('plan: centred wall B dotted + note; B × D label; N/S/E/W', /class="sw-wall sw-pw sw-(pass|fail) sw-centred"/.test(p0.svg) && p0.svg.includes('Dotted: no start_ft') && labels(p0.svg).some((l) => l.q === 'B' && l.v === 100) && ['>N<', '>S<', '>E<', '>W<'].every((s) => p0.svg.includes(s)), '');
   check('plan: text escaped (label <b>&"C)', p0.svg.includes('&lt;b&gt;&amp;&quot;C') && !p0.svg.includes('<b>'), '');
-  check('plan: Y wall W drawn vertical (x1 = x2)', /data-wall="W"[^>]*><line class="sw-wline" x1="([0-9.]+)" y1="[0-9.]+" x2="\1"/.test(p0.svg), '');
+  check('plan: Y wall W drawn vertical (x1 = x2)', /data-wall="W"[^>]*>(?:<title>[^<]*<\/title>)?<line class="sw-wline" x1="([0-9.]+)" y1="[0-9.]+" x2="\1"/.test(p0.svg), '');
   const pr = labels(p0.svg).find((l) => l.q === 'sumV');
   // Base: line A1 carries 10,000 + 10,000 = 20,000 lb (entered); N, W, C
   // inherit the level force and are left out -> Σ 20,000 lb vs level 6,000 lb:
   // a real mismatch (the entered line force exceeds the level), so red.
   check('plan base: Σ wall V = 20,000 lb (line A1 only) vs level 6,000 lb; header flagged', Math.abs(pr.v - 20000) <= 0.05 && Math.abs(plan.levels[1].sum.wind.Vlevel - 6000) <= 1e-6 && /sw-sub sw-sum-off/.test(p0.svg), JSON.stringify(pr));
-  // Orientation, numerically: north up (loc 10 below loc 50 on screen), x = M + (start − ext.x0)·s, M 70, s = 620 px / 100 ft.
-  const wl = (id) => { const m = p0.svg.match(new RegExp('data-wall="' + id + '"[^>]*><line class="sw-wline" x1="([-0-9.]+)" y1="([-0-9.]+)" x2="([-0-9.]+)" y2="([-0-9.]+)"')); return m ? m.slice(1).map(Number) : null; };
-  const lA = wl('A'), lN = wl('N'), lW = wl('W'), s6 = 620 / 100;
+  // Orientation, numerically: north up (loc 10 below loc 50 on screen), x = M + (start − ext.x0)·s, M 70, s = 620 px / 100 ft;
+  // the plan top PT follows the header (it wraps), so it is read off the building rectangle (y = Y(D) = PT).
+  const wl = (id) => { const m = p0.svg.match(new RegExp('data-wall="' + id + '"[^>]*>(?:<title>[^<]*</title>)?<line class="sw-wline" x1="([-0-9.]+)" y1="([-0-9.]+)" x2="([-0-9.]+)" y2="([-0-9.]+)"')); return m ? m.slice(1).map(Number) : null; };
+  const lA = wl('A'), lN = wl('N'), lW = wl('W'), s6 = 620 / 100, PT = Number((p0.svg.match(/<rect class="sw-bldg" x="[-0-9.]+" y="([-0-9.]+)"/) || [])[1]);
   check('plan orientation: A (loc 10) pixel y > N (loc 50) pixel y; A x0 = 70 + (5 − 0)·6.2 = 101, x1 = 70 + 25·6.2 = 225; W (Y wall at x 0) vertical, End 1 (south) lower on screen',
-    lA && lN && lW && lA[1] > lN[1] && Math.abs(lA[0] - (70 + 5 * s6)) <= 0.1 && Math.abs(lA[2] - (70 + 25 * s6)) <= 0.1 && Math.abs(lA[1] - (96 + (50 - 10) * s6)) <= 0.1 && lW[0] === lW[2] && Math.abs(lW[0] - 70) <= 0.1 && lW[1] > lW[3],
+    lA && lN && lW && lA[1] > lN[1] && Math.abs(lA[0] - (70 + 5 * s6)) <= 0.1 && Math.abs(lA[2] - (70 + 25 * s6)) <= 0.1 && PT > 90 && Math.abs(lA[1] - (PT + (50 - 10) * s6)) <= 0.1 && lW[0] === lW[2] && Math.abs(lW[0] - 70) <= 0.1 && lW[1] > lW[3],
     JSON.stringify({ lA, lN, lW }));
   // Review input: one level P_W 5,000, two X walls at loc 0 / 10, blank line forces -> no false red.
   {

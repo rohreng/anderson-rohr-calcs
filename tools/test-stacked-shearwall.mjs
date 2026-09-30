@@ -601,16 +601,16 @@ check('+ line: a second wall on the roof line — id w1#2, label "Wall Line A-2"
   ln.n === 2 && ln.ids === 'w1,w1#2' && ln.labels === 'Wall Line A,Wall Line A-2' && ln.lines === 'w1,w1' && ln.lineCells === 'w1,w1' && ln.P === '4000,4000' && ln.Pseis === ',' && ln.rows === 2 && ln.lowerWalls === '1,1,1' && /^Add another wall on this line/.test(ln.btnTitle), JSON.stringify(ln));
 check('+ line: chip "line w1 · 2 walls · share 50 %" on both rows; engine line {w1, 2, 0.5}; V = 0.6 × 4,000 × 0.5 = 1,200 lb each; note printed, no error',
   ln.chips.join('|') === 'line w1 · 2 walls · share 50 %|line w1 · 2 walls · share 50 %' && ln.eng.every((l) => l.key === 'w1' && l.walls === 2 && Math.abs(l.share - 0.5) < 1e-9) && ln.V.every((v) => Math.abs(v - 1200) < 1e-6) && ln.notes === 1 && ln.err0 === 0, JSON.stringify([ln.chips, ln.eng, ln.V, ln.notes, ln.err0]));
-check('+ line: floor Σ counts the line once — "Σ wall lines = 4,000 lb (level 4,638 lb)"', ln.sum.indexOf('Σ wall lines = 4,000 lb (level 4,638 lb)') >= 0, ln.sum);
+check('+ line: floor Σ counts the line once — "Σ wall line forces = 4,000 lb · level total 4,638 lb ✗"', ln.sum.indexOf('Σ wall line forces = 4,000 lb · level total 4,638 lb ✗') >= 0, ln.sum);
 check('geometry per wall: clone L 151 / 86 ft opening-free, base wall stays 302; shares 104.48 : 86 (0.549 / 0.451), chips follow, equal v_max',
   ln.L === '302,151' && Math.abs(ln.share2[0] - 104.4809 / 190.4809) < 1e-4 && Math.abs(ln.share2[1] - 86 / 190.4809) < 1e-4 && ln.chips2.join('|') === ln.expChip.join('|') && Math.abs(ln.vmax2[0] - ln.vmax2[1]) < 1e-9, JSON.stringify([ln.L, ln.share2, ln.chips2, ln.vmax2]));
 check('banner names the line share; hold-down detail prints V_line × share = V_i and the increment ΔV',
   /line w1: share 0\.549 = 104\.4\d \/ 190\.4\d ft of 2 walls/.test(ln.banner0) && /V\s*line\s*= 4,000 lb \(strength, Σ to this level\) × share 0\.549 = V\s*i\s*= 2,194 lb; ΔV = 2,194 lb/.test(ln.det0), ln.banner0 + ' || ' + ln.det0.slice(0, 1500));
 check('construction fans out along the line (face 1 row 0 → row 1; sill spacing row 1 → row 0), not down the stack, L untouched',
   ln.face === '10d common@4,10d common@4' && ln.spacing === '8,8' && ln.Lafter === '302,151' && ln.lowerFace === '8d common', JSON.stringify([ln.face, ln.spacing, ln.Lafter, ln.lowerFace]));
-check('line force fans out (P_W 5,000 typed on row 1 reaches row 0), no model error, Σ once = 5,000', ln.Pfan === '5000,5000' && ln.errFan === 0 && ln.sumFan.indexOf('Σ wall lines = 5,000 lb') >= 0, JSON.stringify([ln.Pfan, ln.errFan, ln.sumFan]));
+check('line force fans out (P_W 5,000 typed on row 1 reaches row 0), no model error, Σ once = 5,000', ln.Pfan === '5000,5000' && ln.errFan === 0 && ln.sumFan.indexOf('Σ wall line forces = 5,000 lb') >= 0, JSON.stringify([ln.Pfan, ln.errFan, ln.sumFan]));
 check('clearing the clone\'s Line key: key removed, no chips, each wall its own line at V = 0.6 × 5,000 = 3,000 lb, Σ = 10,000 lb, no error',
-  ln.lineKeyGone && ln.chips3.join('|') === '|' && ln.walls3 === '1,1' && ln.V3.every((v) => Math.abs(v - 3000) < 1e-6) && ln.sum3.indexOf('Σ wall lines = 10,000 lb') >= 0 && ln.err3 === 0, JSON.stringify([ln.lineKeyGone, ln.chips3, ln.walls3, ln.V3, ln.sum3, ln.err3]));
+  ln.lineKeyGone && ln.chips3.join('|') === '|' && ln.walls3 === '1,1' && ln.V3.every((v) => Math.abs(v - 3000) < 1e-6) && ln.sum3.indexOf('Σ wall line forces = 10,000 lb') >= 0 && ln.err3 === 0, JSON.stringify([ln.lineKeyGone, ln.chips3, ln.walls3, ln.V3, ln.sum3, ln.err3]));
 check('+ line ids are unique per stack: the base gets w1#3 (w1#2 is on the roof) with the base sill; a third roof wall gets w1#4',
   ln.baseIds === 'w1,w1#3' && ln.baseSill === 'ab58' && ln.roofIds === 'w1,w1#4,w1#2', JSON.stringify([ln.baseIds, ln.baseSill, ln.roofIds]));
 
@@ -941,7 +941,7 @@ check('import X: no SW.validate errors, a results pane per wall', imp.errors.len
 check('import X: base X@15 V_strength ≈ 12,433 lb, V ≈ 7,460 lb (Red Bluff goldens stacked)',
   Math.abs(imp.Vstrength - 12433) <= 2 && Math.abs(imp.V - 7460) <= 2, imp.Vstrength + ' / ' + imp.V);
 check('import X: floor header Σ wall lines line shown and not red (Σ ≈ level force)',
-  imp.sumText && imp.sumText.indexOf('Σ wall lines = 131,305 lb (level 131,310 lb)') >= 0 && imp.sumCls.indexOf('lf-bad') < 0 && imp.sumColor !== 'rgb(196, 43, 43)',
+  imp.sumText && imp.sumText.indexOf('Σ wall line forces = 131,305 lb · level total 131,310 lb ✓') >= 0 && imp.sumCls.indexOf('lf-bad') < 0 && imp.sumColor !== 'rgb(196, 43, 43)',
   JSON.stringify({ t: imp.sumText, c: imp.sumCls, col: imp.sumColor }));
 check('import X: provenance line and the import message',
   imp.prov.indexOf('Imported from Diaphragm Designer — direction X — 3 files') >= 0 && imp.msg.indexOf('Imported 3 levels, 75 wall lines, direction X from: dia-roof.html') >= 0,
@@ -955,6 +955,36 @@ const sumBad = await page.evaluate(() => {
   return out;
 });
 check('Σ wall lines turns red when |Σ − level| > 1 %', sumBad.cls.indexOf('lf-bad') >= 0 && sumBad.color === 'rgb(196, 43, 43)', JSON.stringify(sumBad));
+
+// Level total vs line forces (2026-09-30): every wall on the level carries its
+// own P_W -> the level box is marked check-only / not applied (still editable,
+// so a stale value can be corrected); one wall
+// blank -> editable again and it names the walls it applies to. The level value
+// stays in the model either way, and no computed number moves.
+const lvlRo = await page.evaluate(() => {
+  const box = (key) => document.querySelector('#floor-con .floor-blk .lvl-f[data-key="' + key + '"]');
+  const read = (key) => { const b = box(key), i = b.querySelector('input'); return { ro: /lvl-ro/.test(i.className), readOnly: i.readOnly, onchange: i.hasAttribute('onchange'), cls: i.className, note: b.querySelector('.lvl-note').innerText, val: +i.value }; };
+  const f0 = window.state.floors[0], before = JSON.stringify(window.SW.compute(window.state));
+  const out = { allOwn: read('P_wind_lb'), seisAllOwn: read('P_seis_lb'), level: f0.P_wind_lb };
+  const keep = f0.walls[3].P_wind_lb;
+  f0.walls[3].P_wind_lb = null; window.render();
+  out.oneBlank = read('P_wind_lb'); out.modelLevel = window.__SW_ADAPTER.getModel().floors[0].P_wind_lb;
+  f0.walls[3].P_wind_lb = keep; window.render();
+  out.back = read('P_wind_lb'); out.same = JSON.stringify(window.SW.compute(window.state)) === before;
+  out.saved = window.__SW_ADAPTER.getModel().floors[0].P_wind_lb;
+  const cs = (sel) => getComputedStyle(document.querySelector(sel)).fontSize;
+  out.font = { ti: cs('#floor-con .wall-table input.ti'), th: cs('#floor-con .wall-table th'), hdr: cs('#floor-con .floor-hdr .lvl-f input'), chk: cs('#floor-con .chk-tbl') };
+  out.hdrs = [...document.querySelectorAll('#floor-con .floor-blk')[0].querySelectorAll('.wall-table thead th')].slice(4, 6).map((th) => th.innerText.replace(/\s+/g, ' ').trim());
+  return out;
+});
+check('level box: every wall with its own P_W -> check-only (lvl-ro, still editable), "Level total (from diaphragm) — check only, not applied; each wall uses its own line force"',
+  lvlRo.allOwn.ro && !lvlRo.allOwn.readOnly && lvlRo.allOwn.onchange && lvlRo.allOwn.note === 'Level total (from diaphragm) — check only, not applied; each wall uses its own line force' && lvlRo.allOwn.val === 131310, JSON.stringify(lvlRo.allOwn));
+check('level box (E): imported walls carry P_E = 0 of their own -> the seismic level box is check-only too', lvlRo.seisAllOwn.ro, JSON.stringify(lvlRo.seisAllOwn));
+check('level box: one wall blank -> editable (onchange), "applies to 1 wall with blank P_W"; the level value stays in the model',
+  !lvlRo.oneBlank.ro && lvlRo.oneBlank.onchange && /applies to 1 wall with blank PW$/.test(lvlRo.oneBlank.note) && lvlRo.oneBlank.val === 131310 && lvlRo.modelLevel === 131310, JSON.stringify(lvlRo.oneBlank));
+check('level box: restoring the wall force -> check-only again; level P_W still 131,310 in getModel; compute() JSON identical', lvlRo.back.ro && lvlRo.saved === 131310 && lvlRo.same, JSON.stringify(lvlRo.back));
+check('screen type: table inputs 13 px, headers 11 px, level box 14 px, check table 13.5 px; line-force headers renamed',
+  lvlRo.font.ti === '13px' && lvlRo.font.th === '11px' && lvlRo.font.hdr === '14px' && lvlRo.font.chk === '13.5px' && lvlRo.hdrs.join('|').toUpperCase() === 'LINE FORCE PW (LB)|LINE FORCE PE (LB)', JSON.stringify([lvlRo.font, lvlRo.hdrs]));
 
 // (3) re-import, direction Y
 await page.setInputFiles('#diaImport', diaFiles);
@@ -1213,7 +1243,7 @@ await rx.close();
     f.P_seis_lb = 0; f.walls[0].P_seis_lb = 0; f.walls[1].P_seis_lb = 0; window.render();
     return t;
   });
-  check('seismic Σ uses sign_seis (+1), not the wall\'s negative wind sign: Σ (E) = 1,000', spSeis.indexOf('Σ wall lines (E) = 1,000 lb (level 1,000 lb)') >= 0, spSeis);
+  check('seismic Σ uses sign_seis (+1), not the wall\'s negative wind sign: Σ (E) = 1,000', spSeis.indexOf('Σ wall line forces (E) = 1,000 lb · level total 1,000 lb ✓') >= 0, spSeis);
   // edit line 2 (Y@20) to 0 -> OVERRIDDEN listing that line; case checks hidden
   await sp.evaluate(() => window.updWall(0, 1, 'P_wind_lb', '0'));
   so = await readStep();
@@ -1253,7 +1283,7 @@ await rx.close();
       cases: !!document.querySelector('#floor-con .lh-cases, #floor-con .lh-override'), same: JSON.stringify(window.SW.compute(window.state)) === before };
   });
   check('old file (no lh, legacy sign -1): Σ wall lines signed for W and E as before, no case / override line, identical results',
-    spOld.sums.indexOf('Σ wall lines = 120,000 lb (level 120,000 lb)') >= 0 && spOld.sums.indexOf('Σ wall lines (E) = 1,000 lb (level 1,000 lb)') >= 0 && spOld.cases === false && spOld.same, JSON.stringify(spOld));
+    spOld.sums.indexOf('Σ wall line forces = 120,000 lb · level total 120,000 lb ✓') >= 0 && spOld.sums.indexOf('Σ wall line forces (E) = 1,000 lb · level total 1,000 lb ✓') >= 0 && spOld.cases === false && spOld.same, JSON.stringify(spOld));
   check('stepped import page: no page errors, no stray dialogs', spErrors.length === 0 && spDialogs.length === 0, spErrors.concat(spDialogs).join('\n      '));
   await sp.close();
 }
